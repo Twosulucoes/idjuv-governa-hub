@@ -17,7 +17,8 @@
  *
  * Lançamento por setor (migração 20261011020000): `audit_logs.fundamento` (jsonb) guarda a via usada na gravação
  * (lotação, designação, comissão...) ou a negada (`negado_sem_servidor`, `negado_setor`). O filtro `vias` lê
- * `fundamento->>via` e só então a coluna entra no select (as consultas sem o filtro não dependem dela).
+ * `fundamento->>via` e só então a coluna entra no select (as consultas sem o filtro não dependem dela); `semCascata`
+ * tira as gravações disparadas por outra (`fundamento->>em_cascata = 'true'`), que não são checadas.
  *
  * As colunas novas e a RPC ainda não estão em types.ts (gerado): consulta sem tipagem do client.
  */
@@ -69,8 +70,9 @@ export interface LinhaTrilha {
   gatilho?: string | null;
   /** Nome do perfil (profiles.full_name) quando não há servidor vinculado; o que a RLS não liberar fica vazio. */
   usuario_nome?: string | null;
-  /** fundamento->>via (só quando o filtro `vias` é usado). */
+  /** fundamento->>via e fundamento->>em_cascata (só quando o filtro `vias` é usado). */
   via?: string | null;
+  em_cascata?: string | null;
 }
 
 /** De onde veio a linha (metadata.fonte / metadata.trigger), para exibir. */
@@ -131,6 +133,8 @@ export interface FiltrosTrilha {
   escopo?: EscopoTrilha;
   /** Vias do fundamento (fundamento->>via), ex.: negado_sem_servidor e negado_setor. */
   vias?: string[];
+  /** Tira as linhas com fundamento->>em_cascata = 'true'. */
+  semCascata?: boolean;
 }
 
 const COLUNAS_LISTA =
@@ -159,7 +163,9 @@ function inicioDoDia(data: string, fimDoDia = false): string | null {
 
 // Consulta de audit_logs (builder do PostgREST sem tipagem). Com o filtro de vias, traz também a via do fundamento.
 const consultaTrilha = (comVia = false) =>
-  db.from("audit_logs").select(comVia ? `${COLUNAS_LISTA}, via:fundamento->>via` : COLUNAS_LISTA);
+  db
+    .from("audit_logs")
+    .select(comVia ? `${COLUNAS_LISTA}, via:fundamento->>via, em_cascata:fundamento->>em_cascata` : COLUNAS_LISTA);
 type ConsultaTrilha = ReturnType<typeof consultaTrilha>;
 
 function aplicarFiltros(query: ConsultaTrilha, f: FiltrosTrilha): ConsultaTrilha {
@@ -176,6 +182,7 @@ function aplicarFiltros(query: ConsultaTrilha, f: FiltrosTrilha): ConsultaTrilha
   if (f.acao) q = q.eq("action", f.acao);
   if (f.origem) q = q.eq("origem", f.origem);
   if (f.vias?.length) q = q.in("fundamento->>via", f.vias);
+  if (f.semCascata) q = q.or("fundamento->>em_cascata.is.null,fundamento->>em_cascata.neq.true");
   if (f.entidade?.trim()) q = q.eq("entity_type", f.entidade.trim());
   if (ehUuid(f.registroId)) q = q.eq("entity_id", f.registroId.trim());
   if (ehUuid(f.usuarioId)) q = q.eq("user_id", f.usuarioId.trim());

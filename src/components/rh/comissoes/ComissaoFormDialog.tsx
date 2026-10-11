@@ -261,7 +261,10 @@ export function ComissaoFormDialog({ aberto, comissao, onOpenChange }: ComissaoF
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormDescription>Com objeto, a comissão só vale nele (a campanha, o contrato, o processo).</FormDescription>
+                    <FormDescription>
+                      Com objeto, a comissão valerá só nele (a campanha, o contrato, o processo). Nesta fase ela ainda não
+                      conta como fundamento de lançamento: isso chega na fase 2.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -294,6 +294,7 @@ export function contarDependentesVigentes(deps: DependenteParaVigencia[], ano: n
 interface ErroBancoLike {
   code?: string;
   message?: string;
+  hint?: string | null;
 }
 
 /**
@@ -301,7 +302,8 @@ interface ErroBancoLike {
  * do banco (nome de tabela/constraint, "Failing row contains (...)" com dados pessoais).
  * Só `P0001` (RAISE dos triggers, texto escrito pelo time), `RHS01` (recusa da regra de lançamento por
  * setor no modo exigir: "seu login não tem servidor vinculado", "você não está lotado nem designado no
- * setor…") e `Error` lançado pelo próprio front chegam com a mensagem original.
+ * setor…", seguida do HINT, que diz o que vale como fundamento; o DETAIL `via=…` não vai para a tela) e `Error`
+ * lançado pelo próprio front chegam com a mensagem original.
  */
 export function descreverErroBanco(erro: unknown): string {
   if (!erro) return "Erro desconhecido ao acessar o banco.";
@@ -312,8 +314,10 @@ export function descreverErroBanco(erro: unknown): string {
       return "O banco recusou a operação (RLS): seu usuário não tem acesso de escrita a este registro.";
     case "P0001":
       return e.message || "Operação bloqueada por regra do banco.";
-    case "RHS01":
-      return e.message || "Você não tem fundamento para lançar neste setor (lotação, designação ou comissão).";
+    case "RHS01": {
+      const msg = e.message || "Você não tem fundamento para lançar neste setor (lotação, designação ou comissão).";
+      return e.hint ? `${msg} ${e.hint}` : msg;
+    }
     case "23514":
       return "Valor rejeitado por regra do banco (restrição de verificação). Revise os campos informados.";
     case "23505":

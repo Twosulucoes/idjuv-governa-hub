@@ -116,6 +116,11 @@ export function DetalheTrilhaDialog({ id, onOpenChange }: DetalheTrilhaDialogPro
                     {VIA_FUNDAMENTO_LABELS[via as ViaFundamento] ?? via}
                   </StatusBadge>
                   {ato && <span className="block text-sm text-muted-foreground">Ato: {ato}</span>}
+                  {linha.fundamento?.em_cascata === true && (
+                    <span className="block text-sm text-muted-foreground">
+                      Em cascata: disparada por outra gravação, sem checagem própria.
+                    </span>
+                  )}
                 </Campo>
               )}
             </dl>

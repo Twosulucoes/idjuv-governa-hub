@@ -7,9 +7,11 @@
 import type { Designacao } from "@/types/designacao";
 import {
   VIAS_NEGADAS,
+  type AtoFundamento,
   type FundamentoLancamento,
   type LinhaSaneamento,
   type ModoRegraLancamento,
+  type ProblemaSaneamento,
   type ViaFundamento,
 } from "@/types/lancamentoSetor";
 
@@ -76,51 +78,52 @@ export const viaNegada = (via: string | null | undefined): boolean =>
   !!via && (VIAS_NEGADAS as string[]).includes(via);
 
 /**
- * Sem fundamento no módulo: a via diz "negado_*" ou, sem via, o banco disse que não é permitido. No modo registrar o
- * banco pode responder `permitido = true` (não bloqueia), então a via é o que conta.
+ * Sem fundamento de **setor** no módulo (lotação, cessão, designação ou comissão). Não diz nada sobre autoatendimento e
+ * chefia, que valem por registro e não aparecem em meus_fundamentos_lancamento().
  */
-export function semFundamento(f: Pick<FundamentoLancamento, "via" | "permitido"> | null | undefined): boolean {
-  if (!f) return false;
-  if (f.via) return viaNegada(f.via);
-  return f.permitido === false;
+export function semFundamento(f: Pick<FundamentoLancamento, "permitido"> | null | undefined): boolean {
+  return !!f && f.permitido === false;
 }
 
 const MODOS = new Set<string>(["desligado", "registrar", "exigir"]);
+const textoOuNulo = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
 
-/** Aceita a resposta da RPC como lista de linhas, um objeto por módulo ou uma linha só. */
+/** Linhas de meus_fundamentos_lancamento() (uma por módulo) no tipo da tela. */
 export function normalizarFundamentos(dados: unknown): FundamentoLancamento[] {
-  let linhas: unknown[] = [];
-  if (Array.isArray(dados)) linhas = dados;
-  else if (dados && typeof dados === "object") {
-    const obj = dados as Record<string, unknown>;
-    linhas = "modulo" in obj ? [obj] : Object.entries(obj).map(([modulo, v]) => ({ modulo, ...(v as object) }));
-  }
-  return linhas
-    .filter((l): l is Record<string, unknown> => !!l && typeof l === "object" && typeof (l as { modulo?: unknown }).modulo === "string")
-    .map((l) => ({
-      modulo: l.modulo as string,
-      modo: (MODOS.has(String(l.modo)) ? l.modo : "desligado") as ModoRegraLancamento,
-      permitido: typeof l.permitido === "boolean" ? l.permitido : null,
-      via: typeof l.via === "string" ? l.via : null,
-      unidade_id: typeof l.unidade_id === "string" ? l.unidade_id : null,
-      ato: l.ato ?? null,
-    }));
+  if (!Array.isArray(dados)) return [];
+  return (dados as Record<string, unknown>[])
+    .filter((l) => l && typeof l.modulo === "string")
+    .map((l) => {
+      const modo = (MODOS.has(String(l.modo)) ? l.modo : "desligado") as ModoRegraLancamento;
+      const permitido = l.permitido === true;
+      return {
+        modulo: l.modulo as string,
+        modo,
+        permitido,
+        bloqueado: typeof l.bloqueado === "boolean" ? l.bloqueado : modo === "exigir" && !permitido,
+        via: textoOuNulo(l.via),
+        unidade_id: textoOuNulo(l.unidade_id),
+        unidade_nome: textoOuNulo(l.unidade_nome),
+        lotacao_id: textoOuNulo(l.lotacao_id),
+        cessao_id: textoOuNulo(l.cessao_id),
+        designacao_id: textoOuNulo(l.designacao_id),
+        comissao_id: textoOuNulo(l.comissao_id),
+        ato: l.ato && typeof l.ato === "object" ? (l.ato as AtoFundamento) : null,
+      };
+    });
 }
 
-/** Ato de designação/comissão para exibir (texto ou objeto com tipo, número e data). */
+/** Ato `{tipo, numero, data, doe_numero, doe_data}` para exibir: "Portaria nº 12/2026 de 01/02/2026 (DOE nº 345)". */
 export function descreverAto(ato: unknown): string | null {
-  if (!ato) return null;
-  if (typeof ato === "string") return ato;
-  if (typeof ato === "object") {
-    const a = ato as Record<string, unknown>;
-    const partes = [a.ato_tipo ?? a.tipo, a.ato_numero ?? a.numero ? `nº ${a.ato_numero ?? a.numero}` : null]
-      .filter(Boolean)
-      .join(" ");
-    const data = (a.ato_data ?? a.data) as string | undefined;
-    const texto = [partes, data ? `de ${formatarDataISO(data)}` : null].filter(Boolean).join(" ");
-    return texto || null;
-  }
-  return String(ato);
+  if (!ato || typeof ato !== "object") return null;
+  const a = ato as AtoFundamento;
+  const partes = [
+    a.tipo ?? (a.numero ? "Ato" : null),
+    a.numero ? `nº ${a.numero}` : null,
+    a.data ? `de ${formatarDataISO(a.data)}` : null,
+    a.doe_numero ? `(DOE nº ${a.doe_numero}${a.doe_data ? ` de ${formatarDataISO(a.doe_data)}` : ""})` : null,
+  ].filter(Boolean);
+  return partes.length ? partes.join(" ") : null;
 }
 
 /** yyyy-MM-dd → dd/MM/yyyy, sem passar por Date (sem deslocamento de fuso). */
@@ -145,7 +148,13 @@ export interface LinhaBloqueio {
   entity_type: string | null;
   module_name: string | null;
   via?: string | null;
+  /** fundamento->>em_cascata: gravação disparada por outra (trigger/FK), sem checagem própria. */
+  em_cascata?: string | null;
 }
+
+/** Linhas que contam no relatório: as em cascata levam o fundamento de quem disparou e não são checadas. */
+export const semCascata = <T extends Pick<LinhaBloqueio, "em_cascata">>(linhas: T[]): T[] =>
+  linhas.filter((l) => l.em_cascata !== "true");
 
 export interface GrupoBloqueio {
   chave: string;
@@ -216,48 +225,50 @@ export function resumirBloqueiosPorModulo(linhas: LinhaBloqueio[]): Map<string, 
 // Saneamento
 // ============================================================================
 
-const texto = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
+const PROBLEMAS = new Set<string>(["sem_login", "sem_lotacao", "lotacao_divergente"]);
 
-// Colunas booleanas que a RPC pode devolver para cada problema.
-const PROBLEMAS_BOOLEANOS: Record<string, string> = {
-  sem_login: "sem_login",
-  sem_login_vinculado: "sem_login",
-  sem_usuario: "sem_login",
-  sem_lotacao: "sem_lotacao",
-  sem_lotacao_vigente: "sem_lotacao",
-  lotacao_divergente: "lotacao_divergente",
-};
-
-/** Linhas de `saneamento_lancamento()` no formato da tela (o problema pode vir em texto, lista ou colunas booleanas). */
+/** Linhas de saneamento_lancamento() no tipo da tela (problemas fora da lista conhecida são ignorados). */
 export function normalizarSaneamento(dados: unknown): LinhaSaneamento[] {
   if (!Array.isArray(dados)) return [];
-  return dados
-    .filter((l): l is Record<string, unknown> => !!l && typeof l === "object")
-    .map((l) => {
-      const problemas = new Set<string>();
-      const bruto = l.problemas ?? l.problema ?? l.motivo ?? l.pendencia ?? l.tipo;
-      if (Array.isArray(bruto)) bruto.forEach((p) => typeof p === "string" && problemas.add(p));
-      else if (typeof bruto === "string") problemas.add(bruto);
-      Object.entries(PROBLEMAS_BOOLEANOS).forEach(([coluna, problema]) => {
-        if (l[coluna] === true) problemas.add(problema);
-      });
-      return {
-        servidor_id: String(l.servidor_id ?? l.id ?? ""),
-        nome: texto(l.nome_completo) ?? texto(l.servidor_nome) ?? texto(l.nome) ?? "—",
-        matricula: texto(l.matricula) ?? texto(l.servidor_matricula),
-        problemas: [...problemas],
-        detalhe: texto(l.detalhe) ?? texto(l.observacao),
-      };
-    });
+  return (dados as Record<string, unknown>[])
+    .filter((l) => l && typeof l.servidor_id === "string")
+    .map((l) => ({
+      servidor_id: l.servidor_id as string,
+      nome: textoOuNulo(l.nome) ?? "—",
+      matricula: textoOuNulo(l.matricula),
+      situacao: textoOuNulo(l.situacao),
+      tem_login: l.tem_login === true,
+      login_ativo: typeof l.login_ativo === "boolean" ? l.login_ativo : null,
+      lotacao_unidade_id: textoOuNulo(l.lotacao_unidade_id),
+      lotacao_unidade_nome: textoOuNulo(l.lotacao_unidade_nome),
+      unidade_atual_id: textoOuNulo(l.unidade_atual_id),
+      unidade_atual_nome: textoOuNulo(l.unidade_atual_nome),
+      problemas: (Array.isArray(l.problemas) ? l.problemas : []).filter((p): p is ProblemaSaneamento =>
+        PROBLEMAS.has(String(p)),
+      ),
+    }));
 }
 
 // ============================================================================
 // Comissão como fundamento
 // ============================================================================
 
-/** Comissão vale como fundamento quando está ativa, vigente na data e com número e data do ato. */
+/** Comissão com objeto: na fase 1 o banco ainda não a conta como fundamento (fase 2: só no objeto). */
+export const comissaoComObjeto = (c: { objeto_id?: string | null }) => !!c.objeto_id;
+
+/**
+ * Comissão vale como fundamento quando está ativa, vigente na data e com número e data do ato. Comissão com objeto
+ * (campanha, contrato, processo) ainda não conta (vale só no objeto, o que chega na fase 2): veja `comissaoComObjeto`.
+ */
 export function avaliarComissaoComoFundamento(
-  c: { status: string; data_inicio: string; data_fim: string | null; ato_numero: string | null; ato_data: string | null },
+  c: {
+    status: string;
+    data_inicio: string;
+    data_fim: string | null;
+    ato_numero: string | null;
+    ato_data: string | null;
+    objeto_id?: string | null;
+  },
   hoje = hojeISO(),
 ): AvaliacaoDesignacao {
   const faltas: string[] = [];

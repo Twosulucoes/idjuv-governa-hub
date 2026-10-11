@@ -129,8 +129,9 @@ export function MembrosComissaoDialog({ comissao, podeGerenciar, onOpenChange }:
           <DialogHeader>
             <DialogTitle>Membros: {comissao?.nome}</DialogTitle>
             <DialogDescription>
-              Cada membro vigente lança no módulo da comissão{comissao?.objeto_id ? ", só no objeto dela" : ""}, enquanto
-              a comissão estiver ativa e com ato.
+              {comissao?.objeto_id
+                ? "Comissão com objeto: ainda não conta como fundamento de lançamento (fase 2, e só no objeto)."
+                : "Cada membro vigente lança no módulo da comissão enquanto ela estiver ativa, vigente e com ato."}
             </DialogDescription>
           </DialogHeader>
 

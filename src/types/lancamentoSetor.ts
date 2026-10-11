@@ -67,29 +67,56 @@ export interface RegraLancamento {
   modo: ModoRegraLancamento;
 }
 
-/** Linha de `meus_fundamentos_lancamento()` (uma por módulo). `ato` vem como o banco mandar (texto ou objeto). */
+/** Ato de designação/comissão como o banco grava (jsonb; chaves nulas omitidas, datas em texto ISO). */
+export interface AtoFundamento {
+  tipo?: string;
+  numero?: string;
+  data?: string;
+  doe_numero?: string;
+  doe_data?: string;
+}
+
+/**
+ * Linha de `meus_fundamentos_lancamento()` (uma por módulo): fundamento de **setor** do login hoje (lotação, cessão,
+ * designação ou comissão). Autoatendimento e chefia não aparecem aqui e continuam valendo por registro: `permitido =
+ * false` quer dizer "não lança como setor", não "não pode pedir as próprias coisas". `bloqueado = modo 'exigir' e não
+ * permitido`.
+ */
 export interface FundamentoLancamento {
   modulo: string;
   modo: ModoRegraLancamento;
-  permitido: boolean | null;
+  permitido: boolean;
+  bloqueado: boolean;
   via: ViaFundamento | string | null;
   unidade_id: string | null;
-  ato: unknown;
+  unidade_nome: string | null;
+  lotacao_id: string | null;
+  cessao_id: string | null;
+  designacao_id: string | null;
+  comissao_id: string | null;
+  ato: AtoFundamento | null;
 }
 
-/** Pendência do saneamento (uma linha por servidor; um servidor pode ter mais de um problema). */
-export type ProblemaSaneamento = "sem_login" | "sem_lotacao" | "lotacao_divergente" | string;
+/** Pendência do saneamento (um servidor pode ter mais de uma). */
+export type ProblemaSaneamento = "sem_login" | "sem_lotacao" | "lotacao_divergente";
 
-export const PROBLEMA_SANEAMENTO_LABELS: Record<string, string> = {
+export const PROBLEMA_SANEAMENTO_LABELS: Record<ProblemaSaneamento, string> = {
   sem_login: "Sem login vinculado",
   sem_lotacao: "Sem lotação vigente",
   lotacao_divergente: "Lotação divergente da unidade atual",
 };
 
+/** Linha de `saneamento_lancamento()`: servidor ativo com pelo menos um problema (sem CPF nem outro dado pessoal). */
 export interface LinhaSaneamento {
   servidor_id: string;
   nome: string;
   matricula: string | null;
+  situacao: string | null;
+  tem_login: boolean;
+  login_ativo: boolean | null;
+  lotacao_unidade_id: string | null;
+  lotacao_unidade_nome: string | null;
+  unidade_atual_id: string | null;
+  unidade_atual_nome: string | null;
   problemas: ProblemaSaneamento[];
-  detalhe: string | null;
 }

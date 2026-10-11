@@ -15,7 +15,12 @@ import { MembrosComissaoDialog } from "@/components/rh/comissoes/MembrosComissao
 import { nomeModulo } from "@/components/auditoria/trilhaRotulos";
 import { useAuth } from "@/contexts/AuthContext";
 import { useComissoes } from "@/hooks/useComissoes";
-import { avaliarComissaoComoFundamento, formatarDataISO, vigenteEm } from "@/lib/lancamentoSetorRegras";
+import {
+  avaliarComissaoComoFundamento,
+  comissaoComObjeto,
+  formatarDataISO,
+  vigenteEm,
+} from "@/lib/lancamentoSetorRegras";
 import { OBJETO_COMISSAO_LABELS, STATUS_COMISSAO_LABELS, TIPO_COMISSAO_LABELS, type Comissao } from "@/types/comissao";
 
 export default function ComissoesPage() {
@@ -94,6 +99,17 @@ export default function ComissoesPage() {
       id: "situacao",
       cabecalho: "Fundamento de lançamento",
       celula: (c) => {
+        if (comissaoComObjeto(c)) {
+          // Fase 1: o banco só conta comissão sem objeto; com objeto vale só nele, na fase 2
+          return (
+            <span>
+              <StatusBadge tom="neutro">Ainda não vale</StatusBadge>
+              <span className="block pt-1 text-caption text-muted-foreground">
+                Comissão com objeto passa a contar na fase 2 (e só no objeto).
+              </span>
+            </span>
+          );
+        }
         const { vale, faltas } = avaliarComissaoComoFundamento(c);
         return (
           <span>

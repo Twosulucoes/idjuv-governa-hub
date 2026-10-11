@@ -1,7 +1,8 @@
 /**
  * Relatório "Lançamento por setor" (aba de /rh/auditoria):
  *   1. quem seria bloqueado: linhas da trilha com fundamento negado (negado_sem_servidor, negado_setor) no período,
- *      agrupadas por responsável, tabela e motivo (lidas em páginas pelo cursor da sequencia, até um limite);
+ *      sem as gravações em cascata (fundamento.em_cascata), agrupadas por responsável, tabela e motivo (lidas em
+ *      páginas pelo cursor da sequencia, até um limite);
  *   2. saneamento: servidores ativos sem login vinculado, sem lotação vigente ou com lotação divergente
  *      (RPC saneamento_lancamento, que exige admin ou rh.auditoria.visualizar).
  * A RLS de audit_logs decide o que volta (rh.auditoria.visualizar lê só o módulo rh). Tudo é texto: nada vira HTML.
@@ -136,9 +137,32 @@ export function RelatorioLancamentoSetor({ moduloFixo }: RelatorioLancamentoSeto
               </StatusBadge>
             ))
           )}
-          {l.detalhe && <span className="block w-full text-caption text-muted-foreground">{l.detalhe}</span>}
+          {l.tem_login && l.login_ativo === false && (
+            <span className="block w-full text-caption text-muted-foreground">Login vinculado está inativo.</span>
+          )}
         </span>
       ),
+    },
+    {
+      id: "lotacao",
+      cabecalho: "Lotação vigente / unidade atual",
+      buscarPor: (l) => `${l.lotacao_unidade_nome ?? ""} ${l.unidade_atual_nome ?? ""}`,
+      celula: (l) => (
+        <span className="min-w-0 break-words">
+          {l.lotacao_unidade_nome ?? <span className="text-muted-foreground">Sem lotação vigente</span>}
+          {l.problemas.includes("lotacao_divergente") && (
+            <span className="block text-caption text-muted-foreground">
+              Cadastro aponta: {l.unidade_atual_nome ?? "nenhuma unidade"}
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      id: "situacao",
+      cabecalho: "Situação",
+      mobile: "oculta",
+      celula: (l) => l.situacao ?? "—",
     },
   ];
 
@@ -231,7 +255,7 @@ export function RelatorioLancamentoSetor({ moduloFixo }: RelatorioLancamentoSeto
           rotulo="Servidores com pendência de cadastro"
           dados={saneamento.data ?? []}
           colunas={colunasSaneamento}
-          chaveLinha={(l) => l.servidor_id || `${l.nome}-${l.matricula}`}
+          chaveLinha={(l) => l.servidor_id}
           carregando={saneamento.isLoading}
           erro={saneamento.error ? "Não foi possível carregar o saneamento. Verifique sua permissão ou tente novamente." : null}
           aoTentarNovamente={() => saneamento.refetch()}

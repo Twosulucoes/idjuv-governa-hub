@@ -23,11 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { buscarTrilhaParaExportar, type FiltrosTrilha, type LinhaTrilha } from "@/hooks/useTrilhaAuditoria";
 import { descreverErroBanco } from "@/lib/folhaFichaRegras";
-import {
-  normalizarFundamentos,
-  normalizarSaneamento,
-  semFundamento,
-} from "@/lib/lancamentoSetorRegras";
+import { normalizarFundamentos, normalizarSaneamento, semCascata } from "@/lib/lancamentoSetorRegras";
 import {
   VIAS_NEGADAS,
   type FundamentoLancamento,
@@ -50,9 +46,13 @@ const CHAVE_SETORES = ["setores-modulo"] as const;
 // ============================================================================
 
 /**
- * Fundamento do login em cada módulo (modo da regra, se pode lançar e por qual via). Cache curto (30 s): lotação,
- * designação e comissão mudam fora desta sessão. Sem a RPC (banco sem a migração) a lista vem vazia e nenhum aviso
- * aparece.
+ * Fundamento de setor do login em cada módulo (modo da regra, permitido, bloqueado, via, unidade, ato). Cache curto
+ * (30 s): lotação, designação e comissão mudam fora desta sessão. Erro (42501 para usuário inativo, banco sem a
+ * migração) não derruba a tela: a lista fica vazia e nenhum aviso aparece.
+ *
+ * Autoatendimento e chefia não aparecem na RPC e continuam valendo por registro: `podeLancar` é só para lançamentos
+ * do setor. Não use para travar telas do próprio servidor (pedir férias, frequência, requerimentos) nem de aprovação
+ * da chefia.
  */
 export function useFundamentosLancamento(habilitado = true) {
   const { isAuthenticated, user } = useAuth();
@@ -74,11 +74,8 @@ export function useFundamentosLancamento(habilitado = true) {
     ...consulta,
     fundamentos: consulta.data ?? [],
     doModulo,
-    /** Pode lançar no módulo (modo exigir sem fundamento = não). Enquanto carrega, não bloqueia. */
-    podeLancar: (modulo: string) => {
-      const f = doModulo(modulo);
-      return !(f && f.modo === "exigir" && semFundamento(f));
-    },
+    /** Pode fazer lançamentos do setor no módulo (`bloqueado` = exigir sem fundamento). Enquanto carrega, não bloqueia. */
+    podeLancar: (modulo: string) => !doModulo(modulo)?.bloqueado,
   };
 }
 
@@ -242,7 +239,8 @@ export interface FiltrosBloqueios {
 
 /**
  * Linhas da trilha cujo fundamento foi negado (negado_sem_servidor, negado_setor) no período, até o limite, lidas em
- * páginas pelo cursor da `sequencia` (buscarTrilhaParaExportar).
+ * páginas pelo cursor da `sequencia` (buscarTrilhaParaExportar). As gravações em cascata (`fundamento.em_cascata`, a
+ * linha leva o fundamento de quem disparou e não é checada) ficam de fora, no servidor e de novo aqui.
  */
 export function useBloqueiosLancamento(filtros: FiltrosBloqueios, habilitado = true) {
   const qc = useQueryClient();
@@ -255,9 +253,10 @@ export function useBloqueiosLancamento(filtros: FiltrosBloqueios, habilitado = t
         fim: filtros.fim,
         modulo: filtros.modulo,
         vias: VIAS_NEGADAS,
+        semCascata: true,
       };
-      const linhas = await buscarTrilhaParaExportar(f, qc, LIMITE_RELATORIO_BLOQUEIOS);
-      return { linhas, cortado: linhas.length >= LIMITE_RELATORIO_BLOQUEIOS };
+      const lidas = await buscarTrilhaParaExportar(f, qc, LIMITE_RELATORIO_BLOQUEIOS);
+      return { linhas: semCascata(lidas), cortado: lidas.length >= LIMITE_RELATORIO_BLOQUEIOS };
     },
   });
 }
