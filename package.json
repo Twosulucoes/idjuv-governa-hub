@@ -13,6 +13,7 @@
     "check:migrations": "bash scripts/check-migrations.sh",
     "check:rls": "node scripts/db/gerar-rls.mjs --check",
     "check:contraste": "node scripts/check-contraste.mjs",
+    "check:autoria-rh": "node scripts/check-autoria-rh.mjs",
     "check:cor-crua": "node scripts/check-cor-crua.mjs --arquivos",
     "gate": "bash scripts/gate.sh",
     "prompt": "node scripts/prompt.mjs",

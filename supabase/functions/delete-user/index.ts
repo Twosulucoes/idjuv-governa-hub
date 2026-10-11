@@ -93,6 +93,20 @@ serve(async (req) => {
       .eq("id", userId)
       .maybeSingle();
 
+    // Trilha (onda E1): as gravações abaixo (user_modules, user_roles e o vínculo do perfil com o servidor) rodam
+    // pela service role e entram em audit_logs com origem "sistema", sem autor. Esta linha complementar registra o
+    // administrador que pediu, antes delas. Sem e-mail nem outro dado pessoal.
+    const { error: trilhaError } = await supabaseAdmin.from("audit_logs").insert({
+      action: "update",
+      entity_type: "user",
+      entity_id: userId,
+      user_id: requestingUser.id,
+      module_name: "admin",
+      description: "Módulos, papéis e vínculo com o servidor removidos para excluir o usuário (delete-user)",
+      metadata: { fonte: "delete-user", etapa: "remover_acessos" },
+    });
+    if (trilhaError) console.error("Falha ao registrar a trilha da exclusão de usuário:", trilhaError.code);
+
     // Excluir na ordem correta (devido às foreign keys)
     await supabaseAdmin.from("user_modules").delete().eq("user_id", userId);
     await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
