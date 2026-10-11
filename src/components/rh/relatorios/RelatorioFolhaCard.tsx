@@ -11,6 +11,7 @@ import {
 import { Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
+import { useAuth } from "@/contexts/AuthContext";
 import { useFolhasDoAno, useFichasDaFolhaAgregadas, useItensDaFolha } from "@/hooks/useRelatoriosRH";
 import { gerarResumoFolhasAno, gerarFolhaPorUnidade, gerarFolhaPorRubrica } from "@/lib/pdfRelatoriosFolha";
 import {
@@ -51,6 +52,11 @@ export function RelatorioFolhaCard() {
   const [folhaId, setFolhaId] = useState<string | undefined>();
   const [gerando, setGerando] = useState<FormatoExportacao | null>(null);
   const { registrarAntes } = useRegistrarEvento();
+  // Por unidade e por rubrica somam fichas e itens, que a RLS só libera por inteiro a quem tem
+  // rh.contracheques.visualizar ou financeiro.folha.processar; sem elas, o agregado sairia parcial (só a própria ficha).
+  // O resumo do ano usa os totais da folha (folhas_pagamento) e continua.
+  const { hasPermission } = useAuth();
+  const leituraRestrita = !hasPermission("rh.contracheques.visualizar") && !hasPermission("financeiro.folha.processar");
 
   const folhasQuery = useFolhasDoAno(ano);
   const folhas = useMemo(() => folhasQuery.data ?? [], [folhasQuery.data]);
@@ -59,7 +65,8 @@ export function RelatorioFolhaCard() {
   // Só folhas já processadas podem ser detalhadas; a seleção some se o ano mudar.
   const folhasDetalhaveis = useMemo(() => folhas.filter((f) => folhaPermiteDetalhe(f.status, f.quantidade_servidores)), [folhas]);
   const folhaSelecionada = folhasDetalhaveis.find((f) => f.id === folhaId);
-  const folhaAtiva = detalhe ? folhaSelecionada?.id : undefined;
+  const folhaAtiva = detalhe && !leituraRestrita ? folhaSelecionada?.id : undefined;
+  const detalheBloqueado = detalhe && leituraRestrita;
 
   const fichasQuery = useFichasDaFolhaAgregadas(tipo === "unidade" ? folhaAtiva : undefined);
   const itensQuery = useItensDaFolha(tipo === "rubrica" ? folhaAtiva : undefined);
@@ -79,7 +86,7 @@ export function RelatorioFolhaCard() {
         : liquidoBlocos(blocosRubrica);
 
   const aguardandoFolha = detalhe && !folhaSelecionada;
-  const bloqueado = aguardandoFolha || consulta.isLoading || consulta.isError || total === 0;
+  const bloqueado = detalheBloqueado || aguardandoFolha || consulta.isLoading || consulta.isError || total === 0;
 
   const handleExportar = async (formato: FormatoExportacao) => {
     if (bloqueado) return;
@@ -175,7 +182,13 @@ export function RelatorioFolhaCard() {
         )}
 
         <div className="p-3 bg-muted/50 rounded-lg">
-          {aguardandoFolha ? (
+          {detalheBloqueado ? (
+            <p className="text-sm text-muted-foreground">
+              Folha por unidade e por rubrica soma as fichas de todos os servidores e exige a permissão de consultar
+              contracheques (rh.contracheques.visualizar) ou de processar a folha. Sem ela o total sairia parcial; use
+              o resumo do ano.
+            </p>
+          ) : aguardandoFolha ? (
             <p className="text-sm text-muted-foreground">Selecione uma folha para consultar.</p>
           ) : (
             <PreviaRegistros

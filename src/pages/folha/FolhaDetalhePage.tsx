@@ -201,6 +201,12 @@ export default function FolhaDetalhePage() {
   const motivoSemProcessar = "Exige a permissão de processar a folha (financeiro.folha.processar).";
   const podeAbrirRemessa = folhaFechada && podeProcessarFolha;
   const motivoRemessa = !folhaFechada ? motivoSemArquivos : !podeProcessarFolha ? motivoSemProcessar : undefined;
+  // eSocial: gerar e baixar também exigem financeiro.folha.processar (o banco exige o mesmo para gravar e ler)
+  const podeAbrirESocial = folhaFechada && podeProcessarFolha;
+  const motivoESocial = !folhaFechada ? motivoSemArquivos : !podeProcessarFolha ? motivoSemProcessar : undefined;
+  // Leitura restrita: sem rh.contracheques.visualizar nem processar, a RLS só devolve a ficha do próprio servidor.
+  // Totais e contagens desta tela seriam parciais ou expõem a folha inteira: ficam escondidos (UX; a fronteira é a RLS).
+  const leituraRestrita = !hasPermission("rh.contracheques.visualizar") && !podeProcessarFolha;
 
   const handleBaixarRemessa = async (remessa: RemessaComArquivo) => {
     setBaixandoArquivoId(remessa.id);
@@ -326,12 +332,12 @@ export default function FolhaDetalhePage() {
             )}
             
             {podeGerarESocial && (
-              <span title={folhaFechada ? undefined : motivoSemArquivos}>
+              <span title={motivoESocial}>
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={() => setShowESocial(true)}
-                  disabled={!folhaFechada}
+                  disabled={!podeAbrirESocial}
                 >
                   <FileCode className="mr-2 h-4 w-4" />
                   eSocial
@@ -356,8 +362,20 @@ export default function FolhaDetalhePage() {
           </Alert>
         )}
 
+        {/* Leitura restrita: só a própria ficha */}
+        {leituraRestrita && (
+          <Alert>
+            <Lock className="h-4 w-4" />
+            <AlertTitle>Você vê apenas a sua ficha</AlertTitle>
+            <AlertDescription>
+              Nesta folha aparecem só os seus dados. Ver as fichas e os totais de todos os servidores exige a permissão
+              de consultar contracheques (rh.contracheques.visualizar) ou de processar a folha.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Alerta de dados bancários faltantes */}
-        {fichas && fichas.length > 0 && (() => {
+        {!leituraRestrita && fichas && fichas.length > 0 && (() => {
           const semDadosBancarios = fichas.filter(f => !f.banco_codigo || !f.banco_agencia || !f.banco_conta);
           if (semDadosBancarios.length > 0) {
             return (
@@ -374,7 +392,8 @@ export default function FolhaDetalhePage() {
           return null;
         })()}
 
-        {/* Cards de Resumo */}
+        {/* Cards de Resumo (totais da folha inteira: escondidos na leitura restrita) */}
+        {!leituraRestrita && (
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
@@ -426,7 +445,10 @@ export default function FolhaDetalhePage() {
           </Card>
         </div>
 
+        )}
+
         {/* Encargos Patronais */}
+        {!leituraRestrita && (
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
@@ -469,6 +491,7 @@ export default function FolhaDetalhePage() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Tabs de Conteúdo */}
         <Tabs defaultValue="fichas" className="space-y-4">
@@ -529,6 +552,13 @@ export default function FolhaDetalhePage() {
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     {busca ? (
                       <p>Nenhuma ficha encontrada para "{busca}".</p>
+                    ) : leituraRestrita ? (
+                      <>
+                        <p>Você vê apenas a sua ficha, e não há ficha sua nesta folha.</p>
+                        <p className="text-sm mt-2">
+                          As fichas dos outros servidores exigem a permissão de consultar contracheques.
+                        </p>
+                      </>
                     ) : (
                       <>
                         <p>Nenhuma ficha financeira processada para esta competência.</p>
@@ -817,8 +847,8 @@ export default function FolhaDetalhePage() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <CardTitle>Eventos eSocial (rascunho, não transmitido)</CardTitle>
                   {podeGerarESocial && (
-                    <span title={folhaFechada ? undefined : motivoSemArquivos}>
-                      <Button size="sm" onClick={() => setShowESocial(true)} disabled={!folhaFechada}>
+                    <span title={motivoESocial}>
+                      <Button size="sm" onClick={() => setShowESocial(true)} disabled={!podeAbrirESocial}>
                         <FileCode className="mr-2 h-4 w-4" />
                         Gerar Eventos
                       </Button>
@@ -831,14 +861,14 @@ export default function FolhaDetalhePage() {
                   <Info className="h-4 w-4" />
                   <AlertDescription>
                     Este sistema ainda não transmite ao eSocial: os eventos abaixo são rascunho para conferência.
-                    {podeGerarESocial && !folhaFechada && ` ${motivoSemArquivos}`}
+                    {podeGerarESocial && motivoESocial && ` ${motivoESocial}`}
                   </AlertDescription>
                 </Alert>
                 {!eventosESocial || eventosESocial.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <FileCode className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>Nenhum evento eSocial gerado para esta folha.</p>
-                    {podeGerarESocial && folhaFechada && (
+                    {podeGerarESocial && podeAbrirESocial && (
                       <p className="text-sm mt-2">
                         Clique em "Gerar Eventos" para criar os eventos S-1200, S-1210 e S-1299.
                       </p>
@@ -893,8 +923,10 @@ export default function FolhaDetalhePage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                title="Baixar XML (rascunho, não transmitido)"
-                                disabled={!evento.payload_xml || baixandoArquivoId === evento.id}
+                                title={
+                                  podeProcessarFolha ? "Baixar XML (rascunho, não transmitido)" : motivoSemProcessar
+                                }
+                                disabled={!podeProcessarFolha || !evento.payload_xml || baixandoArquivoId === evento.id}
                                 onClick={() => handleBaixarEvento(evento)}
                               >
                                 {baixandoArquivoId === evento.id ? (

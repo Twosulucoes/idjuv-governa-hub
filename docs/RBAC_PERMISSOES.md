@@ -733,6 +733,16 @@ RH: o dono decide no merge).
   tem `financeiro.folha.processar` (conferência antes de fechar); a rota não: essa pessoa vê as fichas pelo detalhe da
   folha (`/folha/:id`).
 - `/rh/meu-contracheque` continua só com login: o servidor vê o próprio.
+- **Detalhe da folha (`/folha/:id`, rota com `financeiro.folha.visualizar`):** sem `rh.contracheques.visualizar` nem
+  `financeiro.folha.processar` a RLS devolve só a ficha do próprio servidor. A tela mostra "Você vê apenas a sua
+  ficha", esconde os totais da folha (cards de resumo e encargos) e o alerta de dados bancários, e troca o "processe a
+  folha" da lista vazia pela explicação.
+- **Arquivos da folha na tela:** gerar a remessa CNAB, baixar de novo e cancelar, gerar eventos do eSocial e baixar o
+  XML de um evento exigem `financeiro.folha.processar` (o banco exige o mesmo para gravar e ler); sem ela os botões
+  ficam desabilitados com a explicação e o diálogo do eSocial recusa.
+- **Card "Folha de pagamento" em `/rh/relatorios`:** "por unidade" e "por rubrica" somam fichas e itens; sem
+  `rh.contracheques.visualizar` nem `financeiro.folha.processar` o card mostra o aviso em vez de um total parcial. O
+  resumo do ano (totais de `folhas_pagamento`) continua.
 - Esconder o item de menu e barrar a rota é UX; a fronteira é a RLS de `fichas_financeiras` e
   `itens_ficha_financeira` (ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)).
 

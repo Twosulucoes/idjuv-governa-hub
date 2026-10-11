@@ -232,6 +232,10 @@ migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`;
   ao banco"); remessa antiga sem arquivo mostra "arquivo não guardado". Não há excluir: "Cancelar" abre
   `CancelarRemessaDialog` (motivo obrigatório, zod) e chama `cancelar_remessa`. Gerar, baixar e cancelar pedem
   `financeiro.folha.processar` (o banco exige o mesmo; sem ela os botões ficam desabilitados).
+- **Permissão de tela:** gerar e baixar eventos do eSocial também pedem `financeiro.folha.processar`. Sem
+  `rh.contracheques.visualizar` nem `processar`, o detalhe da folha avisa "Você vê apenas a sua ficha" e esconde os
+  totais, e o card de folha dos relatórios não soma por unidade/rubrica (ver
+  [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#contracheques-e-exportação-do-rh-rotas-onda-e3)).
 - **eSocial** (`GerarESocialDialog`): rascunho, não transmitido — aviso no diálogo e na aba, status "Rascunho (não
   transmitido)", comentário `<!-- RASCUNHO NAO TRANSMITIDO -->` no XML (`COMENTARIO_RASCUNHO`) e arquivo
   `RASCUNHO_NAO_TRANSMITIDO_<evento>_<AAAA-MM>_<id do evento>.xml` (nunca o nome do servidor). Ambiente lido de

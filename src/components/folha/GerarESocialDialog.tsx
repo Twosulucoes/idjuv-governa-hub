@@ -32,6 +32,7 @@ import {
   type DetVerbas,
 } from "@/lib/esocialXmlGenerator";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
+import { useAuth } from "@/contexts/AuthContext";
 import { useConfigAutarquia, useEventosESocialFolha } from "@/hooks/useFolhaPagamento";
 import {
   dataPagamentoNaCompetencia,
@@ -91,6 +92,9 @@ export function GerarESocialDialog({
   const [tabAtiva, setTabAtiva] = useState("s1200");
   const [formatoVisualizacao, setFormatoVisualizacao] = useState<"json" | "xml">("xml");
   const { registrarAntes } = useRegistrarEvento();
+  // Gravar e ler eventos do eSocial exige financeiro.folha.processar no banco; a tela repete (UX)
+  const { hasPermission } = useAuth();
+  const podeProcessar = hasPermission("financeiro.folha.processar");
 
   // Trilha: todo XML/JSON que sai da tela (baixar ou copiar) é registrado antes; sem registro, não sai.
   const registrarSaidaESocial = (acao: "download" | "export", eventos: EventoGerado[], meio: string) =>
@@ -138,6 +142,10 @@ export function GerarESocialDialog({
     /^\d{4}-\d{2}-\d{2}$/.test(dataPagamento) && dataPagamento.substring(0, 7) !== formatarPeriodo(ano, mes);
 
   const handleGerarEventos = async () => {
+    if (!podeProcessar) {
+      toast.error("Gerar eventos do eSocial exige a permissão de processar a folha.");
+      return;
+    }
     if (!folhaFechada) {
       toast.error("Feche a folha antes de gerar os eventos do eSocial.");
       return;
@@ -563,6 +571,16 @@ export function GerarESocialDialog({
             </Alert>
           )}
 
+          {!podeProcessar && (
+            <Alert variant="destructive">
+              <Lock className="h-4 w-4" />
+              <AlertTitle>Sem permissão</AlertTitle>
+              <AlertDescription>
+                Gerar e baixar eventos do eSocial exige a permissão de processar a folha (financeiro.folha.processar).
+              </AlertDescription>
+            </Alert>
+          )}
+
           {erroConsulta && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
@@ -742,6 +760,7 @@ export function GerarESocialDialog({
               onClick={handleGerarEventos}
               disabled={
                 gerando ||
+                !podeProcessar ||
                 carregando ||
                 erroConsulta ||
                 !!leituraIncompleta ||
