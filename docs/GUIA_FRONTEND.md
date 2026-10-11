@@ -155,8 +155,11 @@ O banco grava quem fez cada lançamento (onda E1); o front consulta a trilha e r
     (`sequencia < cursor`, `limit(n + 1)`; a tela guarda a pilha de cursores para "Anterior"), sem
     `before_data`/`after_data`, ordem só `sequencia` desc (é o que usa os índices); filtros por período, módulo, ação,
     origem, tabela, ID do registro, usuário, servidor responsável (nome/matrícula ou ID) e recorte de ficha (`escopo`):
-    servidor (linhas com `servidor_id` no antes/depois ou nos metadados e arquivos do Storage com
-    `metadata.servidor_alvo_id`, aceito só quando `metadata.fonte = 'storage'`) ou folha (módulos `rh` e `folha`);
+    servidor (`alvos` contém `s:<id>`) ou folha (`alvos` contém `f:<id>`, módulos `rh` e `folha`). `alvos` é a coluna
+    gerada de `audit_logs` com índice GIN (onda E2): junta o `servidor_id`/`folha_id` do antes/depois e dos metadados e
+    o `servidor_alvo_id` dos arquivos do Storage (só quando `metadata.fonte = 'storage'`). Com filtro de período, o hook
+    busca antes a faixa de `sequencia` do período (com 1 h de folga nas pontas, porque `timestamp` é o início da
+    transação) e manda os dois filtros juntos, para não varrer tudo o que é mais novo;
   - `useDetalheTrilha(id)` + `calcularDiff`: a linha completa ao abrir, diff campo a campo (valores já mascarados pelo
     banco; na atualização, os carimbos `updated_*` fora de `campos_alterados` não aparecem);
   - `useRegistrarEvento()`: `registrarAntes(evento)` para exportação, impressão e arquivo — espera o banco e, se
