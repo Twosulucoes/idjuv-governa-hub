@@ -45,6 +45,7 @@ import { useUploadFrequencia } from "@/hooks/useFrequenciaPacotes";
 import type { FrequenciaServidorResumo } from "@/hooks/useFrequencia";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGerarFrequenciaPDF } from "@/hooks/useGerarFrequenciaPDF";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 interface ImprimirFrequenciaDialogProps {
   open: boolean;
@@ -96,6 +97,15 @@ export function ImprimirFrequenciaDialog({
   const { data: frequenciaMensal } = useFrequenciaMensal(servidor?.servidor_id, ano, mes);
   const uploadFrequencia = useUploadFrequencia();
   const { gerarPDF } = useGerarFrequenciaPDF();
+  const { registrarAntes } = useRegistrarEvento();
+  // Trilha: folha de frequência do servidor (servidor_id nos metadados liga o evento à ficha dele)
+  const eventoFrequencia = (acao: 'view' | 'download') => ({
+    acao,
+    entidade: 'frequencia_mensal' as const,
+    entidadeId: frequenciaMensal?.id ?? null,
+    descricao: `Folha de frequência ${String(mes).padStart(2, '0')}/${ano} (${tipo}) ${acao === 'view' ? 'pré-visualizada' : 'impressa/baixada'}`,
+    metadados: { servidor_id: servidor?.servidor_id ?? null, ano, mes, tipo, formato: 'pdf' },
+  });
   const { validarDados } = useValidacaoFrequencia(servidor, tipo);
 
   const cargaHorariaDiaria =
@@ -210,6 +220,11 @@ export function ImprimirFrequenciaDialog({
       // Gerar PDF para preview
       setEstadoGeracao('gerando');
       const { doc } = await generateFrequenciaMensalPDF(pdfData);
+      // Trilha: a prévia já é o arquivo; só abre depois de registrada (sem registro, sem prévia)
+      if (!(await registrarAntes(eventoFrequencia('view')))) {
+        setEstadoGeracao('ocioso');
+        return;
+      }
       const blob = doc.output('blob');
       const url = URL.createObjectURL(blob);
       
@@ -312,6 +327,9 @@ export function ImprimirFrequenciaDialog({
       setEstadoGeracao('gerando');
       const { doc, nomeArquivo } = await generateFrequenciaMensalPDF(pdfData);
       atualizarProgresso(5, 6);
+
+      // Trilha: registrado antes de entregar o PDF (sem registro, sem arquivo)
+      if (!(await registrarAntes(eventoFrequencia('download')))) return;
       
       // Salvar localmente
       doc.save(nomeArquivo);
@@ -381,8 +399,10 @@ export function ImprimirFrequenciaDialog({
     }
   };
 
-  const handleDownloadPreview = () => {
+  const handleDownloadPreview = async () => {
     if (previewUrl && servidor) {
+      // Trilha: baixar a prévia é download; registrado antes (sem registro, sem arquivo)
+      if (!(await registrarAntes(eventoFrequencia('download')))) return;
       const mesesNome = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'

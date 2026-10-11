@@ -30,6 +30,7 @@ import {
   type EventoS1299Xml,
   type DetVerbas,
 } from "@/lib/esocialXmlGenerator";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 interface GerarESocialDialogProps {
   open: boolean;
@@ -62,6 +63,25 @@ export function GerarESocialDialog({
   const [eventosGerados, setEventosGerados] = useState<EventoGerado[]>([]);
   const [tabAtiva, setTabAtiva] = useState("s1200");
   const [formatoVisualizacao, setFormatoVisualizacao] = useState<"json" | "xml">("xml");
+  const { registrarAntes } = useRegistrarEvento();
+
+  // Trilha: todo XML/JSON que sai da tela (baixar ou copiar) é registrado antes; sem registro, não sai.
+  const registrarSaidaESocial = (acao: "download" | "export", eventos: EventoGerado[], meio: string) =>
+    registrarAntes({
+      acao,
+      entidade: "arquivo_esocial",
+      entidadeId: folhaId,
+      descricao: `eSocial ${competencia}: ${eventos.length} evento(s) ${meio}`,
+      metadados: {
+        folha_id: folhaId,
+        competencia_mes: mes,
+        competencia_ano: ano,
+        meio,
+        quantidade: eventos.length,
+        tipos: [...new Set(eventos.map((e) => e.tipo))],
+        ids_evento: eventos.slice(0, 20).map((e) => e.idEvento),
+      },
+    });
 
   // Buscar config da autarquia
   const { data: config } = useQuery({
@@ -327,18 +347,26 @@ export function GerarESocialDialog({
     }
   };
 
-  const handleCopiar = (conteudo: string, tipo: string) => {
-    navigator.clipboard.writeText(conteudo);
-    toast.success(`${tipo} copiado!`);
+  const handleCopiar = async (conteudo: string, tipo: string, evento: EventoGerado) => {
+    if (!(await registrarSaidaESocial("export", [evento], `copiado (${tipo})`))) return;
+    try {
+      await navigator.clipboard.writeText(conteudo);
+      toast.success(`${tipo} copiado!`);
+    } catch (erro) {
+      console.error("Erro ao copiar para a área de transferência:", erro);
+      toast.error(`Não foi possível copiar o ${tipo}. Use o botão de baixar.`);
+    }
   };
 
-  const handleDownloadXml = (evento: EventoGerado) => {
+  const handleDownloadXml = async (evento: EventoGerado) => {
+    if (!(await registrarSaidaESocial("download", [evento], "baixado (XML)"))) return;
     const nomeArquivo = `${evento.tipo}_${evento.servidorNome?.replace(/\s+/g, "_") || "fechamento"}_${competencia}.xml`;
     downloadXml(evento.xml, nomeArquivo);
     toast.success("XML baixado!");
   };
 
-  const handleDownloadTodosXml = () => {
+  const handleDownloadTodosXml = async () => {
+    if (!(await registrarSaidaESocial("download", eventosGerados, "baixados (XML, todos)"))) return;
     // Download individual de cada XML
     for (const evento of eventosGerados) {
       const nomeArquivo = `${evento.tipo}_${evento.servidorNome?.replace(/\s+/g, "_") || "fechamento"}_${competencia}.xml`;
@@ -380,7 +408,7 @@ export function GerarESocialDialog({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleCopiar(formatoVisualizacao === "xml" ? evento.xml : evento.json, formatoVisualizacao.toUpperCase())}
+            onClick={() => handleCopiar(formatoVisualizacao === "xml" ? evento.xml : evento.json, formatoVisualizacao.toUpperCase(), evento)}
             title="Copiar"
           >
             <Copy className="h-4 w-4" />

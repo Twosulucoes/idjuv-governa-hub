@@ -7,10 +7,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { FileText, Download, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { gerarRelatorioContatosEstrategicos } from "@/lib/pdfRelatorioContatosEstrategicos";
 
 export function RelatorioContatosEstrategicosCard() {
   const [isExporting, setIsExporting] = useState(false);
+  const { registrarAntes } = useRegistrarEvento();
   const [incluirLogos, setIncluirLogos] = useState(true);
   const [apenasComIndicacao, setApenasComIndicacao] = useState(true);
 
@@ -55,6 +57,8 @@ export function RelatorioContatosEstrategicosCard() {
         return;
       }
 
+      // Trilha: registrado antes de gerar o PDF (sem registro, sem arquivo)
+      if (!(await registrarAntes({ acao: "download", entidade: "relatorio_rh", descricao: "Relatório de contatos estratégicos", metadados: { relatorio: "contatos_estrategicos", formato: "pdf", quantidade: servidores.length, apenas_com_indicacao: apenasComIndicacao } }))) return;
       await gerarRelatorioContatosEstrategicos(servidores, incluirLogos);
       toast.success(`Relatório gerado com ${servidores.length} registros`);
     } catch (error) {

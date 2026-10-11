@@ -17,6 +17,9 @@
  *     `trilha_imutavel_truncate` BEFORE TRUNCATE por comando, ambos com public.trilha_imutavel e ENABLE ALWAYS;
  *   - em qualquer classe: nenhum desses triggers desligado (ALTER TABLE ... DISABLE TRIGGER, inclusive ALL/USER, ou
  *     ENABLE REPLICA TRIGGER, que só dispara em modo réplica).
+ * Arquivos do RH no Storage (onda E2, migração 20261011000200_rh_trilha_consulta.sql): supabase/baseline/overlay/50_storage.sql
+ * cria trilha_rh_storage_{insert,update,delete} (AFTER, por linha, WHEN nos buckets frequencias e documentos-requerimento,
+ * public.trilha_storage('rh')), sem desligar, e 01_pre_data.sql define public.trilha_storage() (só sem argumento).
  * Exceções: scripts/autoria-rh-excecoes.txt, uma por linha no formato `tabela | motivo` (motivo obrigatório).
  * Exceção de tabela que não é do RH no mapa, repetida ou que já cumpre a regra também reprova (exceção obsoleta).
  *
@@ -154,6 +157,30 @@ for (const [tabela, classe] of [...rh].sort()) {
   } else ok++;
 }
 
+// Trilha dos arquivos do RH no Storage (onda E2, migração 20261011000200_rh_trilha_consulta.sql): o dump do baseline só
+// leva o schema public, então os triggers de storage.objects vivem no overlay/50 e a função no 01_pre_data. Só vale para
+// o baseline padrão (com outro 03_post_data no argumento, a prova é das tabelas).
+if (!process.argv[2]) {
+  const overlay = readFileSync(resolve(ROOT, "supabase/baseline/overlay/50_storage.sql"), "utf8");
+  const pre = readFileSync(resolve(ROOT, "supabase/baseline/schema/01_pre_data.sql"), "utf8");
+  if (!/^CREATE FUNCTION public\.trilha_storage\(\) RETURNS trigger$/m.test(pre)) {
+    falhas.push("storage: public.trilha_storage() ausente em supabase/baseline/schema/01_pre_data.sql");
+  }
+  for (const [evento, quando] of [["insert", "NEW"], ["update", "OLD"], ["delete", "OLD"]]) {
+    const re = new RegExp(
+      `CREATE OR REPLACE TRIGGER trilha_rh_storage_${evento} AFTER ${evento.toUpperCase()} ON storage\\.objects\\s+` +
+        `FOR EACH ROW WHEN \\(${quando}\\.bucket_id IN \\('frequencias', 'documentos-requerimento'\\)[^;]*?` +
+        `EXECUTE FUNCTION public\\.trilha_storage\\('rh'\\);`,
+    );
+    if (!re.test(overlay)) {
+      falhas.push(`storage: trilha_rh_storage_${evento} (AFTER ${evento.toUpperCase()} em storage.objects, frequencias e documentos-requerimento, trilha_storage('rh')) ausente ou diferente em supabase/baseline/overlay/50_storage.sql`);
+    }
+  }
+  if (/(DISABLE|ENABLE REPLICA) TRIGGER (trilha_rh_storage_|ALL|USER)/.test(overlay)) {
+    falhas.push("storage: trigger da trilha dos arquivos do RH desligado em supabase/baseline/overlay/50_storage.sql");
+  }
+}
+
 if (falhas.length > 0) {
   console.error(`check-autoria-rh: ${falhas.length} problema(s) em ${rh.size} tabela(s) do RH:`);
   for (const f of falhas) console.error(`  - ${f}`);
@@ -163,4 +190,7 @@ if (falhas.length > 0) {
   );
   process.exit(1);
 }
-console.log(`OK: ${ok} tabela(s) do RH com autoria e trilha, ${excecoes.size} exceção(ões) com motivo.`);
+console.log(
+  `OK: ${ok} tabela(s) do RH com autoria e trilha, ${excecoes.size} exceção(ões) com motivo` +
+    (process.argv[2] ? "." : "; trilha dos arquivos do RH no Storage ligada no overlay/50."),
+);

@@ -30,6 +30,7 @@ import {
   Eye,
   Info,
   Printer,
+  History,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,11 +47,18 @@ import { GerarESocialDialog } from "@/components/folha/GerarESocialDialog";
 import { FichaFinanceiraDialog } from "@/components/folha/FichaFinanceiraDialog";
 import { format } from "date-fns";
 import { generateContracheque } from "@/lib/pdfContracheque";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
+import { HistoricoAlteracoesTab } from "@/components/auditoria/HistoricoAlteracoesTab";
 
 export default function FolhaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // Aba de histórico (trilha): rh.auditoria.visualizar ou admin (hasPermission libera o admin)
+  const { hasPermission } = useAuth();
+  const podeVerTrilha = hasPermission("rh.auditoria.visualizar");
+  const { registrarAntes } = useRegistrarEvento();
   
   // Estados dos diálogos
   const [showProcessar, setShowProcessar] = useState(false);
@@ -407,7 +415,7 @@ export default function FolhaDetalhePage() {
 
         {/* Tabs de Conteúdo */}
         <Tabs defaultValue="fichas" className="space-y-4">
-          <TabsList>
+          <TabsList className="h-auto flex-wrap justify-start">
             <TabsTrigger value="fichas" className="gap-2">
               <FileText className="h-4 w-4" />
               Fichas Financeiras
@@ -429,6 +437,12 @@ export default function FolhaDetalhePage() {
                 <Badge variant="secondary" className="ml-1">{eventosESocial.length}</Badge>
               )}
             </TabsTrigger>
+            {podeVerTrilha && (
+              <TabsTrigger value="trilha" className="gap-2">
+                <History className="h-4 w-4" />
+                Histórico de alterações
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Tab: Fichas Financeiras */}
@@ -537,8 +551,17 @@ export default function FolhaDetalhePage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => {
+                                  onClick={async () => {
                                     if (folha) {
+                                      // Trilha: impressão registrada antes de gerar (sem registro, sem arquivo)
+                                      const ok = await registrarAntes({
+                                        acao: "download",
+                                        entidade: "contracheque",
+                                        entidadeId: ficha.id,
+                                        descricao: "Contracheque impresso/baixado (detalhe da folha)",
+                                        metadados: { folha_id: folha.id, servidor_id: ficha.servidor_id, formato: "pdf" },
+                                      });
+                                      if (!ok) return;
                                       generateContracheque({
                                         ficha: {
                                           id: ficha.id,
@@ -762,6 +785,13 @@ export default function FolhaDetalhePage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Tab: Histórico de alterações (trilha de auditoria) */}
+          {podeVerTrilha && (
+            <TabsContent value="trilha">
+              <HistoricoAlteracoesTab escopo={{ tipo: "folha", folhaId: folha.id }} />
+            </TabsContent>
+          )}
         </Tabs>
 
         {/* Observações */}

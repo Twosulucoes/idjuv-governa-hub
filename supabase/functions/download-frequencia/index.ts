@@ -184,25 +184,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[download-frequencia] URL gerada para pacote ${pacote.id}`);
-
-    // Registrar acesso (log de auditoria)
-    try {
-      await supabase.from('audit_logs').insert({
-        action: 'download',
-        entity_type: 'frequencia_pacote',
-        entity_id: pacote.id,
-        user_id: user.id,
-        description: `Download do pacote de frequências: ${pacote.arquivo_nome}`,
-        metadata: {
-          periodo: pacote.periodo,
-          tipo: pacote.tipo,
-          arquivo: pacote.arquivo_nome,
-        },
-      });
-    } catch (auditErr) {
-      console.warn('Erro ao registrar auditoria:', auditErr);
+    // Registrar o download na trilha do RH ANTES de entregar o link: sem registro, sem URL (a URL assinada gerada acima
+    // não sai daqui). Módulo rh (lido por rh.auditoria.visualizar), entity_type = nome da tabela (como a trilha do
+    // banco), sem nome de arquivo nem outro dado pessoal. A service role grava com user_id de quem pediu; o banco
+    // completa servidor, origem e contexto (trilha_completar_contexto).
+    const { error: auditError } = await supabase.from('audit_logs').insert({
+      action: 'download',
+      entity_type: 'frequencia_pacotes',
+      entity_id: pacote.id,
+      module_name: 'rh',
+      user_id: user.id,
+      description: `Download do pacote de frequências do período ${pacote.periodo}`,
+      metadata: {
+        periodo: pacote.periodo,
+        tipo: pacote.tipo,
+        fonte: 'download-frequencia',
+      },
+    });
+    if (auditError) {
+      console.error(`[download-frequencia] falha ao registrar a trilha (código ${auditError.code ?? 'desconhecido'})`);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao gerar link de download' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    console.log(`[download-frequencia] URL gerada para pacote ${pacote.id}`);
 
     return new Response(
       JSON.stringify({

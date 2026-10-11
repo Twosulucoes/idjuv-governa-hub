@@ -677,8 +677,21 @@ em RLS existente e precisa do "sim" do dono, podendo ser segurada sem segurar a 
 - `fechar_folha` e `reabrir_folha` continuam gravando com `module_name = 'folha'`: essas linhas não aparecem
   para quem tem só `rh.auditoria.visualizar`.
 
-Ainda não existe tela para a trilha (onda E2). A rota, quando vier, deve exigir o módulo `rh` e
-`rh.auditoria.visualizar` no `ProtectedRoute`/`ROUTE_PERMISSIONS`, igual à policy.
+**Telas (onda E2,** [spec](./superpowers/specs/2026-10-10-rh-trilha-tela-design.md)**):**
+
+- `/rh/auditoria` (`AuditoriaRHPage`): `ProtectedRoute requiredPermissions="rh.auditoria.visualizar"` e a mesma
+  entrada em `ROUTE_PERMISSIONS`; item "Trilha de Auditoria" no menu do RH (`menu.config.ts` e
+  `module-menus.config.ts`, id `auditoria-rh` nos dois; o menu por módulo passou a aceitar `permission` por item e
+  por filho e esconde o que o usuário não tem). A tela
+  pede só o módulo `rh`; o que volta é o que a policy libera (com o módulo e a permissão).
+- `/admin/auditoria` continua com `admin.auditoria` e mostra todos os módulos (o que a RLS libera: admin lê tudo). O
+  botão de exportar CSV só aparece para o admin e para quem tem o módulo `rh`: o registro da exportação usa
+  `registrar_evento`, que exige o módulo.
+- Abas "Histórico de alterações" na ficha do servidor e no detalhe da folha: aparecem só para quem tem
+  `rh.auditoria.visualizar` (o admin passa pelo `hasPermission`). Esconder a aba é UX; a fronteira é a policy.
+- Exportações, impressões e arquivos do RH chamam `registrar_evento` antes de entregar (ver
+  [GUIA_FRONTEND.md](./GUIA_FRONTEND.md#trilha-de-auditoria-no-front-onda-e2)); como a RPC exige o módulo `rh`,
+  telas usadas por quem não tem o módulo (portarias do Gabinete) ficaram de fora.
 
 ### Folha: edição da ficha
 

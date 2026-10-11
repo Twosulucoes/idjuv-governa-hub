@@ -282,6 +282,7 @@ ALTER FUNCTION public.desmarcar_escola_cadastrada() SECURITY DEFINER;
 -- M3) A trilha de auditoria nunca gravou nestas funções: audit_logs.entity_id é uuid e elas passavam
 --     texto (`column "entity_id" is of type uuid but expression is of type text`). Consequência:
 --     fechar_folha/reabrir_folha e qualquer escrita em config_parametros_valores falhavam, até para admin.
+--     Desde a E2 (20261011000300, mesmo texto) as duas gravam module_name 'rh' (antes 'folha').
 CREATE OR REPLACE FUNCTION public.fechar_folha(p_folha_id uuid, p_justificativa text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -334,7 +335,7 @@ BEGIN
   INSERT INTO public.audit_logs (
     action, entity_type, entity_id, module_name, description, user_id
   ) VALUES (
-    'update', 'folhas_pagamento', p_folha_id, 'folha',
+    'update', 'folhas_pagamento', p_folha_id, 'rh',
     format('Folha %s/%s fechada. Justificativa: %s', v_folha.competencia_mes, v_folha.competencia_ano, COALESCE(p_justificativa, 'Sem justificativa')),
     v_user_id
   );
@@ -395,7 +396,7 @@ BEGIN
   INSERT INTO public.audit_logs (
     action, entity_type, entity_id, module_name, description, user_id
   ) VALUES (
-    'update', 'folhas_pagamento', p_folha_id, 'folha',
+    'update', 'folhas_pagamento', p_folha_id, 'rh',
     format('Folha %s/%s REABERTA por super_admin. Justificativa: %s', v_folha.competencia_mes, v_folha.competencia_ano, p_justificativa),
     v_user_id
   );
@@ -453,6 +454,7 @@ $function$;
 -- M2) log_audit gravava para usuário inativo (a sessão do Auth continua válida depois do bloqueio).
 --     E1 (migração 20261011000000, mesmo texto): no módulo rh só view/export/download sem antes/depois; chaves de
 --     trigger/registrar_evento tiradas dos metadados, que levam fonte = log_audit; antes/depois/metadados até 32 KB.
+--     Desde a E2 (20261011000200, mesmo texto): recusa entity_type storage.* e tira servidor_alvo_id dos metadados.
 CREATE OR REPLACE FUNCTION public.log_audit(_action audit_action, _entity_type character varying DEFAULT NULL::character varying, _entity_id uuid DEFAULT NULL::uuid, _module_name character varying DEFAULT NULL::character varying, _before_data jsonb DEFAULT NULL::jsonb, _after_data jsonb DEFAULT NULL::jsonb, _description text DEFAULT NULL::text, _metadata jsonb DEFAULT '{}'::jsonb)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -479,6 +481,10 @@ BEGIN
       RAISE EXCEPTION 'log_audit: no módulo rh a linha não leva antes/depois' USING ERRCODE = '22023';
     END IF;
   END IF;
+  -- linha de arquivo do Storage (entity_type storage.<bucket>) só vem do trigger trilha_storage (E2)
+  IF lower(btrim(coalesce(_entity_type, ''))) LIKE 'storage.%' THEN
+    RAISE EXCEPTION 'log_audit: entity_type storage.* é gravado só pelo banco (trilha do Storage)' USING ERRCODE = '22023';
+  END IF;
   IF length(coalesce(_before_data::text, '')) > 32768 OR length(coalesce(_after_data::text, '')) > 32768
      OR length(coalesce(_metadata::text, '')) > 32768 THEN
     RAISE EXCEPTION 'log_audit: antes, depois e metadados têm limite de 32 KB cada' USING ERRCODE = '22023';
@@ -486,7 +492,7 @@ BEGIN
   _meta := CASE WHEN _metadata IS NULL THEN '{}'::jsonb
                 WHEN jsonb_typeof(_metadata) = 'object' THEN _metadata
                 ELSE jsonb_build_object('valor', _metadata) END;
-  _meta := (_meta - ARRAY['trigger', 'operation', 'table', 'registrar_evento', 'fonte'])
+  _meta := (_meta - ARRAY['trigger', 'operation', 'table', 'registrar_evento', 'fonte', 'servidor_alvo_id'])
            || jsonb_build_object('fonte', 'log_audit');
 
   SELECT role INTO _user_role 

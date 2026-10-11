@@ -28,6 +28,7 @@ import {
   Square
 } from "lucide-react";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { 
   CAMPOS_EXPORTACAO, 
   CAMPOS_PADRAO, 
@@ -45,6 +46,7 @@ export function ExportacaoServidoresCard() {
   const [filtroSituacao, setFiltroSituacao] = useState<string>("all");
   const [categoriasAbertas, setCategoriasAbertas] = useState<string[]>(['Dados Pessoais', 'Dados Funcionais']);
   const [isExporting, setIsExporting] = useState(false);
+  const { registrarAntes } = useRegistrarEvento();
 
   // Fetch unidades
   const { data: unidades = [] } = useQuery({
@@ -136,6 +138,21 @@ export function ExportacaoServidoresCard() {
         vinculo_label: s.vinculo ? (VINCULO_LABELS[s.vinculo as keyof typeof VINCULO_LABELS] || s.vinculo) : '',
         situacao_label: s.situacao ? (SITUACAO_LABELS[s.situacao as keyof typeof SITUACAO_LABELS] || s.situacao) : '',
       }));
+
+      // Trilha: exportação registrada antes de gerar o arquivo (sem registro, sem arquivo)
+      const ok = await registrarAntes({
+        acao: "export",
+        entidade: "exportacao_rh",
+        descricao: `Planilha de servidores exportada (${formato.toUpperCase()}, ${servidores.length} registros)`,
+        metadados: {
+          tela: "exportacao_servidores_card",
+          formato,
+          quantidade: servidores.length,
+          campos: camposSelecionados,
+          filtros: { unidade: filtroUnidade, vinculo: filtroVinculo, situacao: filtroSituacao },
+        },
+      });
+      if (!ok) return;
 
       if (formato === 'xlsx') {
         exportarParaExcel(servidoresComLabels, camposSelecionados);

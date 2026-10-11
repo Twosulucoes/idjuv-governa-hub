@@ -46,6 +46,7 @@ import { RelatorioFrequenciaCard } from "@/components/rh/relatorios/RelatorioFre
 import { RelatorioViagensCard } from "@/components/rh/relatorios/RelatorioViagensCard";
 import { RelatorioFolhaCard } from "@/components/rh/relatorios/RelatorioFolhaCard";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 const NATUREZA_LABELS: Record<string, string> = {
   comissionado: 'Cargos Comissionados',
@@ -66,6 +67,15 @@ export default function RelatoriosRHPage() {
   // Folha: mesmo gate das rotas /folha (ROUTE_PERMISSIONS); a RLS continua sendo a fronteira real.
   const { isSuperAdmin, hasAnyPermission } = useAuth();
   const podeVerFolha = isSuperAdmin || hasAnyPermission(["financeiro.folha.visualizar"]);
+  const { registrarAntes } = useRegistrarEvento();
+  // Trilha: cada relatório é registrado antes de gerar o PDF (sem registro, sem arquivo)
+  const registrarRelatorio = (relatorio: string, descricao: string, metadados: Record<string, unknown> = {}) =>
+    registrarAntes({
+      acao: "download",
+      entidade: "relatorio_rh",
+      descricao,
+      metadados: { relatorio, formato: "pdf", ...metadados },
+    });
 
   // Fetch unidades com hierarquia completa
   const { data: unidades = [] } = useQuery({
@@ -231,6 +241,8 @@ export default function RelatoriosRHPage() {
       // Usar organização hierárquica
       const gruposHierarquicos = organizarUnidadesHierarquicamente(unidades, filteredServidores);
 
+      if (!(await registrarRelatorio("servidores_por_diretoria", "Relatório de servidores por diretoria", { unidade_id: selectedUnidade, quantidade: filteredServidores.length }))) return;
+
       await generateRelatorioServidoresDiretoria({
         grupos: gruposHierarquicos.map(g => ({
           unidade_nome: g.unidade_nome,
@@ -282,6 +294,8 @@ export default function RelatoriosRHPage() {
         }
         servidoresPorVinculo[s.vinculo].push(s);
       });
+
+      if (!(await registrarRelatorio("servidores_por_vinculo", "Relatório de servidores por vínculo", { vinculo: selectedVinculo, quantidade: filteredServidores.length }))) return;
 
       await generateRelatorioServidoresVinculo({
         grupos: Object.entries(servidoresPorVinculo).map(([vinculo, lista]) => ({
@@ -374,6 +388,8 @@ export default function RelatoriosRHPage() {
         .order("data_inicio", { ascending: false });
 
       if (lErr) throw lErr;
+
+      if (!(await registrarRelatorio("historico_funcional", "Relatório de histórico funcional do servidor", { servidor_id: selectedServidor }))) return;
 
       await generateRelatorioHistoricoFuncional({
         servidor: {
@@ -488,6 +504,8 @@ export default function RelatoriosRHPage() {
       const totalOcupadas = filteredCargos.reduce((acc, c) => acc + c.vagas_ocupadas, 0);
       const totalDisponiveis = totalPrevistas - totalOcupadas;
       const percentualGeral = totalPrevistas > 0 ? (totalOcupadas / totalPrevistas) * 100 : 0;
+
+      if (!(await registrarRelatorio("vagas_por_cargo", "Relatório de vagas por cargo", { natureza: selectedNatureza, quantidade: filteredCargos.length }))) return;
 
       await generateRelatorioVagasCargo({
         grupos,
@@ -636,6 +654,8 @@ export default function RelatoriosRHPage() {
 
       const totalPortarias = servidoresComPortarias.reduce((acc, s) => acc + s.portarias.length, 0);
 
+      if (!(await registrarRelatorio("servidores_portarias", "Relatório de servidores e portarias", { quantidade: servidoresComPortarias.length }))) return;
+
       await generateRelatorioServidoresPortarias({
         servidores: servidoresComPortarias,
         totalServidores: servidoresComPortarias.length,
@@ -733,6 +753,8 @@ export default function RelatoriosRHPage() {
 
       servidoresSemPortaria.sort((a, b) => a.nome.localeCompare(b.nome));
       servidoresSemPortaria.forEach((s, i) => s.ord = i + 1);
+
+      if (!(await registrarRelatorio("situacao_portaria", "Relatório de situação de portarias"))) return;
 
       await generateRelatorioSituacaoPortaria({
         servidoresComPortaria,
@@ -841,6 +863,8 @@ export default function RelatoriosRHPage() {
 
       servidoresSemPortaria.sort((a, b) => a.nome.localeCompare(b.nome));
       servidoresSemPortaria.forEach((s, i) => s.ord = i + 1);
+
+      if (!(await registrarRelatorio("agrupado_portaria", "Relatório agrupado por portaria"))) return;
 
       await generateRelatorioAgrupadoPortaria({
         grupos,

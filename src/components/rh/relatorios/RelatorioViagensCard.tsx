@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plane } from "lucide-react";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { VIAGEM_STATUS_LABELS } from "@/types/rh";
 import { useViagensRelatorio, useNomeUnidadeSelecionada } from "@/hooks/useRelatoriosRH";
 import { gerarRelatorioViagens } from "@/lib/pdfRelatoriosAfastamentos";
@@ -30,6 +31,7 @@ export function RelatorioViagensCard() {
   const [status, setStatus] = useState<string | undefined>();
   const [tipoOnus, setTipoOnus] = useState<string | undefined>();
   const [gerando, setGerando] = useState<FormatoExportacao | null>(null);
+  const { registrarAntes } = useRegistrarEvento();
 
   const filtros = { inicio: periodo.inicio, fim: periodo.fim, unidadeId, status, tipoOnus };
   const valido = periodoValido(periodo.inicio, periodo.fim);
@@ -40,6 +42,19 @@ export function RelatorioViagensCard() {
     if (linhas.length === 0) return;
     setGerando(formato);
     try {
+      // Trilha: relatório registrado antes de gerar o arquivo (sem registro, sem arquivo)
+      const ok = await registrarAntes({
+        acao: formato === "pdf" ? "download" : "export",
+        entidade: "relatorio_rh",
+        descricao: `Relatório de viagens (${formato.toUpperCase()}, ${linhas.length} registros)`,
+        metadados: {
+          relatorio: "viagens",
+          formato,
+          quantidade: linhas.length,
+          filtros: { inicio: periodo.inicio, fim: periodo.fim, unidade_id: unidadeId ?? null, status: status ?? null, tipo_onus: tipoOnus ?? null },
+        },
+      });
+      if (!ok) return;
       if (formato === "pdf") {
         await gerarRelatorioViagens(linhas, {
           inicio: periodo.inicio,

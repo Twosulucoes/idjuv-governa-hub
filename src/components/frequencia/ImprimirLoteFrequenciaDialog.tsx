@@ -43,6 +43,7 @@ import {
   CloudUpload,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 
@@ -83,6 +84,7 @@ export function ImprimirLoteFrequenciaDialog({
   const [salvarStorage, setSalvarStorage] = useState(true);
   const [criarPacote, setCriarPacote] = useState(true);
   const [progresso, setProgresso] = useState<string>('');
+  const { registrarAntes } = useRegistrarEvento();
 
   // Dados do agrupamento selecionado
   const [servidoresAgrupamento, setServidoresAgrupamento] = useState<ServidorComSituacao[]>([]);
@@ -367,6 +369,24 @@ export function ImprimirLoteFrequenciaDialog({
       setProgresso('Gerando PDF...');
       const { blob, nomeArquivo } = await generateFrequenciaLoteBlob(config);
 
+      // Trilha: registrado antes de entregar o PDF (sem registro, sem arquivo)
+      const registrado = await registrarAntes({
+        acao: 'download',
+        entidade: 'frequencia_mensal',
+        descricao: `Folhas de frequência em lote ${String(mes).padStart(2, '0')}/${ano} (${servidoresParaImprimir.length} servidores)`,
+        metadados: {
+          lote: true,
+          formato: 'pdf',
+          ano,
+          mes,
+          modo: modoSelecao,
+          unidade_id: idUnidade || null,
+          agrupamento_id: agrupamentoId || null,
+          quantidade: servidoresParaImprimir.length,
+        },
+      });
+      if (!registrado) return;
+
       // Download local
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -413,7 +433,7 @@ export function ImprimirLoteFrequenciaDialog({
             arquivosSalvos++;
             setProgresso(`Salvando frequências... (${arquivosSalvos}/${servidoresParaImprimir.length})`);
           } catch (uploadError) {
-            console.warn(`Erro ao salvar frequência de ${servidor.nome_completo}:`, uploadError);
+            console.warn(`Erro ao salvar frequência do servidor ${servidor.id}:`, uploadError);
           }
         }
       }

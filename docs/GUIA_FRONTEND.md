@@ -51,6 +51,7 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useCalendarioComunicacao`, `useDemandasAscom`.
 - **Admin/segurança**: `useAdminUsuarios`, `useUsuarios`, `usePermissions`,
   `usePermissoesUsuario`, `useRBAC`, `useApprovalRequests`, `useAuditLog`,
+  `useTrilhaAuditoria` (trilha de auditoria e `useRegistrarEvento`; ver abaixo),
   `useBackupOffsite`, `useDatabaseSchema`, `useModuleSettings`,
   `useConfigPaginasPublicas`, `useFormFieldConfig`.
 - **Organização**: `useOrganograma`, `useInstituicoes`, `useAgrupamentoUnidades`,
@@ -142,6 +143,47 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
 que confere a permissão, valida cada linha, devolve o formato de `ResultadoBanco` e, ao aplicar, insere em
 `importacoes`; (2) `importadores/<algo>.ts` implementando `Importador`; (3) incluir em `registro.ts`.
 Erro de leitura bloqueia a importação; aviso só informa.
+
+## Trilha de auditoria no front (onda E2)
+
+Spec: [`superpowers/specs/2026-10-10-rh-trilha-tela-design.md`](./superpowers/specs/2026-10-10-rh-trilha-tela-design.md).
+O banco grava quem fez cada lançamento (onda E1); o front consulta a trilha e registra o que não é gravação.
+
+- **Hook** `src/hooks/useTrilhaAuditoria.ts` (as colunas novas de `audit_logs` e a RPC `registrar_evento` ainda não
+  estão em `types.ts`: consulta com `supabase as unknown as SupabaseClient`, tipos no próprio hook):
+  - `useTrilhaAuditoria(filtros, cursor)`: lista paginada **no servidor** por cursor na `sequencia`
+    (`sequencia < cursor`, `limit(n + 1)`; a tela guarda a pilha de cursores para "Anterior"), sem
+    `before_data`/`after_data`, ordem só `sequencia` desc (é o que usa os índices); filtros por período, módulo, ação,
+    origem, tabela, ID do registro, usuário, servidor responsável (nome/matrícula ou ID) e recorte de ficha (`escopo`):
+    servidor (`alvos` contém `s:<id>`) ou folha (`alvos` contém `f:<id>`, módulos `rh` e `folha`). `alvos` é a coluna
+    gerada de `audit_logs` com índice GIN (onda E2): junta o `servidor_id`/`folha_id` do antes/depois e dos metadados e
+    o `servidor_alvo_id` dos arquivos do Storage (só quando `metadata.fonte = 'storage'`). Com filtro de período, o hook
+    busca antes a faixa de `sequencia` do período (com 1 h de folga nas pontas, porque `timestamp` é o início da
+    transação) e manda os dois filtros juntos, para não varrer tudo o que é mais novo;
+  - `useDetalheTrilha(id)` + `calcularDiff`: a linha completa ao abrir, diff campo a campo (valores já mascarados pelo
+    banco; na atualização, os carimbos `updated_*` fora de `campos_alterados` não aparecem);
+  - `useRegistrarEvento()`: `registrarAntes(evento)` para exportação, impressão e arquivo — espera o banco e, se
+    falhar, mostra o erro e devolve `false` (quem chama **não entrega** o arquivo); `registrarSemBloquear(evento)` para
+    visualização. Ações e entidades seguem as listas fechadas da RPC (tipos `AcaoEvento`/`EntidadeEvento`). Metadados
+    sem dado pessoal (filtros, formato, quantidade, IDs); `servidor_id`/`folha_id` nos metadados ligam o evento às
+    abas de histórico.
+- **Componentes** em `src/components/auditoria/`: `TrilhaAuditoria` (filtros, tabela com fonte da linha, paginação,
+  diálogo de detalhe e CSV registrado antes do download; o botão só aparece para o admin e para quem tem o módulo
+  `rh`, que a RPC exige), `DetalheTrilhaDialog` e
+  `HistoricoAlteracoesTab` (aba na ficha do servidor e no detalhe da folha). Descrição e metadados são texto: nada
+  vira HTML.
+- **CSV sem fórmula:** `celulaCsv` (`src/export/csvSeguro.ts`) põe a célula entre aspas e um apóstrofo antes de
+  texto que começa com `=`, `+`, `-`, `@`, tab ou CR (números passam). Usada no CSV da trilha, em
+  `src/export/exportCSV.ts` e no CSV de servidores (`src/lib/exportarPlanilha.ts`).
+- **Páginas:** `/admin/auditoria` (todos os módulos) e `/rh/auditoria` (mesmo componente, travado no módulo `rh`).
+- **Onde `registrar_evento` está ligado:** contracheque (`useLogAcessoContracheque`, que trocou `log_audit` pela
+  RPC; impressão individual e em lote em `/rh/contracheques`, `/rh/meu-contracheque`, detalhe da folha e ficha
+  financeira), XML do eSocial (baixar e copiar), arquivo CNAB (registrado antes de gravar a remessa e baixar),
+  planilhas (`/rh/exportar`, `ExportacaoServidoresCard`, cards de `src/components/rh/relatorios/*`, aniversariantes),
+  PDFs do RH (relatórios de `/rh/relatorios` e cards avulsos, pendências cadastrais, frequência individual, em lote e
+  geral, pacote de frequência, fichas e declarações do servidor, memorando de designação) e o CSV da trilha.
+  Visualização sem bloquear: ficha do servidor, ficha financeira, contracheque na consulta, pré-visualização da
+  frequência e documentos abertos na ficha.
 
 ## Padrões de UI
 

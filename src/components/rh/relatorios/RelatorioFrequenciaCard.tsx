@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Clock } from "lucide-react";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { useFrequenciaResumo } from "@/hooks/useFrequencia";
 import { useNomeUnidadeSelecionada } from "@/hooks/useRelatoriosRH";
 import { generateRelatorioFrequenciaGeral, type FrequenciaServidor } from "@/lib/pdfRelatorioFrequencia";
@@ -24,6 +25,7 @@ export function RelatorioFrequenciaCard() {
   const [unidadeId, setUnidadeId] = useState<string | undefined>();
   const [agruparPorUnidade, setAgruparPorUnidade] = useState(true);
   const [gerando, setGerando] = useState<FormatoExportacao | null>(null);
+  const { registrarAntes } = useRegistrarEvento();
   const idAgrupar = useId();
 
   const { data: resumo = [], isLoading, isError } = useFrequenciaResumo(ano, mes);
@@ -44,6 +46,19 @@ export function RelatorioFrequenciaCard() {
     if (servidores.length === 0) return;
     setGerando(formato);
     try {
+      // Trilha: relatório registrado antes de gerar o arquivo (sem registro, sem arquivo)
+      const ok = await registrarAntes({
+        acao: formato === "pdf" ? "download" : "export",
+        entidade: "relatorio_rh",
+        descricao: `Relatório de frequência (${formato.toUpperCase()}, ${servidores.length} registros)`,
+        metadados: {
+          relatorio: "frequencia",
+          formato,
+          quantidade: servidores.length,
+          filtros: { ano, mes, unidade_id: unidadeId ?? null, agrupar_por_unidade: agruparPorUnidade },
+        },
+      });
+      if (!ok) return;
       if (formato === "pdf") {
         await generateRelatorioFrequenciaGeral({
           competencia,

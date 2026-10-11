@@ -87,7 +87,13 @@ A função lê `frequencia_pacotes` e assina URLs com a service role, então, de
   responde `403` genérico (falha fechada);
 - só assina caminho relativo seguro (sem `/` inicial, segmento `.` ou `..`, `%`, `\`, `?` ou `#`), a mesma regra do
   CHECK de `arquivo_path` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)); caminho inseguro responde `404` genérico;
-- o log identifica o usuário só pelo `user.id` (antes gravava o e-mail) e não leva token, link nem caminho.
+- o log identifica o usuário só pelo `user.id` (antes gravava o e-mail) e não leva token, link nem caminho;
+- **trilha obrigatória (onda E2)**: antes de devolver a URL, grava em `audit_logs` `action = 'download'`,
+  `module_name = 'rh'`, `entity_type = 'frequencia_pacotes'`, `entity_id` = id do pacote, `user_id` de quem pediu e
+  metadados só com `periodo`, `tipo` e `fonte = 'download-frequencia'` (sem nome de arquivo; o banco completa
+  servidor, origem e contexto). Se a gravação falhar, a URL não sai: `500` genérico ("Erro ao gerar link de
+  download") e o `console.error` só com o código do erro. Antes gravava sem módulo (a linha não aparecia na trilha
+  do RH), com `entity_type = 'frequencia_pacote'` e o nome do arquivo, e ignorava a falha.
 
 O CORS continua `Access-Control-Allow-Origin: *`: a função só aceita o token no cabeçalho `Authorization`, sem
 cookie. Restringir o CORS à origem do tenant é pendência. O ZIP do pacote nunca é gravado hoje, então o download

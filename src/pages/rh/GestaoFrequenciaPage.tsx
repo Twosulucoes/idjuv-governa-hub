@@ -35,6 +35,7 @@ import { LancarFaltaDialog } from "@/components/frequencia/LancarFaltaDialog";
 import { ImprimirFrequenciaDialog } from "@/components/frequencia/ImprimirFrequenciaDialog";
 import { ImprimirLoteFrequenciaDialog } from "@/components/frequencia/ImprimirLoteFrequenciaDialog";
 import { generateRelatorioFrequenciaGeral } from "@/lib/pdfRelatorioFrequencia";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { format } from "date-fns";
 
 export default function GestaoFrequenciaPage() {
@@ -42,6 +43,7 @@ export default function GestaoFrequenciaPage() {
   const mesAtual = new Date().getMonth() + 1;
 
   const [ano, setAno] = useState(anoAtual);
+  const { registrarAntes } = useRegistrarEvento();
   const [mes, setMes] = useState(mesAtual);
   const [busca, setBusca] = useState("");
   const [showLancarFalta, setShowLancarFalta] = useState(false);
@@ -87,6 +89,15 @@ export default function GestaoFrequenciaPage() {
 
   const handleGerarRelatorio = async () => {
     if (!servidoresFiltrados) return;
+
+    // Trilha: registrado antes de gerar o PDF (sem registro, sem arquivo)
+    const ok = await registrarAntes({
+      acao: "download",
+      entidade: "relatorio_rh",
+      descricao: `Relatório geral de frequência ${competencia}`,
+      metadados: { relatorio: "frequencia_geral", formato: "pdf", ano, mes, quantidade: servidoresFiltrados.length },
+    });
+    if (!ok) return;
 
     await generateRelatorioFrequenciaGeral({
       competencia,

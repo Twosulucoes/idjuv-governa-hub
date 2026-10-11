@@ -3178,17 +3178,24 @@ CREATE INDEX idx_audit_logs_action ON public.audit_logs USING btree (action);
 
 
 --
--- Name: idx_audit_logs_entity; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_audit_logs_alvos; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_logs_entity ON public.audit_logs USING btree (entity_type, entity_id);
+CREATE INDEX idx_audit_logs_alvos ON public.audit_logs USING gin (alvos);
 
 
 --
--- Name: idx_audit_logs_module; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_audit_logs_entidade_seq; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_logs_module ON public.audit_logs USING btree (module_name);
+CREATE INDEX idx_audit_logs_entidade_seq ON public.audit_logs USING btree (entity_type, entity_id, sequencia DESC);
+
+
+--
+-- Name: idx_audit_logs_modulo_seq; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_logs_modulo_seq ON public.audit_logs USING btree (module_name, sequencia DESC);
 
 
 --
@@ -3199,6 +3206,13 @@ CREATE INDEX idx_audit_logs_sequencia ON public.audit_logs USING btree (sequenci
 
 
 --
+-- Name: idx_audit_logs_servidor_seq; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_logs_servidor_seq ON public.audit_logs USING btree (servidor_id, sequencia DESC);
+
+
+--
 -- Name: idx_audit_logs_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3206,10 +3220,10 @@ CREATE INDEX idx_audit_logs_timestamp ON public.audit_logs USING btree ("timesta
 
 
 --
--- Name: idx_audit_logs_user; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_audit_logs_usuario_seq; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_logs_user ON public.audit_logs USING btree (user_id);
+CREATE INDEX idx_audit_logs_usuario_seq ON public.audit_logs USING btree (user_id, sequencia DESC);
 
 
 --
