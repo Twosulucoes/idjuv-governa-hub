@@ -6216,6 +6216,13 @@ CREATE UNIQUE INDEX remessas_bancarias_conta_numero_uidx ON public.remessas_banc
 
 
 --
+-- Name: remessas_bancarias_folha_conta_ativa_uidx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX remessas_bancarias_folha_conta_ativa_uidx ON public.remessas_bancarias USING btree (folha_id, conta_autarquia_id) WHERE ((status)::text <> 'cancelada'::text);
+
+
+--
 -- Name: uq_bens_patrimoniais_numero_norm; Type: INDEX; Schema: public; Owner: -
 --
 

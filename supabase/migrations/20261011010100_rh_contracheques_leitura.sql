@@ -34,10 +34,13 @@
 --    sem o privilégio DELETE para authenticated (a API recebe 42501 em vez de "0 linhas"). A remessa é cancelada pela
 --    RPC cancelar_remessa (20261011010000); a retificação de evento do eSocial fica para a onda G. A service role
 --    continua podendo apagar (operação manual, fora da API do navegador).
--- 4. Fora desta migração (sem remuneração por pessoa na linha, ou exigem outra solução): retornos_bancarios e
+-- 4. fn_validar_margem_consignavel (líquido e consignações de um servidor): SECURITY INVOKER e a mesma regra de
+--    leitura (42501 fora dela).
+-- 5. Fora desta migração (sem remuneração por pessoa na linha, ou exigem outra solução): retornos_bancarios e
 --    exportacoes_folha (totais por arquivo), dependentes_irrf (dado pessoal de dependente, sem valor),
 --    adicionais_tempo_servico (registro funcional do RH), as colunas de remuneração e banco de servidores,
---    vinculos_servidor e pre_cadastros (RLS é por linha: pede view ou privilégio por coluna) — ver docs/BANCO_DE_DADOS.md.
+--    vinculos_servidor e pre_cadastros (RLS é por linha; privilégio por coluna quebraria os select('*') do front: risco
+--    registrado) — ver docs/BANCO_DE_DADOS.md.
 -- Front: a rota /rh/contracheques e os itens de menu usam rh.contracheques.visualizar (ROUTE_PERMISSIONS).
 -- ============================================================================
 
@@ -170,6 +173,64 @@ DROP POLICY IF EXISTS "rls_delete" ON public.remessas_bancarias;
 
 -- Sem DELETE também por privilégio (mesma linha no supabase/baseline/overlay/40_privilegios.sql)
 REVOKE DELETE ON public.remessas_bancarias, public.eventos_esocial FROM anon, authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 4. fn_validar_margem_consignavel: mesma regra de leitura
+-- ----------------------------------------------------------------------------
+-- Devolve o líquido do servidor e a soma das consignações. No banco só de migrações era SECURITY DEFINER sem checagem
+-- (qualquer logado consultava qualquer servidor); no baseline o overlay 18 já a fazia rodar como o usuário. Agora, nos
+-- dois: SECURITY INVOKER (a RLS de servidores e consignacoes vale) e checagem explícita — módulo rh com
+-- rh.contracheques.visualizar ou financeiro.folha.processar, ou o próprio servidor (42501 fora disso). Limite: o
+-- próprio servidor não lê as próprias consignações pela RLS (consignacoes não tem posse), então para ele
+-- margem_utilizada sai 0; nenhuma tela do servidor usa a função hoje. O EXECUTE continua como estava.
+CREATE OR REPLACE FUNCTION public.fn_validar_margem_consignavel(p_servidor_id uuid)
+ RETURNS TABLE(salario_liquido numeric, margem_total_percentual numeric, margem_total_valor numeric, margem_utilizada numeric, margem_disponivel numeric, percentual_utilizado numeric, dentro_limite boolean)
+ LANGUAGE plpgsql
+ STABLE SECURITY INVOKER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_liquido NUMERIC;
+  v_margem_pct NUMERIC;
+  v_utilizada NUMERIC;
+BEGIN
+  -- coalesce: sem servidor vinculado, meu_servidor_id() é nulo e a comparação daria nulo (o IF não recusaria)
+  IF NOT coalesce((auth.uid() IS NOT NULL AND public.can_access_module(auth.uid(), 'rh')
+                   AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar')
+                        OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar')))
+                  OR p_servidor_id = public.meu_servidor_id(), false) THEN
+    RAISE EXCEPTION 'fn_validar_margem_consignavel: exige o módulo rh com rh.contracheques.visualizar ou financeiro.folha.processar, ou ser o próprio servidor'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- Buscar remuneração líquida do servidor
+  SELECT COALESCE(s.remuneracao_bruta, 0) - COALESCE(s.descontos, 0)
+  INTO v_liquido
+  FROM servidores s WHERE s.id = p_servidor_id;
+
+  -- Buscar percentual da margem
+  SELECT COALESCE(valor * 100, 35)
+  INTO v_margem_pct
+  FROM parametros_folha
+  WHERE tipo_parametro = 'margem_consignavel' AND ativo = true
+  ORDER BY vigencia_inicio DESC LIMIT 1;
+
+  -- Somar consignações ativas
+  SELECT COALESCE(SUM(valor_parcela), 0)
+  INTO v_utilizada
+  FROM consignacoes
+  WHERE servidor_id = p_servidor_id AND ativo = true AND suspenso = false AND quitado = false;
+
+  RETURN QUERY SELECT
+    v_liquido,
+    v_margem_pct,
+    ROUND(v_liquido * v_margem_pct / 100, 2),
+    v_utilizada,
+    ROUND(v_liquido * v_margem_pct / 100 - v_utilizada, 2),
+    CASE WHEN v_liquido > 0 THEN ROUND(v_utilizada / (v_liquido * v_margem_pct / 100) * 100, 2) ELSE 0 END,
+    v_utilizada <= ROUND(v_liquido * v_margem_pct / 100, 2);
+END;
+$function$;
 
 -- Aviso (não erro): policy fora das rls_* nestas oito tabelas (criada fora das migrações no banco ao vivo). Policies
 -- permissivas são OR: uma assim manteria a leitura ampla dos contracheques ou o DELETE e precisa ser revista à mão.

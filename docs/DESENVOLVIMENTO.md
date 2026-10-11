@@ -76,6 +76,10 @@ O workflow `.github/workflows/migracoes-banco.yml` leva `supabase/migrations/` a
   `supabase migration repair --db-url <url pelo túnel> --status applied <versão>...` (de dentro da VPS ou com o mesmo túnel SSH) e rodar de novo.
 - Por isso toda migração precisa ser segura para rodar sozinha no merge: idempotente quando possível
   (`IF NOT EXISTS`), sem depender de passo manual, com RLS na própria migração.
+- **Conferências depois de aplicar** (só no merge): o job falha, com o banco já alterado, se faltar o que uma
+  migração só consegue avisar — os 3 triggers `trilha_rh_storage_*` em `storage.objects` (E2) e, desde a E3, os 3
+  índices únicos da remessa CNAB e do eSocial e o `BYPASSRLS` do dono de `remessa_integridade()` (detalhes em
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#integridade-da-remessa-cnab-e-do-esocial--onda-e3-banco)).
 - Depois do merge, regenere `src/integrations/supabase/types.ts` contra o banco de produção.
 
 ## Como adicionar uma feature (receita)

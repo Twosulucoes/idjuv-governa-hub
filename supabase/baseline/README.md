@@ -42,7 +42,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 4 | `overlay/10_funcoes_acesso.sql` | `is_admin_user`, `is_admin_atual`, `has_permission_code`, `meu_servidor_id` exigem perfil **ativo**; fim dos stubs “acesso total”; alias `usuario_eh_admin`; `eh_meu_servidor(uuid)` (B2: "este servidor é o do usuário?", por vínculo ou, sem vínculo, por CPF); `eh_meu_arquivo_frequencia(text)` e `eh_minha_pasta_servidor(text)` (B3: o objeto do storage é do servidor do usuário?) | à mão |
 | 5 | `overlay/12_protecao_profiles.sql` | trigger: quem não é admin não muda `is_active`, `servidor_id`, bloqueio, tipo, CPF, e-mail; policies de `profiles` sem duplicatas | à mão |
 | 6 | `overlay/15_novo_usuario.sql` | `handle_new_user` (antes quebrava o cadastro) + trigger em `auth.users` | à mão |
-| 7 | `overlay/18_funcoes_rpc.sql` | `fn_gerar_numero_financeiro` com lista fechada (injeção de SQL); RPCs de leitura com dado pessoal viram `SECURITY INVOKER`; `obter_parametro_*` não vazam valor individual; `sync_usuario_servidor_status` não reativa administrador; trigger de fechamento de folha; correção da auditoria de folha/parâmetros (`entity_id` uuid); `log_audit` recusa usuário inativo e, desde a E1, não forja a trilha do RH (mesmo texto da migração `20261011000000`; desde a E2, `20261011000200`, também recusa `entity_type` `storage.*` e tira `servidor_alvo_id` dos metadados); `fechar_folha`/`reabrir_folha` gravam no módulo `rh` desde a E2 (`20261011000300`); `registrar_transicao_folha` grava `fechado_por`/`conferido_por` pelo banco (E1, mesmo texto da migração `20261011000000`) | à mão |
+| 7 | `overlay/18_funcoes_rpc.sql` | `fn_gerar_numero_financeiro` com lista fechada (injeção de SQL); RPCs de leitura com dado pessoal viram `SECURITY INVOKER`; `obter_parametro_*` não vazam valor individual; `sync_usuario_servidor_status` não reativa administrador; trigger de fechamento de folha; correção da auditoria de folha/parâmetros (`entity_id` uuid); `log_audit` recusa usuário inativo e, desde a E1, não forja a trilha do RH (mesmo texto da migração `20261011000000`; desde a E2, `20261011000200`, também recusa `entity_type` `storage.*` e tira `servidor_alvo_id` dos metadados); `fechar_folha`/`reabrir_folha` gravam no módulo `rh` desde a E2 (`20261011000300`); `reabrir_folha` trava a folha, recusa folha com remessa ativa e tira da vigência os eventos do eSocial rascunho desde a E3 (`20261011010000`, mesmo texto); `registrar_transicao_folha` grava `fechado_por`/`conferido_por` pelo banco (E1, mesmo texto da migração `20261011000000`) | à mão |
 | 8 | `overlay/20_campos_iniciais.sql` | triggers: formulários públicos e pedidos do servidor não escolhem `status`, aprovação, autoria (nos pedidos do RH a isenção é por permissão, formato `perm:`, e nunca no próprio pedido); links do formulário de árbitros só do próprio bucket | à mão |
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
@@ -191,18 +191,24 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - integridade de CNAB e eSocial (E3, bloco "RH: integridade de CNAB e eSocial (Onda E3)" de `testar-rls.sql`, triggers
   ligados): remessa e evento recusados com folha aberta (`RHE01`, também para o admin e ao trocar a folha do evento);
   número da remessa do cliente ignorado, seguindo o maior da conta (inclusive remessa antiga) e sem repetir (índice
-  único também com os triggers desligados); folha, conta e número fixos (`RHE02`); caminho e sha256 do arquivo juntos,
-  uma vez, só com `financeiro.folha.processar` (`42501`/`22023`/`RHE02`, inclusive para o admin); cancelamento só por
+  único também com os triggers desligados); valor e quantidade calculados das fichas (o do cliente sobrescrito); folha,
+  conta, número, valor e quantidade fixos (`RHE02`); uma remessa ativa por folha e conta (`23505`; depois de cancelar,
+  outra entra); prévia do número só com o módulo `rh`; caminho e sha256 do arquivo juntos, uma vez, só com
+  `financeiro.folha.processar`, por quem gerou a remessa e com o objeto enviado por ele (`42501`/`22023`/`P0002`/`RHE02`,
+  inclusive para o admin) e a sequência do front (INSERT → envio → UPDATE pelo mesmo usuário); `reabrir_folha` recusa
+  folha com remessa ativa e marca os eventos rascunho como `erro` (o transmitido fica); cancelamento só por
   `cancelar_remessa` (motivo e permissão exigidos, autor, data e trilha gravados; `RHE03` fora dela, em remessa já
   cancelada ou processada; cancelada não muda mais); evento repetido na mesma folha e servidor recusado (`23505`, fora
-  `erro`); `enviado`/`aceito` sem recibo recusado (`23514`) e coluna `rascunho`; bucket `remessas-cnab` privado (anon,
-  módulo sem o código, servidor e admin bloqueado não leem nem enviam; envio só de `<id>.rem` de remessa sem arquivo e
-  não cancelada; ninguém troca nem apaga; só as duas policies do bucket); funções de trigger fora da API;
+  `erro`); `enviado`/`aceito` sem recibo e S-1200/S-1210/S-1299 sem folha ou servidor recusados (`23514`) e coluna
+  `rascunho`; bucket `remessas-cnab` privado (anon, módulo sem o código, servidor e admin bloqueado não leem nem enviam;
+  envio só de `<id>.rem` de remessa do próprio usuário, `gerada` há menos de 1 hora e sem arquivo; ninguém troca nem
+  apaga; só as duas policies do bucket, também contra `bucket_id <> outro`); funções de trigger fora da API;
 - leitura dos contracheques e fim do DELETE (E3, migração `20261011010100`, bloco "RH: leitura dos contracheques e
   fim do DELETE (Onda E3, 0100)"): catálogo de `rh.contracheques.visualizar` (`action_type` diferente de `visualizar`,
   só admin e manager) e a premissa (o papel `user` com o módulo `rh` tem `financeiro.folha.visualizar`); fichas e itens
   lidos por quem tem o código, `processar` ou o papel admin, e só o próprio pelo servidor; o papel `user` e o módulo
   sem código leem 0, também em lançamentos, consignações, pensões, itens do retorno e eSocial (quem só lê não altera);
+  só o módulo não insere evento do eSocial; `fn_validar_margem_consignavel` como o usuário e com a mesma regra;
   remessa lida pelo módulo e inserida ou alterada só com `processar`; DELETE em remessas e eventos recusado (`42501`) até para o admin, sem policy nem privilégio. Nos
   blocos por tabela, `;leitura=` mede persona por código de leitura (lê; a avulsa não; só leitura não insere) e
   `excluir=ninguem` espera DELETE negado a todos;
@@ -215,11 +221,15 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 
 Último resultado (2026-10-11, onda E3, migrações `20261011010000` e `20261011010100`, PostgreSQL 16): replay de
 **270 migrações com 0 falhas**; `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em 4550
-checagens de UPDATE/DELETE (235 tabelas), schema idêntico ao replay (44035 linhas), policies de storage, buckets, ACL de
+checagens de UPDATE/DELETE (235 tabelas), schema idêntico ao replay (44102 linhas), policies de storage, buckets, ACL de
 funções e triggers de `storage.objects` idênticos. As duas migrações aplicadas duas vezes no replay, no baseline novo e
 no baseline anterior à E3: sem erro e sem diferença entre a primeira e a segunda aplicação; o baseline anterior com as
-duas migrações dá o mesmo dump do baseline novo. Prova de vida no baseline anterior: 122 falhas sem as migrações, 61 só
-com a `20261011010000` (todas da `20261011010100`) e 0 com as duas. Antes, na E2 (migrações `20261011000200` e `20261011000300`): replay de
+duas migrações dá o mesmo dump do baseline novo. Prova de vida no baseline anterior: 148 falhas sem as migrações, 65 só
+com a `20261011010000` (todas da `20261011010100`) e 0 com as duas. Num baseline anterior carregado com legado repetido
+(S-1200 sem servidor, S-1299 e S-1200 duplicados, S-1210 transmitido duplicado, remessas com número repetido e duas
+ativas da mesma folha), a `20261011010000` cria os três índices, marca 6 eventos como `erro`, valida os dois CHECKs e
+reaplica sem mudança; uma policy de `storage.objects` sem filtro de bucket, com `bucket_id <> 'outro'`, `NOT IN` ou
+lista com `remessas-cnab` faz a migração abortar, e uma restrita a outro bucket não. Antes, na E2 (migrações `20261011000200` e `20261011000300`): replay de
 **268 migrações com 0 falhas**; `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em 4534
 checagens de UPDATE/DELETE (235 tabelas), schema idêntico ao replay (43775 linhas) e triggers de `storage.objects`
 idênticos. As duas migrações aplicadas duas vezes no replay, no baseline novo e no baseline anterior à E2: sem erro e
@@ -358,12 +368,13 @@ Limites conhecidos:
   `WARNING` e os arquivos ficam sem trilha (consulta pós-deploy em
   [`docs/BANCO_DE_DADOS.md`](../../docs/BANCO_DE_DADOS.md#consulta-da-trilha-e-arquivos-do-rh-no-storage--onda-e2-banco)).
 - **Migração `20261011010000` (E3, em PR rascunho) × overlays.** Colunas, `exigir_folha_fechada`,
-  `remessa_integridade`, `cancelar_remessa`, `get_proximo_numero_remessa` (prévia sem o ano), os triggers, os dois
-  índices únicos e o CHECK do recibo chegam pelo replay em `schema/`; o bucket `remessas-cnab` e as policies
-  `st_remessas-cnab_*` estão no overlay `50` (o dump só leva `public`) e os REVOKE/GRANT no overlay `40`, com o mesmo
-  texto da migração. Limitação: num banco com número de remessa ou evento do eSocial repetidos, os índices únicos não
-  são criados (`WARNING`; consulta pós-deploy em
-  [`docs/BANCO_DE_DADOS.md`](../../docs/BANCO_DE_DADOS.md#integridade-da-remessa-cnab-e-do-esocial--onda-e3-banco)).
+  `remessa_integridade`, `cancelar_remessa`, `get_proximo_numero_remessa` (prévia sem o ano, só com o módulo `rh`), os
+  triggers, os três índices únicos e os dois CHECKs do eSocial chegam pelo replay em `schema/`; `reabrir_folha` está no
+  overlay `18` (que sobrescreve o schema); o bucket `remessas-cnab` e as policies `st_remessas-cnab_*` no overlay `50` (o
+  dump só leva `public`); os REVOKE/GRANT no overlay `40` — todos com o mesmo texto da migração. Num banco com dados
+  repetidos antigos, a migração marca os eventos rascunho como `erro` e deixa as remessas repetidas fora do índice pelo
+  id: o índice existe sempre, mas com predicado diferente do baseline (que nasce vazio). Uma policy de `storage.objects`
+  que valha para o bucket aborta a migração ([`docs/BANCO_DE_DADOS.md`](../../docs/BANCO_DE_DADOS.md#integridade-da-remessa-cnab-e-do-esocial--onda-e3-banco)).
 - **Migração `20261011010100` (E3, em PR rascunho, muda RLS existente) × baseline.** As policies das oito
   tabelas (`fichas_financeiras`, `itens_ficha_financeira`, `lancamentos_folha`, `consignacoes`, `pensoes_alimenticias`,
   `itens_retorno_bancario`, `eventos_esocial`, `remessas_bancarias`) na migração são cópia literal

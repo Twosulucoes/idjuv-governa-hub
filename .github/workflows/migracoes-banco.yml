@@ -122,3 +122,21 @@ jobs:
             echo "::error::trilha do Storage do RH: esperava 3 triggers trilha_rh_storage_* em storage.objects, achei '$n'. Ver docs/BANCO_DE_DADOS.md."
             exit 1
           fi
+
+      # Integridade da remessa CNAB e do eSocial (migração 20261011010000): os três índices únicos têm que existir (a
+      # migração os cria sempre, deixando de fora só linhas antigas repetidas) e a função remessa_integridade, que confere
+      # o objeto em storage.objects, precisa de dono com BYPASSRLS (o postgres do Supabase tem). Falha visível aqui.
+      - name: Conferir integridade da remessa e do eSocial
+        if: steps.segredo.outputs.ok == 'true' && env.APLICAR == 'true'
+        run: |
+          n=$(psql "$SUPABASE_DB_URL" -X -At -v ON_ERROR_STOP=1 -c "select count(*) from pg_index i where i.indisunique and i.indexrelid in (to_regclass('public.remessas_bancarias_conta_numero_uidx'), to_regclass('public.remessas_bancarias_folha_conta_ativa_uidx'), to_regclass('public.eventos_esocial_folha_evento_servidor_uidx'))")
+          b=$(psql "$SUPABASE_DB_URL" -X -At -v ON_ERROR_STOP=1 -c "select coalesce(bool_or(r.rolbypassrls or r.rolsuper), false) from pg_proc p join pg_roles r on r.oid = p.proowner where p.oid = to_regprocedure('public.remessa_integridade()')")
+          echo "Índices únicos da E3 (remessa e eSocial): $n de 3; dono de remessa_integridade com BYPASSRLS: $b" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$n" != "3" ]; then
+            echo "::error::E3: esperava 3 índices únicos (remessas_bancarias_conta_numero_uidx, remessas_bancarias_folha_conta_ativa_uidx, eventos_esocial_folha_evento_servidor_uidx), achei '$n'. Ver docs/BANCO_DE_DADOS.md."
+            exit 1
+          fi
+          if [ "$b" != "t" ]; then
+            echo "::error::E3: o dono de remessa_integridade() não tem BYPASSRLS; a conferência do arquivo no bucket remessas-cnab recusaria todo arquivo. Ver docs/BANCO_DE_DADOS.md."
+            exit 1
+          fi

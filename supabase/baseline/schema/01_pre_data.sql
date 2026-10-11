@@ -2263,8 +2263,8 @@ DECLARE
   v_motivo text := btrim(coalesce(p_motivo, ''));
   v_status text;
 BEGIN
-  IF v_uid IS NULL OR NOT (public.can_access_module(v_uid, 'rh')
-                           AND public.has_permission_code(v_uid, 'financeiro.folha.processar')) THEN
+  IF v_uid IS NULL OR NOT coalesce(public.can_access_module(v_uid, 'rh')
+                                    AND public.has_permission_code(v_uid, 'financeiro.folha.processar'), false) THEN
     RAISE EXCEPTION 'cancelar_remessa: exige o módulo rh e a permissão financeiro.folha.processar' USING ERRCODE = '42501';
   END IF;
   IF length(v_motivo) < 5 OR length(v_motivo) > 1000 THEN
@@ -2590,7 +2590,8 @@ BEGIN
     RETURN NEW;
   END IF;
   SELECT f.status::text, f.competencia_ano, f.competencia_mes INTO v_status, v_ano, v_mes
-    FROM public.folhas_pagamento f WHERE f.id = NEW.folha_id;
+    FROM public.folhas_pagamento f WHERE f.id = NEW.folha_id
+    FOR SHARE OF f;
   IF FOUND AND v_status IS DISTINCT FROM 'fechada' THEN
     RAISE EXCEPTION 'Folha %/% não está fechada (status: %): % só sai de folha fechada',
       lpad(v_mes::text, 2, '0'), v_ano, coalesce(v_status, 'sem status'),
@@ -4381,7 +4382,7 @@ $$;
 --
 
 CREATE FUNCTION public.fn_validar_margem_consignavel(p_servidor_id uuid) RETURNS TABLE(salario_liquido numeric, margem_total_percentual numeric, margem_total_valor numeric, margem_utilizada numeric, margem_disponivel numeric, percentual_utilizado numeric, dentro_limite boolean)
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql STABLE
     SET search_path TO 'public'
     AS $$
 DECLARE
@@ -4389,6 +4390,15 @@ DECLARE
   v_margem_pct NUMERIC;
   v_utilizada NUMERIC;
 BEGIN
+  -- coalesce: sem servidor vinculado, meu_servidor_id() é nulo e a comparação daria nulo (o IF não recusaria)
+  IF NOT coalesce((auth.uid() IS NOT NULL AND public.can_access_module(auth.uid(), 'rh')
+                   AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar')
+                        OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar')))
+                  OR p_servidor_id = public.meu_servidor_id(), false) THEN
+    RAISE EXCEPTION 'fn_validar_margem_consignavel: exige o módulo rh com rh.contracheques.visualizar ou financeiro.folha.processar, ou ser o próprio servidor'
+      USING ERRCODE = '42501';
+  END IF;
+
   -- Buscar remuneração líquida do servidor
   SELECT COALESCE(s.remuneracao_bruta, 0) - COALESCE(s.descontos, 0)
   INTO v_liquido
@@ -5432,6 +5442,10 @@ CREATE FUNCTION public.get_proximo_numero_remessa(p_conta_id uuid, p_ano integer
 DECLARE
   v_numero INTEGER;
 BEGIN
+  IF NOT coalesce((auth.uid() IS NULL AND coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated'))
+                  OR (auth.uid() IS NOT NULL AND public.can_access_module(auth.uid(), 'rh')), false) THEN
+    RAISE EXCEPTION 'get_proximo_numero_remessa: exige o módulo rh' USING ERRCODE = '42501';
+  END IF;
   SELECT COALESCE(MAX(numero_remessa), 0) + 1 INTO v_numero
   FROM remessas_bancarias
   WHERE conta_autarquia_id = p_conta_id;
@@ -7027,6 +7041,7 @@ CREATE FUNCTION public.reabrir_folha(p_folha_id uuid, p_justificativa text) RETU
 DECLARE
   v_folha RECORD;
   v_user_id UUID;
+  v_remessas text;
 BEGIN
   v_user_id := auth.uid();
   
@@ -7045,8 +7060,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Apenas super administradores podem reabrir folhas');
   END IF;
   
-  -- Buscar folha
-  SELECT * INTO v_folha FROM public.folhas_pagamento WHERE id = p_folha_id;
+  -- Buscar folha (travada até o fim: geração de remessa/eSocial em curso termina antes; a que vier depois espera)
+  SELECT * INTO v_folha FROM public.folhas_pagamento WHERE id = p_folha_id FOR UPDATE;
   
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Folha não encontrada');
@@ -7055,6 +7070,15 @@ BEGIN
   -- Verificar status atual
   IF v_folha.status != 'fechada' THEN
     RETURN jsonb_build_object('success', false, 'error', 'Apenas folhas fechadas podem ser reabertas');
+  END IF;
+
+  -- Remessa bancária ativa: cancelar antes (E3)
+  SELECT string_agg(r.numero_remessa::text, ', ' ORDER BY r.numero_remessa) INTO v_remessas
+    FROM public.remessas_bancarias r
+   WHERE r.folha_id = p_folha_id AND r.status <> 'cancelada';
+  IF v_remessas IS NOT NULL THEN
+    RETURN jsonb_build_object('success', false, 'error',
+      format('A folha tem remessa bancária ativa (nº %s). Cancele a remessa antes de reabrir a folha.', v_remessas));
   END IF;
   
   -- Atualizar para reaberta
@@ -7065,6 +7089,11 @@ BEGIN
     reaberto_em = now(),
     justificativa_reabertura = p_justificativa
   WHERE id = p_folha_id;
+
+  -- Eventos do eSocial rascunho da folha saem da vigência (E3)
+  UPDATE public.eventos_esocial
+     SET status = 'erro', mensagem_retorno = 'Folha reaberta: gere o evento de novo depois de fechar'
+   WHERE folha_id = p_folha_id AND recibo IS NULL AND status NOT IN ('erro', 'rejeitado');
   
   -- Registrar no audit_log
   INSERT INTO public.audit_logs (
@@ -7623,11 +7652,17 @@ BEGIN
     PERFORM pg_advisory_xact_lock(hashtextextended('remessas_bancarias.numero_remessa:' || NEW.conta_autarquia_id::text, 0));
     SELECT coalesce(max(r.numero_remessa), 0) + 1 INTO NEW.numero_remessa
       FROM public.remessas_bancarias r WHERE r.conta_autarquia_id = NEW.conta_autarquia_id;
+    SELECT count(*)::integer, coalesce(round(sum(f.valor_liquido), 2), 0)
+      INTO NEW.quantidade_registros, NEW.valor_total
+      FROM public.fichas_financeiras f
+     WHERE f.folha_id = NEW.folha_id AND f.valor_liquido > 0
+       AND coalesce(f.banco_codigo, '') <> '' AND coalesce(f.banco_agencia, '') <> '' AND coalesce(f.banco_conta, '') <> '';
   ELSE
     -- campos que identificam o arquivo gerado
     IF NEW.folha_id IS DISTINCT FROM OLD.folha_id OR NEW.conta_autarquia_id IS DISTINCT FROM OLD.conta_autarquia_id
-       OR NEW.numero_remessa IS DISTINCT FROM OLD.numero_remessa THEN
-      RAISE EXCEPTION 'Remessa %: folha, conta e número não mudam depois de gerada', OLD.numero_remessa
+       OR NEW.numero_remessa IS DISTINCT FROM OLD.numero_remessa OR NEW.valor_total IS DISTINCT FROM OLD.valor_total
+       OR NEW.quantidade_registros IS DISTINCT FROM OLD.quantidade_registros THEN
+      RAISE EXCEPTION 'Remessa %: folha, conta, número, valor e quantidade não mudam depois de gerada', OLD.numero_remessa
         USING ERRCODE = 'RHE02';
     END IF;
     -- arquivo já gravado não muda nem some
@@ -7656,12 +7691,16 @@ BEGIN
     END IF;
   END IF;
 
-  -- arquivo: de nulo para valor, uma vez, caminho e hash juntos, por quem processa a folha
+  -- arquivo: de nulo para valor, uma vez, caminho e hash juntos, por quem gerou a remessa e processa a folha
   IF (NEW.arquivo_path IS NOT NULL OR NEW.arquivo_sha256 IS NOT NULL)
      AND (TG_OP = 'INSERT' OR (OLD.arquivo_path IS NULL AND OLD.arquivo_sha256 IS NULL)) THEN
-    IF NOT v_sistema AND NOT (v_uid IS NOT NULL AND public.can_access_module(v_uid, 'rh')
-                              AND public.has_permission_code(v_uid, 'financeiro.folha.processar')) THEN
+    IF NOT v_sistema AND NOT coalesce(v_uid IS NOT NULL AND public.can_access_module(v_uid, 'rh')
+                                      AND public.has_permission_code(v_uid, 'financeiro.folha.processar'), false) THEN
       RAISE EXCEPTION 'Guardar o arquivo da remessa exige o módulo rh e a permissão financeiro.folha.processar'
+        USING ERRCODE = '42501';
+    END IF;
+    IF NOT v_sistema AND (TG_OP = 'INSERT' OR OLD.gerado_por IS DISTINCT FROM v_uid) THEN
+      RAISE EXCEPTION 'Só quem gerou a remessa guarda o arquivo dela (depois do INSERT)'
         USING ERRCODE = '42501';
     END IF;
     IF NEW.arquivo_path IS NULL OR NEW.arquivo_sha256 IS NULL THEN
@@ -7672,6 +7711,13 @@ BEGIN
     END IF;
     IF NEW.arquivo_sha256 !~ '^[0-9a-f]{64}$' THEN
       RAISE EXCEPTION 'arquivo_sha256 deve ter 64 dígitos hexadecimais minúsculos' USING ERRCODE = '22023';
+    END IF;
+    IF NOT v_sistema AND NOT EXISTS (
+         SELECT 1 FROM storage.objects o
+          WHERE o.bucket_id = 'remessas-cnab' AND o.name = NEW.arquivo_path
+            AND coalesce(to_jsonb(o) ->> 'owner_id', to_jsonb(o) ->> 'owner') = v_uid::text) THEN
+      RAISE EXCEPTION 'O arquivo % não foi enviado ao bucket remessas-cnab por este usuário', NEW.arquivo_path
+        USING ERRCODE = 'P0002';
     END IF;
   END IF;
   RETURN NEW;
@@ -12503,6 +12549,7 @@ CREATE TABLE public.eventos_esocial (
     updated_by uuid,
     updated_by_servidor_id uuid,
     rascunho boolean GENERATED ALWAYS AS ((recibo IS NULL)) STORED,
+    CONSTRAINT eventos_esocial_periodico_com_folha_check CHECK (((status = ANY (ARRAY['erro'::public.status_evento_esocial, 'rejeitado'::public.status_evento_esocial])) OR ((tipo_evento)::text <> ALL (ARRAY['S-1200'::text, 'S-1210'::text, 'S-1299'::text])) OR ((folha_id IS NOT NULL) AND (((tipo_evento)::text = 'S-1299'::text) OR (servidor_id IS NOT NULL))))),
     CONSTRAINT eventos_esocial_transmitido_com_recibo_check CHECK (((status <> ALL (ARRAY['enviado'::public.status_evento_esocial, 'aceito'::public.status_evento_esocial])) OR (recibo IS NOT NULL)))
 );
 
@@ -15938,6 +15985,20 @@ CREATE TABLE public.remessas_bancarias (
 --
 
 COMMENT ON COLUMN public.remessas_bancarias.numero_remessa IS 'Número sequencial do arquivo (NSA) por conta, dado pelo banco no INSERT (o valor do cliente é ignorado)';
+
+
+--
+-- Name: COLUMN remessas_bancarias.quantidade_registros; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.quantidade_registros IS 'Fichas da folha com valor líquido > 0 e banco, agência e conta (favorecidos do arquivo); calculada no INSERT';
+
+
+--
+-- Name: COLUMN remessas_bancarias.valor_total; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.valor_total IS 'Soma do líquido das fichas da folha com valor > 0 e banco, agência e conta; calculada pelo banco no INSERT';
 
 
 --

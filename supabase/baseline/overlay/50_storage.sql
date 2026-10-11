@@ -141,7 +141,8 @@ CREATE POLICY "st_remessas-cnab_insert" ON storage.objects FOR INSERT TO authent
   WITH CHECK (bucket_id = 'remessas-cnab' AND (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
               AND name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.rem$'
               AND EXISTS (SELECT 1 FROM public.remessas_bancarias r
-                           WHERE r.id::text = left(objects.name, 36) AND r.arquivo_path IS NULL AND r.status <> 'cancelada'));
+                           WHERE r.id::text = left(objects.name, 36) AND r.arquivo_path IS NULL AND r.status = 'gerada'
+                             AND r.gerado_por = auth.uid() AND r.data_geracao > now() - interval '1 hour'));
 DROP POLICY IF EXISTS "st_remessas-cnab_update" ON storage.objects;
 DROP POLICY IF EXISTS "st_remessas-cnab_delete" ON storage.objects;
 

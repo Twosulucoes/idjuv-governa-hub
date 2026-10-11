@@ -776,6 +776,10 @@ segurar a outra). Mesmas policies em `supabase/baseline/rls/mapa.csv` → `35_po
   eventos do eSocial de todos; o servidor continua lendo o próprio contracheque (`/rh/meu-contracheque`).
   `folhas_pagamento` não muda (só totais).
 - A service role continua podendo apagar remessas e eventos (operação manual, fora da API do navegador).
+- RPCs: `fn_validar_margem_consignavel` segue a mesma regra de leitura (`42501` fora dela; o próprio servidor consulta
+  a sua) e passa a `SECURITY INVOKER`; `get_proximo_numero_remessa` exige o módulo `rh` e `cancelar_remessa`,
+  `financeiro.folha.processar` (migração `20261011010000`). Guardar o arquivo da remessa exige também ter gerado a
+  remessa e enviado o objeto ao bucket (ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)).
 - **Impacto no front (pendência):** telas que leem essas tabelas de todos, para quem não tem nenhum dos dois
   códigos, passam a receber lista vazia, sem erro — `useRelatoriosRH.ts` (card "Folha de pagamento", gate
   `financeiro.folha.visualizar`), `useArquivosFolha.ts`, `useFolhaPagamento.ts` (consignações, eventos),
