@@ -300,6 +300,14 @@ export const menuConfig: MenuSection[] = [
         priority: 2,
       },
       {
+        id: "comissoes",
+        label: "Comissões",
+        route: "/rh/comissoes",
+        icon: Scale,
+        permission: "rh.visualizar",
+        priority: 2.5,
+      },
+      {
         id: "portarias",
         label: "Portarias",
         route: "/rh/portarias",
@@ -1201,6 +1209,14 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/auditoria",
         icon: Eye,
         permission: "admin.auditoria",
+      },
+      {
+        id: "setores-modulos",
+        label: "Setores dos Módulos",
+        labelShort: "Setores",
+        route: "/admin/setores-modulos",
+        icon: Network,
+        permission: "admin.config",
       },
       {
         id: "paginas-publicas",
