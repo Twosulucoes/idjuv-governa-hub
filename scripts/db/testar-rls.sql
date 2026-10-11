@@ -83,7 +83,9 @@ INSERT INTO seed_ov VALUES
   ('publicacoes_legais', '{"contrato_id":"c0000000-0000-0000-0000-0000000000c1"}'),
   -- regra_lancamento já vem com uma linha por módulo (catálogo, UNIQUE em modulo): a linha de teste usa `arbitros`,
   -- apagada do catálogo logo depois das personas (bloco de sementes, em modo réplica)
-  ('regra_lancamento', '{"modulo":"arbitros"}');
+  ('regra_lancamento', '{"modulo":"arbitros"}'),
+  -- comissão de inventário, licitação ou fiscalização exige objeto (comissoes_objeto_obrigatorio_check): `outra` não
+  ('comissoes', '{"tipo":"outra"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -313,9 +315,10 @@ FROM pg_enum e JOIN pg_type ty ON ty.oid = e.enumtypid WHERE ty.typname = 'app_m
 CREATE FUNCTION pg_temp.codigos_escrita(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE WHEN classe IN ('permissao', 'catalogo') THEN string_to_array((regexp_match(extra, '^escrita=([^;]+)'))[1], '|') END
 $$;
--- ;excluir=<código>|admin|ninguem (permissao, proprio_leitura e, desde a E3, modulo); NULL se não há
+-- ;excluir=<código>|admin|ninguem (permissao, proprio_leitura e, desde a E3, modulo; catalogo_admin só ninguem, regra
+-- de setor); NULL se não há
 CREATE FUNCTION pg_temp.excluir_de(classe text, extra text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
-  SELECT CASE WHEN classe IN ('permissao', 'proprio_leitura', 'modulo') THEN (regexp_match(extra, '(^|;)excluir=([^;]+)'))[2] END
+  SELECT CASE WHEN classe IN ('permissao', 'proprio_leitura', 'modulo', 'catalogo_admin') THEN (regexp_match(extra, '(^|;)excluir=([^;]+)'))[2] END
 $$;
 -- ;leitura=a|b (permissao, E3): códigos exigidos, além do módulo, para ler; NULL se não há (o módulo lê)
 CREATE FUNCTION pg_temp.codigos_leitura(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
@@ -812,8 +815,8 @@ BEGIN
       FOREACH op IN ARRAY ARRAY['UPDATE', 'DELETE'] LOOP
         autorizado := CASE
           WHEN m.classe IN ('trilha', 'admin_leitura') THEN false
-          WHEN m.classe IN ('admin', 'catalogo_admin', 'proprio_user', 'publico_admin') THEN pers.nome = 'admin'
           WHEN op = 'DELETE' AND excl = 'ninguem' THEN false                 -- E3: ninguém apaga pela API, nem o admin
+          WHEN m.classe IN ('admin', 'catalogo_admin', 'proprio_user', 'publico_admin') THEN pers.nome = 'admin'
           WHEN op = 'DELETE' AND excl = 'admin' THEN pers.nome = 'admin'
           WHEN op = 'DELETE' AND excl IS NOT NULL THEN pers.nome = 'admin' OR pers.nome = perm_excl
           WHEN m.classe = 'permissao' OR cardinality(perms) > 0 THEN pers.nome = 'admin' OR pers.nome = ANY (perms)   -- módulo sozinho e permissão avulsa NÃO alteram nem apagam
@@ -3652,32 +3655,46 @@ END $$;
 
 -- ---------------------------------------------------------------- Lançamento por setor (fase 1) (TRIGGERS LIGADOS)
 -- Migração 20261011020000_lancamento_por_setor.sql (spec docs/superpowers/specs/2026-10-11-lancamento-por-setor-design.md):
---   * catálogo: regra_lancamento com rh = registrar e os demais desligado; rh.comissoes.gerenciar no catálogo;
+--   * catálogo: regra_lancamento com rh = registrar e os demais desligado; rh.comissoes.gerenciar só para o papel admin;
 --   * cobertura: lancamento_modulos_tabela cobre exatamente as tabelas do RH do mapa (menos as de trilha), com rh entre
---     os módulos, e cada uma tem zz_exigir_setor ligado; funções internas fora da API; as duas RPCs só para authenticated;
---   * modo desligado: grava e a trilha não leva fundamento; modo registrar: grava e a trilha leva o negado
---     (negado_sem_servidor / negado_setor); modo exigir: recusa (RHS01) sem servidor e fora do setor, também no DELETE;
---   * fundamentos: lotação (com subordinadas e sem elas), designação aprovada, vigente e com ato (sem ato, fora do
---     período ou pendente não vale), comissão ativa, vigente, com ato e sem objeto (com objeto, encerrada ou membro fora
---     do período não vale), autoatendimento, chefia, sistema (service role e jobs); a trilha grava via, registro, ato e a
---     unidade (org_unit_id) do fundamento; em cascata, em_cascata = true;
---   * admin sem servidor: recusado no RH em modo exigir, mas configura o acesso (setores_modulo, regra_lancamento);
---   * cache por transação: mudar a lotação na mesma transação muda o fundamento;
---   * meus_fundamentos_lancamento (linhas por módulo) e saneamento_lancamento (admin ou rh.auditoria.visualizar).
+--     os módulos, e cada uma tem zz_exigir_setor e zz_exigir_setor_fim ligados; funções internas fora da API; as duas
+--     RPCs só para authenticated;
+--   * modo desligado: grava e a trilha não leva fundamento; modo registrar: grava e a trilha leva o negado; modo exigir:
+--     recusa (RHS01, nome do módulo na mensagem) sem servidor, sem login (authenticated sem uid) e fora do setor,
+--     também no DELETE; modo mais restritivo entre os módulos da tabela (rh + financeiro);
+--   * fundamentos: lotação (com e sem subordinadas; externa, inativa, encerrada, futura e autoconcedida não valem),
+--     cessão de entrada (a de saída não vale), designação aprovada por outra pessoa, vigente e com ato (sem ato, fora do
+--     período, pendente, fora do setor, sem aprovador, aprovada pelo próprio ou por quem a lançou não vale), comissão
+--     não é fundamento na fase 1, autoatendimento (só o pedido ainda sem decisão), chefia (trigger real e
+--     fundamento_linha), sistema; ciclo na estrutura não trava;
+--   * cascata: a que descende de gravação checada leva em_cascata (comissão -> membros); a que começa fora da regra
+--     (estrutura_organizacional -> lotacoes) é checada (recusa em exigir, negado na trilha em registrar);
+--   * admin sem servidor: recusado no RH em exigir, mas configura o acesso; o modo exigir não entra pela API; regra sem
+--     DELETE; membros de comissão sem autoconcessão;
+--   * cache por transação; data_local() com fuso configurável; log_audit e registrar_evento com unidade e fundamento;
+--   * meus_fundamentos_lancamento (linhas por módulo, filtro opcional) e saneamento_lancamento (fundamento_autoconcedido).
 -- Banco anterior à migração: o bloco reprova sem abortar.
 SET session_replication_role = replica;  -- cenário sem disparar triggers (as FKs valem: os ids abaixo existem)
 DO $$
 DECLARE
   sa uuid := 'b0000000-0000-0000-0000-00000000000a';
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  u_ch uuid := (SELECT uid FROM persona WHERE nome='perm_rh.aprovar');
   e_rh uuid := 'f5000000-0000-0000-0000-000000000001'; e_sub uuid := 'f5000000-0000-0000-0000-000000000002';
   e_out uuid := 'f5000000-0000-0000-0000-000000000003'; e_pat uuid := 'f5000000-0000-0000-0000-000000000004';
+  e_fin uuid := 'f5000000-0000-0000-0000-000000000005'; e_c1 uuid := 'f5000000-0000-0000-0000-000000000006';
+  e_c2 uuid := 'f5000000-0000-0000-0000-000000000007'; e_tmp1 uuid := 'f5000000-0000-0000-0000-000000000008';
+  e_tmp2 uuid := 'f5000000-0000-0000-0000-000000000009';
 BEGIN
   IF to_regclass('public.regra_lancamento') IS NULL THEN RETURN; END IF;
   -- linhas das sementes genéricas (ids e unidades fictícios) saem: o cenário fica determinístico
   DELETE FROM public.comissoes_membros; DELETE FROM public.comissoes; DELETE FROM public.setores_modulo;
   INSERT INTO public.estrutura_organizacional (id, nome, tipo, superior_id) VALUES
     (e_rh, 'LS RH', 'diretoria', NULL), (e_sub, 'LS RH folha', 'divisao', e_rh),
-    (e_out, 'LS Outra', 'diretoria', NULL), (e_pat, 'LS Patrimônio', 'diretoria', NULL);
+    (e_out, 'LS Outra', 'diretoria', NULL), (e_pat, 'LS Patrimônio', 'diretoria', NULL),
+    (e_fin, 'LS Financeiro', 'diretoria', NULL), (e_c1, 'LS Ciclo 1', 'divisao', NULL), (e_c2, 'LS Ciclo 2', 'divisao', e_c1),
+    (e_tmp1, 'LS Temporária 1', 'setor', NULL), (e_tmp2, 'LS Temporária 2', 'setor', NULL);
+  UPDATE public.estrutura_organizacional SET superior_id = e_c2 WHERE id = e_c1;   -- ciclo: c1 acima de c2 acima de c1
   INSERT INTO public.servidores (id, nome_completo, cpf, matricula, situacao, ativo, unidade_atual_id) VALUES
     ('f5000000-0000-0000-0000-000000000011', 'LS Lotado', '000.000.511-11', 'LS-11', 'ativo', true, NULL),
     ('f5000000-0000-0000-0000-000000000012', 'LS Designado', '000.000.512-12', 'LS-12', 'ativo', true, e_out),
@@ -3685,26 +3702,39 @@ BEGIN
     ('f5000000-0000-0000-0000-000000000014', 'LS Chefe', '000.000.514-14', 'LS-14', 'ativo', true, e_out),
     ('f5000000-0000-0000-0000-000000000015', 'LS Sem login', '000.000.515-15', 'LS-15', 'ativo', true, NULL),
     ('f5000000-0000-0000-0000-000000000016', 'LS Fora', '000.000.516-16', 'LS-16', 'ativo', true, e_out),
-    ('f5000000-0000-0000-0000-000000000017', 'LS Exonerado', '000.000.517-17', 'LS-17', 'exonerado', true, NULL);
-  INSERT INTO public.lotacoes (id, servidor_id, unidade_id, data_inicio, ativo, tipo_lotacao, ato_tipo, ato_numero, ato_data) VALUES
-    ('f5000000-0000-0000-0000-000000000021', 'f5000000-0000-0000-0000-000000000011', e_sub, current_date - 30, true, 'lotacao_interna', 'portaria', 'LS-P-1/2026', current_date - 31),
-    ('f5000000-0000-0000-0000-000000000022', 'f5000000-0000-0000-0000-000000000012', e_out, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL),
-    ('f5000000-0000-0000-0000-000000000023', 'f5000000-0000-0000-0000-000000000013', e_out, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL),
-    ('f5000000-0000-0000-0000-000000000024', 'f5000000-0000-0000-0000-000000000014', e_out, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL),
-    ('f5000000-0000-0000-0000-000000000026', 'f5000000-0000-0000-0000-000000000016', e_out, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL);
-  -- designação do servidor 12 para o RH: começa SEM ato (não vale); o teste completa e varia
-  INSERT INTO public.designacoes (id, servidor_id, unidade_origem_id, unidade_destino_id, data_inicio, data_fim, status, ativo) VALUES
-    ('f5000000-0000-0000-0000-000000000031', 'f5000000-0000-0000-0000-000000000012', e_out, e_rh, current_date - 5, current_date + 30, 'aprovada', true);
-  -- comissão do RH com o servidor 13: começa COM objeto (não vale na fase 1); o teste varia
-  INSERT INTO public.comissoes (id, nome, tipo, modulo, objeto_tipo, objeto_id, ato_tipo, ato_numero, ato_data, data_inicio, data_fim, motivo) VALUES
-    ('f5000000-0000-0000-0000-000000000041', 'LS Comissão de teste', 'outra', 'rh', 'contrato', 'f5000000-0000-0000-0000-0000000000c1',
-     'portaria', 'LS-C-7/2026', current_date - 10, current_date - 10, current_date + 30, 'teste');
+    ('f5000000-0000-0000-0000-000000000017', 'LS Exonerado', '000.000.517-17', 'LS-17', 'exonerado', true, NULL),
+    ('f5000000-0000-0000-0000-000000000018', 'LS Cedido', '000.000.518-18', 'LS-18', 'ativo', true, e_rh),
+    ('f5000000-0000-0000-0000-000000000019', 'LS Autolotado', '000.000.519-19', 'LS-19', 'ativo', true, e_rh),
+    ('f5000000-0000-0000-0000-00000000001a', 'LS Financeiro', '000.000.51a-1a', 'LS-1A', 'ativo', true, e_fin),
+    ('f5000000-0000-0000-0000-00000000001b', 'LS Ciclo', '000.000.51b-1b', 'LS-1B', 'ativo', true, e_c1),
+    ('f5000000-0000-0000-0000-00000000001c', 'LS Temporário', '000.000.51c-1c', 'LS-1C', 'ativo', true, NULL);
+  INSERT INTO public.lotacoes (id, servidor_id, unidade_id, data_inicio, ativo, tipo_lotacao, ato_tipo, ato_numero, ato_data, created_by_servidor_id) VALUES
+    ('f5000000-0000-0000-0000-000000000021', 'f5000000-0000-0000-0000-000000000011', e_sub, current_date - 30, true, 'lotacao_interna', 'portaria', 'LS-P-1/2026', current_date - 31, NULL),
+    ('f5000000-0000-0000-0000-000000000022', 'f5000000-0000-0000-0000-000000000012', e_out, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL, NULL),
+    ('f5000000-0000-0000-0000-000000000023', 'f5000000-0000-0000-0000-000000000013', e_out, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL, NULL),
+    ('f5000000-0000-0000-0000-000000000024', 'f5000000-0000-0000-0000-000000000014', e_out, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL, NULL),
+    ('f5000000-0000-0000-0000-000000000026', 'f5000000-0000-0000-0000-000000000016', e_out, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL, NULL),
+    -- lançada pelo próprio servidor (autoria E1): autoconcedida, não vale
+    ('f5000000-0000-0000-0000-000000000028', 'f5000000-0000-0000-0000-000000000019', e_rh, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL, 'f5000000-0000-0000-0000-000000000019'),
+    ('f5000000-0000-0000-0000-000000000029', 'f5000000-0000-0000-0000-00000000001a', e_fin, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL, NULL),
+    ('f5000000-0000-0000-0000-00000000002a', 'f5000000-0000-0000-0000-00000000001b', e_c2, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL, NULL),
+    ('f5000000-0000-0000-0000-00000000002b', 'f5000000-0000-0000-0000-00000000001c', e_tmp1, current_date - 30, true, 'lotacao_interna', NULL, NULL, NULL, NULL);
+  -- cessão de entrada do servidor 18 com unidade no RH (premissa 4)
+  INSERT INTO public.cessoes (id, servidor_id, tipo, data_inicio, ativa, unidade_idjuv_id, ato_tipo, ato_numero, ato_data) VALUES
+    ('f5000000-0000-0000-0000-000000000071', 'f5000000-0000-0000-0000-000000000018', 'entrada', current_date - 20, true, e_rh, 'decreto', 'LS-CE-2/2026', current_date - 21);
+  -- designação do servidor 12 para o RH: aprovada pelo admin (outra pessoa), lançada pela chefia; começa SEM ato
+  INSERT INTO public.designacoes (id, servidor_id, unidade_origem_id, unidade_destino_id, data_inicio, data_fim, status, ativo, aprovado_por, data_aprovacao, created_by) VALUES
+    ('f5000000-0000-0000-0000-000000000031', 'f5000000-0000-0000-0000-000000000012', e_out, e_rh, current_date - 5, current_date + 30, 'aprovada', true, u_admin, now(), u_ch);
+  -- comissão `outra`, sem objeto, com o servidor 13: cadastro, não fundamento (premissa 6)
+  INSERT INTO public.comissoes (id, nome, tipo, modulo, ato_tipo, ato_numero, ato_data, data_inicio, data_fim, motivo) VALUES
+    ('f5000000-0000-0000-0000-000000000041', 'LS Comissão de teste', 'outra', 'rh', 'portaria', 'LS-C-7/2026', current_date - 10, current_date - 10, current_date + 30, 'teste');
   INSERT INTO public.comissoes_membros (id, comissao_id, servidor_id, papel) VALUES
     ('f5000000-0000-0000-0000-000000000042', 'f5000000-0000-0000-0000-000000000041', 'f5000000-0000-0000-0000-000000000013', 'presidente');
-  -- abono pendente do servidor A (decisão da chefia)
+  -- abono pendente do servidor A (decisão da chefia) e fechamento de frequência a validar
   INSERT INTO public.solicitacoes_abono (id, servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, status) VALUES
     ('f5000000-0000-0000-0000-000000000051', sa, pg_temp.seed_row('tipos_abono', '{"exige_aprovacao_rh": true}'::jsonb)::uuid,
      current_date, current_date, 'LS teste', 'pendente');
+  INSERT INTO public.frequencia_fechamento (id, servidor_id, ano, mes) VALUES ('f5000000-0000-0000-0000-000000000052', sa, 2032, 1);
 END $$;
 SET session_replication_role = origin;
 
@@ -3718,28 +3748,37 @@ DECLARE
   u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');                       -- o "lançador" (relinkado abaixo)
   u_ch uuid := (SELECT uid FROM persona WHERE nome='perm_rh.aprovar');              -- chefia
   u_rhp uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');   -- RH da frequência
+  u_cg uuid := (SELECT uid FROM persona WHERE nome='perm_rh.comissoes.gerenciar');  -- cadastra comissões
   u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');                          -- servidor A
   u_inativo uuid := (SELECT uid FROM persona WHERE nome='inativo');
   sa uuid := 'b0000000-0000-0000-0000-00000000000a';
   sb uuid := 'b0000000-0000-0000-0000-00000000000b';
+  ponto_a uuid := (SELECT id_a FROM semeado WHERE tabela = 'registros_ponto')::uuid;
   e_rh uuid := 'f5000000-0000-0000-0000-000000000001'; e_sub uuid := 'f5000000-0000-0000-0000-000000000002';
   e_out uuid := 'f5000000-0000-0000-0000-000000000003'; e_pat uuid := 'f5000000-0000-0000-0000-000000000004';
+  e_fin uuid := 'f5000000-0000-0000-0000-000000000005'; e_c1 uuid := 'f5000000-0000-0000-0000-000000000006';
+  e_c2 uuid := 'f5000000-0000-0000-0000-000000000007'; e_tmp1 uuid := 'f5000000-0000-0000-0000-000000000008';
+  e_tmp2 uuid := 'f5000000-0000-0000-0000-000000000009';
   s_lot uuid := 'f5000000-0000-0000-0000-000000000011'; s_des uuid := 'f5000000-0000-0000-0000-000000000012';
   s_com uuid := 'f5000000-0000-0000-0000-000000000013'; s_ch uuid := 'f5000000-0000-0000-0000-000000000014';
   s_sem uuid := 'f5000000-0000-0000-0000-000000000015'; s_fora uuid := 'f5000000-0000-0000-0000-000000000016';
-  s_exo uuid := 'f5000000-0000-0000-0000-000000000017';
-  l_lot uuid := 'f5000000-0000-0000-0000-000000000021'; l_fora uuid := 'f5000000-0000-0000-0000-000000000026';
+  s_exo uuid := 'f5000000-0000-0000-0000-000000000017'; s_ces uuid := 'f5000000-0000-0000-0000-000000000018';
+  s_auto uuid := 'f5000000-0000-0000-0000-000000000019'; s_fin uuid := 'f5000000-0000-0000-0000-00000000001a';
+  s_cic uuid := 'f5000000-0000-0000-0000-00000000001b'; s_tmp uuid := 'f5000000-0000-0000-0000-00000000001c';
+  l_lot uuid := 'f5000000-0000-0000-0000-000000000021'; l_tmp uuid := 'f5000000-0000-0000-0000-00000000002b';
+  ces uuid := 'f5000000-0000-0000-0000-000000000071';
   d1 uuid := 'f5000000-0000-0000-0000-000000000031';
   c1 uuid := 'f5000000-0000-0000-0000-000000000041'; cm1 uuid := 'f5000000-0000-0000-0000-000000000042';
-  ab uuid := 'f5000000-0000-0000-0000-000000000051';
+  ab uuid := 'f5000000-0000-0000-0000-000000000051'; ff uuid := 'f5000000-0000-0000-0000-000000000052';
   sm_rh uuid := 'f5000000-0000-0000-0000-000000000061';
   tag text := 'INSERT INTO public.servidor_tags (nome) VALUES (''LS tag'')';
   perm_antes text[];
   r text; j jsonb; n int; t text; x record; v_tabelas text[];
 BEGIN
   PERFORM pg_temp.ls_sistema();
-  IF to_regclass('public.regra_lancamento') IS NULL OR to_regprocedure('public.fundamento_lancamento(text[])') IS NULL THEN
-    PERFORM pg_temp.falha('lançamento por setor: migração 20261011020000_lancamento_por_setor.sql ausente (regra_lancamento/fundamento_lancamento)');
+  IF to_regclass('public.regra_lancamento') IS NULL OR to_regprocedure('public.fundamento_lancamento(text[])') IS NULL
+     OR to_regprocedure('public.data_local()') IS NULL THEN
+    PERFORM pg_temp.falha('lançamento por setor: migração 20261011020000_lancamento_por_setor.sql ausente ou antiga (regra_lancamento/fundamento_lancamento/data_local)');
     RETURN;
   END IF;
 
@@ -3752,11 +3791,37 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.module_permissions_catalog WHERE permission_code = 'rh.comissoes.gerenciar') THEN
     PERFORM pg_temp.falha('lançamento por setor: rh.comissoes.gerenciar fora do catálogo de permissões');
   END IF;
+  IF (SELECT array_agg(role::text ORDER BY role::text) FROM public.role_permissions WHERE permission = 'rh.comissoes.gerenciar') IS DISTINCT FROM ARRAY['admin'] THEN
+    PERFORM pg_temp.falha('lançamento por setor: rh.comissoes.gerenciar deveria vir só para o papel admin');
+  END IF;
+  IF (SELECT column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'setores_modulo' AND column_name = 'inclui_subordinadas') IS DISTINCT FROM 'false' THEN
+    PERFORM pg_temp.falha('lançamento por setor: setores_modulo.inclui_subordinadas sem padrão false');
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'regra_lancamento' AND cmd IN ('DELETE', 'ALL')) THEN
+    PERFORM pg_temp.falha('lançamento por setor: regra_lancamento tem policy de DELETE');
+  END IF;
   IF public.rh_exige_servidor_vinculado() THEN
     PERFORM pg_temp.falha('lançamento por setor: rh_exige_servidor_vinculado() = true com o RH em modo registrar');
   END IF;
 
-  -- ===== cobertura: lancamento_modulos_tabela = tabelas do RH do mapa (menos trilha), todas com zz_exigir_setor ligado
+  -- ===== data_local(): fuso do banco (app.fuso_horario), padrão America/Sao_Paulo, nome inválido não derruba
+  IF public.data_local() IS DISTINCT FROM (now() AT TIME ZONE 'America/Sao_Paulo')::date THEN
+    PERFORM pg_temp.falha('data_local: sem app.fuso_horario não usa America/Sao_Paulo');
+  END IF;
+  PERFORM set_config('app.fuso_horario', 'Pacific/Kiritimati', true);
+  IF public.data_local() IS DISTINCT FROM (now() AT TIME ZONE 'Pacific/Kiritimati')::date THEN
+    PERFORM pg_temp.falha('data_local: não segue app.fuso_horario');
+  END IF;
+  PERFORM set_config('app.fuso_horario', 'Lugar/Inexistente', true);
+  BEGIN
+    IF public.data_local() IS DISTINCT FROM (now() AT TIME ZONE 'America/Sao_Paulo')::date THEN
+      PERFORM pg_temp.falha('data_local: fuso inválido não cai no padrão');
+    END IF;
+  EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.falha('data_local: fuso inválido derruba a chamada (' || SQLSTATE || ')');
+  END;
+  PERFORM set_config('app.fuso_horario', '', true);
+
+  -- ===== cobertura: lancamento_modulos_tabela = tabelas do RH do mapa (menos trilha), todas com os dois triggers ligados
   SELECT array_agg(tabela ORDER BY tabela) INTO v_tabelas FROM mapa WHERE 'rh' = ANY (string_to_array(modulos, '|')) AND classe <> 'trilha';
   FOR x IN SELECT c.relname,
                   public.lancamento_modulos_tabela(c.relname) AS mods,
@@ -3776,19 +3841,26 @@ BEGIN
                                   AND tg.tgtype & 1 = 1 AND tg.tgtype & 2 = 2 AND tg.tgtype & 28 = 28) THEN
       PERFORM pg_temp.falha('lançamento por setor: ' || x.relname || ' sem zz_exigir_setor (BEFORE INSERT/UPDATE/DELETE por linha, ligado)');
     END IF;
+    IF x.do_rh AND NOT EXISTS (SELECT 1 FROM pg_trigger tg JOIN pg_proc p ON p.oid = tg.tgfoid
+                                WHERE tg.tgrelid = ('public.' || quote_ident(x.relname))::regclass AND tg.tgname = 'zz_exigir_setor_fim'
+                                  AND p.proname = 'exigir_setor_fim' AND tg.tgenabled = 'O'
+                                  AND tg.tgtype & 1 = 0 AND tg.tgtype & 2 = 0 AND tg.tgtype & 28 = 28) THEN
+      PERFORM pg_temp.falha('lançamento por setor: ' || x.relname || ' sem zz_exigir_setor_fim (AFTER INSERT/UPDATE/DELETE por comando, ligado)');
+    END IF;
   END LOOP;
 
   -- ===== privilégios
-  FOREACH t IN ARRAY ARRAY['public.lotacao_vigente(uuid, date)', 'public.unidade_e_superiores(uuid)',
+  FOREACH t IN ARRAY ARRAY['public.data_local()', 'public.lotacao_vigente(uuid, date)', 'public.unidade_e_superiores(uuid)',
                            'public.lancamento_modulos_tabela(text)', 'public.fundamento_lancamento(text[])',
                            'public.fundamento_tabela(text)', 'public.fundamento_linha(text, text, jsonb, jsonb)',
-                           'public.lancamento_cache_invalidar()', 'public.exigir_setor()',
+                           'public.lancamento_cache_invalidar()', 'public.exigir_setor()', 'public.exigir_setor_fim()',
+                           'public.regra_lancamento_proteger_exigir()', 'public.comissoes_membros_validar()',
                            'public.rh_exige_servidor_vinculado()'] LOOP
     IF has_function_privilege('authenticated', t, 'EXECUTE') OR has_function_privilege('anon', t, 'EXECUTE') THEN
       PERFORM pg_temp.falha('lançamento por setor: ' || t || ' executável pela API (função interna)');
     END IF;
   END LOOP;
-  FOREACH t IN ARRAY ARRAY['public.meus_fundamentos_lancamento()', 'public.saneamento_lancamento()'] LOOP
+  FOREACH t IN ARRAY ARRAY['public.meus_fundamentos_lancamento(public.app_module[])', 'public.saneamento_lancamento()'] LOOP
     IF NOT has_function_privilege('authenticated', t, 'EXECUTE') OR has_function_privilege('anon', t, 'EXECUTE')
        OR has_function_privilege('service_role', t, 'EXECUTE') THEN
       PERFORM pg_temp.falha('lançamento por setor: ' || t || ' deveria ser executável só por authenticated');
@@ -3800,8 +3872,28 @@ BEGIN
     END IF;
   END LOOP;
 
+  -- ===== comissões: objeto obrigatório fora de `outra`; membros sem autoconcessão
+  r := pg_temp.sql_como(u_admin, 'authenticated', 'INSERT INTO public.comissoes (nome, tipo, modulo, ato_tipo, ato_numero, ato_data, data_inicio, motivo) VALUES (''x'', ''inventario'', ''patrimonio'', ''portaria'', ''1'', current_date, current_date, ''x'')');
+  IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('comissoes: comissão de inventário sem objeto aceita (' || r || ')'); END IF;
+  UPDATE public.profiles SET servidor_id = NULL WHERE id IN (u_rh, u_ch, u_rhp, u_admin, u_cg);
+  UPDATE public.profiles SET servidor_id = s_com WHERE id = u_cg;
+  r := pg_temp.sql_como(u_cg, 'authenticated', format('INSERT INTO public.comissoes_membros (comissao_id, servidor_id) VALUES (%L, %L)', c1, s_com));
+  IF r NOT LIKE 'erro:42501:Você não pode se incluir%' THEN PERFORM pg_temp.falha('comissoes_membros: quem cadastra se inclui na comissão (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cg, 'authenticated', format('INSERT INTO public.comissoes_membros (comissao_id, servidor_id) VALUES (%L, %L)', c1, s_fora));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('comissoes_membros: quem tem rh.comissoes.gerenciar não inclui outro servidor (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_cg, 'authenticated', 'INSERT INTO public.comissoes (id, nome, tipo, modulo, ato_tipo, ato_numero, ato_data, data_inicio, motivo) VALUES (''f5000000-0000-0000-0000-000000000043'', ''LS Comissão 2'', ''outra'', ''rh'', ''portaria'', ''2'', current_date, current_date, ''x'')');
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('comissoes: quem tem rh.comissoes.gerenciar não cadastra comissão (' || r || ')'); END IF;
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.profiles SET servidor_id = NULL WHERE id = u_cg;
+  UPDATE public.profiles SET servidor_id = s_ch WHERE id = u_admin;
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('INSERT INTO public.comissoes_membros (comissao_id, servidor_id) VALUES (%L, %L)', 'f5000000-0000-0000-0000-000000000043', s_com));
+  IF r NOT LIKE 'erro:42501:Quem cadastrou a comissão%' THEN PERFORM pg_temp.falha('comissoes_membros: quem cadastrou a comissão vira membro dela (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('INSERT INTO public.comissoes_membros (comissao_id, servidor_id) VALUES (%L, %L)', c1, s_ch));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('comissoes_membros: o papel admin não se inclui numa comissão (' || r || ')'); END IF;
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.profiles SET servidor_id = NULL WHERE id = u_admin;
+
   -- ===== modo registrar: grava e a trilha leva o negado
-  UPDATE public.profiles SET servidor_id = NULL WHERE id IN (u_rh, u_ch, u_rhp, u_admin);
   r := pg_temp.insere_como(u_rh, 'authenticated', 'servidor_tags', jsonb_build_object('id', 'f5000000-0000-0000-0000-000000000101', 'nome', 'LS reg 1'));
   SELECT fundamento INTO j FROM public.audit_logs WHERE entity_id = 'f5000000-0000-0000-0000-000000000101' AND action = 'create';
   IF r <> 'ok' THEN PERFORM pg_temp.falha('lançamento por setor (registrar): login sem servidor foi recusado (' || r || ')');
@@ -3817,14 +3909,39 @@ BEGIN
         OR (j ->> 'servidor_id')::uuid IS DISTINCT FROM s_fora OR j -> 'modulos' IS DISTINCT FROM '["rh"]'::jsonb THEN
     PERFORM pg_temp.falha('lançamento por setor (registrar): trilha sem o negado_setor com unidade e servidor (' || coalesce(j::text, 'nulo') || ')');
   END IF;
-  -- a gravação em cascata (trigger que encerra a lotação anterior) leva em_cascata
+  -- registrar_evento grava o fundamento do login no rh
   PERFORM pg_temp.ls_sistema();
-  INSERT INTO public.lotacoes (id, servidor_id, unidade_id, data_inicio, ativo, tipo_lotacao)
-  VALUES ('f5000000-0000-0000-0000-000000000027', s_fora, e_out, current_date, true, 'lotacao_interna');
-  SELECT fundamento INTO j FROM public.audit_logs WHERE entity_id = l_fora AND action = 'update' ORDER BY sequencia DESC LIMIT 1;
-  IF j IS NULL OR j ->> 'em_cascata' IS DISTINCT FROM 'true' OR j ->> 'via' IS DISTINCT FROM 'sistema' THEN
-    PERFORM pg_temp.falha('lançamento por setor: encerramento da lotação anterior (cascata) sem em_cascata na trilha (' || coalesce(j::text, 'nulo') || ')');
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.registrar_evento(''view'', ''servidores'', NULL, ''LS'', ''{}''::jsonb)::text');
+  SELECT fundamento INTO j FROM public.audit_logs WHERE id::text = r;
+  IF j IS NULL OR j ->> 'via' IS DISTINCT FROM 'negado_setor' OR j ->> 'modo' IS DISTINCT FROM 'registrar' THEN
+    PERFORM pg_temp.falha('registrar_evento: não grava o fundamento do login (' || coalesce(r, 'nulo') || ', ' || coalesce(j::text, 'nulo') || ')');
   END IF;
+  -- cascata que começa fora da regra (estrutura_organizacional -> lotacoes, ON DELETE CASCADE) é checada: negado na trilha
+  PERFORM pg_temp.ls_sistema();
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('DELETE FROM public.estrutura_organizacional WHERE id = %L', e_tmp1));
+  SELECT fundamento INTO j FROM public.audit_logs WHERE entity_id = l_tmp AND action = 'delete' ORDER BY sequencia DESC LIMIT 1;
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('lançamento por setor (registrar): admin não apaga a unidade com lotação (' || r || ')');
+  ELSIF j IS NULL OR j ->> 'via' IS DISTINCT FROM 'negado_sem_servidor' OR j ? 'em_cascata' THEN
+    PERFORM pg_temp.falha('lançamento por setor: cascata vinda de estrutura_organizacional não foi checada (' || coalesce(j::text, 'nulo') || ')');
+  END IF;
+
+  -- ===== modo mais restritivo e setor de qualquer módulo da tabela (rh + financeiro, premissa 3)
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = 'exigir' WHERE modulo = 'financeiro';
+  INSERT INTO public.setores_modulo (modulo, unidade_id) VALUES ('financeiro', e_fin);
+  UPDATE public.profiles SET servidor_id = s_fin WHERE id = u_rh;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_rh, 'role', 'authenticated')::text, true);
+  j := public.fundamento_tabela('tabela_inss');
+  IF j ->> 'modo' IS DISTINCT FROM 'exigir' OR j ->> 'via' IS DISTINCT FROM 'lotacao' OR j ->> 'modulo' IS DISTINCT FROM 'financeiro' THEN
+    PERFORM pg_temp.falha('lançamento por setor: tabela rh+financeiro não usa o modo mais restritivo ou não aceita o setor financeiro (' || coalesce(j::text, 'nulo') || ')');
+  END IF;
+  j := public.fundamento_tabela('servidor_tags');
+  IF j ->> 'modo' IS DISTINCT FROM 'registrar' OR j ->> 'permitido' IS DISTINCT FROM 'false' THEN
+    PERFORM pg_temp.falha('lançamento por setor: tabela só do rh pega o modo ou o setor do financeiro (' || coalesce(j::text, 'nulo') || ')');
+  END IF;
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = 'desligado' WHERE modulo = 'financeiro';
+  DELETE FROM public.setores_modulo WHERE modulo = 'financeiro';
 
   -- ===== modo desligado: a trilha não leva fundamento
   UPDATE public.regra_lancamento SET modo = 'desligado' WHERE modulo = 'rh';
@@ -3833,25 +3950,46 @@ BEGIN
     PERFORM pg_temp.falha('lançamento por setor (desligado): recusou ou gravou fundamento na trilha (' || r || ')');
   END IF;
 
-  -- ===== modo exigir
+  -- ===== o modo exigir não entra pela API (nem pelo admin); sair dele, sim
+  r := pg_temp.sql_como(u_admin, 'authenticated', 'UPDATE public.regra_lancamento SET modo = ''exigir'' WHERE modulo = ''patrimonio''');
+  IF r NOT LIKE 'erro:42501:O modo exigir%' THEN PERFORM pg_temp.falha('regra_lancamento: o admin liga o modo exigir pela API (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_admin, 'authenticated', 'DELETE FROM public.regra_lancamento WHERE modulo = ''patrimonio''');
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('regra_lancamento: o admin apaga a regra de um módulo (' || r || ')'); END IF;
+
+  -- ===== modo exigir (ligado como migração: sem usuário na sessão)
   PERFORM pg_temp.ls_sistema();
   UPDATE public.regra_lancamento SET modo = 'exigir' WHERE modulo = 'rh';
   IF NOT public.rh_exige_servidor_vinculado() THEN PERFORM pg_temp.falha('lançamento por setor: rh_exige_servidor_vinculado() = false com o RH em modo exigir'); END IF;
-  -- fora do setor (sem setor cadastrado ainda): recusa, também no DELETE
+  r := pg_temp.sql_como(u_admin, 'authenticated', 'UPDATE public.regra_lancamento SET modo = ''registrar'' WHERE modulo = ''rh''');
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('regra_lancamento: o admin não tira um módulo do modo exigir (saída de emergência) (' || r || ')'); END IF;
+  -- fora do setor (sem setor cadastrado ainda): recusa com o nome do módulo, também no DELETE
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.profiles SET servidor_id = s_fora WHERE id = u_rh;
   r := pg_temp.sql_como(u_rh, 'authenticated', tag);
-  IF r NOT LIKE 'erro:RHS01:Você não está lotado%' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): servidor fora do setor insere (' || r || ')'); END IF;
+  IF r NOT LIKE 'erro:RHS01:Você não está lotado nem designado no setor de Recursos Humanos%' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): servidor fora do setor insere, ou mensagem sem o nome do módulo (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_rh, 'authenticated', 'DELETE FROM public.servidor_tags WHERE id = ''f5000000-0000-0000-0000-000000000102''');
   IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): servidor fora do setor apaga (' || r || ')'); END IF;
-  -- sem servidor vinculado: recusa com a mensagem do vínculo (também o admin)
+  -- sem servidor vinculado: recusa com a mensagem do vínculo (também o admin); authenticated sem usuário: recusa
   PERFORM pg_temp.ls_sistema();
   UPDATE public.profiles SET servidor_id = NULL WHERE id = u_rh;
   r := pg_temp.sql_como(u_rh, 'authenticated', tag);
   IF r NOT LIKE 'erro:RHS01:Seu login não tem servidor vinculado%' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): login sem servidor insere (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_admin, 'authenticated', tag);
   IF r NOT LIKE 'erro:RHS01:Seu login não tem servidor vinculado%' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): admin sem servidor lança no RH (' || r || ')'); END IF;
+  r := pg_temp.sql_como(NULL, 'authenticated', tag);
+  IF r NOT LIKE 'erro:RHS01:Sessão sem usuário%' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): authenticated sem usuário passa como anônimo (' || r || ')'); END IF;
+  -- cascata que começa fora da regra é recusada em exigir
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('DELETE FROM public.estrutura_organizacional WHERE id = %L', e_tmp2));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('lançamento por setor: unidade sem lotação não se apaga (' || r || ')'); END IF;
+  PERFORM pg_temp.ls_sistema();
+  INSERT INTO public.lotacoes (servidor_id, unidade_id, data_inicio, ativo, tipo_lotacao) VALUES (s_sem, e_tmp2, current_date - 1, false, 'lotacao_interna');
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('DELETE FROM public.estrutura_organizacional WHERE id = %L', e_tmp2));
+  IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): cascata estrutura_organizacional -> lotacoes passa sem checagem (' || r || ')'); END IF;
   -- admin sem servidor configura o acesso (premissa 1)
-  r := pg_temp.sql_como(u_admin, 'authenticated', format('INSERT INTO public.setores_modulo (modulo, unidade_id) VALUES (''patrimonio'', %L)', e_pat));
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('INSERT INTO public.setores_modulo (modulo, unidade_id) VALUES (''patrimonio'', %L) RETURNING inclui_subordinadas', e_pat));
   IF r <> 'ok:1' THEN PERFORM pg_temp.falha('lançamento por setor: admin sem servidor não cadastra setor do módulo (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('INSERT INTO public.setores_modulo (modulo, unidade_id) VALUES (''patrimonio'', %L) RETURNING inclui_subordinadas::text', e_pat));
+  IF r IS DISTINCT FROM 'false' THEN PERFORM pg_temp.falha('setores_modulo: inclui_subordinadas não nasce false (' || coalesce(r, 'nulo') || ')'); END IF;
   r := pg_temp.sql_como(u_admin, 'authenticated', 'UPDATE public.regra_lancamento SET observacao = ''LS'' WHERE modulo = ''patrimonio''');
   IF r <> 'ok:1' THEN PERFORM pg_temp.falha('lançamento por setor: admin sem servidor não altera a regra (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_rh, 'authenticated', 'UPDATE public.regra_lancamento SET modo = ''desligado'' WHERE modulo = ''rh''');
@@ -3865,7 +4003,7 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN PERFORM pg_temp.falha('lançamento por setor (exigir): job (origem sistema) recusado (' || SQLSTATE || ')');
   END;
 
-  -- lotação no setor: o setor é a unidade de cima, com subordinadas
+  -- ===== lotação no setor: o setor é a unidade de cima, com subordinadas
   INSERT INTO public.setores_modulo (id, modulo, unidade_id, inclui_subordinadas) VALUES (sm_rh, 'rh', e_rh, true);
   UPDATE public.profiles SET servidor_id = s_lot WHERE id = u_rh;
   r := pg_temp.insere_como(u_rh, 'authenticated', 'servidor_tags', jsonb_build_object('id', 'f5000000-0000-0000-0000-000000000105', 'nome', 'LS lot'));
@@ -3873,20 +4011,31 @@ BEGIN
   IF r <> 'ok' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): lotado em subordinada do setor foi recusado (' || r || ')');
   ELSIF j ->> 'via' IS DISTINCT FROM 'lotacao' OR (j ->> 'lotacao_id')::uuid IS DISTINCT FROM l_lot OR j ->> 'permitido' IS DISTINCT FROM 'true'
         OR (j ->> 'setor_unidade_id')::uuid IS DISTINCT FROM e_rh OR j -> 'ato' ->> 'numero' IS DISTINCT FROM 'LS-P-1/2026'
-        OR j -> 'ato' ->> 'tipo' IS DISTINCT FROM 'portaria' OR t IS DISTINCT FROM e_sub::text THEN
-    PERFORM pg_temp.falha('lançamento por setor: trilha da lotação sem via/lotação/ato/unidade (' || coalesce(j::text, 'nulo') || ', unidade ' || coalesce(t, 'nula') || ')');
+        OR j -> 'ato' ->> 'tipo' IS DISTINCT FROM 'portaria' OR t IS DISTINCT FROM e_sub::text
+        OR (j ->> 'data')::date IS DISTINCT FROM public.data_local() THEN
+    PERFORM pg_temp.falha('lançamento por setor: trilha da lotação sem via/lotação/ato/unidade/data (' || coalesce(j::text, 'nulo') || ', unidade ' || coalesce(t, 'nula') || ')');
   END IF;
+  -- log_audit grava a unidade da lotação vigente, como o resto da trilha
   PERFORM pg_temp.ls_sistema();
-  UPDATE public.setores_modulo SET inclui_subordinadas = false WHERE id = sm_rh;
-  r := pg_temp.sql_como(u_rh, 'authenticated', tag);
-  IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor: lotado em subordinada vale com inclui_subordinadas = false (' || r || ')'); END IF;
-  PERFORM pg_temp.ls_sistema();
-  UPDATE public.setores_modulo SET inclui_subordinadas = true WHERE id = sm_rh;
-  UPDATE public.setores_modulo SET ativo = false WHERE id = sm_rh;
-  r := pg_temp.sql_como(u_rh, 'authenticated', tag);
-  IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor: setor inativo ainda vale (' || r || ')'); END IF;
-  PERFORM pg_temp.ls_sistema();
-  UPDATE public.setores_modulo SET ativo = true WHERE id = sm_rh;
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.log_audit(''view''::public.audit_action, ''ls_teste'', NULL, ''admin'')::text');
+  IF (SELECT org_unit_id FROM public.audit_logs WHERE id::text = r) IS DISTINCT FROM e_sub THEN
+    PERFORM pg_temp.falha('log_audit: org_unit_id não é a unidade da lotação vigente (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  FOR x IN SELECT * FROM (VALUES
+      ('sem subordinadas', 'UPDATE public.setores_modulo SET inclui_subordinadas = false WHERE id = %L', sm_rh),
+      ('setor inativo', 'UPDATE public.setores_modulo SET ativo = false WHERE id = %L', sm_rh),
+      ('lotação externa', 'UPDATE public.lotacoes SET tipo_lotacao = ''lotacao_externa'' WHERE id = %L', l_lot),
+      ('lotação inativa', 'UPDATE public.lotacoes SET ativo = false WHERE id = %L', l_lot),
+      ('lotação encerrada', 'UPDATE public.lotacoes SET data_fim = public.data_local() - 1 WHERE id = %L', l_lot),
+      ('lotação futura', 'UPDATE public.lotacoes SET data_inicio = public.data_local() + 1 WHERE id = %L', l_lot)) AS v(caso, cmd, alvo) LOOP
+    PERFORM pg_temp.ls_sistema();
+    EXECUTE format(x.cmd, x.alvo);
+    r := pg_temp.sql_como(u_rh, 'authenticated', tag);
+    IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor: ' || x.caso || ' ainda vale (' || r || ')'); END IF;
+    PERFORM pg_temp.ls_sistema();
+    UPDATE public.setores_modulo SET inclui_subordinadas = true, ativo = true WHERE id = sm_rh;
+    UPDATE public.lotacoes SET tipo_lotacao = 'lotacao_interna', ativo = true, data_inicio = current_date - 30, data_fim = NULL WHERE id = l_lot;
+  END LOOP;
 
   -- cache por transação: mudar a lotação na MESMA transação muda o fundamento (valor_como não desfaz o cache)
   r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT via FROM public.meus_fundamentos_lancamento() WHERE modulo = ''rh''');
@@ -3902,11 +4051,13 @@ BEGIN
   r := pg_temp.sql_como(u_rh, 'authenticated', tag);
   IF r <> 'ok:1' THEN PERFORM pg_temp.falha('lançamento por setor: lotação restaurada e o lançamento segue recusado (' || r || ')'); END IF;
 
-  -- meus_fundamentos_lancamento: uma linha por módulo; anon e inativo não executam
+  -- meus_fundamentos_lancamento: uma linha por módulo (ou os pedidos); anon e inativo não executam
   r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT count(*)::text FROM public.meus_fundamentos_lancamento()');
   IF r IS DISTINCT FROM (SELECT count(*)::text FROM unnest(enum_range(NULL::public.app_module))) THEN
     PERFORM pg_temp.falha('meus_fundamentos_lancamento: não devolve uma linha por módulo (' || coalesce(r, 'nulo') || ')');
   END IF;
+  r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT string_agg(modulo, '','') FROM public.meus_fundamentos_lancamento(ARRAY[''patrimonio'', ''rh'']::public.app_module[])');
+  IF r IS DISTINCT FROM 'rh,patrimonio' THEN PERFORM pg_temp.falha('meus_fundamentos_lancamento(p_modulos): devolve ' || coalesce(r, 'nada') || ' (esperado rh,patrimonio)'); END IF;
   r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT concat_ws(''|'', modo, permitido, bloqueado, via, unidade_id, unidade_nome, lotacao_id, ato ->> ''numero'') FROM public.meus_fundamentos_lancamento() WHERE modulo = ''rh''');
   IF r IS DISTINCT FROM concat_ws('|', 'exigir', true, false, 'lotacao', e_sub, 'LS RH folha', l_lot, 'LS-P-1/2026') THEN
     PERFORM pg_temp.falha('meus_fundamentos_lancamento: linha do rh do lotado = ' || coalesce(r, 'nula'));
@@ -3920,8 +4071,38 @@ BEGIN
   r := pg_temp.sql_como(u_inativo, 'authenticated', 'SELECT * FROM public.meus_fundamentos_lancamento()');
   IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('meus_fundamentos_lancamento: perfil inativo executa (' || r || ')'); END IF;
 
-  -- ===== designação: só aprovada, ativa, vigente e com ato
+  -- ===== cessão de entrada com unidade no setor (premissa 4); a de saída não vale
   PERFORM pg_temp.ls_sistema();
+  UPDATE public.profiles SET servidor_id = s_ces WHERE id = u_rh;
+  r := pg_temp.insere_como(u_rh, 'authenticated', 'servidor_tags', jsonb_build_object('id', 'f5000000-0000-0000-0000-000000000109', 'nome', 'LS ces'));
+  SELECT fundamento INTO j FROM public.audit_logs WHERE entity_id = 'f5000000-0000-0000-0000-000000000109' AND action = 'create';
+  IF r <> 'ok' OR j ->> 'via' IS DISTINCT FROM 'lotacao' OR (j ->> 'cessao_id')::uuid IS DISTINCT FROM ces OR j ? 'lotacao_id'
+     OR j -> 'ato' ->> 'numero' IS DISTINCT FROM 'LS-CE-2/2026' THEN
+    PERFORM pg_temp.falha('lançamento por setor: cessão de entrada no setor não vale ou trilha sem cessao_id (' || r || ', ' || coalesce(j::text, 'nulo') || ')');
+  END IF;
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.cessoes SET tipo = 'saida' WHERE id = ces;
+  r := pg_temp.sql_como(u_rh, 'authenticated', tag);
+  IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor: cessão de saída vale como lotação (' || r || ')'); END IF;
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.cessoes SET tipo = 'entrada' WHERE id = ces;
+
+  -- ===== lotação lançada pelo próprio servidor (autoconcedida) não vale
+  UPDATE public.profiles SET servidor_id = s_auto WHERE id = u_rh;
+  r := pg_temp.sql_como(u_rh, 'authenticated', tag);
+  IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor: lotação lançada pelo próprio servidor vale (' || r || ')'); END IF;
+
+  -- ===== ciclo na estrutura (c1 acima de c2 acima de c1): termina e acha o setor
+  PERFORM pg_temp.ls_sistema();
+  IF NOT (public.unidade_e_superiores(e_c2) @> ARRAY[e_c1, e_c2]) THEN PERFORM pg_temp.falha('unidade_e_superiores: ciclo na estrutura sem as duas unidades'); END IF;
+  INSERT INTO public.setores_modulo (modulo, unidade_id, inclui_subordinadas) VALUES ('rh', e_c1, true);
+  UPDATE public.profiles SET servidor_id = s_cic WHERE id = u_rh;
+  r := pg_temp.sql_como(u_rh, 'authenticated', tag);
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('lançamento por setor: ciclo na estrutura trava ou perde o setor (' || r || ')'); END IF;
+  PERFORM pg_temp.ls_sistema();
+  DELETE FROM public.setores_modulo WHERE unidade_id = e_c1;
+
+  -- ===== designação: só aprovada por outra pessoa, ativa, vigente, com ato e para o setor
   UPDATE public.profiles SET servidor_id = s_des WHERE id = u_rh;
   r := pg_temp.sql_como(u_rh, 'authenticated', tag);
   IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor: designação sem ato vale como fundamento (' || r || ')'); END IF;
@@ -3939,43 +4120,26 @@ BEGIN
       ('pendente', 'status = ''pendente'''),
       ('encerrada', 'status = ''encerrada'''),
       ('inativa', 'ativo = false'),
-      ('vencida', 'data_fim = current_date - 1'),
-      ('futura', 'data_inicio = current_date + 1'),
-      ('sem número do ato', 'ato_numero = ''  ''')) AS v(caso, sets) LOOP
+      ('vencida', 'data_fim = public.data_local() - 1'),
+      ('futura', 'data_inicio = public.data_local() + 1'),
+      ('sem número do ato', 'ato_numero = ''  '''),
+      ('fora do setor', format('unidade_destino_id = %L', e_out)),
+      ('sem aprovador', 'aprovado_por = NULL'),
+      ('aprovada pelo próprio designado', format('aprovado_por = %L', u_rh)),
+      ('aprovada por quem a lançou', format('aprovado_por = %L', u_ch))) AS v(caso, sets) LOOP
     PERFORM pg_temp.ls_sistema();
     EXECUTE format('UPDATE public.designacoes SET %s WHERE id = %L', x.sets, d1);
     r := pg_temp.sql_como(u_rh, 'authenticated', tag);
     IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor: designação ' || x.caso || ' vale como fundamento (' || r || ')'); END IF;
     PERFORM pg_temp.ls_sistema();
-    UPDATE public.designacoes SET status = 'aprovada', ativo = true, data_inicio = current_date - 5, data_fim = current_date + 30, ato_numero = 'LS-D-3/2026' WHERE id = d1;
+    UPDATE public.designacoes SET status = 'aprovada', ativo = true, data_inicio = current_date - 5, data_fim = current_date + 30,
+           ato_numero = 'LS-D-3/2026', unidade_destino_id = e_rh, aprovado_por = u_admin WHERE id = d1;
   END LOOP;
 
-  -- ===== comissão: ativa, vigente, com ato, sem objeto (fase 1), membro no período
+  -- ===== comissão não é fundamento na fase 1 (vale só no objeto, premissa 6: fase 2)
   UPDATE public.profiles SET servidor_id = s_com WHERE id = u_rh;
   r := pg_temp.sql_como(u_rh, 'authenticated', tag);
-  IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor: comissão com objeto vale para a tabela inteira (' || r || ')'); END IF;
-  PERFORM pg_temp.ls_sistema();
-  UPDATE public.comissoes SET objeto_tipo = NULL, objeto_id = NULL WHERE id = c1;
-  r := pg_temp.insere_como(u_rh, 'authenticated', 'servidor_tags', jsonb_build_object('id', 'f5000000-0000-0000-0000-000000000107', 'nome', 'LS com 1'));
-  SELECT fundamento INTO j FROM public.audit_logs WHERE entity_id = 'f5000000-0000-0000-0000-000000000107' AND action = 'create';
-  IF r <> 'ok' THEN PERFORM pg_temp.falha('lançamento por setor: membro de comissão vigente do RH foi recusado (' || r || ')');
-  ELSIF j ->> 'via' IS DISTINCT FROM 'comissao' OR (j ->> 'comissao_id')::uuid IS DISTINCT FROM c1 OR (j ->> 'comissao_membro_id')::uuid IS DISTINCT FROM cm1
-        OR j ->> 'papel' IS DISTINCT FROM 'presidente' OR j -> 'ato' ->> 'numero' IS DISTINCT FROM 'LS-C-7/2026' THEN
-    PERFORM pg_temp.falha('lançamento por setor: trilha da comissão sem via/comissão/membro/papel/ato (' || coalesce(j::text, 'nulo') || ')');
-  END IF;
-  FOR x IN SELECT * FROM (VALUES
-      ('encerrada', 'UPDATE public.comissoes SET status = ''encerrada'' WHERE id = %L', c1),
-      ('vencida', 'UPDATE public.comissoes SET data_fim = current_date - 1, data_inicio = current_date - 10 WHERE id = %L', c1),
-      ('de outro módulo', 'UPDATE public.comissoes SET modulo = ''patrimonio'' WHERE id = %L', c1),
-      ('com membro já saído', 'UPDATE public.comissoes_membros SET data_fim = current_date - 1 WHERE id = %L', cm1)) AS v(caso, cmd, alvo) LOOP
-    PERFORM pg_temp.ls_sistema();
-    EXECUTE format(x.cmd, x.alvo);
-    r := pg_temp.sql_como(u_rh, 'authenticated', tag);
-    IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor: comissão ' || x.caso || ' vale como fundamento (' || r || ')'); END IF;
-    PERFORM pg_temp.ls_sistema();
-    UPDATE public.comissoes SET status = 'ativa', data_inicio = current_date - 10, data_fim = current_date + 30, modulo = 'rh' WHERE id = c1;
-    UPDATE public.comissoes_membros SET data_fim = NULL WHERE id = cm1;
-  END LOOP;
+  IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor: membro de comissão sem objeto lança no módulo inteiro (' || r || ')'); END IF;
   PERFORM pg_temp.ls_sistema();
   UPDATE public.profiles SET servidor_id = NULL WHERE id = u_rh;
 
@@ -3989,13 +4153,29 @@ BEGIN
   END IF;
   r := pg_temp.sql_como(u_a, 'authenticated', format('INSERT INTO public.documentos_requerimento_servidor (servidor_id, tipo_documento, titulo) VALUES (%L, ''x'', ''LS'')', sa));
   IF r <> 'ok:1' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): servidor não pede o próprio documento (' || r || ')'); END IF;
+  -- o admin com servidor e fora do setor não grava o próprio pedido já decidido (ou o pedido entra zerado)
   PERFORM pg_temp.ls_sistema();
+  UPDATE public.profiles SET servidor_id = sa WHERE id = u_admin;
+  r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('INSERT INTO public.solicitacoes_abono (servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, status, aprovado_rh_por, aprovado_rh_em) VALUES (%L, %L, current_date, current_date, ''x'', ''aprovado'', auth.uid(), now()) RETURNING status', sa, (SELECT tipo_abono_id FROM public.solicitacoes_abono WHERE id = ab)));
+  IF r IS DISTINCT FROM 'pendente' AND r NOT LIKE 'erro:%' THEN
+    PERFORM pg_temp.falha('lançamento por setor (exigir): o admin fora do setor grava o próprio abono já aprovado (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.profiles SET servidor_id = NULL WHERE id = u_admin;
   PERFORM set_config('request.jwt.claims', json_build_object('sub', u_a, 'role', 'authenticated')::text, true);
   FOR x IN SELECT * FROM (VALUES
-      ('abono próprio', 'solicitacoes_abono', 'INSERT', jsonb_build_object('servidor_id', sa), NULL::jsonb, 'autoatendimento'),
-      ('abono de outro', 'solicitacoes_abono', 'INSERT', jsonb_build_object('servidor_id', sb), NULL, NULL),
-      ('ajuste próprio (posse do usuário)', 'solicitacoes_ajuste_ponto', 'INSERT', jsonb_build_object('servidor_id', u_a), NULL, 'autoatendimento'),
-      ('ajuste com o id do servidor', 'solicitacoes_ajuste_ponto', 'INSERT', jsonb_build_object('servidor_id', sa), NULL, NULL),
+      ('abono próprio pendente', 'solicitacoes_abono', 'INSERT', jsonb_build_object('servidor_id', sa, 'status', 'pendente'), NULL::jsonb, 'autoatendimento'),
+      ('abono próprio já aprovado', 'solicitacoes_abono', 'INSERT', jsonb_build_object('servidor_id', sa, 'status', 'aprovado'), NULL, NULL),
+      ('abono próprio com aprovador', 'solicitacoes_abono', 'INSERT', jsonb_build_object('servidor_id', sa, 'status', 'pendente', 'aprovado_rh_por', u_a), NULL, NULL),
+      ('abono de outro', 'solicitacoes_abono', 'INSERT', jsonb_build_object('servidor_id', sb, 'status', 'pendente'), NULL, NULL),
+      ('ajuste próprio (posse do usuário)', 'solicitacoes_ajuste_ponto', 'INSERT', jsonb_build_object('servidor_id', u_a, 'status', 'pendente'), NULL, 'autoatendimento'),
+      ('ajuste próprio já aprovado', 'solicitacoes_ajuste_ponto', 'INSERT', jsonb_build_object('servidor_id', u_a, 'status', 'aprovada', 'aprovador_id', u_a), NULL, NULL),
+      ('ajuste com o id do servidor', 'solicitacoes_ajuste_ponto', 'INSERT', jsonb_build_object('servidor_id', sa, 'status', 'pendente'), NULL, NULL),
+      ('justificativa do próprio ponto', 'justificativas_ponto', 'INSERT', jsonb_build_object('registro_ponto_id', ponto_a, 'status', 'pendente'), NULL, 'autoatendimento'),
+      ('justificativa já decidida', 'justificativas_ponto', 'INSERT', jsonb_build_object('registro_ponto_id', ponto_a, 'status', 'pendente', 'data_aprovacao', now()), NULL, NULL),
+      ('documento próprio pendente', 'documentos_requerimento_servidor', 'INSERT', jsonb_build_object('servidor_id', sa, 'status', 'pendente'), NULL, 'autoatendimento'),
+      ('documento já assinado', 'documentos_requerimento_servidor', 'INSERT', jsonb_build_object('servidor_id', sa, 'status', 'pendente', 'arquivo_assinado_url', 'x'), NULL, NULL),
+      ('documento já recebido', 'documentos_requerimento_servidor', 'INSERT', jsonb_build_object('servidor_id', sa, 'status', 'recebido'), NULL, NULL),
       ('assinatura da própria frequência', 'frequencia_fechamento', 'UPDATE', jsonb_build_object('servidor_id', sa, 'assinado_servidor', true, 'updated_at', '2'),
          jsonb_build_object('servidor_id', sa, 'assinado_servidor', false, 'updated_at', '1'), 'autoatendimento'),
       ('assinatura com outro campo', 'frequencia_fechamento', 'UPDATE', jsonb_build_object('servidor_id', sa, 'assinado_servidor', true, 'consolidado_rh', true),
@@ -4008,7 +4188,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- ===== chefia: decide a etapa do subordinado fora do setor; não lança o resto do RH
+  -- ===== chefia: decide a etapa do subordinado fora do setor (trigger real); não lança o resto do RH
   PERFORM pg_temp.ls_sistema();
   UPDATE public.profiles SET servidor_id = s_ch WHERE id = u_ch;
   r := pg_temp.exec_como(u_ch, 'authenticated', format('UPDATE public.solicitacoes_abono SET status = ''aprovado_chefia'', aprovado_chefia_por = auth.uid(), aprovado_chefia_em = now() WHERE id = %L', ab));
@@ -4018,6 +4198,8 @@ BEGIN
   ELSIF j ->> 'via' IS DISTINCT FROM 'chefia' OR (j ->> 'servidor_id')::uuid IS DISTINCT FROM s_ch THEN
     PERFORM pg_temp.falha('lançamento por setor: trilha da chefia = ' || coalesce(j::text, 'nulo'));
   END IF;
+  r := pg_temp.sql_como(u_ch, 'authenticated', format('UPDATE public.frequencia_fechamento SET validado_chefia = true, validado_chefia_por = auth.uid(), validado_chefia_em = now() WHERE id = %L', ff));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): a chefia fora do setor não valida o fechamento do subordinado (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_ch, 'authenticated', tag);
   IF r NOT LIKE 'erro:RHS01:%' THEN PERFORM pg_temp.falha('lançamento por setor (exigir): a chefia fora do setor lança no RH (' || r || ')'); END IF;
   FOR x IN SELECT * FROM (VALUES
@@ -4029,7 +4211,7 @@ BEGIN
       ('chefia: fechamento criado já validado', u_ch, 'frequencia_fechamento', 'INSERT', jsonb_build_object('servidor_id', sb, 'validado_chefia', true), NULL, 'chefia'),
       ('chefia: fechamento criado sem validação', u_ch, 'frequencia_fechamento', 'INSERT', jsonb_build_object('servidor_id', sb, 'validado_chefia', false), NULL, NULL),
       ('chefia: apagar abono', u_ch, 'solicitacoes_abono', 'DELETE', NULL, jsonb_build_object('servidor_id', sb), NULL),
-      ('chefia: tabela sem etapa (férias)', u_ch, 'ferias', 'UPDATE', jsonb_build_object('status', 'b'), jsonb_build_object('status', 'a'), NULL),
+      ('chefia: tabela sem etapa (férias)', u_ch, 'ferias_servidor', 'UPDATE', jsonb_build_object('status', 'b'), jsonb_build_object('status', 'a'), NULL),
       ('RH da frequência (age como RH)', u_rhp, 'solicitacoes_abono', 'UPDATE', jsonb_build_object('status', 'aprovado_chefia'), jsonb_build_object('status', 'pendente'), NULL),
       ('admin com servidor (tem todos os códigos)', u_admin, 'solicitacoes_abono', 'UPDATE', jsonb_build_object('status', 'aprovado_chefia'), jsonb_build_object('status', 'pendente'), NULL)
     ) AS v(caso, quem, tabela, op, novo, velho, esperado) LOOP
@@ -4054,6 +4236,14 @@ BEGIN
   IF r IS DISTINCT FROM 'LS Sem login|LS-15|f|sem_login,sem_lotacao' THEN PERFORM pg_temp.falha('saneamento_lancamento: servidor sem login e sem lotação = ' || coalesce(r, 'nada')); END IF;
   r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('SELECT concat_ws(''|'', tem_login, login_ativo, lotacao_unidade_id, lotacao_unidade_nome, array_to_string(problemas, '','')) FROM public.saneamento_lancamento() WHERE servidor_id = %L', s_lot));
   IF r IS DISTINCT FROM concat_ws('|', true, true, e_sub, 'LS RH folha', 'lotacao_divergente') THEN PERFORM pg_temp.falha('saneamento_lancamento: lotação divergente = ' || coalesce(r, 'nada')); END IF;
+  r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('SELECT array_to_string(problemas, '','') FROM public.saneamento_lancamento() WHERE servidor_id = %L', s_auto));
+  IF r IS DISTINCT FROM 'sem_login,fundamento_autoconcedido' THEN PERFORM pg_temp.falha('saneamento_lancamento: lotação autoconcedida = ' || coalesce(r, 'nada')); END IF;
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.designacoes SET aprovado_por = u_ch WHERE id = d1;   -- u_ch lançou a designação: aprovada por quem a lançou
+  r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('SELECT array_to_string(problemas, '','') FROM public.saneamento_lancamento() WHERE servidor_id = %L', s_des));
+  IF r IS DISTINCT FROM 'sem_login,fundamento_autoconcedido' THEN PERFORM pg_temp.falha('saneamento_lancamento: designação aprovada por quem a lançou = ' || coalesce(r, 'nada')); END IF;
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.designacoes SET aprovado_por = u_admin WHERE id = d1;
   r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('SELECT count(*)::text FROM public.saneamento_lancamento() WHERE servidor_id IN (%L, %L)', s_exo, s_fora));
   IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('saneamento_lancamento: exonerado listado ou servidor sem login com lotação certa fora (' || coalesce(r, 'nulo') || ')'); END IF;
   PERFORM pg_temp.ls_sistema();
@@ -4072,11 +4262,32 @@ BEGIN
     IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('saneamento_lancamento: ' || x.quem || ' executa (' || r || ')'); END IF;
   END LOOP;
 
+  -- ===== cascata de gravação checada: a licença ativa atualiza a situação do servidor (trigger AFTER) com em_cascata
+  PERFORM pg_temp.ls_sistema();
+  INSERT INTO public.licencas_afastamentos (servidor_id, tipo_afastamento, data_inicio, status)
+  VALUES (s_fora, (SELECT e.enumlabel::public.tipo_afastamento FROM pg_enum e WHERE e.enumtypid = 'public.tipo_afastamento'::regtype ORDER BY e.enumsortorder LIMIT 1),
+          current_date, 'ativa');
+  SELECT fundamento INTO j FROM public.audit_logs WHERE entity_id = s_fora AND entity_type = 'servidores' AND action = 'update' ORDER BY sequencia DESC LIMIT 1;
+  IF j IS NULL OR j ->> 'em_cascata' IS DISTINCT FROM 'true' THEN
+    PERFORM pg_temp.falha('lançamento por setor: situação do servidor atualizada pela licença sem em_cascata na trilha (' || coalesce(j::text, 'nulo') || ')');
+  END IF;
+  -- cascata de FK (ON DELETE CASCADE): a checagem da linha filha é pulada (marca), mas a trilha dela dispara depois do
+  -- comando (o Postgres enfileira os AFTER da cascata no comando de fora) e leva o fundamento calculado para a filha
+  DELETE FROM public.comissoes WHERE id = c1;
+  SELECT fundamento INTO j FROM public.audit_logs WHERE entity_id = cm1 AND action = 'delete' ORDER BY sequencia DESC LIMIT 1;
+  IF j IS NULL OR j ->> 'permitido' IS DISTINCT FROM 'true' THEN
+    PERFORM pg_temp.falha('lançamento por setor: membros apagados com a comissão sem trilha (' || coalesce(j::text, 'nulo') || ')');
+  END IF;
+  -- a marca da cascata não sobra para o comando seguinte da transação
+  IF coalesce(current_setting('lancamento.cadeia', true), '') <> '' THEN
+    PERFORM pg_temp.falha('lançamento por setor: a marca de cascata (lancamento.cadeia) sobrou depois do comando');
+  END IF;
+
   -- cenário desfeito (este é o último bloco, mas o RH volta ao modo da migração)
   PERFORM pg_temp.ls_sistema();
   UPDATE public.profiles SET servidor_id = NULL WHERE id IN (u_rh, u_ch);
   UPDATE public.regra_lancamento SET modo = 'registrar' WHERE modulo = 'rh';
-  PERFORM pg_temp.nota('Lançamento por setor (fase 1): catálogo, cobertura das tabelas do RH, privilégios, modos desligado/registrar/exigir, lotação com subordinadas, designação, comissão, autoatendimento, chefia, sistema, admin sem servidor, cache, trilha, meus_fundamentos_lancamento e saneamento_lancamento verificados');
+  PERFORM pg_temp.nota('Lançamento por setor (fase 1): catálogo, data_local, cobertura, privilégios, comissões, modos (desligado, registrar, exigir, o mais restritivo), exigir só por migração, lotação, cessão, autoconcessão, ciclo, designação, autoatendimento, chefia, sistema, sem login, admin sem servidor, cascatas, cache, trilha, log_audit, registrar_evento e as duas RPCs verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

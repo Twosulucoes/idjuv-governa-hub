@@ -1056,7 +1056,6 @@ INSERT INTO public.role_permissions (id, role, permission, created_at, created_b
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('fe9e2c8a-fe04-457e-8f94-f893f8b9e973', 'admin', 'rh.contracheques.visualizar', '2026-10-11 01:46:26.180433+00', NULL);
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('ec5c216b-02e8-43bc-923f-2a205b156f53', 'manager', 'rh.contracheques.visualizar', '2026-10-11 01:46:26.180433+00', NULL);
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('178eaec5-af63-4c66-99c3-169a1361dd9f', 'admin', 'rh.comissoes.gerenciar', '2026-10-11 03:25:38.762622+00', NULL);
-INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('21cb01e1-519c-41ec-819b-f2538211f607', 'manager', 'rh.comissoes.gerenciar', '2026-10-11 03:25:38.762622+00', NULL);
 
 
 --

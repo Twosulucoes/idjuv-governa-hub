@@ -7818,6 +7818,13 @@ CREATE TRIGGER trg_cessao_atualiza_situacao AFTER INSERT OR UPDATE ON public.ces
 
 
 --
+-- Name: comissoes_membros trg_comissoes_membros_validar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_comissoes_membros_validar BEFORE INSERT OR UPDATE ON public.comissoes_membros FOR EACH ROW EXECUTE FUNCTION public.comissoes_membros_validar();
+
+
+--
 -- Name: config_envio trg_config_envio_autoria; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -8074,6 +8081,13 @@ CREATE TRIGGER trg_registrar_fase_licitacao BEFORE UPDATE OF fase_atual ON publi
 --
 
 CREATE TRIGGER trg_registrar_transicao_folha BEFORE UPDATE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.registrar_transicao_folha();
+
+
+--
+-- Name: regra_lancamento trg_regra_lancamento_exigir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_regra_lancamento_exigir BEFORE INSERT OR UPDATE ON public.regra_lancamento FOR EACH ROW EXECUTE FUNCTION public.regra_lancamento_proteger_exigir();
 
 
 --
@@ -9619,6 +9633,559 @@ CREATE TRIGGER zz_exigir_setor BEFORE INSERT OR DELETE OR UPDATE ON public.vincu
 --
 
 CREATE TRIGGER zz_exigir_setor BEFORE INSERT OR DELETE OR UPDATE ON public.vinculos_servidor FOR EACH ROW EXECUTE FUNCTION public.exigir_setor();
+
+
+--
+-- Name: adicionais_tempo_servico zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.adicionais_tempo_servico FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: agrupamento_unidade_vinculo zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.agrupamento_unidade_vinculo FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: banco_horas zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.banco_horas FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: bancos_cnab zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.bancos_cnab FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: cargo_unidade_compatibilidade zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.cargo_unidade_compatibilidade FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: cargos zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.cargos FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: cessoes zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.cessoes FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: comissoes zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.comissoes FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: comissoes_membros zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.comissoes_membros FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: composicao_cargos zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.composicao_cargos FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_agrupamento_unidades zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_agrupamento_unidades FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_assinatura_frequencia zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_assinatura_frequencia FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_autarquia zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_autarquia FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_compensacao zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_compensacao FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_fechamento_folha zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_fechamento_folha FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_fechamento_frequencia zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_fechamento_frequencia FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_incidencias zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_incidencias FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_institucional zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_institucional FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_jornada_padrao zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_jornada_padrao FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_motivos_desligamento zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_motivos_desligamento FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_regras_calculo zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_regras_calculo FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_rubricas zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_rubricas FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_situacoes_funcionais zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_situacoes_funcionais FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_tipos_ato zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_tipos_ato FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_tipos_onus zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_tipos_onus FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_tipos_rubrica zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_tipos_rubrica FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: config_tipos_servidor zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.config_tipos_servidor FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: configuracao_jornada zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.configuracao_jornada FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: consignacoes zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.consignacoes FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: contas_autarquia zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.contas_autarquia FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: dependentes_irrf zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.dependentes_irrf FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: designacoes zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.designacoes FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: dias_nao_uteis zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.dias_nao_uteis FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: documentos zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.documentos FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: documentos_requerimento_servidor zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.documentos_requerimento_servidor FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: eventos_esocial zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.eventos_esocial FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: exportacoes_folha zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.exportacoes_folha FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: feriados zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.feriados FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: ferias_servidor zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.ferias_servidor FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: fichas_financeiras zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.fichas_financeiras FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: folhas_pagamento zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.folhas_pagamento FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: frequencia_arquivos zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.frequencia_arquivos FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: frequencia_fechamento zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.frequencia_fechamento FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: frequencia_mensal zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.frequencia_mensal FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: frequencia_pacotes zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.frequencia_pacotes FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: historico_funcional zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.historico_funcional FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: horarios_jornada zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.horarios_jornada FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: itens_ficha_financeira zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.itens_ficha_financeira FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: itens_retorno_bancario zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.itens_retorno_bancario FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: justificativas_ponto zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.justificativas_ponto FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: lancamentos_banco_horas zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.lancamentos_banco_horas FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: lancamentos_folha zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.lancamentos_folha FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: licencas_afastamentos zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.licencas_afastamentos FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: lotacoes zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.lotacoes FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: memorandos_lotacao zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.memorandos_lotacao FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: nomeacoes_chefe_unidade zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.nomeacoes_chefe_unidade FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: ocorrencias_servidor zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.ocorrencias_servidor FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: parametros_folha zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.parametros_folha FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: pensoes_alimenticias zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.pensoes_alimenticias FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: portarias_servidor zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.portarias_servidor FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: pre_cadastros zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.pre_cadastros FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: provimentos zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.provimentos FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: regimes_trabalho zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.regimes_trabalho FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: registros_ponto zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.registros_ponto FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: remessas_bancarias zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.remessas_bancarias FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: retornos_bancarios zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.retornos_bancarios FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: rubricas zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.rubricas FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: servidor_regime zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.servidor_regime FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: servidor_tag_vinculos zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.servidor_tag_vinculos FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: servidor_tags zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.servidor_tags FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: servidores zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.servidores FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: solicitacoes_abono zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.solicitacoes_abono FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: solicitacoes_ajuste_ponto zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.solicitacoes_ajuste_ponto FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: tabela_inss zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.tabela_inss FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: tabela_irrf zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.tabela_irrf FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: tipos_abono zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.tipos_abono FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: viagens_diarias zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.viagens_diarias FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: vinculos_funcionais zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.vinculos_funcionais FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: vinculos_servidor zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.vinculos_servidor FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
 
 
 --
@@ -18608,13 +19175,6 @@ CREATE POLICY rls_delete ON public.regimes_trabalho FOR DELETE TO authenticated 
 --
 
 CREATE POLICY rls_delete ON public.registros_ponto FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar'::text) OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar'::text)) AND (public.is_admin_user(auth.uid()) OR (NOT public.eh_meu_servidor(servidor_id)))));
-
-
---
--- Name: regra_lancamento rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.regra_lancamento FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
 
 
 --

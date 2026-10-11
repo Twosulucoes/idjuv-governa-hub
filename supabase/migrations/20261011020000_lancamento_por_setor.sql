@@ -10,20 +10,22 @@
 -- ligados num laço sobre uma LISTA EXPLÍCITA de tabelas; a que não existir é pulada com NOTICE.
 --
 -- Regra: uma gravação (inserir, alterar, excluir) numa tabela do módulo M é aceita quando o login tem servidor
--- vinculado (profiles.servidor_id, premissa 7) e há um FUNDAMENTO vigente hoje:
+-- vinculado (profiles.servidor_id, premissa 7) e há um FUNDAMENTO vigente hoje (data_local(): o dia no fuso do órgão):
 --   lotacao          lotação ativa e vigente do servidor (fora lotacao_externa) ou cessão de entrada com unidade no
 --                    órgão (premissa 4) numa unidade que é setor de M (setores_modulo; com inclui_subordinadas, também
---                    as unidades abaixo dela na estrutura)
---   designacao       designação aprovada, ativa, vigente e com ato (número e data) para uma unidade do setor de M
+--                    as unidades abaixo dela na estrutura). Não vale a lançada pelo próprio servidor
+--                    (created_by_servidor_id = ele; nulo = legado, vale)
+--   designacao       designação aprovada, ativa, vigente e com ato (número e data) para uma unidade do setor de M, com
+--                    aprovado_por preenchido, e o aprovador não é o próprio designado nem quem lançou a designação
 --                    (premissa 5: soma à lotação; a checagem é na função, não há CHECK nas linhas antigas)
---   comissao         membro (no período do membro) de comissão ativa, vigente e com ato do módulo M, sem objeto. A
---                    comissão com objeto (campanha, contrato, processo) vale só no objeto (premissa 6) e é checada
---                    por linha na fase 2, quando as tabelas desses módulos entrarem na regra; na fase 1 ela não é
---                    fundamento de nada
---   autoatendimento  o servidor grava o que é dele (ver fundamento_linha)
+--   (comissão)       NÃO é fundamento na fase 1: comissão vale só no seu objeto (premissa 6: campanha, contrato,
+--                    processo), checado por linha na fase 2, quando as tabelas desses módulos entrarem na regra. Nenhuma
+--                    tabela do RH é objeto de comissão; o cadastro (comissoes, comissoes_membros) já fica pronto
+--   autoatendimento  o servidor grava o que é dele, ainda sem decisão (ver fundamento_linha)
 --   chefia           a chefia decide a etapa do subordinado na frequência (ver fundamento_linha)
---   sistema/anonimo  sem auth.uid(): job, Edge Function e service role (sistema); formulário público (anonimo)
---   negado_sem_servidor, negado_setor: sem fundamento
+--   sistema          sem auth.uid() e fora dos papéis da API: job, Edge Function e service role
+--   anonimo          papel anon (formulário público; as tabelas da regra não aceitam anon pela RLS)
+--   negado_sem_login (papel authenticated sem usuário), negado_sem_servidor, negado_setor: sem fundamento
 -- Não há atalho para o papel admin. Configuração de acesso (classes admin, catalogo_admin, proprio_user e
 -- publico_admin do mapa: usuários, papéis, permissões, setores e a própria regra) fica fora (premissa 1): só as
 -- tabelas de lançamento recebem o trigger.
@@ -35,20 +37,24 @@
 -- Blocos:
 --   1. tabelas setores_modulo, regra_lancamento (configuração, só o admin escreve), comissoes e comissoes_membros (RH,
 --      rh.comissoes.gerenciar), com RLS e policies (cópia literal do supabase/baseline/rls/35_policies_geradas.sql)
---   2. permissão rh.comissoes.gerenciar (catálogo; papéis admin e manager) e carga de regra_lancamento
+--   2. permissão rh.comissoes.gerenciar (catálogo; só o papel admin até o órgão decidir) e carga de regra_lancamento
 --   3. audit_logs.fundamento (+ índice parcial das linhas negadas)
---   4. funções: lotacao_vigente, unidade_e_superiores, lancamento_modulos_tabela, fundamento_lancamento (cache por
+--   4. funções: data_local, lotacao_vigente, unidade_e_superiores, lancamento_modulos_tabela, fundamento_lancamento (cache por
 --      transação), fundamento_tabela (cache por tabela), fundamento_linha (autoatendimento e chefia),
 --      meus_fundamentos_lancamento (RPC de consulta), saneamento_lancamento (RPC do relatório),
 --      rh_exige_servidor_vinculado (lê a regra), lancamento_cache_invalidar
 --   5. trilha: trilha_contexto (unidade da lotação vigente), trilha_completar_contexto, fn_audit_trigger v3 (grava o
---      fundamento), fixar_autoria (sem a checagem de vínculo, que passa ao trigger da regra), registrar_evento
---   6. exigir_setor() e o trigger zz_exigir_setor (BEFORE INSERT OR UPDATE OR DELETE) nas 79 tabelas do RH;
---      autoria e trilha nas 4 tabelas novas; invalidação do cache
+--      fundamento), fixar_autoria (sem a checagem de vínculo, que passa ao trigger da regra), registrar_evento,
+--      log_audit (unidade da lotação vigente)
+--   6. exigir_setor() e os triggers zz_exigir_setor (BEFORE INSERT OR UPDATE OR DELETE, por linha) e
+--      zz_exigir_setor_fim (AFTER, por comando) nas 79 tabelas do RH; autoria e trilha nas 4 tabelas novas; o modo
+--      exigir só por migração (regra_lancamento_proteger_exigir); membros de comissão (comissoes_membros_validar);
+--      invalidação do cache
 --   7. privilégios (mesmas linhas no supabase/baseline/overlay/40_privilegios.sql)
 --
 -- Códigos de erro: RHS01 = lançamento recusado pela regra de setor (modo exigir). A mensagem diz "seu login não tem
--- servidor vinculado" ou "você não está lotado nem designado no setor de <módulo>"; DETAIL traz `via=<via>`.
+-- servidor vinculado" ou "você não está lotado nem designado no setor de <nome do módulo>"; DETAIL traz
+-- `via=<via>; tabela=<tabela>`. 42501 = membro de comissão recusado (comissoes_membros_validar) ou modo exigir pela API.
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -62,7 +68,7 @@ CREATE TABLE IF NOT EXISTS public.setores_modulo (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   modulo public.app_module NOT NULL,
   unidade_id uuid NOT NULL REFERENCES public.estrutura_organizacional(id),
-  inclui_subordinadas boolean NOT NULL DEFAULT true,
+  inclui_subordinadas boolean NOT NULL DEFAULT false,
   ativo boolean NOT NULL DEFAULT true,
   observacao text,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -76,8 +82,10 @@ CREATE TABLE IF NOT EXISTS public.setores_modulo (
 CREATE INDEX IF NOT EXISTS idx_setores_modulo_unidade ON public.setores_modulo USING btree (unidade_id);
 COMMENT ON TABLE public.setores_modulo IS
   'Unidades da estrutura que são o setor de cada módulo (lançamento por setor). Só o papel admin altera.';
+-- Padrão false: incluir as subordinadas é decisão explícita (uma unidade grande não vira setor inteira por omissão).
+ALTER TABLE public.setores_modulo ALTER COLUMN inclui_subordinadas SET DEFAULT false;
 COMMENT ON COLUMN public.setores_modulo.inclui_subordinadas IS
-  'true: as unidades abaixo desta na estrutura (superior_id) também são o setor do módulo';
+  'true: as unidades abaixo desta na estrutura (superior_id) também são o setor do módulo (padrão false)';
 
 -- Modo da regra por módulo. id é a chave (trilha com entity_id); modulo é único (upsert com onConflict: 'modulo').
 CREATE TABLE IF NOT EXISTS public.regra_lancamento (
@@ -96,7 +104,7 @@ CREATE TABLE IF NOT EXISTS public.regra_lancamento (
 COMMENT ON TABLE public.regra_lancamento IS
   'Modo da regra de lançamento por setor de cada módulo: desligado, registrar (só anota na trilha) ou exigir (recusa, RHS01). Só o papel admin altera.';
 
--- Comissões: membro de comissão vigente, com ato, é fundamento no módulo dela (e só no objeto, quando houver).
+-- Comissões: membro de comissão vigente, com ato, será fundamento só no objeto dela (premissa 6, fase 2).
 CREATE TABLE IF NOT EXISTS public.comissoes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   nome text NOT NULL,
@@ -123,9 +131,18 @@ CREATE TABLE IF NOT EXISTS public.comissoes (
   CONSTRAINT comissoes_objeto_check CHECK ((objeto_tipo IS NULL) = (objeto_id IS NULL)),
   CONSTRAINT comissoes_periodo_check CHECK (data_fim IS NULL OR data_fim >= data_inicio)
 );
+-- Comissão de inventário, licitação ou fiscalização de contrato existe para um objeto (premissa 6); só `outra` fica sem.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.comissoes'::regclass
+                  AND conname = 'comissoes_objeto_obrigatorio_check') THEN
+    ALTER TABLE public.comissoes ADD CONSTRAINT comissoes_objeto_obrigatorio_check
+      CHECK (tipo = 'outra' OR (objeto_tipo IS NOT NULL AND objeto_id IS NOT NULL));
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_comissoes_modulo ON public.comissoes USING btree (modulo);
 COMMENT ON TABLE public.comissoes IS
-  'Comissões com ato, período e motivo (inventário, licitação, fiscalização de contrato...). Membro de comissão ativa e vigente é fundamento de lançamento no módulo dela; com objeto, só no objeto (fase 2).';
+  'Comissões com ato, período e motivo (inventário, licitação, fiscalização de contrato...). Membro de comissão vale só no objeto dela (premissa 6, fase 2); na fase 1 a comissão é só cadastro, não fundamento.';
 
 CREATE TABLE IF NOT EXISTS public.comissoes_membros (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -195,8 +212,6 @@ CREATE POLICY "rls_update" ON public.regra_lancamento FOR UPDATE TO authenticate
   USING (public.is_admin_user(auth.uid()))
   WITH CHECK (public.is_admin_user(auth.uid()));
 DROP POLICY IF EXISTS "rls_delete" ON public.regra_lancamento;
-CREATE POLICY "rls_delete" ON public.regra_lancamento FOR DELETE TO authenticated
-  USING (public.is_admin_user(auth.uid()));
 -- setores_modulo  [catalogo_admin]
 DROP POLICY IF EXISTS "rls_select" ON public.setores_modulo;
 CREATE POLICY "rls_select" ON public.setores_modulo FOR SELECT TO authenticated
@@ -221,7 +236,8 @@ REVOKE TRUNCATE, TRIGGER, REFERENCES ON public.setores_modulo, public.regra_lanc
 -- 2. Permissão e carga da regra
 -- ----------------------------------------------------------------------------
 -- rh.comissoes.gerenciar: cadastrar comissões e membros (action_type 'gerenciar', como rh.ferias.gerenciar; nenhuma
--- carga por action_type a dá ao papel `user`). Papéis admin e manager.
+-- carga por action_type a dá ao papel `user`). Só o papel admin até o órgão decidir quem cadastra (a linha do manager,
+-- se uma versão anterior desta migração a criou, sai).
 INSERT INTO public.module_permissions_catalog
   (module_code, permission_code, label, description, category, action_type, sort_order)
 VALUES
@@ -231,8 +247,9 @@ VALUES
 ON CONFLICT (permission_code) DO NOTHING;
 
 INSERT INTO public.role_permissions (role, permission)
-VALUES ('admin', 'rh.comissoes.gerenciar'), ('manager', 'rh.comissoes.gerenciar')
+VALUES ('admin', 'rh.comissoes.gerenciar')
 ON CONFLICT (role, permission) DO NOTHING;
+DELETE FROM public.role_permissions WHERE role = 'manager' AND permission = 'rh.comissoes.gerenciar';
 
 -- Um módulo por linha (todos os do enum app_module): rh em registrar (fase 1: nada é bloqueado), os demais desligados.
 -- Linha que já existe não muda (a migração rodada de novo não desfaz a escolha do admin). Antes dos triggers do bloco 6:
@@ -248,7 +265,9 @@ ON CONFLICT (modulo) DO NOTHING;
 ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS fundamento jsonb;
 COMMENT ON COLUMN public.audit_logs.fundamento IS
   'Fundamento do lançamento pela regra de setor (via, permitido, modo, módulo, unidade, lotação/designação/comissão, ato); nulo com a regra desligada';
--- Relatório "quem seria bloqueado": as linhas negadas de um módulo na ordem da trilha. Parcial: só as negadas.
+-- Relatório "quem seria bloqueado": as linhas negadas de um módulo na ordem da trilha. Parcial: só as negadas. Criado
+-- sem CONCURRENTLY (a migração roda numa transação; nenhuma linha tem fundamento ainda, então o índice nasce vazio e o
+-- custo é a varredura de audit_logs, pequena hoje). Se a trilha crescer antes do merge, criar à parte com CONCURRENTLY.
 CREATE INDEX IF NOT EXISTS idx_audit_logs_fundamento_negado ON public.audit_logs USING btree (module_name, sequencia DESC)
   WHERE ((fundamento ->> 'permitido') = 'false');
 
@@ -258,23 +277,51 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_fundamento_negado ON public.audit_logs
 -- Todas plpgsql (plano em cache: os triggers as chamam por linha), search_path fixo e sem EXECUTE para a API, exceto
 -- meus_fundamentos_lancamento e saneamento_lancamento (RPCs; bloco 7).
 
+-- Data de hoje no fuso do órgão. CURRENT_DATE segue o TimeZone da sessão, que no Supabase é UTC: de 20h/21h em diante
+-- (no Brasil) já seria "amanhã" e uma designação que termina hoje deixaria de valer à noite. O fuso vem da variável
+-- app.fuso_horario do banco, definida por instância (ALTER DATABASE <banco> SET app.fuso_horario = '<zona IANA>', ver
+-- docs/BANCO_DE_DADOS.md); sem ela, ou com nome inválido, America/Sao_Paulo. Usa now() (início da transação), como
+-- CURRENT_DATE: estável na transação, então o cache por transação continua certo.
+CREATE OR REPLACE FUNCTION public.data_local()
+RETURNS date LANGUAGE plpgsql STABLE SET search_path = public AS $$
+DECLARE
+  v_fuso text := nullif(btrim(current_setting('app.fuso_horario', true)), '');
+BEGIN
+  IF v_fuso IS NOT NULL THEN
+    BEGIN
+      RETURN (now() AT TIME ZONE v_fuso)::date;
+    EXCEPTION WHEN invalid_parameter_value THEN
+      NULL;   -- fuso inválido: cai no padrão (não derruba a gravação)
+    END;
+  END IF;
+  RETURN (now() AT TIME ZONE 'America/Sao_Paulo')::date;
+END;
+$$;
+COMMENT ON FUNCTION public.data_local() IS
+  'Data de hoje no fuso do órgão (app.fuso_horario do banco; padrão America/Sao_Paulo). Usada pela regra de setor no lugar de CURRENT_DATE';
+
 -- Lotação vigente do servidor na data (premissa 4): lotação ATIVA cujo período cobre a data, fora `lotacao_externa`;
 -- e cessão de ENTRADA ativa, com unidade no órgão (unidade_idjuv_id) e período que cobre a data. Lotação antes de cessão,
 -- a mais recente primeiro. Para datas passadas vale o mesmo critério (a lotação que está ativa hoje); a lotação histórica
--- fica para a coleta offline da fase 2.
-CREATE OR REPLACE FUNCTION public.lotacao_vigente(p_servidor_id uuid, p_data date DEFAULT CURRENT_DATE)
+-- fica para a coleta offline da fase 2. created_by_servidor_id (autoria E1) diz quem lançou: o fundamento ignora a
+-- lançada pelo próprio servidor (autoconcedida); a trilha e o saneamento usam todas.
+-- Assinatura nova (coluna created_by_servidor_id e p_data DEFAULT NULL = data_local()): o DROP troca a versão anterior
+-- desta migração, se houver (nenhuma função depende dela por catálogo; as chamadas plpgsql são resolvidas na execução).
+DROP FUNCTION IF EXISTS public.lotacao_vigente(uuid, date);
+CREATE FUNCTION public.lotacao_vigente(p_servidor_id uuid, p_data date DEFAULT NULL)
 RETURNS TABLE (origem text, registro_id uuid, unidade_id uuid, tipo text, data_inicio date, data_fim date,
-               ato_tipo text, ato_numero text, ato_data date, ato_doe_numero text, ato_doe_data date)
+               ato_tipo text, ato_numero text, ato_data date, ato_doe_numero text, ato_doe_data date,
+               created_by_servidor_id uuid)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  d date := coalesce(p_data, CURRENT_DATE);
+  d date := coalesce(p_data, public.data_local());
 BEGIN
   RETURN QUERY
-  SELECT x.o, x.rid, x.uni, x.tp, x.di, x.df, x.a_tipo, x.a_num, x.a_data, x.a_doe_num, x.a_doe_data
+  SELECT x.o, x.rid, x.uni, x.tp, x.di, x.df, x.a_tipo, x.a_num, x.a_data, x.a_doe_num, x.a_doe_data, x.autor
     FROM (
       SELECT 'lotacao'::text AS o, l.id AS rid, l.unidade_id AS uni, coalesce(l.tipo_lotacao::text, 'lotacao_interna') AS tp,
              l.data_inicio AS di, l.data_fim AS df, l.ato_tipo AS a_tipo, l.ato_numero AS a_num, l.ato_data AS a_data,
-             l.ato_doe_numero AS a_doe_num, l.ato_doe_data AS a_doe_data
+             l.ato_doe_numero AS a_doe_num, l.ato_doe_data AS a_doe_data, l.created_by_servidor_id AS autor
         FROM public.lotacoes l
        WHERE l.servidor_id = p_servidor_id AND l.ativo IS TRUE
          AND l.data_inicio <= d AND (l.data_fim IS NULL OR l.data_fim >= d)
@@ -282,7 +329,7 @@ BEGIN
          AND EXISTS (SELECT 1 FROM public.estrutura_organizacional e WHERE e.id = l.unidade_id)
       UNION ALL
       SELECT 'cessao'::text, c.id, c.unidade_idjuv_id, 'cessao_entrada', c.data_inicio, coalesce(c.data_retorno, c.data_fim),
-             c.ato_tipo, c.ato_numero, c.ato_data, c.ato_doe_numero, c.ato_doe_data
+             c.ato_tipo, c.ato_numero, c.ato_data, c.ato_doe_numero, c.ato_doe_data, c.created_by_servidor_id
         FROM public.cessoes c
        WHERE c.servidor_id = p_servidor_id AND c.tipo = 'entrada' AND c.ativa IS TRUE AND c.unidade_idjuv_id IS NOT NULL
          AND c.data_inicio <= d AND (coalesce(c.data_retorno, c.data_fim) IS NULL OR coalesce(c.data_retorno, c.data_fim) >= d)
@@ -294,7 +341,7 @@ $$;
 -- A unidade precisa existir na estrutura (as FKs garantem isso; o EXISTS cobre carga feita com os triggers desligados):
 -- a trilha grava essa unidade em audit_logs.org_unit_id, que tem FK, e uma unidade órfã derrubaria a gravação do usuário.
 COMMENT ON FUNCTION public.lotacao_vigente(uuid, date) IS
-  'Lotação ativa vigente do servidor na data (fora lotacao_externa) e cessão de entrada com unidade no órgão; lotação primeiro';
+  'Lotação ativa vigente do servidor na data (padrão: data_local(); fora lotacao_externa) e cessão de entrada com unidade no órgão; lotação primeiro; created_by_servidor_id = quem lançou';
 
 -- A unidade e as que estão acima dela (superior_id). Não usa get_hierarquia_unidade: aquela é UNION ALL sem limite, e
 -- um ciclo na estrutura (A acima de B acima de A) prenderia TODA gravação das tabelas da regra; aqui a recursão para em
@@ -360,14 +407,19 @@ BEGIN
 END;
 $$;
 
--- Fundamento do login atual para lançar nos módulos informados, hoje. Devolve jsonb (chaves nulas omitidas):
---   permitido (boolean), via (lotacao | designacao | comissao | sistema | anonimo | negado_sem_servidor | negado_setor),
---   modo (o mais restritivo entre os módulos), modulos (os informados, sem repetição), modulo (o do setor que deu o
---   fundamento; nos negados, o primeiro), servidor_id, data, unidade_id (lotação/cessão: a unidade; designação: o
---   destino; negado_setor: a unidade da lotação vigente, se houver), setor_unidade_id (a unidade de setores_modulo que
---   casou), lotacao_id | cessao_id | designacao_id | comissao_id (+ comissao_membro_id, papel) e ato {tipo, numero,
---   data, doe_numero, doe_data}.
--- Ordem: lotação, designação, comissão; dentro de cada via, o módulo na ordem informada. Sem atalho para o papel admin.
+-- Fundamento do login atual para lançar nos módulos informados, hoje (data_local()). Devolve jsonb (chaves nulas
+-- omitidas):
+--   permitido (boolean), via (lotacao | designacao | sistema | anonimo | negado_sem_login | negado_sem_servidor |
+--   negado_setor), modo (o mais restritivo entre os módulos), modulos (os informados, sem repetição), modulo (o do
+--   setor que deu o fundamento; nos negados, o primeiro), servidor_id, data, unidade_id (lotação/cessão: a unidade;
+--   designação: o destino; negado_setor: a unidade da lotação vigente, se houver), setor_unidade_id (a unidade de
+--   setores_modulo que casou), lotacao_id | cessao_id | designacao_id e ato {tipo, numero, data, doe_numero, doe_data}.
+-- Ordem: lotação, designação; dentro de cada via, o módulo na ordem informada. Sem atalho para o papel admin.
+-- Fundamento autoconcedido não conta: lotação ou cessão lançada pelo próprio servidor (created_by_servidor_id = ele;
+-- nulo = legado anterior à autoria, conta); designação sem aprovado_por, ou aprovada pelo próprio designado ou por quem
+-- a lançou. Comissão não é fundamento na fase 1 (vale só no objeto, premissa 6: fase 2).
+-- Sem auth.uid(): o papel anon é `anonimo` (formulário público); authenticated sem usuário é `negado_sem_login`;
+-- qualquer outro papel (service_role, postgres, job) é `sistema`.
 -- Cache por transação e por conjunto de módulos (variável local lancamento.m_<md5>, como trilha.contexto da E1): a chave
 -- é usuário + papel da sessão + geração; lancamento_cache_invalidar (mudança em lotações, designações, cessões,
 -- comissões, membros, setores, regra, estrutura e vínculo do perfil) sobe a geração. A API não define variáveis de
@@ -379,10 +431,11 @@ DECLARE
   v_chave text;
   v_guc text;
   v_cache text;
+  v_papel_sessao text := coalesce(current_setting('role', true), 'none');
   c jsonb;
   v_uid uuid;
   v_srv uuid;
-  v_data date := CURRENT_DATE;
+  v_data date := public.data_local();
   v_modo text;
   v_unid uuid;
   f jsonb;
@@ -394,7 +447,7 @@ BEGIN
   IF v_mods IS NULL THEN
     RETURN NULL;
   END IF;
-  v_chave := coalesce(auth.uid()::text, '-') || '|' || coalesce(current_setting('role', true), 'none') || '|'
+  v_chave := coalesce(auth.uid()::text, '-') || '|' || v_papel_sessao || '|'
              || coalesce(current_setting('lancamento.geracao', true), '');
   v_guc := 'lancamento.m_' || md5(array_to_string(v_mods, ','));
   v_cache := current_setting(v_guc, true);
@@ -414,11 +467,15 @@ BEGIN
   v_srv := (c ->> 'servidor_id')::uuid;
 
   IF v_uid IS NULL THEN
-    f := jsonb_build_object('permitido', true, 'via', CASE WHEN c ->> 'origem' = 'anonimo' THEN 'anonimo' ELSE 'sistema' END);
+    f := CASE v_papel_sessao
+           WHEN 'anon' THEN jsonb_build_object('permitido', true, 'via', 'anonimo')
+           WHEN 'authenticated' THEN jsonb_build_object('permitido', false, 'via', 'negado_sem_login', 'modulo', v_mods[1])
+           ELSE jsonb_build_object('permitido', true, 'via', 'sistema')
+         END;
   ELSIF v_srv IS NULL THEN
     f := jsonb_build_object('permitido', false, 'via', 'negado_sem_servidor', 'modulo', v_mods[1]);
   ELSE
-    -- 1. lotação (ou cessão de entrada) vigente numa unidade do setor
+    -- 1. lotação (ou cessão de entrada) vigente numa unidade do setor, não lançada pelo próprio servidor
     SELECT lv.origem, lv.registro_id, lv.unidade_id, sm.unidade_id AS setor_id, sm.modulo::text AS modulo,
            lv.ato_tipo, lv.ato_numero, lv.ato_data, lv.ato_doe_numero, lv.ato_doe_data
       INTO r
@@ -427,6 +484,7 @@ BEGIN
         ON sm.ativo AND sm.modulo::text = ANY (v_mods)
        AND (sm.unidade_id = lv.unidade_id
             OR (sm.inclui_subordinadas AND sm.unidade_id = ANY (public.unidade_e_superiores(lv.unidade_id))))
+     WHERE lv.created_by_servidor_id IS DISTINCT FROM v_srv
      ORDER BY array_position(v_mods, sm.modulo::text), (lv.origem = 'cessao'), lv.data_inicio DESC
      LIMIT 1;
     IF FOUND THEN
@@ -436,7 +494,7 @@ BEGIN
                               'ato', nullif(jsonb_strip_nulls(jsonb_build_object('tipo', r.ato_tipo, 'numero', r.ato_numero,
                                 'data', r.ato_data, 'doe_numero', r.ato_doe_numero, 'doe_data', r.ato_doe_data)), '{}'::jsonb));
     ELSE
-      -- 2. designação aprovada, ativa, vigente e com ato para uma unidade do setor
+      -- 2. designação aprovada (por outra pessoa), ativa, vigente e com ato para uma unidade do setor
       SELECT d.id, d.unidade_destino_id, sm.unidade_id AS setor_id, sm.modulo::text AS modulo,
              d.ato_tipo, d.ato_numero, d.ato_data, d.ato_doe_numero, d.ato_doe_data
         INTO r
@@ -448,6 +506,9 @@ BEGIN
        WHERE d.servidor_id = v_srv AND d.status = 'aprovada' AND d.ativo IS NOT FALSE
          AND d.data_inicio <= v_data AND (d.data_fim IS NULL OR d.data_fim >= v_data)
          AND nullif(btrim(d.ato_numero), '') IS NOT NULL AND d.ato_data IS NOT NULL
+         AND d.aprovado_por IS NOT NULL AND d.aprovado_por IS DISTINCT FROM d.created_by
+         AND d.aprovado_por <> v_uid
+         AND NOT EXISTS (SELECT 1 FROM public.profiles pa WHERE pa.id = d.aprovado_por AND pa.servidor_id = d.servidor_id)
        ORDER BY array_position(v_mods, sm.modulo::text), d.data_inicio DESC
        LIMIT 1;
       IF FOUND THEN
@@ -456,28 +517,8 @@ BEGIN
                                 'ato', jsonb_strip_nulls(jsonb_build_object('tipo', r.ato_tipo, 'numero', r.ato_numero,
                                   'data', r.ato_data, 'doe_numero', r.ato_doe_numero, 'doe_data', r.ato_doe_data)));
       ELSE
-        -- 3. comissão ativa, vigente, com ato, do módulo e sem objeto; membro no período dele
-        SELECT co.id, co.modulo::text AS modulo, cm.id AS membro_id, cm.papel,
-               co.ato_tipo, co.ato_numero, co.ato_data, co.ato_doe_numero, co.ato_doe_data
-          INTO r
-          FROM public.comissoes_membros cm
-          JOIN public.comissoes co ON co.id = cm.comissao_id
-         WHERE cm.servidor_id = v_srv AND co.status = 'ativa' AND co.modulo::text = ANY (v_mods)
-           AND co.objeto_tipo IS NULL
-           AND co.data_inicio <= v_data AND (co.data_fim IS NULL OR co.data_fim >= v_data)
-           AND (cm.data_inicio IS NULL OR cm.data_inicio <= v_data) AND (cm.data_fim IS NULL OR cm.data_fim >= v_data)
-           AND nullif(btrim(co.ato_numero), '') IS NOT NULL AND co.ato_data IS NOT NULL
-         ORDER BY array_position(v_mods, co.modulo::text), co.data_inicio DESC
-         LIMIT 1;
-        IF FOUND THEN
-          f := jsonb_build_object('permitido', true, 'via', 'comissao', 'modulo', r.modulo, 'comissao_id', r.id,
-                                  'comissao_membro_id', r.membro_id, 'papel', r.papel,
-                                  'ato', jsonb_strip_nulls(jsonb_build_object('tipo', r.ato_tipo, 'numero', r.ato_numero,
-                                    'data', r.ato_data, 'doe_numero', r.ato_doe_numero, 'doe_data', r.ato_doe_data)));
-        ELSE
-          SELECT lv.unidade_id INTO v_unid FROM public.lotacao_vigente(v_srv, v_data) lv LIMIT 1;
-          f := jsonb_build_object('permitido', false, 'via', 'negado_setor', 'modulo', v_mods[1], 'unidade_id', v_unid);
-        END IF;
+        SELECT lv.unidade_id INTO v_unid FROM public.lotacao_vigente(v_srv, v_data) lv LIMIT 1;
+        f := jsonb_build_object('permitido', false, 'via', 'negado_setor', 'modulo', v_mods[1], 'unidade_id', v_unid);
       END IF;
     END IF;
   END IF;
@@ -489,7 +530,7 @@ BEGIN
 END;
 $$;
 COMMENT ON FUNCTION public.fundamento_lancamento(text[]) IS
-  'Fundamento do login atual para lançar nos módulos (lotação, designação, comissão, sistema, anônimo ou negado), com o modo da regra; cache por transação';
+  'Fundamento do login atual para lançar nos módulos (lotação, designação, sistema, anônimo ou negado), com o modo da regra; cache por transação';
 
 -- O fundamento da tabela (lancamento_modulos_tabela + fundamento_lancamento), com cache por tabela na transação
 -- (variável local lancamento.t_<tabela>, mesma chave): os triggers chamam UMA função por linha. NULL = tabela fora da
@@ -521,12 +562,15 @@ $$;
 -- Fundamento que depende da LINHA (chamada só quando o fundamento de setor é negado, e só nestas tabelas). Devolve
 -- {permitido: true, via, modulo: 'rh', servidor_id, data} ou NULL. Exige servidor vinculado (login sem servidor só
 -- consulta). Como decidimos (premissa 2 e desenho), usando a posse que o gerador da RLS já conhece:
---   autoatendimento — INSERT do pedido do próprio servidor nas tabelas em que a RLS deixa o dono inserir
---     (;insere_proprio no mapa): solicitacoes_abono e documentos_requerimento_servidor (servidor_id = o do login),
---     solicitacoes_ajuste_ponto (;posse=usuario: servidor_id = auth.uid()) e justificativas_ponto (;pai=registros_ponto:
---     o ponto é do servidor do login). Os campos de decisão desses pedidos já são zerados por forcar_campos_iniciais.
---     E a assinatura da própria frequência: UPDATE de frequencia_fechamento do próprio servidor que só muda
---     assinado_servidor/assinado_servidor_em (validar_etapa_frequencia já garante que só o dono assina).
+--   autoatendimento — INSERT do PEDIDO do próprio servidor, ainda sem decisão, nas tabelas em que a RLS deixa o dono
+--     inserir (;insere_proprio no mapa): solicitacoes_abono (servidor_id = o do login; status pendente e
+--     aprovado_chefia_*, aprovado_rh_* e motivo_rejeicao nulos), documentos_requerimento_servidor (servidor_id = o do
+--     login; status pendente, arquivo_assinado_url e data_upload_assinado nulos), solicitacoes_ajuste_ponto
+--     (;posse=usuario: servidor_id = auth.uid(); status pendente, aprovador_id, data_aprovacao e observacao_aprovador
+--     nulos) e justificativas_ponto (;pai=registros_ponto: o ponto é do servidor do login; mesmas colunas do ajuste).
+--     O pedido que já entra decidido (o admin, que tem a isenção do forcar_campos_iniciais por permissão) não é
+--     autoatendimento. E a assinatura da própria frequência: UPDATE de frequencia_fechamento do próprio servidor que só
+--     muda assinado_servidor/assinado_servidor_em (validar_etapa_frequencia já garante que só o dono assina).
 --   chefia — nas quatro tabelas de etapa (validar_etapa_frequencia), quem tem rh.aprovar e NÃO tem
 --     rh.frequencia.lancar: a regra de etapa (trigger anterior, trg_validar_etapa_frequencia) já limitou o comando à
 --     decisão da chefia (UPDATE: aprovar/rejeitar o pedido pendente, validar o fechamento); a RLS (;sem_autoaprovacao)
@@ -545,6 +589,7 @@ DECLARE
   v_srv uuid := (c ->> 'servidor_id')::uuid;
   v_via text;
   v_mudou text[];
+  v_decisao text[];
 BEGIN
   IF v_uid IS NULL OR v_srv IS NULL THEN
     RETURN NULL;
@@ -558,11 +603,21 @@ BEGIN
 
   -- autoatendimento
   IF p_op = 'INSERT' THEN
-    IF (p_tabela IN ('solicitacoes_abono', 'documentos_requerimento_servidor') AND (p_novo ->> 'servidor_id')::uuid = v_srv)
-       OR (p_tabela = 'solicitacoes_ajuste_ponto' AND (p_novo ->> 'servidor_id')::uuid = v_uid)
-       OR (p_tabela = 'justificativas_ponto' AND EXISTS (
-             SELECT 1 FROM public.registros_ponto rp
-              WHERE rp.id = (p_novo ->> 'registro_ponto_id')::uuid AND rp.servidor_id = v_srv)) THEN
+    v_decisao := CASE p_tabela
+      WHEN 'solicitacoes_abono' THEN ARRAY['aprovado_chefia_por', 'aprovado_chefia_em', 'aprovado_rh_por', 'aprovado_rh_em',
+                                           'motivo_rejeicao']
+      WHEN 'documentos_requerimento_servidor' THEN ARRAY['arquivo_assinado_url', 'data_upload_assinado']
+      WHEN 'solicitacoes_ajuste_ponto' THEN ARRAY['aprovador_id', 'data_aprovacao', 'observacao_aprovador']
+      WHEN 'justificativas_ponto' THEN ARRAY['aprovador_id', 'data_aprovacao', 'observacao_aprovador']
+    END;
+    IF v_decisao IS NOT NULL
+       AND p_novo ->> 'status' = 'pendente'
+       AND NOT EXISTS (SELECT 1 FROM unnest(v_decisao) AS k WHERE p_novo ->> k IS NOT NULL)
+       AND ((p_tabela IN ('solicitacoes_abono', 'documentos_requerimento_servidor') AND (p_novo ->> 'servidor_id')::uuid = v_srv)
+            OR (p_tabela = 'solicitacoes_ajuste_ponto' AND (p_novo ->> 'servidor_id')::uuid = v_uid)
+            OR (p_tabela = 'justificativas_ponto' AND EXISTS (
+                  SELECT 1 FROM public.registros_ponto rp
+                   WHERE rp.id = (p_novo ->> 'registro_ponto_id')::uuid AND rp.servidor_id = v_srv))) THEN
       v_via := 'autoatendimento';
     END IF;
   ELSIF p_op = 'UPDATE' AND p_tabela = 'frequencia_fechamento'
@@ -586,15 +641,19 @@ BEGIN
   IF v_via IS NULL THEN
     RETURN NULL;
   END IF;
-  RETURN jsonb_build_object('permitido', true, 'via', v_via, 'modulo', 'rh', 'servidor_id', v_srv, 'data', CURRENT_DATE);
+  RETURN jsonb_build_object('permitido', true, 'via', v_via, 'modulo', 'rh', 'servidor_id', v_srv, 'data', public.data_local());
 END;
 $$;
 
--- RPC de consulta (o front mostra "somente consulta" e desabilita os botões): uma linha por módulo do enum, com o modo
--- da regra e o fundamento do login atual hoje. `permitido` é o fundamento de setor (independe do modo); `bloqueado` =
--- modo exigir sem fundamento. Autoatendimento e chefia dependem da linha e não aparecem aqui: continuam valendo
--- mesmo com bloqueado = true (a tela do próprio servidor e a de aprovação da chefia não devem ser bloqueadas por isto).
-CREATE OR REPLACE FUNCTION public.meus_fundamentos_lancamento()
+-- RPC de consulta (o front mostra "somente consulta" e desabilita os botões): uma linha por módulo do enum (ou só os de
+-- p_modulos, na ordem do enum), com o modo da regra e o fundamento do login atual hoje. `permitido` é o fundamento de
+-- setor (independe do modo); `bloqueado` = modo exigir sem fundamento. Autoatendimento e chefia dependem da linha e não
+-- aparecem aqui: continuam valendo mesmo com bloqueado = true (a tela do próprio servidor e a de aprovação da chefia não
+-- devem ser bloqueadas por isto). comissao_id fica sempre nulo na fase 1 (comissão não é fundamento; coluna mantida
+-- para a fase 2). Assinatura nova (p_modulos com padrão NULL; a chamada sem argumento continua valendo): o DROP tira a
+-- versão sem argumento de uma aplicação anterior desta migração.
+DROP FUNCTION IF EXISTS public.meus_fundamentos_lancamento();
+CREATE OR REPLACE FUNCTION public.meus_fundamentos_lancamento(p_modulos public.app_module[] DEFAULT NULL)
 RETURNS TABLE (modulo text, modo text, permitido boolean, bloqueado boolean, via text, unidade_id uuid,
                unidade_nome text, lotacao_id uuid, cessao_id uuid, designacao_id uuid, comissao_id uuid, ato jsonb)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -605,7 +664,8 @@ BEGIN
   IF auth.uid() IS NULL OR NOT public.is_active_user() THEN
     RAISE EXCEPTION 'meus_fundamentos_lancamento: usuário não autenticado ou inativo' USING ERRCODE = '42501';
   END IF;
-  FOR m IN SELECT e::text FROM unnest(enum_range(NULL::public.app_module)) AS e LOOP
+  FOR m IN SELECT e::text FROM unnest(enum_range(NULL::public.app_module)) AS e
+            WHERE p_modulos IS NULL OR e = ANY (p_modulos) LOOP
     f := public.fundamento_lancamento(ARRAY[m]);
     modulo := m;
     modo := f ->> 'modo';
@@ -623,18 +683,22 @@ BEGIN
   END LOOP;
 END;
 $$;
-COMMENT ON FUNCTION public.meus_fundamentos_lancamento() IS
-  'Por módulo: modo da regra de lançamento, se o login tem fundamento de setor hoje (via, unidade, ato) e se está bloqueado (exigir sem fundamento)';
+COMMENT ON FUNCTION public.meus_fundamentos_lancamento(public.app_module[]) IS
+  'Por módulo (todos, ou os de p_modulos): modo da regra de lançamento, se o login tem fundamento de setor hoje (via, unidade, ato) e se está bloqueado (exigir sem fundamento)';
 
 -- Relatório de saneamento (fase 1, passo 1 da transição): servidores ativos (ativo e situação fora de exonerado,
 -- aposentado, falecido e inativo) com pelo menos um problema: sem login vinculado (nenhum perfil com servidor_id), sem
--- lotação vigente (lotacao_vigente vazia) ou com servidores.unidade_atual_id diferente da unidade da lotação vigente.
+-- lotação vigente (lotacao_vigente vazia), com servidores.unidade_atual_id diferente da unidade da lotação vigente, ou
+-- com fundamento autoconcedido (lotação ou cessão vigente lançada pelo próprio servidor, ou designação aprovada e
+-- vigente aprovada por ele mesmo ou por quem a lançou: a regra ignora esses registros).
 -- Sem CPF nem outro dado pessoal além de nome e matrícula. Admin, ou módulo rh com rh.auditoria.visualizar.
 CREATE OR REPLACE FUNCTION public.saneamento_lancamento()
 RETURNS TABLE (servidor_id uuid, nome text, matricula text, situacao text, tem_login boolean, login_ativo boolean,
                lotacao_unidade_id uuid, lotacao_unidade_nome text, unidade_atual_id uuid, unidade_atual_nome text,
                problemas text[])
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_hoje date := public.data_local();
 BEGIN
   IF auth.uid() IS NULL OR NOT (public.is_admin_user(auth.uid())
        OR (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'rh.auditoria.visualizar'))) THEN
@@ -650,12 +714,21 @@ BEGIN
                CASE WHEN NOT p.tem THEN 'sem_login' END,
                CASE WHEN lv.unidade_id IS NULL THEN 'sem_lotacao' END,
                CASE WHEN lv.unidade_id IS NOT NULL AND s.unidade_atual_id IS DISTINCT FROM lv.unidade_id
-                    THEN 'lotacao_divergente' END], NULL) AS probs
+                    THEN 'lotacao_divergente' END,
+               CASE WHEN EXISTS (SELECT 1 FROM public.lotacao_vigente(s.id, v_hoje) a WHERE a.created_by_servidor_id = s.id)
+                      OR EXISTS (SELECT 1 FROM public.designacoes d
+                                  WHERE d.servidor_id = s.id AND d.status = 'aprovada' AND d.ativo IS NOT FALSE
+                                    AND d.data_inicio <= v_hoje AND (d.data_fim IS NULL OR d.data_fim >= v_hoje)
+                                    AND d.aprovado_por IS NOT NULL
+                                    AND (d.aprovado_por = d.created_by
+                                         OR EXISTS (SELECT 1 FROM public.profiles pa
+                                                     WHERE pa.id = d.aprovado_por AND pa.servidor_id = s.id)))
+                    THEN 'fundamento_autoconcedido' END], NULL) AS probs
         FROM public.servidores s
         CROSS JOIN LATERAL (
           SELECT EXISTS (SELECT 1 FROM public.profiles pr WHERE pr.servidor_id = s.id) AS tem,
                  EXISTS (SELECT 1 FROM public.profiles pr WHERE pr.servidor_id = s.id AND pr.is_active) AS ativo_login) p
-        LEFT JOIN LATERAL (SELECT v.unidade_id FROM public.lotacao_vigente(s.id) v LIMIT 1) lv ON true
+        LEFT JOIN LATERAL (SELECT v.unidade_id FROM public.lotacao_vigente(s.id, v_hoje) v LIMIT 1) lv ON true
        WHERE s.ativo IS NOT FALSE AND s.situacao::text NOT IN ('exonerado', 'aposentado', 'falecido', 'inativo')
     ) x
     LEFT JOIN public.estrutura_organizacional el ON el.id = x.luni
@@ -665,7 +738,7 @@ BEGIN
 END;
 $$;
 COMMENT ON FUNCTION public.saneamento_lancamento() IS
-  'Servidores ativos sem login vinculado, sem lotação vigente ou com unidade_atual_id divergente da lotação (sem CPF)';
+  'Servidores ativos sem login vinculado, sem lotação vigente, com unidade_atual_id divergente da lotação ou com fundamento autoconcedido (sem CPF)';
 
 -- E1: "usuário sem servidor vinculado pode lançar no RH". Agora a resposta é a regra: true quando o RH está em modo
 -- exigir. Mantida por compatibilidade (nada no banco a chama mais: a checagem passou ao trigger zz_exigir_setor).
@@ -801,9 +874,13 @@ $$;
 -- fn_audit_trigger v3 (mesma assinatura; corpo da v2 da E1): grava em audit_logs.fundamento o fundamento da gravação
 -- (fundamento_tabela, em cache na transação; para autoatendimento e chefia, fundamento_linha sobre a linha antes da
 -- máscara). Regra desligada no(s) módulo(s) da tabela, ou tabela fora da regra (ex.: profiles, módulo admin):
--- fundamento nulo. Gravação feita por outro trigger (pg_trigger_depth() > 1: cascata de FK, trigger que atualiza outra
--- tabela) não é checada pela regra; a linha leva o fundamento de quem disparou, com em_cascata = true (o relatório de
--- bloqueios deve ignorá-la). A unidade da linha (org_unit_id) é a do fundamento usado; sem ela, a da lotação vigente.
+-- fundamento nulo. Gravação em cascata de uma gravação da regra já checada (marca lancamento.cadeia de exigir_setor,
+-- ver bloco 6) não é checada de novo; a linha leva o fundamento de quem disparou, com em_cascata = true (o relatório de
+-- bloqueios deve ignorá-la). Cascata vinda de tabela fora da regra (ex.: estrutura_organizacional -> lotacoes) é
+-- checada e gravada como qualquer outra. Limite: na cascata de FK (ON DELETE CASCADE/SET NULL) o Postgres enfileira os
+-- AFTER da linha filha no comando de fora, depois do fim dele; a linha filha da trilha sai sem em_cascata e com o
+-- fundamento calculado para a tabela filha (mesmo login; na fase 1, mesmo módulo rh). A unidade da linha
+-- (org_unit_id) é a do fundamento usado; sem ela, a da lotação vigente.
 CREATE OR REPLACE FUNCTION public.fn_audit_trigger()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -847,7 +924,7 @@ BEGIN
   IF v_fund IS NOT NULL THEN
     IF v_fund ->> 'modo' = 'desligado' THEN
       v_fund := NULL;
-    ELSIF pg_trigger_depth() > 1 THEN
+    ELSIF pg_trigger_depth() > 1 AND current_setting('lancamento.cadeia', true) = 'on' THEN
       v_fund := v_fund || jsonb_build_object('em_cascata', true);
     ELSIF (v_fund ->> 'permitido') = 'false'
           AND TG_TABLE_NAME IN ('solicitacoes_abono', 'solicitacoes_ajuste_ponto', 'justificativas_ponto',
@@ -1088,48 +1165,188 @@ $$;
 COMMENT ON FUNCTION public.registrar_evento(text, text, uuid, text, jsonb) IS
   'Registra na trilha do RH uma ação sem gravação (view, export, download; imprimir = download) sobre entidade de lista fechada';
 
+-- log_audit: corpo da E2 (20261011000200; o mesmo do supabase/baseline/overlay/18_funcoes_rpc.sql) com uma mudança:
+-- org_unit_id passa a ser a unidade da lotação vigente do servidor do login, como no resto da trilha (antes: a unidade
+-- principal de user_org_units, que é escopo de acesso). Sem servidor ou sem lotação: nula.
+CREATE OR REPLACE FUNCTION public.log_audit(_action audit_action, _entity_type character varying DEFAULT NULL::character varying, _entity_id uuid DEFAULT NULL::uuid, _module_name character varying DEFAULT NULL::character varying, _before_data jsonb DEFAULT NULL::jsonb, _after_data jsonb DEFAULT NULL::jsonb, _description text DEFAULT NULL::text, _metadata jsonb DEFAULT '{}'::jsonb)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  _log_id UUID;
+  _user_role app_role;
+  _user_org_unit UUID;
+  _meta jsonb;
+BEGIN
+  -- perfil bloqueado/inexistente não grava (a sessão do Auth dele pode continuar válida). Sem usuário
+  -- (service role, ou registrar_denuncia_publica chamada por anon) segue como antes.
+  IF auth.uid() IS NOT NULL AND NOT public.is_active_user() THEN
+    RAISE EXCEPTION 'Usuário inativo' USING ERRCODE = '42501';
+  END IF;
+  IF lower(btrim(coalesce(_module_name, ''))) = 'rh' THEN
+    IF _action::text NOT IN ('view', 'export', 'download') THEN
+      RAISE EXCEPTION 'log_audit: no módulo rh só view, export e download (lançamentos entram pela trilha do banco)'
+        USING ERRCODE = '22023';
+    END IF;
+    IF _before_data IS NOT NULL OR _after_data IS NOT NULL THEN
+      RAISE EXCEPTION 'log_audit: no módulo rh a linha não leva antes/depois' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  -- linha de arquivo do Storage (entity_type storage.<bucket>) só vem do trigger trilha_storage (E2)
+  IF lower(btrim(coalesce(_entity_type, ''))) LIKE 'storage.%' THEN
+    RAISE EXCEPTION 'log_audit: entity_type storage.* é gravado só pelo banco (trilha do Storage)' USING ERRCODE = '22023';
+  END IF;
+  IF length(coalesce(_before_data::text, '')) > 32768 OR length(coalesce(_after_data::text, '')) > 32768
+     OR length(coalesce(_metadata::text, '')) > 32768 THEN
+    RAISE EXCEPTION 'log_audit: antes, depois e metadados têm limite de 32 KB cada' USING ERRCODE = '22023';
+  END IF;
+  _meta := CASE WHEN _metadata IS NULL THEN '{}'::jsonb
+                WHEN jsonb_typeof(_metadata) = 'object' THEN _metadata
+                ELSE jsonb_build_object('valor', _metadata) END;
+  _meta := (_meta - ARRAY['trigger', 'operation', 'table', 'registrar_evento', 'fonte', 'servidor_alvo_id'])
+           || jsonb_build_object('fonte', 'log_audit');
+
+  SELECT role INTO _user_role 
+  FROM public.user_roles 
+  WHERE user_id = auth.uid() 
+  LIMIT 1;
+  
+  -- unidade da lotação vigente do servidor do login (como o resto da trilha, regra de setor 20261011020000); antes,
+  -- a unidade principal de user_org_units (escopo de acesso, não onde a pessoa trabalha)
+  SELECT lv.unidade_id INTO _user_org_unit
+    FROM public.profiles p CROSS JOIN LATERAL public.lotacao_vigente(p.servidor_id) lv
+   WHERE p.id = auth.uid() AND p.servidor_id IS NOT NULL
+   LIMIT 1;
+  
+  INSERT INTO public.audit_logs (
+    user_id, action, entity_type, entity_id, module_name,
+    before_data, after_data, description, metadata,
+    role_at_time, org_unit_id
+  )
+  VALUES (
+    auth.uid(), _action, _entity_type, _entity_id, _module_name,
+    _before_data, _after_data, _description, _meta,
+    _user_role, _user_org_unit
+  )
+  RETURNING id INTO _log_id;
+  
+  RETURN _log_id;
+END;
+$function$;
+
 -- ----------------------------------------------------------------------------
 -- 6. Onde a regra roda
 -- ----------------------------------------------------------------------------
 -- exigir_setor(): fundamento da tabela (em cache na transação); modo exigir e sem fundamento de setor: tenta o da linha
 -- (autoatendimento/chefia) e recusa com RHS01. Modo registrar: só aquece o cache (a trilha, fn_audit_trigger, grava o
--- fundamento) e nunca recusa. Pula a gravação feita por outro trigger (pg_trigger_depth() > 1: cascata de FK, trigger
--- que atualiza outra tabela, ex.: férias atualizando a situação do servidor), porque quem a disparou já foi checado; e a
--- origem sistema/anonimo (fundamento_lancamento devolve permitido). O nome começa com "zz_e": roda depois dos outros
--- BEFORE (trg_validar_etapa_frequencia já validou a etapa; trg_forcar_campos_iniciais já zerou a decisão do pedido) e
--- antes de zz_fixar_autoria.
+-- fundamento) e nunca recusa. A origem sistema/anonimo passa (fundamento_lancamento devolve permitido).
+-- Cascata: a gravação de nível 1 (pg_trigger_depth() = 1, o comando que a API ou a RPC mandou) aceita deixa a marca
+-- lancamento.cadeia = 'on' na transação, e zz_exigir_setor_fim (AFTER, por comando, nível 1) a apaga no fim do comando.
+-- Gravação de nível > 1 com a marca descende de uma gravação já checada (cascata de FK, ex.: comissão apagada levando os
+-- membros; trigger AFTER que atualiza outra tabela, ex.: licença ativa mudando a situação do servidor) e não é checada
+-- de novo. Sem a marca (cascata que começa numa tabela
+-- fora da regra, ex.: estrutura_organizacional -> lotacoes, ou trigger BEFORE que grava antes da checagem da linha que o
+-- disparou) é checada como qualquer gravação: negada, vai ao relatório ou é recusada.
+-- O nome começa com "zz_e": roda depois dos outros BEFORE (trg_validar_etapa_frequencia já validou a etapa;
+-- trg_forcar_campos_iniciais já zerou a decisão do pedido) e antes de zz_fixar_autoria.
+-- Mensagem: o nome do(s) módulo(s) vem de module_settings.display_name (sem ele, o código); a tabela vai no DETAIL.
 CREATE OR REPLACE FUNCTION public.exigir_setor()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   f jsonb;
   v_setor text;
+  v_via text;
+  v_det text;
 BEGIN
-  IF pg_trigger_depth() > 1 THEN
+  IF pg_trigger_depth() > 1 AND current_setting('lancamento.cadeia', true) = 'on' THEN
     RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
   END IF;
   f := public.fundamento_tabela(TG_TABLE_NAME);
-  IF f IS NULL OR f ->> 'modo' IS DISTINCT FROM 'exigir' OR (f ->> 'permitido') = 'true' THEN
+  IF f IS NULL OR f ->> 'modo' IS DISTINCT FROM 'exigir' OR (f ->> 'permitido') = 'true'
+     OR (TG_TABLE_NAME IN ('solicitacoes_abono', 'solicitacoes_ajuste_ponto', 'justificativas_ponto',
+                           'frequencia_fechamento', 'documentos_requerimento_servidor')
+         AND public.fundamento_linha(TG_TABLE_NAME, TG_OP,
+               CASE WHEN TG_OP <> 'DELETE' THEN to_jsonb(NEW) END,
+               CASE WHEN TG_OP <> 'INSERT' THEN to_jsonb(OLD) END) IS NOT NULL) THEN
+    IF pg_trigger_depth() = 1 AND current_setting('lancamento.cadeia', true) IS DISTINCT FROM 'on' THEN
+      PERFORM set_config('lancamento.cadeia', 'on', true);
+    END IF;
     RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
   END IF;
-  IF TG_TABLE_NAME IN ('solicitacoes_abono', 'solicitacoes_ajuste_ponto', 'justificativas_ponto', 'frequencia_fechamento',
-                       'documentos_requerimento_servidor')
-     AND public.fundamento_linha(TG_TABLE_NAME, TG_OP,
-           CASE WHEN TG_OP <> 'DELETE' THEN to_jsonb(NEW) END,
-           CASE WHEN TG_OP <> 'INSERT' THEN to_jsonb(OLD) END) IS NOT NULL THEN
-    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
-  END IF;
-  SELECT string_agg(m, ' ou ') INTO v_setor FROM jsonb_array_elements_text(f -> 'modulos') AS m;
-  IF f ->> 'via' = 'negado_sem_servidor' THEN
-    RAISE EXCEPTION 'Seu login não tem servidor vinculado: lançamento em % recusado (setor de %)', TG_TABLE_NAME, v_setor
-      USING ERRCODE = 'RHS01',
-            DETAIL = 'via=negado_sem_servidor',
+  SELECT string_agg(coalesce(nome.n, x.m), ' ou ' ORDER BY x.o) INTO v_setor
+    FROM jsonb_array_elements_text(f -> 'modulos') WITH ORDINALITY AS x(m, o)
+    LEFT JOIN LATERAL (SELECT nullif(btrim(ms.display_name), '') AS n FROM public.module_settings ms
+                        WHERE ms.module_code = x.m LIMIT 1) nome ON true;
+  v_via := coalesce(f ->> 'via', 'negado_setor');
+  v_det := format('via=%s; tabela=%s', v_via, TG_TABLE_NAME);
+  IF v_via = 'negado_sem_servidor' THEN
+    RAISE EXCEPTION 'Seu login não tem servidor vinculado: lançamento no setor de % recusado', v_setor
+      USING ERRCODE = 'RHS01', DETAIL = v_det,
             HINT = 'Sem servidor vinculado, o login só consulta. Peça ao administrador o vínculo do seu servidor ao login.';
+  ELSIF v_via = 'negado_sem_login' THEN
+    RAISE EXCEPTION 'Sessão sem usuário identificado: lançamento no setor de % recusado', v_setor
+      USING ERRCODE = 'RHS01', DETAIL = v_det, HINT = 'Entre de novo no sistema.';
   END IF;
-  RAISE EXCEPTION 'Você não está lotado nem designado no setor de % (nem é membro de comissão vigente): lançamento em % recusado',
-    v_setor, TG_TABLE_NAME
-    USING ERRCODE = 'RHS01',
-          DETAIL = 'via=' || coalesce(f ->> 'via', 'negado_setor'),
-          HINT = 'Vale a lotação ativa no setor, a designação aprovada, vigente e com ato, ou a comissão vigente com ato.';
+  RAISE EXCEPTION 'Você não está lotado nem designado no setor de %: lançamento recusado', v_setor
+    USING ERRCODE = 'RHS01', DETAIL = v_det,
+          HINT = 'Vale a lotação ativa no setor (não lançada por você) ou a designação aprovada por outra pessoa, vigente e com ato.';
+END;
+$$;
+
+-- Fim do comando de nível 1 numa tabela da regra: apaga a marca da cascata (ver exigir_setor).
+CREATE OR REPLACE FUNCTION public.exigir_setor_fim()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  IF pg_trigger_depth() = 1 AND current_setting('lancamento.cadeia', true) = 'on' THEN
+    PERFORM set_config('lancamento.cadeia', '', true);
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+-- O modo exigir só entra por migração (spec: "modo exigir, módulo a módulo, cada um numa migração pequena"): com usuário
+-- na sessão (API, inclusive o admin), INSERT ou UPDATE que leva um módulo a exigir é recusado (42501). Sair de exigir
+-- (voltar a registrar ou desligado) continua com o admin: é a saída de emergência. Migração e service role (sem
+-- auth.uid()) passam.
+CREATE OR REPLACE FUNCTION public.regra_lancamento_proteger_exigir()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NEW.modo = 'exigir' AND auth.uid() IS NOT NULL
+     AND (TG_OP = 'INSERT' OR OLD.modo IS DISTINCT FROM 'exigir' OR OLD.modulo IS DISTINCT FROM NEW.modulo) THEN
+    RAISE EXCEPTION 'O modo exigir da regra de lançamento (módulo %) só entra por migração', NEW.modulo
+      USING ERRCODE = '42501',
+            HINT = 'Pela tela, os modos são desligado e registrar; exigir é ligado por migração, módulo a módulo.';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Membros de comissão: quem cadastrou a comissão não é membro dela, e ninguém (exceto o papel admin) se inclui numa
+-- comissão (autoconcessão; seg. 1 da revisão). Vale no INSERT e no UPDATE que troca o servidor ou a comissão.
+CREATE OR REPLACE FUNCTION public.comissoes_membros_validar()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_criador uuid;
+  v_meu uuid;
+BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.servidor_id IS NOT DISTINCT FROM OLD.servidor_id
+     AND NEW.comissao_id IS NOT DISTINCT FROM OLD.comissao_id THEN
+    RETURN NEW;
+  END IF;
+  SELECT co.created_by_servidor_id INTO v_criador FROM public.comissoes co WHERE co.id = NEW.comissao_id;
+  IF v_criador IS NOT NULL AND NEW.servidor_id = v_criador THEN
+    RAISE EXCEPTION 'Quem cadastrou a comissão não pode ser membro dela' USING ERRCODE = '42501';
+  END IF;
+  IF v_uid IS NOT NULL AND NOT public.is_admin_user(v_uid) THEN
+    SELECT p.servidor_id INTO v_meu FROM public.profiles p WHERE p.id = v_uid;
+    IF v_meu IS NOT NULL AND NEW.servidor_id = v_meu THEN
+      RAISE EXCEPTION 'Você não pode se incluir numa comissão' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -1152,8 +1369,17 @@ BEGIN
   END LOOP;
 END $$;
 
--- 6b. zz_exigir_setor nas 79 tabelas do RH (as 77 da E1 e as 2 de comissões). A tabela precisa estar em
--- lancamento_modulos_tabela (senão a migração aborta: o trigger rodaria sem módulo).
+-- O modo exigir só por migração; membros de comissão sem autoconcessão. Nomes "trg_": rodam antes dos zz_.
+DROP TRIGGER IF EXISTS trg_regra_lancamento_exigir ON public.regra_lancamento;
+CREATE TRIGGER trg_regra_lancamento_exigir BEFORE INSERT OR UPDATE ON public.regra_lancamento
+  FOR EACH ROW EXECUTE FUNCTION public.regra_lancamento_proteger_exigir();
+DROP TRIGGER IF EXISTS trg_comissoes_membros_validar ON public.comissoes_membros;
+CREATE TRIGGER trg_comissoes_membros_validar BEFORE INSERT OR UPDATE ON public.comissoes_membros
+  FOR EACH ROW EXECUTE FUNCTION public.comissoes_membros_validar();
+
+-- 6b. zz_exigir_setor (por linha) e zz_exigir_setor_fim (por comando, apaga a marca da cascata) nas 79 tabelas do RH
+-- (as 77 da E1 e as 2 de comissões). A tabela precisa estar em lancamento_modulos_tabela (senão a migração aborta: o
+-- trigger rodaria sem módulo).
 DO $$
 DECLARE
   t text;
@@ -1187,6 +1413,9 @@ BEGIN
     EXECUTE format('DROP TRIGGER IF EXISTS zz_exigir_setor ON public.%I', t);
     EXECUTE format('CREATE TRIGGER zz_exigir_setor BEFORE INSERT OR UPDATE OR DELETE ON public.%I '
                    'FOR EACH ROW EXECUTE FUNCTION public.exigir_setor()', t);
+    EXECUTE format('DROP TRIGGER IF EXISTS zz_exigir_setor_fim ON public.%I', t);
+    EXECUTE format('CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR UPDATE OR DELETE ON public.%I '
+                   'FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim()', t);
     EXECUTE format('REVOKE TRUNCATE, TRIGGER, REFERENCES ON public.%I FROM anon, authenticated', t);
   END LOOP;
 END $$;
@@ -1216,6 +1445,7 @@ END $$;
 -- ----------------------------------------------------------------------------
 -- 7. Privilégios (o dump do baseline não leva GRANT/REVOKE: o overlay/40 repete estas linhas)
 -- ----------------------------------------------------------------------------
+REVOKE EXECUTE ON FUNCTION public.data_local() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.lotacao_vigente(uuid, date) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.unidade_e_superiores(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.lancamento_modulos_tabela(text) FROM PUBLIC, anon, authenticated;
@@ -1224,9 +1454,12 @@ REVOKE EXECUTE ON FUNCTION public.fundamento_tabela(text) FROM PUBLIC, anon, aut
 REVOKE EXECUTE ON FUNCTION public.fundamento_linha(text, text, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.lancamento_cache_invalidar() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.exigir_setor() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.exigir_setor_fim() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.regra_lancamento_proteger_exigir() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.comissoes_membros_validar() FROM PUBLIC, anon, authenticated;
 -- RPCs: só authenticated (a guarda no corpo exige usuário ativo; o saneamento, admin ou rh.auditoria.visualizar)
-REVOKE EXECUTE ON FUNCTION public.meus_fundamentos_lancamento() FROM PUBLIC, anon, service_role;
-GRANT EXECUTE ON FUNCTION public.meus_fundamentos_lancamento() TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.meus_fundamentos_lancamento(public.app_module[]) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.meus_fundamentos_lancamento(public.app_module[]) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.saneamento_lancamento() FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.saneamento_lancamento() TO authenticated;
 -- as da E1 trocadas aqui mantêm o que tinham (CREATE OR REPLACE não mexe no ACL); repetidas para o estado só-migrações
