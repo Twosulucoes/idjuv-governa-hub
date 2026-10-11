@@ -52,7 +52,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 
-import { getMarcaAssets } from '@/core/tenant';
+import { getMarcaAssets, getTenantSnapshot, nomeDoSistema } from '@/core/tenant';
 interface RelatorioPortariasDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -286,7 +286,7 @@ export function RelatorioPortariasDialog({
         doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(8);
-        doc.text('Sistema de Gestão de Portarias - IDJUV', margin, pageHeight - 5);
+        doc.text(`Gestão de Portarias - ${nomeDoSistema(getTenantSnapshot())}`, margin, pageHeight - 5);
         doc.text(`Página ${pageNum}`, pageWidth - margin - 15, pageHeight - 5);
       };
 

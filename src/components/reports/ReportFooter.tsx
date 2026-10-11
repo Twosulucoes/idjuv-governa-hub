@@ -8,7 +8,7 @@
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useIdentidade } from "@/core/tenant";
+import { useIdentidade, useNomeSistema } from "@/core/tenant";
 
 interface ReportFooterProps {
   /** Nome do usuário que gerou o relatório */
@@ -34,6 +34,7 @@ export function ReportFooter({
   className,
 }: ReportFooterProps) {
   const identidade = useIdentidade();
+  const nomeSistema = useNomeSistema();
   const dataFormatada = format(dataGeracao, "dd/MM/yyyy 'às' HH:mm", {
     locale: ptBR,
   });
@@ -66,7 +67,7 @@ export function ReportFooter({
 
       {/* Aviso de autenticidade */}
       <p className="text-center text-[10px] text-muted-foreground/70 pb-2">
-        Documento gerado eletronicamente pelo Sistema de Governança Digital
+        Documento gerado eletronicamente pelo {nomeSistema}
       </p>
     </footer>
   );

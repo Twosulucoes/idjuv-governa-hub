@@ -19,6 +19,7 @@ export type {
   TenantIntegracoes,
   TenantFeatures,
   TenantRH,
+  TenantSistema,
   TabelaDiariasConfig,
   LinhaTabelaDiarias,
   FaixaDestino,
@@ -32,7 +33,10 @@ export type {
 export { TENANT_ATIVO, resolverTenant } from './resolver';
 export { getTenantSnapshot, getTenantSnapshotOuNulo, definirTenant } from './snapshot';
 export { aplicarTema, cssDoTema } from './tema';
-export { fallbackDadosOficiais } from './dadosOficiais';
+export { fallbackDadosOficiais, aplicarDadosOficiais, CAMPOS_CLIENTE } from './dadosOficiais';
+export type { CampoCliente, CategoriaCampoCliente } from './dadosOficiais';
+export { NOME_PRODUTO_PADRAO, nomeDoProduto, nomeDoSistema } from './produto';
+export { getTenantEfetivo, recarregarIdentidadeDoBanco } from './identidadeBanco';
 export { getMarcaAssets, logoOrgao, logoEntidadeSuperior } from './marca';
 export { useLogoOrgao, useLogoEntidadeSuperior } from './useLogo';
 export type { VarianteLogo } from './useLogo';
@@ -44,4 +48,5 @@ export {
   useMarca,
   useMarcaAssets,
   useModuloHabilitado,
+  useNomeSistema,
 } from './useTenant';

@@ -29,6 +29,16 @@ const { identidade, entidadeSuperior } = getTenantSnapshot();
 não podem chamar hooks. O snapshot é resolvido no carregamento do módulo, antes
 do primeiro render.
 
+## Identidade vinda do banco
+
+O perfil do arquivo vale desde o primeiro render; logo depois o `TenantProvider`
+lê `dados_oficiais` (tela `/admin/configuracao-cliente`) e aplica os valores por
+cima (`identidadeBanco.ts`), atualizando também o snapshot dos PDFs. O catálogo
+de chaves e onde cada uma entra no perfil é `CAMPOS_CLIENTE` (`dadosOficiais.ts`).
+Nome do sistema (`"<produto> / <sigla>"`): `useNomeSistema()` no React,
+`nomeDoSistema(getTenantSnapshot())` fora dele (`produto.ts`).
+Ver `docs/CONFIGURACAO_CLIENTE.md`.
+
 ## Tema
 
 `aplicarTema()` injeta um `<style id="tenant-theme">` com blocos `:root` e

@@ -140,7 +140,8 @@ export type PermissaoInstitucional =
   | 'admin.auditoria'
   | 'admin.config'
   | 'admin.backup'
-  | 'admin.envios';
+  | 'admin.envios'
+  | 'admin.configuracao_cliente';
 
 export interface MenuItem {
   id: string;
@@ -1276,6 +1277,13 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/envios",
         icon: Mail,
         permission: "admin.envios",
+      },
+      {
+        id: "configuracao-cliente",
+        label: "Configuração do Cliente",
+        route: "/admin/configuracao-cliente",
+        icon: Building2,
+        permission: "admin.configuracao_cliente",
       },
       {
         id: "ajuda",

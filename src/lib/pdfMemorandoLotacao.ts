@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 
+import { getTenantSnapshot, nomeDoSistema } from '@/core/tenant';
 import { nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos } from './pdfTemplate';
 export interface MemorandoLotacaoData {
   numeroProtocolo: string;
@@ -181,7 +182,7 @@ export const generateMemorandoLotacao = (data: MemorandoLotacaoData): jsPDF => {
   
   // Rodapé
   doc.setFontSize(7);
-  doc.text('Documento gerado pelo Sistema de Governança Digital IDJUV', pageWidth / 2, pageHeight - 25, { align: 'center' });
+  doc.text(`Documento gerado pelo ${nomeDoSistema(getTenantSnapshot())}`, pageWidth / 2, pageHeight - 25, { align: 'center' });
   if (data.emitidoPor) {
     doc.text(`Emitido por: ${data.emitidoPor}`, pageWidth / 2, pageHeight - 20, { align: 'center' });
   }

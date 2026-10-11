@@ -9,7 +9,7 @@
 import jsPDF from 'jspdf';
 import { getLogosPDF, LOGO_CONFIG_PADRAO } from './pdfLogos';
 
-import { getMarcaAssets, getTenantSnapshot } from '@/core/tenant';
+import { getMarcaAssets, getTenantSnapshot, nomeDoSistema } from '@/core/tenant';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { entidadeSuperiorLight: logoGovernoSrc, logoDark: logoIDJUVDarkSrc, logoLight: logoIDJUVOficialSrc } = getMarcaAssets();
@@ -385,9 +385,8 @@ export const generateInstitutionalFooter = (
   config: FooterConfig = {}
 ) => {
   const { width, height } = getPageDimensions(doc);
-  const { identidade } = getTenantSnapshot();
   const sistema =
-    config.sistema || `Sistema de Governança Digital ${identidade.sigla}`;
+    config.sistema || nomeDoSistema(getTenantSnapshot());
   
   setColor(doc, CORES.cinzaClaro);
   doc.setFontSize(7);
@@ -865,13 +864,12 @@ export const nomeEntidadeSuperiorDocumentos = (): string => {
  * `generateInstitutionalFooter`.
  */
 export const rodapeOficial = (doc: jsPDF, y?: number): void => {
-  const { identidade } = getTenantSnapshot();
   const { width, height } = getPageDimensions(doc);
   setColor(doc, CORES.cinzaClaro);
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.text(
-    `Documento gerado pelo Sistema de Governança Digital ${identidade.sigla}`,
+    `Documento gerado pelo ${nomeDoSistema(getTenantSnapshot())}`,
     width / 2,
     y ?? height - 12,
     { align: 'center' }

@@ -1199,10 +1199,10 @@ DROP POLICY IF EXISTS "rls_delete" ON public.creditos_adicionais;
 CREATE POLICY "rls_delete" ON public.creditos_adicionais FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
 
--- dados_oficiais  [catalogo_admin]
+-- dados_oficiais  [publico_admin]
 DROP POLICY IF EXISTS "rls_select" ON public.dados_oficiais;
-CREATE POLICY "rls_select" ON public.dados_oficiais FOR SELECT TO authenticated
-  USING (public.is_active_user());
+CREATE POLICY "rls_select" ON public.dados_oficiais FOR SELECT TO anon, authenticated
+  USING (true);
 DROP POLICY IF EXISTS "rls_insert" ON public.dados_oficiais;
 CREATE POLICY "rls_insert" ON public.dados_oficiais FOR INSERT TO authenticated
   WITH CHECK (public.is_admin_user(auth.uid()));

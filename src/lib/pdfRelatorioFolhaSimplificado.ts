@@ -4,7 +4,7 @@ import { ptBR } from 'date-fns/locale';
 
 import { getLogosPDF } from './pdfLogos';
 
-import { getMarcaAssets } from '@/core/tenant';
+import { getMarcaAssets, getTenantSnapshot, nomeDoSistema } from '@/core/tenant';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
 const { entidadeSuperiorLight: logoGovernoSrc, logoLight: logoIDJUVOficialSrc } = getMarcaAssets();
@@ -302,7 +302,7 @@ export async function gerarRelatorioFolhaSimplificado(
     doc.setFontSize(7);
     doc.setTextColor(...CORES.branco);
     
-    doc.text('Sistema de Gestão - IDJUV | Governo do Estado de Roraima', marginX, pageHeight - 4);
+    doc.text([nomeDoSistema(getTenantSnapshot()), getTenantSnapshot().entidadeSuperior?.exibirEmDocumentos && getTenantSnapshot().entidadeSuperior?.nome].filter(Boolean).join(' | '), marginX, pageHeight - 4);
     doc.text(`Página ${paginaAtual}`, pageWidth - marginX - 20, pageHeight - 4);
   };
 

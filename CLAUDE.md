@@ -178,6 +178,11 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 - **Nunca** importe `tenants/<slug>` direto de `src/`, e **nunca** adicione
   literal com nome de cliente em `src/` — vai para o perfil do tenant.
 - Slug ausente/desconhecido cai no perfil neutro `_template`, nunca no IDJUV.
+- **Identidade vem do banco:** nome do sistema (`<produto> / <sigla>`), nome
+  oficial, sigla, CNPJ, endereço, dirigente e contato são cadastrados em
+  `/admin/configuracao-cliente` (tabela `dados_oficiais`) e aplicados por cima do
+  perfil ao abrir o app. O perfil do tenant é só o ponto de partida. Nome do
+  sistema: `useNomeSistema()`/`nomeDoSistema()`. Ver `docs/CONFIGURACAO_CLIENTE.md`.
 - Detalhes em `src/core/tenant/README.md`, `tenants/README.md` e
   `docs/WHITE_LABEL.md`.
 

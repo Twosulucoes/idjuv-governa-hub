@@ -43,10 +43,11 @@ import {
 } from "@/components/ui/collapsible";
 import { MenuSearch } from "./MenuSearch";
 
-import { useIdentidade } from '@/core/tenant';
+import { useIdentidade, useNomeSistema } from '@/core/tenant';
 export function MenuSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const { sigla } = useIdentidade();
+  const nomeSistema = useNomeSistema();
   const isCollapsed = state === "collapsed";
   
   const {
@@ -321,7 +322,7 @@ export function MenuSidebar() {
       <SidebarFooter className="border-t p-2">
         {!isCollapsed && (
           <div className="text-xs text-muted-foreground text-center">
-            {sigla} — Sistema Administrativo
+            {nomeSistema}
           </div>
         )}
       </SidebarFooter>
