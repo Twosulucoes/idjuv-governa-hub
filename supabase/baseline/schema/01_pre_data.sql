@@ -2251,6 +2251,55 @@ $$;
 
 
 --
+-- Name: cancelar_remessa(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.cancelar_remessa(p_remessa_id uuid, p_motivo text) RETURNS TABLE(id uuid, numero_remessa integer, status text, cancelada_em timestamp with time zone, cancelada_por uuid, motivo_cancelamento text)
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_motivo text := btrim(coalesce(p_motivo, ''));
+  v_status text;
+BEGIN
+  IF v_uid IS NULL OR NOT coalesce(public.can_access_module(v_uid, 'rh')
+                                    AND public.has_permission_code(v_uid, 'financeiro.folha.processar'), false) THEN
+    RAISE EXCEPTION 'cancelar_remessa: exige o módulo rh e a permissão financeiro.folha.processar' USING ERRCODE = '42501';
+  END IF;
+  IF length(v_motivo) < 5 OR length(v_motivo) > 1000 THEN
+    RAISE EXCEPTION 'cancelar_remessa: motivo obrigatório (de 5 a 1000 caracteres)' USING ERRCODE = '22023';
+  END IF;
+  SELECT x.status INTO v_status FROM public.remessas_bancarias x WHERE x.id = p_remessa_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'cancelar_remessa: remessa não encontrada' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_status = 'cancelada' THEN
+    RAISE EXCEPTION 'cancelar_remessa: a remessa já está cancelada' USING ERRCODE = 'RHE03';
+  END IF;
+  IF v_status = 'processada' THEN
+    RAISE EXCEPTION 'cancelar_remessa: remessa processada pelo banco não se cancela' USING ERRCODE = 'RHE03';
+  END IF;
+  PERFORM set_config('remessa.cancelar', p_remessa_id::text, true);
+  UPDATE public.remessas_bancarias AS x
+     SET status = 'cancelada', cancelada_em = now(), cancelada_por = v_uid, motivo_cancelamento = v_motivo
+   WHERE x.id = p_remessa_id;
+  PERFORM set_config('remessa.cancelar', '', true);
+  RETURN QUERY
+    SELECT x.id, x.numero_remessa, x.status::text, x.cancelada_em, x.cancelada_por, x.motivo_cancelamento
+      FROM public.remessas_bancarias x WHERE x.id = p_remessa_id;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION cancelar_remessa(p_remessa_id uuid, p_motivo text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.cancelar_remessa(p_remessa_id uuid, p_motivo text) IS 'Cancela a remessa CNAB (status cancelada, cancelada_em/por, motivo). Exige módulo rh e financeiro.folha.processar';
+
+
+--
 -- Name: config_envio_servidor(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2520,6 +2569,37 @@ BEGIN
   WHERE id = p_folha_id;
   
   RETURN jsonb_build_object('success', true, 'message', 'Folha enviada para conferência');
+END;
+$$;
+
+
+--
+-- Name: exigir_folha_fechada(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.exigir_folha_fechada() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_status text;
+  v_ano int;
+  v_mes int;
+BEGIN
+  IF NEW.folha_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+  SELECT f.status::text, f.competencia_ano, f.competencia_mes INTO v_status, v_ano, v_mes
+    FROM public.folhas_pagamento f WHERE f.id = NEW.folha_id
+    FOR SHARE OF f;
+  IF FOUND AND v_status IS DISTINCT FROM 'fechada' THEN
+    RAISE EXCEPTION 'Folha %/% não está fechada (status: %): % só sai de folha fechada',
+      lpad(v_mes::text, 2, '0'), v_ano, coalesce(v_status, 'sem status'),
+      CASE TG_TABLE_NAME WHEN 'remessas_bancarias' THEN 'a remessa bancária' ELSE 'o evento do eSocial' END
+      USING ERRCODE = 'RHE01',
+            HINT = 'Feche a folha antes de gerar o arquivo (migração 20261011010000).';
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -4302,7 +4382,7 @@ $$;
 --
 
 CREATE FUNCTION public.fn_validar_margem_consignavel(p_servidor_id uuid) RETURNS TABLE(salario_liquido numeric, margem_total_percentual numeric, margem_total_valor numeric, margem_utilizada numeric, margem_disponivel numeric, percentual_utilizado numeric, dentro_limite boolean)
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql STABLE
     SET search_path TO 'public'
     AS $$
 DECLARE
@@ -4310,6 +4390,15 @@ DECLARE
   v_margem_pct NUMERIC;
   v_utilizada NUMERIC;
 BEGIN
+  -- coalesce: sem servidor vinculado, meu_servidor_id() é nulo e a comparação daria nulo (o IF não recusaria)
+  IF NOT coalesce((auth.uid() IS NOT NULL AND public.can_access_module(auth.uid(), 'rh')
+                   AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar')
+                        OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar')))
+                  OR p_servidor_id = public.meu_servidor_id(), false) THEN
+    RAISE EXCEPTION 'fn_validar_margem_consignavel: exige o módulo rh com rh.contracheques.visualizar ou financeiro.folha.processar, ou ser o próprio servidor'
+      USING ERRCODE = '42501';
+  END IF;
+
   -- Buscar remuneração líquida do servidor
   SELECT COALESCE(s.remuneracao_bruta, 0) - COALESCE(s.descontos, 0)
   INTO v_liquido
@@ -5353,11 +5442,14 @@ CREATE FUNCTION public.get_proximo_numero_remessa(p_conta_id uuid, p_ano integer
 DECLARE
   v_numero INTEGER;
 BEGIN
+  IF NOT coalesce((auth.uid() IS NULL AND coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated'))
+                  OR (auth.uid() IS NOT NULL AND public.can_access_module(auth.uid(), 'rh')), false) THEN
+    RAISE EXCEPTION 'get_proximo_numero_remessa: exige o módulo rh' USING ERRCODE = '42501';
+  END IF;
   SELECT COALESCE(MAX(numero_remessa), 0) + 1 INTO v_numero
   FROM remessas_bancarias
-  WHERE conta_autarquia_id = p_conta_id
-  AND EXTRACT(YEAR FROM data_geracao) = p_ano;
-  
+  WHERE conta_autarquia_id = p_conta_id;
+
   RETURN v_numero;
 END;
 $$;
@@ -6949,6 +7041,7 @@ CREATE FUNCTION public.reabrir_folha(p_folha_id uuid, p_justificativa text) RETU
 DECLARE
   v_folha RECORD;
   v_user_id UUID;
+  v_remessas text;
 BEGIN
   v_user_id := auth.uid();
   
@@ -6967,8 +7060,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Apenas super administradores podem reabrir folhas');
   END IF;
   
-  -- Buscar folha
-  SELECT * INTO v_folha FROM public.folhas_pagamento WHERE id = p_folha_id;
+  -- Buscar folha (travada até o fim: geração de remessa/eSocial em curso termina antes; a que vier depois espera)
+  SELECT * INTO v_folha FROM public.folhas_pagamento WHERE id = p_folha_id FOR UPDATE;
   
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Folha não encontrada');
@@ -6977,6 +7070,15 @@ BEGIN
   -- Verificar status atual
   IF v_folha.status != 'fechada' THEN
     RETURN jsonb_build_object('success', false, 'error', 'Apenas folhas fechadas podem ser reabertas');
+  END IF;
+
+  -- Remessa bancária ativa: cancelar antes (E3)
+  SELECT string_agg(r.numero_remessa::text, ', ' ORDER BY r.numero_remessa) INTO v_remessas
+    FROM public.remessas_bancarias r
+   WHERE r.folha_id = p_folha_id AND r.status <> 'cancelada';
+  IF v_remessas IS NOT NULL THEN
+    RETURN jsonb_build_object('success', false, 'error',
+      format('A folha tem remessa bancária ativa (nº %s). Cancele a remessa antes de reabrir a folha.', v_remessas));
   END IF;
   
   -- Atualizar para reaberta
@@ -6987,6 +7089,11 @@ BEGIN
     reaberto_em = now(),
     justificativa_reabertura = p_justificativa
   WHERE id = p_folha_id;
+
+  -- Eventos do eSocial rascunho da folha saem da vigência (E3)
+  UPDATE public.eventos_esocial
+     SET status = 'erro', mensagem_retorno = 'Folha reaberta: gere o evento de novo depois de fechar'
+   WHERE folha_id = p_folha_id AND recibo IS NULL AND status NOT IN ('erro', 'rejeitado');
   
   -- Registrar no audit_log
   INSERT INTO public.audit_logs (
@@ -7517,6 +7624,105 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: remessa_integridade(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.remessa_integridade() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_sistema boolean := auth.uid() IS NULL
+    AND coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated');
+  v_cancelando boolean;
+  v_carimbo text[] := ARRAY['updated_at', 'updated_by', 'updated_by_servidor_id'];
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.status = 'cancelada' THEN
+      RAISE EXCEPTION 'Remessa não nasce cancelada: use cancelar_remessa depois de gerada'
+        USING ERRCODE = 'RHE03';
+    END IF;
+    NEW.cancelada_em := NULL;
+    NEW.cancelada_por := NULL;
+    NEW.motivo_cancelamento := NULL;
+    PERFORM pg_advisory_xact_lock(hashtextextended('remessas_bancarias.numero_remessa:' || NEW.conta_autarquia_id::text, 0));
+    SELECT coalesce(max(r.numero_remessa), 0) + 1 INTO NEW.numero_remessa
+      FROM public.remessas_bancarias r WHERE r.conta_autarquia_id = NEW.conta_autarquia_id;
+    SELECT count(*)::integer, coalesce(round(sum(f.valor_liquido), 2), 0)
+      INTO NEW.quantidade_registros, NEW.valor_total
+      FROM public.fichas_financeiras f
+     WHERE f.folha_id = NEW.folha_id AND f.valor_liquido > 0
+       AND coalesce(f.banco_codigo, '') <> '' AND coalesce(f.banco_agencia, '') <> '' AND coalesce(f.banco_conta, '') <> '';
+  ELSE
+    -- campos que identificam o arquivo gerado
+    IF NEW.folha_id IS DISTINCT FROM OLD.folha_id OR NEW.conta_autarquia_id IS DISTINCT FROM OLD.conta_autarquia_id
+       OR NEW.numero_remessa IS DISTINCT FROM OLD.numero_remessa OR NEW.valor_total IS DISTINCT FROM OLD.valor_total
+       OR NEW.quantidade_registros IS DISTINCT FROM OLD.quantidade_registros THEN
+      RAISE EXCEPTION 'Remessa %: folha, conta, número, valor e quantidade não mudam depois de gerada', OLD.numero_remessa
+        USING ERRCODE = 'RHE02';
+    END IF;
+    -- arquivo já gravado não muda nem some
+    IF OLD.arquivo_path IS NOT NULL OR OLD.arquivo_sha256 IS NOT NULL THEN
+      IF NEW.arquivo_path IS DISTINCT FROM OLD.arquivo_path OR NEW.arquivo_sha256 IS DISTINCT FROM OLD.arquivo_sha256 THEN
+        RAISE EXCEPTION 'Remessa %: o arquivo já foi guardado (caminho e sha256 não mudam)', OLD.numero_remessa
+          USING ERRCODE = 'RHE02';
+      END IF;
+    END IF;
+    -- remessa cancelada não muda mais (só o carimbo de atualização, que os triggers seguintes regravam)
+    IF OLD.status = 'cancelada' THEN
+      IF (to_jsonb(NEW) - v_carimbo) IS DISTINCT FROM (to_jsonb(OLD) - v_carimbo) THEN
+        RAISE EXCEPTION 'Remessa % está cancelada e não muda mais', OLD.numero_remessa
+          USING ERRCODE = 'RHE02';
+      END IF;
+      RETURN NEW;
+    END IF;
+    -- cancelar só pela RPC (ela liga a variável local remessa.cancelar com o id; a API não define variáveis)
+    v_cancelando := coalesce(current_setting('remessa.cancelar', true), '') = OLD.id::text;
+    IF NOT v_cancelando
+       AND (NEW.status = 'cancelada' OR NEW.cancelada_em IS DISTINCT FROM OLD.cancelada_em
+            OR NEW.cancelada_por IS DISTINCT FROM OLD.cancelada_por
+            OR NEW.motivo_cancelamento IS DISTINCT FROM OLD.motivo_cancelamento) THEN
+      RAISE EXCEPTION 'Remessa %: cancelamento só pela RPC cancelar_remessa (com motivo)', OLD.numero_remessa
+        USING ERRCODE = 'RHE03';
+    END IF;
+  END IF;
+
+  -- arquivo: de nulo para valor, uma vez, caminho e hash juntos, por quem gerou a remessa e processa a folha
+  IF (NEW.arquivo_path IS NOT NULL OR NEW.arquivo_sha256 IS NOT NULL)
+     AND (TG_OP = 'INSERT' OR (OLD.arquivo_path IS NULL AND OLD.arquivo_sha256 IS NULL)) THEN
+    IF NOT v_sistema AND NOT coalesce(v_uid IS NOT NULL AND public.can_access_module(v_uid, 'rh')
+                                      AND public.has_permission_code(v_uid, 'financeiro.folha.processar'), false) THEN
+      RAISE EXCEPTION 'Guardar o arquivo da remessa exige o módulo rh e a permissão financeiro.folha.processar'
+        USING ERRCODE = '42501';
+    END IF;
+    IF NOT v_sistema AND (TG_OP = 'INSERT' OR OLD.gerado_por IS DISTINCT FROM v_uid) THEN
+      RAISE EXCEPTION 'Só quem gerou a remessa guarda o arquivo dela (depois do INSERT)'
+        USING ERRCODE = '42501';
+    END IF;
+    IF NEW.arquivo_path IS NULL OR NEW.arquivo_sha256 IS NULL THEN
+      RAISE EXCEPTION 'Informe arquivo_path e arquivo_sha256 juntos' USING ERRCODE = '22023';
+    END IF;
+    IF NEW.arquivo_path <> NEW.id::text || '.rem' THEN
+      RAISE EXCEPTION 'arquivo_path deve ser <id da remessa>.rem (bucket remessas-cnab)' USING ERRCODE = '22023';
+    END IF;
+    IF NEW.arquivo_sha256 !~ '^[0-9a-f]{64}$' THEN
+      RAISE EXCEPTION 'arquivo_sha256 deve ter 64 dígitos hexadecimais minúsculos' USING ERRCODE = '22023';
+    END IF;
+    IF NOT v_sistema AND NOT EXISTS (
+         SELECT 1 FROM storage.objects o
+          WHERE o.bucket_id = 'remessas-cnab' AND o.name = NEW.arquivo_path
+            AND coalesce(to_jsonb(o) ->> 'owner_id', to_jsonb(o) ->> 'owner') = v_uid::text) THEN
+      RAISE EXCEPTION 'O arquivo % não foi enviado ao bucket remessas-cnab por este usuário', NEW.arquivo_path
+        USING ERRCODE = 'P0002';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$_$;
 
 
 --
@@ -12341,8 +12547,18 @@ CREATE TABLE public.eventos_esocial (
     created_by uuid,
     created_by_servidor_id uuid,
     updated_by uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    rascunho boolean GENERATED ALWAYS AS ((recibo IS NULL)) STORED,
+    CONSTRAINT eventos_esocial_periodico_com_folha_check CHECK (((status = ANY (ARRAY['erro'::public.status_evento_esocial, 'rejeitado'::public.status_evento_esocial])) OR ((tipo_evento)::text <> ALL (ARRAY['S-1200'::text, 'S-1210'::text, 'S-1299'::text])) OR ((folha_id IS NOT NULL) AND (((tipo_evento)::text = 'S-1299'::text) OR (servidor_id IS NOT NULL))))),
+    CONSTRAINT eventos_esocial_transmitido_com_recibo_check CHECK (((status <> ALL (ARRAY['enviado'::public.status_evento_esocial, 'aceito'::public.status_evento_esocial])) OR (recibo IS NOT NULL)))
 );
+
+
+--
+-- Name: COLUMN eventos_esocial.rascunho; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.eventos_esocial.rascunho IS 'true enquanto o evento não foi transmitido (sem recibo do eSocial). Gerada a partir de recibo';
 
 
 --
@@ -15755,8 +15971,69 @@ CREATE TABLE public.remessas_bancarias (
     created_by_servidor_id uuid,
     updated_by uuid,
     updated_by_servidor_id uuid,
+    arquivo_path text,
+    arquivo_sha256 text,
+    cancelada_em timestamp with time zone,
+    cancelada_por uuid,
+    motivo_cancelamento text,
     CONSTRAINT remessas_bancarias_status_check CHECK (((status)::text = ANY ((ARRAY['gerada'::character varying, 'enviada'::character varying, 'processada'::character varying, 'erro'::character varying, 'cancelada'::character varying])::text[])))
 );
+
+
+--
+-- Name: COLUMN remessas_bancarias.numero_remessa; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.numero_remessa IS 'Número sequencial do arquivo (NSA) por conta, dado pelo banco no INSERT (o valor do cliente é ignorado)';
+
+
+--
+-- Name: COLUMN remessas_bancarias.quantidade_registros; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.quantidade_registros IS 'Fichas da folha com valor líquido > 0 e banco, agência e conta (favorecidos do arquivo); calculada no INSERT';
+
+
+--
+-- Name: COLUMN remessas_bancarias.valor_total; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.valor_total IS 'Soma do líquido das fichas da folha com valor > 0 e banco, agência e conta; calculada pelo banco no INSERT';
+
+
+--
+-- Name: COLUMN remessas_bancarias.arquivo_path; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.arquivo_path IS 'Objeto do arquivo CNAB no bucket privado remessas-cnab (<id>.rem). Gravado uma vez, por quem processa a folha';
+
+
+--
+-- Name: COLUMN remessas_bancarias.arquivo_sha256; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.arquivo_sha256 IS 'SHA-256 (hex minúsculo) do arquivo guardado em arquivo_path. Gravado junto com o caminho, uma vez';
+
+
+--
+-- Name: COLUMN remessas_bancarias.cancelada_em; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.cancelada_em IS 'Quando a remessa foi cancelada (só pela RPC cancelar_remessa)';
+
+
+--
+-- Name: COLUMN remessas_bancarias.cancelada_por; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.cancelada_por IS 'Usuário que cancelou (auth.uid() na RPC cancelar_remessa; sem FK, como as colunas de autoria da E1)';
+
+
+--
+-- Name: COLUMN remessas_bancarias.motivo_cancelamento; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.motivo_cancelamento IS 'Motivo informado no cancelamento (obrigatório)';
 
 
 --

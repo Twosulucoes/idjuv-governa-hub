@@ -119,42 +119,9 @@ export function useGerarESocialS1200(servidorId: string, ano: number, mes: numbe
   });
 }
 
-// Salvar evento eSocial gerado
-export function useSalvarEventoESocial() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (evento: {
-      tipo_evento: string;
-      servidor_id: string;
-      competencia_ano: number;
-      competencia_mes: number;
-      payload: Record<string, unknown>;
-      folha_id?: string;
-    }) => {
-      const { data, error } = await supabase
-        .from('eventos_esocial')
-        .insert({
-          tipo_evento: evento.tipo_evento,
-          servidor_id: evento.servidor_id,
-          competencia_ano: evento.competencia_ano,
-          competencia_mes: evento.competencia_mes,
-          payload: evento.payload as any,
-          folha_id: evento.folha_id,
-          status: 'pendente' as any,
-          data_geracao: new Date().toISOString(),
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['eventos-esocial'] });
-      toast.success('Evento eSocial gerado com sucesso');
-    },
-    onError: (error) => toast.error(`Erro ao gerar evento: ${error.message}`),
-  });
-}
+// Gravação de eventos do eSocial: src/hooks/useArquivosFolha.ts (useGravarEventosESocial), com folha_id e
+// servidor_id obrigatórios para S-1200/S-1210/S-1299 (CHECK da migração 20261011010000). O antigo
+// useSalvarEventoESocial (folha_id opcional, sem uso) foi removido.
 
 // ==================== Relatório TCE ====================
 

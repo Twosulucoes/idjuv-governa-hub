@@ -83,7 +83,8 @@ de chamar `supabase` direto dentro da página.
 - **Planilhas**: `exportarPlanilha.ts`, `exportarFederacoes.ts`, e `src/export/`.
 - **Fiscal/folha**: `cnabGenerator.ts` (CNAB240), `esocialGenerator.ts` +
   `esocialXmlGenerator.ts`, `folhaCalculos.ts`/`folhaCalculoService.ts` (INSS,
-  IRRF, consignações), `frequenciaCalculoService.ts`.
+  IRRF, consignações), `frequenciaCalculoService.ts`. Fluxo da remessa e do eSocial em
+  [Arquivos da folha](#arquivos-da-folha-remessa-cnab-e-esocial-onda-e3).
 - **Utils**: `formatters.ts` (máscaras), `utils.ts` (`cn`, helpers),
   `matriculaUtils.ts`, `statusColors.ts`, `supabase.ts`/`supabaseClient.ts`.
 - **Arquivos em bucket privado**: `src/lib/storageArquivos.ts`. Use ao gravar ou abrir arquivo de bucket
@@ -178,12 +179,79 @@ O banco grava quem fez cada lançamento (onda E1); o front consulta a trilha e r
 - **Páginas:** `/admin/auditoria` (todos os módulos) e `/rh/auditoria` (mesmo componente, travado no módulo `rh`).
 - **Onde `registrar_evento` está ligado:** contracheque (`useLogAcessoContracheque`, que trocou `log_audit` pela
   RPC; impressão individual e em lote em `/rh/contracheques`, `/rh/meu-contracheque`, detalhe da folha e ficha
-  financeira), XML do eSocial (baixar e copiar), arquivo CNAB (registrado antes de gravar a remessa e baixar),
+  financeira), XML do eSocial (baixar e copiar, no diálogo e na aba), arquivo CNAB (registrado antes de gravar a
+  remessa; o "baixar de novo" registra de novo),
   planilhas (`/rh/exportar`, `ExportacaoServidoresCard`, cards de `src/components/rh/relatorios/*`, aniversariantes),
   PDFs do RH (relatórios de `/rh/relatorios` e cards avulsos, pendências cadastrais, frequência individual, em lote e
   geral, pacote de frequência, fichas e declarações do servidor, memorando de designação) e o CSV da trilha.
   Visualização sem bloquear: ficha do servidor, ficha financeira, contracheque na consulta, pré-visualização da
   frequência e documentos abertos na ficha.
+
+## Arquivos da folha: remessa CNAB e eSocial (onda E3)
+
+Spec: [`superpowers/specs/2026-10-11-rh-vazamentos-arquivos-design.md`](./superpowers/specs/2026-10-11-rh-vazamentos-arquivos-design.md).
+Regras do banco (folha fechada, número da remessa, arquivo guardado, cancelamento, índice único do eSocial) na
+migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`; ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+
+- **Hook** `src/hooks/useArquivosFolha.ts` (as colunas novas e a RPC `cancelar_remessa` ainda não estão em
+  `types.ts`: client sem tipagem, como em `useTrilhaAuditoria.ts`). `mensagemErroBanco` mostra o texto do `RAISE`
+  (RHE01 folha não fechada, RHE02/RHE03, 22023, o 42501 das funções) e a mensagem dos erros do Storage, e esconde a
+  recusa da RLS e o `DETAIL`.
+- **Folha fechada:** no detalhe da folha (`/folha/:id`) os botões "Gerar CNAB", "Nova Remessa", "eSocial" e "Gerar
+  Eventos" aparecem com fichas, mas ficam desabilitados com a explicação enquanto a folha não está `fechada`; os
+  diálogos repetem o aviso. O banco recusa de qualquer forma (RHE01) e a tela mostra o erro.
+- **Fichas completas:** os dois diálogos leem **todas** as fichas da folha em páginas (`buscarTodasPaginas`, de
+  `useRelatoriosRH.ts`) e recusam gerar se não leram nenhuma ou se leram menos que `folhas_pagamento.quantidade_servidores`
+  (`faltaFichas`: a RLS esconde fichas de outros servidores de quem não pode lê-las, e o arquivo sairia incompleto).
+  Erro de consulta aparece no diálogo e o botão de gerar fica desabilitado enquanto carrega ou com erro.
+- **Remessa CNAB 240** (`GerarRemessaDialog` → `useGerarRemessaCNAB`):
+  1. `montarDadosRemessa` monta pagador e favorecidos (fichas com líquido > 0) e `validarRemessaCNAB` lista o que
+     falta (CNPJ, razão social, banco e nome do banco da conta, dígito da conta, endereço, cidade, CEP e UF da
+     instituição; por servidor: CPF, banco, agência, conta, dígito da conta; dígito com mais de 1 caractere também é
+     recusado). Faltou algo: a tela recusa e diz o quê e de quem. Os dados bancários do servidor vêm da **ficha da
+     folha** (copiados no processamento): a mensagem avisa que corrigir exige reabrir, reprocessar e fechar de novo;
+  2. INSERT em `remessas_bancarias` sem número (o banco atribui, por conta, e devolve no `.select()`; o banco também
+     recalcula `valor_total` e `quantidade_registros`) → arquivo gerado com esse número → sha256 no navegador (Web
+     Crypto, `calcularSha256`) → upload em `remessas-cnab/<remessa_id>.rem` → UPDATE de `arquivo_path`/`arquivo_sha256`
+     → registro na trilha (`registrarAntes`, com `remessa_id`, `numero_remessa` e o sha256) → download do mesmo Blob.
+     Se o upload ou o UPDATE falhar, o arquivo não é entregue e a remessa sem arquivo é cancelada pela RPC (se isso
+     também falhar, a tela pede para cancelar na aba); sem registro na trilha, o arquivo fica guardado e não é
+     entregue (baixa-se pela aba). O `.select()` do INSERT lê também `valor_total` e `quantidade_registros`
+     (calculados pelo banco pelas fichas com líquido > 0 e dados bancários): divergiu do arquivo, a remessa é
+     cancelada sem subir nem entregar e a tela mostra a diferença. Erros com texto próprio (`mensagemErroBanco`):
+     remessa ativa da mesma folha e conta (23505, índice `remessas_bancarias_folha_conta_ativa_uidx`: "cancele-a
+     antes"), objeto ausente no bucket ao ligar o arquivo (P0002) e arquivo de remessa gerada por outro (42501);
+  3. o gerador (`src/lib/cnabGenerator.ts`, FEBRABAN 240 v10) usa tipo de serviço `30` (salários) e **um lote por forma
+     de pagamento** (`formaDoFavorecido`): `01` crédito em conta no mesmo banco, `05` poupança no mesmo banco, `41`
+     TED para outro banco (câmara `018`, finalidade TED `00004`); complemento de finalidade `CC`/`PP`; tudo marcado
+     "conferir no manual do banco". Sequencial, contagem e soma (em centavos inteiros) por lote; o trailer do arquivo
+     conta lotes e todas as linhas. Segmento A: data e valor reais (155-177) zerados e ocorrências (231-240) em branco
+     na remessa; header de lote com forma de pagamento do serviço `01` (223-224). Nome do banco de `bancos_cnab` (ou da
+     lista `BANCOS` de `src/types/rh.ts`), dígitos separados de "12345-6", endereço do pagador de `config_autarquia`
+     ou, sem logradouro lá, do perfil do tenant (`endereco`), e o endereço do servidor no segmento B. Linha fora de 240
+     posições: erro, sem arquivo.
+- **Aba Remessas:** "baixar" lê o arquivo guardado com `storage.download` (autenticado), confere o sha256 da remessa,
+  registra o download (`remessas_bancarias`) e entrega. Hash divergente: registra na trilha (`download` com
+  `hash_divergente: true`, `esperado` e `obtido`) e não entrega. Remessa cancelada: download desabilitado ("não envie
+  ao banco"); remessa antiga sem arquivo mostra "arquivo não guardado". Não há excluir: "Cancelar" abre
+  `CancelarRemessaDialog` (motivo obrigatório, zod) e chama `cancelar_remessa`. Gerar, baixar e cancelar pedem
+  `financeiro.folha.processar` (o banco exige o mesmo; sem ela os botões ficam desabilitados).
+- **Reabrir folha** (`ReabrirFolhaDialog`): `reabrir_folha` recusa com remessa ativa (`{success: false, error}`); o
+  diálogo não fecha e mostra o motivo (além do toast). Cancele a remessa antes de reabrir.
+- **Permissão de tela:** gerar e baixar eventos do eSocial também pedem `financeiro.folha.processar`. Sem
+  `rh.contracheques.visualizar` nem `processar`, o detalhe da folha avisa "Você vê apenas a sua ficha" e esconde os
+  totais, e o card de folha dos relatórios não soma por unidade/rubrica (ver
+  [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#contracheques-e-exportação-do-rh-rotas-onda-e3)).
+- **eSocial** (`GerarESocialDialog`): rascunho, não transmitido — aviso no diálogo e na aba, status "Rascunho (não
+  transmitido)", comentário `<!-- RASCUNHO NAO TRANSMITIDO -->` no XML (`COMENTARIO_RASCUNHO`) e arquivo
+  `RASCUNHO_NAO_TRANSMITIDO_<evento>_<AAAA-MM>_<id do evento>.xml` (nunca o nome do servidor). Ambiente lido de
+  `config_autarquia.esocial_ambiente` (`ambienteESocial`; sem ambiente, não gera). Data de pagamento (`dtPgto` do
+  S-1210) informada no diálogo, sugerida pelo `dia_pagamento` de `config_fechamento_folha`; fora do mês da
+  competência a geração é bloqueada (pediria o S-1299 do mês do pagamento, que a tela não gera). Fichas em ordem
+  estável (matrícula, id) e `ideDmDev` derivado do id da ficha. Cada evento é gravado com `servidor_id` e o erro
+  conferido um a um; conflito do índice único (23505) = o evento já existe: o diálogo mostra o gravado e oferece
+  baixá-lo, sem duplicar. Na aba, cada evento baixa o XML gravado (registrado antes). Categoria, rubricas e lotação
+  continuam fixas (comentado no código; onda G).
 
 ## Padrões de UI
 

@@ -121,11 +121,20 @@ e não cobre `/rh/exportar`, `/rh/contracheques`, `/rh/gestao-lotacao` e as rota
 1. **`public/data/cargos.json` e `.csv`** publicam o campo `indicacao` (8 de 98 registros) e o nome dos
    ocupantes, sem autenticação. No banco a mesma informação é "acesso restrito a administradores". Fere a
    LGPD e o invariante 6 do `AGENTS.md`. Continua no histórico do git mesmo depois de apagado.
+   **Situação:** saiu do repositório na PR #81; a cópia na VPS só some quando o deploy rodar ou alguém apagar à mão.
 2. **Salários dentro do RH:** `/rh/contracheques` abre com `rh.servidores.visualizar` (`src/App.tsx:912`) e a
    RLS de `fichas_financeiras` libera quem tem o módulo `rh`. Quem cadastra servidor vê o salário de todos.
+   **Situação:** onda E3 ([spec](../superpowers/specs/2026-10-11-rh-vazamentos-arquivos-design.md)) restringe
+   fichas, itens, lançamentos, consignações, pensões, retorno bancário e eventos do eSocial a
+   `rh.contracheques.visualizar` ou `financeiro.folha.processar`. Continuam legíveis pelo módulo as colunas de
+   remuneração e banco de `servidores`, `vinculos_servidor` e `pre_cadastros` (a RLS filtra linhas, não colunas).
 3. **`/rh/exportar`** exporta CPF, PIS e conta bancária sem permissão própria e sem registro.
+   **Situação:** registro na E2 (#83); rota com `rh.exportar` na E3.
 4. **CNAB e eSocial** geram arquivo errado (seção 4) e qualquer um com o módulo `rh` apaga remessas e eventos.
-5. **Trilha com dado pessoal em claro** (seção 3.2, item 4).
+   **Situação:** E3 corrige o leiaute FEBRABAN 240, exige folha fechada e `financeiro.folha.processar`, tira o
+   DELETE e guarda o arquivo com sha256. O conteúdo do arquivo ainda é montado no navegador (risco aceito até
+   a geração no servidor); o eSocial continua rascunho até a onda G.
+5. **Trilha com dado pessoal em claro** (seção 3.2, item 4). **Situação:** mascarada na E1 (#82).
 
 ## 6. Plano por ondas
 

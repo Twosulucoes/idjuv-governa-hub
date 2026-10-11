@@ -869,7 +869,11 @@ const App = () => (
                   <ModelosDocumentosPage />
                 </ProtectedRoute>
               } />
-              <Route path="/rh/exportar" element={<ProtectedRoute><ExportacaoPlanilhaPage /></ProtectedRoute>} />
+              <Route path="/rh/exportar" element={
+                <ProtectedRoute requiredPermissions="rh.exportar">
+                  <ExportacaoPlanilhaPage />
+                </ProtectedRoute>
+              } />
               <Route path="/rh/auditoria" element={
                 <ProtectedRoute requiredPermissions="rh.auditoria.visualizar">
                   <AuditoriaRHPage />
@@ -915,8 +919,9 @@ const App = () => (
                   <MinhaFrequenciaPage />
                 </ProtectedRoute>
               } />
+              {/* Contracheque de outros servidores: permissão própria (onda E3, migração 20261011010100); o próprio é /rh/meu-contracheque */}
               <Route path="/rh/contracheques" element={
-                <ProtectedRoute requiredPermissions="rh.servidores.visualizar">
+                <ProtectedRoute requiredPermissions="rh.contracheques.visualizar">
                   <ConsultaContrachequesPage />
                 </ProtectedRoute>
               } />

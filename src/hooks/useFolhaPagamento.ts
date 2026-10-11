@@ -704,83 +704,11 @@ export function useSaveDependenteIRRF() {
   });
 }
 
-// ============== CRIAR REMESSA BANCÁRIA ==============
-export function useCreateRemessaBancaria() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (remessa: {
-      folha_id: string;
-      conta_autarquia_id: string;
-      numero_remessa: number;
-      quantidade_registros: number;
-      valor_total: number;
-      nome_arquivo: string;
-      layout?: string;
-      status?: string;
-    }) => {
-      const { data, error } = await supabase
-        .from('remessas_bancarias')
-        .insert({
-          folha_id: remessa.folha_id,
-          conta_autarquia_id: remessa.conta_autarquia_id,
-          numero_remessa: remessa.numero_remessa,
-          quantidade_registros: remessa.quantidade_registros,
-          valor_total: remessa.valor_total,
-          nome_arquivo: remessa.nome_arquivo,
-          layout: remessa.layout || 'cnab240',
-          status: remessa.status || 'gerada',
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['remessas-bancarias', variables.folha_id] });
-      toast.success('Remessa bancária gerada!');
-    },
-    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
-  });
-}
+// ============== REMESSA BANCÁRIA: geração, arquivo guardado e cancelamento ==============
+// Em src/hooks/useArquivosFolha.ts (onda E3): o número vem do banco no INSERT e não há exclusão.
 
-// ============== CRIAR EVENTO ESOCIAL ==============
-export function useCreateEventoESocial() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (evento: {
-      folha_id?: string;
-      servidor_id?: string;
-      tipo_evento: string;
-      payload_xml?: string;
-      competencia_ano?: number;
-      competencia_mes?: number;
-    }) => {
-      const insertData = {
-        folha_id: evento.folha_id,
-        servidor_id: evento.servidor_id,
-        tipo_evento: evento.tipo_evento,
-        payload_xml: evento.payload_xml,
-        competencia_ano: evento.competencia_ano,
-        competencia_mes: evento.competencia_mes,
-        status: 'pendente' as const,
-      };
-      const { data, error } = await supabase
-        .from('eventos_esocial')
-        .insert(insertData as any)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (_, variables) => {
-      if (variables.folha_id) {
-        queryClient.invalidateQueries({ queryKey: ['eventos-esocial', variables.folha_id] });
-      }
-      toast.success('Evento eSocial gerado!');
-    },
-    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
-  });
-}
+// ============== EVENTOS ESOCIAL: gravação e download ==============
+// Em src/hooks/useArquivosFolha.ts (onda E3): um evento por folha e servidor, sem exclusão.
 
 // ============== CONFIG AUTARQUIA ==============
 export function useConfigAutarquia() {

@@ -45,6 +45,7 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
   ('inventario-fotos',          'inventario-fotos',          true,  5242880,  ARRAY['image/jpeg','image/png','image/webp']),
   ('patrimonio-docs',           'patrimonio-docs',           false, 10485760, NULL),
   ('patrimonio-fotos',          'patrimonio-fotos',          true,  NULL,     NULL),
+  ('remessas-cnab',             'remessas-cnab',             false, 10485760, ARRAY['text/plain','application/octet-stream']),
   ('transparencia-publicacoes', 'transparencia-publicacoes', true,  10485760, ARRAY['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
 ON CONFLICT (id) DO UPDATE
   SET public = EXCLUDED.public,
@@ -127,6 +128,23 @@ CREATE POLICY "st_documentos-requerimento_update" ON storage.objects FOR UPDATE 
 DROP POLICY IF EXISTS "st_documentos-requerimento_delete" ON storage.objects;
 CREATE POLICY "st_documentos-requerimento_delete" ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'documentos-requerimento' AND (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'rh.servidores.editar')));
+
+-- Arquivo da remessa CNAB (Onda E3, migração 20261011010000_rh_cnab_esocial_integridade.sql, mesmo texto): um objeto
+-- por remessa, <remessa_id>.rem. Ler e enviar com o módulo rh E financeiro.folha.processar; enviar só para remessa que
+-- existe, não cancelada e ainda sem arquivo. Sem UPDATE nem DELETE: o arquivo guardado não muda (o sha256 está na
+-- remessa). Bucket privado (URL assinada), 10 MB, texto.
+DROP POLICY IF EXISTS "st_remessas-cnab_select" ON storage.objects;
+CREATE POLICY "st_remessas-cnab_select" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'remessas-cnab' AND (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar')));
+DROP POLICY IF EXISTS "st_remessas-cnab_insert" ON storage.objects;
+CREATE POLICY "st_remessas-cnab_insert" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'remessas-cnab' AND (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'))
+              AND name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.rem$'
+              AND EXISTS (SELECT 1 FROM public.remessas_bancarias r
+                           WHERE r.id::text = left(objects.name, 36) AND r.arquivo_path IS NULL AND r.status = 'gerada'
+                             AND r.gerado_por = auth.uid() AND r.data_geracao > now() - interval '1 hour'));
+DROP POLICY IF EXISTS "st_remessas-cnab_update" ON storage.objects;
+DROP POLICY IF EXISTS "st_remessas-cnab_delete" ON storage.objects;
 
 -- Trilha dos arquivos do RH (Onda E2, migração 20261011000200_rh_trilha_consulta.sql, mesmo texto): gravação, troca
 -- e exclusão de objeto em frequencias e documentos-requerimento viram linha em audit_logs (módulo rh, entity_type
