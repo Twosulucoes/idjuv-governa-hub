@@ -732,7 +732,9 @@ RH: o dono decide no merge).
   catálogo dá essa ao papel `user`: restringir por ela não restringiria nada. A RLS também deixa ler as fichas a quem
   tem `financeiro.folha.processar` (conferência antes de fechar); a rota não: essa pessoa vê as fichas pelo detalhe da
   folha (`/folha/:id`).
-- `/rh/meu-contracheque` continua só com login: o servidor vê o próprio.
+- `/rh/meu-contracheque` continua só com login: o servidor vê o próprio. O menu do módulo RH
+  (`module-menus.config.ts`) ganhou "Meu Contracheque", sem permissão, para quem deixou de ver "Contracheques"
+  (`menu.config.ts` já tinha o item, com `rh.self`).
 - **Detalhe da folha (`/folha/:id`, rota com `financeiro.folha.visualizar`):** sem `rh.contracheques.visualizar` nem
   `financeiro.folha.processar` a RLS devolve só a ficha do próprio servidor. A tela mostra "Você vê apenas a sua
   ficha", esconde os totais da folha (cards de resumo e encargos) e o alerta de dados bancários, e troca o "processe a

@@ -117,6 +117,8 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
         ]
       },
       { id: "contracheques", label: "Contracheques", icon: Receipt, route: "/rh/contracheques", permission: "rh.contracheques.visualizar" },
+      // Próprio contracheque (só login): para quem não vê mais "Contracheques" (os de outros servidores)
+      { id: "meu-contracheque", label: "Meu Contracheque", icon: Receipt, route: "/rh/meu-contracheque" },
       { id: "aniversariantes", label: "Aniversariantes", icon: Cake, route: "/rh/aniversariantes" },
       { id: "pendencias", label: "Pendências", icon: AlertTriangle, route: "/rh/pendencias" },
       { id: "relatorios", label: "Relatórios", icon: BarChart3, route: "/rh/relatorios" },
