@@ -35,6 +35,7 @@ export type ViaFundamento =
   | "chefia"
   | "sistema"
   | "anonimo"
+  | "negado_sem_login"
   | "negado_sem_servidor"
   | "negado_setor";
 
@@ -46,12 +47,13 @@ export const VIA_FUNDAMENTO_LABELS: Record<ViaFundamento, string> = {
   chefia: "Chefia da unidade",
   sistema: "Sistema",
   anonimo: "Formulário público",
+  negado_sem_login: "Sessão sem usuário identificado",
   negado_sem_servidor: "Login sem servidor vinculado",
-  negado_setor: "Fora do setor (sem lotação, designação ou comissão)",
+  negado_setor: "Fora do setor (sem lotação nem designação)",
 };
 
 /** Vias que querem dizer "sem fundamento": no modo exigir, a gravação é recusada. */
-export const VIAS_NEGADAS: ViaFundamento[] = ["negado_sem_servidor", "negado_setor"];
+export const VIAS_NEGADAS: ViaFundamento[] = ["negado_sem_login", "negado_sem_servidor", "negado_setor"];
 
 export interface SetorModulo {
   id: string;
@@ -104,7 +106,7 @@ export const PROBLEMA_SANEAMENTO_LABELS: Record<ProblemaSaneamento, string> = {
   sem_login: "Sem login vinculado",
   sem_lotacao: "Sem lotação vigente",
   lotacao_divergente: "Lotação divergente da unidade atual",
-  fundamento_autoconcedido: "Fundamento autoconcedido (designação ou comissão aprovada/criada por ele mesmo)",
+  fundamento_autoconcedido: "Fundamento autoconcedido (lotação ou cessão lançada por ele mesmo, ou designação aprovada por ele ou por quem a lançou)",
 };
 
 /** Linha de `saneamento_lancamento()`: servidor ativo com pelo menos um problema (sem CPF nem outro dado pessoal). */
