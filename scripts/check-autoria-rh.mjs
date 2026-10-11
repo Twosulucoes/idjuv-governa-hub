@@ -12,7 +12,9 @@
  * (supabase/baseline/schema/03_post_data.sql, gerado do replay das migrações):
  *   - demais classes: `zz_fixar_autoria` BEFORE INSERT OR UPDATE, FOR EACH ROW, sem WHEN, com public.fixar_autoria(...)
  *     E `audit_<tabela>` AFTER INSERT OR DELETE OR UPDATE (todas as colunas), FOR EACH ROW, sem WHEN, com
- *     public.fn_audit_trigger('rh');
+ *     public.fn_audit_trigger('rh'); E `zz_exigir_setor` BEFORE INSERT OR UPDATE OR DELETE, FOR EACH ROW, sem WHEN, com
+ *     public.exigir_setor() (regra "só lança servidor do setor", migração 20261011020000_lancamento_por_setor.sql:
+ *     anota ou recusa conforme regra_lancamento; a tabela também precisa estar em public.lancamento_modulos_tabela);
  *   - classe `trilha` (históricos gravados por trigger): `trilha_imutavel` BEFORE DELETE OR UPDATE por linha E
  *     `trilha_imutavel_truncate` BEFORE TRUNCATE por comando, ambos com public.trilha_imutavel e ENABLE ALWAYS;
  *   - em qualquer classe: nenhum desses triggers desligado (ALTER TABLE ... DISABLE TRIGGER, inclusive ALL/USER, ou
@@ -124,6 +126,7 @@ function exigidos(tabela, classe) {
   return [
     { nome: "zz_fixar_autoria", momento: "BEFORE", eventos: "INSERT OR UPDATE", nivel: "ROW", funcao: "fixar_autoria", args: null, sempre: false },
     { nome: `audit_${tabela}`, momento: "AFTER", eventos: "DELETE OR INSERT OR UPDATE", nivel: "ROW", funcao: "fn_audit_trigger", args: "'rh'", sempre: false },
+    { nome: "zz_exigir_setor", momento: "BEFORE", eventos: "DELETE OR INSERT OR UPDATE", nivel: "ROW", funcao: "exigir_setor", args: "", sempre: false },
   ];
 }
 
@@ -185,12 +188,13 @@ if (falhas.length > 0) {
   console.error(`check-autoria-rh: ${falhas.length} problema(s) em ${rh.size} tabela(s) do RH:`);
   for (const f of falhas) console.error(`  - ${f}`);
   console.error(
-    "Tabela nova do RH: ligue zz_fixar_autoria e audit_<tabela> na migração (ver 20261011000000_rh_autoria_trilha.sql),\n" +
+    "Tabela nova do RH: ligue zz_fixar_autoria, audit_<tabela> e zz_exigir_setor na migração (ver 20261011000000_rh_autoria_trilha.sql\n" +
+      "e 20261011020000_lancamento_por_setor.sql; inclua a tabela em public.lancamento_modulos_tabela),\n" +
       "regenere o baseline (scripts/db/gerar-baseline.sh) ou registre a exceção com motivo em scripts/autoria-rh-excecoes.txt.",
   );
   process.exit(1);
 }
 console.log(
-  `OK: ${ok} tabela(s) do RH com autoria e trilha, ${excecoes.size} exceção(ões) com motivo` +
+  `OK: ${ok} tabela(s) do RH com autoria, trilha e regra de setor, ${excecoes.size} exceção(ões) com motivo` +
     (process.argv[2] ? "." : "; trilha dos arquivos do RH no Storage ligada no overlay/50."),
 );
