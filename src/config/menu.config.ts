@@ -103,6 +103,8 @@ export type PermissaoInstitucional =
   | 'rh.viagens.visualizar'
   | 'rh.relatorios.visualizar'
   | 'rh.auditoria.visualizar'
+  | 'rh.exportar'
+  | 'rh.contracheques.visualizar'
   | 'rh.self'
   // Folha (módulo rh; códigos do catálogo, ver docs/RBAC_PERMISSOES.md)
   | 'financeiro.folha.visualizar'
@@ -416,7 +418,7 @@ export const menuConfig: MenuSection[] = [
             label: "Consultar Contracheques",
             route: "/rh/contracheques",
             icon: Receipt,
-            permission: "rh.visualizar",
+            permission: "rh.contracheques.visualizar",
           },
         ],
       },
@@ -453,7 +455,7 @@ export const menuConfig: MenuSection[] = [
             label: "Exportar Planilha",
             route: "/rh/exportar",
             icon: Download,
-            permission: "rh.visualizar",
+            permission: "rh.exportar",
           },
         ],
       },

@@ -711,6 +711,31 @@ em RLS existente e precisa do "sim" do dono, podendo ser segurada sem segurar a 
   `RAISE` dos triggers (P0001) é repassado; os demais viram mensagem fixa com o código, sem nome de
   tabela/constraint nem o `DETAIL` do Postgres (que em CHECK traz a linha inteira, com dados pessoais).
 
+### Contracheques e exportação do RH: rotas (Onda E3)
+
+Spec [`2026-10-11-rh-vazamentos-arquivos-design.md`](./superpowers/specs/2026-10-11-rh-vazamentos-arquivos-design.md)
+(itens 1 e 2). Commit separado do resto da onda porque muda a permissão de rotas existentes (decisão 3 da revisão do
+RH: o dono decide no merge).
+
+| Rota | Antes | Agora | Menu |
+|---|---|---|---|
+| `/rh/contracheques` (contracheque de outros servidores) | `rh.servidores.visualizar` | `rh.contracheques.visualizar` | "Consultar Contracheques" (`menu.config.ts`) e "Contracheques" (`module-menus.config.ts`) pedem a mesma permissão |
+| `/rh/exportar` (planilha com CPF, PIS e conta) | só login | `rh.exportar` | "Exportar Planilha" e "Exportar" pedem `rh.exportar` |
+
+- `ROUTE_PERMISSIONS` (`src/types/auth.ts`) ganhou as duas rotas; a entrada antiga `/rh/exportacao` apontava para
+  uma rota que não existe e passou a `/rh/exportar`.
+- `rh.exportar` já estava no catálogo e é dada aos papéis `admin` e `manager`; quem tinha só o módulo `rh` deixa de
+  ver e de abrir a exportação. O registro da exportação na trilha entrou na E2.
+- `rh.contracheques.visualizar` é a permissão nova da migração
+  `supabase/migrations/20261011010100_rh_contracheques_leitura.sql` (papéis `admin` e `manager`), a mesma da RLS de
+  `fichas_financeiras` e `itens_ficha_financeira`. Não é `financeiro.folha.visualizar` (premissa 2 da spec) porque o
+  catálogo dá essa ao papel `user`: restringir por ela não restringiria nada. A RLS também deixa ler as fichas a quem
+  tem `financeiro.folha.processar` (conferência antes de fechar); a rota não: essa pessoa vê as fichas pelo detalhe da
+  folha (`/folha/:id`).
+- `/rh/meu-contracheque` continua só com login: o servidor vê o próprio.
+- Esconder o item de menu e barrar a rota é UX; a fronteira é a RLS de `fichas_financeiras` e
+  `itens_ficha_financeira` (ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)).
+
 ### Relatórios de RH (`/rh/relatorios`)
 
 - A rota exige `rh.relatorios.visualizar` (`App.tsx`, `ROUTE_PERMISSIONS`) e o item "Relatórios" do
