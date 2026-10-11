@@ -3,8 +3,10 @@
  * etapas 2 a 4): movimentos lidos dos arquivos do banco, conciliação manual com pagamentos, reenvio de recusados
  * pelo Gestão MAX e leitura das APIs do Banco do Brasil (Edge Function `bb-api`).
  *
- * As tabelas e RPCs novas (`fin_movimentos_bancarios`, `fin_extrato_lancamentos`, `conciliar_movimento_bancario`,
- * `registrar_remessa_bancaria`, `confirmar_remessa_bancaria`) ainda não estão em types.ts (gerado, não editar):
+ * As tabelas e RPCs novas (`fin_movimentos_bancarios`, `fin_remessas_bancarias`, `fin_extrato_lancamentos`,
+ * `conciliar_movimento_bancario`, `corrigir_conta_movimento`, `registrar_remessa_bancaria`,
+ * `confirmar_remessa_bancaria`, `obter_remessa_bancaria`, `cancelar_remessa_bancaria`) ainda não estão em
+ * types.ts (gerado, não editar):
  * consultas pelo client sem tipagem (`db`), como em useArquivosFolha.ts, e RPC com `as never`.
  * A permissão é conferida de novo no banco (RLS e RPCs): a tela é só UX.
  */
@@ -19,14 +21,15 @@ import {
   gerarGestaoMaxCnab240,
   nomeArquivoGestaoMax,
   validarRemessaGestaoMax,
-  type CreditoGestaoMax,
   type PagadorGestaoMax,
+  type RemessaGestaoMax,
 } from "@/lib/bancario/gestaoMaxCnab240";
 import type {
   ContaPagadora,
   FiltroSituacaoMovimento,
   LancamentoExtrato,
   MovimentoBancario,
+  RemessaBancaria,
   RemessaRegistrada,
   ResultadoExtratoBB,
   ResultadoValidacaoConta,
@@ -88,9 +91,18 @@ export function useMovimentosBancarios(exercicio: number, situacao: FiltroSituac
         todos.push(...pagina);
         if (pagina.length < TAMANHO_PAGINA) break;
       }
-      return todos;
+      return comNomeDeQuemCorrigiu(todos);
     },
   });
+}
+
+/** Preenche `corrigido_por_nome` a partir de `profiles` (sem nome legível, fica null e a tela mostra "—"). */
+async function comNomeDeQuemCorrigiu(movimentos: MovimentoBancario[]): Promise<MovimentoBancario[]> {
+  const ids = [...new Set(movimentos.map((m) => m.corrigido_por).filter((id): id is string => !!id))];
+  if (!ids.length) return movimentos;
+  const { data } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+  const nomes = new Map((data ?? []).map((p) => [p.id, p.full_name]));
+  return movimentos.map((m) => (m.corrigido_por ? { ...m, corrigido_por_nome: nomes.get(m.corrigido_por) ?? null } : m));
 }
 
 /** Histórico bancário de um pagamento (remessa, retorno, reenvio). */
@@ -120,16 +132,19 @@ export interface PagamentoCandidato {
   fornecedor: { razao_social: string } | null;
 }
 
-/** Pagamentos do exercício para a conciliação manual (a tela ordena pelos de valor igual ao do movimento). */
-export function usePagamentosParaConciliar(exercicio: number, habilitado: boolean) {
+/**
+ * Pagamentos de um exercício para a conciliação manual (a tela ordena pelos de valor igual ao do movimento).
+ * O exercício é o ano do movimento, não o escolhido na tela.
+ */
+export function usePagamentosParaConciliar(exercicio: number | null, habilitado: boolean) {
   return useQuery({
     queryKey: ["fin_pagamentos", exercicio, "conciliacao"],
-    enabled: habilitado,
+    enabled: habilitado && !!exercicio,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fin_pagamentos")
         .select("id, numero, data_pagamento, valor_bruto, valor_liquido, status, fornecedor:fornecedores(razao_social)")
-        .eq("exercicio", exercicio)
+        .eq("exercicio", exercicio!)
         .neq("status", "cancelado")
         .order("data_pagamento", { ascending: false });
       if (error) throw error;
@@ -141,21 +156,35 @@ export function usePagamentosParaConciliar(exercicio: number, habilitado: boolea
 export function useConciliarMovimento() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ movimentoId, pagamentoId }: { movimentoId: string; pagamentoId: string }) => {
+    /**
+     * `pagamentoId` null desvincula. A RPC recusa trocar um vínculo existente (desvincular antes) e exige
+     * justificativa quando o valor líquido do pagamento não confere com o do movimento.
+     */
+    mutationFn: async ({
+      movimentoId,
+      pagamentoId,
+      justificativa,
+    }: {
+      movimentoId: string;
+      pagamentoId: string | null;
+      justificativa?: string | null;
+    }) => {
       const { error } = await supabase.rpc("conciliar_movimento_bancario" as never, {
         p_movimento_id: movimentoId,
         p_pagamento_id: pagamentoId,
+        p_justificativa: justificativa?.trim() || null,
       } as never);
       if (error) throw error;
+      return { desvinculou: pagamentoId === null };
     },
-    onSuccess: async () => {
+    onSuccess: async (r) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["fin_movimentos_bancarios"] }),
         queryClient.invalidateQueries({ queryKey: ["fin_pagamentos"] }),
       ]);
-      toast.success("Movimento conciliado com o pagamento");
+      toast.success(r.desvinculou ? "Movimento desvinculado do pagamento" : "Movimento conciliado com o pagamento");
     },
-    onError: async (e) => toast.error("Não foi possível conciliar", { description: await mensagemErro(e) }),
+    onError: async (e) => toast.error("Não foi possível salvar a conciliação", { description: await mensagemErro(e) }),
   });
 }
 
@@ -229,14 +258,80 @@ export function useDadosPagador() {
   });
 }
 
+export interface ContaCorrigidaInput {
+  banco: string;
+  agencia: string;
+  agencia_dv: string;
+  conta: string;
+  conta_dv: string;
+  justificativa: string;
+  /** "Conta confere" na Validação de Contas do BB (exigido para banco 001, ou justificativa com 15+ caracteres) */
+  validado_bb: boolean;
+}
+
+/** Grava a conta corrigida de um recusado (`corrigir_conta_movimento`); o reenvio usa esta conta. */
+export function useCorrigirContaMovimento() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ movimentoId, dados }: { movimentoId: string; dados: ContaCorrigidaInput }) => {
+      const { error } = await supabase.rpc("corrigir_conta_movimento" as never, {
+        p_movimento_id: movimentoId,
+        p_banco: dados.banco,
+        p_agencia: dados.agencia,
+        p_agencia_dv: dados.agencia_dv,
+        p_conta: dados.conta,
+        p_conta_dv: dados.conta_dv,
+        p_justificativa: dados.justificativa.trim(),
+        p_validado_bb: dados.validado_bb,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["fin_movimentos_bancarios"] });
+      toast.success("Conta corrigida para o reenvio");
+    },
+    onError: async (e) => toast.error("Não foi possível corrigir a conta", { description: await mensagemErro(e) }),
+  });
+}
+
+/** Arquivos de reenvio gerados (confirmados e reservas pendentes), do mais recente para o mais antigo. */
+export function useRemessasBancarias() {
+  return useQuery({
+    queryKey: ["fin_remessas_bancarias"],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("fin_remessas_bancarias")
+        .select("id, layout, nsa, convenio, data_geracao, quantidade, valor_total, arquivo_sha256, created_at")
+        .order("data_geracao", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as RemessaBancaria[];
+    },
+  });
+}
+
 export interface GerarRemessaInput {
   conta: ContaPagadora;
   pagador: DadosPagador;
-  /** Movimentos recusados reenviados (na ordem do arquivo) e os créditos já com dados corrigidos */
-  movimentos: { id: string; credito: Omit<CreditoGestaoMax, "seu_numero"> & { identificador: string } }[];
+  /** Movimentos recusados a reenviar; o servidor monta os créditos (com a conta corrigida) e os totais */
+  movimentoIds: string[];
+  /** Data do crédito (YYYY-MM-DD) */
+  dataPagamento: string;
   servicoCreditoBB: "98" | "30";
   /** Menor NSA aceito (para continuar a numeração do Gestão MAX); null segue a do sistema */
   nsaMinimo: number | null;
+}
+
+/** Erro depois da reserva do NSA: a tela oferece cancelar a reserva (`cancelar_remessa_bancaria`). */
+export class ErroRemessaReservada extends Error {
+  constructor(
+    message: string,
+    readonly remessaId: string,
+    readonly nsa: number,
+  ) {
+    super(message);
+    this.name = "ErroRemessaReservada";
+  }
 }
 
 function baixarArquivo(conteudo: Blob, nome: string) {
@@ -251,75 +346,142 @@ function baixarArquivo(conteudo: Blob, nome: string) {
 }
 
 /**
- * Reserva o NSA (`registrar_remessa_bancaria`), gera o CNAB 240 do Gestão MAX, confirma com o SHA-256
- * (`confirmar_remessa_bancaria`) e só então baixa o arquivo: o usuário nunca recebe um arquivo que o sistema
- * não registrou. Se algo falhar depois da reserva, a remessa fica sem confirmação e a próxima tentativa do mesmo
- * usuário reaproveita o NSA reservado (regra da RPC).
+ * Monta o CNAB 240 só a partir do retrato devolvido pelo banco (créditos, conta, NSA, data/hora de geração) e
+ * dos dados do pagador. A hora vem de `data_geracao` (no fuso do navegador): o mesmo retrato gera o mesmo arquivo.
+ */
+async function montarArquivo(remessa: RemessaRegistrada, pagador: DadosPagador, servicoCreditoBB: "98" | "30") {
+  const dataGeracao = new Date(remessa.data_geracao);
+  const dados: RemessaGestaoMax = {
+    pagador: {
+      cnpj: pagador.cnpj,
+      nome: pagador.nome,
+      convenio: remessa.convenio,
+      agencia: remessa.agencia,
+      agenciaDigito: remessa.agencia_digito ?? "",
+      conta: remessa.conta,
+      contaDigito: remessa.conta_digito ?? "",
+      endereco: pagador.endereco,
+    },
+    nsa: remessa.nsa,
+    dataGeracao,
+    creditos: (remessa.creditos ?? []).map((c) => ({
+      nome: c.nome ?? "",
+      documento: c.documento ?? "",
+      banco: c.banco ?? "",
+      agencia: c.agencia ?? "",
+      agencia_dv: c.agencia_dv ?? "",
+      conta: c.conta ?? "",
+      conta_dv: c.conta_dv ?? "",
+      valor: Number(c.valor),
+      data: remessa.data_pagamento,
+      seu_numero: c.seu_numero ?? "",
+    })),
+    servicoCreditoBB,
+  };
+  const faltas = validarRemessaGestaoMax(dados);
+  if (faltas.length) throw new Error(`Faltam dados para o arquivo: ${faltas.join("; ")}.`);
+  const arquivo = gerarGestaoMaxCnab240(dados);
+  const blob = new Blob([arquivo.conteudo], { type: "text/plain" });
+  return {
+    blob,
+    sha256: await calcularSha256(blob),
+    nome: nomeArquivoGestaoMax(remessa.convenio, dataGeracao, remessa.nsa),
+    quantidade: arquivo.quantidade,
+  };
+}
+
+/**
+ * Reserva o NSA e os créditos no banco (`registrar_remessa_bancaria`), gera o CNAB 240 do Gestão MAX a partir do
+ * retrato devolvido, confirma com o SHA-256 (`confirmar_remessa_bancaria`) e só então baixa o arquivo: o usuário
+ * nunca recebe um arquivo que o sistema não registrou. Falha depois da reserva vira `ErroRemessaReservada`, para a
+ * tela oferecer o cancelamento da reserva.
  */
 export function useGerarRemessaGestaoMax() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: GerarRemessaInput) => {
-      const dataGeracao = new Date();
-      const valorTotal = input.movimentos.reduce((s, m) => s + Math.round(m.credito.valor * 100), 0) / 100;
-
       const { data, error } = await supabase.rpc("registrar_remessa_bancaria" as never, {
         p_conta_autarquia_id: input.conta.id,
         p_layout: "gestao_max_cnab240",
-        p_quantidade: input.movimentos.length,
-        p_valor_total: valorTotal,
-        p_movimentos: input.movimentos.map((m) => m.id),
+        p_movimentos: input.movimentoIds,
+        p_data_pagamento: input.dataPagamento,
         p_nsa_minimo: input.nsaMinimo,
+        p_tipo_servico: input.servicoCreditoBB,
       } as never);
       if (error) throw error;
       const remessa = data as unknown as RemessaRegistrada;
 
-      // Seu número: o nº da OB/identificador original quando cabe (volta no retorno); senão NSA + sequência
-      const creditos: CreditoGestaoMax[] = input.movimentos.map((m, i) => {
-        const { identificador, ...credito } = m.credito;
-        const seu = /^\d{1,20}$/.test(identificador) ? identificador : `${remessa.nsa}${String(i + 1).padStart(4, "0")}`;
-        return { ...credito, seu_numero: seu };
-      });
-      const dados = {
-        pagador: {
-          cnpj: input.pagador.cnpj,
-          nome: input.pagador.nome,
-          convenio: remessa.convenio,
-          agencia: remessa.agencia,
-          agenciaDigito: remessa.agencia_digito ?? "",
-          conta: remessa.conta,
-          contaDigito: remessa.conta_digito ?? "",
-          endereco: input.pagador.endereco,
-        },
-        nsa: remessa.nsa,
-        dataGeracao,
-        creditos,
-        servicoCreditoBB: input.servicoCreditoBB,
-      };
-      const faltas = validarRemessaGestaoMax(dados);
-      if (faltas.length) throw new Error(`Faltam dados para o arquivo: ${faltas.join("; ")}.`);
-
-      const arquivo = gerarGestaoMaxCnab240(dados);
-      const blob = new Blob([arquivo.conteudo], { type: "text/plain" });
-      const sha256 = await calcularSha256(blob);
-
-      const { error: erroConfirmar } = await supabase.rpc("confirmar_remessa_bancaria" as never, {
-        p_id: remessa.id,
-        p_sha256: sha256,
-      } as never);
-      if (erroConfirmar) throw erroConfirmar;
-
-      const nome = nomeArquivoGestaoMax(remessa.convenio, dataGeracao, remessa.nsa);
-      baixarArquivo(blob, nome);
-      return { nome, nsa: remessa.nsa, quantidade: arquivo.quantidade };
+      try {
+        const arquivo = await montarArquivo(remessa, input.pagador, remessa.tipo_servico);
+        const { error: erroConfirmar } = await supabase.rpc("confirmar_remessa_bancaria" as never, {
+          p_id: remessa.id,
+          p_sha256: arquivo.sha256,
+        } as never);
+        if (erroConfirmar) throw erroConfirmar;
+        baixarArquivo(arquivo.blob, arquivo.nome);
+        return { nome: arquivo.nome, nsa: remessa.nsa, quantidade: arquivo.quantidade };
+      } catch (e) {
+        throw new ErroRemessaReservada(await mensagemErro(e), remessa.id, remessa.nsa);
+      }
     },
     onSuccess: async (r) => {
-      await queryClient.invalidateQueries({ queryKey: ["fin_movimentos_bancarios"] });
       toast.success(`Arquivo ${r.nome} gerado`, {
         description: `${r.quantidade} crédito(s), NSA ${r.nsa}. Envie o arquivo pelo Gestão MAX.`,
       });
     },
     onError: async (e) => toast.error("O arquivo não foi gerado", { description: await mensagemErro(e) }),
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["fin_movimentos_bancarios"] }),
+        queryClient.invalidateQueries({ queryKey: ["fin_remessas_bancarias"] }),
+      ]);
+    },
+  });
+}
+
+/** Libera uma reserva não confirmada (`cancelar_remessa_bancaria`): os créditos voltam a poder ser reenviados. */
+export function useCancelarRemessaBancaria() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (remessaId: string) => {
+      const { error } = await supabase.rpc("cancelar_remessa_bancaria" as never, { p_id: remessaId } as never);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["fin_movimentos_bancarios"] }),
+        queryClient.invalidateQueries({ queryKey: ["fin_remessas_bancarias"] }),
+      ]);
+      toast.success("Reserva cancelada", { description: "Os créditos voltam a poder ser reenviados." });
+    },
+    onError: async (e) => toast.error("Não foi possível cancelar a reserva", { description: await mensagemErro(e) }),
+  });
+}
+
+/**
+ * "Baixar novamente": lê o retrato (`obter_remessa_bancaria`), gera o arquivo de novo e só baixa se o SHA-256 for o
+ * registrado, usando o tipo de pagamento BB (98/30) gravado na reserva. Se não bater (dados do pagador mudaram,
+ * por exemplo), avisa e não baixa.
+ */
+export function useBaixarRemessaNovamente() {
+  return useMutation({
+    mutationFn: async ({ remessaId, pagador }: { remessaId: string; pagador: DadosPagador }) => {
+      const { data, error } = await supabase.rpc("obter_remessa_bancaria" as never, { p_id: remessaId } as never);
+      if (error) throw error;
+      const remessa = data as unknown as RemessaRegistrada;
+      if (!remessa?.arquivo_sha256) throw new Error("Esta remessa não foi confirmada: não há arquivo registrado.");
+      const arquivo = await montarArquivo(remessa, pagador, remessa.tipo_servico);
+      if (arquivo.sha256 === remessa.arquivo_sha256) {
+        baixarArquivo(arquivo.blob, arquivo.nome);
+        return arquivo.nome;
+      }
+      throw new Error(
+        "O arquivo gerado de novo não confere com o registrado (os dados do pagador ou da conta mudaram desde a " +
+          "geração). Nada foi baixado.",
+      );
+    },
+    onSuccess: (nome) => toast.success(`Arquivo ${nome} baixado`, { description: "Conferido com o registrado." }),
+    onError: async (e) => toast.error("Não foi possível baixar de novo", { description: await mensagemErro(e) }),
   });
 }
 
@@ -342,10 +504,12 @@ export function useStatusBB() {
   });
 }
 
-/** Valida agência/conta/CPF-CNPJ no BB (só banco 001). Os dados vão só para a função, não para log. */
+/**
+ * Valida agência/conta no BB (só banco 001). O CPF/CNPJ é lido do movimento pelo servidor: não sai do navegador.
+ */
 export function useValidarContaBB() {
   return useMutation({
-    mutationFn: (dados: { agencia: string; conta: string; cpf_cnpj: string }) =>
+    mutationFn: (dados: { movimento_id: string; banco: string; agencia: string; conta: string }) =>
       chamarBB<ResultadoValidacaoConta>({ acao: "validar-conta", ...dados }),
   });
 }

@@ -221,7 +221,6 @@ import InstalarAppPage from "./pages/mobile/InstalarAppPage";
 import { ModuloHabilitado } from "@/components/auth/ModuloHabilitado";
 // Financeiro (ERP)
 import {
-  DashboardFinanceiroPage,
   SolicitacoesPage,
   EmpenhosPage,
   LiquidacoesPage,
@@ -1209,11 +1208,6 @@ const App = () => (
               {/* ============================================ */}
               {/* FINANCEIRO (ERP) - Com permissões mapeadas */}
               {/* ============================================ */}
-              <Route path="/financeiro" element={
-                <ProtectedRoute requiredPermissions="orcamento.visualizar">
-                  <DashboardFinanceiroPage />
-                </ProtectedRoute>
-              } />
               {/* Orçamento virou o resumo no topo do QDD */}
               <Route path="/financeiro/orcamento" element={
                 <ProtectedRoute requiredPermissions="orcamento.visualizar">

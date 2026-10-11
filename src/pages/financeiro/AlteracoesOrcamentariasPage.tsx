@@ -50,6 +50,7 @@ import {
   useCriarAlteracaoOrcamentaria,
 } from "@/hooks/useAlteracoesOrcamentarias";
 import { useDotacoes } from "@/hooks/useFinanceiro";
+import { useAuth } from "@/contexts/AuthContext";
 import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { formatCurrency } from "@/lib/formatters";
@@ -188,6 +189,9 @@ export default function AlteracoesOrcamentariasPage() {
   const { data: dotacoes } = useDotacoes(exercicio);
   const criarAlteracao = useCriarAlteracaoOrcamentaria();
   const confirmarFiplan = useConfirmarAlteracaoFiplan();
+  // Confirmar o lançamento no FIPLAN é ato de aprovação do orçamento (a RPC confere a mesma permissão)
+  const { hasPermission } = useAuth();
+  const podeAprovarOrcamento = hasPermission("orcamento.aprovar");
   const [aConfirmar, setAConfirmar] = useState<AlteracaoComDotacoes | null>(null);
 
   // Form state
@@ -344,7 +348,7 @@ export default function AlteracoesOrcamentariasPage() {
             ),
           }}
           acoesLinha={(alt) =>
-            podeConfirmarNoFiplan(alt) ? (
+            podeAprovarOrcamento && podeConfirmarNoFiplan(alt) ? (
               <Button
                 variant="outline"
                 size="sm"

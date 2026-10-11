@@ -114,13 +114,20 @@ Spec: [`2026-10-11-financeiro-fiplan-banco-design.md`](./superpowers/specs/2026-
     segredos existem (nunca o valor) e tenta obter o token OAuth de cada escopo.
   - `extrato` `{conta_bancaria_id, data_inicio, data_fim}` (`YYYY-MM-DD`, até 31 dias): lê agência e conta em
     `fin_contas_bancarias` (só banco `001`), chama `GET /conta-corrente/agencia/{agencia}/conta/{conta}` da API
-    Extratos v2 com mTLS, paginando (200 por página) até `numeroPaginaProximo = 0`, descarta as linhas de saldo e grava
+    Extratos v2 com mTLS, paginando (200 por página, no máximo 50 páginas: acima disso responde `422` sem gravar nada e
+    pede um período menor) até `numeroPaginaProximo = 0`, descarta as linhas de saldo e grava
     pela RPC `registrar_extrato_bb` (só service role; idempotente). Devolve `periodo`, `paginas`,
     `recebidos_do_banco`, `recebidos`, `inseridos`, `existentes` e `conciliados` (débitos casados com
     `fin_pagamentos`). A API não traz id do lançamento: `identificador_bb` junta data, lote, documento, histórico,
     valor, sinal e a ordem entre lançamentos idênticos do dia.
-  - `validar-conta` `{agencia, conta, cpf_cnpj}` → `{contaAtiva, titularConta}` (API Validação de Contas v1,
-    `GET /contas/{agencia}-{conta}/situacao?cpfCnpj=`; sem mTLS).
+  - `validar-conta` `{movimento_id, banco?, agencia, conta}` → `{contaAtiva, titularConta}` (API Validação de Contas
+    v1, `GET /contas/{agencia}-{conta}/situacao?cpfCnpj=`; sem mTLS). O CPF/CNPJ é lido no servidor do
+    `favorecido_documento` do movimento (`fin_movimentos_bancarios`); o corpo com `cpf_cnpj`/`documento` é recusado
+    (`400`), assim como `banco` diferente de `001` e movimento sem CPF/CNPJ (`404` se o movimento não existe). Cada
+    consulta (ok ou falha do BB) entra em `audit_logs` pela service role: `action = 'view'`, `module_name =
+    'financeiro'`, `entity_type = 'fin_movimentos_bancarios'`, `entity_id` = movimento, `user_id` = quem consultou e
+    `metadata` `{fonte, acao, ambiente, resultado, conta_ativa, titular_conta}` (ou `etapa`/`status_bb`/`codigo` na
+    falha) — sem documento, agência ou conta. Se a trilha não grava, o resultado não é devolvido (`500`).
 - **Segredos** (por instância, `supabase secrets set`; nada no banco nem no front): `BB_AMBIENTE`
   (`homologacao`|`producao`, padrão `homologacao`), `BB_CLIENT_ID`, `BB_CLIENT_SECRET`, `BB_APP_KEY`, `BB_CERT_PEM` e
   `BB_KEY_PEM` (certificado e chave do cliente em PEM para o mTLS da API de Extratos; `\n` literal é aceito no lugar
@@ -129,11 +136,14 @@ Spec: [`2026-10-11-financeiro-fiplan-banco-design.md`](./superpowers/specs/2026-
   aplicação vai na query como `gw-dev-app-key` em homologação e `gw-app-key` em produção (conferir no portal do BB na
   homologação).
 - **Erros**: falha do BB responde `502` com `etapa` (`token`, `extrato`, `validacao`) e `status_bb`, sem o corpo da
-  resposta; certificado ausente/inválido ou runtime sem `Deno.createHttpClient` responde `503`
-  (`codigo` `certificado_ausente`, `certificado_invalido`, `runtime_sem_mtls`).
+  resposta; certificado ausente/inválido, runtime sem `Deno.createHttpClient`, tempo esgotado ou falha de rede
+  responde `503` (`codigo` `certificado_ausente`, `certificado_invalido`, `runtime_sem_mtls`, `timeout`,
+  `falha_de_rede`). Toda chamada ao BB (token, extrato, validação) tem limite de 20 s (`AbortSignal.timeout`).
 - **LGPD**: o log leva só a ação, a etapa e o código HTTP; nunca token, CPF/CNPJ, agência ou conta.
-- **Não verificado** contra o BB: a função passou em `deno check` e nas funções puras (datas, normalização do
-  extrato), mas não foi chamada na homologação do BB (exige credenciais e certificado do cliente).
+- **Não verificado** contra o BB: a primeira versão passou em `deno check` e nas funções puras (datas, normalização
+  do extrato); a revisão (validar-conta pelo movimento, trilha, tempo limite e limite de páginas) foi conferida com
+  `esbuild` e `tsc --strict` com tipos mínimos do Deno (sem `deno` no ambiente). Nada foi chamado na homologação do BB
+  (exige credenciais e certificado do cliente).
 
 #### Configurar as credenciais do BB numa instância
 

@@ -10,7 +10,8 @@
 --                                      fin_pagamentos e marca como pago o que o banco pagou.
 --                                      Com p_simular = true só calcula (padrão ResultadoBanco
 --                                      de src/lib/importacao/types.ts).
---   conciliar_movimento_bancario(...)  vínculo manual movimento -> pagamento (ou desfaz com NULL).
+--   conciliar_movimento_bancario(...)  vínculo manual movimento -> pagamento (ou desfaz com NULL). Valor que não
+--                                      confere exige justificativa; trocar de pagamento exige desvincular antes.
 --   pode_conciliar_pagamentos()        a tela e a Edge Function bb-api perguntam se o usuário pode.
 --
 -- Quem importa/concilia: permissão nova `pagamento.conciliar` (catálogo do financeiro) e acesso ao
@@ -22,6 +23,9 @@
 -- retorno, motivo e autenticação do registro da remessa com a mesma chave.
 --
 -- CPF/CNPJ e conta do favorecido são dado pessoal: só quem acessa o módulo financeiro lê.
+--
+-- Auditoria: trigger trg_audit_fin_movimentos_bancarios (fn_audit_financeiro, a mesma de fin_pagamentos)
+-- grava cada INSERT/UPDATE/DELETE em fin_audit_log, com antes/depois e autor.
 -- ============================================================================
 
 
@@ -87,9 +91,11 @@ CREATE TABLE IF NOT EXISTS public.fin_movimentos_bancarios (
   situacao text NOT NULL CHECK (situacao IN ('enviado', 'pago', 'recusado')),
   motivo_recusa text CHECK (char_length(motivo_recusa) <= 500),
   codigo_retorno text CHECK (char_length(codigo_retorno) <= 50),
+  data_efetivacao date,
   pagamento_id uuid REFERENCES public.fin_pagamentos(id) ON DELETE SET NULL,
   conciliado_em timestamptz,
   conciliado_por uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  conciliacao_justificativa text CHECK (char_length(conciliacao_justificativa) <= 500),
   importacao_retorno_id uuid REFERENCES public.importacoes(id) ON DELETE SET NULL,
   chave_unica text NOT NULL UNIQUE,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -104,6 +110,10 @@ COMMENT ON COLUMN public.fin_movimentos_bancarios.importacao_id IS
   'Importação que criou o registro (remessa ou, sem remessa prévia, o retorno).';
 COMMENT ON COLUMN public.fin_movimentos_bancarios.importacao_retorno_id IS
   'Última importação de retorno que atualizou a situação do registro.';
+COMMENT ON COLUMN public.fin_movimentos_bancarios.data_efetivacao IS
+  'Data real do débito informada pelo retorno do banco (fora da chave_unica). Vai para fin_pagamentos.data_efetivacao.';
+COMMENT ON COLUMN public.fin_movimentos_bancarios.conciliacao_justificativa IS
+  'Justificativa da conciliação manual quando o valor do movimento não confere com o líquido do pagamento.';
 
 CREATE INDEX IF NOT EXISTS idx_fin_mov_bancarios_pagamento ON public.fin_movimentos_bancarios (pagamento_id);
 CREATE INDEX IF NOT EXISTS idx_fin_mov_bancarios_situacao ON public.fin_movimentos_bancarios (situacao);
@@ -125,15 +135,24 @@ CREATE POLICY fin_movimentos_bancarios_select ON public.fin_movimentos_bancarios
 REVOKE ALL ON public.fin_movimentos_bancarios FROM anon;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE, TRIGGER, REFERENCES ON public.fin_movimentos_bancarios FROM authenticated;
 
+-- Trilha do financeiro (fin_audit_log, lida pelo módulo): mesma função dos empenhos/liquidações/pagamentos.
+DROP TRIGGER IF EXISTS trg_audit_fin_movimentos_bancarios ON public.fin_movimentos_bancarios;
+CREATE TRIGGER trg_audit_fin_movimentos_bancarios
+  AFTER INSERT OR UPDATE OR DELETE ON public.fin_movimentos_bancarios
+  FOR EACH ROW EXECUTE FUNCTION public.fn_audit_financeiro();
+
 
 -- ----------------------------------------------------------------------------
 -- 4. Casamento movimento -> pagamento (uso interno das RPCs)
 -- ----------------------------------------------------------------------------
 -- As duas funções abaixo são SECURITY INVOKER e sem EXECUTE para a API: só rodam dentro das RPCs
 -- SECURITY DEFINER (como o dono), que já conferiram a permissão.
--- Candidatos: mesmo identificador_transacao; ou mesmo exercício da data do pagamento, valor
--- líquido igual e CPF/CNPJ do fornecedor igual ao do favorecido. Pagamentos cancelados/estornados
--- não entram. Só devolve um id quando o melhor candidato é único (empate = não casa).
+-- Candidatos: mesmo identificador_transacao; ou valor líquido igual, CPF/CNPJ do fornecedor igual ao
+-- do favorecido e data do pagamento a no máximo 5 dias da data do movimento (sem data, não casa por
+-- esse caminho). Pagamentos cancelados/estornados não entram. Só devolve um id quando o melhor
+-- candidato é único (empate = não casa).
+-- A migração 20261011100200 substitui esta função pela versão que, antes da busca, reconhece o
+-- retorno de um reenvio (Gestão MAX) e devolve o pagamento do movimento original.
 CREATE OR REPLACE FUNCTION public.fin_casar_movimento_pagamento(
   p_identificador text,
   p_documento text,
@@ -166,8 +185,8 @@ BEGIN
          AND (
            (p.identificador_transacao IS NOT NULL AND p_identificador IS NOT NULL
             AND btrim(p.identificador_transacao) = btrim(p_identificador))
-           OR (v_doc IS NOT NULL AND p_data IS NOT NULL
-               AND p.exercicio = extract(year FROM p_data)::integer
+           OR (v_doc IS NOT NULL AND p_data IS NOT NULL AND p.data_pagamento IS NOT NULL
+               AND abs(p.data_pagamento - p_data) <= 5
                AND p.valor_liquido = p_valor
                AND ltrim(regexp_replace(COALESCE(f.cpf_cnpj, ''), '\D', '', 'g'), '0') = v_doc)
          )
@@ -222,8 +241,13 @@ REVOKE ALL ON FUNCTION public.fin_marcar_pagamento_pago(uuid, date) FROM PUBLIC,
 -- ----------------------------------------------------------------------------
 -- p_linhas: array de {origem, sentido, tipo_lancamento, identificador, favorecido_nome,
 --   favorecido_documento (só dígitos), banco, agencia, conta, valor, data_pagamento (YYYY-MM-DD),
---   codigo_barras, autenticacao, situacao (enviado|pago|recusado), codigo_retorno, motivo_recusa}.
+--   codigo_barras, autenticacao, situacao (enviado|pago|recusado), codigo_retorno, motivo_recusa,
+--   data_efetivacao (YYYY-MM-DD, opcional: data real do débito; fora da chave_unica)}.
 --   origem/sentido da linha, quando vierem, precisam bater com os de p_parametros.
+--   Remessa só tem situacao 'enviado' ('pago' e 'recusado' só vêm de retorno).
+--   Zero linhas é aceito (retorno vazio é um arquivo válido): grava o log em importacoes e devolve
+--   totais zerados.
+--   O pagamento marcado como pago recebe data_efetivacao = a da linha (ou, sem ela, data_pagamento).
 -- p_arquivo: {nome, sha256, tamanho}.
 -- p_parametros: {origem, sentido, data_arquivo (YYYY-MM-DD), sequencial_arquivo, convenio}.
 CREATE OR REPLACE FUNCTION public.importar_arquivo_bancario(
@@ -245,7 +269,7 @@ DECLARE
   v_seq text := NULLIF(btrim(COALESCE(p_parametros->>'sequencial_arquivo', '')), '');
   v_linha jsonb;
   v_idx integer := -1;
-  v_ident text; v_doc text; v_tipo text; v_sit text; v_valor numeric(15,2); v_data date;
+  v_ident text; v_doc text; v_tipo text; v_sit text; v_valor numeric(15,2); v_data date; v_efet date;
   v_chave text;
   v_chaves text[] := '{}';
   v_existente public.fin_movimentos_bancarios%ROWTYPE;
@@ -293,8 +317,8 @@ BEGIN
     END;
   END IF;
   IF jsonb_typeof(p_linhas) IS DISTINCT FROM 'array'
-     OR jsonb_array_length(p_linhas) NOT BETWEEN 1 AND 20000 THEN
-    RAISE EXCEPTION 'Envie de 1 a 20000 pagamentos.' USING ERRCODE = '22023';
+     OR jsonb_array_length(p_linhas) > 20000 THEN
+    RAISE EXCEPTION 'Envie até 20000 pagamentos.' USING ERRCODE = '22023';
   END IF;
   IF NOT p_simular AND (
        char_length(COALESCE(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
@@ -345,6 +369,10 @@ BEGIN
        OR char_length(COALESCE(v_linha->>'motivo_recusa', '')) > 500 THEN
       RAISE EXCEPTION 'Linha %: campos fora do padrão do arquivo bancário.', v_idx + 1 USING ERRCODE = '22023';
     END IF;
+    IF v_sentido = 'remessa' AND v_sit <> 'enviado' THEN
+      RAISE EXCEPTION 'Linha %: remessa só tem pagamentos enviados (pago/recusado vêm do retorno).', v_idx + 1
+        USING ERRCODE = '22023';
+    END IF;
     IF jsonb_typeof(v_linha->'valor') IS DISTINCT FROM 'number'
        OR (v_linha->>'valor')::numeric < 0
        OR (v_linha->>'valor')::numeric >= 1e13 THEN
@@ -360,6 +388,17 @@ BEGIN
         v_data := (v_linha->>'data_pagamento')::date;
       EXCEPTION WHEN others THEN
         RAISE EXCEPTION 'Linha %: data de pagamento inválida.', v_idx + 1 USING ERRCODE = '22023';
+      END;
+    END IF;
+    v_efet := NULL;
+    IF NULLIF(v_linha->>'data_efetivacao', '') IS NOT NULL THEN
+      IF (v_linha->>'data_efetivacao') !~ '^\d{4}-\d{2}-\d{2}$' THEN
+        RAISE EXCEPTION 'Linha %: data de efetivação inválida.', v_idx + 1 USING ERRCODE = '22023';
+      END IF;
+      BEGIN
+        v_efet := (v_linha->>'data_efetivacao')::date;
+      EXCEPTION WHEN others THEN
+        RAISE EXCEPTION 'Linha %: data de efetivação inválida.', v_idx + 1 USING ERRCODE = '22023';
       END;
     END IF;
 
@@ -383,14 +422,14 @@ BEGIN
       IF NOT p_simular THEN
         INSERT INTO public.fin_movimentos_bancarios (
           origem, sentido, importacao_id, data_arquivo, sequencial_arquivo, tipo_lancamento, identificador,
-          favorecido_nome, favorecido_documento, banco, agencia, conta, valor, data_pagamento,
+          favorecido_nome, favorecido_documento, banco, agencia, conta, valor, data_pagamento, data_efetivacao,
           codigo_barras, autenticacao, situacao, motivo_recusa, codigo_retorno,
           pagamento_id, conciliado_em, importacao_retorno_id, chave_unica
         ) VALUES (
           v_origem, v_sentido, v_import_id, v_data_arquivo, v_seq, v_tipo, v_ident,
           NULLIF(btrim(COALESCE(v_linha->>'favorecido_nome', '')), ''), v_doc,
           NULLIF(v_linha->>'banco', ''), NULLIF(v_linha->>'agencia', ''), NULLIF(v_linha->>'conta', ''),
-          v_valor, v_data,
+          v_valor, v_data, v_efet,
           NULLIF(v_linha->>'codigo_barras', ''), NULLIF(v_linha->>'autenticacao', ''), v_sit,
           NULLIF(v_linha->>'motivo_recusa', ''), NULLIF(v_linha->>'codigo_retorno', ''),
           v_pag_id, CASE WHEN v_pag_id IS NOT NULL THEN now() END,
@@ -411,7 +450,8 @@ BEGIN
           'situacao', CASE WHEN v_existente.situacao = 'pago' AND v_sit = 'enviado' THEN 'pago' ELSE v_sit END,
           'codigo_retorno', NULLIF(v_linha->>'codigo_retorno', ''),
           'motivo_recusa', NULLIF(v_linha->>'motivo_recusa', ''),
-          'autenticacao', COALESCE(NULLIF(v_linha->>'autenticacao', ''), v_existente.autenticacao)
+          'autenticacao', COALESCE(NULLIF(v_linha->>'autenticacao', ''), v_existente.autenticacao),
+          'data_efetivacao', COALESCE(v_efet, v_existente.data_efetivacao)
         );
       ELSE
         v_novo := '{}'::jsonb;
@@ -435,6 +475,7 @@ BEGIN
             codigo_retorno = CASE WHEN v_novo ? 'situacao' THEN v_novo->>'codigo_retorno' ELSE codigo_retorno END,
             motivo_recusa  = CASE WHEN v_novo ? 'situacao' THEN v_novo->>'motivo_recusa' ELSE motivo_recusa END,
             autenticacao   = CASE WHEN v_novo ? 'situacao' THEN v_novo->>'autenticacao' ELSE autenticacao END,
+            data_efetivacao = CASE WHEN v_novo ? 'situacao' THEN (v_novo->>'data_efetivacao')::date ELSE data_efetivacao END,
             importacao_retorno_id = CASE WHEN v_novo ? 'situacao' THEN v_import_id ELSE importacao_retorno_id END,
             pagamento_id   = COALESCE(v_pag_id, pagamento_id),
             conciliado_em  = CASE WHEN pagamento_id IS NULL AND v_pag_id IS NOT NULL THEN now() ELSE conciliado_em END,
@@ -443,6 +484,7 @@ BEGIN
         END IF;
       END IF;
       v_sit := COALESCE(v_novo->>'situacao', v_existente.situacao);
+      v_efet := COALESCE((v_novo->>'data_efetivacao')::date, v_existente.data_efetivacao);
     END IF;
 
     -- Pagamento vinculado e pago pelo banco: marca no fin_pagamentos.
@@ -453,7 +495,7 @@ BEGIN
         IF p_simular THEN
           IF NOT (v_pago_numero = ANY (v_pagos)) THEN v_pagos := v_pagos || v_pago_numero; END IF;
         ELSE
-          v_pago_numero := public.fin_marcar_pagamento_pago(v_pag_id, v_data);
+          v_pago_numero := public.fin_marcar_pagamento_pago(v_pag_id, COALESCE(v_efet, v_data));
           IF v_pago_numero IS NOT NULL AND NOT (v_pago_numero = ANY (v_pagos)) THEN
             v_pagos := v_pagos || v_pago_numero;
           END IF;
@@ -495,9 +537,24 @@ GRANT EXECUTE ON FUNCTION public.importar_arquivo_bancario(jsonb, jsonb, jsonb, 
 -- ----------------------------------------------------------------------------
 -- 6. conciliar_movimento_bancario (manual)
 -- ----------------------------------------------------------------------------
--- p_pagamento_id NULL desfaz o vínculo (não desfaz o status do pagamento). Com movimento pago,
--- vincular marca o pagamento como pago, pela mesma regra da importação.
-CREATE OR REPLACE FUNCTION public.conciliar_movimento_bancario(p_movimento_id uuid, p_pagamento_id uuid)
+-- p_pagamento_id NULL desfaz o vínculo. Desvincular NÃO reverte o status do pagamento: se o movimento
+-- pago já marcou o pagamento como pago, ele continua pago (o estorno é feito no próprio pagamento); a
+-- trilha (fin_audit_log) guarda o vínculo desfeito.
+-- Vincular:
+--   * movimento já vinculado a OUTRO pagamento é recusado: desvincule antes (NULL) e vincule de novo;
+--     vincular ao mesmo pagamento é idempotente;
+--   * pagamento que já tem outro movimento PAGO vinculado é recusado (um débito por pagamento);
+--   * valor do movimento diferente do líquido do pagamento exige p_justificativa (gravada em
+--     conciliacao_justificativa);
+--   * movimento pago marca o pagamento como pago, pela mesma regra da importação.
+-- Versão anterior (antes da revisão, nunca aplicada em produção) não tinha a justificativa.
+DROP FUNCTION IF EXISTS public.conciliar_movimento_bancario(uuid, uuid);
+
+CREATE OR REPLACE FUNCTION public.conciliar_movimento_bancario(
+  p_movimento_id uuid,
+  p_pagamento_id uuid,
+  p_justificativa text DEFAULT NULL
+)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -507,6 +564,9 @@ DECLARE
   v_uid uuid := auth.uid();
   v_mov public.fin_movimentos_bancarios%ROWTYPE;
   v_pag public.fin_pagamentos%ROWTYPE;
+  v_just text := NULLIF(btrim(COALESCE(p_justificativa, '')), '');
+  v_confere boolean;
+  v_outro text;
   v_marcado text;
 BEGIN
   IF v_uid IS NULL
@@ -514,6 +574,9 @@ BEGIN
                      AND public.can_access_module(v_uid, 'financeiro')
                      AND public.has_permission_code(v_uid, 'pagamento.conciliar'), false) THEN
     RAISE EXCEPTION 'Sem permissão para conciliar pagamentos (pagamento.conciliar).' USING ERRCODE = '42501';
+  END IF;
+  IF char_length(COALESCE(v_just, '')) > 500 THEN
+    RAISE EXCEPTION 'Justificativa com mais de 500 caracteres.' USING ERRCODE = '22023';
   END IF;
 
   SELECT * INTO v_mov FROM public.fin_movimentos_bancarios WHERE id = p_movimento_id FOR UPDATE;
@@ -523,9 +586,16 @@ BEGIN
 
   IF p_pagamento_id IS NULL THEN
     UPDATE public.fin_movimentos_bancarios
-       SET pagamento_id = NULL, conciliado_em = NULL, conciliado_por = NULL, updated_at = now()
+       SET pagamento_id = NULL, conciliado_em = NULL, conciliado_por = NULL,
+           conciliacao_justificativa = NULL, updated_at = now()
      WHERE id = p_movimento_id;
-    RETURN jsonb_build_object('movimento_id', p_movimento_id, 'pagamento_id', NULL);
+    RETURN jsonb_build_object('movimento_id', p_movimento_id, 'pagamento_id', NULL,
+                              'desvinculado_de', v_mov.pagamento_id, 'status_revertido', false);
+  END IF;
+
+  IF v_mov.pagamento_id IS NOT NULL AND v_mov.pagamento_id <> p_pagamento_id THEN
+    RAISE EXCEPTION 'O movimento já está vinculado a outro pagamento: desvincule antes de vincular de novo.'
+      USING ERRCODE = '22023';
   END IF;
 
   SELECT * INTO v_pag FROM public.fin_pagamentos WHERE id = p_pagamento_id FOR UPDATE;
@@ -533,12 +603,29 @@ BEGIN
     RAISE EXCEPTION 'Pagamento não encontrado.' USING ERRCODE = 'P0002';
   END IF;
 
+  SELECT m.identificador INTO v_outro
+    FROM public.fin_movimentos_bancarios m
+   WHERE m.pagamento_id = p_pagamento_id AND m.id <> p_movimento_id AND m.situacao = 'pago'
+   LIMIT 1;
+  IF FOUND THEN
+    RAISE EXCEPTION 'O pagamento % já tem outro movimento pago vinculado (%).', v_pag.numero, v_outro
+      USING ERRCODE = '22023';
+  END IF;
+
+  v_confere := v_pag.valor_liquido IS NOT DISTINCT FROM v_mov.valor;
+  IF NOT v_confere AND v_just IS NULL THEN
+    RAISE EXCEPTION 'O valor do movimento (%) não confere com o líquido do pagamento % (%): informe a justificativa.',
+      v_mov.valor, v_pag.numero, v_pag.valor_liquido USING ERRCODE = '22023';
+  END IF;
+
   UPDATE public.fin_movimentos_bancarios
-     SET pagamento_id = p_pagamento_id, conciliado_em = now(), conciliado_por = v_uid, updated_at = now()
+     SET pagamento_id = p_pagamento_id, conciliado_em = now(), conciliado_por = v_uid,
+         conciliacao_justificativa = CASE WHEN v_confere THEN NULL ELSE v_just END,
+         updated_at = now()
    WHERE id = p_movimento_id;
 
   IF v_mov.situacao = 'pago' THEN
-    v_marcado := public.fin_marcar_pagamento_pago(p_pagamento_id, v_mov.data_pagamento);
+    v_marcado := public.fin_marcar_pagamento_pago(p_pagamento_id, COALESCE(v_mov.data_efetivacao, v_mov.data_pagamento));
   END IF;
 
   RETURN jsonb_build_object(
@@ -546,13 +633,13 @@ BEGIN
     'pagamento_id', p_pagamento_id,
     'pagamento_numero', v_pag.numero,
     'pagamento_marcado_pago', v_marcado IS NOT NULL,
-    'valor_confere', v_pag.valor_liquido = v_mov.valor
+    'valor_confere', v_confere
   );
 END;
 $$;
 
-COMMENT ON FUNCTION public.conciliar_movimento_bancario(uuid, uuid) IS
-  'Vincula manualmente um movimento bancário a um pagamento (NULL desfaz). Movimento pago marca o pagamento como pago. Exige pagamento.conciliar.';
+COMMENT ON FUNCTION public.conciliar_movimento_bancario(uuid, uuid, text) IS
+  'Vincula manualmente um movimento bancário a um pagamento (NULL desfaz, sem reverter o status do pagamento). Recusa troca direta de pagamento e pagamento com outro movimento pago; valor diferente exige justificativa. Movimento pago marca o pagamento como pago. Exige pagamento.conciliar.';
 
-REVOKE ALL ON FUNCTION public.conciliar_movimento_bancario(uuid, uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.conciliar_movimento_bancario(uuid, uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.conciliar_movimento_bancario(uuid, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.conciliar_movimento_bancario(uuid, uuid, text) TO authenticated;

@@ -158,6 +158,8 @@ export function lerCnab240(texto: string): ResultadoArquivoBancario {
   let totalSegmentosB = 0;
   let datasInvalidas = 0;
   let totaisOk = true;
+  /** Índice da linha em `saida` → "<094-101 bruto>:<nº do registro>" dos créditos sem seu número */
+  const fallbacks = new Map<number, string>();
 
   linhas.forEach((l, i) => {
     const tipo = campo(l, 8, 8);
@@ -207,9 +209,10 @@ export function lerCnab240(texto: string): ResultadoArquivoBancario {
       lt.somaCentavos += valorCentavos ?? 0;
       somaArquivo += valorCentavos ?? 0;
       const banco = campo(l, 21, 23);
-      const dataPrevista = dataDDMMAAAA(campo(l, 94, 101));
+      const dataPrevistaBruta = campo(l, 94, 101);
+      const dataPrevista = dataDDMMAAAA(dataPrevistaBruta);
       const dataReal = sentido === "retorno" ? dataDDMMAAAA(campo(l, 155, 162)) : null;
-      if (!dataPrevista && !dataReal) datasInvalidas += 1;
+      if (!dataPrevista) datasInvalidas += 1;
       if (valorCentavos === null) {
         problemas.push({ gravidade: "erro", mensagem: `Registro ${i + 1}: valor inválido.`, linha: saida.length });
       }
@@ -228,6 +231,10 @@ export function lerCnab240(texto: string): ResultadoArquivoBancario {
       }
 
       const seuNumero = campo(l, 74, 93).trim();
+      // Sem seu número (remessas da folha vêm em branco): campo bruto 094-101 (o retorno repete igual, mesmo
+      // quando é data inválida) + nº do registro no lote (009-013, para não juntar dois créditos iguais).
+      // O CPF/CNPJ entra depois de ler o segmento B. Nunca usar a data do arquivo nem a data real.
+      if (!seuNumero) fallbacks.set(saida.length, `${dataPrevistaBruta.trim() || "-"}:${campo(l, 9, 13)}`);
       ultimoA = {
         origem: "cnab240",
         sentido,
@@ -239,8 +246,9 @@ export function lerCnab240(texto: string): ResultadoArquivoBancario {
         agencia: formatarAgencia(campo(l, 24, 28), campo(l, 29, 29)),
         conta: formatarConta(campo(l, 30, 41), campo(l, 42, 42)),
         valor: centavosParaReais(valorCentavos ?? 0),
-        // Data prevista primeiro: a chave do movimento (RPC) inclui a data e precisa bater entre remessa e retorno
-        data_pagamento: dataPrevista ?? dataReal,
+        // Só a data prevista: a chave do movimento (RPC) inclui a data e precisa bater entre remessa e retorno
+        data_pagamento: dataPrevista,
+        data_efetivacao: situacao === "pago" ? dataReal : null,
         codigo_barras: null,
         autenticacao: sentido === "retorno" ? campo(l, 135, 154).trim() || null : null,
         situacao,
@@ -267,18 +275,16 @@ export function lerCnab240(texto: string): ResultadoArquivoBancario {
     problemas.push({ gravidade: "aviso", mensagem: `Registro ${i + 1}: segmento "${segmento}" ignorado.` });
   });
 
-  // Sem seu número (remessas da folha vêm em branco): CPF/CNPJ + data identificam o crédito
-  for (const linha of saida) {
-    if (!linha.identificador) {
-      const data = (linha.data_pagamento ?? dataArquivo ?? "").replace(/-/g, "");
-      linha.identificador = `doc:${linha.favorecido_documento}:${data}`;
-    }
+  // Sem seu número: CPF/CNPJ + data prevista bruta + nº do registro no lote identificam o crédito
+  for (const [indice, sufixo] of fallbacks) {
+    const linha = saida[indice];
+    linha.identificador = `doc:${linha.favorecido_documento}:${sufixo}`;
   }
 
   if (datasInvalidas) {
     problemas.push({
       gravidade: "aviso",
-      mensagem: `${datasInvalidas} crédito(s) com data de pagamento inválida no arquivo; ficam sem data.`,
+      mensagem: `${datasInvalidas} crédito(s) com data prevista de pagamento inválida no arquivo; ficam sem data.`,
     });
   }
   if (lote) {
@@ -313,7 +319,8 @@ export function lerCnab240(texto: string): ResultadoArquivoBancario {
       pagamentos: saida.length,
       somaCentavos: somaArquivo,
       somaTrailerCentavos: temTrailerLote ? somaTrailers : null,
-      confere: totaisOk && temTrailerLote,
+      // Retorno sem pagamentos não tem lote: confere se o trailer de arquivo bateu
+      confere: totaisOk && (temTrailerLote || saida.length === 0),
     },
   };
 }

@@ -69,8 +69,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"
   requiredPermissions="pagamento.conciliar"`); `/financeiro/pagamentos/:id` abre o detalhe real do pagamento
   (`orcamento.aprovar`); `/financeiro/orcamento` só redireciona para `/financeiro/qdd`. O ano das telas do
-  módulo vai na query `?exercicio=` (ver [MODULOS.md](./MODULOS.md)). Pendência conhecida: `/financeiro` está
-  declarada duas vezes em `src/App.tsx` (painel do módulo e `DashboardFinanceiroPage`, com guardas diferentes).
+  módulo vai na query `?exercicio=` (ver [MODULOS.md](./MODULOS.md)). `/financeiro` é declarada uma vez só
+  (painel do módulo, `FinanceiroDashboardPage`, `requiredModule="financeiro"`).
 - Inventário de campo: `/inventario/campanhas/:id/painel` (painel com mapa,
   `ProtectedRoute requiredPermissions="patrimonio.visualizar"`), com link na
   página de detalhe da campanha.

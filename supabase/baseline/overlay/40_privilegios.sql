@@ -143,6 +143,7 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_movimentos_bancarios, publ
 REVOKE EXECUTE ON FUNCTION public.fin_alteracoes_proteger_situacao_fiplan() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_casar_movimento_pagamento(text, text, numeric, date) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_marcar_pagamento_pago(uuid, date) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_remessa_bancaria_json(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.registrar_extrato_bb(uuid, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.registrar_extrato_bb(uuid, jsonb) TO service_role;
 REVOKE ALL ON public.config_envio FROM anon, authenticated;

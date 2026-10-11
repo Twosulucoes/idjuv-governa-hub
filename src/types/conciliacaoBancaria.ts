@@ -27,6 +27,8 @@ export interface MovimentoBancario {
   conta: string | null;
   valor: number;
   data_pagamento: string | null;
+  /** Data real do débito/crédito (retorno) */
+  data_efetivacao: string | null;
   codigo_barras: string | null;
   autenticacao: string | null;
   situacao: SituacaoMovimentoBancario;
@@ -35,8 +37,15 @@ export interface MovimentoBancario {
   pagamento_id: string | null;
   remessa_id: string | null;
   reenviado_em: string | null;
+  /** Conta corrigida para o reenvio (`corrigir_conta_movimento`); o servidor usa esta no arquivo */
+  conta_corrigida: ContaCorrigida | null;
+  corrigido_por: string | null;
+  corrigido_em: string | null;
+  historico: unknown;
   created_at: string;
   pagamento?: { id: string; numero: string; status: string } | null;
+  /** Nome de quem corrigiu (lido de `profiles` pela tela; não vem da tabela) */
+  corrigido_por_nome?: string | null;
 }
 
 /** Filtro da aba Movimentos: as três situações e "sem pagamento" (não conciliado). */
@@ -55,7 +64,25 @@ export interface ContaPagadora {
   banco: { codigo_banco: string | null; nome: string | null } | null;
 }
 
-/** Resposta de `registrar_remessa_bancaria`. */
+/** Crédito montado pelo servidor (com a conta corrigida, quando houver). */
+export interface CreditoRemessa {
+  movimento_id: string;
+  pagamento_id: string | null;
+  nome: string;
+  documento: string;
+  banco: string;
+  agencia: string;
+  agencia_dv: string | null;
+  conta: string;
+  conta_dv: string | null;
+  valor: number;
+  seu_numero: string;
+}
+
+/**
+ * Retrato da remessa devolvido por `registrar_remessa_bancaria` e `obter_remessa_bancaria`: o arquivo é gerado
+ * só a partir dele (inclusive data/hora de geração), para o SHA-256 ser reproduzível.
+ */
 export interface RemessaRegistrada {
   id: string;
   nsa: number;
@@ -64,15 +91,37 @@ export interface RemessaRegistrada {
   agencia_digito: string | null;
   conta: string;
   conta_digito: string | null;
+  data_geracao: string;
+  data_pagamento: string;
+  /** Tipo de pagamento BB do lote de crédito em conta: 98 (diversos) ou 30 (salários) */
+  tipo_servico: "98" | "30";
+  creditos: CreditoRemessa[];
+  /** Só em `obter_remessa_bancaria` (null = reserva não confirmada) */
+  arquivo_sha256?: string | null;
 }
 
-/** Dados bancários corrigidos de um recusado, antes do reenvio (ficam só no arquivo gerado). */
-export interface CorrecaoBancaria {
+/** Linha de `fin_remessas_bancarias` para a lista de arquivos gerados. */
+export interface RemessaBancaria {
+  id: string;
+  layout: string;
+  nsa: number;
+  convenio: string;
+  data_geracao: string;
+  quantidade: number;
+  valor_total: number;
+  arquivo_sha256: string | null;
+  created_at: string;
+}
+
+/** Conta corrigida de um recusado (`fin_movimentos_bancarios.conta_corrigida`). */
+export interface ContaCorrigida {
   banco: string;
   agencia: string;
-  agencia_dv: string;
+  agencia_dv: string | null;
   conta: string;
-  conta_dv: string;
+  conta_dv: string | null;
+  validado_bb: boolean;
+  justificativa: string;
 }
 
 export interface LancamentoExtrato {

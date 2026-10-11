@@ -14,6 +14,9 @@
 -- A RLS de fin_alteracoes_orcamentarias (classe `modulo` do baseline) deixa quem tem o módulo
 -- editar a linha; por isso um trigger impede que a situação no FIPLAN seja mudada direto pela API
 -- (papéis anon/authenticated): só a RPC (SECURITY DEFINER, roda como o dono) muda essas colunas.
+-- Depois de confirmada no FIPLAN, a alteração também fica travada pela API nos campos que o FIPLAN já
+-- registrou: valor, dotações de origem e destino, tipo, exercício e status (processo SEI, observações e
+-- demais campos seguem editáveis). A policy de DELETE do baseline (classe `modulo`) não muda aqui.
 -- ============================================================================
 
 
@@ -54,7 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_fin_alteracoes_situacao_fiplan
 
 
 -- ----------------------------------------------------------------------------
--- 2. Proteção: a situação no FIPLAN só muda pela RPC
+-- 2. Proteção: a situação no FIPLAN só muda pela RPC; confirmada, os campos do FIPLAN travam
 -- ----------------------------------------------------------------------------
 -- SECURITY INVOKER de propósito: current_user é o papel de quem executa o comando. Pela API é
 -- anon/authenticated; dentro da RPC SECURITY DEFINER é o dono da função.
@@ -73,6 +76,15 @@ BEGIN
        OR NEW.confirmado_fiplan_em IS DISTINCT FROM OLD.confirmado_fiplan_em
        OR NEW.confirmado_fiplan_por IS DISTINCT FROM OLD.confirmado_fiplan_por THEN
       RAISE EXCEPTION 'A situação no FIPLAN só muda pela ação "Confirmar no FIPLAN".' USING ERRCODE = '42501';
+    ELSIF OLD.situacao_fiplan = 'confirmada'
+      AND (NEW.valor IS DISTINCT FROM OLD.valor
+           OR NEW.dotacao_origem_id IS DISTINCT FROM OLD.dotacao_origem_id
+           OR NEW.dotacao_destino_id IS DISTINCT FROM OLD.dotacao_destino_id
+           OR NEW.tipo IS DISTINCT FROM OLD.tipo
+           OR NEW.exercicio IS DISTINCT FROM OLD.exercicio
+           OR NEW.status IS DISTINCT FROM OLD.status) THEN
+      RAISE EXCEPTION 'Alteração % já confirmada no FIPLAN: valor, dotações, tipo, exercício e status não mudam.', OLD.numero
+        USING ERRCODE = '42501';
     END IF;
   END IF;
   RETURN NEW;

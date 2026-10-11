@@ -93,4 +93,6 @@ export interface Importador<TLinha = unknown> {
   ) => Promise<ResultadoBanco>;
   /** Query keys do React Query a invalidar depois de aplicar */
   invalidar?: unknown[][];
+  /** Arquivo sem linhas pode ser confirmado (a RPC registra a importação; ex.: retorno sem pagamentos) */
+  aceitaArquivoVazio?: boolean;
 }

@@ -46,8 +46,13 @@ export interface LinhaMovimentoBancario {
   conta: string;
   /** Em reais */
   valor: number;
-  /** YYYY-MM-DD; null se o arquivo trouxe data inválida */
+  /**
+   * Data prevista do pagamento (YYYY-MM-DD); null se o arquivo trouxe data inválida. Faz parte da chave do
+   * movimento: precisa sair igual na remessa e no retorno.
+   */
   data_pagamento: string | null;
+  /** Data real do débito/crédito (YYYY-MM-DD), só no retorno; fora da chave do movimento */
+  data_efetivacao: string | null;
   codigo_barras: string | null;
   autenticacao: string | null;
   situacao: SituacaoMovimentoBancario;

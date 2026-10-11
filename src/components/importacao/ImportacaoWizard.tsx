@@ -173,8 +173,13 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
   const acaoPorIndice = new Map(final?.linhas.map((l) => [l.indice, l]) ?? []);
   const criados = Object.entries(final?.criados ?? {}).filter(([, itens]) => itens.length > 0);
   const podeAplicar = etapa === "conferencia" && erros.length === 0 && simulacao && !erroBanco;
+  const arquivoVazioAceito = !!importador.aceitaArquivoVazio && leitura.linhas.length === 0;
   const nadaMuda =
-    simulacao && simulacao.totais.inserir === 0 && simulacao.totais.atualizar === 0 && criados.length === 0;
+    !arquivoVazioAceito &&
+    simulacao &&
+    simulacao.totais.inserir === 0 &&
+    simulacao.totais.atualizar === 0 &&
+    criados.length === 0;
 
   return (
     <div className="space-y-4">
@@ -353,7 +358,11 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
           </Button>
           <Button onClick={aplicar} disabled={!podeAplicar || !!nadaMuda}>
             {etapa === "aplicando" && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
-            {nadaMuda ? "Nada a atualizar" : `Confirmar importação de ${leitura.linhas.length} linha(s)`}
+            {nadaMuda
+              ? "Nada a atualizar"
+              : arquivoVazioAceito
+                ? "Registrar arquivo sem pagamentos"
+                : `Confirmar importação de ${leitura.linhas.length} linha(s)`}
           </Button>
         </div>
       )}

@@ -3,12 +3,13 @@
  *
  * Abas:
  *  - Movimentos: pagamentos vistos nos arquivos do banco (OBN600/CNAB 240), importação e conciliação manual;
- *  - Recusados: correção de banco/agência/conta e arquivo de reenvio no leiaute do BB Gestão MAX;
+ *  - Recusados: correção de banco/agência/conta (gravada no banco), arquivo de reenvio no leiaute do BB Gestão MAX
+ *    e lista dos arquivos gerados (baixar de novo conferindo o SHA-256, cancelar reserva sem arquivo);
  *  - Banco do Brasil (API): situação da conexão e importação de extrato.
  * Rota protegida por `pagamento.conciliar`; o banco confere a mesma permissão nas RPCs.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertOctagon,
@@ -29,6 +30,7 @@ import { BancoDoBrasilApiPainel } from "@/components/financeiro/conciliacao/Banc
 import { ConciliarMovimentoDialog } from "@/components/financeiro/conciliacao/ConciliarMovimentoDialog";
 import { CorrigirContaDialog } from "@/components/financeiro/conciliacao/CorrigirContaDialog";
 import { GerarRemessaDialog } from "@/components/financeiro/conciliacao/GerarRemessaDialog";
+import { RemessasGeradas } from "@/components/financeiro/conciliacao/RemessasGeradas";
 import { SituacaoMovimentoBadge } from "@/components/financeiro/conciliacao/movimentoUi";
 import {
   ROTULO_ORIGEM_ARQUIVO,
@@ -45,7 +47,7 @@ import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { useMovimentosBancarios } from "@/hooks/useConciliacaoBancaria";
 import { importadorArquivoBancario } from "@/lib/importacao/importadores/arquivoBancario";
 import { formatCurrency } from "@/lib/formatters";
-import type { CorrecaoBancaria, FiltroSituacaoMovimento, MovimentoBancario } from "@/types/conciliacaoBancaria";
+import type { FiltroSituacaoMovimento, MovimentoBancario } from "@/types/conciliacaoBancaria";
 
 const colunasBase: ColunaTabela<MovimentoBancario>[] = [
   {
@@ -130,6 +132,18 @@ const FILTROS: { valor: FiltroSituacaoMovimento; rotulo: string }[] = [
   { valor: "sem_pagamento", rotulo: "Sem pagamento" },
 ];
 
+/**
+ * Pode entrar num arquivo de reenvio: ainda não reenviado, sem reserva pendente (remessa_id sem reenviado_em) e
+ * não é fatura/guia (pagamento por código de barras não vai no leiaute de crédito em conta).
+ */
+const podeReenviar = (m: MovimentoBancario) => !m.reenviado_em && !m.remessa_id && m.tipo_lancamento !== "fatura";
+
+/** Conta corrigida no formato de exibição "banco / agência-DV / conta-DV". */
+function contaCorrigidaTexto(m: MovimentoBancario): string {
+  const c = m.conta_corrigida!;
+  return `${c.banco} / ${c.agencia}${c.agencia_dv ? `-${c.agencia_dv}` : ""} / ${c.conta}${c.conta_dv ? `-${c.conta_dv}` : ""}`;
+}
+
 function filtrar(movimentos: MovimentoBancario[], filtro: FiltroSituacaoMovimento) {
   if (filtro === "todos") return movimentos;
   if (filtro === "sem_pagamento") return movimentos.filter((m) => !m.pagamento_id);
@@ -147,7 +161,6 @@ export default function ConciliacaoBancariaPage() {
   const [importando, setImportando] = useState(false);
   const [paraConciliar, setParaConciliar] = useState<MovimentoBancario | null>(null);
   const [paraCorrigir, setParaCorrigir] = useState<MovimentoBancario | null>(null);
-  const [correcoes, setCorrecoes] = useState<Map<string, CorrecaoBancaria>>(new Map());
   const [reenvio, setReenvio] = useState<{ movimentos: MovimentoBancario[]; limpar: () => void } | null>(null);
 
   const recusados = useMemo(() => movimentos.filter((m) => m.situacao === "recusado"), [movimentos]);
@@ -161,29 +174,27 @@ export default function ConciliacaoBancariaPage() {
     [movimentos, recusados],
   );
 
-  const salvarCorrecao = useCallback((id: string, c: CorrecaoBancaria) => {
-    setCorrecoes((atual) => new Map(atual).set(id, c));
-  }, []);
-
   const colunasRecusados = useMemo<ColunaTabela<MovimentoBancario>[]>(
     () => [
       ...colunasBase,
       {
         id: "conta",
         cabecalho: "Banco / agência / conta",
-        celula: (m) => {
-          const c = correcoes.get(m.id);
-          return c ? (
-            <span className="whitespace-nowrap font-mono text-xs">
-              {c.banco} / {c.agencia}
-              {c.agencia_dv ? `-${c.agencia_dv}` : ""} / {c.conta}
-              {c.conta_dv ? `-${c.conta_dv}` : ""}{" "}
-              <StatusBadge tom="destaque">corrigido</StatusBadge>
+        celula: (m) =>
+          m.conta_corrigida ? (
+            <span className="block text-xs">
+              <span className="whitespace-nowrap font-mono">{contaCorrigidaTexto(m)}</span>{" "}
+              <StatusBadge tom="destaque">{m.conta_corrigida.validado_bb ? "corrigido · validado no BB" : "corrigido"}</StatusBadge>
+              <span className="block text-muted-foreground">
+                Por {m.corrigido_por_nome || "—"}
+                {m.corrigido_em ? ` em ${dataBR(m.corrigido_em)}` : ""} · no arquivo:{" "}
+                <span className="font-mono">{contaFavorecido(m)}</span>
+              </span>
             </span>
           ) : (
             <span className="whitespace-nowrap font-mono text-xs">{contaFavorecido(m)}</span>
-          );
-        },
+          ),
+        buscarPor: (m) => m.corrigido_por_nome,
       },
       {
         id: "motivo",
@@ -208,7 +219,7 @@ export default function ConciliacaoBancariaPage() {
         ordenarPor: (m) => m.reenviado_em,
       },
     ],
-    [correcoes],
+    [],
   );
 
   const erroLista = isError ? "Não foi possível carregar os movimentos bancários." : null;
@@ -274,21 +285,20 @@ export default function ConciliacaoBancariaPage() {
                 titulo: "Nenhum movimento neste exercício",
                 descricao: "Importe a remessa ou o retorno do banco para acompanhar os pagamentos.",
               }}
-              acoesLinha={(m) =>
-                m.pagamento_id ? null : (
-                  <Button variant="ghost" size="sm" onClick={() => setParaConciliar(m)}>
-                    <Link2 className="h-4 w-4" aria-hidden />
-                    Conciliar
-                  </Button>
-                )
-              }
+              acoesLinha={(m) => (
+                <Button variant="ghost" size="sm" onClick={() => setParaConciliar(m)}>
+                  {m.pagamento_id ? <Unlink className="h-4 w-4" aria-hidden /> : <Link2 className="h-4 w-4" aria-hidden />}
+                  {m.pagamento_id ? "Vínculo" : "Conciliar"}
+                </Button>
+              )}
             />
           </TabsContent>
 
           <TabsContent value="recusados" className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Selecione os créditos, corrija os dados bancários quando preciso e gere o arquivo para reenviar pelo
-              Gestão MAX. As correções valem para o arquivo gerado.
+              Gestão MAX. A conta corrigida fica registrada (com quem corrigiu) e é a usada no arquivo. Ficam de fora
+              do arquivo os já reenviados, os com reserva pendente e as faturas/guias.
             </p>
             <DataTable
               rotulo="Créditos recusados"
@@ -304,12 +314,27 @@ export default function ConciliacaoBancariaPage() {
                 titulo: "Nenhum crédito recusado",
                 descricao: "Os recusados aparecem aqui depois da importação do retorno do banco.",
               }}
-              acoesEmLote={(selecionadas, limpar) => (
-                <Button size="sm" onClick={() => setReenvio({ movimentos: selecionadas, limpar })}>
-                  <FileDown className="h-4 w-4" aria-hidden />
-                  Gerar arquivo Gestão MAX
-                </Button>
-              )}
+              acoesEmLote={(selecionadas, limpar) => {
+                const elegiveis = selecionadas.filter(podeReenviar);
+                const fora = selecionadas.length - elegiveis.length;
+                return (
+                  <>
+                    <Button
+                      size="sm"
+                      disabled={elegiveis.length === 0}
+                      onClick={() => setReenvio({ movimentos: elegiveis, limpar })}
+                    >
+                      <FileDown className="h-4 w-4" aria-hidden />
+                      Gerar arquivo Gestão MAX ({elegiveis.length})
+                    </Button>
+                    {fora > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {fora} fora do arquivo (já reenviado, reserva pendente ou fatura)
+                      </span>
+                    )}
+                  </>
+                );
+              }}
               acoesLinha={(m) => (
                 <Button variant="ghost" size="sm" onClick={() => setParaCorrigir(m)}>
                   <Pencil className="h-4 w-4" aria-hidden />
@@ -317,6 +342,7 @@ export default function ConciliacaoBancariaPage() {
                 </Button>
               )}
             />
+            <RemessasGeradas />
           </TabsContent>
 
           <TabsContent value="bb">
@@ -337,20 +363,16 @@ export default function ConciliacaoBancariaPage() {
 
       <ConciliarMovimentoDialog
         movimento={paraConciliar}
-        exercicio={exercicio}
         onOpenChange={(v) => !v && setParaConciliar(null)}
       />
       <CorrigirContaDialog
         movimento={paraCorrigir}
-        correcao={paraCorrigir ? correcoes.get(paraCorrigir.id) : undefined}
         onOpenChange={(v) => !v && setParaCorrigir(null)}
-        onSalvar={salvarCorrecao}
       />
       <GerarRemessaDialog
         aberto={!!reenvio}
         onOpenChange={(v) => !v && setReenvio(null)}
         movimentos={reenvio?.movimentos ?? []}
-        correcoes={correcoes}
         onGerado={() => reenvio?.limpar()}
       />
     </ModuleLayout>

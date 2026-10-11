@@ -7,9 +7,16 @@
 //   status         diz quais segredos estão configurados e o ambiente (sem revelar valores) e tenta obter
 //                  o token OAuth de cada API.
 //   extrato        {conta_bancaria_id, data_inicio, data_fim} (YYYY-MM-DD, até 31 dias): busca o extrato da
-//                  conta de fin_contas_bancarias (paginado), grava em fin_extrato_lancamentos pela RPC
+//                  conta de fin_contas_bancarias (paginado, no máximo 50 páginas de 200 lançamentos; acima disso
+//                  responde 422 sem gravar nada e pede um período menor), grava em fin_extrato_lancamentos pela RPC
 //                  registrar_extrato_bb (só service role) e devolve os totais.
-//   validar-conta  {agencia, conta, cpf_cnpj}: situação da conta e se o CPF/CNPJ é o titular.
+//   validar-conta  {movimento_id, banco?, agencia, conta}: situação da conta no BB e se o CPF/CNPJ do favorecido do
+//                  movimento (fin_movimentos_bancarios, lido aqui no servidor; o corpo não aceita documento) é o
+//                  titular. banco, se vier, tem de ser 001. Cada consulta vai para a trilha audit_logs (módulo
+//                  financeiro, entity_type fin_movimentos_bancarios, entity_id = movimento) com o resultado e sem
+//                  documento, agência ou conta; sem registro na trilha, o resultado não é devolvido.
+//
+// Toda chamada ao BB tem tempo limite de 20 s (AbortSignal.timeout): estouro vira 503 com etapa e código "timeout".
 //
 // Autorização: token do usuário + RPC pode_conciliar_pagamentos (perfil ativo, módulo financeiro e
 // pagamento.conciliar), avaliada como o próprio usuário ANTES de criar o cliente com a service role.
@@ -113,9 +120,18 @@ function obterClienteMtls(cfg: ConfigBB): ClienteHttp {
   return clienteMtls;
 }
 
-function buscar(url: string, init: RequestInit, cliente?: ClienteHttp): Promise<Response> {
-  // `client` é a extensão do Deno ao fetch para mTLS.
-  return fetch(url, (cliente ? { ...init, client: cliente } : init) as RequestInit);
+const TEMPO_LIMITE_MS = 20_000;
+const MAX_PAGINAS_EXTRATO = 50;
+
+async function buscar(etapa: string, url: string, init: RequestInit, cliente?: ClienteHttp): Promise<Response> {
+  // `client` é a extensão do Deno ao fetch para mTLS. Tempo limite em toda chamada ao BB.
+  const comLimite = { ...init, signal: AbortSignal.timeout(TEMPO_LIMITE_MS) };
+  try {
+    return await fetch(url, (cliente ? { ...comLimite, client: cliente } : comLimite) as RequestInit);
+  } catch (e) {
+    const nome = e instanceof Error ? e.name : "";
+    throw new ErroBB(etapa, 0, nome === "TimeoutError" || nome === "AbortError" ? "timeout" : "falha_de_rede");
+  }
 }
 
 async function lerJson(resp: Response): Promise<Record<string, unknown>> {
@@ -136,7 +152,7 @@ async function obterToken(cfg: ConfigBB, escopo: string): Promise<string> {
   const guardado = tokens.get(chave);
   if (guardado && guardado.expira > Date.now() + 30_000) return guardado.valor;
 
-  const resp = await buscar(SERVIDORES[amb].token, {
+  const resp = await buscar("token", SERVIDORES[amb].token, {
     method: "POST",
     headers: {
       "Authorization": `Basic ${btoa(`${cfg.clientId}:${cfg.clientSecret}`)}`,
@@ -317,24 +333,73 @@ Deno.serve(async (req) => {
     }
     const srv = SERVIDORES[cfg.ambiente];
 
+    // Service role só depois da checagem de permissão.
+    const admin = createClient(url, serviceKey);
+
     if (acao === "validar-conta") {
+      const movimentoId = typeof body.movimento_id === "string" ? body.movimento_id : "";
+      const banco = body.banco === undefined || body.banco === null || body.banco === "" ? "001" : digitos(body.banco).padStart(3, "0");
       const agencia = digitos(body.agencia).replace(/^0+/, "");
       const conta = digitos(body.conta).replace(/^0+/, "");
-      const doc = digitos(body.cpf_cnpj);
-      if (!agencia || agencia.length > 5 || !conta || conta.length > 12 || (doc.length !== 11 && doc.length !== 14)) {
-        return responder({ error: "Agência, conta ou CPF/CNPJ inválidos" }, 400);
+      if ("cpf_cnpj" in body || "documento" in body) {
+        return responder({ error: "O CPF/CNPJ vem do movimento, não do pedido" }, 400);
       }
-      const token = await obterToken(cfg, ESCOPO_VALIDACAO);
-      const q = new URLSearchParams({ cpfCnpj: doc, [srv.chaveApp]: cfg.appKey });
-      const resp = await buscar(`${srv.validacao}/contas/${agencia}-${conta}/situacao?${q}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const corpo = await lerJson(resp);
-      if (!resp.ok) throw new ErroBB("validacao", resp.status);
-      return responder({
+      if (!UUID_RE.test(movimentoId) || !agencia || agencia.length > 5 || !conta || conta.length > 12) {
+        return responder({ error: "Movimento, agência ou conta inválidos" }, 400);
+      }
+      if (banco !== "001") return responder({ error: "A validação de contas só consulta contas do Banco do Brasil (001)" }, 400);
+
+      const { data: mov, error: movErro } = await admin
+        .from("fin_movimentos_bancarios")
+        .select("id, favorecido_documento")
+        .eq("id", movimentoId)
+        .maybeSingle();
+      if (movErro) return responder({ error: "Falha ao ler o movimento" }, 500);
+      if (!mov) return responder({ error: "Movimento não encontrado" }, 404);
+      const doc = digitos(mov.favorecido_documento);
+      if (doc.length !== 11 && doc.length !== 14) return responder({ error: "O movimento não tem CPF/CNPJ do favorecido" }, 400);
+
+      // Trilha: quem consultou, qual movimento e o resultado (sem documento, agência nem conta).
+      const registrar = async (resultado: Record<string, unknown>) => {
+        const { error } = await admin.from("audit_logs").insert({
+          action: "view",
+          entity_type: "fin_movimentos_bancarios",
+          entity_id: movimentoId,
+          module_name: "financeiro",
+          user_id: user.id,
+          description: "Validação de conta do favorecido na API do Banco do Brasil (bb-api)",
+          metadata: { fonte: "bb-api", acao: "validar-conta", ambiente: cfg.ambiente, ...resultado },
+        });
+        if (error) console.error("bb-api: validar-conta: falha ao registrar a trilha", error.code ?? "");
+        return !error;
+      };
+
+      let corpo: Record<string, unknown>;
+      try {
+        const token = await obterToken(cfg, ESCOPO_VALIDACAO);
+        const q = new URLSearchParams({ cpfCnpj: doc, [srv.chaveApp]: cfg.appKey });
+        const resp = await buscar("validacao", `${srv.validacao}/contas/${agencia}-${conta}/situacao?${q}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        corpo = await lerJson(resp);
+        if (!resp.ok) throw new ErroBB("validacao", resp.status);
+      } catch (e) {
+        await registrar({
+          resultado: "falha",
+          etapa: e instanceof ErroBB ? e.etapa : "interno",
+          status_bb: e instanceof ErroBB ? e.status : null,
+          codigo: e instanceof ErroBB ? e.codigo ?? null : null,
+        });
+        throw e;
+      }
+      const resultado = {
         contaAtiva: typeof corpo.contaAtiva === "boolean" ? corpo.contaAtiva : null,
         titularConta: typeof corpo.titularConta === "boolean" ? corpo.titularConta : null,
-      });
+      };
+      if (!(await registrar({ resultado: "ok", conta_ativa: resultado.contaAtiva, titular_conta: resultado.titularConta }))) {
+        return responder({ error: "Falha ao registrar a consulta na trilha de auditoria" }, 500);
+      }
+      return responder(resultado);
     }
 
     // ---- extrato
@@ -345,8 +410,6 @@ Deno.serve(async (req) => {
     const dias = Math.round((fim.getTime() - inicio.getTime()) / 86_400_000);
     if (dias < 0 || dias > 30) return responder({ error: "O período deve ter de 1 a 31 dias" }, 400);
 
-    // Service role só depois da checagem de permissão.
-    const admin = createClient(url, serviceKey);
     const { data: contaBanco, error: contaErro } = await admin
       .from("fin_contas_bancarias")
       .select("id, banco_codigo, agencia, conta")
@@ -366,7 +429,12 @@ Deno.serve(async (req) => {
     const brutos: Record<string, unknown>[] = [];
     let pagina = 1;
     let paginas = 0;
-    while (pagina > 0 && paginas < 200) {
+    while (pagina > 0) {
+      if (paginas >= MAX_PAGINAS_EXTRATO) {
+        return responder({
+          error: `O extrato do período passa de ${MAX_PAGINAS_EXTRATO} páginas: escolha um período menor. Nada foi gravado.`,
+        }, 422);
+      }
       const q = new URLSearchParams({
         [srv.chaveApp]: cfg.appKey,
         numeroPaginaSolicitacao: String(pagina),
@@ -374,7 +442,7 @@ Deno.serve(async (req) => {
         dataInicioSolicitacao: paraDataBB(body.data_inicio as string),
         dataFimSolicitacao: paraDataBB(body.data_fim as string),
       });
-      const resp = await buscar(`${srv.extratos}/conta-corrente/agencia/${agencia}/conta/${conta}?${q}`, {
+      const resp = await buscar("extrato", `${srv.extratos}/conta-corrente/agencia/${agencia}/conta/${conta}?${q}`, {
         headers: { Authorization: `Bearer ${token}` },
       }, cliente);
       const corpo = await lerJson(resp);

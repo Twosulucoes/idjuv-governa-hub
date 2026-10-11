@@ -4,7 +4,8 @@
  * Detecta o formato pela largura das linhas (350 = OBN600, 240 = CNAB 240) e o sentido pelo header.
  * A RPC `importar_arquivo_bancario` confere a permissão `pagamento.conciliar`, grava um movimento por
  * pagamento (idempotente pela chave origem + identificador + valor), atualiza a remessa quando chega o
- * retorno e concilia com `fin_pagamentos` (CPF/CNPJ + valor + data).
+ * retorno e concilia com `fin_pagamentos` (CPF/CNPJ + valor + data). A data real do débito vai em
+ * `data_efetivacao` (fora da chave); arquivo sem pagamentos também é enviado (0 linhas).
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +48,8 @@ export const importadorArquivoBancario: Importador<LinhaMovimentoBancario> = {
     { id: "identificador", rotulo: "OB / seu número", valor: (l) => l.identificador },
     { id: "favorecido", rotulo: "Favorecido", valor: (l) => l.favorecido_nome || "—" },
     { id: "documento", rotulo: "CPF/CNPJ", valor: (l) => mascararDocumento(l.favorecido_documento) },
-    { id: "data", rotulo: "Data", valor: (l) => dataBR(l.data_pagamento) },
+    { id: "data", rotulo: "Data prevista", valor: (l) => dataBR(l.data_pagamento) },
+    { id: "efetivacao", rotulo: "Efetivado em", valor: (l) => (l.data_efetivacao ? dataBR(l.data_efetivacao) : "") },
     { id: "valor", rotulo: "Valor", valor: (l) => formatCurrency(l.valor), alinhamento: "direita" },
     { id: "situacao", rotulo: "Situação", valor: (l) => ROTULO_SITUACAO_MOVIMENTO[l.situacao] },
     { id: "motivo", rotulo: "Motivo da recusa", valor: (l) => l.motivo_recusa ?? "" },
@@ -57,7 +59,8 @@ export const importadorArquivoBancario: Importador<LinhaMovimentoBancario> = {
     codigo_retorno: "Código de retorno",
     motivo_recusa: "Motivo da recusa",
     pagamento_id: "Pagamento conciliado",
-    data_pagamento: "Data",
+    data_pagamento: "Data prevista",
+    data_efetivacao: "Efetivado em",
     autenticacao: "Autenticação",
     codigo_barras: "Código de barras",
     banco: "Banco",
@@ -84,8 +87,15 @@ export const importadorArquivoBancario: Importador<LinhaMovimentoBancario> = {
     }
 
     const problemas = [...lido.problemas];
+    // Arquivo sem pagamentos é aviso, não erro: segue para o banco com 0 linhas e fica registrado
     if (lido.linhas.length === 0 && !problemas.some((p) => p.gravidade === "erro")) {
-      problemas.push({ gravidade: "aviso", mensagem: "O arquivo não traz pagamentos (só header e trailer)." });
+      problemas.push({
+        gravidade: "aviso",
+        mensagem:
+          lido.sentido === "retorno"
+            ? "O retorno não traz pagamentos (só header e trailer). A importação fica registrada sem movimentos."
+            : "O arquivo não traz pagamentos (só header e trailer).",
+      });
     }
 
     const { cabecalho: c, totais } = lido;
@@ -124,5 +134,7 @@ export const importadorArquivoBancario: Importador<LinhaMovimentoBancario> = {
     return data as unknown as ResultadoBanco;
   },
 
+  // Retorno sem pagamentos (só header e trailer) também é registrado: mostra que o banco respondeu
+  aceitaArquivoVazio: true,
   invalidar: [["fin_movimentos_bancarios"], ["fin_pagamentos"], ["fin_pagamentos_pendentes"]],
 };

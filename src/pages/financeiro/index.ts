@@ -1,5 +1,4 @@
 // Páginas do módulo Financeiro
-export { default as DashboardFinanceiroPage } from "./DashboardFinanceiroPage";
 export { default as SolicitacoesPage } from "./SolicitacoesPage";
 export { default as EmpenhosPage } from "./EmpenhosPage";
 export { default as LiquidacoesPage } from "./LiquidacoesPage";

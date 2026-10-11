@@ -43,7 +43,8 @@ const RETORNO_OK = "01";
  * HEADER (tipo 0)
  *   001       '0'
  *   002-035   zeros
- *   036-043   data de geração (DDMMAAAA)
+ *   036-043   data de geração (DDMMAAAA); no retorno, usada como data de efetivação das OBs pagas
+ *             (o registro da OB não traz a data do débito)                — conferir no manual
  *   044-047   hora (HHMM)
  *   048-052   sequencial do arquivo (nº da remessa)                       — conferir no manual
  *   053-054   '10' remessa / '20' retorno                                 — deduzido, conferir no manual
@@ -182,6 +183,7 @@ export function lerObn600(texto: string): ResultadoArquivoBancario {
           conta: ehFatura ? "" : formatarConta(campo(l, 89, 97), campo(l, 98, 98)),
           valor: centavosParaReais(valorCentavos ?? 0),
           data_pagamento: data,
+          data_efetivacao: null,
           codigo_barras: null,
           autenticacao: null,
           situacao: "enviado",
@@ -224,6 +226,8 @@ export function lerObn600(texto: string): ResultadoArquivoBancario {
     const recusado =
       (ob.codigoRetorno && ob.codigoRetorno !== RETORNO_OK) || /^RECUSAD/i.test(ob.textoRecusa);
     ob.linha.situacao = recusado ? "recusado" : "pago";
+    // O registro da OB não traz a data do débito: usa a data do header do retorno. Conferir no manual.
+    if (!recusado) ob.linha.data_efetivacao = dataArquivo;
     if (recusado) {
       ob.linha.motivo_recusa = ob.textoRecusa || "Recusado pelo banco (sem motivo no arquivo)";
       if (!ob.linha.codigo_retorno || ob.linha.codigo_retorno === RETORNO_OK) {

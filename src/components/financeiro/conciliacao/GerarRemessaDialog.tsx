@@ -1,10 +1,11 @@
 /**
  * Gera o arquivo de reenvio dos recusados no leiaute do BB Gestão MAX (CNAB 240).
  * Conta pagadora e convênio vêm de `contas_autarquia`; CNPJ, nome e endereço do pagador, de
- * `config_autarquia` (ou do perfil do tenant). O NSA é reservado no banco antes de gerar.
+ * `config_autarquia` (ou do perfil do tenant). O banco reserva o NSA e monta os créditos (com a conta corrigida);
+ * o arquivo sai só desse retrato. Se algo falhar depois da reserva, a tela oferece cancelar a reserva.
  */
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,15 +25,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  ErroRemessaReservada,
+  useCancelarRemessaBancaria,
   useContasPagadoras,
   useDadosPagador,
   useGerarRemessaGestaoMax,
-  type GerarRemessaInput,
 } from "@/hooks/useConciliacaoBancaria";
-import { validarRemessaGestaoMax } from "@/lib/bancario/gestaoMaxCnab240";
+import { validarRemessaGestaoMax, type CreditoGestaoMax } from "@/lib/bancario/gestaoMaxCnab240";
 import { separarDigito } from "@/lib/cnabGenerator";
 import { formatCurrency } from "@/lib/formatters";
-import type { CorrecaoBancaria, MovimentoBancario } from "@/types/conciliacaoBancaria";
+import type { MovimentoBancario } from "@/types/conciliacaoBancaria";
 
 const hojeIso = () => {
   const d = new Date();
@@ -59,15 +61,20 @@ interface Props {
   aberto: boolean;
   onOpenChange: (aberto: boolean) => void;
   movimentos: MovimentoBancario[];
-  correcoes: Map<string, CorrecaoBancaria>;
   /** Chamado depois de gerar (para limpar a seleção) */
   onGerado?: () => void;
 }
 
-export function GerarRemessaDialog({ aberto, onOpenChange, movimentos, correcoes, onGerado }: Props) {
+export function GerarRemessaDialog({ aberto, onOpenChange, movimentos, onGerado }: Props) {
   const contas = useContasPagadoras();
   const pagador = useDadosPagador();
   const gerar = useGerarRemessaGestaoMax();
+  const cancelar = useCancelarRemessaBancaria();
+  const [reserva, setReserva] = useState<{ id: string; nsa: number; mensagem: string } | null>(null);
+
+  useEffect(() => {
+    if (aberto) setReserva(null);
+  }, [aberto]);
 
   const form = useForm<Dados>({
     resolver: zodResolver(schema),
@@ -86,29 +93,27 @@ export function GerarRemessaDialog({ aberto, onOpenChange, movimentos, correcoes
   const contaId = form.watch("conta_id");
   const conta = contas.data?.find((c) => c.id === contaId);
 
-  const creditos = useMemo<GerarRemessaInput["movimentos"]>(
+  // Prévia dos créditos só para conferir o que falta; o arquivo sai dos créditos montados pelo banco
+  const creditos = useMemo<CreditoGestaoMax[]>(
     () =>
       movimentos.map((m) => {
-        const c = correcoes.get(m.id);
+        const c = m.conta_corrigida;
         const ag = separarDigito(m.agencia);
         const ct = separarDigito(m.conta);
         return {
-          id: m.id,
-          credito: {
-            identificador: m.identificador,
-            nome: m.favorecido_nome ?? "",
-            documento: m.favorecido_documento ?? "",
-            banco: c?.banco ?? m.banco ?? "",
-            agencia: c?.agencia ?? ag.numero,
-            agencia_dv: c?.agencia_dv ?? ag.digito,
-            conta: c?.conta ?? ct.numero,
-            conta_dv: c?.conta_dv ?? ct.digito,
-            valor: Number(m.valor),
-            data,
-          },
+          nome: m.favorecido_nome ?? "",
+          documento: m.favorecido_documento ?? "",
+          banco: c?.banco ?? m.banco ?? "",
+          agencia: c?.agencia ?? ag.numero,
+          agencia_dv: c ? (c.agencia_dv ?? "") : ag.digito,
+          conta: c?.conta ?? ct.numero,
+          conta_dv: c ? (c.conta_dv ?? "") : ct.digito,
+          valor: Number(m.valor),
+          data,
+          seu_numero: m.identificador,
         };
       }),
-    [movimentos, correcoes, data],
+    [movimentos, data],
   );
 
   // Conferência prévia (o NSA real só existe depois da reserva no banco)
@@ -125,12 +130,12 @@ export function GerarRemessaDialog({ aberto, onOpenChange, movimentos, correcoes
       },
       nsa: 1,
       dataGeracao: new Date(),
-      creditos: creditos.map(({ credito: { identificador, ...c } }) => ({ ...c, seu_numero: identificador })),
+      creditos,
     });
   }, [pagador.data, conta, creditos]);
 
   const total = movimentos.reduce((s, m) => s + Number(m.valor), 0);
-  const ocupado = gerar.isPending;
+  const ocupado = gerar.isPending || cancelar.isPending;
 
   const fechar = (v: boolean) => {
     if (ocupado) return;
@@ -139,15 +144,33 @@ export function GerarRemessaDialog({ aberto, onOpenChange, movimentos, correcoes
 
   const enviar = async (d: Dados) => {
     if (!conta || !pagador.data || faltas.length) return;
-    await gerar.mutateAsync({
-      conta,
-      pagador: pagador.data,
-      movimentos: creditos,
-      servicoCreditoBB: d.servico,
-      nsaMinimo: d.nsa_minimo ? Number(d.nsa_minimo) : null,
-    });
+    setReserva(null);
+    try {
+      await gerar.mutateAsync({
+        conta,
+        pagador: pagador.data,
+        movimentoIds: movimentos.map((m) => m.id),
+        dataPagamento: d.data,
+        servicoCreditoBB: d.servico,
+        nsaMinimo: d.nsa_minimo ? Number(d.nsa_minimo) : null,
+      });
+    } catch (e) {
+      // O toast já mostrou o erro; com NSA reservado, oferece liberar a reserva
+      if (e instanceof ErroRemessaReservada) setReserva({ id: e.remessaId, nsa: e.nsa, mensagem: e.message });
+      return;
+    }
     onGerado?.();
     onOpenChange(false);
+  };
+
+  const cancelarReserva = async () => {
+    if (!reserva) return;
+    try {
+      await cancelar.mutateAsync(reserva.id);
+      setReserva(null);
+    } catch {
+      // toast de erro já exibido pela mutation
+    }
   };
 
   return (
@@ -261,6 +284,21 @@ export function GerarRemessaDialog({ aberto, onOpenChange, movimentos, correcoes
               <p className="text-xs text-muted-foreground">
                 Salários valem só para crédito no BB; outros bancos seguem como pagamentos diversos.
               </p>
+            )}
+
+            {reserva && (
+              <Alert variant="destructive" aria-live="polite">
+                <AlertCircle className="h-4 w-4" aria-hidden />
+                <AlertTitle>O NSA {reserva.nsa} ficou reservado sem arquivo</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <p>{reserva.mensagem}</p>
+                  <p>Cancele a reserva para liberar os créditos antes de tentar de novo.</p>
+                  <Button type="button" size="sm" variant="outline" onClick={cancelarReserva} disabled={ocupado}>
+                    {cancelar.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+                    Cancelar reserva
+                  </Button>
+                </AlertDescription>
+              </Alert>
             )}
 
             {faltas.length > 0 && (

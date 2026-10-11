@@ -3647,14 +3647,26 @@ END $$;
 -- ---------------------------------------------------------------- Financeiro: FIPLAN, arquivos bancários e extrato do BB (TRIGGERS LIGADOS)
 -- Migrações 20261011100000 a 20261011100300 (spec docs/superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md):
 --   * alteração orçamentária: situação no FIPLAN só muda por confirmar_alteracao_fiplan (orcamento.aprovar); UPDATE
---     direto recusado (42501) e INSERT sempre nasce pendente;
+--     direto recusado (42501) e INSERT sempre nasce pendente; depois de confirmada, valor, dotações, tipo, exercício
+--     e status não mudam pela API (42501), processo SEI sim;
 --   * fin_movimentos_bancarios, fin_remessas_bancarias, fin_extrato_lancamentos: o módulo financeiro lê, outro módulo
---     não; ninguém escreve pela API; funções de apoio fora da API; registrar_extrato_bb só da service role;
+--     não; ninguém escreve pela API; funções de apoio fora da API; registrar_extrato_bb só da service role; as três
+--     com trigger de auditoria (fn_audit_financeiro -> fin_audit_log); assinaturas antigas removidas;
 --   * importar_arquivo_bancario: sem pagamento.conciliar (ou com a permissão avulsa sem o módulo) = 42501; simulação
---     não grava; remessa casa com o pagamento pelo CPF/CNPJ do fornecedor + valor; reimportar = sem_alteracao; o
---     retorno pago atualiza o movimento e marca o pagamento como pago;
---   * registrar_remessa_bancaria: NSA mínimo, nova tentativa do mesmo usuário reaproveita o NSA, confirmação grava o
---     hash e marca o recusado como reenviado, próximo NSA = max + 1;
+--     não grava; remessa casa com o pagamento pelo CPF/CNPJ do fornecedor + valor + data a até 5 dias (fora da janela
+--     não casa, mesmo no mesmo exercício); remessa com situação pago = 22023; reimportar = sem_alteracao; o retorno
+--     pago atualiza o movimento e marca o pagamento como pago com a data_efetivacao da linha; retorno vazio (0 linhas)
+--     grava o log com totais zerados;
+--   * conciliar_movimento_bancario: troca direta de pagamento, pagamento com outro movimento pago e valor diferente
+--     sem justificativa recusados (22023); justificativa gravada; desvincular não reverte o status do pagamento;
+--   * corrigir_conta_movimento: só recusado, não fatura, não reservado/reenviado; justificativa obrigatória; banco 001
+--     exige validado_bb ou justificativa com 15+ caracteres;
+--   * registrar_remessa_bancaria: o servidor monta os créditos (conta corrigida ou a do movimento; seu número =
+--     identificador numérico ou nsa*1000+seq), calcula quantidade/valor e reserva os movimentos; recusa movimento
+--     não recusado, fatura, sem conta, já reenviado ou reservado por outro usuário; NSA mínimo só na primeira remessa;
+--     nova tentativa do mesmo usuário reaproveita o NSA; confirmar só pelo autor e falha se a reserva foi mexida;
+--     cancelar libera os movimentos (autor ou admin; confirmada não); obter devolve créditos e hash;
+--   * retorno do reenvio casa com o pagamento original (seu número gerado e reenvio pago em outro ano);
 --   * registrar_extrato_bb: idempotente pela chave e casa o débito com o pagamento.
 -- Como valor_como (persiste), mas devolve 'vazio' em vez de NULL: comparação com NULL não esconde falha.
 CREATE FUNCTION pg_temp.fin_valor_como(p_uid uuid, p_role text, p_sql text) RETURNS text
@@ -3674,60 +3686,96 @@ SET session_replication_role = replica;
 DO $$
 DECLARE
   u_conc uuid := 'f1000000-0000-0000-0000-000000000001'; u_aprov uuid := 'f1000000-0000-0000-0000-000000000002';
-  u_avulsa uuid := 'f1000000-0000-0000-0000-000000000003';
+  u_avulsa uuid := 'f1000000-0000-0000-0000-000000000003'; u_conc2 uuid := 'f1000000-0000-0000-0000-000000000004';
+  forn text := 'f2000000-0000-0000-0000-000000000001'; cb text := 'f2000000-0000-0000-0000-000000000002';
 BEGIN
   INSERT INTO auth.users (id, email) VALUES (u_conc, 'fin_conc@teste.invalid'), (u_aprov, 'fin_aprov@teste.invalid'),
-                                            (u_avulsa, 'fin_avulsa@teste.invalid');
+                                            (u_avulsa, 'fin_avulsa@teste.invalid'), (u_conc2, 'fin_conc2@teste.invalid');
   PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_conc, 'email', 'fin_conc@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
   PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_aprov, 'email', 'fin_aprov@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
   PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_avulsa, 'email', 'fin_avulsa@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
+  PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_conc2, 'email', 'fin_conc2@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
   PERFORM pg_temp.seed_row('user_modules', jsonb_build_object('user_id', u_conc, 'module', 'financeiro', 'permissions', '{pagamento.conciliar}'));
+  PERFORM pg_temp.seed_row('user_modules', jsonb_build_object('user_id', u_conc2, 'module', 'financeiro', 'permissions', '{pagamento.conciliar}'));
   PERFORM pg_temp.seed_row('user_modules', jsonb_build_object('user_id', u_aprov, 'module', 'financeiro', 'permissions', '{orcamento.aprovar}'));
   PERFORM pg_temp.seed_row('user_permissions', jsonb_build_object('user_id', u_avulsa, 'permission', 'pagamento.conciliar'));
-  PERFORM pg_temp.seed_row('fornecedores', jsonb_build_object('id', 'f2000000-0000-0000-0000-000000000001', 'tipo_pessoa', 'PJ',
+  PERFORM pg_temp.seed_row('fornecedores', jsonb_build_object('id', forn, 'tipo_pessoa', 'PJ',
     'cpf_cnpj', '12.345.678/0001-90', 'razao_social', 'Fornecedor Teste'));
-  PERFORM pg_temp.seed_row('fin_contas_bancarias', jsonb_build_object('id', 'f2000000-0000-0000-0000-000000000002',
+  PERFORM pg_temp.seed_row('fin_contas_bancarias', jsonb_build_object('id', cb,
     'banco_codigo', '001', 'banco_nome', 'Banco Teste', 'agencia', '1234', 'conta', '99999', 'nome_conta', 'Conta Teste'));
+  -- pag1 (1500, 05/10) casa pela remessa; pag2 (320,50, pago) casa com o extrato; pag3 (777, exercício 2025) é o
+  -- pagamento original do reenvio pago em 2026; pag4 (450, 01/09) testa a janela de 5 dias; pag5 (99, 01/01) tem
+  -- o mesmo valor/documento do OB124 no mesmo exercício, mas fora da janela (não pode casar sozinho).
   PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f2000000-0000-0000-0000-000000000003', 'numero', 'PG-TESTE-1',
-    'exercicio', 2026, 'data_pagamento', '2026-10-05', 'fornecedor_id', 'f2000000-0000-0000-0000-000000000001',
-    'conta_bancaria_id', 'f2000000-0000-0000-0000-000000000002', 'valor_bruto', 1500, 'valor_retencoes', 0,
-    'forma_pagamento', 'ob', 'status', 'autorizado'));
+    'exercicio', 2026, 'data_pagamento', '2026-10-05', 'fornecedor_id', forn, 'conta_bancaria_id', cb,
+    'valor_bruto', 1500, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'autorizado'));
   PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f2000000-0000-0000-0000-000000000004', 'numero', 'PG-TESTE-2',
-    'exercicio', 2026, 'data_pagamento', '2026-10-06', 'fornecedor_id', 'f2000000-0000-0000-0000-000000000001',
-    'conta_bancaria_id', 'f2000000-0000-0000-0000-000000000002', 'valor_bruto', 320.5, 'valor_retencoes', 0,
-    'forma_pagamento', 'ob', 'status', 'pago', 'data_efetivacao', '2026-10-06'));
+    'exercicio', 2026, 'data_pagamento', '2026-10-06', 'fornecedor_id', forn, 'conta_bancaria_id', cb,
+    'valor_bruto', 320.5, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'pago', 'data_efetivacao', '2026-10-06'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f2000000-0000-0000-0000-000000000007', 'numero', 'PG-TESTE-3',
+    'exercicio', 2025, 'data_pagamento', '2025-12-20', 'fornecedor_id', forn, 'conta_bancaria_id', cb,
+    'valor_bruto', 777, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'autorizado'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f2000000-0000-0000-0000-000000000008', 'numero', 'PG-TESTE-4',
+    'exercicio', 2026, 'data_pagamento', '2026-09-01', 'fornecedor_id', forn, 'conta_bancaria_id', cb,
+    'valor_bruto', 450, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'autorizado'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f2000000-0000-0000-0000-000000000009', 'numero', 'PG-TESTE-5',
+    'exercicio', 2026, 'data_pagamento', '2026-01-01', 'fornecedor_id', forn, 'conta_bancaria_id', cb,
+    'valor_bruto', 99, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'autorizado'));
   PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'f2000000-0000-0000-0000-000000000005',
-    'descricao', 'Conta pagadora teste', 'agencia', '1234', 'conta', '55555', 'convenio_pagamento', '000123'));
+    'descricao', 'Conta pagadora teste', 'agencia', '1234', 'agencia_digito', '3', 'conta', '55555', 'conta_digito', '7',
+    'convenio_pagamento', '000123'));
   PERFORM pg_temp.seed_row('fin_alteracoes_orcamentarias', jsonb_build_object('id', 'f2000000-0000-0000-0000-000000000006',
     'numero', 'ALT-TESTE', 'exercicio', 2026, 'valor', 10, 'justificativa', 'teste', 'status', 'aprovado'));
+  -- movimentos gravados direto: uma fatura recusada e um crédito recusado com conta (para conciliação e NSA)
+  -- (a fatura tem banco/agência/conta preenchidos de propósito: só a regra da fatura pode recusá-la no reenvio)
+  INSERT INTO public.fin_movimentos_bancarios (id, origem, sentido, tipo_lancamento, identificador, favorecido_documento,
+    banco, agencia, conta, valor, data_pagamento, codigo_barras, situacao, chave_unica)
+  VALUES ('f3000000-0000-0000-0000-000000000001', 'obn600', 'retorno', 'fatura', 'OB-FATURA', '12345678000190',
+    '001', '1234', '3333-3', 10, '2026-10-05', '83600000001', 'recusado', 'teste|fatura');
+  INSERT INTO public.fin_movimentos_bancarios (id, origem, sentido, tipo_lancamento, identificador, favorecido_nome,
+    favorecido_documento, banco, agencia, conta, valor, data_pagamento, situacao, chave_unica)
+  VALUES ('f3000000-0000-0000-0000-000000000002', 'cnab240', 'retorno', 'credito_bb', 'MOVX', 'Fornecedor Teste',
+    '12345678000190', '001', '1234', '2222-1', 1500, '2026-10-05', 'recusado', 'teste|movx');
 END $$;
 SET session_replication_role = origin;
 DO $$
 DECLARE
   u_conc uuid := 'f1000000-0000-0000-0000-000000000001'; u_aprov uuid := 'f1000000-0000-0000-0000-000000000002';
-  u_avulsa uuid := 'f1000000-0000-0000-0000-000000000003';
+  u_avulsa uuid := 'f1000000-0000-0000-0000-000000000003'; u_conc2 uuid := 'f1000000-0000-0000-0000-000000000004';
   u_fin uuid := (SELECT uid FROM persona WHERE nome='mod_financeiro');
   u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
   u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
   pag1 uuid := 'f2000000-0000-0000-0000-000000000003';
+  pag3 uuid := 'f2000000-0000-0000-0000-000000000007';
+  pag5 uuid := 'f2000000-0000-0000-0000-000000000009';
   conta uuid := 'f2000000-0000-0000-0000-000000000002';
+  cpag text := 'f2000000-0000-0000-0000-000000000005';
   alt uuid := 'f2000000-0000-0000-0000-000000000006';
+  mov_fat uuid := 'f3000000-0000-0000-0000-000000000001';
+  mov_x uuid := 'f3000000-0000-0000-0000-000000000002';
+  hoje text := current_date::text;
   arq text := '{"nome":"OBN600_TESTE.REM","sha256":"' || repeat('a', 64) || '","tamanho":700}';
   par_rem text := '{"origem":"obn600","sentido":"remessa","data_arquivo":"2026-10-05","sequencial_arquivo":"12"}';
   par_ret text := '{"origem":"obn600","sentido":"retorno","data_arquivo":"2026-10-06","sequencial_arquivo":"12"}';
+  par_cnab text := '{"origem":"cnab240","sentido":"retorno","data_arquivo":"2026-10-06","sequencial_arquivo":"5"}';
   lin_rem text := '[{"tipo_lancamento":"31","identificador":"2026OB000123","favorecido_nome":"Fornecedor Teste",'
                   '"favorecido_documento":"12345678000190","banco":"001","agencia":"1234","conta":"1111",'
                   '"valor":1500,"data_pagamento":"2026-10-05","situacao":"enviado"},'
                   '{"tipo_lancamento":"31","identificador":"2026OB000124","favorecido_documento":"12345678000190",'
                   '"valor":99,"data_pagamento":"2026-10-05","situacao":"enviado"}]';
   lin_ret text := '[{"tipo_lancamento":"31","identificador":"2026OB000123","favorecido_documento":"12345678000190",'
-                  '"valor":1500,"data_pagamento":"2026-10-05","situacao":"pago","codigo_retorno":"01","autenticacao":"AUT1"},'
+                  '"valor":1500,"data_pagamento":"2026-10-05","situacao":"pago","codigo_retorno":"01","autenticacao":"AUT1",'
+                  '"data_efetivacao":"2026-10-07"},'
                   '{"tipo_lancamento":"31","identificador":"2026OB000124","favorecido_documento":"12345678000190",'
                   '"valor":99,"data_pagamento":"2026-10-05","situacao":"recusado","codigo_retorno":"09","motivo_recusa":"conta inexistente"}]';
-  sql_imp text; r text; j jsonb; n int; t text; x record; mov_rec uuid; rem uuid;
+  sql_imp text; sql_cnab text; r text; j jsonb; n int; t text; x record; mov_rec uuid; mov_ano uuid; rem uuid;
+  mov_pago uuid; hash_ok text := repeat('b', 64);
 BEGIN
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM set_config('request.headers', '', true);
+  sql_cnab := 'SELECT public.importar_arquivo_bancario(%L::jsonb, '
+              || quote_literal('{"nome":"CNAB_TESTE.RET","sha256":"' || repeat('d', 64) || '","tamanho":480}')
+              || '::jsonb, %L::jsonb, %s)::text';
 
   -- ===== privilégios e leitura
   FOREACH t IN ARRAY ARRAY['fin_movimentos_bancarios', 'fin_remessas_bancarias', 'fin_extrato_lancamentos'] LOOP
@@ -3742,9 +3790,15 @@ BEGIN
     IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = ('public.' || t)::regclass) THEN
       PERFORM pg_temp.falha('FIN banco: RLS desligada em ' || t);
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger g WHERE g.tgrelid = ('public.' || t)::regclass AND NOT g.tgisinternal
+                      AND g.tgfoid = 'public.fn_audit_financeiro()'::regprocedure
+                      AND (g.tgtype & 28) = 28) THEN  -- INSERT(4) + DELETE(8) + UPDATE(16)
+      PERFORM pg_temp.falha('FIN banco: ' || t || ' sem trigger de auditoria fn_audit_financeiro (INSERT/UPDATE/DELETE)');
+    END IF;
   END LOOP;
   FOREACH t IN ARRAY ARRAY['fin_casar_movimento_pagamento(text,text,numeric,date)', 'fin_marcar_pagamento_pago(uuid,date)',
-                           'fin_alteracoes_proteger_situacao_fiplan()', 'registrar_extrato_bb(uuid,jsonb)'] LOOP
+                           'fin_alteracoes_proteger_situacao_fiplan()', 'registrar_extrato_bb(uuid,jsonb)',
+                           'fin_remessa_bancaria_json(uuid)'] LOOP
     IF has_function_privilege('authenticated', 'public.' || t, 'EXECUTE') OR has_function_privilege('anon', 'public.' || t, 'EXECUTE') THEN
       PERFORM pg_temp.falha('FIN banco: ' || t || ' executável pela API');
     END IF;
@@ -3752,14 +3806,22 @@ BEGIN
   IF NOT has_function_privilege('service_role', 'public.registrar_extrato_bb(uuid,jsonb)', 'EXECUTE') THEN
     PERFORM pg_temp.falha('FIN banco: service_role não executa registrar_extrato_bb');
   END IF;
-  FOREACH t IN ARRAY ARRAY['importar_arquivo_bancario(jsonb,jsonb,jsonb,boolean)', 'conciliar_movimento_bancario(uuid,uuid)',
-                           'registrar_remessa_bancaria(uuid,text,integer,numeric,uuid[],integer)', 'confirmar_remessa_bancaria(uuid,text)',
+  FOREACH t IN ARRAY ARRAY['importar_arquivo_bancario(jsonb,jsonb,jsonb,boolean)', 'conciliar_movimento_bancario(uuid,uuid,text)',
+                           'registrar_remessa_bancaria(uuid,text,uuid[],date,integer,text)', 'confirmar_remessa_bancaria(uuid,text)',
+                           'obter_remessa_bancaria(uuid)', 'cancelar_remessa_bancaria(uuid)',
+                           'corrigir_conta_movimento(uuid,text,text,text,text,text,text,boolean)',
                            'confirmar_alteracao_fiplan(uuid)', 'pode_conciliar_pagamentos()'] LOOP
+    IF to_regprocedure('public.' || t) IS NULL THEN PERFORM pg_temp.falha('FIN banco: função ' || t || ' não existe'); CONTINUE; END IF;
     IF has_function_privilege('anon', 'public.' || t, 'EXECUTE') THEN PERFORM pg_temp.falha('FIN banco: anon executa ' || t); END IF;
+    IF NOT has_function_privilege('authenticated', 'public.' || t, 'EXECUTE') THEN PERFORM pg_temp.falha('FIN banco: authenticated não executa ' || t); END IF;
     IF NOT (SELECT prosecdef AND coalesce(proconfig::text, '') ~ 'search_path' FROM pg_proc WHERE oid = to_regprocedure('public.' || t)) THEN
       PERFORM pg_temp.falha('FIN banco: ' || t || ' sem SECURITY DEFINER ou sem search_path fixo');
     END IF;
   END LOOP;
+  IF to_regprocedure('public.registrar_remessa_bancaria(uuid,text,integer,numeric,uuid[],integer)') IS NOT NULL
+     OR to_regprocedure('public.conciliar_movimento_bancario(uuid,uuid)') IS NOT NULL THEN
+    PERFORM pg_temp.falha('FIN banco: assinatura antiga de registrar_remessa_bancaria (quantidade/valor do cliente) ou de conciliar_movimento_bancario continua no banco');
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM public.module_permissions_catalog WHERE permission_code = 'pagamento.conciliar' AND module_code = 'financeiro') THEN
     PERFORM pg_temp.falha('FIN banco: pagamento.conciliar fora do catálogo do financeiro');
   END IF;
@@ -3769,6 +3831,8 @@ BEGIN
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN FIPLAN: UPDATE direto da situação passou (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.fin_alteracoes_orcamentarias SET processo_sei = %L WHERE id = %L', '00000.000000/2026-00', alt));
   IF r <> 'ok:1' THEN PERFORM pg_temp.falha('FIN FIPLAN: o módulo não edita processo_sei (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.fin_alteracoes_orcamentarias SET valor = 11 WHERE id = %L', alt));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('FIN FIPLAN: alteração pendente não aceita mudar o valor (' || r || ')'); END IF;
   r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', 'INSERT INTO public.fin_alteracoes_orcamentarias (numero, exercicio, tipo, valor, justificativa, situacao_fiplan, confirmado_fiplan_em) '
        || 'VALUES (''ALT-X'', 2026, (SELECT enum_range(NULL::public.tipo_alteracao_orcamentaria))[1], 1, ''x'', ''confirmada'', now()) RETURNING situacao_fiplan || coalesce(confirmado_fiplan_em::text, '''')');
   IF r <> 'pendente' THEN PERFORM pg_temp.falha('FIN FIPLAN: INSERT não nasceu pendente (' || r || ')'); END IF;
@@ -3779,6 +3843,17 @@ BEGIN
   IF (SELECT confirmado_fiplan_por FROM public.fin_alteracoes_orcamentarias WHERE id = alt) IS DISTINCT FROM u_aprov THEN
     PERFORM pg_temp.falha('FIN FIPLAN: autor da confirmação não gravado');
   END IF;
+  -- confirmada: campos do FIPLAN travados pela API (inclusive para o admin); processo SEI segue editável
+  FOREACH t IN ARRAY ARRAY['valor = 11', 'status = ''cancelado''', 'exercicio = 2027',
+                           'dotacao_origem_id = gen_random_uuid()', 'dotacao_destino_id = gen_random_uuid()',
+                           'tipo = (SELECT e FROM unnest(enum_range(NULL::public.tipo_alteracao_orcamentaria)) e WHERE e IS DISTINCT FROM tipo LIMIT 1)'] LOOP
+    FOR x IN SELECT * FROM (VALUES ('mod_financeiro', u_fin), ('admin', u_admin)) v(quem, uid) LOOP
+      r := pg_temp.sql_como(x.uid, 'authenticated', format('UPDATE public.fin_alteracoes_orcamentarias SET %s WHERE id = %L', t, alt));
+      IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha(format('FIN FIPLAN: %s mudou alteração confirmada (%s: %s)', x.quem, t, r)); END IF;
+    END LOOP;
+  END LOOP;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.fin_alteracoes_orcamentarias SET processo_sei = %L, observacoes = %L WHERE id = %L', '11111.000000/2026-00', 'obs', alt));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('FIN FIPLAN: processo SEI/observações de alteração confirmada não editáveis (' || r || ')'); END IF;
 
   -- ===== importar_arquivo_bancario: quem pode
   sql_imp := format('SELECT public.importar_arquivo_bancario(%L::jsonb, %L::jsonb, %L::jsonb, %s)::text', lin_rem, arq, par_rem, 'true');
@@ -3791,19 +3866,31 @@ BEGIN
     PERFORM pg_temp.falha('FIN banco: pode_conciliar_pagamentos não reflete pagamento.conciliar');
   END IF;
 
+  -- remessa com situação pago/recusado: recusada
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.importar_arquivo_bancario(%L::jsonb, %L::jsonb, %L::jsonb, true)::text',
+         replace(lin_rem, '"situacao":"enviado"},', '"situacao":"pago"},'), arq, par_rem));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN banco: remessa com situação pago aceita (' || left(r, 100) || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.importar_arquivo_bancario(%L::jsonb, %L::jsonb, %L::jsonb, true)::text',
+         replace(lin_ret, '"2026-10-07"', '"2026-13-07"'), arq, par_ret));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN banco: data_efetivacao inválida aceita (' || left(r, 100) || ')'); END IF;
+
   -- simulação não grava
   r := pg_temp.fin_valor_como(u_conc, 'authenticated', sql_imp);
   j := r::jsonb;
   IF (j->'totais'->>'inserir')::int <> 2 OR NOT (j->>'simulacao')::boolean THEN PERFORM pg_temp.falha('FIN banco: simulação errada (' || left(r, 120) || ')'); END IF;
-  IF EXISTS (SELECT 1 FROM public.fin_movimentos_bancarios) OR EXISTS (SELECT 1 FROM public.importacoes WHERE tipo = 'arquivo_bancario') THEN
+  IF EXISTS (SELECT 1 FROM public.fin_movimentos_bancarios WHERE chave_unica NOT LIKE 'teste|%') OR EXISTS (SELECT 1 FROM public.importacoes WHERE tipo = 'arquivo_bancario') THEN
     PERFORM pg_temp.falha('FIN banco: simulação gravou');
   END IF;
 
-  -- remessa aplicada: casa com o pagamento (documento + valor) e não marca pago
+  -- remessa aplicada: casa com o pagamento (documento + valor + data) e não marca pago; OB124 (99) tem o mesmo
+  -- valor e documento do pag5, no mesmo exercício, mas 277 dias depois: não casa
   r := pg_temp.fin_valor_como(u_conc, 'authenticated', replace(sql_imp, ', true)', ', false)'));
   IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN banco: remessa não aplicou (' || r || ')'); END IF;
   IF (SELECT pagamento_id FROM public.fin_movimentos_bancarios WHERE identificador = '2026OB000123') IS DISTINCT FROM pag1 THEN
     PERFORM pg_temp.falha('FIN banco: remessa não casou com o pagamento');
+  END IF;
+  IF (SELECT pagamento_id FROM public.fin_movimentos_bancarios WHERE identificador = '2026OB000124') IS NOT NULL THEN
+    PERFORM pg_temp.falha('FIN casamento: documento + valor casou fora da janela de 5 dias (OB124 com pag5)');
   END IF;
   IF (SELECT status::text FROM public.fin_pagamentos WHERE id = pag1) <> 'autorizado' THEN
     PERFORM pg_temp.falha('FIN banco: remessa (enviado) mudou o status do pagamento');
@@ -3813,51 +3900,234 @@ BEGIN
   END IF;
   r := pg_temp.fin_valor_como(u_conc, 'authenticated', replace(sql_imp, ', true)', ', false)'));
   IF (r::jsonb->'totais'->>'sem_alteracao')::int <> 2 THEN PERFORM pg_temp.falha('FIN banco: reimportar a remessa não deu sem_alteracao (' || left(r, 120) || ')'); END IF;
-  IF (SELECT count(*) FROM public.fin_movimentos_bancarios) <> 2 THEN PERFORM pg_temp.falha('FIN banco: reimportação duplicou movimentos'); END IF;
+  IF (SELECT count(*) FROM public.fin_movimentos_bancarios WHERE chave_unica NOT LIKE 'teste|%') <> 2 THEN PERFORM pg_temp.falha('FIN banco: reimportação duplicou movimentos'); END IF;
 
-  -- retorno: pago marca o pagamento; recusado guarda o motivo
+  -- janela de 5 dias (pag4: 450 em 01/09): 10/09 não casa, 04/09 casa (simulação)
+  t := '[{"tipo_lancamento":"credito_bb","identificador":"JANELA-1","favorecido_documento":"12345678000190","valor":450,"data_pagamento":"%s","situacao":"enviado"}]';
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(sql_cnab, format(t, '2026-09-10'), replace(par_cnab, 'retorno', 'remessa'), 'true'));
+  IF r LIKE 'erro:%' OR (r::jsonb->'linhas'->0) ? 'mudancas' THEN PERFORM pg_temp.falha('FIN casamento: casou a 9 dias da data do pagamento (' || left(r, 160) || ')'); END IF;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(sql_cnab, format(t, '2026-09-04'), replace(par_cnab, 'retorno', 'remessa'), 'true'));
+  IF r LIKE 'erro:%' OR (r::jsonb->'linhas'->0->'mudancas'->'pagamento_id'->>1) IS DISTINCT FROM 'f2000000-0000-0000-0000-000000000008' THEN
+    PERFORM pg_temp.falha('FIN casamento: não casou a 3 dias da data do pagamento (' || left(r, 160) || ')');
+  END IF;
+
+  -- retorno: pago marca o pagamento com a data de efetivação da linha; recusado guarda o motivo
   r := pg_temp.fin_valor_como(u_conc, 'authenticated',
          format('SELECT public.importar_arquivo_bancario(%L::jsonb, %L::jsonb, %L::jsonb, false)::text', lin_ret, replace(arq, 'REM', 'RET'), par_ret));
   IF r LIKE 'erro:%' OR (r::jsonb->'totais'->>'atualizar')::int <> 2 THEN PERFORM pg_temp.falha('FIN banco: retorno não atualizou (' || left(r, 120) || ')'); END IF;
-  IF (SELECT status::text || '|' || coalesce(data_efetivacao::text, '') FROM public.fin_pagamentos WHERE id = pag1) <> 'pago|2026-10-05' THEN
-    PERFORM pg_temp.falha('FIN banco: retorno pago não marcou o pagamento');
+  IF (SELECT status::text || '|' || coalesce(data_efetivacao::text, '') FROM public.fin_pagamentos WHERE id = pag1) <> 'pago|2026-10-07' THEN
+    PERFORM pg_temp.falha('FIN banco: retorno pago não marcou o pagamento com a data_efetivacao da linha ('
+      || (SELECT status::text || '|' || coalesce(data_efetivacao::text, '') FROM public.fin_pagamentos WHERE id = pag1) || ')');
+  END IF;
+  SELECT id INTO mov_pago FROM public.fin_movimentos_bancarios WHERE identificador = '2026OB000123';
+  IF (SELECT data_efetivacao FROM public.fin_movimentos_bancarios WHERE id = mov_pago) IS DISTINCT FROM '2026-10-07'::date THEN
+    PERFORM pg_temp.falha('FIN banco: data_efetivacao não gravada no movimento');
   END IF;
   SELECT id INTO mov_rec FROM public.fin_movimentos_bancarios WHERE identificador = '2026OB000124' AND situacao = 'recusado' AND motivo_recusa = 'conta inexistente';
   IF mov_rec IS NULL THEN PERFORM pg_temp.falha('FIN banco: recusado sem motivo/situação'); END IF;
 
+  -- retorno vazio: válido, grava o log com totais zerados
+  n := (SELECT count(*) FROM public.importacoes WHERE tipo = 'arquivo_bancario');
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(sql_cnab, '[]', par_cnab, 'false'));
+  IF r LIKE 'erro:%' OR r::jsonb->'totais' <> '{"inserir":0,"atualizar":0,"sem_alteracao":0}'::jsonb
+     OR (SELECT count(*) FROM public.importacoes WHERE tipo = 'arquivo_bancario') <> n + 1 THEN
+    PERFORM pg_temp.falha('FIN banco: retorno vazio recusado ou sem log (' || left(r, 120) || ')');
+  END IF;
+
+  -- recusado de 2025 (pag3: 777 em 20/12/2025), com conta própria "1234-5"/"1111-X": casa na janela
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(sql_cnab,
+         '[{"tipo_lancamento":"credito_bb","identificador":"7770001","favorecido_nome":"Fornecedor Teste","favorecido_documento":"12345678000190",'
+         '"banco":"001","agencia":"1234-5","conta":"1111-X","valor":777,"data_pagamento":"2025-12-20","situacao":"recusado","codigo_retorno":"AG"}]',
+         par_cnab, 'false'));
+  SELECT id INTO mov_ano FROM public.fin_movimentos_bancarios WHERE identificador = '7770001';
+  IF r LIKE 'erro:%' OR mov_ano IS NULL OR (SELECT pagamento_id FROM public.fin_movimentos_bancarios WHERE id = mov_ano) IS DISTINCT FROM pag3 THEN
+    PERFORM pg_temp.falha('FIN casamento: recusado de 2025 não casou com o pagamento de 2025 (' || left(r, 120) || ')');
+  END IF;
+
   -- leitura: o módulo lê, outro módulo não
-  IF pg_temp.sel(u_fin, 'authenticated', 'fin_movimentos_bancarios') <> 2 THEN PERFORM pg_temp.falha('FIN banco: módulo financeiro não lê os movimentos'); END IF;
+  IF pg_temp.sel(u_fin, 'authenticated', 'fin_movimentos_bancarios') <> (SELECT count(*) FROM public.fin_movimentos_bancarios) THEN
+    PERFORM pg_temp.falha('FIN banco: módulo financeiro não lê os movimentos');
+  END IF;
   IF pg_temp.sel(u_rh, 'authenticated', 'fin_movimentos_bancarios') <> 0 THEN PERFORM pg_temp.falha('FIN banco: módulo rh lê os movimentos'); END IF;
   r := pg_temp.sql_como(u_admin, 'authenticated', 'UPDATE public.fin_movimentos_bancarios SET situacao = ''pago''');
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN banco: admin altera movimento pela API (' || r || ')'); END IF;
 
-  -- conciliação manual
-  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, %L)::text', mov_rec, pag1));
+  -- ===== conciliação manual
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, %L)::text', mov_rec, pag5));
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN banco: módulo sem pagamento.conciliar concilia (' || r || ')'); END IF;
-  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, %L)->>''valor_confere''', mov_rec, pag1));
-  IF r <> 'false' THEN PERFORM pg_temp.falha('FIN banco: conciliação manual falhou (' || r || ')'); END IF;
+  -- valor diferente (1500 x 99, pag5 sem movimento) sem justificativa: recusado; com justificativa: aceito e gravado
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, %L)::text', mov_x, pag5));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN conciliação: valor diferente sem justificativa aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, %L, %L)::text', mov_x, pag5, '   '));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN conciliação: justificativa em branco aceita (' || r || ')'); END IF;
+  -- pag1 já tem movimento pago (OB123): outro movimento não entra, mesmo com valor igual
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, %L)::text', mov_x, pag1));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN conciliação: pagamento com outro movimento pago recebeu mais um (' || r || ')'); END IF;
+  -- movimento já vinculado (OB123 -> pag1) não troca direto de pagamento
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, %L, %L)::text', mov_pago, pag5, 'troca direta de teste'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN conciliação: movimento vinculado trocou de pagamento sem desvincular (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, %L)->>''valor_confere''', mov_pago, pag1));
+  IF r <> 'true' THEN PERFORM pg_temp.falha('FIN conciliação: vincular de novo ao mesmo pagamento não é idempotente (' || r || ')'); END IF;
+  -- movimento x (1500, recusado) em pag3 (777) com justificativa: grava a justificativa e o autor; depois desvincula
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, %L, %L)->>''valor_confere''', mov_x, pag5, 'diferença conferida no processo'));
+  IF r <> 'false' OR (SELECT conciliacao_justificativa || '|' || conciliado_por::text FROM public.fin_movimentos_bancarios WHERE id = mov_x)
+                     IS DISTINCT FROM 'diferença conferida no processo|' || u_conc::text THEN
+    PERFORM pg_temp.falha('FIN conciliação: justificativa/autor não gravados (' || r || ')');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.fin_audit_log a WHERE a.tabela_origem = 'fin_movimentos_bancarios' AND a.registro_id = mov_x
+                    AND a.acao = 'UPDATE' AND a.usuario_id = u_conc AND 'pagamento_id' = ANY (a.campos_alterados)) THEN
+    PERFORM pg_temp.falha('FIN conciliação: vínculo manual fora da trilha fin_audit_log');
+  END IF;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, NULL)->>''pagamento_id''', mov_x));
+  IF r <> 'vazio' OR (SELECT pagamento_id FROM public.fin_movimentos_bancarios WHERE id = mov_x) IS NOT NULL THEN
+    PERFORM pg_temp.falha('FIN conciliação: desvincular falhou (' || r || ')');
+  END IF;
+  -- desvincular o movimento pago não reverte o status do pagamento
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated',
+         format('SELECT (public.conciliar_movimento_bancario(%L, NULL)->>''status_revertido'') || ''|'' || (SELECT status::text FROM public.fin_pagamentos WHERE id = %L)', mov_pago, pag1));
+  IF r <> 'false|pago' THEN PERFORM pg_temp.falha('FIN conciliação: desvincular reverteu o status do pagamento (' || r || ')'); END IF;
+  -- OB124 (recusado, 99) vinculado à mão ao pag5 (99): é o pagamento original do reenvio
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.conciliar_movimento_bancario(%L, %L)->>''valor_confere''', mov_rec, pag5));
+  IF r <> 'true' THEN PERFORM pg_temp.falha('FIN conciliação: vínculo manual de valor igual falhou (' || r || ')'); END IF;
 
-  -- ===== remessa de reenvio (NSA)
-  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated',
-         format('SELECT public.registrar_remessa_bancaria(%L, ''gestao_max_cnab240'', 1, 99, ARRAY[%L]::uuid[], 7)::text', 'f2000000-0000-0000-0000-000000000005', mov_rec));
+  -- ===== correção de conta
+  t := 'SELECT public.corrigir_conta_movimento(%L, %L, %L, %L, %L, %L, %L, %s)::text';
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', format(t, mov_rec, '237', '1234', '', '9999', '1', 'conta informada pelo credor', 'false'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN correção: módulo sem pagamento.conciliar corrige conta (' || r || ')'); END IF;
+  FOR x IN SELECT * FROM (VALUES
+      ('movimento pago', mov_pago::text, '237', 'conta informada pelo credor', 'false'),
+      ('fatura', mov_fat::text, '237', 'conta informada pelo credor', 'false'),
+      ('justificativa vazia', mov_rec::text, '237', '  ', 'false'),
+      ('BB sem validação e justificativa curta', mov_rec::text, '001', 'credor ligou', 'false'),
+      ('banco inválido', mov_rec::text, '1', 'conta informada pelo credor', 'false')) v(caso, mov, banco, just, val) LOOP
+    r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(t, x.mov, x.banco, '1234', '', '9999', '1', x.just, x.val));
+    IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha(format('FIN correção: %s aceito (%s)', x.caso, r)); END IF;
+  END LOOP;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(t, mov_rec, '001', '1234', '', '9999', '1', 'credor ligou', 'true'));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN correção: BB validado com justificativa curta recusado (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(t, mov_rec, '001', '1234', '', '9999', '1', 'credor confirmou por ofício', 'false'));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN correção: BB com justificativa de 15+ caracteres recusado (' || r || ')'); END IF;
+
+  -- ===== remessa de reenvio: quem pode e o que entra
+  t := 'SELECT public.registrar_remessa_bancaria(%L, ''gestao_max_cnab240'', %L::uuid[], %L::date, %s)::text';
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', format(t, cpag, ARRAY[mov_ano], hoje, 'NULL'));
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN remessa: módulo sem pagamento.conciliar reserva NSA (' || r || ')'); END IF;
-  r := pg_temp.fin_valor_como(u_conc, 'authenticated',
-         format('SELECT public.registrar_remessa_bancaria(%L, ''gestao_max_cnab240'', 1, 99, ARRAY[%L]::uuid[], 7)::text', 'f2000000-0000-0000-0000-000000000005', mov_rec));
-  IF r LIKE 'erro:%' OR (r::jsonb->>'nsa')::int <> 7 OR r::jsonb->>'convenio' <> '000123' THEN PERFORM pg_temp.falha('FIN remessa: NSA mínimo/convênio (' || r || ')'); END IF;
-  r := pg_temp.fin_valor_como(u_conc, 'authenticated',
-         format('SELECT public.registrar_remessa_bancaria(%L, ''gestao_max_cnab240'', 1, 99, ARRAY[%L]::uuid[])::text', 'f2000000-0000-0000-0000-000000000005', mov_rec));
-  IF r LIKE 'erro:%' OR (r::jsonb->>'nsa')::int <> 7 OR NOT (r::jsonb->>'reaproveitada')::boolean THEN PERFORM pg_temp.falha('FIN remessa: nova tentativa não reaproveitou o NSA (' || r || ')'); END IF;
+  FOR x IN SELECT * FROM (VALUES
+      ('movimento sem banco/agência/conta (OB124 antes da correção)', ARRAY[mov_rec]::text, hoje),
+      ('fatura', ARRAY[mov_fat]::text, hoje),
+      ('movimento pago', ARRAY[mov_pago]::text, hoje),
+      ('lista vazia', '{}', hoje),
+      ('movimento repetido', ARRAY[mov_ano, mov_ano]::text, hoje),
+      ('data do pagamento no passado', ARRAY[mov_ano]::text, (current_date - 10)::text)) v(caso, movs, dt) LOOP
+    r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(t, cpag, x.movs, x.dt, 'NULL'));
+    IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha(format('FIN remessa: %s aceito (%s)', x.caso, left(r, 100))); END IF;
+  END LOOP;
+
+  -- corrige a conta do OB124 e reserva [OB124, 7770001] com NSA mínimo 7 (primeira remessa da conta)
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.corrigir_conta_movimento(%L, %L, %L, %L, %L, %L, %L)->>''movimento_id''',
+         mov_rec, '237', '0456', '', '78901', 'x', 'conta informada pelo credor'));
+  IF r <> mov_rec::text OR (SELECT conta_corrigida->>'conta_dv' || '|' || corrigido_por::text FROM public.fin_movimentos_bancarios WHERE id = mov_rec)
+                           IS DISTINCT FROM 'X|' || u_conc::text THEN
+    PERFORM pg_temp.falha('FIN correção: conta corrigida/autor não gravados (' || r || ')');
+  END IF;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(t, cpag, ARRAY[mov_rec, mov_ano], hoje, '7'));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN remessa: reserva falhou (' || r || ')'); r := '{}'; END IF;
+  j := r::jsonb; rem := (j->>'id')::uuid;
+  IF (j->>'nsa')::int IS DISTINCT FROM 7 OR j->>'convenio' IS DISTINCT FROM '000123' OR j->>'conta_digito' IS DISTINCT FROM '7'
+     OR j->>'data_pagamento' IS DISTINCT FROM hoje OR j->>'tipo_servico' IS DISTINCT FROM '98' OR jsonb_array_length(j->'creditos') <> 2 OR j ? 'arquivo_sha256' THEN
+    PERFORM pg_temp.falha('FIN remessa: retorno da reserva fora do formato (' || left(r, 200) || ')');
+  END IF;
+  IF j->'creditos'->0 @> jsonb_build_object('movimento_id', mov_rec, 'pagamento_id', pag5, 'banco', '237', 'agencia', '0456', 'agencia_dv', '',
+                                             'conta', '78901', 'conta_dv', 'X', 'valor', 99, 'seu_numero', '7001', 'documento', '12345678000190') IS NOT TRUE
+     OR j->'creditos'->1 @> jsonb_build_object('movimento_id', mov_ano, 'pagamento_id', pag3, 'banco', '001', 'agencia', '1234', 'agencia_dv', '5',
+                                             'conta', '1111', 'conta_dv', 'X', 'valor', 777, 'seu_numero', '7770001') IS NOT TRUE THEN
+    PERFORM pg_temp.falha('FIN remessa: créditos não montados pelo servidor como esperado (' || left(j->>'creditos', 300) || ')');
+  END IF;
+  IF (SELECT quantidade || '|' || valor_total FROM public.fin_remessas_bancarias WHERE id = rem) IS DISTINCT FROM '2|876.00'
+     OR (SELECT count(*) FROM public.fin_movimentos_bancarios WHERE remessa_id = rem AND reenviado_em IS NULL) <> 2 THEN
+    PERFORM pg_temp.falha('FIN remessa: quantidade/valor não calculados no servidor ou movimentos não reservados');
+  END IF;
+  -- outro usuário: não reserva os mesmos movimentos, não confirma nem cancela a reserva alheia
+  r := pg_temp.valor_desfeito_como(u_conc2, 'authenticated', format(t, cpag, ARRAY[mov_ano], hoje, 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN remessa: movimento reservado por outro usuário entrou noutra remessa (' || left(r, 100) || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc2, 'authenticated', format('SELECT public.confirmar_remessa_bancaria(%L, %L)::text', rem, hash_ok));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN remessa: outro usuário confirmou a reserva (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc2, 'authenticated', format('SELECT public.cancelar_remessa_bancaria(%L)::text', rem));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN remessa: outro usuário cancelou a reserva (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('SELECT public.cancelar_remessa_bancaria(%L)->>''movimentos_liberados''', rem));
+  IF r <> '2' THEN PERFORM pg_temp.falha('FIN remessa: admin não cancela reserva parada de outro usuário (' || r || ')'); END IF;
+  -- reservado: a conta não muda
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.corrigir_conta_movimento(%L, %L, %L, %L, %L, %L, %L)::text',
+         mov_ano, '237', '1', '', '2', '', 'conta informada pelo credor'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN correção: conta de movimento reservado mudou (' || r || ')'); END IF;
+  -- nova tentativa do mesmo usuário: mesmo NSA, libera o que saiu da lista
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(t, cpag, ARRAY[mov_rec], hoje, 'NULL'));
+  IF r LIKE 'erro:%' OR (r::jsonb->>'id')::uuid IS DISTINCT FROM rem OR (r::jsonb->>'nsa')::int <> 7
+     OR (SELECT remessa_id FROM public.fin_movimentos_bancarios WHERE id = mov_ano) IS NOT NULL THEN
+    PERFORM pg_temp.falha('FIN remessa: nova tentativa não reaproveitou a reserva ou não liberou o movimento retirado (' || left(r, 120) || ')');
+  END IF;
+  -- cancelar libera e apaga; a próxima (ainda a primeira da conta) volta a usar o NSA mínimo
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.cancelar_remessa_bancaria(%L)->>''movimentos_liberados''', rem));
+  IF r <> '1' OR EXISTS (SELECT 1 FROM public.fin_remessas_bancarias WHERE id = rem)
+     OR EXISTS (SELECT 1 FROM public.fin_movimentos_bancarios WHERE remessa_id = rem) THEN
+    PERFORM pg_temp.falha('FIN remessa: cancelar não apagou a reserva ou não liberou os movimentos (' || r || ')');
+  END IF;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(t, cpag, ARRAY[mov_rec, mov_ano], hoje, '7'));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN remessa: reserva depois do cancelamento falhou (' || left(r, 120) || ')'); r := '{}'; END IF;
   rem := (r::jsonb->>'id')::uuid;
-  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.confirmar_remessa_bancaria(%L, %L)->>''movimentos_marcados''', rem, repeat('b', 64)));
-  IF r <> '1' THEN PERFORM pg_temp.falha('FIN remessa: confirmação não marcou o reenviado (' || r || ')'); END IF;
+  IF (r::jsonb->>'nsa')::int IS DISTINCT FROM 7 THEN PERFORM pg_temp.falha('FIN remessa: reserva depois do cancelamento (' || left(r, 120) || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc2, 'authenticated', format('SELECT public.obter_remessa_bancaria(%L)::text', rem));
+  IF r LIKE 'erro:%' OR NOT (r::jsonb ? 'arquivo_sha256') OR jsonb_array_length(r::jsonb->'creditos') <> 2 THEN
+    PERFORM pg_temp.falha('FIN remessa: obter_remessa_bancaria sem créditos/hash (' || left(r, 120) || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(replace(t, '%s)::text', '%s, ''x'')::text'), cpag, ARRAY[mov_x], hoje, 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN remessa: tipo de serviço inválido aceito (' || left(r, 100) || ')'); END IF;
+  -- nova tentativa com tipo de serviço 30 (salários): gravado e devolvido por obter_remessa_bancaria
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(replace(t, '%s)::text', '%s, ''30'')->>''id'''), cpag, ARRAY[mov_rec, mov_ano], hoje, 'NULL'));
+  r := r || '|' || pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.obter_remessa_bancaria(%L)->>''tipo_servico''', rem));
+  IF r IS DISTINCT FROM rem::text || '|30' THEN PERFORM pg_temp.falha('FIN remessa: tipo_servico 30 não gravado/devolvido por obter_remessa_bancaria (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', format('SELECT public.obter_remessa_bancaria(%L)::text', rem));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN remessa: módulo sem pagamento.conciliar obtém a remessa (' || left(r, 80) || ')'); END IF;
+  -- confirmação falha se a reserva foi mexida
+  UPDATE public.fin_movimentos_bancarios SET remessa_id = NULL WHERE id = mov_ano;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.confirmar_remessa_bancaria(%L, %L)::text', rem, hash_ok));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN remessa: confirmou com movimento fora da reserva (' || r || ')'); END IF;
+  UPDATE public.fin_movimentos_bancarios SET remessa_id = rem WHERE id = mov_ano;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.confirmar_remessa_bancaria(%L, %L)->>''movimentos_marcados''', rem, hash_ok));
+  IF r <> '2' THEN PERFORM pg_temp.falha('FIN remessa: confirmação não marcou os reenviados (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.confirmar_remessa_bancaria(%L, %L)->>''ja_confirmada''', rem, hash_ok));
+  IF r <> 'true' THEN PERFORM pg_temp.falha('FIN remessa: reconfirmar com o mesmo hash não é idempotente (' || r || ')'); END IF;
   r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.confirmar_remessa_bancaria(%L, %L)::text', rem, repeat('c', 64)));
   IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN remessa: reconfirmar com outro hash passou (' || r || ')'); END IF;
-  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated',
-         format('SELECT public.registrar_remessa_bancaria(%L, ''gestao_max_cnab240'', 1, 99, ARRAY[%L]::uuid[])::text', 'f2000000-0000-0000-0000-000000000005', mov_rec));
-  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN remessa: movimento já reenviado aceito de novo (' || r || ')'); END IF;
-  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated',
-         format('SELECT public.registrar_remessa_bancaria(%L, ''gestao_max_cnab240'', 1, 10, ''{}''::uuid[])->>''nsa''', 'f2000000-0000-0000-0000-000000000005'));
-  IF r <> '8' THEN PERFORM pg_temp.falha('FIN remessa: próximo NSA não é max + 1 (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.cancelar_remessa_bancaria(%L)::text', rem));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN remessa: remessa confirmada cancelada (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(t, cpag, ARRAY[mov_rec], hoje, 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN remessa: movimento já reenviado aceito de novo (' || left(r, 100) || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.obter_remessa_bancaria(%L)->>''arquivo_sha256''', rem));
+  IF r IS DISTINCT FROM hash_ok THEN PERFORM pg_temp.falha('FIN remessa: obter_remessa_bancaria sem o hash confirmado (' || r || ')'); END IF;
+  -- depois da primeira remessa, o NSA mínimo é ignorado: max + 1
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(replace(t, ')::text', ')->>''nsa'''), cpag, ARRAY[mov_x], hoje, '50'));
+  IF r <> '8' THEN PERFORM pg_temp.falha('FIN remessa: próximo NSA não é max + 1 com NSA mínimo ignorado (' || r || ')'); END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.fin_audit_log a WHERE a.tabela_origem = 'fin_remessas_bancarias' AND a.acao = 'DELETE') THEN
+    PERFORM pg_temp.falha('FIN remessa: cancelamento fora da trilha fin_audit_log');
+  END IF;
+
+  -- ===== retorno do reenvio: casa com o pagamento original (seu número gerado 7001; 7770001 de 2025 pago em 2026)
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(sql_cnab,
+         '[{"tipo_lancamento":"credito_outro_banco","identificador":"7001","favorecido_documento":"12345678000190","valor":99,'
+         '"data_pagamento":"' || hoje || '","situacao":"pago","codigo_retorno":"00"},'
+         '{"tipo_lancamento":"credito_bb","identificador":"7770001","favorecido_documento":"12345678000190","valor":777,'
+         '"data_pagamento":"' || hoje || '","data_efetivacao":"' || hoje || '","situacao":"pago","codigo_retorno":"00"}]',
+         par_cnab, 'false'));
+  IF r LIKE 'erro:%' OR (r::jsonb->'totais'->>'inserir')::int <> 2 THEN PERFORM pg_temp.falha('FIN reenvio: retorno não importou (' || left(r, 120) || ')'); END IF;
+  IF (SELECT status::text FROM public.fin_pagamentos WHERE id = pag5) <> 'pago'
+     OR (SELECT pagamento_id FROM public.fin_movimentos_bancarios WHERE identificador = '7001') IS DISTINCT FROM pag5 THEN
+    PERFORM pg_temp.falha('FIN reenvio: retorno com seu número gerado (nsa*1000+seq) não casou com o pagamento original');
+  END IF;
+  IF (SELECT status::text || '|' || data_efetivacao FROM public.fin_pagamentos WHERE id = pag3) IS DISTINCT FROM 'pago|' || hoje
+     OR (SELECT count(*) FROM public.fin_movimentos_bancarios WHERE identificador = '7770001' AND pagamento_id = pag3) <> 2 THEN
+    PERFORM pg_temp.falha('FIN reenvio: reenvio pago em outro ano não casou com o pagamento original (2025)');
+  END IF;
 
   -- ===== extrato do BB (service role)
   r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('SELECT public.registrar_extrato_bb(%L, ''[]''::jsonb)::text', conta));
@@ -3873,7 +4143,7 @@ BEGIN
     PERFORM pg_temp.falha('FIN extrato: leitura fora do módulo financeiro');
   END IF;
 
-  PERFORM pg_temp.nota('FIN (FIPLAN e banco): confirmação no FIPLAN, importação de remessa/retorno, conciliação, NSA do reenvio e extrato do BB verificados');
+  PERFORM pg_temp.nota('FIN (FIPLAN e banco): FIPLAN (confirmação e trava), importação (remessa/retorno/vazio/data de efetivação), janela de 5 dias, conciliação manual, correção de conta, reserva/confirmação/cancelamento do reenvio, retorno do reenvio e extrato do BB verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

@@ -668,43 +668,87 @@ Todas idempotentes.
   `confirmado_fiplan_por`. `confirmar_alteracao_fiplan(p_id uuid) → jsonb` (`id`, `situacao_fiplan`,
   `confirmado_fiplan_em`, `confirmado_fiplan_por`, `ja_confirmada`) exige o módulo financeiro e `orcamento.aprovar`
   (o catálogo não tem permissão própria de alteração) e recusa alteração `cancelado`/`rejeitado`. O trigger
-  `trg_fin_alteracoes_proteger_situacao_fiplan` impede `anon`/`authenticated` de mudar a situação direto (`42501`)
-  e força `pendente` no INSERT: a RLS da tabela (classe `modulo`) deixa o módulo editar a linha.
+  `trg_fin_alteracoes_proteger_situacao_fiplan` impede `anon`/`authenticated` de mudar a situação direto (`42501`),
+  força `pendente` no INSERT e, depois de confirmada, recusa (`42501`) UPDATE de `valor`, `dotacao_origem_id`,
+  `dotacao_destino_id`, `tipo`, `exercicio` e `status` (processo SEI e observações seguem editáveis). A policy de
+  DELETE da tabela (classe `modulo`) não mudou: apagar uma alteração confirmada ainda é possível pelo módulo.
 - **Movimentos bancários** (`20261011100100`): `fin_movimentos_bancarios`, um registro por pagamento visto num
   arquivo do banco (OBN600 do FIPLAN, CNAB240 da SEGAD/Gestão MAX), com `chave_unica` =
   `origem|identificador|valor|data_pagamento|tipo_lancamento`, `importacao_id` (quem criou),
-  `importacao_retorno_id` (último retorno), `pagamento_id`, `conciliado_em`/`conciliado_por`.
+  `importacao_retorno_id` (último retorno), `data_efetivacao` (data real do débito, do retorno), `pagamento_id`,
+  `conciliado_em`/`conciliado_por` e `conciliacao_justificativa`.
   `importar_arquivo_bancario(p_linhas jsonb, p_arquivo jsonb, p_parametros jsonb, p_simular boolean DEFAULT true) →
   jsonb` segue o `ResultadoBanco` dos importadores (`src/lib/importacao/types.ts`; `criados` lista os pagamentos
-  vinculados e os marcados como pagos) e registra em `importacoes` (`tipo = 'arquivo_bancario'`). Reimportar o mesmo
-  arquivo dá `sem_alteracao`; o retorno atualiza situação, código, motivo e autenticação do registro com a mesma
-  chave (nunca rebaixa `pago` para `enviado`); o casamento com `fin_pagamentos` é pelo `identificador_transacao` ou
-  por exercício + `valor_liquido` + CPF/CNPJ do fornecedor (`fornecedores.cpf_cnpj`), só com candidato único;
-  movimento `pago` vinculado marca o pagamento `pago` com `data_efetivacao` (não mexe em pago, estornado, cancelado
-  ou devolvido). O UPDATE de status não dispara a atualização de empenho/dotação (o trigger só age no INSERT): o
-  valor pago vem do QDD do FIPLAN. `conciliar_movimento_bancario(p_movimento_id uuid, p_pagamento_id uuid) → jsonb`
-  vincula à mão (`NULL` desfaz) e `pode_conciliar_pagamentos() → boolean` serve à tela e à Edge Function `bb-api`.
-  Permissão nova **`pagamento.conciliar`** (catálogo do financeiro; papéis `admin` e `manager`).
-- **Reenvio Gestão MAX** (`20261011100200`): `fin_remessas_bancarias` (`UNIQUE (conta_autarquia_id, layout, nsa)`,
-  `arquivo_sha256` nulo = reserva não confirmada) e, em `fin_movimentos_bancarios`, `remessa_id` e `reenviado_em`.
-  `registrar_remessa_bancaria(p_conta_autarquia_id uuid, p_layout text, p_quantidade int, p_valor_total numeric,
-  p_movimentos uuid[], p_nsa_minimo int DEFAULT NULL) → jsonb` (`id`, `nsa`, `convenio`, `agencia`,
-  `agencia_digito`, `conta`, `conta_digito`, `reaproveitada`) trava por conta/layout (advisory lock) e devolve
-  `max(nsa) + 1` ou `p_nsa_minimo`, se maior; o convênio vem de `contas_autarquia.convenio_pagamento`. Só aceita
-  movimentos `recusado` ainda não reenviados; nova chamada do mesmo usuário com a última reserva não confirmada
-  reaproveita o NSA (de outro usuário, o número fica pulado). `confirmar_remessa_bancaria(p_id uuid, p_sha256 text)
-  → jsonb` grava o hash (idempotente; outro hash é recusado) e marca os movimentos como reenviados.
+  vinculados e os marcados como pagos) e registra em `importacoes` (`tipo = 'arquivo_bancario'`). Aceita de 0 a 20000
+  linhas (retorno vazio grava o log com totais zerados); remessa só tem situação `enviado` (`pago`/`recusado` só no
+  retorno, senão `22023`); cada linha pode trazer `data_efetivacao` (`YYYY-MM-DD`, fora da chave). Reimportar o mesmo
+  arquivo dá `sem_alteracao`; o retorno atualiza situação, código, motivo, autenticação e data de efetivação do
+  registro com a mesma chave (nunca rebaixa `pago` para `enviado`). Casamento com `fin_pagamentos`
+  (`fin_casar_movimento_pagamento`, versão final na `20261011100200`), só com candidato único: (1) retorno de reenvio
+  — crédito de remessa de reenvio confirmada cujo seu número é o identificador (mesmo valor e CPF/CNPJ), ou movimento
+  reenviado com o mesmo identificador e valor, já vinculado: usa o pagamento do movimento original (vale para reenvio
+  pago em outro ano); (2) `identificador_transacao`; (3) `valor_liquido` + CPF/CNPJ do fornecedor
+  (`fornecedores.cpf_cnpj`) + `data_pagamento` a no máximo **5 dias** da data do movimento (sem data, não casa por esse
+  caminho). Movimento `pago` vinculado marca o pagamento `pago` com `data_efetivacao` = a da linha (ou
+  `data_pagamento`); não mexe em pago, estornado, cancelado ou devolvido. O UPDATE de status não dispara a
+  atualização de empenho/dotação (o trigger só age no INSERT): o valor pago vem do QDD do FIPLAN.
+  `conciliar_movimento_bancario(p_movimento_id uuid, p_pagamento_id uuid, p_justificativa text DEFAULT NULL) → jsonb`
+  (`movimento_id`, `pagamento_id`, `pagamento_numero`, `pagamento_marcado_pago`, `valor_confere`) vincula à mão:
+  recusa movimento já vinculado a **outro** pagamento (desvincule antes com `NULL`; o mesmo pagamento é idempotente),
+  recusa pagamento que já tem outro movimento `pago` vinculado e, se o valor não confere com o líquido, exige
+  `p_justificativa` (gravada em `conciliacao_justificativa`). `p_pagamento_id NULL` desvincula (devolve
+  `desvinculado_de` e `status_revertido: false`): **não** reverte o status do pagamento, que continua pago se o
+  movimento o marcou (o estorno é no próprio pagamento). `pode_conciliar_pagamentos() → boolean` serve à tela e à
+  Edge Function `bb-api`. Permissão nova **`pagamento.conciliar`** (catálogo do financeiro; papéis `admin` e
+  `manager`).
+- **Reenvio Gestão MAX** (`20261011100200`): `fin_remessas_bancarias` (`UNIQUE (conta_autarquia_id, layout, nsa)`;
+  cópia de `convenio`, `agencia`, `agencia_digito`, `conta`, `conta_digito` da conta pagadora; `data_pagamento`;
+  `tipo_servico` `98`|`30`; `quantidade` 1–999 e `valor_total` calculados; `creditos jsonb` com o retrato do arquivo;
+  `arquivo_sha256` nulo = reserva não confirmada). Em `fin_movimentos_bancarios`: `remessa_id` (preenchido já na
+  reserva), `reenviado_em` (na confirmação), `conta_corrigida jsonb` (`{banco, agencia, agencia_dv, conta, conta_dv,
+  validado_bb, justificativa}`), `corrigido_por`, `corrigido_em`.
+  - `corrigir_conta_movimento(p_movimento_id uuid, p_banco text, p_agencia text, p_agencia_dv text, p_conta text,
+    p_conta_dv text, p_justificativa text, p_validado_bb boolean DEFAULT false) → jsonb` (`movimento_id`,
+    `conta_corrigida`, `corrigido_por`, `corrigido_em`): só movimento `recusado`, que não seja fatura, não reenviado e
+    sem reserva; banco 3 dígitos, agência até 5, conta até 12, dígitos de 1 posição (`0-9`/`X`); justificativa
+    obrigatória (até 500); para banco `001`, `p_validado_bb = true` ou justificativa com 15+ caracteres.
+    `validado_bb` é declarado pela tela (a consulta em si fica na trilha `audit_logs` gravada pela `bb-api`).
+  - `registrar_remessa_bancaria(p_conta_autarquia_id uuid, p_layout text, p_movimentos uuid[], p_data_pagamento date,
+    p_nsa_minimo integer DEFAULT NULL, p_tipo_servico text DEFAULT '98') → jsonb` (`id`, `nsa`, `convenio`,
+    `agencia`, `agencia_digito`, `conta`, `conta_digito`, `data_geracao`, `data_pagamento`, `tipo_servico`,
+    `creditos`): o **servidor** monta os créditos (cada um: `movimento_id`, `pagamento_id`, `nome`, `documento`,
+    `banco`, `agencia`, `agencia_dv`, `conta`, `conta_dv`, `valor`, `seu_numero`) a partir dos movimentos, usando
+    `conta_corrigida` quando houver (senão separa `"1234-5"`/`"1111-X"` do movimento), e calcula quantidade e valor.
+    Recusa (`22023`) lista vazia, com repetição ou acima de 999, data fora de [ontem, hoje + 60], movimento não
+    recusado, fatura/guia, sem banco/agência/conta válidos, sem CPF/CNPJ, já reenviado ou reservado por outra remessa
+    não confirmada. `seu_numero` = identificador original se numérico com até 20 dígitos, senão `nsa * 1000 + seq`.
+    Trava por conta/layout (advisory lock) e os movimentos (`FOR UPDATE`). NSA: na primeira remessa da conta/layout,
+    `p_nsa_minimo` (ou 1); depois `max(nsa) + 1` e `p_nsa_minimo` é **ignorado**. Se a última remessa da conta é uma
+    reserva não confirmada do mesmo usuário, ela é reaproveitada (mesmo NSA e id; créditos refeitos; movimentos fora
+    da nova lista liberados).
+  - `confirmar_remessa_bancaria(p_id uuid, p_sha256 text) → jsonb` (`id`, `nsa`, `arquivo_sha256`,
+    `movimentos_marcados`, `ja_confirmada`): só o autor da reserva; trava os movimentos e falha (`22023`) se algum não
+    estiver mais reservado para a remessa (ou deixou de estar recusado); grava o hash e `reenviado_em`. Idempotente
+    com o mesmo hash; outro hash é recusado.
+  - `obter_remessa_bancaria(p_id uuid) → jsonb`: o mesmo formato de `registrar_remessa_bancaria` + `arquivo_sha256`,
+    para baixar o arquivo de novo (qualquer usuário com `pagamento.conciliar`).
+  - `cancelar_remessa_bancaria(p_id uuid) → jsonb` (`id`, `nsa`, `movimentos_liberados`): só reserva não confirmada,
+    pelo autor ou por um administrador; **apaga** a linha (a trilha `fin_audit_log` guarda) e limpa `remessa_id` dos
+    movimentos. Se era a última remessa da conta, o NSA volta a ficar livre; senão, o número fica pulado.
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver
   [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md)); casa débitos sem vínculo com pagamento de mesmo valor líquido, data
   (efetivação ou pagamento) e CPF/CNPJ do fornecedor, só com candidato único. Casar não muda o status do pagamento.
   As tabelas antigas `fin_extratos_bancarios`/`fin_extrato_transacoes` continuam como estão.
+- **Auditoria**: as três tabelas novas têm trigger `trg_audit_<tabela>` (`AFTER INSERT OR UPDATE OR DELETE`,
+  `fn_audit_financeiro`, a mesma de empenhos/liquidações/pagamentos), que grava antes/depois, campos alterados e autor
+  em `fin_audit_log` (classe `trilha`: o módulo financeiro lê, ninguém escreve pela API).
 - **RLS e privilégios**: as três tabelas novas só têm policy de SELECT (perfil ativo + módulo financeiro; CPF/CNPJ e
   conta de favorecido são dado pessoal) e sem INSERT/UPDATE/DELETE para `anon`/`authenticated`. As RPCs são
   `SECURITY DEFINER` com `search_path` fixo e conferem `perfil_ativo_atual()`, `can_access_module(…, 'financeiro')` e
-  a permissão; `fin_casar_movimento_pagamento` e `fin_marcar_pagamento_pago` são de uso interno (sem EXECUTE para a
-  API). Erros: `42501` sem permissão; `22023` dado inválido; `P0002` registro inexistente.
+  a permissão; `fin_casar_movimento_pagamento`, `fin_marcar_pagamento_pago` e `fin_remessa_bancaria_json` são de uso
+  interno (sem EXECUTE para a API). Erros: `42501` sem permissão; `22023` dado inválido; `P0002` registro inexistente.
 - **No baseline**: `schema/` regenerado, as três tabelas como `preservar` no `rls/mapa.csv`, REVOKE/GRANT no
   `overlay/40_privilegios.sql` e testes no bloco "Financeiro: FIPLAN, arquivos bancários e extrato do BB" de
   `scripts/db/testar-rls.sql`.
@@ -963,9 +1007,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   `cancelar_remessa(p_remessa_id, p_motivo)` (E3: cancela com motivo e autor; seção "Integridade da remessa CNAB e do
   eSocial — Onda E3").
 - **Financeiro (FIPLAN e banco)**: `confirmar_alteracao_fiplan`, `importar_arquivo_bancario`,
-  `conciliar_movimento_bancario`, `pode_conciliar_pagamentos`, `registrar_remessa_bancaria`,
-  `confirmar_remessa_bancaria` e `registrar_extrato_bb` (só service role); seção "FIPLAN, arquivos bancários e
-  extrato do BB".
+  `conciliar_movimento_bancario`, `pode_conciliar_pagamentos`, `corrigir_conta_movimento`,
+  `registrar_remessa_bancaria`, `confirmar_remessa_bancaria`, `obter_remessa_bancaria`, `cancelar_remessa_bancaria`
+  e `registrar_extrato_bb` (só service role); seção "FIPLAN, arquivos bancários e extrato do BB".
 
 ## Convenções
 

@@ -14,6 +14,7 @@
 -- pagamento muda pela importação do retorno bancário (Etapa 2) ou pela conciliação manual.
 --
 -- Contrapartida (CPF/CNPJ e conta de terceiros) é dado pessoal: só o módulo financeiro lê.
+-- Auditoria: trg_audit_fin_extrato_lancamentos (fn_audit_financeiro -> fin_audit_log).
 -- ============================================================================
 
 
@@ -64,6 +65,12 @@ CREATE POLICY fin_extrato_lancamentos_select ON public.fin_extrato_lancamentos
 
 REVOKE ALL ON public.fin_extrato_lancamentos FROM anon;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE, TRIGGER, REFERENCES ON public.fin_extrato_lancamentos FROM authenticated;
+
+-- Trilha do financeiro (fin_audit_log): inserção pela bb-api (service role, sem autor) e vínculo com pagamento.
+DROP TRIGGER IF EXISTS trg_audit_fin_extrato_lancamentos ON public.fin_extrato_lancamentos;
+CREATE TRIGGER trg_audit_fin_extrato_lancamentos
+  AFTER INSERT OR UPDATE OR DELETE ON public.fin_extrato_lancamentos
+  FOR EACH ROW EXECUTE FUNCTION public.fn_audit_financeiro();
 
 
 -- ----------------------------------------------------------------------------

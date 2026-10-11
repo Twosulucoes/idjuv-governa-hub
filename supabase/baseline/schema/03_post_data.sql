@@ -4745,6 +4745,13 @@ CREATE INDEX idx_fin_mov_bancarios_documento ON public.fin_movimentos_bancarios 
 
 
 --
+-- Name: idx_fin_mov_bancarios_identificador; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_mov_bancarios_identificador ON public.fin_movimentos_bancarios USING btree (identificador);
+
+
+--
 -- Name: idx_fin_mov_bancarios_importacao; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7591,6 +7598,27 @@ CREATE TRIGGER trg_audit_docs_preparatorios AFTER INSERT OR DELETE OR UPDATE ON 
 --
 
 CREATE TRIGGER trg_audit_empenhos AFTER INSERT OR DELETE OR UPDATE ON public.fin_empenhos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_financeiro();
+
+
+--
+-- Name: fin_extrato_lancamentos trg_audit_fin_extrato_lancamentos; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_audit_fin_extrato_lancamentos AFTER INSERT OR DELETE OR UPDATE ON public.fin_extrato_lancamentos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_financeiro();
+
+
+--
+-- Name: fin_movimentos_bancarios trg_audit_fin_movimentos_bancarios; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_audit_fin_movimentos_bancarios AFTER INSERT OR DELETE OR UPDATE ON public.fin_movimentos_bancarios FOR EACH ROW EXECUTE FUNCTION public.fn_audit_financeiro();
+
+
+--
+-- Name: fin_remessas_bancarias trg_audit_fin_remessas_bancarias; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_audit_fin_remessas_bancarias AFTER INSERT OR DELETE OR UPDATE ON public.fin_remessas_bancarias FOR EACH ROW EXECUTE FUNCTION public.fn_audit_financeiro();
 
 
 --
@@ -12116,6 +12144,14 @@ ALTER TABLE ONLY public.fin_liquidacoes
 
 ALTER TABLE ONLY public.fin_movimentos_bancarios
     ADD CONSTRAINT fin_movimentos_bancarios_conciliado_por_fkey FOREIGN KEY (conciliado_por) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_movimentos_bancarios fin_movimentos_bancarios_corrigido_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_movimentos_bancarios
+    ADD CONSTRAINT fin_movimentos_bancarios_corrigido_por_fkey FOREIGN KEY (corrigido_por) REFERENCES auth.users(id) ON DELETE SET NULL;
 
 
 --

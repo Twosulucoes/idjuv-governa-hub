@@ -36,10 +36,10 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 - [ ] Financeiro — Pagamentos em Lote / PagBB (envio de pagamento pela API do BB): fora da entrega de 11/10; depende do contrato e da homologação com o BB ([spec](../superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md), "Fora desta entrega")
 - [ ] Financeiro — conciliação do retorno CNAB da folha: a tabela `fin_movimentos_bancarios` já comporta; falta um `.RET` da folha de exemplo para validar o leitor
 - [ ] Financeiro — conferir o leitor OBN600 com o manual oficial: tipos de OB (31/32/38) e códigos de retorno (01/09) foram deduzidos dos arquivos; trechos marcados "conferir no manual" em `src/lib/bancario/obn600.ts`, `src/lib/bancario/cnab240.ts` e `src/lib/bancario/gestaoMaxCnab240.ts`
-- [ ] Financeiro — rota `/financeiro` declarada duas vezes em `src/App.tsx` (painel do módulo e `DashboardFinanceiroPage`, com guardas diferentes): escolher uma e remover a outra
 - [ ] Financeiro — credenciais do BB por instância: cada cliente precisa gravar os segredos `BB_*` na própria instância e homologar com o BB antes de usar a aba "Banco do Brasil (API)" (passo a passo em [EDGE_FUNCTIONS.md](../EDGE_FUNCTIONS.md#configurar-as-credenciais-do-bb-numa-instância))
 - [ ] Patrimônio — Inventário de campo, fases 2–3: edificações e instalações, relatórios automáticos (vistoria, diário, semanal), conciliação com a relação da SEED, importação de planilha (fora da fase 1 na spec de 2026-10-09)
 
 ## Concluído
+- [x] Financeiro — rota `/financeiro` duplicada em `src/App.tsx`: ficou só o painel do módulo (`FinanceiroDashboardPage`); `DashboardFinanceiroPage` removida
 - [x] Gerador de prompts (`/prompt`, `/pendencias`, `/finalizar`) e hook de sessão em nuvem que gera o `.env` — ver [`prompts/README.md`](../../prompts/README.md)
 - [x] Estrutura de skills, agentes, AGENTS.md, Superpowers vendorizado, orquestrador `superpowers` e gate local

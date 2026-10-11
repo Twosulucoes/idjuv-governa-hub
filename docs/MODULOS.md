@@ -116,8 +116,8 @@ Licitações, aquisições e gestão contratual. Operados via
 
 ## Financeiro (`financeiro`)
 
-ERP orçamentário. `src/pages/financeiro/` (16 arquivos de página em 2026-10-11):
-`DashboardFinanceiroPage`, `QDDPage`, `AlteracoesOrcamentariasPage`, `SolicitacoesPage`,
+ERP orçamentário. `src/pages/financeiro/` (15 arquivos em 2026-10-11; o painel do módulo em `/financeiro` é
+`src/pages/modulos/FinanceiroDashboardPage`): `QDDPage`, `AlteracoesOrcamentariasPage`, `SolicitacoesPage`,
 `EmpenhosPage`, `SubEmpenhosPage`, `LiquidacoesPage`, `PagamentosPage`, `PagamentoDetalhePage`,
 `AdiantamentosPage`, `RestosAPagarPage`, `ContasBancariasPage`, `ConciliacaoBancariaPage`,
 `RelatoriosFinanceiroPage` e `PlaceholderDetalheFinanceiroPage` (ainda usada em

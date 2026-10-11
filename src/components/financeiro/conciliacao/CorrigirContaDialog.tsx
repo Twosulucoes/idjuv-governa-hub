@@ -1,7 +1,10 @@
 /**
- * Corrige banco/agência/conta de um crédito recusado antes do reenvio pelo Gestão MAX.
- * A correção vale para o arquivo gerado; o retorno do banco traz a situação nova.
- * Conta do BB (001) pode ser conferida na API de Validação de Contas (Edge Function `bb-api`).
+ * Corrige banco/agência/conta de um crédito recusado antes do reenvio pelo Gestão MAX
+ * (RPC `corrigir_conta_movimento`, que confere `pagamento.conciliar` e guarda quem corrigiu e quando).
+ * O servidor usa a conta corrigida ao montar o arquivo de reenvio; o retorno do banco traz a situação nova.
+ *
+ * Justificativa sempre obrigatória. Conta do BB (001): grava com "Conta confere" na API de Validação de Contas
+ * (Edge Function `bb-api`) ou com justificativa de pelo menos 15 caracteres — a RPC exige a mesma regra.
  */
 
 import { useEffect, useState } from "react";
@@ -12,12 +15,16 @@ import { CheckCircle2, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useValidarContaBB, mensagemErro } from "@/hooks/useConciliacaoBancaria";
+import { Textarea } from "@/components/ui/textarea";
+import { mensagemErro, useCorrigirContaMovimento, useValidarContaBB } from "@/hooks/useConciliacaoBancaria";
 import { separarDigito } from "@/lib/cnabGenerator";
-import type { CorrecaoBancaria, MovimentoBancario } from "@/types/conciliacaoBancaria";
+import type { MovimentoBancario } from "@/types/conciliacaoBancaria";
 import { documentoMascarado } from "@/lib/bancario/exibicao";
+
+/** Mínimo da justificativa para gravar conta do BB sem a validação na API (mesma regra da RPC). */
+const MINIMO_JUSTIFICATIVA_SEM_VALIDACAO = 15;
 
 const schema = z.object({
   banco: z.string().trim().regex(/^\d{3}$/, "Código do banco com 3 dígitos (ex.: 001)"),
@@ -25,20 +32,28 @@ const schema = z.object({
   agencia_dv: z.string().trim().regex(/^[0-9Xx]?$/, "DV com 1 posição (número ou X)"),
   conta: z.string().trim().regex(/^\d{1,12}$/, "Conta: até 12 dígitos, sem o DV"),
   conta_dv: z.string().trim().regex(/^[0-9Xx]?$/, "DV com 1 posição (número ou X)"),
+  justificativa: z.string().trim().min(1, "Informe por que a conta foi corrigida").max(500, "Até 500 caracteres"),
 });
 
 type Dados = z.infer<typeof schema>;
 
 interface Props {
   movimento: MovimentoBancario | null;
-  /** Correção já feita nesta sessão (tem prioridade sobre o que veio do arquivo) */
-  correcao?: CorrecaoBancaria;
   onOpenChange: (aberto: boolean) => void;
-  onSalvar: (movimentoId: string, correcao: CorrecaoBancaria) => void;
 }
 
-function valoresIniciais(m: MovimentoBancario | null, c?: CorrecaoBancaria): Dados {
-  if (c) return { ...c };
+function valoresIniciais(m: MovimentoBancario | null): Dados {
+  const c = m?.conta_corrigida;
+  if (c) {
+    return {
+      banco: c.banco,
+      agencia: c.agencia,
+      agencia_dv: c.agencia_dv ?? "",
+      conta: c.conta,
+      conta_dv: c.conta_dv ?? "",
+      justificativa: "",
+    };
+  }
   const ag = separarDigito(m?.agencia);
   const ct = separarDigito(m?.conta);
   return {
@@ -47,59 +62,85 @@ function valoresIniciais(m: MovimentoBancario | null, c?: CorrecaoBancaria): Dad
     agencia_dv: ag.digito,
     conta: ct.numero,
     conta_dv: ct.digito,
+    justificativa: "",
   };
 }
 
-export function CorrigirContaDialog({ movimento, correcao, onOpenChange, onSalvar }: Props) {
-  const form = useForm<Dados>({ resolver: zodResolver(schema), defaultValues: valoresIniciais(movimento, correcao) });
+/** Chave dos dados conferidos no BB: a validação só vale enquanto banco/agência/conta não mudarem. */
+const chaveConta = (d: Pick<Dados, "banco" | "agencia" | "conta">) =>
+  `${d.banco.trim()}|${d.agencia.trim()}|${d.conta.trim()}`;
+
+export function CorrigirContaDialog({ movimento, onOpenChange }: Props) {
+  const form = useForm<Dados>({ resolver: zodResolver(schema), defaultValues: valoresIniciais(movimento) });
   const validar = useValidarContaBB();
+  const corrigir = useCorrigirContaMovimento();
   const [erroValidacao, setErroValidacao] = useState<string | null>(null);
+  const [validadoPara, setValidadoPara] = useState<string | null>(null);
 
   useEffect(() => {
     if (movimento) {
-      form.reset(valoresIniciais(movimento, correcao));
+      form.reset(valoresIniciais(movimento));
       validar.reset();
       setErroValidacao(null);
+      setValidadoPara(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reinicia só ao abrir para outro movimento
   }, [movimento?.id]);
 
-  const banco = form.watch("banco");
-  const documento = (movimento?.favorecido_documento ?? "").replace(/\D/g, "");
-
-  const validarNoBB = async () => {
-    const ok = await form.trigger(["banco", "agencia", "conta"]);
-    if (!ok) return;
-    setErroValidacao(null);
-    const { agencia, conta } = form.getValues();
-    try {
-      await validar.mutateAsync({ agencia, conta, cpf_cnpj: documento });
-    } catch (e) {
-      setErroValidacao(await mensagemErro(e));
-    }
-  };
-
-  const salvar = (d: Dados) => {
-    if (!movimento) return;
-    onSalvar(movimento.id, {
-      banco: d.banco,
-      agencia: d.agencia,
-      agencia_dv: d.agencia_dv.toUpperCase(),
-      conta: d.conta,
-      conta_dv: d.conta_dv.toUpperCase(),
-    });
-    onOpenChange(false);
-  };
+  const [banco, agencia, conta, justificativa] = form.watch(["banco", "agencia", "conta", "justificativa"]);
+  const ehBB = banco.trim() === "001";
+  const temDocumento = (movimento?.favorecido_documento ?? "").replace(/\D/g, "").length >= 11;
 
   const resultado = validar.data;
   const sim = (v: boolean | string | null | undefined) => v === true || v === "S";
   const contaAtiva = sim(resultado?.contaAtiva);
   const titular = sim(resultado?.titularConta);
   const valida = contaAtiva && titular;
+  // "Conta confere" só vale para os dados conferidos; mudou banco/agência/conta, precisa validar de novo
+  const validadoAtual = valida && validadoPara === chaveConta({ banco, agencia, conta });
+  const justificativaLonga = justificativa.trim().length >= MINIMO_JUSTIFICATIVA_SEM_VALIDACAO;
+  const liberadoBB = !ehBB || validadoAtual || justificativaLonga;
+
+  const validarNoBB = async () => {
+    if (!movimento) return;
+    const ok = await form.trigger(["banco", "agencia", "conta"]);
+    if (!ok) return;
+    setErroValidacao(null);
+    const d = form.getValues();
+    try {
+      await validar.mutateAsync({ movimento_id: movimento.id, banco: d.banco, agencia: d.agencia, conta: d.conta });
+      setValidadoPara(chaveConta(d));
+    } catch (e) {
+      setValidadoPara(null);
+      setErroValidacao(await mensagemErro(e));
+    }
+  };
+
+  const salvar = async (d: Dados) => {
+    if (!movimento || !liberadoBB) return;
+    await corrigir.mutateAsync({
+      movimentoId: movimento.id,
+      dados: {
+        banco: d.banco,
+        agencia: d.agencia,
+        agencia_dv: d.agencia_dv.toUpperCase(),
+        conta: d.conta,
+        conta_dv: d.conta_dv.toUpperCase(),
+        justificativa: d.justificativa,
+        validado_bb: ehBB && validadoAtual,
+      },
+    });
+    onOpenChange(false);
+  };
+
+  const fechar = (v: boolean) => {
+    if (corrigir.isPending) return;
+    onOpenChange(v);
+  };
 
   return (
-    <Dialog open={!!movimento} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={!!movimento} onOpenChange={fechar}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Corrigir dados bancários</DialogTitle>
           <DialogDescription>
@@ -179,13 +220,13 @@ export function CorrigirContaDialog({ movimento, correcao, onOpenChange, onSalva
               />
             </div>
 
-            {banco === "001" && (
+            {ehBB && (
               <div className="space-y-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={validarNoBB}
-                  disabled={validar.isPending || documento.length < 11}
+                  disabled={validar.isPending || !temDocumento}
                 >
                   {validar.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
@@ -194,7 +235,7 @@ export function CorrigirContaDialog({ movimento, correcao, onOpenChange, onSalva
                   )}
                   Validar no BB
                 </Button>
-                {documento.length < 11 && (
+                {!temDocumento && (
                   <p className="text-xs text-muted-foreground">Sem CPF/CNPJ no movimento: não dá para validar.</p>
                 )}
                 <div aria-live="polite">
@@ -205,17 +246,20 @@ export function CorrigirContaDialog({ movimento, correcao, onOpenChange, onSalva
                       <AlertDescription>{erroValidacao}</AlertDescription>
                     </Alert>
                   )}
-                  {resultado && (
-                    <Alert variant={valida ? "default" : "destructive"}>
-                      {valida ? (
+                  {resultado && validadoPara && (
+                    <Alert variant={validadoAtual ? "default" : "destructive"}>
+                      {validadoAtual ? (
                         <CheckCircle2 className="h-4 w-4 text-success" aria-hidden />
                       ) : (
                         <XCircle className="h-4 w-4" aria-hidden />
                       )}
-                      <AlertTitle>{valida ? "Conta confere" : "Conta não confere"}</AlertTitle>
+                      <AlertTitle>
+                        {validadoAtual ? "Conta confere" : valida ? "Dados alterados depois da validação" : "Conta não confere"}
+                      </AlertTitle>
                       <AlertDescription>
-                        Conta {contaAtiva ? "ativa" : "inativa ou inexistente"}; o CPF/CNPJ{" "}
-                        {titular ? "é" : "não é"} o titular.
+                        {valida && !validadoAtual
+                          ? "Valide de novo com os dados atuais."
+                          : `Conta ${contaAtiva ? "ativa" : "inativa ou inexistente"}; o CPF/CNPJ ${titular ? "é" : "não é"} o titular.`}
                       </AlertDescription>
                     </Alert>
                   )}
@@ -223,11 +267,33 @@ export function CorrigirContaDialog({ movimento, correcao, onOpenChange, onSalva
               </div>
             )}
 
+            <FormField
+              control={form.control}
+              name="justificativa"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Justificativa</FormLabel>
+                  <FormControl>
+                    <Textarea rows={3} maxLength={500} placeholder="Ex.: conta informada pelo servidor por e-mail" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    {ehBB
+                      ? `Conta do BB: valide no BB ("Conta confere") ou escreva pelo menos ${MINIMO_JUSTIFICATIVA_SEM_VALIDACAO} caracteres.`
+                      : "Fica registrada com o seu nome e a data da correção."}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => fechar(false)} disabled={corrigir.isPending}>
                 Cancelar
               </Button>
-              <Button type="submit">Usar estes dados no reenvio</Button>
+              <Button type="submit" disabled={corrigir.isPending || !liberadoBB}>
+                {corrigir.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+                Salvar conta corrigida
+              </Button>
             </DialogFooter>
           </form>
         </Form>
