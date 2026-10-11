@@ -853,6 +853,42 @@ segurar a outra). Mesmas policies em `supabase/baseline/rls/mapa.csv` → `35_po
   portanto vai no bundle do front; são valores públicos (ato normativo de diárias), sem dado
   pessoal.
 
+### Lançamento por setor (fase 1)
+
+Spec [`2026-10-11-lancamento-por-setor-design.md`](./superpowers/specs/2026-10-11-lancamento-por-setor-design.md).
+Além da permissão, a gravação passa a exigir um **fundamento** no setor do módulo (lotação, designação aprovada por
+outra pessoa e vigente com ato, autoatendimento ou chefia; na fase 1 a comissão é só cadastro e não vale); login sem
+servidor só consulta. Quem decide é o
+banco (migração `supabase/migrations/20261011020000_lancamento_por_setor.sql`, ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)); nesta fase
+só nas tabelas do RH e em modo `registrar` (anota na trilha, não bloqueia); `exigir` só entra por migração, módulo a
+módulo (a tela não oferece). No modo `exigir` a recusa vem com o SQLSTATE `RHS01` e a tela mostra a mensagem e o HINT
+do banco. Telas e hooks em
+[GUIA_FRONTEND.md](./GUIA_FRONTEND.md#lançamento-por-setor-fase-1).
+
+| Rota | Guarda (`ProtectedRoute` e `ROUTE_PERMISSIONS`) | Menu | Gravação |
+|---|---|---|---|
+| `/admin/setores-modulos` (setores de cada módulo e modo da regra) | módulo `admin` e `admin.config` | "Setores dos Módulos" em Administração (`menu.config.ts` e `module-menus.config.ts`, `admin.config`) | só o **papel** admin (RLS de `setores_modulo` e `regra_lancamento`); sem o papel a tela é só consulta |
+| `/rh/comissoes` (comissões e membros) | módulo `rh` (`ROUTE_PERMISSIONS`: `'rh'`) | "Comissões" no RH, nos dois menus com a mesma exigência da rota: `permission: "rh"` (código sem ponto = o módulo) | `rh.comissoes.gerenciar` (botões e RLS de `comissoes` e `comissoes_membros`) |
+| `/rh/auditoria`, aba "Lançamento por setor" | `rh.auditoria.visualizar` (a mesma da trilha) | — | — (leitura: RLS de `audit_logs` e RPC `saneamento_lancamento`, que pede admin ou a mesma permissão) |
+
+- O aviso "somente consulta" (`AvisoSomenteConsulta`, no `ModuleLayout`, só no modo `exigir`) é UX: a fronteira é o
+  trigger do banco. Vale só para lançamentos do setor: autoatendimento e chefia não aparecem em
+  `meus_fundamentos_lancamento()`, então o `bloqueado` dela não deve travar telas do próprio servidor nem de aprovação
+  da chefia.
+- Configuração de acesso (usuários, papéis, permissões, setores dos módulos) continua com o admin (premissa 1): o
+  módulo `admin` não aparece na tela de setores.
+- No banco: `rh.comissoes.gerenciar` ("Gerenciar Comissões", módulo `rh`, `action_type = 'gerenciar'`) vem **só para
+  o papel `admin`** até o órgão decidir quem cadastra comissões (a migração tira do `manager` onde já estava).
+  `setores_modulo` e `regra_lancamento` são `catalogo_admin` (todo ativo lê, só o papel admin grava, mesmo sem
+  servidor; ficam fora da regra de setor); `regra_lancamento` não tem policy de DELETE e o trigger
+  `trg_regra_lancamento_exigir` recusa (`42501`) levar um módulo a `exigir` com usuário na sessão (só por migração).
+  `comissoes` e `comissoes_membros` são `permissao` com `escrita=rh.comissoes.gerenciar` (INSERT, UPDATE e DELETE);
+  `trg_comissoes_membros_validar` recusa (`42501`) incluir quem cadastrou a comissão e incluir a si mesmo (exceto o
+  papel admin). A regra de setor é um trigger por cima da RLS: a
+  permissão continua necessária, e em modo `exigir` falta também o fundamento. O papel admin não tem atalho: sem
+  servidor vinculado, ele é recusado no RH em `exigir`. Chefia: quem tem `rh.aprovar` sem `rh.frequencia.lancar`
+  decide a etapa da frequência fora do setor (detalhe em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#lançamento-por-setor-fase-1-banco)).
+
 ### Importação de dados
 
 Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a

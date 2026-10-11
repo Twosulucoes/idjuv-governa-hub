@@ -14,7 +14,7 @@ export function useDesignacoes(filters?: { status?: StatusDesignacao; unidade_id
           servidor:servidores(id, nome_completo, matricula, cpf),
           unidade_origem:estrutura_organizacional!designacoes_unidade_origem_id_fkey(id, nome, sigla),
           unidade_destino:estrutura_organizacional!designacoes_unidade_destino_id_fkey(id, nome, sigla),
-          aprovador:profiles!designacoes_aprovado_por_fkey(id, full_name)
+          aprovador:profiles!designacoes_aprovado_por_fkey(id, full_name, servidor_id)
         `)
         .eq("ativo", true)
         .order("created_at", { ascending: false });

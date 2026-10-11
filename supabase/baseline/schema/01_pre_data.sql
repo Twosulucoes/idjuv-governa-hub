@@ -2300,6 +2300,38 @@ COMMENT ON FUNCTION public.cancelar_remessa(p_remessa_id uuid, p_motivo text) IS
 
 
 --
+-- Name: comissoes_membros_validar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.comissoes_membros_validar() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_criador uuid;
+  v_meu uuid;
+BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.servidor_id IS NOT DISTINCT FROM OLD.servidor_id
+     AND NEW.comissao_id IS NOT DISTINCT FROM OLD.comissao_id THEN
+    RETURN NEW;
+  END IF;
+  SELECT co.created_by_servidor_id INTO v_criador FROM public.comissoes co WHERE co.id = NEW.comissao_id;
+  IF v_criador IS NOT NULL AND NEW.servidor_id = v_criador THEN
+    RAISE EXCEPTION 'Quem cadastrou a comissão não pode ser membro dela' USING ERRCODE = '42501';
+  END IF;
+  IF v_uid IS NOT NULL AND NOT public.is_admin_user(v_uid) THEN
+    SELECT p.servidor_id INTO v_meu FROM public.profiles p WHERE p.id = v_uid;
+    IF v_meu IS NOT NULL AND NEW.servidor_id = v_meu THEN
+      RAISE EXCEPTION 'Você não pode se incluir numa comissão' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: config_envio_servidor(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2390,6 +2422,36 @@ BEGIN
   ), 0);
 END;
 $$;
+
+
+--
+-- Name: data_local(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.data_local() RETURNS date
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_fuso text := nullif(btrim(current_setting('app.fuso_horario', true)), '');
+BEGIN
+  IF v_fuso IS NOT NULL THEN
+    BEGIN
+      RETURN (now() AT TIME ZONE v_fuso)::date;
+    EXCEPTION WHEN invalid_parameter_value THEN
+      NULL;   -- fuso inválido: cai no padrão (não derruba a gravação)
+    END;
+  END IF;
+  RETURN (now() AT TIME ZONE 'America/Sao_Paulo')::date;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION data_local(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.data_local() IS 'Data de hoje no fuso do órgão (app.fuso_horario do banco; padrão America/Sao_Paulo). Usada pela regra de setor no lugar de CURRENT_DATE';
 
 
 --
@@ -2605,6 +2667,73 @@ $$;
 
 
 --
+-- Name: exigir_setor(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.exigir_setor() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  f jsonb;
+  v_setor text;
+  v_via text;
+  v_det text;
+BEGIN
+  IF pg_trigger_depth() > 1 AND current_setting('lancamento.cadeia', true) = 'on' THEN
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
+  f := public.fundamento_tabela(TG_TABLE_NAME);
+  IF f IS NULL OR f ->> 'modo' IS DISTINCT FROM 'exigir' OR (f ->> 'permitido') = 'true'
+     OR (TG_TABLE_NAME IN ('solicitacoes_abono', 'solicitacoes_ajuste_ponto', 'justificativas_ponto',
+                           'frequencia_fechamento', 'documentos_requerimento_servidor')
+         AND public.fundamento_linha(TG_TABLE_NAME, TG_OP,
+               CASE WHEN TG_OP <> 'DELETE' THEN to_jsonb(NEW) END,
+               CASE WHEN TG_OP <> 'INSERT' THEN to_jsonb(OLD) END) IS NOT NULL) THEN
+    IF pg_trigger_depth() = 1 AND current_setting('lancamento.cadeia', true) IS DISTINCT FROM 'on' THEN
+      PERFORM set_config('lancamento.cadeia', 'on', true);
+    END IF;
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
+  SELECT string_agg(coalesce(nome.n, x.m), ' ou ' ORDER BY x.o) INTO v_setor
+    FROM jsonb_array_elements_text(f -> 'modulos') WITH ORDINALITY AS x(m, o)
+    LEFT JOIN LATERAL (SELECT nullif(btrim(ms.display_name), '') AS n FROM public.module_settings ms
+                        WHERE ms.module_code = x.m LIMIT 1) nome ON true;
+  v_via := coalesce(f ->> 'via', 'negado_setor');
+  v_det := format('via=%s; tabela=%s', v_via, TG_TABLE_NAME);
+  IF v_via = 'negado_sem_servidor' THEN
+    RAISE EXCEPTION 'Seu login não tem servidor vinculado: lançamento no setor de % recusado', v_setor
+      USING ERRCODE = 'RHS01', DETAIL = v_det,
+            HINT = 'Sem servidor vinculado, o login só consulta. Peça ao administrador o vínculo do seu servidor ao login.';
+  ELSIF v_via = 'negado_sem_login' THEN
+    RAISE EXCEPTION 'Sessão sem usuário identificado: lançamento no setor de % recusado', v_setor
+      USING ERRCODE = 'RHS01', DETAIL = v_det, HINT = 'Entre de novo no sistema.';
+  END IF;
+  RAISE EXCEPTION 'Você não está lotado nem designado no setor de %: lançamento recusado', v_setor
+    USING ERRCODE = 'RHS01', DETAIL = v_det,
+          HINT = 'Vale a lotação ativa no setor (não lançada por você) ou a designação aprovada por outra pessoa, vigente e com ato.';
+END;
+$$;
+
+
+--
+-- Name: exigir_setor_fim(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.exigir_setor_fim() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF pg_trigger_depth() = 1 AND current_setting('lancamento.cadeia', true) = 'on' THEN
+    PERFORM set_config('lancamento.cadeia', '', true);
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+
+--
 -- Name: fechar_folha(uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2691,11 +2820,6 @@ DECLARE
   c_em text;
   c_flag text;
 BEGIN
-  IF c ->> 'origem' = 'usuario_sem_vinculo' AND public.rh_exige_servidor_vinculado() THEN
-    RAISE EXCEPTION 'Lançamento no RH exige usuário com servidor vinculado ao perfil (%)', TG_TABLE_NAME
-      USING ERRCODE = '42501';
-  END IF;
-
   -- colunas padrão
   IF TG_OP = 'INSERT' THEN
     IF v_informa THEN
@@ -3543,6 +3667,8 @@ DECLARE
   v_entidade uuid;
   v_chave jsonb;
   v_descricao text;
+  v_fund jsonb;
+  v_linha jsonb;
   c jsonb;
   s record;
 BEGIN
@@ -3566,6 +3692,23 @@ BEGIN
     v_acao := 'delete';
     v_antes := to_jsonb(OLD);
     v_descricao := 'Registro excluído de ' || TG_TABLE_NAME;
+  END IF;
+
+  -- fundamento da regra de lançamento por setor (antes da máscara: a posse da linha é lida sem ela)
+  v_fund := public.fundamento_tabela(TG_TABLE_NAME);
+  IF v_fund IS NOT NULL THEN
+    IF v_fund ->> 'modo' = 'desligado' THEN
+      v_fund := NULL;
+    ELSIF pg_trigger_depth() > 1 AND current_setting('lancamento.cadeia', true) = 'on' THEN
+      v_fund := v_fund || jsonb_build_object('em_cascata', true);
+    ELSIF (v_fund ->> 'permitido') = 'false'
+          AND TG_TABLE_NAME IN ('solicitacoes_abono', 'solicitacoes_ajuste_ponto', 'justificativas_ponto',
+                                'frequencia_fechamento', 'documentos_requerimento_servidor') THEN
+      v_linha := public.fundamento_linha(TG_TABLE_NAME, TG_OP, v_depois, v_antes);
+      IF v_linha IS NOT NULL THEN
+        v_fund := jsonb_build_object('modo', v_fund -> 'modo', 'modulos', v_fund -> 'modulos') || v_linha;
+      END IF;
+    END IF;
   END IF;
 
   v_id := coalesce(v_depois, v_antes) ->> 'id';
@@ -3597,14 +3740,15 @@ BEGIN
   INSERT INTO public.audit_logs (
     action, entity_type, entity_id, module_name, before_data, after_data, user_id, description, metadata,
     campos_alterados, origem, servidor_id, servidor_nome, servidor_matricula, role_at_time, org_unit_id,
-    ip_address, user_agent, transacao
+    ip_address, user_agent, transacao, fundamento
   ) VALUES (
     v_acao::public.audit_action, TG_TABLE_NAME, v_entidade, TG_ARGV[0], v_antes, v_depois, (c ->> 'user_id')::uuid,
     v_descricao,
     jsonb_build_object('trigger', true, 'operation', TG_OP, 'table', TG_TABLE_NAME)
       || CASE WHEN v_chave IS NOT NULL THEN jsonb_build_object('chave', v_chave) ELSE '{}'::jsonb END,
     v_campos, c ->> 'origem', (c ->> 'servidor_id')::uuid, c ->> 'servidor_nome', c ->> 'servidor_matricula',
-    (c ->> 'papel')::public.app_role, (c ->> 'unidade_id')::uuid, (c ->> 'ip')::inet, c ->> 'agente', txid_current()
+    (c ->> 'papel')::public.app_role, coalesce((v_fund ->> 'unidade_id')::uuid, (c ->> 'unidade_id')::uuid),
+    (c ->> 'ip')::inet, c ->> 'agente', txid_current(), v_fund
   );
 
   RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
@@ -4744,6 +4888,228 @@ BEGIN
   RETURN NEW;
 END;
 $_$;
+
+
+--
+-- Name: fundamento_lancamento(text[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fundamento_lancamento(p_modulos text[]) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_mods text[];
+  v_chave text;
+  v_guc text;
+  v_cache text;
+  v_papel_sessao text := coalesce(current_setting('role', true), 'none');
+  c jsonb;
+  v_uid uuid;
+  v_srv uuid;
+  v_data date := public.data_local();
+  v_modo text;
+  v_unid uuid;
+  f jsonb;
+  r record;
+BEGIN
+  SELECT array_agg(u.m ORDER BY u.o) INTO v_mods
+    FROM (SELECT x.m, min(x.o) AS o FROM unnest(p_modulos) WITH ORDINALITY AS x(m, o)
+           WHERE x.m IS NOT NULL AND btrim(x.m) <> '' GROUP BY x.m) u;
+  IF v_mods IS NULL THEN
+    RETURN NULL;
+  END IF;
+  v_chave := coalesce(auth.uid()::text, '-') || '|' || v_papel_sessao || '|'
+             || coalesce(current_setting('lancamento.geracao', true), '');
+  v_guc := 'lancamento.m_' || md5(array_to_string(v_mods, ','));
+  v_cache := current_setting(v_guc, true);
+  IF v_cache IS NOT NULL AND left(v_cache, length(v_chave) + 1) = v_chave || chr(10) THEN
+    RETURN substr(v_cache, length(v_chave) + 2)::jsonb;
+  END IF;
+
+  SELECT CASE max(CASE rl.modo WHEN 'exigir' THEN 2 WHEN 'registrar' THEN 1 ELSE 0 END)
+           WHEN 2 THEN 'exigir' WHEN 1 THEN 'registrar' ELSE 'desligado' END
+    INTO v_modo
+    FROM public.regra_lancamento rl
+   WHERE rl.modulo::text = ANY (v_mods);
+  v_modo := coalesce(v_modo, 'desligado');
+
+  c := public.trilha_contexto();
+  v_uid := (c ->> 'user_id')::uuid;
+  v_srv := (c ->> 'servidor_id')::uuid;
+
+  IF v_uid IS NULL THEN
+    f := CASE v_papel_sessao
+           WHEN 'anon' THEN jsonb_build_object('permitido', true, 'via', 'anonimo')
+           WHEN 'authenticated' THEN jsonb_build_object('permitido', false, 'via', 'negado_sem_login', 'modulo', v_mods[1])
+           ELSE jsonb_build_object('permitido', true, 'via', 'sistema')
+         END;
+  ELSIF v_srv IS NULL THEN
+    f := jsonb_build_object('permitido', false, 'via', 'negado_sem_servidor', 'modulo', v_mods[1]);
+  ELSE
+    -- 1. lotação (ou cessão de entrada) vigente numa unidade do setor, não lançada pelo próprio servidor
+    SELECT lv.origem, lv.registro_id, lv.unidade_id, sm.unidade_id AS setor_id, sm.modulo::text AS modulo,
+           lv.ato_tipo, lv.ato_numero, lv.ato_data, lv.ato_doe_numero, lv.ato_doe_data
+      INTO r
+      FROM public.lotacao_vigente(v_srv, v_data) lv
+      JOIN public.setores_modulo sm
+        ON sm.ativo AND sm.modulo::text = ANY (v_mods)
+       AND (sm.unidade_id = lv.unidade_id
+            OR (sm.inclui_subordinadas AND sm.unidade_id = ANY (public.unidade_e_superiores(lv.unidade_id))))
+     WHERE lv.created_by_servidor_id IS DISTINCT FROM v_srv
+     ORDER BY array_position(v_mods, sm.modulo::text), (lv.origem = 'cessao'), lv.data_inicio DESC
+     LIMIT 1;
+    IF FOUND THEN
+      f := jsonb_build_object('permitido', true, 'via', 'lotacao', 'modulo', r.modulo, 'unidade_id', r.unidade_id,
+                              'setor_unidade_id', r.setor_id,
+                              CASE WHEN r.origem = 'cessao' THEN 'cessao_id' ELSE 'lotacao_id' END, r.registro_id,
+                              'ato', nullif(jsonb_strip_nulls(jsonb_build_object('tipo', r.ato_tipo, 'numero', r.ato_numero,
+                                'data', r.ato_data, 'doe_numero', r.ato_doe_numero, 'doe_data', r.ato_doe_data)), '{}'::jsonb));
+    ELSE
+      -- 2. designação aprovada (por outra pessoa), ativa, vigente e com ato para uma unidade do setor
+      SELECT d.id, d.unidade_destino_id, sm.unidade_id AS setor_id, sm.modulo::text AS modulo,
+             d.ato_tipo, d.ato_numero, d.ato_data, d.ato_doe_numero, d.ato_doe_data
+        INTO r
+        FROM public.designacoes d
+        JOIN public.setores_modulo sm
+          ON sm.ativo AND sm.modulo::text = ANY (v_mods)
+         AND (sm.unidade_id = d.unidade_destino_id
+              OR (sm.inclui_subordinadas AND sm.unidade_id = ANY (public.unidade_e_superiores(d.unidade_destino_id))))
+       WHERE d.servidor_id = v_srv AND d.status = 'aprovada' AND d.ativo IS NOT FALSE
+         AND d.data_inicio <= v_data AND (d.data_fim IS NULL OR d.data_fim >= v_data)
+         AND nullif(btrim(d.ato_numero), '') IS NOT NULL AND d.ato_data IS NOT NULL
+         AND d.aprovado_por IS NOT NULL AND d.aprovado_por IS DISTINCT FROM d.created_by
+         AND d.aprovado_por <> v_uid
+         AND NOT EXISTS (SELECT 1 FROM public.profiles pa WHERE pa.id = d.aprovado_por AND pa.servidor_id = d.servidor_id)
+       ORDER BY array_position(v_mods, sm.modulo::text), d.data_inicio DESC
+       LIMIT 1;
+      IF FOUND THEN
+        f := jsonb_build_object('permitido', true, 'via', 'designacao', 'modulo', r.modulo, 'unidade_id', r.unidade_destino_id,
+                                'setor_unidade_id', r.setor_id, 'designacao_id', r.id,
+                                'ato', jsonb_strip_nulls(jsonb_build_object('tipo', r.ato_tipo, 'numero', r.ato_numero,
+                                  'data', r.ato_data, 'doe_numero', r.ato_doe_numero, 'doe_data', r.ato_doe_data)));
+      ELSE
+        SELECT lv.unidade_id INTO v_unid FROM public.lotacao_vigente(v_srv, v_data) lv LIMIT 1;
+        f := jsonb_build_object('permitido', false, 'via', 'negado_setor', 'modulo', v_mods[1], 'unidade_id', v_unid);
+      END IF;
+    END IF;
+  END IF;
+
+  f := jsonb_strip_nulls(f || jsonb_build_object('modo', v_modo, 'modulos', to_jsonb(v_mods), 'servidor_id', v_srv,
+                                                 'data', v_data));
+  PERFORM set_config(v_guc, v_chave || chr(10) || f::text, true);
+  RETURN f;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION fundamento_lancamento(p_modulos text[]); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.fundamento_lancamento(p_modulos text[]) IS 'Fundamento do login atual para lançar nos módulos (lotação, designação, sistema, anônimo ou negado), com o modo da regra; cache por transação';
+
+
+--
+-- Name: fundamento_linha(text, text, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fundamento_linha(p_tabela text, p_op text, p_novo jsonb, p_velho jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  c jsonb := public.trilha_contexto();
+  v_uid uuid := (c ->> 'user_id')::uuid;
+  v_srv uuid := (c ->> 'servidor_id')::uuid;
+  v_via text;
+  v_mudou text[];
+  v_decisao text[];
+BEGIN
+  IF v_uid IS NULL OR v_srv IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF p_op = 'UPDATE' THEN
+    SELECT array_agg(k) INTO v_mudou
+      FROM jsonb_object_keys(p_novo) AS k
+     WHERE (p_novo -> k) IS DISTINCT FROM (p_velho -> k)
+       AND k NOT IN ('updated_at', 'updated_by', 'updated_by_servidor_id');
+  END IF;
+
+  -- autoatendimento
+  IF p_op = 'INSERT' THEN
+    v_decisao := CASE p_tabela
+      WHEN 'solicitacoes_abono' THEN ARRAY['aprovado_chefia_por', 'aprovado_chefia_em', 'aprovado_rh_por', 'aprovado_rh_em',
+                                           'motivo_rejeicao']
+      WHEN 'documentos_requerimento_servidor' THEN ARRAY['arquivo_assinado_url', 'data_upload_assinado']
+      WHEN 'solicitacoes_ajuste_ponto' THEN ARRAY['aprovador_id', 'data_aprovacao', 'observacao_aprovador']
+      WHEN 'justificativas_ponto' THEN ARRAY['aprovador_id', 'data_aprovacao', 'observacao_aprovador']
+    END;
+    IF v_decisao IS NOT NULL
+       AND p_novo ->> 'status' = 'pendente'
+       AND NOT EXISTS (SELECT 1 FROM unnest(v_decisao) AS k WHERE p_novo ->> k IS NOT NULL)
+       AND ((p_tabela IN ('solicitacoes_abono', 'documentos_requerimento_servidor') AND (p_novo ->> 'servidor_id')::uuid = v_srv)
+            OR (p_tabela = 'solicitacoes_ajuste_ponto' AND (p_novo ->> 'servidor_id')::uuid = v_uid)
+            OR (p_tabela = 'justificativas_ponto' AND EXISTS (
+                  SELECT 1 FROM public.registros_ponto rp
+                   WHERE rp.id = (p_novo ->> 'registro_ponto_id')::uuid AND rp.servidor_id = v_srv))) THEN
+      v_via := 'autoatendimento';
+    END IF;
+  ELSIF p_op = 'UPDATE' AND p_tabela = 'frequencia_fechamento'
+        AND (p_velho ->> 'servidor_id')::uuid = v_srv AND (p_novo ->> 'servidor_id')::uuid = v_srv
+        AND v_mudou IS NOT NULL AND v_mudou <@ ARRAY['assinado_servidor', 'assinado_servidor_em'] THEN
+    v_via := 'autoatendimento';
+  END IF;
+
+  -- chefia
+  IF v_via IS NULL
+     AND p_tabela IN ('solicitacoes_abono', 'frequencia_fechamento', 'justificativas_ponto', 'solicitacoes_ajuste_ponto')
+     AND ((p_op = 'UPDATE' AND (p_tabela <> 'frequencia_fechamento'
+                                OR (v_mudou IS NOT NULL
+                                    AND v_mudou <@ ARRAY['validado_chefia', 'validado_chefia_por', 'validado_chefia_em', 'observacoes'])))
+          OR (p_op = 'INSERT' AND p_tabela = 'frequencia_fechamento' AND (p_novo ->> 'validado_chefia') = 'true'))
+     AND public.has_permission_code(v_uid, 'rh.aprovar')
+     AND NOT public.has_permission_code(v_uid, 'rh.frequencia.lancar') THEN
+    v_via := 'chefia';
+  END IF;
+
+  IF v_via IS NULL THEN
+    RETURN NULL;
+  END IF;
+  RETURN jsonb_build_object('permitido', true, 'via', v_via, 'modulo', 'rh', 'servidor_id', v_srv, 'data', public.data_local());
+END;
+$$;
+
+
+--
+-- Name: fundamento_tabela(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fundamento_tabela(p_tabela text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_chave text;
+  v_guc text := 'lancamento.t_' || p_tabela;
+  v_cache text := current_setting('lancamento.t_' || p_tabela, true);
+  v_mods text[];
+  f jsonb;
+BEGIN
+  v_chave := coalesce(auth.uid()::text, '-') || '|' || coalesce(current_setting('role', true), 'none') || '|'
+             || coalesce(current_setting('lancamento.geracao', true), '');
+  IF v_cache IS NOT NULL AND left(v_cache, length(v_chave) + 1) = v_chave || chr(10) THEN
+    v_cache := substr(v_cache, length(v_chave) + 2);
+    RETURN CASE WHEN v_cache = '' THEN NULL ELSE v_cache::jsonb END;
+  END IF;
+  v_mods := public.lancamento_modulos_tabela(p_tabela);
+  IF v_mods IS NOT NULL THEN
+    f := public.fundamento_lancamento(v_mods);
+  END IF;
+  PERFORM set_config(v_guc, v_chave || chr(10) || coalesce(f::text, ''), true);
+  RETURN f;
+END;
+$$;
 
 
 --
@@ -6049,6 +6415,63 @@ $$;
 
 
 --
+-- Name: lancamento_cache_invalidar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.lancamento_cache_invalidar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  PERFORM set_config('lancamento.geracao',
+    (coalesce(nullif(current_setting('lancamento.geracao', true), ''), '0')::bigint + 1)::text, true);
+  PERFORM set_config('trilha.contexto', '', true);
+  RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: lancamento_modulos_tabela(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.lancamento_modulos_tabela(p_tabela text) RETURNS text[]
+    LANGUAGE plpgsql IMMUTABLE
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  RETURN CASE
+    WHEN p_tabela IN ('consignacoes', 'dependentes_irrf', 'eventos_esocial', 'fichas_financeiras', 'folhas_pagamento',
+                      'itens_ficha_financeira', 'itens_retorno_bancario', 'lancamentos_folha', 'parametros_folha',
+                      'pensoes_alimenticias', 'remessas_bancarias', 'rubricas', 'tabela_inss', 'tabela_irrf',
+                      'retornos_bancarios', 'exportacoes_folha', 'viagens_diarias', 'contas_autarquia', 'config_autarquia',
+                      'config_institucional')
+      THEN ARRAY['rh', 'financeiro']
+    WHEN p_tabela = 'documentos' THEN ARRAY['rh', 'workflow', 'gabinete', 'governanca', 'admin']
+    WHEN p_tabela IN ('historico_funcional', 'pre_cadastros', 'provimentos') THEN ARRAY['rh', 'gabinete']
+    WHEN p_tabela = 'composicao_cargos' THEN ARRAY['rh', 'governanca']
+    WHEN p_tabela = 'nomeacoes_chefe_unidade' THEN ARRAY['rh', 'patrimonio']
+    WHEN p_tabela IN ('adicionais_tempo_servico', 'agrupamento_unidade_vinculo', 'banco_horas', 'bancos_cnab',
+                      'cargo_unidade_compatibilidade', 'cargos', 'cessoes', 'comissoes', 'comissoes_membros',
+                      'config_agrupamento_unidades', 'config_assinatura_frequencia', 'config_compensacao',
+                      'config_fechamento_folha', 'config_fechamento_frequencia', 'config_incidencias',
+                      'config_jornada_padrao', 'config_motivos_desligamento', 'config_regras_calculo', 'config_rubricas',
+                      'config_situacoes_funcionais', 'config_tipos_ato', 'config_tipos_onus', 'config_tipos_rubrica',
+                      'config_tipos_servidor', 'configuracao_jornada', 'designacoes', 'dias_nao_uteis',
+                      'documentos_requerimento_servidor', 'feriados', 'ferias_servidor', 'frequencia_arquivos',
+                      'frequencia_fechamento', 'frequencia_mensal', 'frequencia_pacotes', 'horarios_jornada',
+                      'justificativas_ponto', 'lancamentos_banco_horas', 'licencas_afastamentos', 'lotacoes',
+                      'memorandos_lotacao', 'ocorrencias_servidor', 'portarias_servidor', 'regimes_trabalho',
+                      'registros_ponto', 'servidor_regime', 'servidor_tag_vinculos', 'servidor_tags', 'servidores',
+                      'solicitacoes_abono', 'solicitacoes_ajuste_ponto', 'tipos_abono', 'vinculos_funcionais',
+                      'vinculos_servidor')
+      THEN ARRAY['rh']
+  END;
+END;
+$$;
+
+
+--
 -- Name: list_public_tables(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -6212,10 +6635,12 @@ BEGIN
   WHERE user_id = auth.uid() 
   LIMIT 1;
   
-  SELECT unidade_id INTO _user_org_unit
-  FROM public.user_org_units
-  WHERE user_id = auth.uid() AND is_primary = true
-  LIMIT 1;
+  -- unidade da lotação vigente do servidor do login (como o resto da trilha, regra de setor 20261011020000); antes,
+  -- a unidade principal de user_org_units (escopo de acesso, não onde a pessoa trabalha)
+  SELECT lv.unidade_id INTO _user_org_unit
+    FROM public.profiles p CROSS JOIN LATERAL public.lotacao_vigente(p.servidor_id) lv
+   WHERE p.id = auth.uid() AND p.servidor_id IS NOT NULL
+   LIMIT 1;
   
   INSERT INTO public.audit_logs (
     user_id, action, entity_type, entity_id, module_name,
@@ -6232,6 +6657,48 @@ BEGIN
   RETURN _log_id;
 END;
 $$;
+
+
+--
+-- Name: lotacao_vigente(uuid, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.lotacao_vigente(p_servidor_id uuid, p_data date DEFAULT NULL::date) RETURNS TABLE(origem text, registro_id uuid, unidade_id uuid, tipo text, data_inicio date, data_fim date, ato_tipo text, ato_numero text, ato_data date, ato_doe_numero text, ato_doe_data date, created_by_servidor_id uuid)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  d date := coalesce(p_data, public.data_local());
+BEGIN
+  RETURN QUERY
+  SELECT x.o, x.rid, x.uni, x.tp, x.di, x.df, x.a_tipo, x.a_num, x.a_data, x.a_doe_num, x.a_doe_data, x.autor
+    FROM (
+      SELECT 'lotacao'::text AS o, l.id AS rid, l.unidade_id AS uni, coalesce(l.tipo_lotacao::text, 'lotacao_interna') AS tp,
+             l.data_inicio AS di, l.data_fim AS df, l.ato_tipo AS a_tipo, l.ato_numero AS a_num, l.ato_data AS a_data,
+             l.ato_doe_numero AS a_doe_num, l.ato_doe_data AS a_doe_data, l.created_by_servidor_id AS autor
+        FROM public.lotacoes l
+       WHERE l.servidor_id = p_servidor_id AND l.ativo IS TRUE
+         AND l.data_inicio <= d AND (l.data_fim IS NULL OR l.data_fim >= d)
+         AND l.tipo_lotacao IS DISTINCT FROM 'lotacao_externa'
+         AND EXISTS (SELECT 1 FROM public.estrutura_organizacional e WHERE e.id = l.unidade_id)
+      UNION ALL
+      SELECT 'cessao'::text, c.id, c.unidade_idjuv_id, 'cessao_entrada', c.data_inicio, coalesce(c.data_retorno, c.data_fim),
+             c.ato_tipo, c.ato_numero, c.ato_data, c.ato_doe_numero, c.ato_doe_data, c.created_by_servidor_id
+        FROM public.cessoes c
+       WHERE c.servidor_id = p_servidor_id AND c.tipo = 'entrada' AND c.ativa IS TRUE AND c.unidade_idjuv_id IS NOT NULL
+         AND c.data_inicio <= d AND (coalesce(c.data_retorno, c.data_fim) IS NULL OR coalesce(c.data_retorno, c.data_fim) >= d)
+         AND EXISTS (SELECT 1 FROM public.estrutura_organizacional e WHERE e.id = c.unidade_idjuv_id)
+    ) x
+   ORDER BY (x.o = 'cessao'), x.di DESC;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION lotacao_vigente(p_servidor_id uuid, p_data date); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.lotacao_vigente(p_servidor_id uuid, p_data date) IS 'Lotação ativa vigente do servidor na data (padrão: data_local(); fora lotacao_externa) e cessão de entrada com unidade no órgão; lotação primeiro; created_by_servidor_id = quem lançou';
 
 
 --
@@ -6289,6 +6756,49 @@ CREATE FUNCTION public.meu_servidor_id() RETURNS uuid
     AS $$
   SELECT servidor_id FROM public.profiles WHERE id = auth.uid() AND is_active;
 $$;
+
+
+--
+-- Name: meus_fundamentos_lancamento(public.app_module[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.meus_fundamentos_lancamento(p_modulos public.app_module[] DEFAULT NULL::public.app_module[]) RETURNS TABLE(modulo text, modo text, permitido boolean, bloqueado boolean, via text, unidade_id uuid, unidade_nome text, lotacao_id uuid, cessao_id uuid, designacao_id uuid, comissao_id uuid, ato jsonb)
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  m text;
+  f jsonb;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_active_user() THEN
+    RAISE EXCEPTION 'meus_fundamentos_lancamento: usuário não autenticado ou inativo' USING ERRCODE = '42501';
+  END IF;
+  FOR m IN SELECT e::text FROM unnest(enum_range(NULL::public.app_module)) AS e
+            WHERE p_modulos IS NULL OR e = ANY (p_modulos) LOOP
+    f := public.fundamento_lancamento(ARRAY[m]);
+    modulo := m;
+    modo := f ->> 'modo';
+    permitido := (f ->> 'permitido')::boolean;
+    bloqueado := modo = 'exigir' AND NOT permitido;
+    via := f ->> 'via';
+    unidade_id := (f ->> 'unidade_id')::uuid;
+    unidade_nome := (SELECT e.nome FROM public.estrutura_organizacional e WHERE e.id = unidade_id);
+    lotacao_id := (f ->> 'lotacao_id')::uuid;
+    cessao_id := (f ->> 'cessao_id')::uuid;
+    designacao_id := (f ->> 'designacao_id')::uuid;
+    comissao_id := (f ->> 'comissao_id')::uuid;
+    ato := f -> 'ato';
+    RETURN NEXT;
+  END LOOP;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION meus_fundamentos_lancamento(p_modulos public.app_module[]); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.meus_fundamentos_lancamento(p_modulos public.app_module[]) IS 'Por módulo (todos, ou os de p_modulos): modo da regra de lançamento, se o login tem fundamento de setor hoje (via, unidade, ato) e se está bloqueado (exigir sem fundamento)';
 
 
 --
@@ -7184,6 +7694,7 @@ CREATE FUNCTION public.registrar_evento(p_acao text, p_entidade text, p_entidade
 DECLARE
   v_uid uuid := auth.uid();
   v_id uuid;
+  v_fund jsonb;
 BEGIN
   IF v_uid IS NULL OR NOT public.is_active_user() THEN
     RAISE EXCEPTION 'registrar_evento: usuário não autenticado ou inativo' USING ERRCODE = '42501';
@@ -7193,9 +7704,10 @@ BEGIN
       left(coalesce(p_acao, '(nula)'), 40) USING ERRCODE = '22023';
   END IF;
   IF p_entidade IS NULL OR p_entidade <> ALL (ARRAY[
-      -- tabelas do RH (as mesmas do bloco 8 e as duas de trilha)
+      -- tabelas do RH (as mesmas do laço do bloco 6 e as duas de trilha)
       'adicionais_tempo_servico', 'agrupamento_unidade_vinculo', 'banco_horas', 'bancos_cnab',
-      'cargo_unidade_compatibilidade', 'cargos', 'cessoes', 'composicao_cargos', 'config_agrupamento_unidades',
+      'cargo_unidade_compatibilidade', 'cargos', 'cessoes', 'comissoes', 'comissoes_membros', 'composicao_cargos',
+      'config_agrupamento_unidades',
       'config_assinatura_frequencia', 'config_autarquia', 'config_compensacao', 'config_fechamento_folha',
       'config_fechamento_frequencia', 'config_incidencias', 'config_institucional', 'config_jornada_padrao',
       'config_motivos_desligamento', 'config_regras_calculo', 'config_rubricas', 'config_situacoes_funcionais',
@@ -7228,10 +7740,16 @@ BEGIN
     END IF;
   END IF;
 
-  INSERT INTO public.audit_logs (action, entity_type, entity_id, module_name, user_id, description, metadata)
+  v_fund := public.fundamento_lancamento(ARRAY['rh']);
+  IF v_fund ->> 'modo' = 'desligado' THEN
+    v_fund := NULL;
+  END IF;
+
+  INSERT INTO public.audit_logs (action, entity_type, entity_id, module_name, user_id, description, metadata, fundamento)
   VALUES (p_acao::public.audit_action, p_entidade, p_entidade_id, 'rh', v_uid, left(p_descricao, 500),
           (coalesce(p_metadados, '{}'::jsonb) - ARRAY['trigger', 'operation', 'table', 'fonte', 'servidor_alvo_id'])
-            || jsonb_build_object('registrar_evento', true, 'fonte', 'registrar_evento'))
+            || jsonb_build_object('registrar_evento', true, 'fonte', 'registrar_evento'),
+          v_fund)
   RETURNING id INTO v_id;
   RETURN v_id;
 END;
@@ -7627,6 +8145,26 @@ $$;
 
 
 --
+-- Name: regra_lancamento_proteger_exigir(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.regra_lancamento_proteger_exigir() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.modo = 'exigir' AND auth.uid() IS NOT NULL
+     AND (TG_OP = 'INSERT' OR OLD.modo IS DISTINCT FROM 'exigir' OR OLD.modulo IS DISTINCT FROM NEW.modulo) THEN
+    RAISE EXCEPTION 'O modo exigir da regra de lançamento (módulo %) só entra por migração', NEW.modulo
+      USING ERRCODE = '42501',
+            HINT = 'Pela tela, os modos são desligado e registrar; exigir é ligado por migração, módulo a módulo.';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: remessa_integridade(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -7758,11 +8296,11 @@ COMMENT ON FUNCTION public.responsavel_atual() IS 'Responsável pelo comando atu
 --
 
 CREATE FUNCTION public.rh_exige_servidor_vinculado() RETURNS boolean
-    LANGUAGE plpgsql STABLE
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
 BEGIN
-  RETURN false;
+  RETURN coalesce((SELECT rl.modo = 'exigir' FROM public.regra_lancamento rl WHERE rl.modulo = 'rh'), false);
 END;
 $$;
 
@@ -7817,6 +8355,63 @@ BEGIN
   RETURN v_agora;
 END;
 $$;
+
+
+--
+-- Name: saneamento_lancamento(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.saneamento_lancamento() RETURNS TABLE(servidor_id uuid, nome text, matricula text, situacao text, tem_login boolean, login_ativo boolean, lotacao_unidade_id uuid, lotacao_unidade_nome text, unidade_atual_id uuid, unidade_atual_nome text, problemas text[])
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_hoje date := public.data_local();
+BEGIN
+  IF auth.uid() IS NULL OR NOT (public.is_admin_user(auth.uid())
+       OR (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'rh.auditoria.visualizar'))) THEN
+    RAISE EXCEPTION 'saneamento_lancamento: exige o papel admin ou o módulo rh com rh.auditoria.visualizar'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT x.sid, x.snome, x.smat, x.ssit, x.tem, x.ativo_login, x.luni, el.nome::text, x.uatual, ea.nome::text, x.probs
+    FROM (
+      SELECT s.id AS sid, s.nome_completo::text AS snome, s.matricula::text AS smat, s.situacao::text AS ssit,
+             p.tem, p.ativo_login, lv.unidade_id AS luni, s.unidade_atual_id AS uatual,
+             array_remove(ARRAY[
+               CASE WHEN NOT p.tem THEN 'sem_login' END,
+               CASE WHEN lv.unidade_id IS NULL THEN 'sem_lotacao' END,
+               CASE WHEN lv.unidade_id IS NOT NULL AND s.unidade_atual_id IS DISTINCT FROM lv.unidade_id
+                    THEN 'lotacao_divergente' END,
+               CASE WHEN EXISTS (SELECT 1 FROM public.lotacao_vigente(s.id, v_hoje) a WHERE a.created_by_servidor_id = s.id)
+                      OR EXISTS (SELECT 1 FROM public.designacoes d
+                                  WHERE d.servidor_id = s.id AND d.status = 'aprovada' AND d.ativo IS NOT FALSE
+                                    AND d.data_inicio <= v_hoje AND (d.data_fim IS NULL OR d.data_fim >= v_hoje)
+                                    AND d.aprovado_por IS NOT NULL
+                                    AND (d.aprovado_por = d.created_by
+                                         OR EXISTS (SELECT 1 FROM public.profiles pa
+                                                     WHERE pa.id = d.aprovado_por AND pa.servidor_id = s.id)))
+                    THEN 'fundamento_autoconcedido' END], NULL) AS probs
+        FROM public.servidores s
+        CROSS JOIN LATERAL (
+          SELECT EXISTS (SELECT 1 FROM public.profiles pr WHERE pr.servidor_id = s.id) AS tem,
+                 EXISTS (SELECT 1 FROM public.profiles pr WHERE pr.servidor_id = s.id AND pr.is_active) AS ativo_login) p
+        LEFT JOIN LATERAL (SELECT v.unidade_id FROM public.lotacao_vigente(s.id, v_hoje) v LIMIT 1) lv ON true
+       WHERE s.ativo IS NOT FALSE AND s.situacao::text NOT IN ('exonerado', 'aposentado', 'falecido', 'inativo')
+    ) x
+    LEFT JOIN public.estrutura_organizacional el ON el.id = x.luni
+    LEFT JOIN public.estrutura_organizacional ea ON ea.id = x.uatual
+   WHERE cardinality(x.probs) > 0
+   ORDER BY x.snome;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION saneamento_lancamento(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.saneamento_lancamento() IS 'Servidores ativos sem login vinculado, sem lotação vigente, com unidade_atual_id divergente da lotação ou com fundamento autoconcedido (sem CPF)';
 
 
 --
@@ -8240,8 +8835,10 @@ BEGIN
          WHERE ur.user_id = NEW.user_id ORDER BY (ur.role = 'admin') DESC LIMIT 1;
       END IF;
       IF NEW.org_unit_id IS NULL THEN
-        SELECT uo.unidade_id INTO NEW.org_unit_id FROM public.user_org_units uo
-         WHERE uo.user_id = NEW.user_id AND uo.is_primary = true LIMIT 1;
+        SELECT lv.unidade_id INTO NEW.org_unit_id
+          FROM public.profiles p CROSS JOIN LATERAL public.lotacao_vigente(p.servidor_id) lv
+         WHERE p.id = NEW.user_id AND p.servidor_id IS NOT NULL
+         LIMIT 1;
       END IF;
     END IF;
   END IF;
@@ -8287,8 +8884,9 @@ BEGIN
      WHERE p.id = v_uid;
     SELECT ur.role::text INTO v_papel FROM public.user_roles ur
      WHERE ur.user_id = v_uid ORDER BY (ur.role = 'admin') DESC LIMIT 1;
-    SELECT uo.unidade_id INTO v_unid FROM public.user_org_units uo
-     WHERE uo.user_id = v_uid AND uo.is_primary = true LIMIT 1;
+    IF v_srv IS NOT NULL THEN
+      SELECT lv.unidade_id INTO v_unid FROM public.lotacao_vigente(v_srv) lv LIMIT 1;
+    END IF;
   END IF;
   SELECT * INTO r FROM public.trilha_contexto_requisicao();
   v_ctx := jsonb_build_object(
@@ -8561,6 +9159,31 @@ $_$;
 --
 
 COMMENT ON FUNCTION public.trilha_storage_chave(p_bucket text, p_nome text) IS 'Chave de um objeto do Storage para a trilha: bucket, caminho só quando é feito de uuid/AAAA-MM com extensão da lista fechada, sha256 do caminho, período e extensão';
+
+
+--
+-- Name: unidade_e_superiores(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.unidade_e_superiores(p_unidade_id uuid) RETURNS uuid[]
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v uuid[];
+BEGIN
+  IF p_unidade_id IS NULL THEN
+    RETURN '{}'::uuid[];
+  END IF;
+  WITH RECURSIVE s(id, superior_id, n) AS (
+    SELECT e.id, e.superior_id, 1 FROM public.estrutura_organizacional e WHERE e.id = p_unidade_id
+    UNION
+    SELECT e.id, e.superior_id, s.n + 1 FROM public.estrutura_organizacional e JOIN s ON e.id = s.superior_id WHERE s.n < 50
+  )
+  SELECT array_agg(DISTINCT s.id) INTO v FROM s;
+  RETURN coalesce(v, ARRAY[p_unidade_id]);
+END;
+$$;
 
 
 --
@@ -9656,6 +10279,7 @@ CASE
     WHEN ((entity_type)::text = 'folhas_pagamento'::text) THEN ('f:'::text || (entity_id)::text)
     ELSE NULL::text
 END, ('f:'::text || (after_data ->> 'folha_id'::text)), ('f:'::text || (before_data ->> 'folha_id'::text)), ('f:'::text || (metadata ->> 'folha_id'::text))], NULL::text)) STORED,
+    fundamento jsonb,
     CONSTRAINT audit_logs_origem_check CHECK (((origem IS NULL) OR (origem = ANY (ARRAY['usuario'::text, 'usuario_sem_vinculo'::text, 'sistema'::text, 'anonimo'::text]))))
 );
 
@@ -9702,6 +10326,13 @@ COMMENT ON COLUMN public.audit_logs.sequencia IS 'Ordem de gravação na trilha 
 --
 
 COMMENT ON COLUMN public.audit_logs.alvos IS 'Recorte da aba de histórico (gerada): s:<servidor_id> e f:<folha_id> citados pela linha; filtro alvos @> ARRAY[''s:<id>'']';
+
+
+--
+-- Name: COLUMN audit_logs.fundamento; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_logs.fundamento IS 'Fundamento do lançamento pela regra de setor (via, permitido, modo, módulo, unidade, lotação/designação/comissão, ato); nulo com a regra desligada';
 
 
 --
@@ -10484,6 +11115,79 @@ CREATE TABLE public.coletas_inventario (
 );
 
 ALTER TABLE ONLY public.coletas_inventario FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: comissoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.comissoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nome text NOT NULL,
+    tipo text NOT NULL,
+    modulo public.app_module NOT NULL,
+    objeto_tipo text,
+    objeto_id uuid,
+    ato_tipo text NOT NULL,
+    ato_numero text NOT NULL,
+    ato_data date NOT NULL,
+    ato_doe_numero text,
+    ato_doe_data date,
+    data_inicio date NOT NULL,
+    data_fim date,
+    motivo text NOT NULL,
+    status text DEFAULT 'ativa'::text NOT NULL,
+    observacao text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
+    CONSTRAINT comissoes_objeto_check CHECK (((objeto_tipo IS NULL) = (objeto_id IS NULL))),
+    CONSTRAINT comissoes_objeto_obrigatorio_check CHECK (((tipo = 'outra'::text) OR ((objeto_tipo IS NOT NULL) AND (objeto_id IS NOT NULL)))),
+    CONSTRAINT comissoes_objeto_tipo_check CHECK ((objeto_tipo = ANY (ARRAY['campanha_inventario'::text, 'contrato'::text, 'processo_licitatorio'::text]))),
+    CONSTRAINT comissoes_periodo_check CHECK (((data_fim IS NULL) OR (data_fim >= data_inicio))),
+    CONSTRAINT comissoes_status_check CHECK ((status = ANY (ARRAY['ativa'::text, 'encerrada'::text]))),
+    CONSTRAINT comissoes_tipo_check CHECK ((tipo = ANY (ARRAY['inventario'::text, 'licitacao'::text, 'fiscalizacao_contrato'::text, 'outra'::text])))
+);
+
+
+--
+-- Name: TABLE comissoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.comissoes IS 'Comissões com ato, período e motivo (inventário, licitação, fiscalização de contrato...). Membro de comissão vale só no objeto dela (premissa 6, fase 2); na fase 1 a comissão é só cadastro, não fundamento.';
+
+
+--
+-- Name: comissoes_membros; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.comissoes_membros (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    comissao_id uuid NOT NULL,
+    servidor_id uuid NOT NULL,
+    papel text DEFAULT 'membro'::text NOT NULL,
+    data_inicio date,
+    data_fim date,
+    observacao text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
+    CONSTRAINT comissoes_membros_papel_check CHECK ((papel = ANY (ARRAY['presidente'::text, 'membro'::text, 'secretario'::text]))),
+    CONSTRAINT comissoes_membros_periodo_check CHECK (((data_fim IS NULL) OR (data_inicio IS NULL) OR (data_fim >= data_inicio)))
+);
+
+
+--
+-- Name: TABLE comissoes_membros; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.comissoes_membros IS 'Membros das comissões: papel e período (data_inicio/data_fim nulas = o período da comissão).';
 
 
 --
@@ -15945,6 +16649,32 @@ CREATE TABLE public.registros_ponto (
 
 
 --
+-- Name: regra_lancamento; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.regra_lancamento (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    modulo public.app_module NOT NULL,
+    modo text DEFAULT 'desligado'::text NOT NULL,
+    observacao text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
+    CONSTRAINT regra_lancamento_modo_check CHECK ((modo = ANY (ARRAY['desligado'::text, 'registrar'::text, 'exigir'::text])))
+);
+
+
+--
+-- Name: TABLE regra_lancamento; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.regra_lancamento IS 'Modo da regra de lançamento por setor de cada módulo: desligado, registrar (só anota na trilha) ou exigir (recusa, RHS01). Só o papel admin altera.';
+
+
+--
 -- Name: remessas_bancarias; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -16648,6 +17378,40 @@ COMMENT ON COLUMN public.servidores.vinculo_externo_observacoes IS 'Observaçõe
 --
 
 COMMENT ON COLUMN public.servidores.codigo_interno IS 'Código interno sequencial automático (SRV-00001) para organização de pastas físicas';
+
+
+--
+-- Name: setores_modulo; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.setores_modulo (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    modulo public.app_module NOT NULL,
+    unidade_id uuid NOT NULL,
+    inclui_subordinadas boolean DEFAULT false NOT NULL,
+    ativo boolean DEFAULT true NOT NULL,
+    observacao text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    updated_by_servidor_id uuid
+);
+
+
+--
+-- Name: TABLE setores_modulo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.setores_modulo IS 'Unidades da estrutura que são o setor de cada módulo (lançamento por setor). Só o papel admin altera.';
+
+
+--
+-- Name: COLUMN setores_modulo.inclui_subordinadas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.setores_modulo.inclui_subordinadas IS 'true: as unidades abaixo desta na estrutura (superior_id) também são o setor do módulo (padrão false)';
 
 
 --

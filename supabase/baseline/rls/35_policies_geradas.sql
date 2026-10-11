@@ -662,6 +662,36 @@ DROP POLICY IF EXISTS "rls_delete" ON public.coletas_inventario;
 CREATE POLICY "rls_delete" ON public.coletas_inventario FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
 
+-- comissoes  [permissao: rh]
+DROP POLICY IF EXISTS "rls_select" ON public.comissoes;
+CREATE POLICY "rls_select" ON public.comissoes FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')));
+DROP POLICY IF EXISTS "rls_insert" ON public.comissoes;
+CREATE POLICY "rls_insert" ON public.comissoes FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.comissoes.gerenciar'));
+DROP POLICY IF EXISTS "rls_update" ON public.comissoes;
+CREATE POLICY "rls_update" ON public.comissoes FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.comissoes.gerenciar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.comissoes.gerenciar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.comissoes;
+CREATE POLICY "rls_delete" ON public.comissoes FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.comissoes.gerenciar'));
+
+-- comissoes_membros  [permissao: rh]
+DROP POLICY IF EXISTS "rls_select" ON public.comissoes_membros;
+CREATE POLICY "rls_select" ON public.comissoes_membros FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')));
+DROP POLICY IF EXISTS "rls_insert" ON public.comissoes_membros;
+CREATE POLICY "rls_insert" ON public.comissoes_membros FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.comissoes.gerenciar'));
+DROP POLICY IF EXISTS "rls_update" ON public.comissoes_membros;
+CREATE POLICY "rls_update" ON public.comissoes_membros FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.comissoes.gerenciar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.comissoes.gerenciar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.comissoes_membros;
+CREATE POLICY "rls_delete" ON public.comissoes_membros FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.comissoes.gerenciar'));
+
 -- composicao_cargos  [modulo: rh | governanca]
 DROP POLICY IF EXISTS "rls_select" ON public.composicao_cargos;
 CREATE POLICY "rls_select" ON public.composicao_cargos FOR SELECT TO authenticated
@@ -3151,6 +3181,19 @@ DROP POLICY IF EXISTS "rls_delete" ON public.registros_ponto;
 CREATE POLICY "rls_delete" ON public.registros_ponto FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) AND (public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.criar') OR public.has_permission_code(auth.uid(), 'rh.frequencia.editar')) AND (public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(servidor_id)));
 
+-- regra_lancamento  [catalogo_admin]
+DROP POLICY IF EXISTS "rls_select" ON public.regra_lancamento;
+CREATE POLICY "rls_select" ON public.regra_lancamento FOR SELECT TO authenticated
+  USING (public.is_active_user());
+DROP POLICY IF EXISTS "rls_insert" ON public.regra_lancamento;
+CREATE POLICY "rls_insert" ON public.regra_lancamento FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin_user(auth.uid()));
+DROP POLICY IF EXISTS "rls_update" ON public.regra_lancamento;
+CREATE POLICY "rls_update" ON public.regra_lancamento FOR UPDATE TO authenticated
+  USING (public.is_admin_user(auth.uid()))
+  WITH CHECK (public.is_admin_user(auth.uid()));
+DROP POLICY IF EXISTS "rls_delete" ON public.regra_lancamento;
+
 -- remessas_bancarias  [permissao: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.remessas_bancarias;
 CREATE POLICY "rls_select" ON public.remessas_bancarias FOR SELECT TO authenticated
@@ -3356,6 +3399,21 @@ CREATE POLICY "rls_update" ON public.servidores FOR UPDATE TO authenticated
 DROP POLICY IF EXISTS "rls_delete" ON public.servidores;
 CREATE POLICY "rls_delete" ON public.servidores FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.servidores.excluir') AND (public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(id)));
+
+-- setores_modulo  [catalogo_admin]
+DROP POLICY IF EXISTS "rls_select" ON public.setores_modulo;
+CREATE POLICY "rls_select" ON public.setores_modulo FOR SELECT TO authenticated
+  USING (public.is_active_user());
+DROP POLICY IF EXISTS "rls_insert" ON public.setores_modulo;
+CREATE POLICY "rls_insert" ON public.setores_modulo FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin_user(auth.uid()));
+DROP POLICY IF EXISTS "rls_update" ON public.setores_modulo;
+CREATE POLICY "rls_update" ON public.setores_modulo FOR UPDATE TO authenticated
+  USING (public.is_admin_user(auth.uid()))
+  WITH CHECK (public.is_admin_user(auth.uid()));
+DROP POLICY IF EXISTS "rls_delete" ON public.setores_modulo;
+CREATE POLICY "rls_delete" ON public.setores_modulo FOR DELETE TO authenticated
+  USING (public.is_admin_user(auth.uid()));
 
 -- solicitacoes_abono  [permissao: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.solicitacoes_abono;

@@ -23,6 +23,7 @@ import { Menu, ArrowUp } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
 import { SystemCredits } from "./SystemCredits";
 import { AvisosDestaque } from "@/components/avisos";
+import { AvisoSomenteConsulta } from "@/components/lancamento-setor/AvisoSomenteConsulta";
 
 interface ModuleLayoutProps {
   children: ReactNode;
@@ -166,6 +167,8 @@ export function ModuleLayout({ children, module, title, description }: ModuleLay
               </div>
             )}
             <AvisosDestaque />
+            {/* Regra de lançamento por setor: só aparece onde o banco já a checa (fase 1: RH) e o login não tem fundamento */}
+            <AvisoSomenteConsulta modulo={module} />
             {children}
 
             {/* Créditos da desenvolvedora */}

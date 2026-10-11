@@ -89,6 +89,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "servidores", label: "Servidores", icon: Users, route: "/rh/servidores" },
       { id: "gestao-lotacao", label: "Gestão de Lotação", icon: Building2, route: "/rh/gestao-lotacao" },
       { id: "designacoes", label: "Designações", icon: UserCog, route: "/rh/designacoes" },
+      { id: "comissoes", label: "Comissões", icon: Scale, route: "/rh/comissoes", permission: "rh" },
       { id: "portarias-pendencias", label: "Portarias (Pendências)", icon: FileText, route: "/rh/portarias/pendencias" },
       { 
         id: "frequencia", 
@@ -333,6 +334,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "configuracao-cliente", label: "Configuração do Cliente", icon: Building2, route: "/admin/configuracao-cliente" },
       { id: "modulos", label: "Gestão de Módulos", icon: Package, route: "/admin/modulos" },
       { id: "permissoes", label: "Painel de Permissões", icon: Shield, route: "/admin/permissoes" },
+      { id: "setores-modulos", label: "Setores dos Módulos", icon: Network, route: "/admin/setores-modulos", permission: "admin.config" },
       { id: "ajuda", label: "Ajuda", icon: HelpCircle, route: "/admin/ajuda" },
     ],
   },
