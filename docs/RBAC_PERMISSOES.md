@@ -742,6 +742,11 @@ RH: o dono decide no merge).
 - **Arquivos da folha na tela:** gerar a remessa CNAB, baixar de novo e cancelar, gerar eventos do eSocial e baixar o
   XML de um evento exigem `financeiro.folha.processar` (o banco exige o mesmo para gravar e ler); sem ela os botões
   ficam desabilitados com a explicação e o diálogo do eSocial recusa.
+- **Listas que a RLS esvazia** (migrações `20261011010100` e seguintes: `consignacoes`, `eventos_esocial`,
+  `lancamentos_folha`, `pensoes_alimenticias`, `itens_retorno_bancario` só com `rh.contracheques.visualizar` ou
+  `financeiro.folha.processar`): onde há tela, ela mostra o aviso de permissão em vez de "nenhum registro" — aba
+  "Consignações" da ficha financeira (`ConsignacoesFichaTab`, sem a margem) e aba "Eventos eSocial" do detalhe da folha.
+  `lancamentos_folha`, `pensoes_alimenticias` e `itens_retorno_bancario` não têm tela hoje.
 - **Card "Folha de pagamento" em `/rh/relatorios`:** "por unidade" e "por rubrica" somam fichas e itens; sem
   `rh.contracheques.visualizar` nem `financeiro.folha.processar` o card mostra o aviso em vez de um total parcial. O
   resumo do ano (totais de `folhas_pagamento`) continua.

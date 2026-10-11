@@ -867,7 +867,14 @@ export default function FolhaDetalhePage() {
                 {!eventosESocial || eventosESocial.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <FileCode className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhum evento eSocial gerado para esta folha.</p>
+                    {leituraRestrita ? (
+                      <p>
+                        Os eventos do eSocial só aparecem para quem tem a permissão de consultar contracheques
+                        (rh.contracheques.visualizar) ou de processar a folha.
+                      </p>
+                    ) : (
+                      <p>Nenhum evento eSocial gerado para esta folha.</p>
+                    )}
                     {podeGerarESocial && podeAbrirESocial && (
                       <p className="text-sm mt-2">
                         Clique em "Gerar Eventos" para criar os eventos S-1200, S-1210 e S-1299.
