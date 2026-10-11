@@ -35,7 +35,7 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   Transparência, Workflow, Gestores Escolares).
 - **RH / folha**: `useServidorCompleto`, `useServidoresPorUnidade`,
   `useVinculosServidor`, `useConfigVidaFuncional`, `useGestaoLotacao`,
-  `useDesignacoes`, `useFrequencia`, `useFrequenciaPacotes`,
+  `useDesignacoes`, `useComissoes` (comissões e membros), `useFrequencia`, `useFrequenciaPacotes`,
   `useParametrizacoesFrequencia`, `useGerarFrequenciaPDF`, `useFolhaPagamento`,
   `useFolhaCalculos`, `useMotorFolha`, `useFechamentoFolha`, `useContracheque`,
   `useRHIntegracoes`, `useRelatorios`, `usePortarias`, `usePreCadastro`.
@@ -52,6 +52,7 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
 - **Admin/segurança**: `useAdminUsuarios`, `useUsuarios`, `usePermissions`,
   `usePermissoesUsuario`, `useRBAC`, `useApprovalRequests`, `useAuditLog`,
   `useTrilhaAuditoria` (trilha de auditoria e `useRegistrarEvento`; ver abaixo),
+  `useLancamentoPorSetor` (regra de lançamento por setor; ver abaixo),
   `useBackupOffsite`, `useDatabaseSchema`, `useModuleSettings`,
   `useConfigPaginasPublicas`, `useFormFieldConfig`.
 - **Organização**: `useOrganograma`, `useInstituicoes`, `useAgrupamentoUnidades`,
@@ -186,6 +187,50 @@ O banco grava quem fez cada lançamento (onda E1); o front consulta a trilha e r
   geral, pacote de frequência, fichas e declarações do servidor, memorando de designação) e o CSV da trilha.
   Visualização sem bloquear: ficha do servidor, ficha financeira, contracheque na consulta, pré-visualização da
   frequência e documentos abertos na ficha.
+
+## Lançamento por setor (fase 1)
+
+Spec: [`superpowers/specs/2026-10-11-lancamento-por-setor-design.md`](./superpowers/specs/2026-10-11-lancamento-por-setor-design.md).
+Quem lança no módulo é o servidor lotado no setor dele, designado para o setor ou membro de comissão; login sem
+servidor só consulta. O banco decide (migração `20261011020000` da regra de setor, ver
+[BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)); nesta fase só as tabelas do RH são checadas, em modo **registrar** (nada é
+bloqueado). As tabelas e RPCs novas ainda não estão em `types.ts`: os hooks usam o client sem tipagem, como
+`useTrilhaAuditoria.ts`.
+
+- **Hook** `src/hooks/useLancamentoPorSetor.ts`:
+  - `useFundamentosLancamento(habilitado?)`: RPC `meus_fundamentos_lancamento()` (por módulo: modo, permitido, via,
+    unidade, ato), cache de 30 s, sem retry; `doModulo(m)` e `podeLancar(m)` (falso só em `exigir` sem fundamento).
+    "Sem fundamento" é a via `negado_sem_servidor`/`negado_setor` (no modo registrar o banco pode dizer `permitido`);
+  - `useRegrasLancamento`/`useSalvarModoRegra` (`regra_lancamento`, upsert por módulo) e `useSetoresModulo`/
+    `useAdicionarSetorModulo`/`useAlterarSetorModulo` (`setores_modulo`; retirar desativa a linha e incluir de novo a
+    reativa). Gravar é só do papel admin (RLS);
+  - `useSaneamentoLancamento` (RPC `saneamento_lancamento()`) e `useBloqueiosLancamento(filtros)`: linhas da trilha
+    com `fundamento->>via` negada no período, lidas pelo cursor da `sequencia` (`buscarTrilhaParaExportar`, até 5000
+    linhas; a tela avisa quando corta). `useTrilhaAuditoria` ganhou o filtro `vias` (só com ele a coluna
+    `fundamento` entra no select) e o detalhe da linha mostra o fundamento (via e ato).
+- **Regras puras** `src/lib/lancamentoSetorRegras.ts`: designação e comissão como fundamento (aprovada/ativa, vigente
+  na data, com número e data do ato; devolve o que falta), agrupamento do relatório por responsável, tabela e motivo,
+  normalização das respostas das RPCs e `MODULOS_COM_REGRA_NO_BANCO` (hoje `["rh"]`).
+- **Aviso** `AvisoSomenteConsulta` (`src/components/lancamento-setor/`), no `ModuleLayout` (um ponto só, não tela por
+  tela), só nos módulos de `MODULOS_COM_REGRA_NO_BANCO`: em `exigir` e sem fundamento, "Somente consulta" com o motivo
+  (sem servidor vinculado ou fora do setor) e o que fazer; em `registrar`, nota discreta "seu lançamento seria
+  recusado quando a regra passar a ser exigida". É aviso: quem recusa é o banco.
+- **Erro `RHS01`** (recusa da regra no modo exigir): `descreverErroBanco` e `mensagemErroBanco` mostram a mensagem do
+  banco ("seu login não tem servidor vinculado", "você não está lotado nem designado no setor…").
+- **Telas:**
+  - `/admin/setores-modulos` (`SetoresModulosPage`): por módulo habilitado (menos `admin`, premissa 1), as unidades da
+    estrutura que são o setor (busca por nome/sigla, com ou sem subordinadas) e o modo da regra. O modo só é editável
+    nos módulos que o banco já checa; passar para `exigir` pede confirmação e mostra quantos responsáveis teriam sido
+    bloqueados nos últimos 30 dias (e alerta quando o módulo não tem setor). Sem o papel admin, só consulta;
+  - `/rh/comissoes` (`ComissoesPage`, `ComissaoFormDialog`, `MembrosComissaoDialog`): lista com ato, período, membros
+    e se a comissão vale como fundamento; criar/editar (react-hook-form + zod: ato com tipo, número e data
+    obrigatórios, período, motivo, módulo, objeto opcional por tipo e UUID) e membros (servidor, papel, período);
+  - `/rh/designacoes`: coluna "Fundamento de lançamento" (`FundamentoDesignacaoBadge`) com o que falta;
+  - `/rh/auditoria`, aba "Lançamento por setor" (`RelatorioLancamentoSetor`): quem seria bloqueado no período
+    (agrupado por responsável, tabela e motivo) e o saneamento (servidores ativos sem login, sem lotação vigente ou
+    com lotação divergente).
+- `SeletorBusca` (`src/components/lancamento-setor/`): combobox com busca (Popover + Command) para listas longas
+  (servidores, unidades).
 
 ## Arquivos da folha: remessa CNAB e eSocial (onda E3)
 
