@@ -87,6 +87,15 @@ As duas funções acima usam a RPC `consumir_cota_uso(usuario, tipo, quantidade,
 (`entity_type` = tipo, `metadata.quantidade`) na mesma transação, sob lock por usuário, então pedidos em
 paralelo não furam o limite. Só a service role executa.
 
+Trilha (onda E1, [`BANCO_DE_DADOS.md`](./BANCO_DE_DADOS.md#trilha-de-auditoria-e-servidor-responsável-do-rh--onda-e1)):
+as gravações dessas funções rodam pela service role e entram em `audit_logs` com origem `sistema`, sem autor. Por
+isso `admin-create-user` grava uma linha complementar (módulo `admin`, `entity_type = 'user'`, ação `create`, ou
+`update` quando só garante o perfil de um usuário que já existia) com o administrador que pediu, e `delete-user`
+grava outra (`update`, etapa `remover_acessos`) antes de remover módulos, papéis e o vínculo com o servidor, além da
+linha `delete` que já gravava depois da exclusão. As linhas novas não levam e-mail nem outro dado pessoal (a linha
+`delete` antiga ainda leva o e-mail e o nome em `description`/`before_data`). `delete-user` não é atômica: se a
+exclusão no Auth falhar, o usuário fica sem módulos, papéis e vínculo.
+
 `backup-offsite`: só o token **igual** à `SUPABASE_SERVICE_ROLE_KEY` vale como chamada de cron (antes decodificava o
 JWT sem validar a assinatura) e o usuário com papel precisa ter o perfil ativo.
 
@@ -102,7 +111,13 @@ A função lê `frequencia_pacotes` e assina URLs com a service role, então, de
   responde `403` genérico (falha fechada);
 - só assina caminho relativo seguro (sem `/` inicial, segmento `.` ou `..`, `%`, `\`, `?` ou `#`), a mesma regra do
   CHECK de `arquivo_path` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)); caminho inseguro responde `404` genérico;
-- o log identifica o usuário só pelo `user.id` (antes gravava o e-mail) e não leva token, link nem caminho.
+- o log identifica o usuário só pelo `user.id` (antes gravava o e-mail) e não leva token, link nem caminho;
+- **trilha obrigatória (onda E2)**: antes de devolver a URL, grava em `audit_logs` `action = 'download'`,
+  `module_name = 'rh'`, `entity_type = 'frequencia_pacotes'`, `entity_id` = id do pacote, `user_id` de quem pediu e
+  metadados só com `periodo`, `tipo` e `fonte = 'download-frequencia'` (sem nome de arquivo; o banco completa
+  servidor, origem e contexto). Se a gravação falhar, a URL não sai: `500` genérico ("Erro ao gerar link de
+  download") e o `console.error` só com o código do erro. Antes gravava sem módulo (a linha não aparecia na trilha
+  do RH), com `entity_type = 'frequencia_pacote'` e o nome do arquivo, e ignorava a falha.
 
 O CORS continua `Access-Control-Allow-Origin: *`: a função só aceita o token no cabeçalho `Authorization`, sem
 cookie. Restringir o CORS à origem do tenant é pendência. O ZIP do pacote nunca é gravado hoje, então o download

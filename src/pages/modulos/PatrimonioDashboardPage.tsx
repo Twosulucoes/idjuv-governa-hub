@@ -40,7 +40,7 @@ export default function PatrimonioDashboardPage() {
     { label: "Novo bem", description: "Cadastrar patrimônio", href: "/inventario/bens?acao=novo", icon: Package },
     { label: "Movimentação", description: "Transferir bem", href: "/inventario/movimentacoes", icon: ArrowRightLeft },
     { label: "Inventário", description: "Realizar conferência", href: "/inventario/campanhas", icon: ClipboardCheck },
-    { label: "Gerar QR Code", description: "Etiquetas", href: "/inventario/etiquetas", icon: QrCode },
+    { label: "Gerar QR Code", description: "Etiquetas (menu de ações do bem)", href: "/inventario/bens", icon: QrCode },
   ];
 
   return (

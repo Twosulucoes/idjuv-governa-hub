@@ -38,14 +38,17 @@ import { toast } from "sonner";
 
 const formSchema = z.object({
   bem_id: z.string().min(1, "Selecione o bem"),
-  motivo: z.string().min(1, "Selecione o motivo"),
+  // Valores do enum motivo_baixa_patrimonio
+  motivo: z.enum(["inservivel", "obsoleto", "doacao", "alienacao", "perda"], {
+    errorMap: () => ({ message: "Selecione o motivo" }),
+  }),
   justificativa: z.string().min(10, "A justificativa deve ter pelo menos 10 caracteres"),
   valor_residual: z.coerce.number().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-const MOTIVOS_BAIXA = [
+const MOTIVOS_BAIXA: { value: FormData["motivo"]; label: string }[] = [
   { value: "inservivel", label: "Inservível / Irrecuperável" },
   { value: "obsoleto", label: "Obsolescência Tecnológica" },
   { value: "perda", label: "Extravio / Furto / Roubo / Perda" },
@@ -67,7 +70,7 @@ export function NovaBaixaDialog({ open, onOpenChange }: NovaBaixaDialogProps) {
       const { data, error } = await supabase
         .from("bens_patrimoniais")
         .select("id, numero_patrimonio, descricao, valor_aquisicao")
-        .eq("situacao", "ativo")
+        .in("situacao", ["ativo", "extraviado"])
         .order("numero_patrimonio");
       if (error) throw error;
       return data;
@@ -80,11 +83,11 @@ export function NovaBaixaDialog({ open, onOpenChange }: NovaBaixaDialogProps) {
         .from("baixas_patrimonio")
         .insert([{
           bem_id: formData.bem_id,
-          motivo: formData.motivo as "inservivel" | "obsoleto" | "perda" | "doacao" | "alienacao",
+          motivo: formData.motivo,
           justificativa: formData.justificativa,
           valor_residual: formData.valor_residual || null,
           data_solicitacao: new Date().toISOString().split("T")[0],
-          status: "pendente",
+          status: "solicitada",
         }])
         .select()
         .single();
@@ -106,7 +109,7 @@ export function NovaBaixaDialog({ open, onOpenChange }: NovaBaixaDialogProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       bem_id: "",
-      motivo: "",
+      motivo: undefined,
       justificativa: "",
       valor_residual: 0,
     },

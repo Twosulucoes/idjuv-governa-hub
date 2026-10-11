@@ -1,7 +1,8 @@
 /**
  * CADASTRO SIMPLIFICADO DE BENS PATRIMONIAIS
  * Módulo para equipe de patrimônio cadastrar bens em unidades locais
- * com geração automática de tombamento no formato IDJ-XX-XXXX
+ * O número de tombamento é sempre gerado pelo sistema (banco); a plaqueta antiga,
+ * se houver, fica registrada como tombamento anterior.
  */
 
 import { useState } from "react";
@@ -54,6 +55,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/design-system";
+import { toast } from "sonner";
+import { imprimirEtiquetas } from "@/lib/etiquetasPatrimonio";
 
 import {
   useCadastroBemSimplificado,
@@ -84,7 +87,10 @@ const cadastroBemSchema = z.object({
   fornecedor_cnpj_cpf: z.string().optional(),
   observacao: z.string().optional(),
   possui_tombamento_externo: z.boolean().default(false),
-  numero_patrimonio_externo: z.string().optional(),
+  numero_patrimonio_externo: z.string().trim().max(50, "Máximo 50 caracteres").optional(),
+}).refine((d) => !d.possui_tombamento_externo || !!d.numero_patrimonio_externo?.trim(), {
+  message: "Informe o tombamento anterior",
+  path: ["numero_patrimonio_externo"],
 });
 
 type FormData = z.infer<typeof cadastroBemSchema>;
@@ -92,6 +98,7 @@ type FormData = z.infer<typeof cadastroBemSchema>;
 interface BemCadastrado {
   id: string;
   numero_patrimonio: string;
+  codigo_qr: string | null;
   descricao: string;
   unidade_nome?: string;
 }
@@ -125,6 +132,7 @@ export default function CadastroBemSimplificadoPage() {
       setBemCadastrado({
         id: resultado.id,
         numero_patrimonio: resultado.numero_patrimonio,
+        codigo_qr: resultado.codigo_qr,
         descricao: data.descricao,
         unidade_nome: unidadeSelecionada?.nome_unidade,
       });
@@ -140,44 +148,12 @@ export default function CadastroBemSimplificadoPage() {
     setBemCadastrado(null);
   };
 
-  const imprimirEtiqueta = () => {
+  const imprimirEtiqueta = async () => {
     if (!bemCadastrado) return;
-
-    const conteudo = `
-      <html>
-        <head>
-          <title>Etiqueta Patrimônio - ${bemCadastrado.numero_patrimonio}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .etiqueta { 
-              border: 2px solid #000; 
-              padding: 20px; 
-              width: 300px; 
-              text-align: center;
-              margin: 0 auto;
-            }
-            .logo { font-weight: bold; font-size: 18px; margin-bottom: 10px; }
-            .numero { font-size: 24px; font-weight: bold; margin: 15px 0; font-family: monospace; }
-            .descricao { font-size: 12px; color: #666; }
-            .qr { margin: 15px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="etiqueta">
-            <div class="logo">IDJUV - PATRIMÔNIO</div>
-            <div class="numero">${bemCadastrado.numero_patrimonio}</div>
-            <div class="descricao">${bemCadastrado.descricao}</div>
-            <div class="descricao">${bemCadastrado.unidade_nome || ""}</div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    const janela = window.open("", "_blank");
-    if (janela) {
-      janela.document.write(conteudo);
-      janela.document.close();
-      janela.print();
+    try {
+      await imprimirEtiquetas([{ ...bemCadastrado, unidade: bemCadastrado.unidade_nome }]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível imprimir a etiqueta.");
     }
   };
 
@@ -408,7 +384,7 @@ export default function CadastroBemSimplificadoPage() {
                   Tombamento
                 </CardTitle>
                 <CardDescription>
-                  O número de tombamento será gerado automaticamente no formato IDJ-XX-XXXX
+                  O número de tombamento é gerado automaticamente pelo sistema ao salvar
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -418,9 +394,9 @@ export default function CadastroBemSimplificadoPage() {
                   render={({ field }) => (
                     <FormItem className="flex items-center justify-between rounded-lg border p-4">
                       <div className="space-y-0.5">
-                        <FormLabel className="text-base">Já possui tombamento?</FormLabel>
+                        <FormLabel className="text-base">Tem plaqueta antiga?</FormLabel>
                         <FormDescription>
-                          Marque se o bem já possui número de patrimônio anterior
+                          Marque se o bem já tem um número de patrimônio anterior (regularização)
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -436,24 +412,25 @@ export default function CadastroBemSimplificadoPage() {
                     name="numero_patrimonio_externo"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Número de Patrimônio Existente</FormLabel>
+                        <FormLabel>Tombamento anterior (plaqueta antiga)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: PAT-12345" {...field} />
+                          <Input placeholder="Número da plaqueta antiga" {...field} />
                         </FormControl>
-                        <FormDescription>Informe o número de patrimônio já existente</FormDescription>
+                        <FormDescription>
+                          O sistema gera um número novo para o bem; este número fica registrado
+                          como tombamento anterior e o bem continua sendo encontrado por ele.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 )}
 
-                {!possuiTombamentoExterno && unidadeSelecionada && (
+                {!possuiTombamentoExterno && (
                   <div className="bg-muted/50 rounded-lg p-4 text-center">
                     <p className="text-sm text-muted-foreground">
-                      Será gerado automaticamente um número no formato:
-                    </p>
-                    <p className="text-xl font-mono font-bold mt-2">
-                      IDJ-{unidadeSelecionada.codigo_unidade?.substring(0, 2) || "00"}-XXXX
+                      O número de tombamento (ex.: PAT-{new Date().getFullYear()}-000123) será gerado
+                      pelo sistema ao salvar.
                     </p>
                   </div>
                 )}

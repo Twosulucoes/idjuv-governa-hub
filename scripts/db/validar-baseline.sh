@@ -9,7 +9,8 @@
 #   4. roda scripts/db/testar-rls.sh (RLS, UPDATE/DELETE, storage, identidade, RPCs, triggers)
 #   5. (opcional) compara o schema com o replay das migrações + overlays: informe PG_REPLAY, o banco
 #      que scripts/db/validar-migracoes.sh deixou pronto. O script copia esse banco, aplica nele os
-#      overlays e a RLS (os mesmos arquivos do aplicar.sh) e compara schema, privilégios e storage.
+#      overlays e a RLS (os mesmos arquivos do aplicar.sh) e compara schema, privilégios e storage (policies,
+#      buckets e triggers de storage.objects).
 #
 # Mesmos pré-requisitos de validar-migracoes.sh (superusuário que NÃO se chama `postgres`).
 # Variáveis: PGHOST (127.0.0.1) PGPORT (54329) PG_SUPERUSER (supabase_admin)
@@ -77,9 +78,10 @@ for t in servidores vinculos_servidor profiles user_roles user_modules audit_log
 done
 n=$(psql_s -d "$DB" -At -c "select count(*) from storage.objects")
 [[ "$n" == "0" ]] && ok "storage.objects vazio" || erro "storage.objects tem $n linha(s)"
-# só as tabelas semeadas (schema/02_dados_catalogo.sql) podem ter linhas
+# só as tabelas semeadas (schema/02_dados_catalogo.sql) podem ter linhas (o `;` no fim de cada SELECT é necessário:
+# sem ele o arquivo virava um comando só, o psql dava erro de sintaxe e a checagem passava sem contar nada)
 mapfile -t semeadas < <(grep -oE '^INSERT INTO public\.[a-z_0-9]+' supabase/baseline/schema/02_dados_catalogo.sql | sed 's/INSERT INTO public\.//' | sort -u)
-psql_s -d "$DB" -At -c "select format('select %L, count(*) from public.%I', relname, relname) from pg_class where relnamespace = 'public'::regnamespace and relkind in ('r','p') order by relname" > "$TMP/contagens.sql" || erro "não consegui listar as tabelas"
+psql_s -d "$DB" -At -c "select format('select %L, count(*) from public.%I;', relname, relname) from pg_class where relnamespace = 'public'::regnamespace and relkind in ('r','p') order by relname" > "$TMP/contagens.sql" || erro "não consegui listar as tabelas"
 fora=0
 while IFS='|' read -r tabela linhas; do
   [[ "$linhas" == "0" ]] && continue
@@ -131,6 +133,8 @@ else
       q="select policyname||'|'||cmd||'|'||coalesce(roles::text,'')||'|'||coalesce(qual,'')||'|'||coalesce(with_check,'') from pg_policies where schemaname='storage' and tablename='objects' order by 1"
       b="select id||'|'||public||'|'||coalesce(file_size_limit::text,'')||'|'||coalesce(allowed_mime_types::text,'') from storage.buckets order by 1"
       p="select p.oid::regprocedure||'|'||array_to_string(coalesce(p.proacl,'{}'),',') from pg_proc p where pronamespace='public'::regnamespace order by 1"
+      # triggers de storage.objects (o dump só leva o schema public; os do Storage vêm do overlay/50 e da migração E2)
+      tg="select tgname||'|'||tgenabled::text||'|'||pg_get_triggerdef(oid) from pg_trigger where tgrelid='storage.objects'::regclass and not tgisinternal order by 1"
       comparar_consulta() {  # comparar_consulta <rótulo> <sql>: roda nos dois bancos, exige saída não vazia e igual
         if psql_s -d "$REF" -At -c "$2" >"$TMP/c_ref.txt" 2>/dev/null && psql_s -d "$DB" -At -c "$2" >"$TMP/c_novo.txt" 2>/dev/null && [[ -s "$TMP/c_ref.txt" ]]; then
           if diff -q "$TMP/c_ref.txt" "$TMP/c_novo.txt" >/dev/null; then ok "$1 idênticos"; else erro "$1 diferem do replay + overlays"; fi
@@ -139,6 +143,7 @@ else
       comparar_consulta "policies de storage" "$q"
       comparar_consulta "buckets" "$b"
       comparar_consulta "ACL de funções" "$p"
+      comparar_consulta "triggers de storage.objects" "$tg"
     else
       cat "$TMP/ref.txt"; erro "não consegui aplicar overlays/RLS sobre a cópia do replay"
     fi

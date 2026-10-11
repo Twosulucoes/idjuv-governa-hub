@@ -61,6 +61,7 @@ import {
   type FrequenciaPacote,
 } from '@/hooks/useFrequenciaPacotes';
 import { supabase } from '@/integrations/supabase/client';
+import { useRegistrarEvento } from '@/hooks/useTrilhaAuditoria';
 
 // ============================================
 // CONSTANTES
@@ -129,6 +130,7 @@ function CopyLinkButton({ link }: { link: string }) {
 
 function DownloadButton({ pacote }: { pacote: FrequenciaPacote }) {
   const [loading, setLoading] = useState(false);
+  const { registrarAntes } = useRegistrarEvento();
 
   const handleDownload = async () => {
     if (!pacote.link_download) return;
@@ -146,6 +148,16 @@ function DownloadButton({ pacote }: { pacote: FrequenciaPacote }) {
         toast.error('Arquivo do pacote não disponível. Gere novamente o lote.');
         return;
       }
+
+      // Trilha: registrado antes de liberar o pacote (sem registro, sem arquivo)
+      const registrado = await registrarAntes({
+        acao: 'download',
+        entidade: 'frequencia_pacotes',
+        entidadeId: pacote.id,
+        descricao: 'Pacote de frequência baixado',
+        metadados: { formato: 'zip' },
+      });
+      if (!registrado) return;
 
       // Chamar edge function para obter URL assinada
       const funcUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-frequencia?link=${pacote.link_download}`;

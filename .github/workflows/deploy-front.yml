@@ -130,11 +130,23 @@ jobs:
           # 3) assets que nenhum build recente usa
           $RSH "${VPS_DEPLOY_USER}@${VPS_SSH_HOST}" \
             "find '${VPS_FRONT_DIR%/}/assets' -type f -mtime +${DIAS_ASSETS_ANTIGOS} -delete"
+          # 4) arquivos de public/ retirados do repositório: o rsync acima não apaga nada no destino.
+          #    data/cargos.json e .csv publicavam a indicação dos ocupantes (migração 20261010234000).
+          $RSH "${VPS_DEPLOY_USER}@${VPS_SSH_HOST}" \
+            "rm -f '${VPS_FRONT_DIR%/}/data/cargos.json' '${VPS_FRONT_DIR%/}/data/cargos.csv'"
 
       - name: Conferir o site no ar
         if: steps.config.outputs.ok == 'true'
         run: |
           entrada=$(grep -oE '/assets/index-[^"]+\.js' dist/index.html | head -1)
+          # o quadro antigo (com a indicação dos ocupantes) não pode continuar no ar; com o fallback de SPA
+          # o caminho responde 200 com o index.html, então a checagem é pelo conteúdo
+          antigo=$(curl -fsS -H 'Cache-Control: no-cache' "${FRONT_URL%/}/data/cargos.json" 2>/dev/null || true)
+          case "$antigo" in
+            *'"indicacao"'*)
+              echo "::error::${FRONT_URL%/}/data/cargos.json ainda está no ar. Apague-o da pasta do nginx."
+              exit 1 ;;
+          esac
           for i in 1 2 3 4 5 6; do
             if curl -fsS -H 'Cache-Control: no-cache' "${FRONT_URL%/}/" | grep -qF "$entrada"; then
               echo "### Front publicado: ${FRONT_URL} serve \`$entrada\` (commit ${GITHUB_SHA::7})" >> "$GITHUB_STEP_SUMMARY"

@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { celulaCsv } from '@/export/csvSeguro';
 import { formatCPF, formatTelefone, formatCEP, formatPISPASEP } from './formatters';
 import { 
   VINCULO_EXTERNO_ESFERA_LABELS, 
@@ -216,16 +217,12 @@ export function exportarParaCSV(
   const campos = CAMPOS_EXPORTACAO.filter(c => camposSelecionados.includes(c.id));
   
   // Criar cabeçalho
-  const cabecalho = campos.map(c => `"${c.label}"`).join(';');
+  const cabecalho = campos.map(c => celulaCsv(c.label)).join(';');
   
   // Criar linhas de dados
   const linhas = servidores.map(servidor => {
-    return campos.map(campo => {
-      const valor = campo.getValue(servidor);
-      if (valor === null || valor === undefined) return '""';
-      // Escapar aspas duplas e envolver em aspas
-      return `"${String(valor).replace(/"/g, '""')}"`;
-    }).join(';');
+    // Entre aspas e sem fórmula (texto que começa com =, +, -, @ vira texto)
+    return campos.map(campo => celulaCsv(campo.getValue(servidor))).join(';');
   });
   
   // Juntar tudo com BOM para UTF-8

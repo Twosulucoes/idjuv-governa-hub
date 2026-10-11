@@ -55,6 +55,8 @@ GRANT EXECUTE ON FUNCTION public.registrar_gestor_publico(uuid, text, text, text
 GRANT EXECUTE ON FUNCTION public.transparencia_execucao_orcamentaria() TO anon;
 GRANT EXECUTE ON FUNCTION public.transparencia_licitacoes(integer, text) TO anon;
 GRANT EXECUTE ON FUNCTION public.transparencia_patrimonio() TO anon;
+-- Quadro de cargos comissionados (migração 20261010234000): nome do ocupante sim; indicação, CPF e contato nunca
+GRANT EXECUTE ON FUNCTION public.transparencia_cargos_publicos() TO anon;
 
 -- ---- funções só da service role (Edge Functions): fecham também para authenticated ----
 REVOKE EXECUTE ON FUNCTION public.list_public_tables() FROM authenticated;
@@ -67,6 +69,9 @@ GRANT EXECUTE ON FUNCTION public.consumir_cota_uso(uuid, text, integer, integer,
 -- ---- funções de trigger sem uso direto (migração 20261009160000; o dump não leva o REVOKE) ----
 REVOKE EXECUTE ON FUNCTION public.fn_fotos_vistoria_inventario_imutavel() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.fn_campanhas_inventario_unidades_autoria() FROM authenticated;
+
+-- ---- patrimônio (migração 20261010230000): o número de tombamento nasce no INSERT do bem ----
+REVOKE EXECUTE ON FUNCTION public.gerar_numero_tombamento(uuid) FROM authenticated;
 
 -- ---- privilégios das migrações de 2026-10-09/10 (o dump do schema não leva GRANT/REVOKE) ----
 -- Copiados das migrações 20261009120000 (avisos), 20261009150000 (envios), 20261009153000 (importações)
@@ -101,6 +106,23 @@ GRANT EXECUTE ON FUNCTION public.eh_meu_arquivo_frequencia(text) TO authenticate
 GRANT EXECUTE ON FUNCTION public.eh_minha_pasta_servidor(text) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.config_envio_servidor(text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.config_envio_servidor(text) TO service_role;
+-- trilha e autoria do RH (migração 20261011000000, E1; o dump não leva GRANT/REVOKE): funções de apoio e de trigger
+-- sem EXECUTE para a API; registrar_evento só para authenticated (a guarda no corpo exige usuário ativo)
+REVOKE EXECUTE ON FUNCTION public.trilha_contexto() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_contexto_invalidar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.responsavel_atual() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.rh_exige_servidor_vinculado() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.mascarar_parcial(text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_mascarar(text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_contexto_requisicao() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_completar_contexto() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_imutavel() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fixar_autoria() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.registrar_evento(text, text, uuid, text, jsonb) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.registrar_evento(text, text, uuid, text, jsonb) TO authenticated;
+-- trilha dos arquivos do RH no Storage (migração 20261011000200, E2): função de trigger e de apoio fora da API
+REVOKE EXECUTE ON FUNCTION public.trilha_storage_chave(text, text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.trilha_storage() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON public.avisos_leituras FROM anon, authenticated;
 GRANT SELECT, INSERT, DELETE ON public.avisos_leituras TO authenticated;
 REVOKE ALL ON public.envios_log FROM anon, authenticated;

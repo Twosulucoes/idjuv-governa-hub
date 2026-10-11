@@ -108,3 +108,17 @@ jobs:
         run: |
           supabase db push --db-url "$SUPABASE_DB_URL" 2>&1 | tee /tmp/push.log
           echo "### Migrações aplicadas em produção" >> "$GITHUB_STEP_SUMMARY"
+
+      # Trilha dos arquivos do RH (migração 20261011000200): sem o privilégio TRIGGER em storage.objects a migração só
+      # emite WARNING e os arquivos ficam sem trilha. Aqui isso vira falha visível (o banco já foi alterado; o job
+      # vermelho avisa que falta ligar os triggers à mão — docs/BANCO_DE_DADOS.md).
+      - name: Conferir trilha do Storage do RH
+        if: steps.segredo.outputs.ok == 'true' && env.APLICAR == 'true'
+        run: |
+          n=$(psql "$SUPABASE_DB_URL" -X -At -v ON_ERROR_STOP=1 \
+                -c "select count(*) from pg_trigger where tgrelid = 'storage.objects'::regclass and tgname like 'trilha_rh_storage_%' and tgenabled <> 'D'")
+          echo "Triggers trilha_rh_storage_* ligados em storage.objects: $n" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$n" != "3" ]; then
+            echo "::error::trilha do Storage do RH: esperava 3 triggers trilha_rh_storage_* em storage.objects, achei '$n'. Ver docs/BANCO_DE_DADOS.md."
+            exit 1
+          fi

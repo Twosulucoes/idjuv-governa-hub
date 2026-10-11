@@ -37,17 +37,17 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | # | Arquivo | O que faz | Origem |
 |---|---|---|---|
 | 1 | `schema/01_pre_data.sql` | tipos, funções, tabelas, views | **gerado** (`scripts/db/gerar-baseline.sh`) |
-| 2 | `schema/02_dados_catalogo.sql` | 19 tabelas de catálogo/parâmetros (737 linhas) | **gerado** |
+| 2 | `schema/02_dados_catalogo.sql` | 20 tabelas de catálogo/parâmetros (865 linhas; `audit_colunas_sensiveis` entrou na E1) | **gerado** |
 | 3 | `schema/03_post_data.sql` | constraints, índices, triggers, RLS ligado, policies do replay | **gerado** |
 | 4 | `overlay/10_funcoes_acesso.sql` | `is_admin_user`, `is_admin_atual`, `has_permission_code`, `meu_servidor_id` exigem perfil **ativo**; fim dos stubs “acesso total”; alias `usuario_eh_admin`; `eh_meu_servidor(uuid)` (B2: "este servidor é o do usuário?", por vínculo ou, sem vínculo, por CPF); `eh_meu_arquivo_frequencia(text)` e `eh_minha_pasta_servidor(text)` (B3: o objeto do storage é do servidor do usuário?) | à mão |
 | 5 | `overlay/12_protecao_profiles.sql` | trigger: quem não é admin não muda `is_active`, `servidor_id`, bloqueio, tipo, CPF, e-mail; policies de `profiles` sem duplicatas | à mão |
 | 6 | `overlay/15_novo_usuario.sql` | `handle_new_user` (antes quebrava o cadastro) + trigger em `auth.users` | à mão |
-| 7 | `overlay/18_funcoes_rpc.sql` | `fn_gerar_numero_financeiro` com lista fechada (injeção de SQL); RPCs de leitura com dado pessoal viram `SECURITY INVOKER`; `obter_parametro_*` não vazam valor individual; `sync_usuario_servidor_status` não reativa administrador; trigger de fechamento de folha; correção da auditoria de folha/parâmetros (`entity_id` uuid); `log_audit` recusa usuário inativo | à mão |
+| 7 | `overlay/18_funcoes_rpc.sql` | `fn_gerar_numero_financeiro` com lista fechada (injeção de SQL); RPCs de leitura com dado pessoal viram `SECURITY INVOKER`; `obter_parametro_*` não vazam valor individual; `sync_usuario_servidor_status` não reativa administrador; trigger de fechamento de folha; correção da auditoria de folha/parâmetros (`entity_id` uuid); `log_audit` recusa usuário inativo e, desde a E1, não forja a trilha do RH (mesmo texto da migração `20261011000000`; desde a E2, `20261011000200`, também recusa `entity_type` `storage.*` e tira `servidor_alvo_id` dos metadados); `fechar_folha`/`reabrir_folha` gravam no módulo `rh` desde a E2 (`20261011000300`); `registrar_transicao_folha` grava `fechado_por`/`conferido_por` pelo banco (E1, mesmo texto da migração `20261011000000`) | à mão |
 | 8 | `overlay/20_campos_iniciais.sql` | triggers: formulários públicos e pedidos do servidor não escolhem `status`, aprovação, autoria (nos pedidos do RH a isenção é por permissão, formato `perm:`, e nunca no próprio pedido); links do formulário de árbitros só do próprio bucket | à mão |
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
-| 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas | à mão |
-| 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros, no privado `inventario-evidencias` e, desde a B3, no privado `documentos-requerimento`) e policies de storage por módulo; `frequencias` e `documentos-requerimento` (B3) gravam com módulo e código e o servidor lê o próprio arquivo | à mão |
+| 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas; funções da E1 (autoria e trilha) sem EXECUTE pela API, exceto `registrar_evento` para `authenticated`; `trilha_storage` e `trilha_storage_chave` (E2) sem EXECUTE pela API | à mão |
+| 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros, no privado `inventario-evidencias` e, desde a B3, no privado `documentos-requerimento`) e policies de storage por módulo; `frequencias` e `documentos-requerimento` (B3) gravam com módulo e código e o servidor lê o próprio arquivo; triggers `trilha_rh_storage_*` (E2) gravam na trilha a gravação, troca e exclusão de arquivo nesses dois buckets | à mão |
 | 13 | `overlay/60_realtime.sql` | publicação realtime (folha) | à mão |
 
 `lacunas/` guarda a migração que cobre as tabelas usadas e nunca criadas; ela só serve ao replay
@@ -60,7 +60,7 @@ INSERT não dispara auditoria e as FKs são validadas depois, contra os dados se
 ## Modelo de RLS (`rls/mapa.csv`)
 
 O mapa tabela → classe/módulo é a **fonte da verdade** e deve ser lido por quem conhece o negócio.
-Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas em 2026-10-10, 243 tabelas):
+Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas em 2026-10-10, 244 tabelas):
 
 | Classe | Tabelas | Regra |
 |---|---|---|
@@ -69,9 +69,9 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
 | `proprio_leitura` / `proprio` / `proprio_filho` | 8 / 0 / 0 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20). Desde a B2, `servidores` (posse pela coluna `id`, DELETE com `rh.servidores.excluir`, e nos contornos `sem_autoaprovacao`: ninguém grava a própria ficha), `vinculos_servidor` e `lotacoes` estão aqui; as tabelas do RH que estavam em `proprio`/`proprio_filho` passaram a `permissao` (a última, `documentos_requerimento_servidor`, na B3). As classes `proprio` e `proprio_filho` continuam no gerador, sem tabela |
 | `catalogo` | 7 | qualquer usuário ativo lê; escrita por módulo, ou com `escrita=<código>` também pelo código (`tipos_abono`: `rh.frequencia.configurar`, nos contornos). `cargos` entrou na B2 |
-| `catalogo_admin` | 5 | qualquer usuário ativo lê (o app lê no login); só o papel admin escreve |
+| `catalogo_admin` | 6 | qualquer usuário ativo lê (o app lê no login); só o papel admin escreve. `audit_colunas_sensiveis` (catálogo da máscara da trilha) entrou na E1 |
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
-| `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`) |
+| `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`; desde a E1 imutável por trigger e com a policy extra `audit_logs_rh_auditoria_select` da migração `20261011000100`, fora do gerador: módulo `rh` e `rh.auditoria.visualizar` leem as linhas do RH) |
 | `publico_admin` | 3 | `anon` e logados leem (portal público); só admin escreve |
 | `preservar` | 9 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `fotos_vistoria_inventario`, `avisos`, `avisos_leituras`, `datas_importantes`, `importacoes`, `config_envio` e `envios_log`: policies das próprias migrações, que chegam pelo replay em `schema/03_post_data.sql` (as notas do `mapa.csv` ainda dizem "próxima regeneração"; o schema foi regenerado em 2026-10-10 e já as contém) |
 
@@ -130,7 +130,7 @@ PG_REPLAY=idjuv_validacao bash scripts/db/validar-baseline.sh   # EXIGIR_REPLAY=
 ```
 
 `validar-baseline.sh` recria um banco vazio com o shim do Supabase (`scripts/db/shim-supabase.sql`),
-aplica o baseline, confirma que uma segunda aplicação é recusada e que só as 19 tabelas de catálogo têm linhas, roda
+aplica o baseline, confirma que uma segunda aplicação é recusada e que só as 20 tabelas de catálogo têm linhas, roda
 `scripts/db/testar-rls.sh` e, com `PG_REPLAY`, compara schema, privilégios e storage com o replay das
 migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + claims do JWT):
 
@@ -162,6 +162,30 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
   perfil bloqueado não lê; pasta fora do formato uuid dá `false` sem erro; `documentos` só por módulo; as duas
   funções de dono só executáveis por `authenticated`; limite do bucket `documentos-requerimento`; nenhuma outra
   policy de `storage.objects` cita os três buckets;
+- autoria e trilha do RH (E1, bloco "RH: autoria e trilha" de `testar-rls.sql`, triggers ligados): autor mandado
+  pelo cliente é ignorado (também para admin) e `created_*` não mudam; `campos_alterados` e UPDATE sem mudança
+  sem linha; origens `usuario`, `usuario_sem_vinculo` e `sistema`; colunas de decisão e de criação; máscara de
+  CPF, RG, nascimento, CID e do payload do eSocial; máscara reaplicada sem mudança; tabela sem `id`; IP de
+  `x-real-ip` ou do último item de `x-forwarded-for` e user agent; `registrar_evento` (listas fechadas,
+  `22023`/`42501`, módulo `rh` exigido, só o próprio contracheque sem ele); `log_audit` sem create/update nem
+  antes/depois no módulo `rh`, sem chaves de trigger nos metadados e com limite de 32 KB; decisão não apagada nem
+  redatada pela API; `aprovado = true` no ponto grava o aprovador; `enviado_por`/`data_envio` do eSocial;
+  `fechado_por`, `processado_por` e `data_processamento` da folha; `sequencia` ordena a trilha; cache do contexto
+  relido depois do vínculo do perfil; `audit_logs`, `folha_historico_status` e `rubricas_historico` imutáveis para
+  `postgres`, service role e superusuário em réplica (só o GUC de expurgo e a cascata do pai passam; linha com FK
+  nula não); admin sem atalho na autoria da etapa; leitura com `rh.auditoria.visualizar`, que nenhum papel recebe;
+  trilha de `profiles`; toda tabela do RH com `zz_fixar_autoria` (BEFORE INSERT OR UPDATE, último BEFORE) e
+  `audit_<tabela>` (AFTER INSERT OR UPDATE OR DELETE, `'rh'`) ligados, e nas de trilha a imutabilidade também em
+  TRUNCATE; privilégios das funções novas;
+- consulta e trilha do Storage do RH (E2, bloco "RH: consulta e trilha do Storage" de `testar-rls.sql`): os quatro
+  índices de `audit_logs` e os três antigos removidos; gravar, trocar, mover e apagar objeto em `frequencias` e
+  `documentos-requerimento` grava linha (`upload`/`update`/`delete`, módulo `rh`, usuário, servidor, origem, IP e
+  user agent); só carimbo não grava; outro bucket e gravação negada pela RLS não gravam; service role vira origem
+  `sistema`; caminho com nome do servidor só pelo hash, caminho de uuid em claro, servidor dono do arquivo; nada de
+  nome, `user_metadata` nem antes/depois na trilha; leitura só com `rh.auditoria.visualizar`; função fora da API;
+  extensão de lista fechada e Content-Type só `tipo/subtipo`; `log_audit` recusa `storage.*` e as duas RPCs tiram
+  `servidor_alvo_id`/`fonte` do cliente; coluna `alvos` (GIN) com `s:`/`f:` nas linhas do recorte; `fechar_folha` e
+  `reabrir_folha` no módulo `rh`;
 - inventário de campo: `fotos_vistoria_inventario` (INSERT só em nome próprio, UPDATE só do autor ou com
   `patrimonio.tramitar`, DELETE só com `patrimonio.tramitar`, campos de prova imutáveis), no bloco de
   cobertura adicional de `testar-rls.sql`;
@@ -169,9 +193,18 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada, privilégios padrão,
   campos que o autor não pode escolher nos formulários.
 
-Último resultado (2026-10-10, branch da correção de contornos): replay de **258 migrações com 0 falhas**;
-`validar-baseline.sh` **APROVADO** — RLS com 0 falhas e schema idêntico ao replay (40800 linhas). O mesmo
-teste reprova com 54 falhas no baseline da B2 já mesclada (sem os contornos). Antes, na B2: 257 migrações,
+Último resultado (2026-10-10, onda E2, migrações `20261011000200` e `20261011000300`, PostgreSQL 16.15): replay de
+**268 migrações com 0 falhas**; `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em 4534
+checagens de UPDATE/DELETE (235 tabelas), schema idêntico ao replay (43775 linhas) e triggers de `storage.objects`
+idênticos. As duas migrações aplicadas duas vezes no replay, no baseline novo e no baseline anterior à E2: sem erro e
+sem índice, trigger, policy, função ou coluna a mais; o teste passa com 0 falhas no baseline anterior com as migrações
+aplicadas e reprova com 34 falhas sem elas (prova de vida). Antes, na E1 depois da revisão de segurança e de código: replay de
+**266 migrações com 0 falhas** (com a main até a PR #80); `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em
+4534 checagens de UPDATE/DELETE (235 tabelas), só as 20 tabelas de catálogo com linhas e schema idêntico ao
+replay (43577 linhas). As migrações `20261011000000` e `20261011000100` aplicadas duas vezes no replay, no
+baseline e no baseline anterior à E1: sem erro e sem trigger, policy ou linha de catálogo a mais. O mesmo teste
+reprova com 225 falhas no baseline da `main` anterior à E1 (prova de vida). Na correção de contornos: 258 migrações,
+schema de 40800 linhas, 54 falhas no baseline da B2 sem os contornos. Antes, na B2: 257 migrações,
 0 falhas em 4436 checagens, schema de 40624 linhas. Rodadas anteriores: aprovado em PostgreSQL **15.18, 16.15 e 17.10** (o self-hosted da Supabase
 costuma rodar 15; o dump é gerado por `pg_dump` 16).
 
@@ -267,7 +300,7 @@ Limites conhecidos:
   (já mesclada): recria `eh_meu_servidor` em plpgsql (mesmo texto do overlay `10`), as policies geradas de
   `tipos_abono`, `servidores` e `solicitacoes_ajuste_ponto` e `validar_etapa_frequencia`, agora também em
   `justificativas_ponto` e `solicitacoes_ajuste_ponto`.
-- **Migração `20261010210000` (B3, em PR rascunho) × overlays.** Carrega `eh_meu_arquivo_frequencia` e
+- **Migração `20261010210000` (B3, mesclada na PR #75) × overlays.** Carrega `eh_meu_arquivo_frequencia` e
   `eh_minha_pasta_servidor` (mesmo texto do overlay `10`, privilégios do overlay `40`), o SQL gerado de
   `frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`, o trigger de campos iniciais
   do pedido (mesmo texto do overlay `20`) e as policies `st_*` dos três buckets (mesmo texto do overlay `50`).
@@ -276,6 +309,24 @@ Limites conhecidos:
   objeto entre eles por UPDATE (sem leitura nova); policy de `storage.objects` criada fora das migrações no
   banco ao vivo não é removida, a migração só emite `WARNING` (consulta pós-deploy em
   [`docs/RBAC_PERMISSOES.md`](../../docs/RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3)).
+- **Migrações `20261011000000` e `20261011000100` (E1, em PR rascunho) × overlays.** A primeira recria
+  `registrar_transicao_folha` e `log_audit` com o mesmo texto do overlay `18` (que sobrescreveria as funções do
+  schema) e repete os REVOKE/GRANT das funções novas no overlay `40` (o dump não leva privilégios). O resto (colunas
+  de autoria, `audit_logs.sequencia`, triggers `zz_fixar_autoria`, `audit_<tabela>`, `trilha_imutavel` e
+  `trilha_contexto_invalidar`, catálogo `audit_colunas_sensiveis`) chega pelo replay em `schema/`. A segunda
+  (permissão `rh.auditoria.visualizar` e policy extra de `audit_logs`) também chega pelo replay e pode ser segurada
+  sem a primeira. Limitações: a cascata ao excluir uma folha ou rubrica ainda apaga o histórico dela
+  (o trigger deixa passar quando o pai já não existe); expurgo da trilha só por SQL direto com
+  `SET LOCAL trilha.expurgo = 'autorizado'`; as FKs de autoria para `auth.users` que já existiam (quase todas sem
+  `ON DELETE`) passam a barrar a exclusão de quem lançou algo, agora que o banco sempre grava o autor
+  (`delete-user` deve passar a desativar).
+- **Migrações `20261011000200` e `20261011000300` (E2, em PR rascunho) × overlays.** Os índices de `audit_logs`, a
+  coluna gerada `alvos`, `registrar_evento` e as funções `trilha_storage`/`trilha_storage_chave` chegam pelo replay em
+  `schema/`; os triggers `trilha_rh_storage_*` em `storage.objects` estão no overlay `50` (o dump só leva `public`), o
+  REVOKE das funções no overlay `40` e `log_audit`, `fechar_folha` e `reabrir_folha` no overlay `18` (que sobrescreve o
+  schema), com o mesmo texto das migrações. Limitação: sem o privilégio `TRIGGER` em `storage.objects` no banco de destino, a migração emite
+  `WARNING` e os arquivos ficam sem trilha (consulta pós-deploy em
+  [`docs/BANCO_DE_DADOS.md`](../../docs/BANCO_DE_DADOS.md#consulta-da-trilha-e-arquivos-do-rh-no-storage--onda-e2-banco)).
 - **`servidores.situacao`** (anterior à B2): quem tem o módulo `rh` muda a situação de outro servidor, e isso
   bloqueia o perfil vinculado. Sem correção ainda.
 - Tabelas com fluxo de aprovação por RPC e UPDATE livre para o módulo: `folhas_pagamento` foi protegida (só quem
@@ -296,7 +347,9 @@ Limites conhecidos:
   de todos) foi fechada; as telas públicas passam a usar as RPCs `consultar_gestor_por_cpf` e
   `registrar_gestor_publico` (só devolvem id, nome, status e nome da escola). O front foi ajustado
   (`useGestoresEscolares.ts`), que cai no acesso direto à tabela quando a RPC não existe (banco anterior, sem o
-  baseline); `anon` executa **6** RPCs públicas no total. O formulário de árbitros segue o mesmo princípio e
+  baseline); `anon` executa **10** RPCs públicas no total (essas 6 e as 4 do Portal da Transparência:
+  `transparencia_execucao_orcamentaria`, `transparencia_licitacoes`, `transparencia_patrimonio` e
+  `transparencia_cargos_publicos`, esta última no lugar de `public/data/cargos.json`, que publicava a indicação dos ocupantes). O formulário de árbitros segue o mesmo princípio e
   tolera a falta das RPCs (`CadastroArbitroPage.tsx`), mas o log de acesso ao contracheque e o cadastro de
   árbitros só ficam íntegros depois de aplicada a migração `20261006230500`.
 - O banco ao vivo nunca foi inspecionado: o baseline foi derivado só dos arquivos do repositório.

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,12 +67,18 @@ import { DesignacoesUnidadeTab } from "@/components/rh/DesignacoesUnidadeTab";
 import { DocumentosServidorTab } from "@/components/rh/DocumentosServidorTab";
 import { SituacaoServidorBadge } from "@/components/rh/SituacaoServidorBadge";
 import { EmptyState, PageHeader } from "@/components/design-system";
+import { HistoricoAlteracoesTab } from "@/components/auditoria/HistoricoAlteracoesTab";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
+import { cn } from "@/lib/utils";
 
 export default function ServidorDetalheePage() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { user, isSuperAdmin, hasAnyPermission } = useAuth();
+  const { user, isSuperAdmin, hasAnyPermission, hasPermission } = useAuth();
   const isAdmin = isSuperAdmin || hasAnyPermission(['admin', 'rh.servidores.editar']);
+  // Aba de histórico (trilha): rh.auditoria.visualizar ou admin (hasPermission libera o admin)
+  const podeVerTrilha = hasPermission('rh.auditoria.visualizar');
+  const { registrarAntes, registrarSemBloquear } = useRegistrarEvento();
 
   // Fetch servidor
   const { data: servidor, isLoading } = useQuery({
@@ -173,6 +179,29 @@ export default function ServidorDetalheePage() {
     enabled: !!id,
   });
 
+  // Trilha: visualização da ficha (sem bloquear a tela), uma vez por servidor aberto
+  const vistaRegistrada = useRef<string | null>(null);
+  useEffect(() => {
+    if (!servidor?.id || vistaRegistrada.current === servidor.id) return;
+    vistaRegistrada.current = servidor.id;
+    registrarSemBloquear({
+      acao: 'view',
+      entidade: 'servidores',
+      entidadeId: servidor.id,
+      descricao: 'Ficha do servidor visualizada',
+    });
+  }, [servidor?.id, registrarSemBloquear]);
+
+  // Trilha: impressão da ficha registrada antes de gerar o PDF (sem registro, sem arquivo)
+  const registrarImpressaoFicha = (documento: string, descricao: string) =>
+    registrarAntes({
+      acao: 'download',
+      entidade: 'servidores',
+      entidadeId: servidor?.id,
+      descricao,
+      metadados: { documento, formato: 'pdf' },
+    });
+
   const getInitials = (nome: string) => {
     return nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
   };
@@ -236,7 +265,8 @@ export default function ServidorDetalheePage() {
                   <DropdownMenuLabel>Documentos</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
-                    onClick={() => {
+                    onClick={async () => {
+                      if (!(await registrarImpressaoFicha('ficha_cadastro_segad', 'Ficha Cadastro SEGAD impressa'))) return;
                       downloadFichaCadastroGeral({
                         servidor: servidor as any,
                         cargo: servidor.cargo,
@@ -249,7 +279,8 @@ export default function ServidorDetalheePage() {
                     Ficha Cadastro SEGAD
                   </DropdownMenuItem>
                   <DropdownMenuItem 
-                    onClick={() => {
+                    onClick={async () => {
+                      if (!(await registrarImpressaoFicha('ficha_cadastral', 'Ficha cadastral impressa'))) return;
                       generateFichaCadastral({
                         nome_completo: servidor.nome_completo,
                         nome_social: servidor.nome_social,
@@ -373,7 +404,7 @@ export default function ServidorDetalheePage() {
           />
 
           <Tabs defaultValue="dados" className="space-y-6">
-            <TabsList className="grid grid-cols-3 lg:grid-cols-6 gap-2">
+            <TabsList className={cn("grid grid-cols-3 gap-2", podeVerTrilha ? "lg:grid-cols-7" : "lg:grid-cols-6")}>
               <TabsTrigger value="dados" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Dados</span>
@@ -398,6 +429,12 @@ export default function ServidorDetalheePage() {
                 <Plane className="h-4 w-4" />
                 <span className="hidden sm:inline">Viagens</span>
               </TabsTrigger>
+              {podeVerTrilha && (
+                <TabsTrigger value="trilha" className="flex items-center gap-2" aria-label="Histórico de alterações">
+                  <History className="h-4 w-4" />
+                  <span className="hidden sm:inline">Alterações</span>
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* Dados Cadastrais */}
@@ -659,6 +696,13 @@ export default function ServidorDetalheePage() {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            {/* Histórico de alterações (trilha de auditoria) */}
+            {podeVerTrilha && (
+              <TabsContent value="trilha">
+                <HistoricoAlteracoesTab escopo={{ tipo: "servidor", servidorId: servidor.id }} />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       </ModuleLayout>

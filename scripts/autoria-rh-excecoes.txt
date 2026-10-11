@@ -1,0 +1,10 @@
+# Exceções do guard scripts/check-autoria-rh.mjs (onda E1 do RH).
+#
+# Tabela do RH (linha com `rh` em modulos no supabase/baseline/rls/mapa.csv) que pode ficar SEM o trigger
+# zz_fixar_autoria (autoria gravada pelo banco) e/ou sem audit_<tabela> (fn_audit_trigger). As de classe `trilha`
+# seguem outra regra (exigem trilha_imutavel) e não entram aqui.
+#
+# Formato: uma por linha, `tabela | motivo`. O motivo é obrigatório e deve dizer por que o lançamento nessa tabela
+# não precisa de responsável nem de trilha (e quem decidiu). Exceção que já cumpre a regra reprova (obsoleta).
+#
+# Hoje: nenhuma exceção (as 77 tabelas de lançamento e as 2 de trilha cumprem a regra desde a migração 20261011000000).

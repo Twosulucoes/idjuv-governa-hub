@@ -128,6 +128,34 @@ DROP POLICY IF EXISTS "st_documentos-requerimento_delete" ON storage.objects;
 CREATE POLICY "st_documentos-requerimento_delete" ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'documentos-requerimento' AND (public.can_access_module(auth.uid(), 'rh') AND public.has_permission_code(auth.uid(), 'rh.servidores.editar')));
 
+-- Trilha dos arquivos do RH (Onda E2, migração 20261011000200_rh_trilha_consulta.sql, mesmo texto): gravação, troca
+-- e exclusão de objeto em frequencias e documentos-requerimento viram linha em audit_logs (módulo rh, entity_type
+-- 'storage.<bucket>', sem conteúdo e sem caminho com dado pessoal), pela função public.trilha_storage (schema/, sem
+-- EXECUTE para a API no overlay/40). Sem o privilégio TRIGGER em storage.objects, WARNING e a trilha fica desligada
+-- (limitação em docs/BANCO_DE_DADOS.md).
+DO $$
+BEGIN
+  IF to_regclass('storage.objects') IS NULL THEN
+    RAISE WARNING 'trilha do Storage do RH: storage.objects não existe; triggers não criados';
+    RETURN;
+  END IF;
+  BEGIN
+    CREATE OR REPLACE TRIGGER trilha_rh_storage_insert AFTER INSERT ON storage.objects
+      FOR EACH ROW WHEN (NEW.bucket_id IN ('frequencias', 'documentos-requerimento'))
+      EXECUTE FUNCTION public.trilha_storage('rh');
+    CREATE OR REPLACE TRIGGER trilha_rh_storage_update AFTER UPDATE ON storage.objects
+      FOR EACH ROW WHEN (OLD.bucket_id IN ('frequencias', 'documentos-requerimento')
+                         OR NEW.bucket_id IN ('frequencias', 'documentos-requerimento'))
+      EXECUTE FUNCTION public.trilha_storage('rh');
+    CREATE OR REPLACE TRIGGER trilha_rh_storage_delete AFTER DELETE ON storage.objects
+      FOR EACH ROW WHEN (OLD.bucket_id IN ('frequencias', 'documentos-requerimento'))
+      EXECUTE FUNCTION public.trilha_storage('rh');
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE WARNING 'trilha do Storage do RH NÃO ligada: % (%). Os arquivos de frequencias e documentos-requerimento ficam sem trilha no banco; ver docs/BANCO_DE_DADOS.md',
+      SQLERRM, current_user;
+  END;
+END $$;
+
 -- Formulário público de árbitros: upload de foto/documentos sem login (só INSERT; a leitura
 -- fica para o módulo arbitros acima, por URL assinada: o bucket é privado desde a migração
 -- 20261010233000, porque guarda cópias de RG/CPF). Só nas três pastas que o formulário usa; o bucket limita tamanho

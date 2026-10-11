@@ -25,6 +25,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useModuleSettings } from "@/hooks/useModuleSettings";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Foco visível em todo item navegável do menu
 const FOCO = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-card";
@@ -42,24 +43,26 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse, b
   const menuConfig = MODULE_MENUS[module];
   const [openItems, setOpenItems] = useState<string[]>([]);
   const { getDisabledFeatures } = useModuleSettings();
+  const { hasPermission } = useAuth();
 
-  // Filter out disabled features
+  // Filter out disabled features (e itens/filhos com permissão própria que o usuário não tem)
   const filteredItems = useMemo(() => {
     const disabled = getDisabledFeatures(module);
-    if (disabled.length === 0) return menuConfig?.items || [];
-    
+    const visivel = (item: ModuleMenuItem) =>
+      !disabled.includes(item.id) && (!item.permission || hasPermission(item.permission));
+
     return (menuConfig?.items || [])
-      .filter(item => !disabled.includes(item.id))
+      .filter(visivel)
       .map(item => {
         if (item.children) {
           return {
             ...item,
-            children: item.children.filter(child => !disabled.includes(child.id)),
+            children: item.children.filter(visivel),
           };
         }
         return item;
       });
-  }, [menuConfig, module, getDisabledFeatures]);
+  }, [menuConfig, module, getDisabledFeatures, hasPermission]);
 
   const isActive = (route: string) => {
     const cleanRoute = route.split('?')[0];

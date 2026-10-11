@@ -35,6 +35,14 @@
 --   RH (B2)          campos iniciais isentos por permissão (e nunca no próprio pedido); etapas do abono e do
 --                    fechamento (trigger validar_etapa_frequencia: chefia rh.aprovar, RH rh.frequencia.lancar); casos da
 --                    revisão de segurança (dados imutáveis, autoria forçada, posse por usuário, aprovador sem vínculo)
+--   RH (E1)          autoria gravada pelo banco (autor forjado ignorado, também para o admin; created_* imutáveis;
+--                    decisão = quem age, agora; só a origem sistema informa o autor); trilha com servidor, origem,
+--                    campos alterados, máscara LGPD, IP/user agent; UPDATE sem mudança não grava; trilha imutável
+--                    (postgres, service role, superusuário, modo réplica); folha (fechado_por, processado_por);
+--                    etapa da frequência sem atalho de autoria do admin; registrar_evento; leitura da trilha do RH;
+--                    cobertura de zz_fixar_autoria/fn_audit_trigger nas tabelas do RH do mapa
+--   RH (E2)          índices da consulta da trilha; trilha dos arquivos de frequencias e documentos-requerimento
+--                    (upload, troca, mover, exclusão; sem nome do caminho, user_metadata nem antes/depois)
 --   global           anon só nas exceções; nenhuma policy acesso_total; funções-stub não existem
 --
 -- Cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é FALHA. As tabelas temporárias do teste
@@ -831,7 +839,7 @@ BEGIN
 
   -- anon: só as exceções públicas
   SELECT count(*) INTO n FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.prokind IN ('f','p') AND has_function_privilege('anon', p.oid, 'EXECUTE');
-  IF n <> 9 THEN PERFORM pg_temp.falha('anon executa ' || n || ' funções (esperado: 9 RPCs públicas)'); END IF;
+  IF n <> 10 THEN PERFORM pg_temp.falha('anon executa ' || n || ' funções (esperado: 10 RPCs públicas)'); END IF;
   SELECT count(*) INTO n FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p') AND (has_table_privilege('anon', c.oid, 'SELECT') OR has_table_privilege('anon', c.oid, 'INSERT') OR has_table_privilege('anon', c.oid, 'UPDATE') OR has_table_privilege('anon', c.oid, 'DELETE'));
   IF n <> (SELECT count(*) FROM mapa WHERE anon <> '') THEN PERFORM pg_temp.falha('anon tem privilégio em ' || n || ' tabelas; o mapa declara ' || (SELECT count(*) FROM mapa WHERE anon <> '')); END IF;
   FOR x IN SELECT tabela, anon FROM mapa WHERE anon <> '' LOOP
@@ -1069,6 +1077,8 @@ BEGIN
     'consultar_gestor_por_cpf','registrar_gestor_publico',
     -- portal da transparência: só totais/campos públicos, LGPD filtrada no servidor (migração 20261010200100)
     'transparencia_execucao_orcamentaria','transparencia_licitacoes','transparencia_patrimonio',
+    -- quadro de cargos: só nome do ocupante, nunca indicação/CPF/contato (migração 20261010234000)
+    'transparencia_cargos_publicos',
     -- só authenticated executa (anon não); incrementa o contador de bloqueio por token errado
     'consultar_protocolo_sic'];
   FOR f IN
@@ -1111,6 +1121,29 @@ BEGIN
   BEGIN r := public.fn_gerar_esocial_s2200(sa::uuid)::text; EXCEPTION WHEN OTHERS THEN r := 'erro:' || SQLERRM; END;
   RESET ROLE;
   IF r NOT ILIKE '%Servidor Alheio%' THEN PERFORM pg_temp.falha('fn_gerar_esocial_s2200: o RH não recebe o servidor (' || left(r, 80) || ')'); END IF;
+
+  -- ===== portal: quadro de cargos (anon) mostra o nome do ocupante e nunca indicação nem CPF (migração 20261010234000)
+  INSERT INTO public.estrutura_organizacional (id, nome, sigla, tipo, nivel)
+    VALUES ('c0000000-0000-0000-0000-0000000000e1', 'Unidade Cargos Teste', 'UCT', 'diretoria', 2);
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, vencimento_base, quantidade_vagas)
+    VALUES ('c0000000-0000-0000-0000-0000000000c1', 'Cargo Teste LAI', 'CT-I', 'comissionado', 'comissionado', 1234.56, 2);
+  INSERT INTO public.composicao_cargos (unidade_id, cargo_id, quantidade_vagas)
+    VALUES ('c0000000-0000-0000-0000-0000000000e1', 'c0000000-0000-0000-0000-0000000000c1', 2);
+  INSERT INTO public.servidores (id, nome_completo, cpf, indicacao)
+    VALUES ('c0000000-0000-0000-0000-0000000000a1', 'Ocupante Publico Teste', '98765432100', 'Padrinho Secreto Teste');
+  INSERT INTO public.vinculos_servidor (servidor_id, tipo, cargo_id, unidade_id, data_inicio)
+    VALUES ('c0000000-0000-0000-0000-0000000000a1', 'comissionado', 'c0000000-0000-0000-0000-0000000000c1',
+            'c0000000-0000-0000-0000-0000000000e1', current_date);
+  PERFORM set_config('request.jwt.claims', json_build_object('role', 'anon')::text, true);
+  SET LOCAL ROLE anon;
+  BEGIN
+    SELECT string_agg(t::text, ' | '), count(*) INTO r, n FROM public.transparencia_cargos_publicos() t WHERE t.cargo = 'Cargo Teste LAI';
+  EXCEPTION WHEN OTHERS THEN r := 'erro:' || SQLERRM; n := -1;
+  END;
+  RESET ROLE;
+  IF n <> 2 THEN PERFORM pg_temp.falha('transparencia_cargos_publicos: esperadas 2 linhas (1 ocupada, 1 vaga) do cargo de teste, vieram ' || n || ' (' || left(coalesce(r, ''), 90) || ')'); END IF;
+  IF coalesce(r, '') NOT LIKE '%Ocupante Publico Teste%' THEN PERFORM pg_temp.falha('transparencia_cargos_publicos: anon não vê o nome do ocupante'); END IF;
+  IF r ILIKE '%Padrinho Secreto%' OR r LIKE '%98765432100%' THEN PERFORM pg_temp.falha('transparencia_cargos_publicos: expõe indicação ou CPF'); END IF;
 
   -- ===== privilégios padrão: função criada depois NÃO nasce executável por anon
   SET LOCAL ROLE postgres;
@@ -2238,6 +2271,770 @@ BEGIN
     PERFORM pg_temp.falha('storage do RH: o admin não lê todos os objetos');
   END IF;
   PERFORM pg_temp.nota('storage do RH (B3): frequencias, documentos-requerimento e documentos por permissão e por dono verificados');
+END $$;
+
+-- ---------------------------------------------------------------- RH: autoria e trilha (Onda E1) (TRIGGERS LIGADOS)
+-- Migração 20261011000000_rh_autoria_trilha.sql (spec docs/superpowers/specs/2026-10-10-rh-trilha-auditoria-design.md):
+--   * autoria gravada pelo banco: o autor mandado pelo navegador é ignorado (também para o admin), created_* não mudam
+--     no UPDATE, colunas de decisão viram auth.uid()/now(), só a origem `sistema` informa o autor;
+--   * trilha (fn_audit_trigger v2): servidor e origem (usuario / usuario_sem_vinculo / sistema), campos alterados,
+--     UPDATE sem mudança não grava, CPF/RG/CID mascarados, tabela sem id uuid grava a chave em metadata, IP e user agent
+--     dos cabeçalhos (inválido vira NULL);
+--   * trilha imutável: UPDATE/DELETE/TRUNCATE recusados em audit_logs, folha_historico_status e rubricas_historico como
+--     postgres, service role e superusuário (inclusive com session_replication_role = replica); cascata do pai e GUC
+--     de expurgo passam;
+--   * folha: fechado_por não vem do cliente e não muda fora da transição; processar_folha_pagamento grava processado_por;
+--   * frequência: o admin não escolhe o autor da etapa (validar_etapa_frequencia);
+--   * registrar_evento: listas fechadas, só authenticated ativo, módulo rh (sem ele, só o próprio contracheque);
+--     log_audit não forja a trilha do RH (só view/export/download, sem antes/depois; chaves de trigger tiradas; 32 KB);
+--     leitura da trilha do RH com rh.auditoria.visualizar (migração 20261011000100), que nenhum papel recebe;
+--   * revisão de segurança: payload do eSocial omitido; decisão não apagada nem redatada pela API; aprovado = true no
+--     ponto grava o aprovador; IP de x-real-ip ou do último x-forwarded-for; cache do contexto relido quando o vínculo
+--     muda; sequencia ordena a trilha; linha de histórico sem pai (FK nula) não passa pela exceção da cascata;
+--   * cobertura: toda tabela do RH no mapa tem zz_fixar_autoria (BEFORE INSERT OR UPDATE, por linha, ligado) e
+--     audit_<tabela> (AFTER INSERT OR UPDATE OR DELETE, fn_audit_trigger('rh'), ligado); as de trilha, a imutabilidade
+--     em UPDATE/DELETE e em TRUNCATE (ENABLE ALWAYS).
+-- Tudo o que é coluna nova é lido por to_jsonb(...)->>'coluna': num banco anterior à E1 o bloco reprova sem abortar.
+SET session_replication_role = origin;
+DO $$
+DECLARE
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');                      -- sem servidor vinculado
+  u_inativo uuid := (SELECT uid FROM persona WHERE nome='inativo');
+  u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');                            -- vinculado ao servidor A
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');                          -- módulo rh, sem permissão
+  u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');
+  sa uuid := 'b0000000-0000-0000-0000-00000000000a';
+  sb uuid := 'b0000000-0000-0000-0000-00000000000b';
+  t1 uuid := 'e1000000-0000-0000-0000-000000000001';
+  t2 uuid := 'e1000000-0000-0000-0000-000000000002';
+  t5 uuid := 'e1000000-0000-0000-0000-000000000005';
+  t6 uuid := 'e1000000-0000-0000-0000-000000000006';
+  pc uuid := 'e1000000-0000-0000-0000-000000000011';
+  ev uuid := 'e1000000-0000-0000-0000-000000000012';
+  lic uuid := 'e1000000-0000-0000-0000-000000000013';
+  f1 uuid := 'e1000000-0000-0000-0000-000000000021';
+  f2 uuid := 'e1000000-0000-0000-0000-000000000022';
+  ab uuid := 'e1000000-0000-0000-0000-000000000031';
+  rp uuid := 'e1000000-0000-0000-0000-000000000041';
+  ev2 uuid := 'e1000000-0000-0000-0000-000000000042';
+  t7 uuid := 'e1000000-0000-0000-0000-000000000007';
+  f3 uuid := 'e1000000-0000-0000-0000-000000000023';
+  fc uuid := 'e1000000-0000-0000-0000-000000000024';
+  r text; n int; n2 int; j jsonb; x record; v_tipo text; v_nome text; esperado text; seq1 bigint; seq2 bigint;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.headers', '', true);
+
+  -- ===== autor forjado pelo navegador é sobrescrito (usuário comum e admin); origem usuario_sem_vinculo
+  r := pg_temp.insere_como(u_rh, 'authenticated', 'servidor_tags', jsonb_build_object('id', t1, 'nome', 'E1 tag 1',
+         'created_by', u_admin, 'created_by_servidor_id', sb, 'created_at', '2000-01-01', 'updated_by', u_admin));
+  SELECT to_jsonb(s) INTO j FROM public.servidor_tags s WHERE id = t1;
+  IF r <> 'ok' OR j IS NULL THEN PERFORM pg_temp.falha('E1 autoria: o módulo rh não insere em servidor_tags (' || r || ')');
+  ELSE
+    IF j ->> 'created_by' IS DISTINCT FROM u_rh::text THEN PERFORM pg_temp.falha('E1 autoria: created_by forjado pelo navegador foi aceito (' || coalesce(j ->> 'created_by', 'nulo') || ')'); END IF;
+    IF j ->> 'created_by_servidor_id' IS NOT NULL THEN PERFORM pg_temp.falha('E1 autoria: created_by_servidor_id forjado (usuário sem vínculo) foi aceito'); END IF;
+    IF (j ->> 'created_at')::timestamptz < '2001-01-01' THEN PERFORM pg_temp.falha('E1 autoria: created_at forjado foi aceito'); END IF;
+    IF j ->> 'updated_by' IS DISTINCT FROM u_rh::text THEN PERFORM pg_temp.falha('E1 autoria: updated_by do INSERT não é quem inseriu'); END IF;
+  END IF;
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'servidor_tags' AND a.entity_id = t1 AND a.action = 'create';
+  IF j IS NULL THEN PERFORM pg_temp.falha('E1 trilha: INSERT em servidor_tags não gerou linha em audit_logs');
+  ELSE
+    IF j ->> 'origem' IS DISTINCT FROM 'usuario_sem_vinculo' THEN PERFORM pg_temp.falha('E1 trilha: origem de usuário sem vínculo = ' || coalesce(j ->> 'origem', 'nula')); END IF;
+    IF j ->> 'servidor_id' IS NOT NULL OR j ->> 'user_id' IS DISTINCT FROM u_rh::text THEN PERFORM pg_temp.falha('E1 trilha: usuário/servidor errados no INSERT sem vínculo'); END IF;
+    IF j ->> 'transacao' IS NULL THEN PERFORM pg_temp.falha('E1 trilha: transacao não preenchida'); END IF;
+    IF j ->> 'module_name' IS DISTINCT FROM 'rh' THEN PERFORM pg_temp.falha('E1 trilha: módulo da trilha de servidor_tags = ' || coalesce(j ->> 'module_name', 'nulo')); END IF;
+  END IF;
+  r := pg_temp.insere_como(u_admin, 'authenticated', 'servidor_tags', jsonb_build_object('id', t2, 'nome', 'E1 tag 2', 'created_by', u_nenhum));
+  IF (SELECT created_by FROM public.servidor_tags WHERE id = t2) IS DISTINCT FROM u_admin THEN
+    PERFORM pg_temp.falha('E1 autoria: o admin escolhe o autor do lançamento (' || r || ')');
+  END IF;
+
+  -- ===== created_* não mudam no UPDATE (nem pelo admin); updated_* = quem alterou; campos alterados sem o carimbo
+  r := pg_temp.exec_como(u_admin, 'authenticated', format(
+         'UPDATE public.servidor_tags SET nome = ''E1 tag 1b'', created_by = %L, created_by_servidor_id = %L, created_at = ''2000-01-01'' WHERE id = %L',
+         u_nenhum, sb, t1));
+  SELECT to_jsonb(s) INTO j FROM public.servidor_tags s WHERE id = t1;
+  IF r <> 'ok' OR j ->> 'nome' <> 'E1 tag 1b' THEN PERFORM pg_temp.falha('E1 autoria: o admin não altera servidor_tags (' || r || ')');
+  ELSE
+    IF j ->> 'created_by' IS DISTINCT FROM u_rh::text OR (j ->> 'created_at')::timestamptz < '2001-01-01' OR j ->> 'created_by_servidor_id' IS NOT NULL THEN
+      PERFORM pg_temp.falha('E1 autoria: created_* mudaram no UPDATE do admin');
+    END IF;
+    IF j ->> 'updated_by' IS DISTINCT FROM u_admin::text THEN PERFORM pg_temp.falha('E1 autoria: updated_by não é quem alterou'); END IF;
+  END IF;
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'servidor_tags' AND a.entity_id = t1 AND a.action = 'update';
+  IF j IS NULL OR j -> 'campos_alterados' IS DISTINCT FROM '["nome"]'::jsonb THEN
+    PERFORM pg_temp.falha('E1 trilha: campos_alterados do UPDATE = ' || coalesce((j -> 'campos_alterados')::text, 'nulo') || ' (esperado ["nome"])');
+  END IF;
+
+  -- ===== UPDATE que não muda nada não gera linha
+  SELECT count(*) INTO n FROM public.audit_logs WHERE entity_type = 'servidor_tags' AND entity_id = t1;
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.servidor_tags SET nome = nome WHERE id = %L', t1));
+  SELECT count(*) INTO n2 FROM public.audit_logs WHERE entity_type = 'servidor_tags' AND entity_id = t1;
+  IF r <> 'ok' OR n2 <> n THEN PERFORM pg_temp.falha('E1 trilha: UPDATE sem mudança gerou linha (' || n || ' -> ' || n2 || ', ' || r || ')'); END IF;
+
+  -- ===== origem usuario: servidor vinculado (retrato com nome e matrícula)
+  INSERT INTO public.user_modules (user_id, module) VALUES (u_a, 'rh');
+  r := pg_temp.insere_como(u_a, 'authenticated', 'servidor_tags', jsonb_build_object('id', t5, 'nome', 'E1 tag 5'));
+  IF (SELECT to_jsonb(s) ->> 'created_by_servidor_id' FROM public.servidor_tags s WHERE id = t5) IS DISTINCT FROM sa::text THEN
+    PERFORM pg_temp.falha('E1 autoria: created_by_servidor_id não é o servidor vinculado (' || r || ')');
+  END IF;
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'servidor_tags' AND a.entity_id = t5 AND a.action = 'create';
+  SELECT nome_completo INTO v_nome FROM public.servidores WHERE id = sa;
+  IF j IS NULL OR j ->> 'origem' IS DISTINCT FROM 'usuario' OR j ->> 'servidor_id' IS DISTINCT FROM sa::text
+     OR j ->> 'servidor_nome' IS DISTINCT FROM v_nome THEN
+    PERFORM pg_temp.falha('E1 trilha: servidor responsável não gravado (origem ' || coalesce(j ->> 'origem', 'nula') || ', servidor ' || coalesce(j ->> 'servidor_id', 'nulo') || ')');
+  END IF;
+  DELETE FROM public.user_modules WHERE user_id = u_a AND module = 'rh';
+
+  -- ===== origem sistema (sem auth.uid(), fora dos papéis da API): informa o autor; o servidor vem do perfil
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO public.servidor_tags (id, nome, created_by) VALUES (t6, 'E1 tag 6', u_a);
+  SELECT to_jsonb(s) INTO j FROM public.servidor_tags s WHERE id = t6;
+  IF j ->> 'created_by' IS DISTINCT FROM u_a::text OR j ->> 'created_by_servidor_id' IS DISTINCT FROM sa::text THEN
+    PERFORM pg_temp.falha('E1 autoria: a origem sistema não informa o autor (' || coalesce(j ->> 'created_by', 'nulo') || ')');
+  END IF;
+  IF (SELECT to_jsonb(a) ->> 'origem' FROM public.audit_logs a WHERE a.entity_type = 'servidor_tags' AND a.entity_id = t6 LIMIT 1) IS DISTINCT FROM 'sistema' THEN
+    PERFORM pg_temp.falha('E1 trilha: INSERT da service role/job não marcado como origem sistema');
+  END IF;
+
+  -- ===== colunas de decisão e de criação
+  r := pg_temp.insere_como(u_rh, 'authenticated', 'pre_cadastros', jsonb_build_object('id', pc, 'convertido_por', u_admin, 'convertido_em', '2000-01-01'));
+  SELECT to_jsonb(p) INTO j FROM public.pre_cadastros p WHERE id = pc;
+  IF j IS NULL OR j ->> 'convertido_por' IS DISTINCT FROM u_rh::text OR (j ->> 'convertido_em')::timestamptz < '2001-01-01' THEN
+    PERFORM pg_temp.falha('E1 decisão: convertido_por/convertido_em forjados foram aceitos (' || r || ')');
+  END IF;
+  SELECT to_jsonb(p) INTO j FROM public.pre_cadastros p WHERE id = pc;
+  r := pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.pre_cadastros SET convertido_por = NULL WHERE id = %L', pc));
+  IF (SELECT convertido_por FROM public.pre_cadastros WHERE id = pc) IS DISTINCT FROM u_rh
+     OR (SELECT convertido_em FROM public.pre_cadastros WHERE id = pc) IS DISTINCT FROM (j ->> 'convertido_em')::timestamptz THEN
+    PERFORM pg_temp.falha('E1 decisão: a sessão da API apagou a decisão (convertido_por = NULL) (' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.pre_cadastros SET convertido_em = ''2000-01-01'' WHERE id = %L', pc));
+  IF (SELECT convertido_em FROM public.pre_cadastros WHERE id = pc) IS DISTINCT FROM (j ->> 'convertido_em')::timestamptz THEN
+    PERFORM pg_temp.falha('E1 decisão: a data da decisão mudou sozinha, com o autor igual (' || r || ')');
+  END IF;
+  -- ponto: aprovado = true grava aprovador e data pelo banco (o aprovador mandado é ignorado)
+  r := pg_temp.insere_como(u_admin, 'authenticated', 'registros_ponto', jsonb_build_object('id', rp, 'servidor_id', sb, 'data', '2031-03-03', 'aprovado', false));
+  r := r || '/' || pg_temp.exec_como(u_admin, 'authenticated', format(
+         'UPDATE public.registros_ponto SET aprovado = true, aprovador_id = %L, data_aprovacao = ''2000-01-01'' WHERE id = %L', u_nenhum, rp));
+  SELECT to_jsonb(x2) INTO j FROM public.registros_ponto x2 WHERE id = rp;
+  IF j IS NULL OR j ->> 'aprovador_id' IS DISTINCT FROM u_admin::text OR (j ->> 'data_aprovacao')::timestamptz < '2001-01-01' THEN
+    PERFORM pg_temp.falha('E1 decisão: aprovado = true no ponto não gravou o aprovador pelo banco (' || r || ', ' || coalesce(j ->> 'aprovador_id', 'nulo') || ')');
+  END IF;
+  r := pg_temp.insere_como(u_rh, 'authenticated', 'eventos_esocial', jsonb_build_object('id', ev, 'gerado_por', u_admin, 'data_geracao', '2000-01-01'));
+  r := r || '/' || pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.eventos_esocial SET gerado_por = %L, data_geracao = ''2000-01-01'' WHERE id = %L', u_admin, ev));
+  SELECT to_jsonb(e) INTO j FROM public.eventos_esocial e WHERE id = ev;
+  IF j IS NULL OR j ->> 'gerado_por' IS DISTINCT FROM u_rh::text OR (j ->> 'data_geracao')::timestamptz < '2001-01-01' THEN
+    PERFORM pg_temp.falha('E1 criação: gerado_por do eSocial não é quem gerou ou mudou depois (' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.eventos_esocial SET data_envio = ''2000-01-01'' WHERE id = %L', ev));
+  IF (SELECT to_jsonb(e) ->> 'data_envio' FROM public.eventos_esocial e WHERE id = ev) IS NOT NULL THEN
+    PERFORM pg_temp.falha('E1 decisão: data_envio do eSocial gravada sem autor (' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.eventos_esocial SET enviado_por = %L, data_envio = ''2000-01-01'' WHERE id = %L', u_admin, ev));
+  SELECT to_jsonb(e) INTO j FROM public.eventos_esocial e WHERE id = ev;
+  IF j ->> 'enviado_por' IS DISTINCT FROM u_rh::text OR (j ->> 'data_envio')::timestamptz < '2001-01-01' THEN
+    PERFORM pg_temp.falha('E1 decisão: enviado_por/data_envio do eSocial não são de quem marcou o envio (' || r || ', ' || coalesce(j ->> 'enviado_por', 'nulo') || ')');
+  END IF;
+  -- payload do eSocial (CPF e remuneração) não vai para a trilha
+  r := pg_temp.insere_como(u_rh, 'authenticated', 'eventos_esocial', jsonb_build_object('id', ev2, 'tipo_evento', 'S-1200',
+         'payload', jsonb_build_object('cpfTrab', '55566677788', 'vrRemun', 12345.67),
+         'payload_xml', '<cpfTrab>55566677788</cpfTrab><vrRemun>12345.67</vrRemun>'));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'eventos_esocial' AND a.entity_id = ev2 AND a.action = 'create';
+  IF j IS NULL OR j -> 'after_data' ->> 'payload' IS DISTINCT FROM '[protegido]' OR j -> 'after_data' ->> 'payload_xml' IS DISTINCT FROM '[protegido]' THEN
+    PERFORM pg_temp.falha('E1 máscara: payload do eSocial em claro (ou sem trilha) (' || r || ')');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.audit_logs a WHERE a::text LIKE '%55566677788%' OR a::text LIKE '%12345.67%') THEN
+    PERFORM pg_temp.falha('E1 máscara: CPF ou remuneração do payload do eSocial na trilha');
+  END IF;
+
+  -- ===== máscara LGPD: CPF parcial, RG e nascimento protegidos (servidores), CID protegido (licenças)
+  r := pg_temp.exec_como(u_admin, 'authenticated', format(
+         'UPDATE public.servidores SET cpf = ''12345678901'', rg = ''RG-998877'', data_nascimento = ''1990-05-17'' WHERE id = %L', sb));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a
+   WHERE a.entity_type = 'servidores' AND a.entity_id = sb AND a.action = 'update' AND a."timestamp" >= now() ORDER BY a."timestamp" DESC, a.id LIMIT 1;
+  IF r <> 'ok' OR j IS NULL THEN PERFORM pg_temp.falha('E1 máscara: alteração de servidores sem trilha (' || r || ')');
+  ELSE
+    IF j -> 'after_data' ->> 'cpf' IS DISTINCT FROM '***.456.789-**' THEN PERFORM pg_temp.falha('E1 máscara: CPF na trilha de servidores = ' || coalesce(j -> 'after_data' ->> 'cpf', 'nulo')); END IF;
+    IF j -> 'after_data' ->> 'rg' IS DISTINCT FROM '[protegido]' OR j -> 'after_data' ->> 'data_nascimento' IS DISTINCT FROM '[protegido]' THEN
+      PERFORM pg_temp.falha('E1 máscara: RG ou nascimento em claro na trilha de servidores');
+    END IF;
+    IF NOT coalesce((j -> 'campos_alterados') ?& ARRAY['cpf', 'rg', 'data_nascimento'], false) THEN
+      PERFORM pg_temp.falha('E1 máscara: campos_alterados não lista cpf/rg/data_nascimento (' || coalesce((j -> 'campos_alterados')::text, 'nulo') || ')');
+    END IF;
+  END IF;
+  r := pg_temp.insere_como(u_admin, 'authenticated', 'licencas_afastamentos', jsonb_build_object('id', lic, 'servidor_id', sb, 'cid', 'F32.1'));
+  IF (SELECT to_jsonb(a) -> 'after_data' ->> 'cid' FROM public.audit_logs a WHERE a.entity_type = 'licencas_afastamentos' AND a.entity_id = lic AND a.action = 'create') IS DISTINCT FROM '[protegido]' THEN
+    PERFORM pg_temp.falha('E1 máscara: CID em claro (ou sem trilha) em licencas_afastamentos (' || r || ')');
+  END IF;
+  SELECT count(*) INTO n FROM public.audit_logs a
+   WHERE a::text LIKE '%12345678901%' OR a::text LIKE '%RG-998877%' OR a::text LIKE '%1990-05-17%' OR a::text LIKE '%F32.1%';
+  IF n > 0 THEN PERFORM pg_temp.falha('E1 máscara: ' || n || ' linha(s) de audit_logs com CPF/RG/nascimento/CID em claro'); END IF;
+
+  -- ===== tabela sem coluna id uuid: entity_id nulo e a chave primária em metadata.chave (com máscara)
+  BEGIN
+    CREATE TEMP TABLE e1_sem_id (chave text PRIMARY KEY, cpf text);
+    CREATE TRIGGER audit_e1_sem_id AFTER INSERT OR UPDATE OR DELETE ON pg_temp.e1_sem_id
+      FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('teste_e1');
+    EXECUTE 'INSERT INTO public.audit_colunas_sensiveis (tabela, coluna, tratamento) VALUES (''e1_sem_id'', ''cpf'', ''parcial'')';
+    INSERT INTO pg_temp.e1_sem_id VALUES ('k-e1', '98765432100');
+    SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'e1_sem_id' AND a.module_name = 'teste_e1';
+    IF j IS NULL OR j ->> 'entity_id' IS NOT NULL OR j -> 'metadata' -> 'chave' ->> 'chave' IS DISTINCT FROM 'k-e1'
+       OR j -> 'after_data' ->> 'cpf' IS DISTINCT FROM '***.654.321-**' THEN
+      PERFORM pg_temp.falha('E1 trilha: tabela sem id uuid gravou ' || coalesce(left(j::text, 120), 'nada'));
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM pg_temp.falha('E1 trilha: tabela sem id uuid falhou (' || SQLSTATE || ': ' || left(SQLERRM, 80) || ')');
+  END;
+
+  -- ===== IP e user agent dos cabeçalhos (x-real-ip; sem ele, o ÚLTIMO item de x-forwarded-for); registrar_evento
+  PERFORM set_config('request.headers', '{"x-forwarded-for": "203.0.113.9, 198.51.100.4", "user-agent": "TesteE1/1.0"}', true);
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.registrar_evento(''download'', ''relatorio_rh'', NULL, ''relatório 01/2031'', ''{"formato": "pdf", "trigger": true}'')::text');
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.id::text = r;
+  IF j IS NULL THEN PERFORM pg_temp.falha('E1 registrar_evento: download de relatório pelo módulo rh não gravou (' || r || ')');
+  ELSE
+    IF j ->> 'user_id' IS DISTINCT FROM u_rh::text OR j ->> 'action' <> 'download' OR j ->> 'module_name' <> 'rh'
+       OR j ->> 'origem' IS DISTINCT FROM 'usuario_sem_vinculo' THEN
+      PERFORM pg_temp.falha('E1 registrar_evento: usuário/ação/módulo/origem errados (' || left(j::text, 120) || ')');
+    END IF;
+    IF j ->> 'ip_address' IS DISTINCT FROM '198.51.100.4' OR j ->> 'user_agent' IS DISTINCT FROM 'TesteE1/1.0' THEN
+      PERFORM pg_temp.falha('E1 trilha: IP não é o último item de x-forwarded-for ou user agent fora dos cabeçalhos (' || coalesce(j ->> 'ip_address', 'nulo') || ', ' || coalesce(j ->> 'user_agent', 'nulo') || ')');
+    END IF;
+    IF j -> 'metadata' ? 'trigger' OR j -> 'metadata' ->> 'fonte' IS DISTINCT FROM 'registrar_evento' THEN
+      PERFORM pg_temp.falha('E1 registrar_evento: metadados do cliente marcam a linha como de trigger (' || (j -> 'metadata')::text || ')');
+    END IF;
+  END IF;
+  PERFORM set_config('request.headers', '{"x-real-ip": "192.0.2.10", "x-forwarded-for": "203.0.113.9, 198.51.100.4", "user-agent": "TesteE1/1.1"}', true);
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.registrar_evento(''view'', ''servidores'', NULL)::text');
+  IF (SELECT host(ip_address) FROM public.audit_logs WHERE id::text = r) IS DISTINCT FROM '192.0.2.10' THEN
+    PERFORM pg_temp.falha('E1 trilha: x-real-ip não tem preferência sobre x-forwarded-for (' || r || ')');
+  END IF;
+  PERFORM set_config('request.headers', '{"x-forwarded-for": "lixo", "user-agent": "TesteE1/2.0"}', true);
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.registrar_evento(''view'', ''servidores'', NULL)::text');
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.id::text = r;
+  IF j IS NULL OR j ->> 'ip_address' IS NOT NULL OR j ->> 'user_agent' IS DISTINCT FROM 'TesteE1/2.0' THEN
+    PERFORM pg_temp.falha('E1 trilha: IP inválido no cabeçalho quebrou ou foi gravado (' || r || ')');
+  END IF;
+  PERFORM set_config('request.headers', 'nao-e-json', true);
+  r := pg_temp.sql_como(u_rh, 'authenticated', 'SELECT public.registrar_evento(''export'', ''relatorio_rh'')');
+  IF r NOT LIKE 'ok:%' THEN PERFORM pg_temp.falha('E1 trilha: cabeçalho que não é JSON quebra a gravação (' || r || ')'); END IF;
+  PERFORM set_config('request.headers', '', true);
+  r := pg_temp.sql_como(u_nenhum, 'authenticated', 'SELECT public.registrar_evento(''apagar'', ''servidores'')');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E1 registrar_evento: aceita ação fora da lista (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_nenhum, 'authenticated', 'SELECT public.registrar_evento(''view'', ''pg_authid'')');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E1 registrar_evento: aceita entidade fora da lista (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_nenhum, 'authenticated', 'SELECT public.registrar_evento(''view'', ''servidores'', NULL, NULL, ''[1,2]'')');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E1 registrar_evento: aceita metadados que não são objeto (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_inativo, 'authenticated', 'SELECT public.registrar_evento(''view'', ''servidores'')');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('E1 registrar_evento: perfil inativo grava (' || r || ')'); END IF;
+  r := pg_temp.sql_como(NULL, 'anon', 'SELECT public.registrar_evento(''view'', ''servidores'')');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('E1 registrar_evento: anon executa (' || r || ')'); END IF;
+  -- sem o módulo rh: nenhuma tabela nem relatório; só o próprio contracheque
+  r := pg_temp.sql_como(u_nenhum, 'authenticated', 'SELECT public.registrar_evento(''view'', ''servidores'')');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('E1 registrar_evento: usuário sem o módulo rh registra visualização de servidores (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_a, 'authenticated', 'SELECT public.registrar_evento(''export'', ''relatorio_rh'')');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('E1 registrar_evento: servidor sem o módulo rh registra relatório do RH (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_folha, status)
+  SELECT f3, 2031, 3, e.enumlabel::public.tipo_folha, 'aberta' FROM pg_enum e WHERE e.enumtypid = 'public.tipo_folha'::regtype ORDER BY e.enumsortorder LIMIT 1;
+  INSERT INTO public.fichas_financeiras (id, folha_id, servidor_id) VALUES (fc, f3, sa);
+  r := pg_temp.sql_como(u_a, 'authenticated', format('SELECT public.registrar_evento(''download'', ''contracheque'', %L)', fc));
+  IF r NOT LIKE 'ok:%' THEN PERFORM pg_temp.falha('E1 registrar_evento: o servidor não registra o download do próprio contracheque (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_nenhum, 'authenticated', format('SELECT public.registrar_evento(''download'', ''contracheque'', %L)', fc));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('E1 registrar_evento: contracheque de outro servidor registrado sem o módulo rh (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_nenhum, 'authenticated', 'SELECT public.registrar_evento(''download'', ''contracheque'')');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('E1 registrar_evento: contracheque sem ficha registrado sem o módulo rh (' || r || ')'); END IF;
+
+  -- ===== log_audit não forja a trilha do RH
+  r := pg_temp.sql_como(u_rh, 'authenticated', 'SELECT public.log_audit(''create''::public.audit_action, ''servidores'', NULL, ''rh'')');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E1 log_audit: aceita create no módulo rh (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', 'SELECT public.log_audit(''update''::public.audit_action, ''servidores'', NULL, '' RH '')');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E1 log_audit: aceita update no módulo " RH " (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', 'SELECT public.log_audit(''view''::public.audit_action, ''servidores'', NULL, ''rh'', NULL, ''{"cpf": "1"}'')');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E1 log_audit: aceita antes/depois do cliente no módulo rh (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_a, 'authenticated', format('SELECT public.log_audit(''view''::public.audit_action, ''contracheque'', %L, ''rh'', NULL, NULL, ''Contracheque visualizado'', ''{"acao": "visualizar"}'')::text', fc));
+  IF r IS NULL OR r LIKE 'erro:%' THEN PERFORM pg_temp.falha('E1 log_audit: o contracheque (view no módulo rh) deixou de gravar (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.log_audit(''create''::public.audit_action, ''fin_empenhos'', NULL, ''financeiro'', NULL, NULL, ''t'', ''{"trigger": true, "operation": "INSERT", "table": "x", "registrar_evento": true, "fonte": "forjada", "ok": 1}'')::text');
+  SELECT metadata INTO j FROM public.audit_logs WHERE id::text = r;
+  IF j IS NULL OR j ?| ARRAY['trigger', 'operation', 'table', 'registrar_evento'] OR j ->> 'fonte' IS DISTINCT FROM 'log_audit' OR j ->> 'ok' IS DISTINCT FROM '1' THEN
+    PERFORM pg_temp.falha('E1 log_audit: metadados do cliente forjam linha de trigger (' || coalesce(j::text, r) || ')');
+  END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('SELECT public.log_audit(''create''::public.audit_action, ''x'', NULL, ''financeiro'', NULL, %L::jsonb)',
+         jsonb_build_object('grande', repeat('a', 33000))));
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E1 log_audit: aceita depois acima de 32 KB (' || left(r, 60) || ')'); END IF;
+
+  -- ===== folha: fechado_por não vem do cliente; processado_por gravado pela RPC
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_folha, status)
+  SELECT f1, 2031, 1, e.enumlabel::public.tipo_folha, 'aberta' FROM pg_enum e WHERE e.enumtypid = 'public.tipo_folha'::regtype ORDER BY e.enumsortorder LIMIT 1;
+  INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_folha, status)
+  SELECT f2, 2031, 2, e.enumlabel::public.tipo_folha, 'aberta' FROM pg_enum e WHERE e.enumtypid = 'public.tipo_folha'::regtype ORDER BY e.enumsortorder LIMIT 1;
+  r := pg_temp.exec_como(u_admin, 'authenticated', format(
+         'UPDATE public.folhas_pagamento SET status = ''fechada'', fechado_por = %L, fechado_em = ''2000-01-01'' WHERE id = %L', u_nenhum, f1));
+  SELECT to_jsonb(f) INTO j FROM public.folhas_pagamento f WHERE id = f1;
+  IF r <> 'ok' OR j ->> 'status' <> 'fechada' THEN PERFORM pg_temp.falha('E1 folha: o admin não fecha a folha de teste (' || r || ')');
+  ELSIF j ->> 'fechado_por' IS DISTINCT FROM u_admin::text OR (j ->> 'fechado_em')::timestamptz < '2001-01-01' THEN
+    PERFORM pg_temp.falha('E1 folha: fechado_por/fechado_em mandados pelo cliente foram aceitos (COALESCE)');
+  END IF;
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.folhas_pagamento SET fechado_por = %L WHERE id = %L', u_nenhum, f1));
+  IF (SELECT fechado_por FROM public.folhas_pagamento WHERE id = f1) IS DISTINCT FROM u_admin THEN
+    PERFORM pg_temp.falha('E1 folha: fechado_por muda fora da transição de status (' || r || ')');
+  END IF;
+  r := pg_temp.valor_como(u_proc, 'authenticated', format('SELECT (public.processar_folha_pagamento(%L)) ->> ''sucesso''', f2));
+  IF r IS DISTINCT FROM 'true' THEN PERFORM pg_temp.falha('E1 folha: processar_folha_pagamento falhou na folha de teste (' || coalesce(r, 'nulo') || ')');
+  ELSIF (SELECT processado_por FROM public.folhas_pagamento WHERE id = f2) IS DISTINCT FROM u_proc
+        OR (SELECT data_processamento FROM public.folhas_pagamento WHERE id = f2) < '2001-01-01' THEN
+    PERFORM pg_temp.falha('E1 folha: processar_folha_pagamento não grava processado_por/data_processamento');
+  END IF;
+  r := pg_temp.exec_como(u_proc, 'authenticated', format('UPDATE public.folhas_pagamento SET data_processamento = ''2000-01-01'' WHERE id = %L', f2));
+  IF (SELECT data_processamento FROM public.folhas_pagamento WHERE id = f2) < '2001-01-01' THEN
+    PERFORM pg_temp.falha('E1 folha: data_processamento mudada pelo cliente sem processar (' || r || ')');
+  END IF;
+  IF current_setting('trilha.renovar_decisao', true) IS DISTINCT FROM '' AND current_setting('trilha.renovar_decisao', true) IS NOT NULL THEN
+    PERFORM pg_temp.falha('E1 folha: trilha.renovar_decisao ficou ligada depois de processar a folha');
+  END IF;
+
+  -- ===== trilha imutável: postgres, service role, superusuário e modo réplica
+  SELECT count(*) INTO n FROM public.folha_historico_status WHERE folha_id = f1;
+  IF n = 0 THEN PERFORM pg_temp.falha('E1 trilha: a transição da folha de teste não gerou folha_historico_status'); END IF;
+  FOR x IN SELECT * FROM (VALUES ('audit_logs', 'description'), ('folha_historico_status', 'justificativa'),
+                                 ('rubricas_historico', 'justificativa')) AS v(tabela, coluna) LOOP
+    IF x.tabela = 'rubricas_historico' THEN
+      SET LOCAL session_replication_role = replica;
+      INSERT INTO public.rubricas_historico (rubrica_id, versao, dados_anteriores, dados_novos)
+        VALUES ((SELECT id_a FROM semeado WHERE tabela = 'rubricas')::uuid, 99, '{}', '{}');
+      SET LOCAL session_replication_role = origin;
+    END IF;
+    FOREACH esperado IN ARRAY ARRAY['postgres', 'service_role'] LOOP
+      r := pg_temp.sql_como(NULL, esperado, format('UPDATE public.%I SET %I = ''x''', x.tabela, x.coluna));
+      IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha(format('E1 imutável: UPDATE em %s como %s (%s)', x.tabela, esperado, r)); END IF;
+      r := pg_temp.sql_como(NULL, esperado, format('DELETE FROM public.%I', x.tabela));
+      IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha(format('E1 imutável: DELETE em %s como %s (%s)', x.tabela, esperado, r)); END IF;
+      r := pg_temp.sql_como(NULL, esperado, format('TRUNCATE public.%I CASCADE', x.tabela));
+      IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha(format('E1 imutável: TRUNCATE em %s como %s (%s)', x.tabela, esperado, r)); END IF;
+    END LOOP;
+    r := pg_temp.sql_como(NULL, 'postgres', format('DELETE FROM public.%I', x.tabela));
+    IF r NOT ILIKE '%imutável%' THEN PERFORM pg_temp.falha(format('E1 imutável: DELETE em %s como postgres não é barrado pelo trigger (%s)', x.tabela, r)); END IF;
+    BEGIN   -- superusuário em modo réplica (triggers comuns desligados): o trigger é ENABLE ALWAYS
+      SET LOCAL session_replication_role = replica;
+      EXECUTE format('DELETE FROM public.%I', x.tabela);
+      GET DIAGNOSTICS n = ROW_COUNT;
+      RAISE EXCEPTION USING ERRCODE = 'P0099', MESSAGE = 'apagou ' || n;
+    EXCEPTION
+      WHEN SQLSTATE 'P0099' THEN PERFORM pg_temp.falha(format('E1 imutável: superusuário em modo réplica %s em %s', SQLERRM, x.tabela));
+      WHEN SQLSTATE '42501' THEN NULL;
+    END;
+    SET LOCAL session_replication_role = origin;
+  END LOOP;
+  -- expurgo autorizado (rotina futura): o GUC de sessão libera; a sub-transação desfaz
+  BEGIN
+    PERFORM set_config('trilha.expurgo', 'autorizado', true);
+    DELETE FROM public.audit_logs WHERE entity_type = 'servidor_tags' AND entity_id = t6;
+    GET DIAGNOSTICS n = ROW_COUNT;
+    RAISE EXCEPTION USING ERRCODE = 'P0099', MESSAGE = n::text;
+  EXCEPTION
+    WHEN SQLSTATE 'P0099' THEN IF SQLERRM = '0' THEN PERFORM pg_temp.falha('E1 imutável: o GUC de expurgo não libera a exclusão'); END IF;
+    WHEN OTHERS THEN PERFORM pg_temp.falha('E1 imutável: o GUC de expurgo não libera a exclusão (' || SQLSTATE || ')');
+  END;
+  IF current_setting('trilha.expurgo', true) = 'autorizado' THEN PERFORM pg_temp.falha('E1 imutável: GUC de expurgo sobrou depois da sub-transação'); END IF;
+  -- linha de histórico sem pai (FK nula) não passa pela exceção da cascata
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.rubricas_historico (rubrica_id, versao, dados_anteriores, dados_novos) VALUES (NULL, 98, '{}', '{}');
+  SET LOCAL session_replication_role = origin;
+  r := pg_temp.sql_como(NULL, 'postgres', 'DELETE FROM public.rubricas_historico WHERE rubrica_id IS NULL');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('E1 imutável: linha de rubricas_historico com rubrica_id nulo é apagada (' || r || ')'); END IF;
+  -- cascata do pai: excluir a folha (não fechada) leva o histórico dela
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('DELETE FROM public.folhas_pagamento WHERE id = %L', f2));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('E1 imutável: a folha com histórico não é excluída pela cascata (' || r || ')'); END IF;
+
+  -- ===== frequência: o admin não escolhe o autor da etapa
+  v_tipo := pg_temp.seed_row('tipos_abono');
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO public.solicitacoes_abono (id, servidor_id, tipo_abono_id, data_inicio, data_fim, justificativa, status)
+    VALUES (ab, sa, v_tipo::uuid, current_date, current_date, 'E1', 'pendente');
+  r := pg_temp.exec_como(u_admin, 'authenticated', format(
+         'UPDATE public.solicitacoes_abono SET status = ''aprovado'', aprovado_rh_por = %L, aprovado_rh_em = ''2000-01-01'' WHERE id = %L', u_nenhum, ab));
+  SELECT to_jsonb(s) INTO j FROM public.solicitacoes_abono s WHERE id = ab;
+  IF r <> 'ok' OR j ->> 'status' <> 'aprovado' THEN PERFORM pg_temp.falha('E1 frequência: o admin não aprova o abono (' || r || ')');
+  ELSIF j ->> 'aprovado_rh_por' IS DISTINCT FROM u_admin::text OR (j ->> 'aprovado_rh_em')::timestamptz < '2001-01-01' THEN
+    PERFORM pg_temp.falha('E1 frequência: o admin escolheu o autor/data da etapa (' || coalesce(j ->> 'aprovado_rh_por', 'nulo') || ')');
+  END IF;
+
+  -- ===== leitura da trilha do RH: módulo rh E rh.auditoria.visualizar; só o módulo 'rh'
+  IF pg_temp.sel(u_rh, 'authenticated', 'audit_logs') <> 0 THEN PERFORM pg_temp.falha('E1 leitura: o módulo rh sem rh.auditoria.visualizar lê a trilha'); END IF;
+  UPDATE public.user_modules SET permissions = ARRAY['rh.auditoria.visualizar'] WHERE user_id = u_rh AND module = 'rh';
+  SELECT count(*) INTO n FROM public.audit_logs WHERE module_name = 'rh';
+  IF n = 0 OR pg_temp.sel(u_rh, 'authenticated', 'audit_logs') <> n THEN
+    PERFORM pg_temp.falha('E1 leitura: com rh.auditoria.visualizar não lê as ' || n || ' linhas do módulo rh');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT count(*)::text FROM public.audit_logs WHERE module_name IS DISTINCT FROM ''rh''');
+  IF r <> '0' THEN PERFORM pg_temp.falha('E1 leitura: rh.auditoria.visualizar lê trilha de outro módulo (' || r || ')'); END IF;
+  UPDATE public.user_modules SET permissions = NULL WHERE user_id = u_rh AND module = 'rh';
+  BEGIN
+    INSERT INTO public.user_permissions (user_id, permission) VALUES (u_nenhum, 'rh.auditoria.visualizar');
+    IF pg_temp.sel(u_nenhum, 'authenticated', 'audit_logs') <> 0 THEN PERFORM pg_temp.falha('E1 leitura: a permissão avulsa sem o módulo rh lê a trilha'); END IF;
+    DELETE FROM public.user_permissions WHERE user_id = u_nenhum AND permission = 'rh.auditoria.visualizar';
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM pg_temp.falha('E1 leitura: permissão rh.auditoria.visualizar fora do catálogo (' || SQLSTATE || ')');
+  END;
+  IF pg_temp.sel(u_admin, 'authenticated', 'audit_logs') < 1 THEN PERFORM pg_temp.falha('E1 leitura: o admin não lê a trilha'); END IF;
+  -- nenhum papel recebe a permissão; action_type fora de 'visualizar' (a carga do papel user não a alcança)
+  IF EXISTS (SELECT 1 FROM public.role_permissions WHERE permission = 'rh.auditoria.visualizar') THEN
+    PERFORM pg_temp.falha('E1 leitura: algum papel recebe rh.auditoria.visualizar por padrão');
+  END IF;
+  IF (SELECT action_type FROM public.module_permissions_catalog WHERE permission_code = 'rh.auditoria.visualizar') IS DISTINCT FROM 'auditar' THEN
+    PERFORM pg_temp.falha('E1 leitura: rh.auditoria.visualizar sem action_type auditar no catálogo');
+  END IF;
+
+  -- ===== sequencia: ordem de gravação, sem escolha do cliente
+  SELECT max(to_jsonb(a) ->> 'sequencia')::bigint INTO seq1 FROM public.audit_logs a;
+  r := pg_temp.insere_como(u_rh, 'authenticated', 'servidor_tags', jsonb_build_object('id', t7, 'nome', 'E1 tag 7'));
+  SELECT (to_jsonb(a) ->> 'sequencia')::bigint INTO seq2 FROM public.audit_logs a WHERE a.entity_type = 'servidor_tags' AND a.entity_id = t7;
+  IF seq1 IS NULL OR seq2 IS NULL OR seq2 <= seq1 THEN
+    PERFORM pg_temp.falha('E1 trilha: sequencia não ordena a gravação (' || coalesce(seq1::text, 'nula') || ' -> ' || coalesce(seq2::text, 'nula') || ')');
+  END IF;
+  -- cache do contexto: vincular o perfil no meio da transação muda o servidor do próximo lançamento
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.profiles SET servidor_id = %L WHERE id = %L', sb, u_rh));
+  r := r || '/' || pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.servidor_tags SET nome = ''E1 tag 7b'' WHERE id = %L', t7));
+  IF (SELECT to_jsonb(s2) ->> 'updated_by_servidor_id' FROM public.servidor_tags s2 WHERE id = t7) IS DISTINCT FROM sb::text
+     OR (SELECT to_jsonb(a) ->> 'origem' FROM public.audit_logs a WHERE a.entity_type = 'servidor_tags' AND a.entity_id = t7 AND a.action = 'update') IS DISTINCT FROM 'usuario' THEN
+    PERFORM pg_temp.falha('E1 trilha: o contexto guardado na transação não foi relido depois do vínculo do perfil (' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.profiles SET servidor_id = NULL WHERE id = %L', u_rh));
+
+  -- ===== trilha do módulo admin: vínculo do perfil sim, nome não
+  r := pg_temp.exec_como(u_nenhum, 'authenticated', 'UPDATE public.profiles SET full_name = ''Nome E1'' WHERE id = auth.uid()');
+  IF EXISTS (SELECT 1 FROM public.audit_logs WHERE entity_type = 'profiles' AND entity_id = u_nenhum AND "timestamp" >= now()) THEN
+    PERFORM pg_temp.falha('E1 trilha: troca de nome do perfil gerou linha (só vínculo e acesso entram)');
+  END IF;
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.profiles SET servidor_id = %L WHERE id = %L', sb, u_nenhum));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'profiles' AND a.entity_id = u_nenhum AND a.action = 'update' AND a."timestamp" >= now();
+  IF r <> 'ok' OR j IS NULL OR j ->> 'module_name' <> 'admin' OR j -> 'campos_alterados' IS DISTINCT FROM '["servidor_id"]'::jsonb
+     OR j -> 'after_data' ->> 'email' IS DISTINCT FROM '[protegido]' THEN
+    PERFORM pg_temp.falha('E1 trilha: vínculo servidor_id do perfil sem trilha do módulo admin (' || r || ', ' || coalesce(left(j::text, 100), 'nada') || ')');
+  END IF;
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.profiles SET servidor_id = NULL WHERE id = %L', u_nenhum));
+
+  -- ===== cobertura: toda tabela do RH no mapa tem autoria e trilha; as de trilha, imutabilidade sempre ligada
+  FOR x IN SELECT m.tabela, m.classe FROM mapa m WHERE 'rh' = ANY (string_to_array(m.modulos, '|')) ORDER BY 1 LOOP
+    IF x.classe = 'trilha' THEN
+      IF NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid
+                      WHERE t.tgrelid = ('public.' || quote_ident(x.tabela))::regclass AND p.proname = 'trilha_imutavel'
+                        AND t.tgenabled = 'A' AND (t.tgtype & 16) <> 0 AND (t.tgtype & 8) <> 0) THEN
+        PERFORM pg_temp.falha('E1 cobertura: ' || x.tabela || ' (trilha) sem trilha_imutavel ENABLE ALWAYS em UPDATE/DELETE');
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid
+                      WHERE t.tgrelid = ('public.' || quote_ident(x.tabela))::regclass AND p.proname = 'trilha_imutavel'
+                        AND t.tgenabled = 'A' AND (t.tgtype & 32) <> 0) THEN
+        PERFORM pg_temp.falha('E1 cobertura: ' || x.tabela || ' (trilha) sem trilha_imutavel ENABLE ALWAYS em TRUNCATE');
+      END IF;
+    ELSE
+      -- zz_fixar_autoria: BEFORE (2) por linha (1) em INSERT (4) e UPDATE (16), ligado
+      IF NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid
+                      WHERE t.tgrelid = ('public.' || quote_ident(x.tabela))::regclass AND p.proname = 'fixar_autoria' AND t.tgname = 'zz_fixar_autoria'
+                        AND (t.tgtype & 1) <> 0 AND (t.tgtype & 2) <> 0 AND (t.tgtype & 4) <> 0 AND (t.tgtype & 16) <> 0
+                        AND t.tgenabled <> 'D' AND t.tgqual IS NULL AND t.tgattr = ''::int2vector) THEN
+        PERFORM pg_temp.falha('E1 cobertura: ' || x.tabela || ' sem zz_fixar_autoria BEFORE INSERT OR UPDATE por linha, ligado e sem condição');
+      END IF;
+      -- audit_<tabela>: AFTER por linha em INSERT, DELETE e UPDATE (8), fn_audit_trigger('rh'), ligado
+      IF NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid
+                      WHERE t.tgrelid = ('public.' || quote_ident(x.tabela))::regclass AND p.proname = 'fn_audit_trigger'
+                        AND t.tgname = 'audit_' || x.tabela AND (t.tgtype & 1) <> 0 AND (t.tgtype & 2) = 0
+                        AND (t.tgtype & 4) <> 0 AND (t.tgtype & 8) <> 0 AND (t.tgtype & 16) <> 0
+                        AND t.tgenabled <> 'D' AND t.tgqual IS NULL AND t.tgattr = ''::int2vector
+                        AND t.tgnargs = 1 AND encode(t.tgargs, 'escape') = 'rh\000') THEN
+        PERFORM pg_temp.falha('E1 cobertura: ' || x.tabela || ' sem audit_' || x.tabela || ' AFTER INSERT OR UPDATE OR DELETE com fn_audit_trigger(''rh''), ligado');
+      END IF;
+      -- zz_fixar_autoria é o ÚLTIMO BEFORE ROW (a autoria final é a do banco)
+      IF EXISTS (SELECT 1 FROM pg_trigger t
+                  WHERE t.tgrelid = ('public.' || quote_ident(x.tabela))::regclass AND NOT t.tgisinternal
+                    AND (t.tgtype & 1) <> 0 AND (t.tgtype & 2) <> 0 AND t.tgname > 'zz_fixar_autoria') THEN
+        PERFORM pg_temp.falha('E1 cobertura: ' || x.tabela || ' tem trigger BEFORE ROW que roda depois de zz_fixar_autoria');
+      END IF;
+    END IF;
+  END LOOP;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid
+                  WHERE t.tgrelid = 'public.audit_logs'::regclass AND p.proname = 'trilha_imutavel' AND t.tgenabled = 'A' AND (t.tgtype & 32) <> 0) THEN
+    PERFORM pg_temp.falha('E1 cobertura: audit_logs sem trilha_imutavel em TRUNCATE');
+  END IF;
+
+  -- ===== privilégios: funções de apoio e de trigger fora da API; registrar_evento só authenticated
+  FOR x IN SELECT p.oid, p.proname FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace
+             AND p.proname IN ('responsavel_atual', 'rh_exige_servidor_vinculado', 'mascarar_parcial', 'trilha_mascarar',
+                               'trilha_contexto_requisicao', 'trilha_completar_contexto', 'trilha_imutavel', 'fixar_autoria',
+                               'trilha_contexto', 'trilha_contexto_invalidar') LOOP
+    IF has_function_privilege('authenticated', x.oid, 'EXECUTE') OR has_function_privilege('anon', x.oid, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('E1 privilégio: ' || x.proname || ' executável pela API');
+    END IF;
+  END LOOP;
+  SELECT count(*) INTO n FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname IN
+    ('responsavel_atual', 'rh_exige_servidor_vinculado', 'mascarar_parcial', 'trilha_mascarar', 'trilha_contexto_requisicao',
+     'trilha_completar_contexto', 'trilha_imutavel', 'fixar_autoria', 'registrar_evento', 'trilha_contexto',
+     'trilha_contexto_invalidar');
+  IF n <> 11 THEN PERFORM pg_temp.falha('E1: faltam funções da migração 20261011000000 (' || n || ' de 11)'); END IF;
+  -- máscara reaplicada não muda (a migração mascara a trilha antiga e roda mais de uma vez)
+  IF EXISTS (SELECT 1 FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'trilha_mascarar') THEN
+    EXECUTE 'SELECT public.trilha_mascarar(''servidores'', public.trilha_mascarar(''servidores'', ''{"cpf": "12345678901", "pis_pasep": "1234567890"}''))::text' INTO r;
+    IF r IS DISTINCT FROM '{"cpf": "***.456.789-**", "pis_pasep": "***45678**"}' THEN
+      PERFORM pg_temp.falha('E1 máscara: reaplicar a máscara muda o valor (' || coalesce(r, 'nulo') || ')');
+    END IF;
+  END IF;
+  FOR x IN SELECT p.oid FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'registrar_evento' LOOP
+    IF NOT has_function_privilege('authenticated', x.oid, 'EXECUTE') OR has_function_privilege('anon', x.oid, 'EXECUTE')
+       OR has_function_privilege('service_role', x.oid, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('E1 privilégio: registrar_evento deveria ser só de authenticated');
+    END IF;
+  END LOOP;
+  IF EXISTS (SELECT 1 FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'rh_exige_servidor_vinculado') THEN
+    EXECUTE 'SELECT public.rh_exige_servidor_vinculado()::text' INTO r;
+    IF r <> 'false' THEN PERFORM pg_temp.falha('E1: rh_exige_servidor_vinculado() = ' || r || ' sem decisão do órgão (premissa 1)'); END IF;
+  END IF;
+
+  PERFORM pg_temp.nota('E1 (autoria e trilha do RH): autoria forçada, origem, máscara, imutabilidade, folha, frequência, registrar_evento, leitura e cobertura verificadas');
+END $$;
+
+-- ---------------------------------------------------------------- RH: consulta e trilha do Storage (Onda E2) (TRIGGERS LIGADOS)
+-- Migração 20261011000200_rh_trilha_consulta.sql (spec docs/superpowers/specs/2026-10-10-rh-trilha-tela-design.md):
+--   * índices de audit_logs da tela (entidade, servidor, módulo e usuário, todos + sequencia) e os três
+--     antigos que viraram prefixo removidos;
+--   * trilha do Storage: gravar ('upload'), trocar/mover ('update') e apagar ('delete') objeto em frequencias e
+--     documentos-requerimento grava linha em audit_logs (módulo rh, entity_type storage.<bucket>, entity_id = id do
+--     objeto) com usuário, servidor, origem, IP e user agent; só carimbo (updated_at) não grava; outro bucket não grava;
+--     service role vira origem `sistema`; nada do caminho com nome, de user_metadata nem de antes/depois na trilha;
+--     caminho de uuid em claro; servidor dono do arquivo quando dá para saber; função fora da API.
+-- Colunas da E1 lidas por to_jsonb(...): num banco anterior o bloco reprova sem abortar.
+DO $$
+DECLARE
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_fl uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');   -- módulo rh + rh.frequencia.lancar
+  u_ed uuid := (SELECT uid FROM persona WHERE nome='perm_rh.servidores.editar');   -- módulo rh + rh.servidores.editar
+  sa uuid := 'b0000000-0000-0000-0000-00000000000a';
+  sb uuid := 'b0000000-0000-0000-0000-00000000000b';
+  o1 uuid := 'e2000000-0000-0000-0000-000000000001';
+  o2 uuid := 'e2000000-0000-0000-0000-000000000002';
+  o3 uuid := 'e2000000-0000-0000-0000-000000000003';
+  o4 uuid := 'e2000000-0000-0000-0000-000000000004';
+  o5 uuid := 'e2000000-0000-0000-0000-000000000005';
+  doc uuid := 'e2000000-0000-0000-0000-0000000000d1';
+  nome1 text := '2026-02/DIRAF/9999_Fulano_Sigiloso_1700000000000.pdf';
+  r text; n int; j jsonb; x record; f text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.headers', '', true);
+  IF u_fl IS NULL OR u_ed IS NULL THEN RAISE EXCEPTION 'faltam as personas perm_rh.frequencia.lancar/perm_rh.servidores.editar (mapa.csv)'; END IF;
+
+  -- ===== estrutura: funções fora da API, triggers ligados com WHEN nos dois buckets, índices
+  FOREACH f IN ARRAY ARRAY['public.trilha_storage()', 'public.trilha_storage_chave(text,text)'] LOOP
+    IF to_regprocedure(f) IS NULL THEN PERFORM pg_temp.falha('E2 storage: função ' || f || ' não existe'); CONTINUE; END IF;
+    IF has_function_privilege('authenticated', f, 'EXECUTE') OR has_function_privilege('anon', f, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('E2 storage: ' || f || ' executável pela API');
+    END IF;
+  END LOOP;
+  IF to_regprocedure('public.trilha_storage()') IS NOT NULL
+     AND NOT (SELECT prosecdef AND coalesce(proconfig::text, '') ~ 'search_path' FROM pg_proc WHERE oid = to_regprocedure('public.trilha_storage()')) THEN
+    PERFORM pg_temp.falha('E2 storage: trilha_storage sem SECURITY DEFINER ou sem search_path fixo');
+  END IF;
+  FOREACH f IN ARRAY ARRAY['insert:4', 'update:16', 'delete:8'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid
+                    WHERE t.tgrelid = 'storage.objects'::regclass AND t.tgname = 'trilha_rh_storage_' || split_part(f, ':', 1)
+                      AND p.proname = 'trilha_storage' AND t.tgenabled <> 'D' AND (t.tgtype & 1) <> 0 AND (t.tgtype & 2) = 0
+                      AND (t.tgtype & split_part(f, ':', 2)::int) <> 0 AND t.tgnargs = 1 AND encode(t.tgargs, 'escape') = 'rh\000'
+                      AND pg_get_triggerdef(t.oid) LIKE '%''frequencias''%' AND pg_get_triggerdef(t.oid) LIKE '%''documentos-requerimento''%') THEN
+      PERFORM pg_temp.falha('E2 storage: falta trilha_rh_storage_' || split_part(f, ':', 1) || ' (AFTER por linha, trilha_storage(''rh''), ligado, WHEN nos dois buckets)');
+    END IF;
+  END LOOP;
+  FOREACH f IN ARRAY ARRAY['idx_audit_logs_entidade_seq', 'idx_audit_logs_servidor_seq', 'idx_audit_logs_modulo_seq', 'idx_audit_logs_usuario_seq'] LOOP
+    IF to_regclass('public.' || f) IS NULL THEN PERFORM pg_temp.falha('E2 índices: falta ' || f); END IF;
+  END LOOP;
+  FOREACH f IN ARRAY ARRAY['idx_audit_logs_entity', 'idx_audit_logs_module', 'idx_audit_logs_user'] LOOP
+    IF to_regclass('public.' || f) IS NOT NULL THEN PERFORM pg_temp.falha('E2 índices: ' || f || ' (prefixo de um índice novo) continua'); END IF;
+  END LOOP;
+
+  -- quem age: perm_rh.frequencia.lancar vinculado ao servidor B (desfeito no fim); IP e user agent da requisição
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.profiles SET servidor_id = %L WHERE id = %L', sb, u_fl));
+  PERFORM set_config('request.headers', '{"x-real-ip": "192.0.2.20", "user-agent": "teste-e2"}', true);
+
+  -- ===== upload no bucket frequencias: caminho com nome do servidor não vai à trilha; user_metadata também não
+  r := pg_temp.exec_como(u_fl, 'authenticated', format(
+         'INSERT INTO storage.objects (id, bucket_id, name, metadata, user_metadata) VALUES (%L, ''frequencias'', %L, %L, %L)',
+         o1, nome1, '{"size": 1234, "mimetype": "application/pdf"}', '{"obs": "Segredo do cliente"}'));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'storage.frequencias' AND a.entity_id = o1 AND a.action = 'upload';
+  IF r <> 'ok' OR j IS NULL THEN
+    PERFORM pg_temp.falha('E2 storage: upload em frequencias sem linha na trilha (' || r || ')');
+  ELSE
+    IF j ->> 'module_name' IS DISTINCT FROM 'rh' OR j ->> 'user_id' IS DISTINCT FROM u_fl::text OR j ->> 'origem' IS DISTINCT FROM 'usuario'
+       OR j ->> 'servidor_id' IS DISTINCT FROM sb::text OR j ->> 'transacao' IS NULL THEN
+      PERFORM pg_temp.falha('E2 storage: upload sem módulo rh, usuário, servidor ou origem (' || left(j::text, 160) || ')');
+    END IF;
+    IF j ->> 'ip_address' IS DISTINCT FROM '192.0.2.20' OR j ->> 'user_agent' IS DISTINCT FROM 'teste-e2' THEN
+      PERFORM pg_temp.falha('E2 storage: upload sem IP/user agent da requisição (' || coalesce(j ->> 'ip_address', 'nulo') || ', ' || coalesce(j ->> 'user_agent', 'nulo') || ')');
+    END IF;
+    IF j -> 'metadata' -> 'chave' ->> 'bucket' IS DISTINCT FROM 'frequencias'
+       OR jsonb_typeof(j -> 'metadata' -> 'chave' -> 'caminho') IS DISTINCT FROM 'null'
+       OR j -> 'metadata' -> 'chave' ->> 'caminho_sha256' IS DISTINCT FROM encode(sha256(convert_to(nome1, 'UTF8')), 'hex')
+       OR j -> 'metadata' -> 'chave' ->> 'periodo' IS DISTINCT FROM '2026-02' OR j -> 'metadata' -> 'chave' ->> 'extensao' IS DISTINCT FROM 'pdf'
+       OR j -> 'metadata' ->> 'objeto_id' IS DISTINCT FROM o1::text OR j -> 'metadata' ->> 'tamanho' IS DISTINCT FROM '1234'
+       OR j -> 'metadata' ->> 'tipo_conteudo' IS DISTINCT FROM 'application/pdf' OR j -> 'metadata' ->> 'fonte' IS DISTINCT FROM 'storage' THEN
+      PERFORM pg_temp.falha('E2 storage: chave/metadados do upload diferentes do esperado (' || left((j -> 'metadata')::text, 200) || ')');
+    END IF;
+    IF j -> 'before_data' IS DISTINCT FROM 'null'::jsonb OR j -> 'after_data' IS DISTINCT FROM 'null'::jsonb THEN
+      PERFORM pg_temp.falha('E2 storage: a linha do arquivo leva antes/depois');
+    END IF;
+  END IF;
+
+  -- ===== só carimbo (updated_at) não grava; troca (version/metadata) grava 'update' com os campos; mover leva o anterior
+  r := pg_temp.exec_como(u_fl, 'authenticated', format('UPDATE storage.objects SET updated_at = now(), last_accessed_at = now() WHERE id = %L', o1));
+  SELECT count(*) INTO n FROM public.audit_logs a WHERE a.entity_id = o1 AND a.action = 'update';
+  IF r <> 'ok' OR n <> 0 THEN PERFORM pg_temp.falha('E2 storage: UPDATE só de carimbo gravou ' || n || ' linha(s) (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_fl, 'authenticated', format('UPDATE storage.objects SET version = ''v2'', metadata = ''{"size": 2048, "mimetype": "application/pdf"}'' WHERE id = %L', o1));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_id = o1 AND a.action = 'update';
+  IF r <> 'ok' OR j IS NULL OR j -> 'campos_alterados' IS DISTINCT FROM '["metadata", "version"]'::jsonb
+     OR j -> 'metadata' ->> 'tamanho' IS DISTINCT FROM '2048' OR j -> 'metadata' ? 'anterior' THEN
+    PERFORM pg_temp.falha('E2 storage: troca do arquivo sem linha update com campos_alterados (' || r || ', ' || coalesce(left(j::text, 160), 'nada') || ')');
+  END IF;
+  r := pg_temp.exec_como(u_fl, 'authenticated', format('UPDATE storage.objects SET name = %L WHERE id = %L', '2026-02/DIRAF/9999_Fulano_Sigiloso_v2.pdf', o1));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_id = o1 AND a.action = 'update' AND (to_jsonb(a) -> 'campos_alterados') ? 'name';
+  IF r <> 'ok' OR j IS NULL OR j -> 'metadata' -> 'anterior' ->> 'caminho_sha256' IS DISTINCT FROM encode(sha256(convert_to(nome1, 'UTF8')), 'hex')
+     OR jsonb_typeof(j -> 'metadata' -> 'anterior' -> 'caminho') IS DISTINCT FROM 'null' THEN
+    PERFORM pg_temp.falha('E2 storage: mover o arquivo não registra o caminho anterior (pelo hash) (' || r || ', ' || coalesce(left((j -> 'metadata')::text, 160), 'nada') || ')');
+  END IF;
+
+  -- ===== exclusão: linha delete com o servidor dono do PDF (linha de frequencia_arquivos da semente da B3)
+  INSERT INTO storage.objects (id, bucket_id, name) VALUES (o2, 'frequencias', 'e2/' || sa || '/2026-03.pdf');
+  INSERT INTO public.frequencia_arquivos (periodo, ano, mes, servidor_id, tipo, arquivo_path, arquivo_nome)
+    VALUES ('2026-03', 2026, 3, sa, 'individual', 'e2/' || sa || '/2026-03.pdf', 'e2.pdf');
+  r := pg_temp.exec_como(u_fl, 'authenticated', format('DELETE FROM storage.objects WHERE id = %L', o2));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'storage.frequencias' AND a.entity_id = o2 AND a.action = 'delete';
+  IF r <> 'ok' OR j IS NULL OR j ->> 'user_id' IS DISTINCT FROM u_fl::text OR j -> 'metadata' ->> 'servidor_alvo_id' IS DISTINCT FROM sa::text THEN
+    PERFORM pg_temp.falha('E2 storage: exclusão em frequencias sem linha delete com o servidor dono (' || r || ', ' || coalesce(left(j::text, 160), 'nada') || ')');
+  END IF;
+
+  -- ===== documentos-requerimento: caminho de uuid vai em claro, com o servidor da pasta; exclusão também grava
+  r := pg_temp.exec_como(u_ed, 'authenticated', format('INSERT INTO storage.objects (id, bucket_id, name) VALUES (%L, ''documentos-requerimento'', %L)', o3, sb || '/' || doc || '.pdf'));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'storage.documentos-requerimento' AND a.entity_id = o3 AND a.action = 'upload';
+  IF r <> 'ok' OR j IS NULL OR j -> 'metadata' -> 'chave' ->> 'caminho' IS DISTINCT FROM sb || '/' || doc || '.pdf'
+     OR j -> 'metadata' ->> 'servidor_alvo_id' IS DISTINCT FROM sb::text OR j ->> 'origem' IS DISTINCT FROM 'usuario_sem_vinculo' THEN
+    PERFORM pg_temp.falha('E2 storage: upload em documentos-requerimento sem caminho de uuid, servidor da pasta ou origem (' || r || ', ' || coalesce(left(j::text, 200), 'nada') || ')');
+  END IF;
+  r := pg_temp.exec_como(u_ed, 'authenticated', format('DELETE FROM storage.objects WHERE id = %L', o3));
+  IF r <> 'ok' OR NOT EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.entity_type = 'storage.documentos-requerimento' AND a.entity_id = o3 AND a.action = 'delete') THEN
+    PERFORM pg_temp.falha('E2 storage: exclusão em documentos-requerimento sem linha na trilha (' || r || ')');
+  END IF;
+
+  -- ===== outro bucket não grava; gravação negada pela RLS não grava; service role vira origem sistema
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('INSERT INTO storage.objects (id, bucket_id, name) VALUES (%L, ''documentos'', ''e2/ato.pdf'')', o4));
+  IF r <> 'ok' OR EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.entity_id = o4) THEN
+    PERFORM pg_temp.falha('E2 storage: objeto do bucket documentos gerou linha (ou não foi gravado: ' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_a, 'authenticated', 'INSERT INTO storage.objects (bucket_id, name) VALUES (''frequencias'', ''e2/negado.pdf'')');
+  IF r NOT LIKE 'erro:42501%' OR EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.metadata -> 'chave' ->> 'caminho_sha256' = encode(sha256(convert_to('e2/negado.pdf', 'UTF8')), 'hex')) THEN
+    PERFORM pg_temp.falha('E2 storage: gravação negada pela RLS deixou linha na trilha (ou passou: ' || r || ')');
+  END IF;
+  PERFORM set_config('request.headers', '', true);
+  r := pg_temp.exec_como(NULL, 'service_role', format('INSERT INTO storage.objects (id, bucket_id, name) VALUES (%L, ''frequencias'', ''2026-04/GERAL/lote.zip'')', o5));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_id = o5;
+  IF r <> 'ok' OR j IS NULL OR j ->> 'origem' IS DISTINCT FROM 'sistema' OR j ->> 'user_id' IS NOT NULL THEN
+    PERFORM pg_temp.falha('E2 storage: gravação pela service role sem linha de origem sistema (' || r || ', ' || coalesce(left(j::text, 160), 'nada') || ')');
+  END IF;
+
+  -- ===== nada de nome do servidor, user_metadata ou conteúdo na trilha dos arquivos
+  SELECT count(*) INTO n FROM public.audit_logs a
+   WHERE a.entity_type LIKE 'storage.%' AND (a::text LIKE '%Fulano%' OR a::text LIKE '%Sigiloso%' OR a::text LIKE '%Segredo do cliente%');
+  IF n > 0 THEN PERFORM pg_temp.falha('E2 storage: ' || n || ' linha(s) da trilha com nome do caminho ou user_metadata'); END IF;
+  SELECT count(*) INTO n FROM public.audit_logs a WHERE a.entity_type LIKE 'storage.%';
+  IF n < 7 THEN PERFORM pg_temp.falha('E2 storage: esperava ao menos 7 linhas de arquivo na trilha, há ' || n); END IF;
+
+  -- ===== leitura: as linhas dos arquivos são do módulo rh (rh.auditoria.visualizar lê, o módulo sozinho não)
+  SELECT count(*) INTO n FROM public.audit_logs a WHERE a.entity_type LIKE 'storage.%' AND a.module_name = 'rh';
+  r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT count(*)::text FROM public.audit_logs WHERE entity_type LIKE ''storage.%''');
+  IF r <> '0' THEN PERFORM pg_temp.falha('E2 storage: o módulo rh sem rh.auditoria.visualizar lê a trilha dos arquivos (' || r || ')'); END IF;
+  UPDATE public.user_modules SET permissions = ARRAY['rh.auditoria.visualizar'] WHERE user_id = u_rh AND module = 'rh';
+  r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT count(*)::text FROM public.audit_logs WHERE entity_type LIKE ''storage.%''');
+  IF r IS DISTINCT FROM n::text THEN PERFORM pg_temp.falha('E2 storage: com rh.auditoria.visualizar não lê as ' || n || ' linhas dos arquivos (' || r || ')'); END IF;
+  UPDATE public.user_modules SET permissions = NULL WHERE user_id = u_rh AND module = 'rh';
+
+  -- ===== revisão de segurança: extensão de lista fechada (M1) e tipo de conteúdo só tipo/subtipo (M2)
+  IF to_regprocedure('public.trilha_storage_chave(text,text)') IS NOT NULL THEN
+    EXECUTE format('SELECT public.trilha_storage_chave(''documentos-requerimento'', %L)', sb || '/' || doc || '.MariaSouza') INTO j;
+    IF jsonb_typeof(j -> 'caminho') IS DISTINCT FROM 'null' OR j ? 'extensao' OR j::text LIKE '%MariaSouza%' THEN
+      PERFORM pg_temp.falha('E2 storage: sufixo livre (.MariaSouza) sai em claro na chave (' || left(j::text, 160) || ')');
+    END IF;
+    EXECUTE format('SELECT public.trilha_storage_chave(''documentos-requerimento'', %L)', sb || '/' || doc || '.PDF') INTO j;
+    IF j ->> 'caminho' IS DISTINCT FROM sb || '/' || doc || '.PDF' OR j ->> 'extensao' IS DISTINCT FROM 'pdf' THEN
+      PERFORM pg_temp.falha('E2 storage: caminho de uuid com extensão da lista (.PDF) não sai em claro (' || left(j::text, 160) || ')');
+    END IF;
+  END IF;
+  r := pg_temp.exec_como(u_ed, 'authenticated', format(
+         'INSERT INTO storage.objects (id, bucket_id, name, metadata) VALUES (%L, ''documentos-requerimento'', %L, %L)',
+         'e2000000-0000-0000-0000-000000000006', sb || '/' || doc || '-2.pdf', '{"mimetype": "text/html; charset=<b>Fulano</b>"}'));
+  SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_id = 'e2000000-0000-0000-0000-000000000006' AND a.action = 'upload';
+  IF r <> 'ok' OR j IS NULL OR j -> 'metadata' ? 'tipo_conteudo' THEN
+    PERFORM pg_temp.falha('E2 storage: Content-Type livre do cliente gravado como tipo_conteudo (' || r || ', ' || coalesce(left((j -> 'metadata')::text, 160), 'nada') || ')');
+  END IF;
+
+  -- ===== M4: o cliente não forja linha de arquivo nem o servidor dono do arquivo
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.log_audit(''view''::public.audit_action, ''storage.frequencias'', NULL, ''rh'')::text');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E2 log_audit: aceita entity_type storage.* (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.log_audit(''view''::public.audit_action, '' Storage.x'', NULL, ''admin'')::text');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('E2 log_audit: aceita entity_type Storage.* com caixa/espaço (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_rh, 'authenticated', format(
+         'SELECT public.log_audit(''view''::public.audit_action, ''contracheque'', NULL, ''rh'', NULL, NULL, ''e2'', %L)::text',
+         jsonb_build_object('servidor_alvo_id', sa, 'fonte', 'storage')));
+  IF r IS NULL OR r LIKE 'erro:%' OR (SELECT metadata ? 'servidor_alvo_id' OR metadata ->> 'fonte' IS DISTINCT FROM 'log_audit' FROM public.audit_logs WHERE id::text = r) IS NOT FALSE THEN
+    PERFORM pg_temp.falha('E2 log_audit: servidor_alvo_id/fonte do cliente gravados (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  r := pg_temp.valor_como(u_rh, 'authenticated', format(
+         'SELECT public.registrar_evento(''view'', ''servidores'', %L, ''e2'', %L)::text', sa, jsonb_build_object('servidor_alvo_id', sb, 'fonte', 'storage')));
+  IF r IS NULL OR r LIKE 'erro:%' OR (SELECT metadata ? 'servidor_alvo_id' OR metadata ->> 'fonte' IS DISTINCT FROM 'registrar_evento' FROM public.audit_logs WHERE id::text = r) IS NOT FALSE THEN
+    PERFORM pg_temp.falha('E2 registrar_evento: servidor_alvo_id/fonte do cliente gravados (' || coalesce(r, 'nulo') || ')');
+  END IF;
+
+  -- ===== alvos (migração 20261011000300): coluna gerada com GIN; s:<servidor> e f:<folha> nas linhas do recorte
+  IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.audit_logs'::regclass AND attname = 'alvos' AND attgenerated = 's' AND NOT attisdropped) THEN
+    PERFORM pg_temp.falha('E2 alvos: audit_logs.alvos (coluna gerada STORED) não existe');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid JOIN pg_am am ON am.oid = c.relam
+                  WHERE i.indrelid = 'public.audit_logs'::regclass AND am.amname = 'gin' AND i.indpred IS NULL
+                    AND pg_get_indexdef(i.indexrelid) LIKE '%(alvos)') THEN
+    PERFORM pg_temp.falha('E2 alvos: falta o índice GIN (sem WHERE) em audit_logs.alvos');
+  END IF;
+  FOR x IN SELECT * FROM (VALUES
+      ('upload em documentos-requerimento (servidor_alvo_id da trilha do Storage)', 'storage.documentos-requerimento', o3::text, 's:' || sb),
+      ('UPDATE de servidores (entity_id)', 'servidores', sb::text, 's:' || sb),
+      ('licença do servidor (after_data.servidor_id)', 'licencas_afastamentos', NULL, 's:' || sb)) AS v(caso, tipo, ent, token) LOOP
+    IF NOT EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.entity_type = x.tipo AND (x.ent IS NULL OR a.entity_id::text = x.ent)
+                      AND coalesce((to_jsonb(a) -> 'alvos') ? x.token, false)) THEN
+      PERFORM pg_temp.falha('E2 alvos: ' || x.caso || ' sem ' || x.token);
+    END IF;
+  END LOOP;
+  -- servidor_alvo_id só conta na linha da trilha do Storage (metadata.fonte = storage); servidor alheio não entra
+  IF EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.metadata ->> 'fonte' IS DISTINCT FROM 'storage' AND a.metadata ? 'servidor_alvo_id'
+                AND coalesce((to_jsonb(a) -> 'alvos') ? ('s:' || (a.metadata ->> 'servidor_alvo_id')), false)
+                AND NOT coalesce((to_jsonb(a) -> 'alvos') ? ('s:' || (a.after_data ->> 'servidor_id')), false)) THEN
+    PERFORM pg_temp.falha('E2 alvos: servidor_alvo_id fora da trilha do Storage entrou no recorte');
+  END IF;
+  -- a consulta da aba (alvos @> ARRAY[s:<id>]) acha a licença e o arquivo do servidor B
+  SELECT count(*) INTO n FROM public.audit_logs a WHERE a.module_name = 'rh' AND (to_jsonb(a) -> 'alvos') @> to_jsonb(ARRAY['s:' || sb]);
+  IF n < 3 THEN PERFORM pg_temp.falha('E2 alvos: o recorte do servidor B acha só ' || n || ' linha(s)'); END IF;
+
+  -- ===== fechar_folha / reabrir_folha gravam no módulo rh (bloco da 2ª revisão: folha 7/2031)
+  IF (SELECT string_agg(DISTINCT a.module_name, ',') FROM public.audit_logs a
+       WHERE a.entity_type = 'folhas_pagamento' AND (a.description LIKE 'Folha 7/2031 fechada%' OR a.description LIKE 'Folha 7/2031 REABERTA%')) IS DISTINCT FROM 'rh' THEN
+    PERFORM pg_temp.falha('E2 folha: fechar_folha/reabrir_folha não gravam no módulo rh');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.audit_logs a WHERE a.entity_type = 'folhas_pagamento' AND a.description LIKE 'Folha 7/2031 fechada%'
+                    AND coalesce((to_jsonb(a) -> 'alvos') ? ('f:' || a.entity_id::text), false)) THEN
+    PERFORM pg_temp.falha('E2 alvos: o fechamento da folha não entra no recorte f:<folha>');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.audit_logs WHERE module_name = 'folha') THEN
+    PERFORM pg_temp.falha('E2 folha: ainda há linha nova com module_name folha');
+  END IF;
+
+  r := pg_temp.exec_como(u_admin, 'authenticated', format('UPDATE public.profiles SET servidor_id = NULL WHERE id = %L', u_fl));
+  PERFORM pg_temp.nota('E2 (trilha do Storage do RH e índices da consulta): upload, troca, mover, exclusão, sem dado pessoal do caminho, origem sistema e leitura verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { gerarCNAB240, downloadCNAB, type DadosEmpresa, type DadosFavorecido } from "@/lib/cnabGenerator";
+import { useRegistrarEvento, MSG_FALHA_REGISTRO } from "@/hooks/useTrilhaAuditoria";
 
 interface GerarRemessaDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ export function GerarRemessaDialog({
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<{ sucesso: boolean; mensagem: string; arquivo?: string } | null>(null);
   const queryClient = useQueryClient();
+  const { registrarAntes } = useRegistrarEvento();
 
   // Buscar contas disponíveis
   const { data: contas, isLoading: loadingContas } = useQuery({
@@ -154,6 +156,27 @@ export function GerarRemessaDialog({
 
       // Nome do arquivo
       const nomeArquivo = `REMESSA_${competencia.replace("/", "_")}_${(numeroRemessa || 1).toString().padStart(3, "0")}.REM`;
+
+      // Trilha: o arquivo CNAB só é gravado e entregue depois de registrado (sem registro, sem arquivo)
+      const registrado = await registrarAntes({
+        acao: "download",
+        entidade: "arquivo_cnab",
+        entidadeId: folhaId,
+        descricao: `Remessa CNAB 240 ${nomeArquivo} gerada`,
+        metadados: {
+          folha_id: folhaId,
+          conta_autarquia_id: contaSelecionada,
+          numero_remessa: numeroRemessa || 1,
+          nome_arquivo: nomeArquivo,
+          quantidade_registros: favorecidos.length,
+          valor_total: valorTotal,
+          layout: "CNAB240",
+        },
+      });
+      if (!registrado) {
+        setResultado({ sucesso: false, mensagem: MSG_FALHA_REGISTRO });
+        return;
+      }
 
       // Salvar registro no banco
       const { error: insertError } = await supabase.from("remessas_bancarias").insert({

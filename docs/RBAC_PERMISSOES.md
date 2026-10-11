@@ -647,6 +647,57 @@ Fora da B3: dono e permissões do bucket `documentos` e os links públicos de po
 até isso existir); o nome do servidor no caminho do PDF de frequência; buckets de outros módulos; CORS das
 Edge Functions por origem (`download-frequencia` segue com `*`, porque só aceita `Authorization: Bearer`).
 
+### Trilha de auditoria do RH (Onda E1)
+
+Migrações `supabase/migrations/20261011000000_rh_autoria_trilha.sql` (autoria e trilha) e
+`supabase/migrations/20261011000100_rh_auditoria_leitura.sql` (permissão e policy de leitura; separada porque mexe
+em RLS existente e precisa do "sim" do dono, podendo ser segurada sem segurar a outra). Spec
+`superpowers/specs/2026-10-10-rh-trilha-auditoria-design.md`. Detalhes de autoria, máscara e imutabilidade em
+[`BANCO_DE_DADOS.md`](./BANCO_DE_DADOS.md#trilha-de-auditoria-e-servidor-responsável-do-rh--onda-e1).
+
+- **Permissão nova** (migração 20261011000100): `rh.auditoria.visualizar` ("Visualizar Trilha de Auditoria do RH",
+  categoria `Auditoria`, módulo `rh`, `action_type = 'auditar'`), no catálogo `module_permissions_catalog`.
+  **Nenhum papel a recebe por padrão:** o gestor concede por usuário. O `action_type` não é `visualizar` de propósito:
+  a carga de `20260916120000_permissoes_granulares.sql` dá ao papel `user` todo código `visualizar`. A carga do papel
+  `manager` ("tudo menos `excluir`") ainda a alcançaria se fosse reexecutada: carga futura por `action_type` precisa
+  excluir este código. O teste de RLS reprova se algum papel a receber.
+- **Policy nova em `audit_logs`** (migração 20261011000100, `audit_logs_rh_auditoria_select`, SELECT para
+  `authenticated`): lê as linhas com `module_name = 'rh'` quem tem o módulo `rh` (`can_access_module`) **e**
+  `rh.auditoria.visualizar` (`has_permission_code`). A permissão avulsa, sem o módulo, não lê nada; quem tem só o
+  módulo também não. A policy `admin_only_select` continua: o papel admin lê a trilha inteira, de todos os módulos.
+  Sem esta migração, só o admin lê (como antes da E1).
+- **Escrita:** ninguém grava em `audit_logs` pela API. Gravam os triggers (`fn_audit_trigger`), `log_audit` e a
+  RPC `registrar_evento`:
+  - `registrar_evento`: só `authenticated` com perfil ativo; ações `view`, `export` e `download`; entidades do RH
+    numa lista fechada; exige o módulo `rh`. Sem o módulo, só o **próprio** contracheque (ficha do servidor vinculado
+    ao perfil);
+  - `log_audit`: no módulo `rh`, só `view`, `export` e `download`, sem antes/depois (não forja lançamento do RH); em
+    qualquer módulo, as chaves de linha de trigger saem dos metadados e há limite de 32 KB.
+  UPDATE, DELETE e TRUNCATE (DML) são recusados por trigger até para o dono da tabela e o superusuário; DDL (`DROP`/
+  `DISABLE TRIGGER`) continua possível para eles.
+- **Trilha do módulo `admin`:** inclusão e exclusão de perfil e mudanças em `profiles` (vínculo com servidor,
+  ativo/bloqueado, tipo de usuário, CPF, e-mail, restrição de módulos), `user_permissions`, `user_org_units` e
+  `audit_colunas_sensiveis` vão para `audit_logs` com `module_name = 'admin'`; `admin-create-user` e `delete-user`
+  gravam também o administrador que pediu. Só o papel admin lê essas linhas.
+- `fechar_folha` e `reabrir_folha` continuam gravando com `module_name = 'folha'`: essas linhas não aparecem
+  para quem tem só `rh.auditoria.visualizar`.
+
+**Telas (onda E2,** [spec](./superpowers/specs/2026-10-10-rh-trilha-tela-design.md)**):**
+
+- `/rh/auditoria` (`AuditoriaRHPage`): `ProtectedRoute requiredPermissions="rh.auditoria.visualizar"` e a mesma
+  entrada em `ROUTE_PERMISSIONS`; item "Trilha de Auditoria" no menu do RH (`menu.config.ts` e
+  `module-menus.config.ts`, id `auditoria-rh` nos dois; o menu por módulo passou a aceitar `permission` por item e
+  por filho e esconde o que o usuário não tem). A tela
+  pede só o módulo `rh`; o que volta é o que a policy libera (com o módulo e a permissão).
+- `/admin/auditoria` continua com `admin.auditoria` e mostra todos os módulos (o que a RLS libera: admin lê tudo). O
+  botão de exportar CSV só aparece para o admin e para quem tem o módulo `rh`: o registro da exportação usa
+  `registrar_evento`, que exige o módulo.
+- Abas "Histórico de alterações" na ficha do servidor e no detalhe da folha: aparecem só para quem tem
+  `rh.auditoria.visualizar` (o admin passa pelo `hasPermission`). Esconder a aba é UX; a fronteira é a policy.
+- Exportações, impressões e arquivos do RH chamam `registrar_evento` antes de entregar (ver
+  [GUIA_FRONTEND.md](./GUIA_FRONTEND.md#trilha-de-auditoria-no-front-onda-e2)); como a RPC exige o módulo `rh`,
+  telas usadas por quem não tem o módulo (portarias do Gabinete) ficaram de fora.
+
 ### Folha: edição da ficha
 
 - No detalhe da folha (`/folha/:id` → `FichaFinanceiraDialog`), incluir/editar/excluir itens da

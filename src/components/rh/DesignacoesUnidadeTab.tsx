@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { Plus, Building2, Loader2, FileDown } from "lucide-react";
 import {
   TipoAtoNomeacao,
@@ -58,6 +59,16 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { registrarAntes } = useRegistrarEvento();
+  // Trilha: memorando registrado antes de gerar o PDF (sem registro, sem arquivo)
+  const registrarMemorando = (designacaoId: string | null) =>
+    registrarAntes({
+      acao: "download",
+      entidade: "nomeacoes_chefe_unidade",
+      entidadeId: designacaoId,
+      descricao: "Memorando de designação de chefia impresso",
+      metadados: { servidor_id: servidorId, documento: "memorando_designacao", formato: "pdf" },
+    });
   const [unidades, setUnidades] = useState<UnidadeLocal[]>([]);
   const [selectedUnidade, setSelectedUnidade] = useState<string>("");
 
@@ -122,7 +133,7 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
     try {
       const { data: userData } = await supabase.auth.getUser();
 
-      const { error } = await supabase.from("nomeacoes_chefe_unidade").insert({
+      const { data: criada, error } = await supabase.from("nomeacoes_chefe_unidade").insert({
         unidade_local_id: selectedUnidade,
         servidor_id: servidorId,
         cargo: "Chefe de Unidade Local",
@@ -135,13 +146,14 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
         status: "ativo",
         observacoes: formData.observacoes.trim() || null,
         created_by: userData.user?.id,
-      });
+      }).select("id").single();
 
       if (error) throw error;
 
       // Gerar memorando PDF
       const unidadeSelecionada = unidades.find(u => u.id === selectedUnidade);
-      if (unidadeSelecionada) {
+      const memorandoLiberado = !!unidadeSelecionada && (await registrarMemorando(criada?.id ?? null));
+      if (unidadeSelecionada && memorandoLiberado) {
         generateMemorandoDesignacao({
           servidorNome,
           cargo: "Chefe de Unidade Local",
@@ -154,7 +166,7 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
         });
       }
 
-      toast.success("Designação registrada com sucesso! Memorando gerado.");
+      toast.success(memorandoLiberado ? "Designação registrada com sucesso! Memorando gerado." : "Designação registrada com sucesso!");
       setShowForm(false);
       resetForm();
       loadDesignacoes();
@@ -179,7 +191,8 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
     });
   }
 
-  function handleDownloadMemorando(designacao: Designacao) {
+  async function handleDownloadMemorando(designacao: Designacao) {
+    if (!(await registrarMemorando(designacao.id))) return;
     generateMemorandoDesignacao({
       servidorNome,
       cargo: designacao.cargo,

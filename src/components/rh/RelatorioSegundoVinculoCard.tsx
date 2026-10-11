@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { FileText, Download, Loader2, Link2 } from "lucide-react";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { gerarRelatorioSegundoVinculo, type ServidorSegundoVinculo } from "@/lib/pdfRelatorioSegundoVinculo";
 import {
   VINCULO_EXTERNO_ESFERA_LABELS,
@@ -28,6 +29,7 @@ export function RelatorioSegundoVinculoCard() {
   const [filtroForma, setFiltroForma] = useState<string>("all");
   const [agruparPor, setAgruparPor] = useState<'esfera' | 'forma' | 'nenhum'>('nenhum');
   const [isExporting, setIsExporting] = useState(false);
+  const { registrarAntes } = useRegistrarEvento();
 
   // Preview de quantos registros serão exportados
   const { data: previewCount = 0 } = useQuery({
@@ -106,6 +108,8 @@ export function RelatorioSegundoVinculoCard() {
         vinculo_externo_ato_numero: null,
       }));
 
+      // Trilha: registrado antes de gerar o PDF (sem registro, sem arquivo)
+      if (!(await registrarAntes({ acao: "download", entidade: "relatorio_rh", descricao: "Relatório de segundo vínculo", metadados: { relatorio: "segundo_vinculo", formato: "pdf", quantidade: dadosFormatados.length, esfera: filtroEsfera, forma: filtroForma, agrupar_por: agruparPor } }))) return;
       await gerarRelatorioSegundoVinculo({
         servidores: dadosFormatados,
         totalServidores: dadosFormatados.length,

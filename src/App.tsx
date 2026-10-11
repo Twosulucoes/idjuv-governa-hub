@@ -111,6 +111,7 @@ import CentralPortariasPage from "./pages/rh/CentralPortariasPage";
 import PendenciasPortariasPage from "./pages/rh/PendenciasPortariasPage";
 import DiagnosticoPendenciasServidoresPage from "./pages/rh/DiagnosticoPendenciasServidoresPage";
 import ExportacaoPlanilhaPage from "./pages/rh/ExportacaoPlanilhaPage";
+import AuditoriaRHPage from "./pages/rh/AuditoriaRHPage";
 import AniversariantesPage from "./pages/rh/AniversariantesPage";
 import GestaoLotacaoPage from "./pages/rh/GestaoLotacaoPage";
 import ControlePacotesFrequenciaPage from "./pages/rh/ControlePacotesFrequenciaPage";
@@ -869,6 +870,11 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/rh/exportar" element={<ProtectedRoute><ExportacaoPlanilhaPage /></ProtectedRoute>} />
+              <Route path="/rh/auditoria" element={
+                <ProtectedRoute requiredPermissions="rh.auditoria.visualizar">
+                  <AuditoriaRHPage />
+                </ProtectedRoute>
+              } />
               <Route path="/rh/frequencia/configuracao" element={
                 <ProtectedRoute requiredPermissions="rh.frequencia.configurar">
                   <ConfiguracaoFrequenciaPage />

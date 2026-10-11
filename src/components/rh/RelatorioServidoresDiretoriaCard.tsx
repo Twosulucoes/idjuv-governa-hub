@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Network, Download, Loader2, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRegistrarEvento } from '@/hooks/useTrilhaAuditoria';
 import { 
   gerarRelatorioServidoresDiretoria, 
   UnidadeComServidores, 
@@ -45,6 +46,7 @@ export function RelatorioServidoresDiretoriaCard() {
   const [selectedDiretoria, setSelectedDiretoria] = useState<string>('');
   const [incluirLogos, setIncluirLogos] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const { registrarAntes } = useRegistrarEvento();
 
   // Buscar diretorias disponíveis
   const { data: diretorias = [] } = useQuery({
@@ -242,6 +244,8 @@ export function RelatorioServidoresDiretoriaCard() {
       };
 
       // 9. Gerar PDF
+      // Trilha: registrado antes de gerar o PDF (sem registro, sem arquivo)
+      if (!(await registrarAntes({ acao: "download", entidade: "relatorio_rh", descricao: "Relatório de servidores da diretoria", metadados: { relatorio: "servidores_diretoria", formato: "pdf", unidade_id: selectedDiretoria } }))) return;
       await gerarRelatorioServidoresDiretoria(estruturaDiretoria, incluirLogos);
       
       toast.success('Relatório gerado com sucesso!');

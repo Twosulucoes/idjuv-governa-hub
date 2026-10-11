@@ -12,6 +12,8 @@ import type { Database } from '@/integrations/supabase/types';
 // Types
 type BemPatrimonial = Database['public']['Tables']['bens_patrimoniais']['Row'];
 type BemInsert = Database['public']['Tables']['bens_patrimoniais']['Insert'];
+/** Sem numero_patrimonio, o banco gera o tombamento (PAT-AAAA-NNNNNN) e o codigo_qr. */
+type BemNovo = Omit<BemInsert, 'numero_patrimonio'> & { numero_patrimonio?: string };
 type BemUpdate = Database['public']['Tables']['bens_patrimoniais']['Update'];
 
 type MovimentacaoPatrimonio = Database['public']['Tables']['movimentacoes_patrimonio']['Row'];
@@ -133,18 +135,19 @@ export function useCreateBem() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (data: BemInsert) => {
+    mutationFn: async (data: BemNovo) => {
       const { data: result, error } = await supabase
         .from('bens_patrimoniais')
-        .insert(data)
+        // O tipo gerado exige numero_patrimonio, mas o trigger do banco o gera quando omitido.
+        .insert(data as BemInsert)
         .select()
         .single();
       if (error) throw error;
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['bens-patrimoniais'] });
-      toast.success('Bem patrimonial cadastrado com sucesso');
+      toast.success(`Bem patrimonial cadastrado com o número ${result.numero_patrimonio}`);
     },
     onError: (error: Error) => {
       toast.error(`Erro ao cadastrar bem: ${error.message}`);
@@ -188,8 +191,6 @@ export function useMovimentacoesPatrimonio(bemId?: string) {
         .select(`
           *,
           bem:bens_patrimoniais(id, numero_patrimonio, descricao),
-          solicitante:servidores!movimentacoes_patrimonio_solicitante_id_fkey(id, nome_completo),
-          aprovador:servidores!movimentacoes_patrimonio_aprovador_id_fkey(id, nome_completo),
           responsavel_origem:servidores!movimentacoes_patrimonio_responsavel_origem_id_fkey(id, nome_completo),
           responsavel_destino:servidores!movimentacoes_patrimonio_responsavel_destino_id_fkey(id, nome_completo),
           origem_unidade_local:unidades_locais!movimentacoes_patrimonio_unidade_local_origem_id_fkey(id, nome_unidade, codigo_unidade),
@@ -227,6 +228,35 @@ export function useCreateMovimentacao() {
     },
     onError: (error: Error) => {
       toast.error(`Erro ao registrar movimentação: ${error.message}`);
+    },
+  });
+}
+
+/**
+ * Aprova ou rejeita uma movimentação pendente (RPC patrimonio_decidir_movimentacao).
+ * Exige patrimonio.tramitar; ao aprovar, o banco move o bem e grava o histórico.
+ */
+export function useDecidirMovimentacao() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, aprovar, motivoRejeicao }: { id: string; aprovar: boolean; motivoRejeicao?: string }) => {
+      const { error } = await supabase.rpc('patrimonio_decidir_movimentacao' as never, {
+        p_movimentacao_id: id,
+        p_aprovar: aprovar,
+        p_motivo_rejeicao: aprovar ? null : (motivoRejeicao ?? null),
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-patrimonio'] });
+      queryClient.invalidateQueries({ queryKey: ['bens-patrimoniais'] });
+      queryClient.invalidateQueries({ queryKey: ['bem-patrimonial'] });
+      queryClient.invalidateQueries({ queryKey: ['historico-patrimonio'] });
+      toast.success(variables.aprovar ? 'Movimentação aprovada' : 'Movimentação rejeitada');
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao decidir movimentação: ${error.message}`);
     },
   });
 }
@@ -284,8 +314,7 @@ export function useColetasInventario(campanhaId: string) {
         .from('coletas_inventario')
         .select(`
           *,
-          bem:bens_patrimoniais(id, numero_patrimonio, descricao, situacao),
-          coletor:servidores!coletas_inventario_coletor_id_fkey(id, nome_completo)
+          bem:bens_patrimoniais(id, numero_patrimonio, descricao, situacao)
         `)
         .eq('campanha_id', campanhaId)
         .order('data_coleta', { ascending: false });
@@ -410,7 +439,7 @@ export function useManutencoesPatrimonio(bemId?: string) {
         .select(`
           *,
           bem:bens_patrimoniais(id, numero_patrimonio, descricao),
-          solicitante:servidores!manutencoes_patrimonio_solicitante_id_fkey(id, nome_completo)
+          fornecedor:fornecedores!manutencoes_patrimonio_fornecedor_id_fkey(id, razao_social)
         `)
         .order('created_at', { ascending: false });
 
@@ -421,6 +450,53 @@ export function useManutencoesPatrimonio(bemId?: string) {
       const { data, error } = await query;
       if (error) throw error;
       return data;
+    },
+  });
+}
+
+/** Conclui uma manutenção aberta/em andamento; o banco devolve o bem para "ativo". */
+export function useConcluirManutencao() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      dataConclusao,
+      custoFinal,
+      observacoes,
+    }: {
+      id: string;
+      dataConclusao: string;
+      custoFinal?: number | null;
+      observacoes?: string | null;
+    }) => {
+      const { data, error } = await supabase
+        .from('manutencoes_patrimonio')
+        .update({
+          status: 'concluida',
+          data_conclusao: dataConclusao,
+          custo_final: custoFinal ?? null,
+          observacoes: observacoes || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .in('status', ['aberta', 'em_andamento'])
+        .select('id');
+      if (error) throw error;
+      // Nenhuma linha mudou: outra pessoa já concluiu/cancelou (ou a RLS não deixou ver).
+      if (!data || data.length === 0) {
+        throw new Error('Esta manutenção já foi concluída ou cancelada');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manutencoes-patrimonio'] });
+      queryClient.invalidateQueries({ queryKey: ['bens-patrimoniais'] });
+      queryClient.invalidateQueries({ queryKey: ['bem-patrimonial'] });
+      queryClient.invalidateQueries({ queryKey: ['historico-patrimonio'] });
+      toast.success('Manutenção concluída');
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao concluir manutenção: ${error.message}`);
     },
   });
 }
@@ -436,7 +512,7 @@ export function useOcorrenciasPatrimonio(bemId?: string) {
         .select(`
           *,
           bem:bens_patrimoniais(id, numero_patrimonio, descricao),
-          relator:servidores!ocorrencias_patrimonio_relator_id_fkey(id, nome_completo)
+          relator:servidores!ocorrencias_patrimonio_responsavel_relato_id_fkey(id, nome_completo)
         `)
         .order('created_at', { ascending: false });
 
@@ -472,6 +548,35 @@ export function useBaixasPatrimonio(status?: string) {
       const { data, error } = await query;
       if (error) throw error;
       return data;
+    },
+  });
+}
+
+/**
+ * Aprova ou rejeita uma baixa solicitada (RPC patrimonio_decidir_baixa).
+ * Exige patrimonio.tramitar; ao aprovar, o bem passa para a situação "baixado".
+ */
+export function useDecidirBaixa() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, aprovar, motivoRejeicao }: { id: string; aprovar: boolean; motivoRejeicao?: string }) => {
+      const { error } = await supabase.rpc('patrimonio_decidir_baixa' as never, {
+        p_baixa_id: id,
+        p_aprovar: aprovar,
+        p_motivo_rejeicao: aprovar ? null : (motivoRejeicao ?? null),
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['baixas-patrimonio'] });
+      queryClient.invalidateQueries({ queryKey: ['bens-patrimoniais'] });
+      queryClient.invalidateQueries({ queryKey: ['bem-patrimonial'] });
+      queryClient.invalidateQueries({ queryKey: ['historico-patrimonio'] });
+      toast.success(variables.aprovar ? 'Baixa aprovada: o bem foi baixado' : 'Baixa rejeitada');
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao decidir baixa: ${error.message}`);
     },
   });
 }

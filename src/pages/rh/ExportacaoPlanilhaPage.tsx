@@ -43,6 +43,7 @@ import {
   Table as TableIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import {
   CAMPOS_EXPORTACAO,
   CATEGORIAS_CAMPOS,
@@ -67,6 +68,7 @@ export default function ExportacaoPlanilhaPage() {
   const [categoriasAbertas, setCategoriasAbertas] = useState<string[]>(['Dados Pessoais', 'Dados Funcionais']);
   const [isExporting, setIsExporting] = useState(false);
   const [showColumnSelector, setShowColumnSelector] = useState(true);
+  const { registrarAntes } = useRegistrarEvento();
 
   // Fetch unidades
   const { data: unidades = [] } = useQuery({
@@ -235,6 +237,25 @@ export default function ExportacaoPlanilhaPage() {
 
     setIsExporting(true);
     try {
+      // Trilha: exportação registrada antes de gerar o arquivo (sem registro, sem arquivo)
+      const ok = await registrarAntes({
+        acao: "export",
+        entidade: "exportacao_rh",
+        descricao: `Planilha de servidores exportada (${formato.toUpperCase()}, ${servidoresFiltrados.length} registros)`,
+        metadados: {
+          tela: "/rh/exportar",
+          formato,
+          quantidade: servidoresFiltrados.length,
+          campos: camposSelecionados,
+          filtros: {
+            unidade: filtroUnidade,
+            vinculo: filtroVinculo,
+            situacao: filtroSituacao,
+            busca_informada: !!searchTerm.trim(),
+          },
+        },
+      });
+      if (!ok) return;
       if (formato === 'xlsx') {
         exportarParaExcel(servidoresFiltrados, camposSelecionados);
         toast.success(`Planilha Excel gerada com ${servidoresFiltrados.length} registros`);

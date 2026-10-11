@@ -3,9 +3,10 @@
 # O repo tem dívida histórica (erros de tipo/lint), então typecheck e lint comparam
 # com scripts/gate-baseline.json: falham só se o número de erros AUMENTAR.
 # Quando reduzir a dívida, rode: bash scripts/gate.sh --update-baseline
-# Antes disso rodam quatro guards baratos (migrações sem versão duplicada, docs sem
+# Antes disso rodam cinco guards baratos (migrações sem versão duplicada, docs sem
 # referência quebrada, RLS do baseline em dia com o mapa, contraste AA dos tokens
-# de cor), que falham em qualquer ocorrência — não têm baseline. A "cor crua"
+# de cor, autoria e trilha em toda tabela do RH), que falham em qualquer ocorrência —
+# não têm baseline (o do RH aceita exceção com motivo em scripts/autoria-rh-excecoes.txt). A "cor crua"
 # (paleta fixa do Tailwind/hex em .tsx) também compara com a baseline: só não pode subir.
 # Roda no pre-push (.githooks/pre-push) e no CI (.github/workflows/quality.yml).
 # Não há suíte de testes. Uso: bash scripts/gate.sh  (ou: npm run gate)
@@ -47,6 +48,7 @@ guard "migrações sem versão duplicada" bash scripts/check-migrations.sh
 guard "docs sem referência quebrada" node scripts/check-doc-links.mjs
 guard "RLS do baseline em dia com o mapa" node scripts/db/gerar-rls.mjs --check
 guard "contraste AA dos tokens de cor" node scripts/check-contraste.mjs
+guard "RH: autoria e trilha em toda tabela do RH" node scripts/check-autoria-rh.mjs
 
 comparar "typecheck" "$(ts_erros)" typecheck
 comparar "lint" "$(lint_erros)" lint

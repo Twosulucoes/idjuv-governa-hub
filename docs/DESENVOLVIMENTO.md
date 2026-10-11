@@ -156,7 +156,11 @@ O workflow `.github/workflows/deploy-front.yml` roda a cada merge na `main` (e m
 3. Copia por `rsync` para a pasta do nginx: primeiro os arquivos com hash (`assets/`), depois
    os pontos de entrada (index, service worker do PWA e manifest). Quem está com o sistema aberto
    não quebra; assets antigos são apagados depois de `DIAS_ASSETS_ANTIGOS` dias (padrão 14).
-4. Confere que `FRONT_URL` serve o build novo.
+   O `rsync` não apaga nada no destino: arquivo retirado de `public/` continua no ar até alguém
+   apagá-lo. Por isso o workflow apaga explicitamente os retirados por vazamento
+   (data/cargos.json e data/cargos.csv, que publicavam a indicação dos ocupantes); ao retirar outro
+   arquivo sensível de `public/`, acrescente-o a essa lista.
+4. Confere que `FRONT_URL` serve o build novo e que data/cargos.json não está mais no ar.
 
 Configuração em Settings → Secrets and variables → Actions:
 

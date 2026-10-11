@@ -8,7 +8,8 @@
 --    p_tipo precisa estar na lista fechada abaixo, que também mapeia para o nome real da tabela
 --    (o formato antigo gerava fin_solicitacaos e fin_liquidacaos, que não existem).
 -- 2) registrar_transicao_folha lia profiles.nome (a coluna é full_name): qualquer UPDATE em
---    folhas_pagamento falhava.
+--    folhas_pagamento falhava. Desde a E1 (migração 20261011000000, mesmo texto): quem fechou, conferiu ou reabriu
+--    é sempre quem age, agora (antes COALESCE com o valor mandado pelo cliente) e não muda fora da transição.
 -- 3) Funções somente-leitura que devolvem dado pessoal rodavam como dono (BYPASSRLS) e eram
 --    executáveis por qualquer logado, ativo ou não, com módulo ou não (reproduzido com
 --    fn_gerar_esocial_s2200: CPF e nome). Passam a SECURITY INVOKER: valem as policies de quem chama.
@@ -56,14 +57,27 @@ CREATE OR REPLACE FUNCTION public.registrar_transicao_folha()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_user_nome TEXT;
+  v_uid uuid := auth.uid();
+  v_informa boolean := auth.uid() IS NULL
+    AND coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated');
 BEGIN
-  SELECT full_name INTO v_user_nome FROM public.profiles WHERE id = auth.uid();
+  SELECT full_name INTO v_user_nome FROM public.profiles WHERE id = v_uid;
+
+  -- quem fechou, conferiu ou reabriu só muda na transição de status (abaixo)
+  IF NOT v_informa THEN
+    NEW.fechado_por := OLD.fechado_por;
+    NEW.fechado_em := OLD.fechado_em;
+    NEW.conferido_por := OLD.conferido_por;
+    NEW.conferido_em := OLD.conferido_em;
+    NEW.reaberto_por := OLD.reaberto_por;
+    NEW.reaberto_em := OLD.reaberto_em;
+  END IF;
 
   IF OLD.status IS DISTINCT FROM NEW.status THEN
     INSERT INTO public.folha_historico_status (
       folha_id, status_anterior, status_novo, usuario_id, usuario_nome, justificativa
     ) VALUES (
-      NEW.id, OLD.status, NEW.status, auth.uid(), v_user_nome,
+      NEW.id, OLD.status, NEW.status, v_uid, v_user_nome,
       CASE
         WHEN NEW.status = 'fechada' THEN NEW.justificativa_fechamento
         WHEN NEW.status = 'reaberta' THEN NEW.justificativa_reabertura
@@ -72,18 +86,18 @@ BEGIN
     );
 
     IF NEW.status = 'fechada' AND OLD.status != 'fechada' THEN
-      NEW.fechado_por := COALESCE(NEW.fechado_por, auth.uid());
-      NEW.fechado_em := COALESCE(NEW.fechado_em, now());
+      NEW.fechado_por := CASE WHEN v_informa THEN COALESCE(NEW.fechado_por, v_uid) ELSE v_uid END;
+      NEW.fechado_em := CASE WHEN v_informa THEN COALESCE(NEW.fechado_em, now()) ELSE now() END;
     END IF;
 
     IF NEW.status = 'processando' AND OLD.status = 'aberta' THEN
-      NEW.conferido_por := COALESCE(NEW.conferido_por, auth.uid());
-      NEW.conferido_em := COALESCE(NEW.conferido_em, now());
+      NEW.conferido_por := CASE WHEN v_informa THEN COALESCE(NEW.conferido_por, v_uid) ELSE v_uid END;
+      NEW.conferido_em := CASE WHEN v_informa THEN COALESCE(NEW.conferido_em, now()) ELSE now() END;
     END IF;
 
     IF NEW.status = 'reaberta' THEN
-      NEW.reaberto_por := COALESCE(NEW.reaberto_por, auth.uid());
-      NEW.reaberto_em := COALESCE(NEW.reaberto_em, now());
+      NEW.reaberto_por := CASE WHEN v_informa THEN COALESCE(NEW.reaberto_por, v_uid) ELSE v_uid END;
+      NEW.reaberto_em := CASE WHEN v_informa THEN COALESCE(NEW.reaberto_em, now()) ELSE now() END;
     END IF;
   END IF;
 
@@ -268,6 +282,7 @@ ALTER FUNCTION public.desmarcar_escola_cadastrada() SECURITY DEFINER;
 -- M3) A trilha de auditoria nunca gravou nestas funções: audit_logs.entity_id é uuid e elas passavam
 --     texto (`column "entity_id" is of type uuid but expression is of type text`). Consequência:
 --     fechar_folha/reabrir_folha e qualquer escrita em config_parametros_valores falhavam, até para admin.
+--     Desde a E2 (20261011000300, mesmo texto) as duas gravam module_name 'rh' (antes 'folha').
 CREATE OR REPLACE FUNCTION public.fechar_folha(p_folha_id uuid, p_justificativa text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -320,7 +335,7 @@ BEGIN
   INSERT INTO public.audit_logs (
     action, entity_type, entity_id, module_name, description, user_id
   ) VALUES (
-    'update', 'folhas_pagamento', p_folha_id, 'folha',
+    'update', 'folhas_pagamento', p_folha_id, 'rh',
     format('Folha %s/%s fechada. Justificativa: %s', v_folha.competencia_mes, v_folha.competencia_ano, COALESCE(p_justificativa, 'Sem justificativa')),
     v_user_id
   );
@@ -381,7 +396,7 @@ BEGIN
   INSERT INTO public.audit_logs (
     action, entity_type, entity_id, module_name, description, user_id
   ) VALUES (
-    'update', 'folhas_pagamento', p_folha_id, 'folha',
+    'update', 'folhas_pagamento', p_folha_id, 'rh',
     format('Folha %s/%s REABERTA por super_admin. Justificativa: %s', v_folha.competencia_mes, v_folha.competencia_ano, p_justificativa),
     v_user_id
   );
@@ -437,6 +452,9 @@ END;
 $function$;
 
 -- M2) log_audit gravava para usuário inativo (a sessão do Auth continua válida depois do bloqueio).
+--     E1 (migração 20261011000000, mesmo texto): no módulo rh só view/export/download sem antes/depois; chaves de
+--     trigger/registrar_evento tiradas dos metadados, que levam fonte = log_audit; antes/depois/metadados até 32 KB.
+--     Desde a E2 (20261011000200, mesmo texto): recusa entity_type storage.* e tira servidor_alvo_id dos metadados.
 CREATE OR REPLACE FUNCTION public.log_audit(_action audit_action, _entity_type character varying DEFAULT NULL::character varying, _entity_id uuid DEFAULT NULL::uuid, _module_name character varying DEFAULT NULL::character varying, _before_data jsonb DEFAULT NULL::jsonb, _after_data jsonb DEFAULT NULL::jsonb, _description text DEFAULT NULL::text, _metadata jsonb DEFAULT '{}'::jsonb)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -447,12 +465,36 @@ DECLARE
   _log_id UUID;
   _user_role app_role;
   _user_org_unit UUID;
+  _meta jsonb;
 BEGIN
   -- perfil bloqueado/inexistente não grava (a sessão do Auth dele pode continuar válida). Sem usuário
   -- (service role, ou registrar_denuncia_publica chamada por anon) segue como antes.
   IF auth.uid() IS NOT NULL AND NOT public.is_active_user() THEN
     RAISE EXCEPTION 'Usuário inativo' USING ERRCODE = '42501';
   END IF;
+  IF lower(btrim(coalesce(_module_name, ''))) = 'rh' THEN
+    IF _action::text NOT IN ('view', 'export', 'download') THEN
+      RAISE EXCEPTION 'log_audit: no módulo rh só view, export e download (lançamentos entram pela trilha do banco)'
+        USING ERRCODE = '22023';
+    END IF;
+    IF _before_data IS NOT NULL OR _after_data IS NOT NULL THEN
+      RAISE EXCEPTION 'log_audit: no módulo rh a linha não leva antes/depois' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  -- linha de arquivo do Storage (entity_type storage.<bucket>) só vem do trigger trilha_storage (E2)
+  IF lower(btrim(coalesce(_entity_type, ''))) LIKE 'storage.%' THEN
+    RAISE EXCEPTION 'log_audit: entity_type storage.* é gravado só pelo banco (trilha do Storage)' USING ERRCODE = '22023';
+  END IF;
+  IF length(coalesce(_before_data::text, '')) > 32768 OR length(coalesce(_after_data::text, '')) > 32768
+     OR length(coalesce(_metadata::text, '')) > 32768 THEN
+    RAISE EXCEPTION 'log_audit: antes, depois e metadados têm limite de 32 KB cada' USING ERRCODE = '22023';
+  END IF;
+  _meta := CASE WHEN _metadata IS NULL THEN '{}'::jsonb
+                WHEN jsonb_typeof(_metadata) = 'object' THEN _metadata
+                ELSE jsonb_build_object('valor', _metadata) END;
+  _meta := (_meta - ARRAY['trigger', 'operation', 'table', 'registrar_evento', 'fonte', 'servidor_alvo_id'])
+           || jsonb_build_object('fonte', 'log_audit');
+
   SELECT role INTO _user_role 
   FROM public.user_roles 
   WHERE user_id = auth.uid() 
@@ -470,7 +512,7 @@ BEGIN
   )
   VALUES (
     auth.uid(), _action, _entity_type, _entity_id, _module_name,
-    _before_data, _after_data, _description, _metadata,
+    _before_data, _after_data, _description, _meta,
     _user_role, _user_org_unit
   )
   RETURNING id INTO _log_id;
@@ -674,3 +716,136 @@ BEGIN
   RETURN true;
 END;
 $$;
+
+-- I7) Portal da Transparência (migração 20261010234000): quadro de cargos comissionados, uma linha por vaga,
+--     com o nome do ocupante (nome social quando houver). Substitui public/data/cargos.json/.csv, que
+--     publicavam `indicacao`. Nunca CPF, matrícula, indicação, contato nem dado bancário. GRANT para anon
+--     em overlay/40_privilegios.sql.
+CREATE OR REPLACE FUNCTION public.transparencia_cargos_publicos()
+RETURNS TABLE (
+  cargo_id uuid,
+  cargo text,
+  simbolo text,
+  categoria text,
+  natureza text,
+  nivel_hierarquico integer,
+  vencimento numeric,
+  lei_criacao_numero text,
+  lei_criacao_data date,
+  unidade_id uuid,
+  unidade text,
+  unidade_sigla text,
+  unidade_superior text,
+  diretoria text,
+  diretoria_tipo text,
+  vaga integer,
+  vagas_previstas integer,
+  vagas_ocupadas integer,
+  ocupante text,
+  atualizado_em timestamptz
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  WITH RECURSIVE
+  cargos_pub AS (
+    SELECT c.*
+    FROM public.cargos c
+    WHERE coalesce(c.ativo, true)
+      AND (c.categoria IN ('comissionado', 'funcao_gratificada') OR c.natureza = 'comissionado')
+  ),
+  -- só o nome do ocupante sai daqui (nunca CPF, matrícula, indicação ou contato)
+  ocupantes AS (
+    SELECT vs.cargo_id, vs.unidade_id,
+           coalesce(nullif(btrim(s.nome_social), ''), s.nome_completo) AS nome
+    FROM public.vinculos_servidor vs
+    JOIN cargos_pub c ON c.id = vs.cargo_id
+    JOIN public.servidores s ON s.id = vs.servidor_id
+    WHERE vs.ativo
+  ),
+  composicao AS (
+    SELECT cc.cargo_id, cc.unidade_id, coalesce(cc.quantidade_vagas, 0) AS vagas
+    FROM public.composicao_cargos cc
+    JOIN cargos_pub c ON c.id = cc.cargo_id
+    JOIN public.estrutura_organizacional eo ON eo.id = cc.unidade_id
+    WHERE coalesce(eo.ativo, true)
+  ),
+  grupos AS (
+    SELECT g.cargo_id, g.unidade_id, sum(g.vagas)::integer AS vagas
+    FROM (
+      -- vagas previstas por unidade
+      SELECT cp.cargo_id, cp.unidade_id, cp.vagas FROM composicao cp
+      UNION ALL
+      -- cargo sem composição: vagas do cargo sem unidade (descontados os ocupantes já lotados numa unidade)
+      SELECT c.id, NULL::uuid,
+             greatest(coalesce(c.quantidade_vagas, 0)
+                      - (SELECT count(*) FROM ocupantes o WHERE o.cargo_id = c.id AND o.unidade_id IS NOT NULL), 0)::integer
+      FROM cargos_pub c
+      WHERE NOT EXISTS (SELECT 1 FROM composicao cp WHERE cp.cargo_id = c.id)
+      UNION ALL
+      -- ocupante numa unidade sem vaga prevista: ganha a própria linha
+      SELECT DISTINCT o.cargo_id, o.unidade_id, 0
+      FROM ocupantes o
+      WHERE NOT EXISTS (SELECT 1 FROM composicao cp
+                        WHERE cp.cargo_id = o.cargo_id AND cp.unidade_id IS NOT DISTINCT FROM o.unidade_id)
+    ) g
+    GROUP BY g.cargo_id, g.unidade_id
+  ),
+  ocupantes_num AS (
+    SELECT o.cargo_id, o.unidade_id, o.nome,
+           row_number() OVER (PARTITION BY o.cargo_id, o.unidade_id ORDER BY o.nome)::integer AS posicao,
+           count(*) OVER (PARTITION BY o.cargo_id, o.unidade_id)::integer AS quantidade
+    FROM ocupantes o
+  ),
+  -- sobe a hierarquia até a primeira diretoria (ou até a raiz); profundidade limita ciclo acidental
+  subida AS (
+    SELECT eo.id AS unidade_id, eo.id AS atual_id, eo.superior_id, eo.tipo, 0 AS profundidade
+    FROM public.estrutura_organizacional eo
+    WHERE eo.id IN (SELECT g.unidade_id FROM grupos g WHERE g.unidade_id IS NOT NULL)
+    UNION ALL
+    SELECT s.unidade_id, p.id, p.superior_id, p.tipo, s.profundidade + 1
+    FROM subida s
+    JOIN public.estrutura_organizacional p ON p.id = s.superior_id
+    WHERE s.tipo <> 'diretoria' AND s.profundidade < 20
+  ),
+  diretorias AS (
+    SELECT DISTINCT ON (s.unidade_id) s.unidade_id, s.atual_id AS diretoria_id
+    FROM subida s
+    ORDER BY s.unidade_id, s.profundidade DESC
+  )
+  SELECT c.id,
+         c.nome,
+         c.sigla,
+         c.categoria::text,
+         c.natureza::text,
+         c.nivel_hierarquico,
+         c.vencimento_base,
+         c.lei_criacao_numero,
+         c.lei_criacao_data,
+         u.id,
+         u.nome,
+         u.sigla,
+         coalesce(nullif(sup.sigla, ''), sup.nome),
+         coalesce(nullif(d.sigla, ''), d.nome),
+         d.tipo::text,
+         v.n,
+         g.vagas,
+         coalesce(oq.quantidade, 0),
+         o.nome,
+         c.updated_at
+  FROM grupos g
+  JOIN cargos_pub c ON c.id = g.cargo_id
+  LEFT JOIN public.estrutura_organizacional u ON u.id = g.unidade_id
+  LEFT JOIN public.estrutura_organizacional sup ON sup.id = u.superior_id
+  LEFT JOIN diretorias dr ON dr.unidade_id = g.unidade_id
+  LEFT JOIN public.estrutura_organizacional d ON d.id = dr.diretoria_id
+  LEFT JOIN LATERAL (
+    SELECT max(onum.quantidade) AS quantidade FROM ocupantes_num onum
+    WHERE onum.cargo_id = g.cargo_id AND onum.unidade_id IS NOT DISTINCT FROM g.unidade_id
+  ) oq ON true
+  CROSS JOIN LATERAL generate_series(1, greatest(g.vagas, coalesce(oq.quantidade, 0))) AS v(n)
+  LEFT JOIN ocupantes_num o
+         ON o.cargo_id = g.cargo_id AND o.unidade_id IS NOT DISTINCT FROM g.unidade_id AND o.posicao = v.n
+  ORDER BY c.vencimento_base DESC NULLS LAST, c.nome, u.nome NULLS LAST, v.n;
+$$;
+
+COMMENT ON FUNCTION public.transparencia_cargos_publicos() IS
+  'Exceção pública intencional (LAI, transparência ativa): executável por anon. Quadro de cargos em comissão e funções gratificadas ativos, uma linha por vaga: de cargos id, nome, sigla (símbolo), categoria, natureza, nível hierárquico, vencimento_base, número e data da lei de criação e updated_at; nome, sigla, unidade superior e diretoria da unidade (composicao_cargos/estrutura_organizacional); vagas previstas e ocupadas; e o nome do ocupante (vínculo ativo em vinculos_servidor; nome social quando houver). Nunca CPF, matrícula, indicação, contato, endereço, dado bancário nem remuneração individual.';

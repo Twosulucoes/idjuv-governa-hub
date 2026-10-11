@@ -60,6 +60,7 @@ import { CameraCapture } from "@/components/mobile/CameraCapture";
 import { QRCodeScanner } from "@/components/mobile/QRCodeScanner";
 import { VistoriaUnidade } from "@/components/mobile/VistoriaUnidade";
 import { FaixaOffline } from "@/components/mobile/FaixaOffline";
+import { ColetasRecusadasLista } from "@/components/mobile/ColetasRecusadasLista";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useCadastroBemSimplificado,
@@ -70,11 +71,17 @@ import {
 } from "@/hooks/patrimonio/useCadastroBemSimplificado";
 import { 
   useCampanhasInventario, 
-  useBensPatrimoniais,
   useUnidadesLocaisPatrimonio,
   useColetasInventario 
 } from "@/hooks/usePatrimonio";
 import { useColetaOffline } from "@/hooks/useColetaOffline";
+import { useBuscarBemPorCodigo } from "@/hooks/patrimonio/useBuscarBemPorCodigo";
+import {
+  useCacheBensOffline,
+  ehFalhaDeRede,
+  type BemCacheado,
+} from "@/hooks/patrimonio/useCacheBensOffline";
+import { imprimirEtiquetas, type BemEtiqueta } from "@/lib/etiquetasPatrimonio";
 
 // Tipos de operação
 type TipoOperacao = "cadastro_novo" | "cadastro_existente" | "coleta" | "movimentacao" | "baixa" | "vistoria";
@@ -143,7 +150,10 @@ const DICAS_DESCRICAO: Record<CategoriaBem, string> = {
   outros: "Ex: Descrição detalhada do bem com características principais",
 };
 
-const STATUS_COLETA = [
+// Valores do enum status_coleta_inventario
+type StatusColeta = "conferido" | "divergente" | "nao_localizado" | "sem_etiqueta";
+
+const STATUS_COLETA: Array<{ value: StatusColeta; label: string; icon: typeof CheckCircle2; color: string }> = [
   { value: "conferido", label: "Conferido", icon: CheckCircle2, color: "bg-success text-success-foreground" },
   { value: "divergente", label: "Divergente", icon: AlertTriangle, color: "bg-warning text-warning-foreground" },
   { value: "nao_localizado", label: "Não Localizado", icon: X, color: "bg-destructive text-destructive-foreground" },
@@ -154,13 +164,16 @@ const STATUS_COLETA = [
 const MENSAGEM_OFFLINE =
   "Sem conexão. As coletas ficam salvas no aparelho e são enviadas quando a internet voltar. Cadastro, movimentação e baixa precisam de internet.";
 
-const MOTIVOS_BAIXA = [
+// Valores do enum motivo_baixa_patrimonio. Extravio, furto/roubo e sinistro NÃO
+// são baixa: são ocorrências a apurar antes (aviso exibido no formulário).
+type MotivoBaixa = "inservivel" | "obsoleto" | "doacao" | "alienacao" | "perda";
+
+const MOTIVOS_BAIXA: Array<{ value: MotivoBaixa; label: string }> = [
   { value: "inservivel", label: "Inservível" },
-  { value: "extravio", label: "Extravio" },
-  { value: "furto_roubo", label: "Furto/Roubo" },
+  { value: "obsoleto", label: "Obsoleto" },
   { value: "doacao", label: "Doação" },
-  { value: "obsolescencia", label: "Obsolescência" },
-  { value: "sinistro", label: "Sinistro" },
+  { value: "alienacao", label: "Alienação (venda/leilão)" },
+  { value: "perda", label: "Perda" },
 ];
 
 export default function PatrimonioMobileUnificadoPage() {
@@ -178,6 +191,8 @@ export default function PatrimonioMobileUnificadoPage() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [countOperacoes, setCountOperacoes] = useState(0);
   const [resultadoOperacao, setResultadoOperacao] = useState<string>("");
+  // Bem recém-cadastrado, para a etiqueta (os campos do formulário já foram limpos)
+  const [bemEtiqueta, setBemEtiqueta] = useState<BemEtiqueta | null>(null);
   
   // Form - Unidade persistente
   const [unidadeLocalId, setUnidadeLocalId] = useState("");
@@ -196,8 +211,9 @@ export default function PatrimonioMobileUnificadoPage() {
   // Estados para coleta
   const [campanhaId, setCampanhaId] = useState(searchParams.get("campanha") || "");
   const [busca, setBusca] = useState("");
-  const [bemSelecionado, setBemSelecionado] = useState<any>(null);
-  const [statusColeta, setStatusColeta] = useState("conferido");
+  // Vem da busca no servidor ou, sem internet, do cache local de bens
+  const [bemSelecionado, setBemSelecionado] = useState<BemCacheado | null>(null);
+  const [statusColeta, setStatusColeta] = useState<StatusColeta>("conferido");
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number } | null>(null);
   
   // Estados para movimentação
@@ -205,15 +221,25 @@ export default function PatrimonioMobileUnificadoPage() {
   const [motivoMovimentacao, setMotivoMovimentacao] = useState("");
   
   // Estados para baixa
-  const [motivoBaixa, setMotivoBaixa] = useState("");
+  const [motivoBaixa, setMotivoBaixa] = useState<MotivoBaixa | "">("");
   const [justificativaBaixa, setJustificativaBaixa] = useState("");
   
   // Hooks
   const { data: campanhas } = useCampanhasInventario(new Date().getFullYear());
-  const { data: bens } = useBensPatrimoniais();
+  const { buscar: buscarBem, buscando: buscandoBem } = useBuscarBemPorCodigo();
   const { data: unidades } = useUnidadesLocaisPatrimonio();
   const { data: coletas, refetch: refetchColetas } = useColetasInventario(campanhaId);
-  const { salvarColeta, pendingCount, syncColetas, isSyncing } = useColetaOffline(campanhaId);
+  const {
+    salvarColeta,
+    pendingCount,
+    syncColetas,
+    isSyncing,
+    coletasPendentes,
+    coletasComErro,
+    descartarColeta,
+  } = useColetaOffline(campanhaId);
+  // Cópia leve dos bens no aparelho, para achar o bem sem internet
+  const { buscarNoCache, totalEmCache } = useCacheBensOffline(user?.id);
   
   const campanhasAtivas = campanhas?.filter(c => c.status === "em_andamento") || [];
 
@@ -323,19 +349,48 @@ export default function PatrimonioMobileUnificadoPage() {
     toast.success("Foto capturada!");
   }, []);
 
-  // Scan QR
-  const handleScan = useCallback((result: string) => {
+  // Scan QR / código digitado: busca no servidor (número, QR ou tombamento anterior).
+  // Sem internet (ou se a busca falhar por rede), procura no cache local de bens.
+  const handleScan = useCallback(async (result: string) => {
     setScannerOpen(false);
-    setBusca(result);
-    
-    const bem = bens?.find(b => 
-      b.numero_patrimonio?.toLowerCase() === result.toLowerCase() ||
-      b.codigo_qr?.toLowerCase() === result.toLowerCase()
-    );
-    
+    const codigo = result.trim();
+    setBusca(codigo);
+    if (!codigo) return;
+
+    const buscarOffline = async (): Promise<BemCacheado | null | undefined> => {
+      try {
+        return await buscarNoCache(codigo);
+      } catch (err) {
+        console.error("Erro ao consultar o cache de bens:", err);
+        toast.error("Não foi possível consultar os bens guardados no aparelho");
+        return undefined;
+      }
+    };
+
+    let bem: BemCacheado | null | undefined;
+    let usouCache = false;
+    if (!navigator.onLine) {
+      bem = await buscarOffline();
+      usouCache = true;
+    } else {
+      try {
+        bem = await buscarBem(codigo);
+      } catch (err) {
+        if (!ehFalhaDeRede(err)) {
+          console.error("Erro ao buscar bem:", err);
+          toast.error("Erro ao buscar o bem");
+          return;
+        }
+        bem = await buscarOffline();
+        usouCache = true;
+      }
+    }
+    if (bem === undefined) return;
+
     if (bem) {
       if (operacao === "coleta") {
-        const jaColetado = coletas?.find(c => c.bem_id === bem.id);
+        const jaColetado =
+          coletas?.find(c => c.bem_id === bem.id) || coletasPendentes.find(c => c.bem_id === bem.id);
         if (jaColetado) {
           toast.warning("Bem já conferido nesta campanha");
           return;
@@ -346,10 +401,16 @@ export default function PatrimonioMobileUnificadoPage() {
       setUnidadeLocalId(bem.unidade_local_id || "");
       setEtapa("formulario");
       obterGPS();
+    } else if (usouCache) {
+      toast.error("Bem não encontrado nos dados guardados no aparelho", {
+        description: totalEmCache > 0
+          ? "Sem conexão: a busca usou a cópia local dos bens, que pode estar desatualizada."
+          : "Sem conexão e sem cópia local dos bens. Abra o app com internet para guardá-la.",
+      });
     } else {
       toast.error("Bem não encontrado");
     }
-  }, [bens, coletas, operacao, obterGPS]);
+  }, [buscarBem, buscarNoCache, coletas, coletasPendentes, operacao, obterGPS, totalEmCache]);
 
   // Buscar bem
   const handleBuscar = useCallback(() => {
@@ -412,12 +473,10 @@ export default function PatrimonioMobileUnificadoPage() {
     try {
       const fotoUrl = await uploadFoto(fotoCapturada!, "cadastro");
 
+      // Tombamento anterior vai para patrimonio_anterior (via hook), não na observação
       let observacaoFinal = "";
       if (operacao === "cadastro_existente") {
         observacaoFinal = `Regularização de bem existente.`;
-        if (tombamentoAnterior) {
-          observacaoFinal += ` Tombamento anterior: ${tombamentoAnterior}.`;
-        }
       }
       if (observacao.trim()) {
         observacaoFinal += observacaoFinal ? ` ${observacao.trim()}` : observacao.trim();
@@ -430,8 +489,8 @@ export default function PatrimonioMobileUnificadoPage() {
         estado_conservacao: estadoConservacao,
         localizacao_especifica: localizacao || undefined,
         forma_aquisicao: operacao === "cadastro_novo" ? "compra" : "transferencia",
-        possui_tombamento_externo: !!tombamentoAnterior,
-        numero_patrimonio_externo: tombamentoAnterior || undefined,
+        possui_tombamento_externo: operacao === "cadastro_existente" && !!tombamentoAnterior.trim(),
+        numero_patrimonio_externo: operacao === "cadastro_existente" ? tombamentoAnterior.trim() || undefined : undefined,
         observacao: observacaoFinal || undefined,
       });
 
@@ -443,6 +502,12 @@ export default function PatrimonioMobileUnificadoPage() {
       }
 
       setResultadoOperacao(resultado.numero_patrimonio);
+      setBemEtiqueta({
+        numero_patrimonio: resultado.numero_patrimonio,
+        descricao: resultado.descricao,
+        codigo_qr: resultado.codigo_qr,
+        unidade: unidadeNome || null,
+      });
       setCountOperacoes(prev => prev + 1);
       setSuccessDialogOpen(true);
       resetFormFields();
@@ -467,12 +532,14 @@ export default function PatrimonioMobileUnificadoPage() {
     const sucesso = await salvarColeta({
       campanha_id: campanhaId,
       bem_id: bemSelecionado.id,
+      rotulo: bemSelecionado.numero_patrimonio,
       status_coleta: statusColeta,
       localizacao_encontrada_unidade_id: unidadeLocalId || null,
       localizacao_encontrada_sala: localizacao || null,
       localizacao_encontrada_detalhe: null,
       observacoes: observacao || null,
       foto_url: fotoUrl,
+      foto_capturada: !!fotoCapturada,
       coordenadas_gps: gpsLocation,
       data_coleta: new Date().toISOString(),
     });
@@ -505,20 +572,21 @@ export default function PatrimonioMobileUnificadoPage() {
     try {
       const fotoUrl = await uploadFoto(fotoCapturada!, "movimentacoes");
 
-      const insertData = {
-        bem_id: bemSelecionado.id,
-        tipo: "transferencia" as const,
-        unidade_local_origem_id: bemSelecionado.unidade_local_id,
-        unidade_local_destino_id: unidadeDestino,
-        motivo: motivoMovimentacao || "Transferência via app mobile",
-        status: "pendente" as const,
-        documento_url: fotoUrl,
-        data_movimentacao: new Date().toISOString().split("T")[0],
-      };
-
+      // Fica pendente: o bem só muda de unidade quando a movimentação é aprovada
+      // (RPC patrimonio_decidir_movimentacao).
       const { error } = await supabase
         .from("movimentacoes_patrimonio")
-        .insert(insertData as any);
+        .insert({
+          bem_id: bemSelecionado.id,
+          tipo: "transferencia_interna",
+          unidade_local_origem_id: bemSelecionado.unidade_local_id,
+          unidade_local_destino_id: unidadeDestino,
+          motivo: motivoMovimentacao.trim() || "Transferência via app mobile",
+          status: "pendente",
+          documento_url: fotoUrl,
+          // solicitado_por: default auth.uid() no banco
+          data_movimentacao: new Date().toISOString().split("T")[0],
+        });
 
       if (error) throw error;
 
@@ -526,8 +594,8 @@ export default function PatrimonioMobileUnificadoPage() {
       setCountOperacoes(prev => prev + 1);
       setSuccessDialogOpen(true);
       resetFormFields();
-    } catch (error: any) {
-      toast.error(`Erro: ${error.message}`);
+    } catch (error) {
+      toast.error(`Erro: ${error instanceof Error ? error.message : (error as { message?: string })?.message ?? "falha ao salvar"}`);
     }
   };
 
@@ -558,10 +626,10 @@ export default function PatrimonioMobileUnificadoPage() {
         .from("baixas_patrimonio")
         .insert({
           bem_id: bemSelecionado.id,
-          motivo: motivoBaixa as any,
-          justificativa: justificativaBaixa,
+          motivo: motivoBaixa,
+          justificativa: justificativaBaixa.trim(),
           data_solicitacao: new Date().toISOString().split("T")[0],
-          status: "pendente",
+          status: "solicitada",
           laudo_tecnico_url: fotoUrl,
         });
 
@@ -571,8 +639,8 @@ export default function PatrimonioMobileUnificadoPage() {
       setCountOperacoes(prev => prev + 1);
       setSuccessDialogOpen(true);
       resetFormFields();
-    } catch (error: any) {
-      toast.error(`Erro: ${error.message}`);
+    } catch (error) {
+      toast.error(`Erro: ${error instanceof Error ? error.message : (error as { message?: string })?.message ?? "falha ao salvar"}`);
     }
   };
 
@@ -595,31 +663,13 @@ export default function PatrimonioMobileUnificadoPage() {
     }
   };
 
-  // Imprimir etiqueta
-  const handlePrint = () => {
-    const printContent = `
-      <html>
-        <head>
-          <title>Etiqueta Patrimônio</title>
-          <style>
-            body { font-family: Arial; text-align: center; padding: 20px; }
-            .tombamento { font-size: 32px; font-weight: bold; letter-spacing: 2px; }
-            .descricao { font-size: 14px; margin-top: 10px; color: #666; }
-            .unidade { font-size: 12px; margin-top: 5px; color: #888; }
-          </style>
-        </head>
-        <body>
-          <div class="tombamento">${resultadoOperacao}</div>
-          <div class="descricao">${descricao}</div>
-          <div class="unidade">${unidadeNome}</div>
-        </body>
-      </html>
-    `;
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.print();
+  // Imprimir etiqueta (QR + número) do bem recém-cadastrado
+  const handlePrint = async () => {
+    if (!bemEtiqueta) return;
+    try {
+      await imprimirEtiquetas([bemEtiqueta]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível imprimir a etiqueta.");
     }
   };
 
@@ -729,6 +779,8 @@ export default function PatrimonioMobileUnificadoPage() {
               </AlertDescription>
             </Alert>
           )}
+
+          <ColetasRecusadasLista coletas={coletasComErro} onDescartar={descartarColeta} />
 
           {pendingCount > 0 && (
             <Alert>
@@ -932,9 +984,10 @@ export default function PatrimonioMobileUnificadoPage() {
             <Input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Nº Patrimônio..."
+              placeholder="Nº Patrimônio ou plaqueta antiga..."
               aria-label="Número do patrimônio"
               className="flex-1 h-12 text-lg"
+              disabled={buscandoBem}
             />
             <Button 
               type="button" 
@@ -946,6 +999,13 @@ export default function PatrimonioMobileUnificadoPage() {
               <QrCode className="w-6 h-6" aria-hidden="true" />
             </Button>
           </form>
+          {!isOnline && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {totalEmCache > 0
+                ? `Sem conexão: a busca usa os ${totalEmCache} bens guardados no aparelho.`
+                : "Sem conexão e sem cópia dos bens no aparelho: a busca não vai encontrar o bem."}
+            </p>
+          )}
         </div>
 
         <main className="flex-1 overflow-auto p-4">
@@ -1105,13 +1165,16 @@ export default function PatrimonioMobileUnificadoPage() {
 
             {operacao === "cadastro_existente" && (
               <div className="space-y-2">
-                <Label>Tombamento Anterior (se houver)</Label>
+                <Label>Tombamento anterior (plaqueta antiga)</Label>
                 <Input 
                   value={tombamentoAnterior}
                   onChange={(e) => setTombamentoAnterior(e.target.value)}
-                  placeholder="Número antigo, se existir"
+                  placeholder="Número da plaqueta antiga, se existir"
                   className="h-12"
                 />
+                <p className="text-sm text-muted-foreground">
+                  O sistema gera um número novo; a plaqueta antiga fica registrada e continua sendo encontrada na busca.
+                </p>
               </div>
             )}
 
@@ -1239,7 +1302,7 @@ export default function PatrimonioMobileUnificadoPage() {
           <>
             <div className="space-y-2">
               <Label>Motivo da Baixa *</Label>
-              <Select value={motivoBaixa} onValueChange={setMotivoBaixa}>
+              <Select value={motivoBaixa} onValueChange={(v) => setMotivoBaixa(v as MotivoBaixa)}>
                 <SelectTrigger className="h-12">
                   <SelectValue placeholder="Selecione o motivo..." />
                 </SelectTrigger>
@@ -1252,6 +1315,14 @@ export default function PatrimonioMobileUnificadoPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <Alert>
+              <Info className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription className="text-sm">
+                Extravio, furto/roubo ou sinistro não são baixa: comunique ao setor de patrimônio
+                para registro da ocorrência e apuração.
+              </AlertDescription>
+            </Alert>
 
             <div className="space-y-2">
               <Label>Justificativa *</Label>
@@ -1373,7 +1444,7 @@ export default function PatrimonioMobileUnificadoPage() {
           )}
 
           <DialogFooter className="flex-col gap-2 sm:flex-col">
-            {(operacao === "cadastro_novo" || operacao === "cadastro_existente") && (
+            {(operacao === "cadastro_novo" || operacao === "cadastro_existente") && bemEtiqueta && (
               <Button variant="outline" className="w-full min-h-11" onClick={handlePrint}>
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimir Etiqueta

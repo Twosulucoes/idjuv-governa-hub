@@ -198,20 +198,8 @@ export function useUploadFrequencia() {
 
       const arquivoNome = arquivoPath.split('/').pop() || 'frequencia.pdf';
 
-      // 2. Upload para storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('frequencias')
-        .upload(arquivoPath, pdfBlob, {
-          contentType: 'application/pdf',
-          upsert: false, // caminho já leva carimbo de tempo: nunca sobrescreve
-        });
-
-      if (uploadError) {
-        console.error('Erro no upload:', uploadError);
-        throw new Error(`Falha no upload: ${uploadError.message}`);
-      }
-
-      // 3. Registrar no banco
+      // 2. Registrar no banco ANTES do upload: a trilha do Storage (migração 20261011000200) acha o servidor do
+      // arquivo pela linha de frequencia_arquivos com o mesmo caminho. Sem a linha, não sobe o arquivo.
       const { data: registro, error: registroError } = await supabase
         .from('frequencia_arquivos')
         .insert({
@@ -221,7 +209,7 @@ export function useUploadFrequencia() {
           servidor_id: servidor.id,
           servidor_nome: servidor.nome,
           servidor_matricula: servidor.matricula,
-          unidade_id: unidade.id,
+          unidade_id: unidade.id || null,
           unidade_nome: unidade.nome,
           unidade_sigla: unidade.sigla,
           tipo,
@@ -235,7 +223,23 @@ export function useUploadFrequencia() {
 
       if (registroError) {
         console.error('Erro ao registrar arquivo:', registroError);
-        // Não falha completamente, arquivo já foi salvo
+        throw new Error(`Falha ao registrar o arquivo: ${registroError.message}`);
+      }
+
+      // 3. Upload para storage
+      const { error: uploadError } = await supabase.storage
+        .from('frequencias')
+        .upload(arquivoPath, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: false, // caminho já leva carimbo de tempo: nunca sobrescreve
+        });
+
+      if (uploadError) {
+        console.error('Erro no upload:', uploadError);
+        // Desfaz a linha: sem arquivo no bucket, o registro apontaria para o nada
+        const { error: desfazerError } = await supabase.from('frequencia_arquivos').delete().eq('id', registro.id);
+        if (desfazerError) console.error('Erro ao desfazer o registro do arquivo:', desfazerError);
+        throw new Error(`Falha no upload: ${uploadError.message}`);
       }
 
       return {
@@ -248,7 +252,7 @@ export function useUploadFrequencia() {
     },
     onError: (error) => {
       console.error('Erro no upload de frequência:', error);
-      toast.error('Erro ao salvar frequência no storage');
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar frequência no storage');
     },
   });
 }
