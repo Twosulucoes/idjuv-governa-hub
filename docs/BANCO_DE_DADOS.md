@@ -22,11 +22,13 @@ muda em relação ao estado das migrações:
   `;proprio`, `;pai=<tabela>.<fk>` e `;filho=<tabela>.<fk>` acrescentam a leitura do próprio servidor, direta,
   pela tabela pai ou por uma tabela filha com `servidor_id`); escrita (INSERT/UPDATE/DELETE) exige o módulo
   **e** a permissão granular do `extra` (`escrita=<código>`), via `can_access_module` + `has_permission_code`.
-  Hoje são 25 tabelas (apurado em 2026-10-10): as 10 da folha (`financeiro.folha.processar` para operar,
+  Hoje são 29 tabelas (apurado em 2026-10-11): as 10 da folha (`financeiro.folha.processar` para operar,
   `financeiro.folha.configurar` para rubricas, parâmetros e tabelas de INSS/IRRF) — detalhe em
   [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1) —, 12 do RH na B2 (férias,
   licenças, viagens, frequência; seção "RH — frequência e ponto" abaixo) e 3 na B3 (`frequencia_pacotes`,
-  `frequencia_arquivos`, `documentos_requerimento_servidor`; mesma seção). A B2 acrescentou ao gerador lista de
+  `frequencia_arquivos`, `documentos_requerimento_servidor`; mesma seção) e 4 que passaram de `modulo` na E3
+  (`eventos_esocial`, `remessas_bancarias`, `pensoes_alimenticias`, `itens_retorno_bancario`; seção "Leitura dos
+  contracheques e da remuneração" abaixo). A B2 acrescentou ao gerador lista de
   códigos (`escrita=a|b`) e os sufixos `;excluir=`, `;insere_proprio`, `;sem_autoaprovacao`, `;coluna=` e
   `;posse=usuario`; a correção de contornos levou `escrita=` à classe `catalogo` e `sem_autoaprovacao` à
   `proprio_leitura`; a E3 acrescentou `;leitura=<código>|<código>` (leitura pelo módulo exige também um dos
@@ -544,21 +546,41 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
 - **Fora**: retorno CNAB e conciliação (onda H); transmissão, lote e retificação do eSocial (onda G); evento do
   eSocial sem `folha_id` não passa pela regra da folha fechada.
 
-### Leitura dos contracheques e fim do DELETE — Onda E3 (banco, RLS)
+### Leitura dos contracheques e da remuneração; fim do DELETE — Onda E3 (banco, RLS)
 
 Migração `supabase/migrations/20261011010100_rh_contracheques_leitura.sql`, **em PR rascunho**; mesma spec (item 1,
 premissas 1 e 2; "sem DELETE pela API" dos itens 3 e 4). Separada da `20261011010000` porque **muda RLS existente**
-(decisão 3 da revisão do RH): pode ser segurada sem segurar a outra; sem ela, todo o módulo `rh` continua lendo os
-contracheques de todos e apagando remessas e eventos. Idempotente.
+(decisão 3 da revisão do RH): pode ser segurada sem segurar a outra; sem ela, todo o módulo `rh` continua lendo
+contracheques, lançamentos, consignações, pensões e eventos do eSocial de todos e apagando remessas e eventos.
+Idempotente.
 
 - **Permissão nova** `rh.contracheques.visualizar` (módulo `rh`, `action_type = 'consultar'`), papéis `admin` e
   `manager`. `financeiro.folha.visualizar` não serve: o papel `user` a recebe (carga por `action_type = 'visualizar'`).
-- **`fichas_financeiras` e `itens_ficha_financeira`**: SELECT pelo módulo `rh` passa a exigir também
-  `rh.contracheques.visualizar` **ou** `financeiro.folha.processar`; o servidor lê os próprios (posse por
-  `meu_servidor_id()`). Escrita sem mudança. `folhas_pagamento` não muda (só totais).
+- **Leitura da remuneração e do dado bancário por pessoa**: o SELECT pelo módulo `rh` passa a exigir também
+  `rh.contracheques.visualizar` **ou** `financeiro.folha.processar` em `fichas_financeiras`, `itens_ficha_financeira`
+  (o servidor continua lendo os próprios, posse por `meu_servidor_id()`), `lancamentos_folha`, `consignacoes`,
+  `eventos_esocial` (payload com CPF e remuneração), `pensoes_alimenticias` (CPF e conta do beneficiário) e
+  `itens_retorno_bancario` (valor pago por servidor). `folhas_pagamento` não muda (só totais).
+- **Escrita com `financeiro.folha.processar`**: já era assim em fichas, itens, lançamentos e consignações (B1);
+  passa a ser em `eventos_esocial`, `pensoes_alimenticias`, `itens_retorno_bancario` e no INSERT/UPDATE de
+  `remessas_bancarias` (antes bastava o módulo). A leitura das remessas continua pelo módulo: a linha só tem os
+  totais da folha, e o arquivo (com a conta de cada servidor) está no bucket `remessas-cnab`, que já exige
+  `processar`.
 - **`remessas_bancarias` e `eventos_esocial`**: sem policy de DELETE e sem o privilégio `DELETE` para `anon` e
   `authenticated` (a API recebe `42501`, não "0 linhas"). Remessa se cancela pela RPC `cancelar_remessa`; a service
   role continua podendo apagar.
+- **Ficaram de fora**, com o motivo:
+  - `retornos_bancarios` e `exportacoes_folha`: totais por arquivo, sem pessoa na linha. Atenção: `detalhes`
+    (jsonb) do retorno e o arquivo de `exportacoes_folha.arquivo_url` não têm formato fixado; o retorno fica para a
+    onda H.
+  - `dependentes_irrf`: CPF e nascimento de dependentes, sem valor; é dado pessoal sensível, não remuneração. A
+    escrita já exige `processar` (B1) e a leitura continua com o módulo, à espera de decisão do RH.
+  - `adicionais_tempo_servico` (`valor_adicional`): registro funcional que o RH mantém sem a permissão da folha;
+    restringir quebraria o cadastro.
+  - `servidores` (`remuneracao_bruta`, `descontos`, `banco_*`), `vinculos_servidor` (`remuneracao_bruta`) e
+    `pre_cadastros` (`banco_*`): a RLS restringe linhas, não colunas, e essas tabelas são o cadastro que todo o RH
+    lê. Fechar exige view ou privilégio por coluna (pendência).
+  - `cadastro_arbitros` (banco e conta) e `viagens_diarias` (diárias): fora do RH ou indenização, não remuneração.
 - Tabela por tabela e impacto no front em
   [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#contracheques-remessas-e-eventos-do-esocial-rls-onda-e3-banco). No
   baseline: `mapa.csv` (sufixos `;leitura=` e `excluir=ninguem`) → `35_policies_geradas.sql`, o REVOKE no

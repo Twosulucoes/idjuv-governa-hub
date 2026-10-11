@@ -196,7 +196,7 @@ removidas na mesma transação, e a migração também tira de `anon` todo privi
 | Tabela | Leitura (SELECT) | Escrita (INSERT/UPDATE/DELETE) |
 |---|---|---|
 | `folhas_pagamento` | módulo `rh` **ou** o servidor que tem ficha nela (contracheque: `/rh/meu-contracheque` lê `folhas_pagamento!inner`) | módulo `rh` + `financeiro.folha.processar` |
-| `lancamentos_folha`, `consignacoes`, `dependentes_irrf` | módulo `rh` | módulo `rh` + `financeiro.folha.processar` |
+| `lancamentos_folha`, `consignacoes`, `dependentes_irrf` | módulo `rh`; desde a E3, `lancamentos_folha` e `consignacoes` como `fichas_financeiras` (sem a posse) | módulo `rh` + `financeiro.folha.processar` |
 | `fichas_financeiras` | módulo `rh` **ou** o próprio servidor (`servidor_id = meu_servidor_id()`); desde a E3, módulo `rh` **e** `rh.contracheques.visualizar` ou `financeiro.folha.processar` (seção "Contracheques, remessas e eventos do eSocial: RLS") | módulo `rh` + `financeiro.folha.processar` |
 | `itens_ficha_financeira` | módulo `rh` **ou** itens da própria ficha; desde a E3, como `fichas_financeiras` | módulo `rh` + `financeiro.folha.processar` |
 | `parametros_folha`, `rubricas`, `tabela_inss`, `tabela_irrf` | módulo `rh` | módulo `rh` + `financeiro.folha.configurar` |
@@ -742,12 +742,17 @@ Migração `supabase/migrations/20261011010100_rh_contracheques_leitura.sql`, **
 `20261011010000` porque muda RLS existente (decisão 3 da revisão do RH: o dono decide no merge; pode ser segurada sem
 segurar a outra). Mesmas policies em `supabase/baseline/rls/mapa.csv` → `35_policies_geradas.sql`.
 
-| Tabela | Leitura (SELECT) | Escrita | DELETE pela API |
+"Código de leitura" abaixo = módulo `rh` **e** (`rh.contracheques.visualizar` **ou** `financeiro.folha.processar`).
+
+| Tabela | Leitura (SELECT) | Escrita (INSERT/UPDATE) | DELETE pela API |
 |---|---|---|---|
-| `fichas_financeiras` | módulo `rh` **e** (`rh.contracheques.visualizar` **ou** `financeiro.folha.processar`), **ou** o próprio servidor | módulo `rh` + `financeiro.folha.processar` (sem mudança) | como antes (módulo + `processar`) |
-| `itens_ficha_financeira` | igual, ou itens da própria ficha | igual | como antes |
-| `remessas_bancarias` | módulo `rh` (sem mudança) | módulo `rh` (sem mudança); arquivo e cancelamento exigem `processar` (`20261011010000`) | **nenhum**: sem policy e sem o privilégio (`42501`); cancela pela RPC `cancelar_remessa` |
-| `eventos_esocial` | módulo `rh` (sem mudança) | módulo `rh` (sem mudança) | **nenhum** (`42501`); retificação fica para a onda G |
+| `fichas_financeiras` | código de leitura, **ou** o próprio servidor | módulo + `processar` (sem mudança) | módulo + `processar` (sem mudança) |
+| `itens_ficha_financeira` | código de leitura, ou itens da própria ficha | igual | igual |
+| `lancamentos_folha`, `consignacoes` | código de leitura (antes: o módulo) | igual | igual |
+| `pensoes_alimenticias` (CPF e conta do beneficiário) | código de leitura (antes: o módulo) | módulo + `processar` (antes: o módulo) | módulo + `processar` |
+| `itens_retorno_bancario` (valor pago por servidor) | código de leitura (antes: o módulo) | módulo + `processar` (antes: o módulo) | módulo + `processar` |
+| `eventos_esocial` (payload com CPF e remuneração) | código de leitura (antes: o módulo) | módulo + `processar` (antes: o módulo) | **nenhum** (`42501`); retificação fica para a onda G |
+| `remessas_bancarias` (só totais) | módulo `rh` (sem mudança) | módulo + `processar` (antes: o módulo); arquivo e cancelamento já exigiam `processar` (`20261011010000`) | **nenhum**: sem policy e sem o privilégio (`42501`); cancela pela RPC `cancelar_remessa` |
 
 - **`rh.contracheques.visualizar`** (módulo `rh`, categoria Folha, `action_type = 'consultar'`), concedida aos papéis
   `admin` e `manager`. Não é `financeiro.folha.visualizar` porque a carga de `20260916120000` dá ao papel `user` todo
@@ -755,16 +760,21 @@ segurar a outra). Mesmas policies em `supabase/baseline/rls/mapa.csv` → `35_po
   tem. O `action_type` diferente impede que uma carga por tipo a entregue ao `user`; carga futura precisa excluí-la de
   propósito. O teste confere o catálogo e a premissa (`get_user_permission_codes` do papel `user` contém
   `financeiro.folha.visualizar`).
-- Só o módulo `rh` (sem um dos dois códigos) deixa de ler as fichas de todos; o servidor continua lendo o próprio
-  contracheque (`/rh/meu-contracheque`). `folhas_pagamento` não muda (só totais).
+- Só o módulo `rh` (sem um dos dois códigos) deixa de ler fichas, lançamentos, consignações, pensões, retorno e
+  eventos do eSocial de todos; o servidor continua lendo o próprio contracheque (`/rh/meu-contracheque`).
+  `folhas_pagamento` não muda (só totais).
 - A service role continua podendo apagar remessas e eventos (operação manual, fora da API do navegador).
-- **Impacto no front (pendência):** telas que leem fichas ou itens de todos com quem não tem nenhum dos dois códigos
-  passam a receber lista vazia, sem erro — `useRelatoriosRH.ts` (card "Folha de pagamento", gate
-  `financeiro.folha.visualizar`), `useArquivosFolha.ts`, `useFolhaPagamento.ts`, `useMotorFolha.ts`,
-  `useContracheque.ts` e o detalhe da folha (`FolhaDetalhePage.tsx`, rota com `financeiro.folha.visualizar`). Quem
-  processa a folha (`processar`) continua vendo tudo.
-- Também sem mudança nesta onda (riscos registrados na spec): `eventos_esocial.payload` (CPF e remuneração) e
-  `lancamentos_folha` seguem legíveis por todo o módulo `rh`.
+- **Impacto no front (pendência):** telas que leem essas tabelas de todos, para quem não tem nenhum dos dois
+  códigos, passam a receber lista vazia, sem erro — `useRelatoriosRH.ts` (card "Folha de pagamento", gate
+  `financeiro.folha.visualizar`), `useArquivosFolha.ts`, `useFolhaPagamento.ts` (consignações, eventos),
+  `useMotorFolha.ts`, `useContracheque.ts` e o detalhe da folha (`FolhaDetalhePage.tsx`, rota com
+  `financeiro.folha.visualizar`). Quem processa a folha (`processar`) continua vendo tudo. Gerar evento do eSocial
+  (`useArquivosFolha.ts`, `useRHIntegracoes.ts`) passa a exigir `processar` no banco (`42501`); a geração da remessa
+  já era condicionada a `processar` na tela.
+- Ficaram de fora, e por quê: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md) (seção "Leitura dos contracheques e da
+  remuneração"): `retornos_bancarios` e `exportacoes_folha` (totais), `dependentes_irrf` (dado pessoal sem valor),
+  `adicionais_tempo_servico` (registro funcional) e as colunas de remuneração e banco de `servidores`,
+  `vinculos_servidor` e `pre_cadastros` (pedem restrição por coluna).
 
 ### Relatórios de RH (`/rh/relatorios`)
 

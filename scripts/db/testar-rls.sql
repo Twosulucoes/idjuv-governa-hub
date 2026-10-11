@@ -2462,23 +2462,23 @@ BEGIN
   IF j IS NULL OR j ->> 'aprovador_id' IS DISTINCT FROM u_admin::text OR (j ->> 'data_aprovacao')::timestamptz < '2001-01-01' THEN
     PERFORM pg_temp.falha('E1 decisão: aprovado = true no ponto não gravou o aprovador pelo banco (' || r || ', ' || coalesce(j ->> 'aprovador_id', 'nulo') || ')');
   END IF;
-  r := pg_temp.insere_como(u_rh, 'authenticated', 'eventos_esocial', jsonb_build_object('id', ev, 'gerado_por', u_admin, 'data_geracao', '2000-01-01'));
-  r := r || '/' || pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.eventos_esocial SET gerado_por = %L, data_geracao = ''2000-01-01'' WHERE id = %L', u_admin, ev));
+  r := pg_temp.insere_como(u_proc, 'authenticated', 'eventos_esocial', jsonb_build_object('id', ev, 'gerado_por', u_admin, 'data_geracao', '2000-01-01'));
+  r := r || '/' || pg_temp.exec_como(u_proc, 'authenticated', format('UPDATE public.eventos_esocial SET gerado_por = %L, data_geracao = ''2000-01-01'' WHERE id = %L', u_admin, ev));
   SELECT to_jsonb(e) INTO j FROM public.eventos_esocial e WHERE id = ev;
-  IF j IS NULL OR j ->> 'gerado_por' IS DISTINCT FROM u_rh::text OR (j ->> 'data_geracao')::timestamptz < '2001-01-01' THEN
+  IF j IS NULL OR j ->> 'gerado_por' IS DISTINCT FROM u_proc::text OR (j ->> 'data_geracao')::timestamptz < '2001-01-01' THEN
     PERFORM pg_temp.falha('E1 criação: gerado_por do eSocial não é quem gerou ou mudou depois (' || r || ')');
   END IF;
-  r := pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.eventos_esocial SET data_envio = ''2000-01-01'' WHERE id = %L', ev));
+  r := pg_temp.exec_como(u_proc, 'authenticated', format('UPDATE public.eventos_esocial SET data_envio = ''2000-01-01'' WHERE id = %L', ev));
   IF (SELECT to_jsonb(e) ->> 'data_envio' FROM public.eventos_esocial e WHERE id = ev) IS NOT NULL THEN
     PERFORM pg_temp.falha('E1 decisão: data_envio do eSocial gravada sem autor (' || r || ')');
   END IF;
-  r := pg_temp.exec_como(u_rh, 'authenticated', format('UPDATE public.eventos_esocial SET enviado_por = %L, data_envio = ''2000-01-01'' WHERE id = %L', u_admin, ev));
+  r := pg_temp.exec_como(u_proc, 'authenticated', format('UPDATE public.eventos_esocial SET enviado_por = %L, data_envio = ''2000-01-01'' WHERE id = %L', u_admin, ev));
   SELECT to_jsonb(e) INTO j FROM public.eventos_esocial e WHERE id = ev;
-  IF j ->> 'enviado_por' IS DISTINCT FROM u_rh::text OR (j ->> 'data_envio')::timestamptz < '2001-01-01' THEN
+  IF j ->> 'enviado_por' IS DISTINCT FROM u_proc::text OR (j ->> 'data_envio')::timestamptz < '2001-01-01' THEN
     PERFORM pg_temp.falha('E1 decisão: enviado_por/data_envio do eSocial não são de quem marcou o envio (' || r || ', ' || coalesce(j ->> 'enviado_por', 'nulo') || ')');
   END IF;
   -- payload do eSocial (CPF e remuneração) não vai para a trilha
-  r := pg_temp.insere_como(u_rh, 'authenticated', 'eventos_esocial', jsonb_build_object('id', ev2, 'tipo_evento', 'S-1200',
+  r := pg_temp.insere_como(u_proc, 'authenticated', 'eventos_esocial', jsonb_build_object('id', ev2, 'tipo_evento', 'S-1200',
          'payload', jsonb_build_object('cpfTrab', '55566677788', 'vrRemun', 12345.67),
          'payload_xml', '<cpfTrab>55566677788</cpfTrab><vrRemun>12345.67</vrRemun>'));
   SELECT to_jsonb(a) INTO j FROM public.audit_logs a WHERE a.entity_type = 'eventos_esocial' AND a.entity_id = ev2 AND a.action = 'create';
@@ -3140,7 +3140,7 @@ BEGIN
   IF r NOT LIKE 'erro:RHE01:%' THEN PERFORM pg_temp.falha('E3 CNAB: remessa de folha ABERTA aceita (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_admin, 'authenticated', format(ins_rem, gen_random_uuid(), fa, c1, 999, 'gerada'));
   IF r NOT LIKE 'erro:RHE01:%' THEN PERFORM pg_temp.falha('E3 CNAB: admin gera remessa de folha ABERTA (' || r || ')'); END IF;
-  r := pg_temp.sql_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), fa, sa, 'S-1200', 'pendente'));
+  r := pg_temp.sql_como(u_proc, 'authenticated', format(ins_ev, gen_random_uuid(), fa, sa, 'S-1200', 'pendente'));
   IF r NOT LIKE 'erro:RHE01:%' THEN PERFORM pg_temp.falha('E3 eSocial: evento de folha ABERTA aceito (' || r || ')'); END IF;
 
   -- ===== número da remessa: o do cliente é ignorado; segue o maior da conta; não muda depois
@@ -3171,7 +3171,8 @@ BEGIN
 
   -- ===== arquivo: caminho e sha256 juntos, uma vez, com financeiro.folha.processar
   r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.remessas_bancarias SET arquivo_path = %L, arquivo_sha256 = %L WHERE id = %L', rm1 || '.rem', hash1, rm1));
-  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('E3 CNAB: módulo rh SEM financeiro.folha.processar grava o arquivo (' || r || ')'); END IF;
+  -- sem a 20261011010100 o trigger recusa (42501); com ela a RLS de UPDATE já esconde a linha (0 linhas)
+  IF r NOT LIKE 'erro:42501:%' AND r <> 'ok:0' THEN PERFORM pg_temp.falha('E3 CNAB: módulo rh SEM financeiro.folha.processar grava o arquivo (' || r || ')'); END IF;
   FOREACH f IN ARRAY ARRAY[format('arquivo_path = %L, arquivo_sha256 = %L', 'outro.rem', hash1),
                            format('arquivo_sha256 = %L', hash1),
                            format('arquivo_path = %L, arquivo_sha256 = %L', rm1 || '.rem', upper(hash1)),
@@ -3239,19 +3240,19 @@ BEGIN
   END IF;
 
   -- ===== eSocial: sem repetição na mesma folha e servidor; 'erro' fica fora; folha do evento não vira aberta
-  r := pg_temp.exec_como(u_rh, 'authenticated', format(ins_ev, ev1, ff, sa, 'S-1200', 'pendente'));
+  r := pg_temp.exec_como(u_proc, 'authenticated', format(ins_ev, ev1, ff, sa, 'S-1200', 'pendente'));
   IF r <> 'ok' THEN PERFORM pg_temp.falha('E3 eSocial: evento de folha fechada recusado (' || r || ')'); END IF;
-  r := pg_temp.sql_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sa, 'S-1200', 'pendente'));
+  r := pg_temp.sql_como(u_proc, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sa, 'S-1200', 'pendente'));
   IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('E3 eSocial: S-1200 repetido para o mesmo servidor e folha (' || r || ')'); END IF;
-  r := pg_temp.sql_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sb, 'S-1200', 'pendente'));
+  r := pg_temp.sql_como(u_proc, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sb, 'S-1200', 'pendente'));
   IF r NOT LIKE 'ok:1' THEN PERFORM pg_temp.falha('E3 eSocial: S-1200 de outro servidor na mesma folha recusado (' || r || ')'); END IF;
-  r := pg_temp.exec_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, NULL, 'S-1299', 'pendente'));
-  r := r || '/' || pg_temp.sql_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, NULL, 'S-1299', 'pendente'));
+  r := pg_temp.exec_como(u_proc, 'authenticated', format(ins_ev, gen_random_uuid(), ff, NULL, 'S-1299', 'pendente'));
+  r := r || '/' || pg_temp.sql_como(u_proc, 'authenticated', format(ins_ev, gen_random_uuid(), ff, NULL, 'S-1299', 'pendente'));
   IF r NOT LIKE 'ok/erro:23505:%' THEN PERFORM pg_temp.falha('E3 eSocial: S-1299 (sem servidor) repetido na mesma folha (' || r || ')'); END IF;
-  r := pg_temp.exec_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sa, 'S-1200', 'erro'));
-  r := r || '/' || pg_temp.exec_como(u_rh, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sa, 'S-1200', 'erro'));
+  r := pg_temp.exec_como(u_proc, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sa, 'S-1200', 'erro'));
+  r := r || '/' || pg_temp.exec_como(u_proc, 'authenticated', format(ins_ev, gen_random_uuid(), ff, sa, 'S-1200', 'erro'));
   IF r <> 'ok/ok' THEN PERFORM pg_temp.falha('E3 eSocial: evento com erro de validação não pode ser gerado de novo (' || r || ')'); END IF;
-  r := pg_temp.sql_como(u_rh, 'authenticated', format('UPDATE public.eventos_esocial SET folha_id = %L WHERE id = %L', fa, ev1));
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('UPDATE public.eventos_esocial SET folha_id = %L WHERE id = %L', fa, ev1));
   IF r NOT LIKE 'erro:RHE01:%' THEN PERFORM pg_temp.falha('E3 eSocial: evento passou para folha ABERTA por UPDATE (' || r || ')'); END IF;
   -- transmitido só com recibo; rascunho = sem recibo
   IF (SELECT to_jsonb(e) ->> 'rascunho' FROM public.eventos_esocial e WHERE id = ev1) IS DISTINCT FROM 'true' THEN
@@ -3342,6 +3343,11 @@ END $$;
 --   * premissa: o papel `user` com o módulo rh tem financeiro.folha.visualizar (por isso a permissão nova) e, mesmo
 --     assim, não lê ficha nem item de ninguém; o papel manager com o módulo rh lê todas; o servidor sem módulo lê só
 --     as próprias (e os itens delas);
+--   * lancamentos_folha, consignacoes, pensoes_alimenticias, itens_retorno_bancario e eventos_esocial: mesma leitura
+--     (papel user e módulo sem código leem 0; manager, quem tem o código, quem processa e o admin leem tudo); quem só lê
+--     não altera, quem processa altera;
+--   * remessas_bancarias: o módulo lê; sem financeiro.folha.processar (papel user, só o módulo, só rh.contracheques.visualizar) não insere
+--     nem altera (o papel manager tem financeiro.folha.processar no catálogo);
 --   * remessas_bancarias e eventos_esocial: DELETE pela API recusado (42501) para o módulo, quem processa a folha e o
 --     admin; sem policy de DELETE e sem o privilégio.
 -- A semântica genérica (;leitura= e excluir=ninguem do mapa) é medida nos blocos por tabela, acima.
@@ -3412,6 +3418,47 @@ BEGIN
     IF n <> x.itens THEN PERFORM pg_temp.falha(format('E3 contracheques: %s lê %s item(ns), esperado %s', x.quem, n, x.itens)); END IF;
   END LOOP;
 
+  -- ===== remuneração e dado bancário por pessoa fora das fichas: mesma leitura (;leitura= do mapa)
+  FOREACH t IN ARRAY ARRAY['lancamentos_folha', 'consignacoes', 'pensoes_alimenticias', 'itens_retorno_bancario',
+                           'eventos_esocial'] LOOP
+    EXECUTE format('SELECT count(*) FROM public.%I', t) INTO total_f;
+    IF total_f = 0 THEN PERFORM pg_temp.falha('E3 remuneração: ' || t || ' sem semente'); CONTINUE; END IF;
+    FOR x IN SELECT * FROM (VALUES
+        ('papel user + módulo rh (financeiro.folha.visualizar)', u_user, 0),
+        ('módulo rh sem código', u_rh, 0),
+        ('papel manager + módulo rh', u_ger, total_f),
+        ('módulo rh + rh.contracheques.visualizar', u_cc, total_f),
+        ('módulo rh + financeiro.folha.processar', u_proc, total_f),
+        ('admin', u_admin, total_f)) AS v(quem, uid, linhas) LOOP
+      n := pg_temp.sel(x.uid, 'authenticated', t);
+      IF n <> x.linhas THEN PERFORM pg_temp.falha(format('E3 remuneração: %s lê %s linha(s) de %s, esperado %s', x.quem, n, t, x.linhas)); END IF;
+    END LOOP;
+    -- quem só lê (rh.contracheques.visualizar) não altera; quem processa altera
+    r := pg_temp.sql_como(u_cc, 'authenticated', format('UPDATE public.%I SET updated_at = updated_at', t));
+    IF r <> 'ok:0' THEN PERFORM pg_temp.falha(format('E3 remuneração: rh.contracheques.visualizar altera %s (%s)', t, r)); END IF;
+    r := pg_temp.sql_como(u_proc, 'authenticated', format('UPDATE public.%I SET updated_at = updated_at', t));
+    IF r NOT LIKE 'ok:%' OR r = 'ok:0' THEN PERFORM pg_temp.falha(format('E3 remuneração: financeiro.folha.processar não altera %s (%s)', t, r)); END IF;
+  END LOOP;
+
+  -- ===== remessas_bancarias: o módulo lê (só totais); INSERT/UPDATE só com financeiro.folha.processar
+  SELECT count(*) INTO total_f FROM public.remessas_bancarias;
+  IF total_f = 0 THEN PERFORM pg_temp.falha('E3 remessa: sem semente');
+  ELSE
+    FOR x IN SELECT * FROM (VALUES ('papel user + módulo rh', u_user), ('módulo rh sem código', u_rh),
+                                   ('módulo rh + financeiro.folha.processar', u_proc)) AS v(quem, uid) LOOP
+      n := pg_temp.sel(x.uid, 'authenticated', 'remessas_bancarias');
+      IF n <> total_f THEN PERFORM pg_temp.falha(format('E3 remessa: %s lê %s de %s remessa(s)', x.quem, n, total_f)); END IF;
+    END LOOP;
+    FOR x IN SELECT * FROM (VALUES ('papel user + módulo rh', u_user), ('módulo rh sem código', u_rh),
+                                   ('módulo rh + rh.contracheques.visualizar', u_cc)) AS v(quem, uid) LOOP
+      r := pg_temp.sql_como(x.uid, 'authenticated', 'UPDATE public.remessas_bancarias SET observacoes = observacoes');
+      IF r <> 'ok:0' THEN PERFORM pg_temp.falha(format('E3 remessa: %s altera remessa sem financeiro.folha.processar (%s)', x.quem, r)); END IF;
+      IF pg_temp.ins(x.uid, 'authenticated', 'remessas_bancarias') <> 'negado' THEN
+        PERFORM pg_temp.falha(format('E3 remessa: %s insere remessa sem financeiro.folha.processar', x.quem));
+      END IF;
+    END LOOP;
+  END IF;
+
   -- ===== sem DELETE pela API em remessas_bancarias e eventos_esocial
   FOREACH t IN ARRAY ARRAY['remessas_bancarias', 'eventos_esocial'] LOOP
     IF has_table_privilege('authenticated', 'public.' || t, 'DELETE') OR has_table_privilege('anon', 'public.' || t, 'DELETE') THEN
@@ -3426,7 +3473,7 @@ BEGIN
     END LOOP;
   END LOOP;
 
-  PERFORM pg_temp.nota('E3 (contracheques e DELETE): leitura de fichas e itens por permissão, papel user sem acesso, o próprio servidor e remessas/eventos sem DELETE verificados');
+  PERFORM pg_temp.nota('E3 (contracheques e DELETE): leitura de fichas, itens, lançamentos, consignações, pensões, retorno e eSocial por permissão, papel user sem acesso, o próprio servidor, escrita da remessa com processar e remessas/eventos sem DELETE verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

@@ -17491,7 +17491,7 @@ CREATE POLICY rls_delete ON public.itens_processo_licitatorio FOR DELETE TO auth
 -- Name: itens_retorno_bancario rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.itens_retorno_bancario FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_delete ON public.itens_retorno_bancario FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -17684,7 +17684,7 @@ CREATE POLICY rls_delete ON public.patrimonio_unidade FOR DELETE TO authenticate
 -- Name: pensoes_alimenticias rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.pensoes_alimenticias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_delete ON public.pensoes_alimenticias FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -18524,7 +18524,7 @@ CREATE POLICY rls_insert ON public.estrutura_organizacional FOR INSERT TO authen
 -- Name: eventos_esocial rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.eventos_esocial FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_insert ON public.eventos_esocial FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -18888,7 +18888,7 @@ CREATE POLICY rls_insert ON public.itens_processo_licitatorio FOR INSERT TO auth
 -- Name: itens_retorno_bancario rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.itens_retorno_bancario FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_insert ON public.itens_retorno_bancario FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -19083,7 +19083,7 @@ CREATE POLICY rls_insert ON public.patrimonio_unidade FOR INSERT TO authenticate
 -- Name: pensoes_alimenticias rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.pensoes_alimenticias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_insert ON public.pensoes_alimenticias FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -19195,7 +19195,7 @@ CREATE POLICY rls_insert ON public.registros_ponto FOR INSERT TO authenticated W
 -- Name: remessas_bancarias rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.remessas_bancarias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_insert ON public.remessas_bancarias FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -19755,7 +19755,7 @@ CREATE POLICY rls_select ON public.configuracao_jornada FOR SELECT TO authentica
 -- Name: consignacoes rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.consignacoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_select ON public.consignacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))));
 
 
 --
@@ -19937,7 +19937,7 @@ CREATE POLICY rls_select ON public.estrutura_organizacional FOR SELECT TO authen
 -- Name: eventos_esocial rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.eventos_esocial FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_select ON public.eventos_esocial FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))));
 
 
 --
@@ -20354,7 +20354,7 @@ CREATE POLICY rls_select ON public.itens_processo_licitatorio FOR SELECT TO auth
 -- Name: itens_retorno_bancario rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.itens_retorno_bancario FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_select ON public.itens_retorno_bancario FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))));
 
 
 --
@@ -20379,7 +20379,7 @@ CREATE POLICY rls_select ON public.lancamentos_banco_horas FOR SELECT TO authent
 -- Name: lancamentos_folha rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.lancamentos_folha FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_select ON public.lancamentos_folha FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))));
 
 
 --
@@ -20547,7 +20547,7 @@ CREATE POLICY rls_select ON public.patrimonio_unidade FOR SELECT TO authenticate
 -- Name: pensoes_alimenticias rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.pensoes_alimenticias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_select ON public.pensoes_alimenticias FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))));
 
 
 --
@@ -21401,7 +21401,7 @@ CREATE POLICY rls_update ON public.estrutura_organizacional FOR UPDATE TO authen
 -- Name: eventos_esocial rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.eventos_esocial FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_update ON public.eventos_esocial FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -21765,7 +21765,7 @@ CREATE POLICY rls_update ON public.itens_processo_licitatorio FOR UPDATE TO auth
 -- Name: itens_retorno_bancario rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.itens_retorno_bancario FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_update ON public.itens_retorno_bancario FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -21962,7 +21962,7 @@ CREATE POLICY rls_update ON public.patrimonio_unidade FOR UPDATE TO authenticate
 -- Name: pensoes_alimenticias rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.pensoes_alimenticias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_update ON public.pensoes_alimenticias FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
@@ -22074,7 +22074,7 @@ CREATE POLICY rls_update ON public.registros_ponto FOR UPDATE TO authenticated U
 -- Name: remessas_bancarias rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.remessas_bancarias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_update ON public.remessas_bancarias FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
 
 
 --
