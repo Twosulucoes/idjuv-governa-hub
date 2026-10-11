@@ -704,44 +704,8 @@ export function useSaveDependenteIRRF() {
   });
 }
 
-// ============== CRIAR REMESSA BANCÁRIA ==============
-export function useCreateRemessaBancaria() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (remessa: {
-      folha_id: string;
-      conta_autarquia_id: string;
-      numero_remessa: number;
-      quantidade_registros: number;
-      valor_total: number;
-      nome_arquivo: string;
-      layout?: string;
-      status?: string;
-    }) => {
-      const { data, error } = await supabase
-        .from('remessas_bancarias')
-        .insert({
-          folha_id: remessa.folha_id,
-          conta_autarquia_id: remessa.conta_autarquia_id,
-          numero_remessa: remessa.numero_remessa,
-          quantidade_registros: remessa.quantidade_registros,
-          valor_total: remessa.valor_total,
-          nome_arquivo: remessa.nome_arquivo,
-          layout: remessa.layout || 'cnab240',
-          status: remessa.status || 'gerada',
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['remessas-bancarias', variables.folha_id] });
-      toast.success('Remessa bancária gerada!');
-    },
-    onError: (e: Error) => { toast.error(`Erro: ${e.message}`); },
-  });
-}
+// ============== REMESSA BANCÁRIA: geração, arquivo guardado e cancelamento ==============
+// Em src/hooks/useArquivosFolha.ts (onda E3): o número vem do banco no INSERT e não há exclusão.
 
 // ============== CRIAR EVENTO ESOCIAL ==============
 export function useCreateEventoESocial() {

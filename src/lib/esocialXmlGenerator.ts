@@ -1,11 +1,30 @@
 /**
  * Gerador de XML eSocial - Versão S-1.3 (v_S_01_03_00)
- * Conforme schemas XSD oficiais
+ * Estrutura baseada nos schemas XSD oficiais, mas SEM validação de XSD, assinatura, lote ou transmissão: o que sai
+ * daqui é RASCUNHO, não transmitido (a transmissão de verdade é a onda G da revisão do RH).
  */
 
 // Constantes de versão e namespaces
 export const ESOCIAL_VERSION = "S_01_03_00";
-export const ESOCIAL_PROC_VERSION = "IDJuv_1.0.0";
+// verProc: versão do aplicativo emissor (neutro: não leva o nome da instituição).
+export const ESOCIAL_PROC_VERSION = "GovernaHub_1.0.0";
+
+/**
+ * Ambiente (tpAmb) a partir de `config_autarquia.esocial_ambiente`. A tela de configuração grava "1 - Produção" ou
+ * "2 - Produção Restrita (Homologação)"; aceita também "producao"/"homologacao". Nulo: não configurado.
+ */
+export function ambienteESocial(valor: string | null | undefined): 1 | 2 | null {
+  const v = (valor ?? "").trim().toLowerCase();
+  if (!v) return null;
+  if (v.startsWith("1") || v === "producao" || v === "produção") return 1;
+  if (v.startsWith("2") || v.includes("restrita") || v.includes("homolog")) return 2;
+  return null;
+}
+
+export const AMBIENTE_ESOCIAL_LABELS: Record<1 | 2, string> = {
+  1: "Produção",
+  2: "Produção restrita (homologação)",
+};
 
 export const ESOCIAL_NAMESPACES = {
   S1200: "http://www.esocial.gov.br/schema/evt/evtRemun/v_S_01_03_00",
@@ -380,6 +399,8 @@ export const RUBRICAS_ESOCIAL = {
 
 /**
  * Função auxiliar para criar DetVerbas a partir de item da ficha financeira
+ * Pendente (onda G): codRubr ainda vem do id da rubrica (UUID cortado) ou da descrição, e ideTabRubr é fixo "01";
+ * a tabela de rubricas do eSocial (S-1010, natRubr, codInc*) não existe ainda.
  */
 export function criarDetVerbas(
   codigoRubrica: string,

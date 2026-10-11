@@ -4,18 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Download, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { Loader2, Download, AlertTriangle, CheckCircle2, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { gerarCNAB240, downloadCNAB, type DadosEmpresa, type DadosFavorecido } from "@/lib/cnabGenerator";
-import { useRegistrarEvento, MSG_FALHA_REGISTRO } from "@/hooks/useTrilhaAuditoria";
+import {
+  fichaTemBanco,
+  montarDadosRemessa,
+  useDadosRemessaCNAB,
+  useGerarRemessaCNAB,
+} from "@/hooks/useArquivosFolha";
 
 interface GerarRemessaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   folhaId: string;
   competencia: string;
+  competenciaAno: number;
+  competenciaMes: number;
+  /** A remessa só é gerada com a folha fechada (o banco também recusa). */
+  folhaFechada: boolean;
 }
 
 export function GerarRemessaDialog({
@@ -23,62 +29,25 @@ export function GerarRemessaDialog({
   onOpenChange,
   folhaId,
   competencia,
+  competenciaAno,
+  competenciaMes,
+  folhaFechada,
 }: GerarRemessaDialogProps) {
   const [contaSelecionada, setContaSelecionada] = useState<string>("");
   const [gerando, setGerando] = useState(false);
+  const [faltas, setFaltas] = useState<string[]>([]);
   const [resultado, setResultado] = useState<{ sucesso: boolean; mensagem: string; arquivo?: string } | null>(null);
-  const queryClient = useQueryClient();
-  const { registrarAntes } = useRegistrarEvento();
-
-  // Buscar contas disponíveis
-  const { data: contas, isLoading: loadingContas } = useQuery({
-    queryKey: ["contas-autarquia-ativas"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contas_autarquia")
-        .select(`*, banco:bancos_cnab(id, codigo_banco, nome)`)
-        .eq("ativo", true)
-        .order("descricao");
-      if (error) throw error;
-      return data;
-    },
-    enabled: open,
-  });
-
-  // Buscar config da autarquia
-  const { data: config } = useQuery({
-    queryKey: ["config-autarquia"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("config_autarquia")
-        .select("*")
-        .eq("ativo", true)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      return data;
-    },
-    enabled: open,
-  });
-
-  // Buscar fichas financeiras da folha
-  const { data: fichas } = useQuery({
-    queryKey: ["fichas-para-remessa", folhaId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("fichas_financeiras")
-        .select(`
-          *,
-          servidor:servidores(id, nome_completo, cpf)
-        `)
-        .eq("folha_id", folhaId)
-        .gt("valor_liquido", 0);
-      if (error) throw error;
-      return data;
-    },
-    enabled: open,
-  });
+  const { contas: qContas, config: qConfig, fichas: qFichas } = useDadosRemessaCNAB(folhaId, open);
+  const contas = qContas.data;
+  const config = qConfig.data;
+  const fichas = qFichas.data;
+  const gerarRemessa = useGerarRemessaCNAB();
 
   const handleGerar = async () => {
+    if (!folhaFechada) {
+      toast.error("Feche a folha antes de gerar a remessa.");
+      return;
+    }
     if (!contaSelecionada || !config || !fichas) {
       toast.error("Selecione uma conta e verifique os dados");
       return;
@@ -90,124 +59,51 @@ export function GerarRemessaDialog({
       return;
     }
 
-    setGerando(true);
+    setFaltas([]);
     setResultado(null);
 
+    if (!fichas.some(fichaTemBanco)) {
+      setResultado({ sucesso: false, mensagem: "Nenhum servidor com dados bancários completos encontrado." });
+      return;
+    }
+
+    // Data de crédito: D+2 da geração (conferir no manual do banco o prazo do convênio)
+    const dataCredito = new Date();
+    dataCredito.setDate(dataCredito.getDate() + 2);
+
+    // Faltou dado obrigatório no cadastro: recusa e diz qual
+    const { empresa, favorecidos, faltas: pendentes } = montarDadosRemessa(config, contaInfo, fichas, dataCredito);
+    if (pendentes.length > 0) {
+      setFaltas(pendentes);
+      return;
+    }
+
+    setGerando(true);
     try {
-      // Verificar servidores com dados bancários (usando dados da ficha)
-      const fichasValidas = fichas.filter(
-        (f) => f.banco_codigo && f.banco_agencia && f.banco_conta
-      );
-
-      if (fichasValidas.length === 0) {
-        setResultado({
-          sucesso: false,
-          mensagem: "Nenhum servidor com dados bancários completos encontrado.",
-        });
-        return;
-      }
-
-      // Buscar próximo número de remessa
-      const { data: numeroRemessa } = await supabase.rpc("get_proximo_numero_remessa", {
-        p_conta_id: contaSelecionada,
-        p_ano: new Date().getFullYear(),
-      });
-
-      // Preparar dados da empresa
-      const empresa: DadosEmpresa = {
-        cnpj: config.cnpj,
-        razaoSocial: config.razao_social,
-        banco: (contaInfo.banco as any)?.codigo_banco || "001",
-        agencia: contaInfo.agencia,
-        agenciaDigito: contaInfo.agencia_digito || "",
-        conta: contaInfo.conta,
-        contaDigito: contaInfo.conta_digito || "",
-        convenio: contaInfo.convenio_pagamento || "",
-      };
-
-      // Preparar dados dos favorecidos
-      const dataCredito = new Date();
-      dataCredito.setDate(dataCredito.getDate() + 2); // D+2
-
-      const favorecidos: DadosFavorecido[] = fichasValidas.map((f) => ({
-        nome: f.servidor?.nome_completo || "",
-        cpf: f.servidor?.cpf || "",
-        banco: f.banco_codigo || "001",
-        agencia: f.banco_agencia || "",
-        agenciaDigito: "",
-        conta: f.banco_conta || "",
-        contaDigito: "",
-        tipoConta: (f.banco_tipo_conta === "poupanca" ? "CP" : "CC") as "CC" | "CP",
-        valor: f.valor_liquido || 0,
-        dataCredito,
-        identificador: f.id.substring(0, 20),
-      }));
-
-      // Gerar arquivo CNAB
-      const conteudo = gerarCNAB240({
+      const r = await gerarRemessa({
+        folhaId,
+        contaId: contaSelecionada,
+        competenciaAno,
+        competenciaMes,
         empresa,
         favorecidos,
-        numeroRemessa: numeroRemessa || 1,
-        dataGeracao: new Date(),
       });
-
-      // Calcular valor total
-      const valorTotal = favorecidos.reduce((sum, f) => sum + f.valor, 0);
-
-      // Nome do arquivo
-      const nomeArquivo = `REMESSA_${competencia.replace("/", "_")}_${(numeroRemessa || 1).toString().padStart(3, "0")}.REM`;
-
-      // Trilha: o arquivo CNAB só é gravado e entregue depois de registrado (sem registro, sem arquivo)
-      const registrado = await registrarAntes({
-        acao: "download",
-        entidade: "arquivo_cnab",
-        entidadeId: folhaId,
-        descricao: `Remessa CNAB 240 ${nomeArquivo} gerada`,
-        metadados: {
-          folha_id: folhaId,
-          conta_autarquia_id: contaSelecionada,
-          numero_remessa: numeroRemessa || 1,
-          nome_arquivo: nomeArquivo,
-          quantidade_registros: favorecidos.length,
-          valor_total: valorTotal,
-          layout: "CNAB240",
-        },
-      });
-      if (!registrado) {
-        setResultado({ sucesso: false, mensagem: MSG_FALHA_REGISTRO });
+      if (r.ok === false) {
+        setResultado({ sucesso: false, mensagem: r.mensagem });
+        toast.error("Remessa não gerada");
         return;
       }
-
-      // Salvar registro no banco
-      const { error: insertError } = await supabase.from("remessas_bancarias").insert({
-        folha_id: folhaId,
-        conta_autarquia_id: contaSelecionada,
-        numero_remessa: numeroRemessa || 1,
-        nome_arquivo: nomeArquivo,
-        layout: "CNAB240",
-        quantidade_registros: favorecidos.length,
-        valor_total: valorTotal,
-        status: "gerada",
-      });
-
-      if (insertError) throw insertError;
-
-      // Download do arquivo
-      downloadCNAB(conteudo, nomeArquivo);
-
       setResultado({
         sucesso: true,
-        mensagem: `Remessa gerada com sucesso! ${favorecidos.length} pagamentos totalizando R$ ${valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`,
-        arquivo: nomeArquivo,
+        mensagem: `Remessa nº ${r.numero} gerada e guardada. ${r.quantidade} pagamentos totalizando R$ ${r.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`,
+        arquivo: r.nomeArquivo,
       });
-
-      queryClient.invalidateQueries({ queryKey: ["remessas-bancarias"] });
       toast.success("Arquivo CNAB gerado com sucesso!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao gerar remessa:", error);
       setResultado({
         sucesso: false,
-        mensagem: error.message || "Erro ao gerar arquivo de remessa.",
+        mensagem: error instanceof Error && error.message ? error.message : "Erro ao gerar arquivo de remessa.",
       });
       toast.error("Erro ao gerar remessa");
     } finally {
@@ -218,15 +114,14 @@ export function GerarRemessaDialog({
   const handleClose = () => {
     if (!gerando) {
       setResultado(null);
+      setFaltas([]);
       setContaSelecionada("");
       onOpenChange(false);
     }
   };
 
   // Verificar pré-requisitos
-  const servidoresSemBanco = fichas?.filter(
-    (f) => !f.banco_codigo || !f.banco_agencia || !f.banco_conta
-  ).length || 0;
+  const servidoresSemBanco = fichas?.filter((f) => !fichaTemBanco(f)).length || 0;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -241,6 +136,17 @@ export function GerarRemessaDialog({
         <div className="space-y-4 py-4">
           {!resultado && (
             <>
+              {!folhaFechada && (
+                <Alert variant="destructive">
+                  <Lock className="h-4 w-4" />
+                  <AlertTitle>Folha não fechada</AlertTitle>
+                  <AlertDescription>
+                    A remessa bancária só pode ser gerada com a folha fechada, para o arquivo pagar exatamente o que
+                    foi conferido. Feche a folha e volte aqui.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {!config?.cnpj && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
@@ -262,12 +168,30 @@ export function GerarRemessaDialog({
                 </Alert>
               )}
 
+              {faltas.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Faltam dados no cadastro</AlertTitle>
+                  <AlertDescription>
+                    <p>A remessa não foi gerada. Complete:</p>
+                    <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                      {faltas.map((f) => (
+                        <li key={f}>{f}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="space-y-2">
                 <Label>Conta para Débito</Label>
                 <Select
                   value={contaSelecionada}
-                  onValueChange={setContaSelecionada}
-                  disabled={loadingContas}
+                  onValueChange={(v) => {
+                    setContaSelecionada(v);
+                    setFaltas([]);
+                  }}
+                  disabled={qContas.isLoading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a conta..." />
@@ -286,7 +210,8 @@ export function GerarRemessaDialog({
                 <div className="text-sm text-muted-foreground">
                   <p>
                     Serão gerados <strong>{fichas.length - servidoresSemBanco}</strong>{" "}
-                    pagamentos no arquivo.
+                    pagamentos no arquivo. O arquivo fica guardado (com hash) e pode ser baixado de novo na aba
+                    Remessas.
                   </p>
                 </div>
               )}
@@ -296,15 +221,15 @@ export function GerarRemessaDialog({
           {gerando && (
             <div className="flex flex-col items-center justify-center py-8 gap-4">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-muted-foreground">Gerando arquivo CNAB240...</p>
+              <p className="text-muted-foreground">Gerando e guardando o arquivo CNAB240...</p>
             </div>
           )}
 
           {resultado && resultado.sucesso && (
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertTitle className="text-green-800">Remessa Gerada</AlertTitle>
-              <AlertDescription className="text-green-700">
+            <Alert className="border-success/30 bg-success/10">
+              <CheckCircle2 className="h-4 w-4 text-success" />
+              <AlertTitle className="text-success">Remessa Gerada</AlertTitle>
+              <AlertDescription className="text-success">
                 <p>{resultado.mensagem}</p>
                 <p className="mt-2 font-medium">Arquivo: {resultado.arquivo}</p>
               </AlertDescription>
@@ -328,7 +253,8 @@ export function GerarRemessaDialog({
               </Button>
               <Button
                 onClick={handleGerar}
-                disabled={gerando || !contaSelecionada || !config?.cnpj}
+                disabled={gerando || !folhaFechada || !contaSelecionada || !config?.cnpj}
+                title={!folhaFechada ? "Disponível com a folha fechada" : undefined}
               >
                 {gerando ? (
                   <>

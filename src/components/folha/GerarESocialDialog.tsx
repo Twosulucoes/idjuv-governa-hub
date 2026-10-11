@@ -1,19 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, FileText, AlertTriangle, Download, Copy, Code2, FileCode } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, AlertTriangle, Download, Copy, Code2, FileCode, Lock, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   validarTrabalhadorESocial,
   type DadosTrabalhador,
-  type ItemRemuneracao,
 } from "@/lib/esocialGenerator";
 import {
   gerarXmlS1200,
@@ -24,6 +23,8 @@ import {
   criarDetVerbas,
   downloadXml,
   validarXmlBasico,
+  ambienteESocial,
+  AMBIENTE_ESOCIAL_LABELS,
   ESOCIAL_PROC_VERSION,
   type EventoS1200Xml,
   type EventoS1210Xml,
@@ -31,6 +32,15 @@ import {
   type DetVerbas,
 } from "@/lib/esocialXmlGenerator";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
+import { useConfigAutarquia, useEventosESocialFolha } from "@/hooks/useFolhaPagamento";
+import {
+  dataPagamentoNaCompetencia,
+  nomeArquivoEventoESocial,
+  useDiaPagamentoFolha,
+  useFichasESocial,
+  useGravarEventosESocial,
+  type EventoExistente,
+} from "@/hooks/useArquivosFolha";
 
 interface GerarESocialDialogProps {
   open: boolean;
@@ -39,17 +49,27 @@ interface GerarESocialDialogProps {
   competencia: string;
   mes: number;
   ano: number;
+  /** Eventos só são gerados com a folha fechada (o banco também recusa). */
+  folhaFechada: boolean;
 }
+
+/** gravado: novo; existente: já estava gravado (índice único), mostra o gravado; erro: não gravado, não sai da tela. */
+type SituacaoEvento = "gravado" | "existente" | "erro";
 
 interface EventoGerado {
   tipo: string;
+  servidorId: string | null;
   servidorNome?: string;
   json: string;
   xml: string;
   idEvento: string;
   erros: string[];
   xmlValido: boolean;
+  situacao?: SituacaoEvento;
+  mensagemGravacao?: string;
 }
+
+const podeSair = (e: EventoGerado) => (e.situacao === "gravado" || e.situacao === "existente") && !!e.xml;
 
 export function GerarESocialDialog({
   open,
@@ -58,9 +78,12 @@ export function GerarESocialDialog({
   competencia,
   mes,
   ano,
+  folhaFechada,
 }: GerarESocialDialogProps) {
   const [gerando, setGerando] = useState(false);
   const [eventosGerados, setEventosGerados] = useState<EventoGerado[]>([]);
+  const [errosGravacao, setErrosGravacao] = useState<string[]>([]);
+  const [dataPagamento, setDataPagamento] = useState("");
   const [tabAtiva, setTabAtiva] = useState("s1200");
   const [formatoVisualizacao, setFormatoVisualizacao] = useState<"json" | "xml">("xml");
   const { registrarAntes } = useRegistrarEvento();
@@ -83,54 +106,52 @@ export function GerarESocialDialog({
       },
     });
 
-  // Buscar config da autarquia
-  const { data: config } = useQuery({
-    queryKey: ["config-autarquia"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("config_autarquia")
-        .select("*")
-        .eq("ativo", true)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      return data;
-    },
-    enabled: open,
-  });
+  const { data: config } = useConfigAutarquia();
+  const { data: fichas } = useFichasESocial(folhaId, open);
+  const { data: diaPagamento } = useDiaPagamentoFolha(open);
+  const { data: eventosExistentes } = useEventosESocialFolha(open ? folhaId : undefined);
+  const gravarEventos = useGravarEventosESocial();
 
-  // Buscar fichas financeiras com itens
-  const { data: fichas } = useQuery({
-    queryKey: ["fichas-esocial", folhaId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("fichas_financeiras")
-        .select(`
-          *,
-          servidor:servidores(id, nome_completo, cpf, pis_pasep, matricula),
-          itens:itens_ficha_financeira(*)
-        `)
-        .eq("folha_id", folhaId);
-      if (error) throw error;
-      return data;
-    },
-    enabled: open,
-  });
+  // Ambiente lido da configuração (Configurações da Folha → eSocial); sem configuração, não gera.
+  const ambiente = ambienteESocial(config?.esocial_ambiente);
+
+  // Data de pagamento (dtPgto do S-1210): sugere o dia de pagamento da configuração de fechamento no mês da competência.
+  const [dataSugerida, setDataSugerida] = useState(false);
+  useEffect(() => {
+    if (!open || dataSugerida || !diaPagamento) return;
+    setDataPagamento(dataPagamentoNaCompetencia(ano, mes, diaPagamento));
+    setDataSugerida(true);
+  }, [open, dataSugerida, diaPagamento, ano, mes]);
 
   const handleGerarEventos = async () => {
+    if (!folhaFechada) {
+      toast.error("Feche a folha antes de gerar os eventos do eSocial.");
+      return;
+    }
     if (!config || !fichas) {
       toast.error("Dados incompletos para geração");
+      return;
+    }
+    if (!ambiente) {
+      toast.error("Escolha o ambiente do eSocial em Configurações da Folha.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataPagamento)) {
+      toast.error("Informe a data de pagamento da folha.");
       return;
     }
 
     setGerando(true);
     setEventosGerados([]);
+    setErrosGravacao([]);
 
     try {
       const competenciaFormatada = formatarPeriodo(ano, mes);
+      // S-1210 é apurado pelo mês do pagamento (dtPgto dentro de perApur; conferir no leiaute S-1.3).
+      const periodoPagamento = dataPagamento.substring(0, 7);
       const eventos: EventoGerado[] = [];
       const cnpjLimpo = config.cnpj.replace(/\D/g, "");
       const cnpjRaiz = cnpjLimpo.substring(0, 8);
-      const ambiente = config.esocial_ambiente === "producao" ? 1 : 2;
 
       // Gerar S-1200 e S-1210 para cada servidor
       let sequencial = 1;
@@ -142,6 +163,7 @@ export function GerarESocialDialog({
           pis: ficha.servidor.pis_pasep || "",
           nome: ficha.servidor.nome_completo || "",
           matricula: ficha.servidor.matricula || "",
+          // Pendente (onda G): categoria fixa 101; estatutário e comissionado são 3xx (conferir), sem cadastro no vínculo.
           categoria: 101,
         };
 
@@ -197,7 +219,7 @@ export function GerarESocialDialog({
           ideEvento: {
             indRetif: 1,
             perApur: competenciaFormatada,
-            tpAmb: ambiente as 1 | 2,
+            tpAmb: ambiente,
             procEmi: 1,
             verProc: ESOCIAL_PROC_VERSION,
           },
@@ -217,7 +239,7 @@ export function GerarESocialDialog({
                   {
                     tpInsc: 1,
                     nrInsc: cnpjLimpo,
-                    codLotacao: "001",
+                    codLotacao: "001", // Pendente (onda G): lotação tributária fixa, sem S-1020
                     detVerbas,
                   },
                 ],
@@ -231,6 +253,7 @@ export function GerarESocialDialog({
 
         eventos.push({
           tipo: "S-1200",
+          servidorId: ficha.servidor.id,
           servidorNome: ficha.servidor.nome_completo,
           json: JSON.stringify(eventoS1200, null, 2),
           xml: xmlS1200,
@@ -246,8 +269,8 @@ export function GerarESocialDialog({
         const eventoS1210: EventoS1210Xml = {
           ideEvento: {
             indRetif: 1,
-            perApur: competenciaFormatada,
-            tpAmb: ambiente as 1 | 2,
+            perApur: periodoPagamento,
+            tpAmb: ambiente,
             procEmi: 1,
             verProc: ESOCIAL_PROC_VERSION,
           },
@@ -259,7 +282,7 @@ export function GerarESocialDialog({
             cpfBenef: cpfLimpo,
             infoPgto: [
               {
-                dtPgto: `${ano}-${mes.toString().padStart(2, "0")}-05`,
+                dtPgto: dataPagamento,
                 tpPgto: 1,
                 perRef: competenciaFormatada,
                 ideDmDev: idDemonstativo,
@@ -274,6 +297,7 @@ export function GerarESocialDialog({
 
         eventos.push({
           tipo: "S-1210",
+          servidorId: ficha.servidor.id,
           servidorNome: ficha.servidor.nome_completo,
           json: JSON.stringify(eventoS1210, null, 2),
           xml: xmlS1210,
@@ -291,7 +315,7 @@ export function GerarESocialDialog({
       const eventoS1299: EventoS1299Xml = {
         ideEvento: {
           perApur: competenciaFormatada,
-          tpAmb: ambiente as 1 | 2,
+          tpAmb: ambiente,
           procEmi: 1,
           verProc: ESOCIAL_PROC_VERSION,
         },
@@ -314,6 +338,7 @@ export function GerarESocialDialog({
 
       eventos.push({
         tipo: "S-1299",
+        servidorId: null,
         json: JSON.stringify(eventoS1299, null, 2),
         xml: xmlS1299,
         idEvento: idEventoS1299,
@@ -321,25 +346,39 @@ export function GerarESocialDialog({
         xmlValido: validacaoS1299.valido,
       });
 
-      setEventosGerados(eventos);
+      // Gravar no banco (um a um, conferindo o erro). Já existente (índice único): mostra o gravado, sem duplicar.
+      const resultados = await gravarEventos(folhaId, { ano, mes }, eventos);
+      const finais: EventoGerado[] = eventos.map((ev, i) => {
+        const r = resultados[i];
+        if (r.situacao === "gravado") return { ...ev, situacao: "gravado" };
+        if (r.situacao === "erro") return { ...ev, situacao: "erro", mensagemGravacao: r.mensagem };
+        const existente: EventoExistente | null = r.existente;
+        return {
+          ...ev,
+          situacao: "existente",
+          idEvento: existente?.id_evento || ev.idEvento,
+          xml: existente?.payload_xml ?? "",
+          json: existente ? JSON.stringify(existente.payload, null, 2) : "",
+          erros: [],
+          xmlValido: !!existente?.payload_xml,
+          mensagemGravacao: existente ? undefined : "Já existe na folha, mas não foi possível ler o gravado.",
+        };
+      });
+      const falhas = [...new Set(finais.filter((e) => e.situacao === "erro").map((e) => e.mensagemGravacao ?? ""))];
+      const novos = finais.filter((e) => e.situacao === "gravado").length;
+      const existentes = finais.filter((e) => e.situacao === "existente").length;
 
-      // Salvar eventos no banco
-      for (const evento of eventos) {
-        await supabase.from("eventos_esocial").insert({
-          tipo_evento: evento.tipo,
-          folha_id: folhaId,
-          competencia_mes: mes,
-          competencia_ano: ano,
-          id_evento: evento.idEvento,
-          payload: JSON.parse(evento.json),
-          payload_xml: evento.xml,
-          status: evento.erros.length > 0 ? "erro" : "pendente",
-          mensagem_retorno: evento.erros.length > 0 ? evento.erros.join("; ") : null,
-        });
+      setErrosGravacao(falhas);
+      // Nada gravado nem existente (ex.: o banco recusou a folha): só o erro na tela, sem eventos para baixar.
+      setEventosGerados(novos + existentes > 0 ? finais : []);
+
+      if (falhas.length > 0) toast.error(`Eventos não gravados: ${falhas[0]}`);
+      if (novos + existentes > 0) {
+        toast.success(
+          `${novos} evento(s) gravado(s) como rascunho${existentes ? `; ${existentes} já existia(m) e não foram duplicados` : ""}.`,
+        );
       }
-
-      toast.success(`${eventos.length} eventos XML gerados com sucesso!`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao gerar eventos:", error);
       toast.error("Erro ao gerar eventos eSocial");
     } finally {
@@ -359,25 +398,29 @@ export function GerarESocialDialog({
   };
 
   const handleDownloadXml = async (evento: EventoGerado) => {
-    if (!(await registrarSaidaESocial("download", [evento], "baixado (XML)"))) return;
-    const nomeArquivo = `${evento.tipo}_${evento.servidorNome?.replace(/\s+/g, "_") || "fechamento"}_${competencia}.xml`;
-    downloadXml(evento.xml, nomeArquivo);
-    toast.success("XML baixado!");
+    if (!podeSair(evento)) return;
+    if (!(await registrarSaidaESocial("download", [evento], "baixado (XML, rascunho)"))) return;
+    downloadXml(evento.xml, nomeArquivoEventoESocial(evento.tipo, evento.servidorNome, ano, mes));
+    toast.success("XML (rascunho) baixado!");
   };
 
   const handleDownloadTodosXml = async () => {
-    if (!(await registrarSaidaESocial("download", eventosGerados, "baixados (XML, todos)"))) return;
+    const disponiveis = eventosGerados.filter(podeSair);
+    if (disponiveis.length === 0) return;
+    if (!(await registrarSaidaESocial("download", disponiveis, "baixados (XML, todos, rascunho)"))) return;
     // Download individual de cada XML
-    for (const evento of eventosGerados) {
-      const nomeArquivo = `${evento.tipo}_${evento.servidorNome?.replace(/\s+/g, "_") || "fechamento"}_${competencia}.xml`;
-      downloadXml(evento.xml, nomeArquivo);
+    for (const evento of disponiveis) {
+      downloadXml(evento.xml, nomeArquivoEventoESocial(evento.tipo, evento.servidorNome, ano, mes));
     }
-    toast.success(`${eventosGerados.length} arquivos XML baixados!`);
+    toast.success(`${disponiveis.length} arquivos XML (rascunho) baixados!`);
   };
 
   const handleClose = () => {
     if (!gerando) {
       setEventosGerados([]);
+      setErrosGravacao([]);
+      setDataPagamento("");
+      setDataSugerida(false);
       onOpenChange(false);
     }
   };
@@ -389,19 +432,26 @@ export function GerarESocialDialog({
   const renderEvento = (evento: EventoGerado, idx: number) => (
     <div key={idx} className="border rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{evento.servidorNome || "Fechamento da Competência"}</span>
-          {evento.xmlValido ? (
-            <Badge variant="outline" className="text-green-600 border-green-600">
-              XML Válido
+          {evento.situacao === "existente" && (
+            <Badge variant="secondary" title="Gerar de novo não duplica: este é o evento já gravado na folha">
+              Já existia — mostrando o gravado
             </Badge>
-          ) : (
-            <Badge variant="destructive">Pendências</Badge>
           )}
+          {evento.situacao === "erro" && <Badge variant="destructive">Não gravado</Badge>}
+          {evento.situacao !== "erro" &&
+            (evento.xmlValido ? (
+              <Badge variant="outline" className="text-success border-success">
+                XML com estrutura básica
+              </Badge>
+            ) : (
+              <Badge variant="destructive">Pendências</Badge>
+            ))}
         </div>
         <div className="flex items-center gap-1">
           {evento.erros.length > 0 && (
-            <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded mr-2">
+            <span className="text-xs text-warning bg-warning/10 px-2 py-1 rounded mr-2">
               {evento.erros.length} pendência(s)
             </span>
           )}
@@ -410,6 +460,7 @@ export function GerarESocialDialog({
             size="sm"
             onClick={() => handleCopiar(formatoVisualizacao === "xml" ? evento.xml : evento.json, formatoVisualizacao.toUpperCase(), evento)}
             title="Copiar"
+            disabled={!podeSair(evento)}
           >
             <Copy className="h-4 w-4" />
           </Button>
@@ -417,23 +468,28 @@ export function GerarESocialDialog({
             variant="ghost"
             size="sm"
             onClick={() => handleDownloadXml(evento)}
-            title="Baixar XML"
+            title={evento.situacao === "existente" ? "Baixar o evento já gravado (rascunho)" : "Baixar XML (rascunho)"}
+            disabled={!podeSair(evento)}
           >
             <Download className="h-4 w-4" />
           </Button>
         </div>
       </div>
-      
+
+      {evento.mensagemGravacao && (
+        <div className="text-sm text-destructive mb-2 bg-destructive/10 p-2 rounded">{evento.mensagemGravacao}</div>
+      )}
+
       {evento.erros.length > 0 && (
-        <div className="text-sm text-orange-600 mb-2 bg-orange-50 p-2 rounded">
+        <div className="text-sm text-warning mb-2 bg-warning/10 p-2 rounded">
           {evento.erros.join(", ")}
         </div>
       )}
-      
+
       <div className="text-xs text-muted-foreground mb-1">
         ID: {evento.idEvento}
       </div>
-      
+
       <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-48 whitespace-pre-wrap">
         {formatoVisualizacao === "xml" ? evento.xml : evento.json}
       </pre>
@@ -446,17 +502,59 @@ export function GerarESocialDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileCode className="h-5 w-5" />
-            Gerar Eventos eSocial (XML v. S-1.3)
+            Gerar Eventos eSocial (XML v. S-1.3) — rascunho
           </DialogTitle>
           <DialogDescription>
             Competência: <strong>{competencia}</strong> | Ambiente:{" "}
-            <Badge variant={config?.esocial_ambiente === "producao" ? "default" : "secondary"}>
-              {config?.esocial_ambiente === "producao" ? "Produção" : "Homologação"}
+            <Badge variant={ambiente === 1 ? "default" : "secondary"}>
+              {ambiente ? AMBIENTE_ESOCIAL_LABELS[ambiente] : "não configurado"}
             </Badge>
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-auto space-y-4">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Rascunho, não transmitido</AlertTitle>
+            <AlertDescription>
+              Este sistema ainda não assina nem envia eventos ao eSocial. Os XML gerados aqui são rascunho para
+              conferência: não valem como envio e saem com "RASCUNHO_NAO_TRANSMITIDO" no nome do arquivo.
+            </AlertDescription>
+          </Alert>
+
+          {!folhaFechada && (
+            <Alert variant="destructive">
+              <Lock className="h-4 w-4" />
+              <AlertTitle>Folha não fechada</AlertTitle>
+              <AlertDescription>
+                Os eventos do eSocial só podem ser gerados com a folha fechada. Feche a folha e volte aqui.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {config?.cnpj && !ambiente && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Ambiente do eSocial não configurado</AlertTitle>
+              <AlertDescription>
+                Escolha o ambiente (produção ou produção restrita) em Configurações da Folha antes de gerar.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {errosGravacao.length > 0 && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Eventos não gravados</AlertTitle>
+              <AlertDescription>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  {errosGravacao.map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
           {!config?.cnpj && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
@@ -474,9 +572,29 @@ export function GerarESocialDialog({
                 Clique em "Gerar Eventos" para criar os arquivos XML eSocial da competência.
               </p>
               <p className="text-sm text-muted-foreground">
-                Serão gerados eventos S-1200 (Remuneração), S-1210 (Pagamentos) e S-1299 (Fechamento) 
-                em formato XML conforme especificação oficial v. S-1.3.
+                Serão gerados eventos S-1200 (Remuneração), S-1210 (Pagamentos) e S-1299 (Fechamento)
+                em XML no leiaute v. S-1.3, como rascunho.
               </p>
+              {(eventosExistentes?.length ?? 0) > 0 && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Esta folha já tem {eventosExistentes?.length} evento(s) gravado(s). Gerar de novo não duplica: os
+                  que já existem aparecem como estão gravados, para baixar.
+                </p>
+              )}
+              <div className="mx-auto mt-4 max-w-xs space-y-1 text-left">
+                <Label htmlFor="esocial-data-pagamento">Data de pagamento (S-1210)</Label>
+                <Input
+                  id="esocial-data-pagamento"
+                  type="date"
+                  value={dataPagamento}
+                  onChange={(e) => setDataPagamento(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {diaPagamento
+                    ? `Sugerida pelo dia de pagamento da configuração de fechamento (dia ${diaPagamento}).`
+                    : "Sem dia de pagamento na configuração de fechamento: informe a data."}
+                </p>
+              </div>
             </div>
           )}
 
@@ -507,9 +625,14 @@ export function GerarESocialDialog({
                     </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleDownloadTodosXml}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadTodosXml}
+                  disabled={!eventosGerados.some(podeSair)}
+                >
                   <Download className="h-4 w-4 mr-2" />
-                  Baixar Todos XML ({eventosGerados.length})
+                  Baixar Todos XML ({eventosGerados.filter(podeSair).length})
                 </Button>
               </div>
 
@@ -559,7 +682,11 @@ export function GerarESocialDialog({
             Fechar
           </Button>
           {eventosGerados.length === 0 && (
-            <Button onClick={handleGerarEventos} disabled={gerando || !config?.cnpj}>
+            <Button
+              onClick={handleGerarEventos}
+              disabled={gerando || !folhaFechada || !config?.cnpj || !ambiente || !dataPagamento}
+              title={!folhaFechada ? "Disponível com a folha fechada" : undefined}
+            >
               {gerando ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

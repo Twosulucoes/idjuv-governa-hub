@@ -83,7 +83,8 @@ de chamar `supabase` direto dentro da página.
 - **Planilhas**: `exportarPlanilha.ts`, `exportarFederacoes.ts`, e `src/export/`.
 - **Fiscal/folha**: `cnabGenerator.ts` (CNAB240), `esocialGenerator.ts` +
   `esocialXmlGenerator.ts`, `folhaCalculos.ts`/`folhaCalculoService.ts` (INSS,
-  IRRF, consignações), `frequenciaCalculoService.ts`.
+  IRRF, consignações), `frequenciaCalculoService.ts`. Fluxo da remessa e do eSocial em
+  [Arquivos da folha](#arquivos-da-folha-remessa-cnab-e-esocial-onda-e3).
 - **Utils**: `formatters.ts` (máscaras), `utils.ts` (`cn`, helpers),
   `matriculaUtils.ts`, `statusColors.ts`, `supabase.ts`/`supabaseClient.ts`.
 - **Arquivos em bucket privado**: `src/lib/storageArquivos.ts`. Use ao gravar ou abrir arquivo de bucket
@@ -178,12 +179,50 @@ O banco grava quem fez cada lançamento (onda E1); o front consulta a trilha e r
 - **Páginas:** `/admin/auditoria` (todos os módulos) e `/rh/auditoria` (mesmo componente, travado no módulo `rh`).
 - **Onde `registrar_evento` está ligado:** contracheque (`useLogAcessoContracheque`, que trocou `log_audit` pela
   RPC; impressão individual e em lote em `/rh/contracheques`, `/rh/meu-contracheque`, detalhe da folha e ficha
-  financeira), XML do eSocial (baixar e copiar), arquivo CNAB (registrado antes de gravar a remessa e baixar),
+  financeira), XML do eSocial (baixar e copiar, no diálogo e na aba), arquivo CNAB (registrado antes de gravar a
+  remessa; o "baixar de novo" registra de novo),
   planilhas (`/rh/exportar`, `ExportacaoServidoresCard`, cards de `src/components/rh/relatorios/*`, aniversariantes),
   PDFs do RH (relatórios de `/rh/relatorios` e cards avulsos, pendências cadastrais, frequência individual, em lote e
   geral, pacote de frequência, fichas e declarações do servidor, memorando de designação) e o CSV da trilha.
   Visualização sem bloquear: ficha do servidor, ficha financeira, contracheque na consulta, pré-visualização da
   frequência e documentos abertos na ficha.
+
+## Arquivos da folha: remessa CNAB e eSocial (onda E3)
+
+Spec: [`superpowers/specs/2026-10-11-rh-vazamentos-arquivos-design.md`](./superpowers/specs/2026-10-11-rh-vazamentos-arquivos-design.md).
+Regras do banco (folha fechada, número da remessa, arquivo guardado, cancelamento, índice único do eSocial) na
+migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`; ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+
+- **Hook** `src/hooks/useArquivosFolha.ts` (as colunas novas e a RPC `cancelar_remessa` ainda não estão em
+  `types.ts`: client sem tipagem, como em `useTrilhaAuditoria.ts`). `mensagemErroBanco` mostra o texto do `RAISE`
+  (RHE01 folha não fechada, RHE02/RHE03, 22023, o 42501 das funções) e esconde a recusa da RLS e o `DETAIL`.
+- **Folha fechada:** no detalhe da folha (`/folha/:id`) os botões "Gerar CNAB", "Nova Remessa", "eSocial" e "Gerar
+  Eventos" aparecem com fichas, mas ficam desabilitados com a explicação enquanto a folha não está `fechada`; os
+  diálogos repetem o aviso. O banco recusa de qualquer forma (RHE01) e a tela mostra o erro.
+- **Remessa CNAB 240** (`GerarRemessaDialog` → `useGerarRemessaCNAB`):
+  1. `montarDadosRemessa` monta pagador e favorecidos e `validarRemessaCNAB` lista o que falta no cadastro (CNPJ,
+     razão social, banco e nome do banco da conta, dígito da conta, endereço, cidade, CEP e UF da instituição;
+     por servidor: CPF, banco, agência, conta, dígito da conta). Faltou algo: a tela recusa e diz o quê e de quem;
+  2. registro na trilha (`registrarAntes`, E2) → INSERT em `remessas_bancarias` sem número (o banco atribui, por
+     conta, e devolve no `.select()`) → arquivo gerado com esse número → sha256 no navegador (Web Crypto,
+     `calcularSha256`) → upload em `remessas-cnab/<remessa_id>.rem` → UPDATE de `arquivo_path`/`arquivo_sha256` →
+     download do mesmo Blob. Se o upload ou o UPDATE falhar, o arquivo não é entregue e a remessa sem arquivo é
+     cancelada pela RPC (se isso também falhar, a tela pede para cancelar na aba);
+  3. o gerador (`src/lib/cnabGenerator.ts`) usa tipo de serviço `30` (salários; conferir no manual do banco), nome do
+     banco de `bancos_cnab` (ou da lista `BANCOS` de `src/types/rh.ts`), dígitos separados de "12345-6" (agência e
+     conta gravadas com hífen), endereço do pagador de `config_autarquia` ou, sem logradouro lá, do perfil do tenant
+     (`endereco`), e o endereço do servidor no segmento B. Linha fora de 240 posições: erro, sem arquivo.
+- **Aba Remessas:** "baixar" lê o arquivo guardado por URL assinada de 60 s, confere o sha256 da remessa, registra o
+  download (`remessas_bancarias`) e entrega; remessa antiga sem arquivo mostra "arquivo não guardado". Não há
+  excluir: "Cancelar" abre `CancelarRemessaDialog` (motivo obrigatório, zod) e chama `cancelar_remessa`. Baixar e
+  cancelar pedem `financeiro.folha.processar` (o banco exige o mesmo; sem ela os botões ficam desabilitados).
+- **eSocial** (`GerarESocialDialog`): rascunho, não transmitido — aviso no diálogo e na aba, status "Rascunho (não
+  transmitido)" e arquivo `RASCUNHO_NAO_TRANSMITIDO_<evento>_<rótulo>_<AAAA-MM>.xml`. Ambiente lido de
+  `config_autarquia.esocial_ambiente` (`ambienteESocial`; sem ambiente, não gera). Data de pagamento (`dtPgto` e
+  `perApur` do S-1210) informada no diálogo, sugerida pelo `dia_pagamento` de `config_fechamento_folha`. Cada evento é
+  gravado com `servidor_id` e o erro conferido um a um; conflito do índice único (23505) = o evento já existe: o
+  diálogo mostra o gravado e oferece baixá-lo, sem duplicar. Na aba, cada evento baixa o XML gravado (registrado
+  antes). Categoria, rubricas e lotação continuam fixas (comentado no código; onda G).
 
 ## Padrões de UI
 
