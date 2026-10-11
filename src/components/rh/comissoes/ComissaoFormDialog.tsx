@@ -1,6 +1,7 @@
 /**
- * Criar/editar comissão: nome, tipo, módulo, objeto opcional, ato (tipo, número e data obrigatórios; DOE opcional),
- * período, motivo e situação. Só vale como fundamento de lançamento com ato, ativa e vigente (o banco decide).
+ * Criar/editar comissão: nome, tipo, módulo, objeto (obrigatório quando o tipo não é "Outra", como no banco), ato
+ * (tipo, número e data obrigatórios; DOE opcional), período, motivo e situação. Na fase 1 a comissão é só cadastro:
+ * não vale como fundamento de lançamento.
  */
 
 import { useEffect } from "react";
@@ -49,6 +50,10 @@ const schema = z
     path: ["data_fim"],
     message: "O fim não pode ser antes do início",
   })
+  .refine((d) => d.tipo === "outra" || d.objeto_tipo !== SEM_OBJETO, {
+    path: ["objeto_tipo"],
+    message: "Escolha o objeto: é obrigatório quando o tipo não é \"Outra\"",
+  })
   .refine((d) => d.objeto_tipo === SEM_OBJETO || UUID.test(d.objeto_id), {
     path: ["objeto_id"],
     message: "Informe o identificador do objeto (formato UUID) ou escolha \"Sem objeto\"",
@@ -80,7 +85,7 @@ const VAZIO: FormData = {
   nome: "",
   tipo: "inventario",
   modulo: "patrimonio",
-  objeto_tipo: SEM_OBJETO,
+  objeto_tipo: "campanha_inventario",
   objeto_id: "",
   ato_tipo: "Portaria",
   ato_numero: "",
@@ -124,6 +129,7 @@ export function ComissaoFormDialog({ aberto, comissao, onOpenChange }: ComissaoF
   const salvar = useSalvarComissao();
   const form = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: VAZIO, shouldFocusError: false });
   const objetoTipo = form.watch("objeto_tipo");
+  const tipoAtual = form.watch("tipo");
 
   useEffect(() => {
     if (aberto) form.reset(paraForm(comissao));
@@ -134,7 +140,9 @@ export function ComissaoFormDialog({ aberto, comissao, onOpenChange }: ComissaoF
     const sugestao = SUGESTAO_POR_TIPO[tipo];
     if (!comissao && sugestao) {
       form.setValue("modulo", sugestao.modulo);
-      if (form.getValues("objeto_tipo") !== SEM_OBJETO) form.setValue("objeto_tipo", sugestao.objeto);
+      form.setValue("objeto_tipo", sugestao.objeto);
+    } else if (tipo !== "outra" && form.getValues("objeto_tipo") === SEM_OBJETO && sugestao) {
+      form.setValue("objeto_tipo", sugestao.objeto);
     }
   };
 
@@ -170,7 +178,7 @@ export function ComissaoFormDialog({ aberto, comissao, onOpenChange }: ComissaoF
         <DialogHeader>
           <DialogTitle>{comissao ? "Editar comissão" : "Nova comissão"}</DialogTitle>
           <DialogDescription>
-            Os membros só lançam pela comissão com o ato informado, a comissão ativa e dentro do período.
+            Cadastro da comissão com o ato de designação. Na fase 1 ela ainda não vale como fundamento de lançamento.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -245,7 +253,7 @@ export function ComissaoFormDialog({ aberto, comissao, onOpenChange }: ComissaoF
                 name="objeto_tipo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Objeto (opcional)</FormLabel>
+                    <FormLabel>Objeto{tipoAtual === "outra" ? " (opcional)" : ""}</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
@@ -253,7 +261,7 @@ export function ComissaoFormDialog({ aberto, comissao, onOpenChange }: ComissaoF
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value={SEM_OBJETO}>Sem objeto (vale no módulo)</SelectItem>
+                        {tipoAtual === "outra" && <SelectItem value={SEM_OBJETO}>Sem objeto</SelectItem>}
                         {Object.entries(OBJETO_COMISSAO_LABELS).map(([valor, rotulo]) => (
                           <SelectItem key={valor} value={valor}>
                             {rotulo}
@@ -262,8 +270,8 @@ export function ComissaoFormDialog({ aberto, comissao, onOpenChange }: ComissaoF
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Com objeto, a comissão valerá só nele (a campanha, o contrato, o processo). Nesta fase ela ainda não
-                      conta como fundamento de lançamento: isso chega na fase 2.
+                      A campanha, o contrato ou o processo da comissão (obrigatório, exceto no tipo "Outra"). Na fase 1
+                      a comissão é só cadastro: ainda não vale como fundamento de lançamento.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

@@ -53,7 +53,7 @@ export const MSG_REMESSA_ATIVA =
  * Mensagem do banco para a tela: o texto do RAISE das regras da E3 passa como veio (RHE01 folha não fechada, RHE02
  * campo fixo, RHE03 cancelamento, 22023 valor inválido e o 42501 das funções, que diz a permissão que falta); a
  * recusa da RLS, duplicidade, obrigatório e chave estrangeira viram o texto fixo de `descreverErroBanco` (sem DETAIL).
- * A recusa da regra de lançamento por setor (RHS01, modo exigir) também passa com o texto do banco.
+ * A recusa da regra de lançamento por setor (RHS01, modo exigir) vai para `descreverErroBanco` (mensagem + HINT).
  * Com `contexto = "arquivo_remessa"` (envio do arquivo e UPDATE de arquivo_path/arquivo_sha256), P0002 e 42501 ganham
  * texto próprio. Duplicidade do índice remessas_bancarias_folha_conta_ativa_uidx: `MSG_REMESSA_ATIVA`.
  */
@@ -69,7 +69,6 @@ export function mensagemErroBanco(erro: unknown, contexto?: "arquivo_remessa"): 
     }
     return e.message;
   }
-  if (e?.code === "RHS01") return descreverErroBanco(erro);
   if (e?.code === "23505" && /folha_conta_ativa/i.test(e.message ?? "")) return MSG_REMESSA_ATIVA;
   if (contexto === "arquivo_remessa" && e?.code === "P0002") {
     return "O banco não encontrou no armazenamento o arquivo enviado por você para esta remessa; ele não foi ligado à remessa.";
@@ -77,7 +76,7 @@ export function mensagemErroBanco(erro: unknown, contexto?: "arquivo_remessa"): 
   if (contexto === "arquivo_remessa" && e?.code === "42501") {
     return "Só quem gerou a remessa, com a permissão de processar a folha, pode guardar o arquivo dela.";
   }
-  const tratados = ["23505", "23502", "23503", "PGRST116"];
+  const tratados = ["23505", "23502", "23503", "PGRST116", "RHS01"];
   const recusaRls = e?.code === "42501" && /row-level security/i.test(e.message ?? "");
   if (e?.message && e.code && !tratados.includes(e.code) && !recusaRls) return e.message;
   return descreverErroBanco(erro);

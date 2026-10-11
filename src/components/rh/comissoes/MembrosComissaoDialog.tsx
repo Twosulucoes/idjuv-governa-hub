@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, StatusBadge } from "@/components/design-system";
 import { SeletorBusca } from "@/components/lancamento-setor/SeletorBusca";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   useExcluirMembroComissao,
   useSalvarMembroComissao,
@@ -65,6 +66,7 @@ export function MembrosComissaoDialog({ comissao, podeGerenciar, onOpenChange }:
   const salvar = useSalvarMembroComissao();
   const excluir = useExcluirMembroComissao();
   const { data: servidores = [], isLoading: carregandoServidores } = useServidoresAtivosOpcoes(!!comissao && podeGerenciar);
+  const meuServidorId = useAuth().user?.servidorId ?? null;
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -97,7 +99,10 @@ export function MembrosComissaoDialog({ comissao, podeGerenciar, onOpenChange }:
   );
 
   const jaMembros = new Set(membros.map((m) => m.servidor_id));
-  const opcoes = servidores.map((s) => ({
+  // O banco recusa incluir o próprio servidor (e quem criou a comissão): o próprio nem aparece na lista
+  const opcoes = servidores
+    .filter((s) => s.id !== meuServidorId)
+    .map((s) => ({
     valor: s.id,
     rotulo: s.nome_completo,
     detalhe: s.matricula ? `mat. ${s.matricula}` : null,
@@ -129,9 +134,8 @@ export function MembrosComissaoDialog({ comissao, podeGerenciar, onOpenChange }:
           <DialogHeader>
             <DialogTitle>Membros: {comissao?.nome}</DialogTitle>
             <DialogDescription>
-              {comissao?.objeto_id
-                ? "Comissão com objeto: ainda não conta como fundamento de lançamento (fase 2, e só no objeto)."
-                : "Cada membro vigente lança no módulo da comissão enquanto ela estiver ativa, vigente e com ato."}
+              Na fase 1 a comissão é só cadastro: os membros ainda não lançam por ela. Você não pode incluir a si mesmo
+              nem quem criou a comissão.
             </DialogDescription>
           </DialogHeader>
 

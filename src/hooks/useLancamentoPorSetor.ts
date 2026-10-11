@@ -3,7 +3,8 @@
  * spec docs/superpowers/specs/2026-10-11-lancamento-por-setor-design.md).
  *
  *   - useFundamentosLancamento: RPC meus_fundamentos_lancamento() (fundamento do login em cada módulo);
- *   - useRegrasLancamento / useSalvarModoRegra: regra_lancamento (modo por módulo; escrita só do papel admin);
+ *   - useRegrasLancamento / useSalvarModoRegra: regra_lancamento (modo por módulo; escrita só do papel admin, e só
+ *     desligado/registrar: o modo exigir só entra por migração, módulo a módulo, e o banco o recusa pela API);
  *   - useSetoresModulo / useAdicionarSetorModulo / useAlterarSetorModulo: setores_modulo (escrita só do papel admin);
  *   - useUnidadesEstrutura: unidades ativas de estrutura_organizacional para escolher o setor;
  *   - useSaneamentoLancamento: RPC saneamento_lancamento() (admin ou rh.auditoria.visualizar);
@@ -25,7 +26,6 @@ import { buscarTrilhaParaExportar, type FiltrosTrilha, type LinhaTrilha } from "
 import { descreverErroBanco } from "@/lib/folhaFichaRegras";
 import { normalizarFundamentos, normalizarSaneamento, semCascata } from "@/lib/lancamentoSetorRegras";
 import {
-  VIAS_NEGADAS,
   type FundamentoLancamento,
   type LinhaSaneamento,
   type ModoRegraLancamento,
@@ -50,9 +50,8 @@ const CHAVE_SETORES = ["setores-modulo"] as const;
  * (30 s): lotação, designação e comissão mudam fora desta sessão. Erro (42501 para usuário inativo, banco sem a
  * migração) não derruba a tela: a lista fica vazia e nenhum aviso aparece.
  *
- * Autoatendimento e chefia não aparecem na RPC e continuam valendo por registro: `podeLancar` é só para lançamentos
- * do setor. Não use para travar telas do próprio servidor (pedir férias, frequência, requerimentos) nem de aprovação
- * da chefia.
+ * Autoatendimento e chefia não aparecem na RPC e continuam valendo por registro: `bloqueado` fala só dos lançamentos
+ * do setor. Não o use para travar telas do próprio servidor nem de aprovação da chefia (hoje só o aviso o lê).
  */
 export function useFundamentosLancamento(habilitado = true) {
   const { isAuthenticated, user } = useAuth();
@@ -74,8 +73,6 @@ export function useFundamentosLancamento(habilitado = true) {
     ...consulta,
     fundamentos: consulta.data ?? [],
     doModulo,
-    /** Pode fazer lançamentos do setor no módulo (`bloqueado` = exigir sem fundamento). Enquanto carrega, não bloqueia. */
-    podeLancar: (modulo: string) => !doModulo(modulo)?.bloqueado,
   };
 }
 
@@ -94,11 +91,11 @@ export function useRegrasLancamento() {
   });
 }
 
-/** Troca o modo da regra de um módulo (upsert por módulo). Só o papel admin grava (RLS). */
+/** Troca o modo da regra de um módulo entre desligado e registrar (upsert por módulo). Só o papel admin grava (RLS). */
 export function useSalvarModoRegra() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ modulo, modo }: { modulo: string; modo: ModoRegraLancamento }) => {
+    mutationFn: async ({ modulo, modo }: { modulo: string; modo: Exclude<ModoRegraLancamento, "exigir"> }) => {
       const { error } = await db.from("regra_lancamento").upsert({ modulo, modo }, { onConflict: "modulo" });
       if (error) throw error;
     },
@@ -238,9 +235,11 @@ export interface FiltrosBloqueios {
 }
 
 /**
- * Linhas da trilha cujo fundamento foi negado (negado_sem_servidor, negado_setor) no período, até o limite, lidas em
- * páginas pelo cursor da `sequencia` (buscarTrilhaParaExportar). As gravações em cascata (`fundamento.em_cascata`, a
- * linha leva o fundamento de quem disparou e não é checada) ficam de fora, no servidor e de novo aqui.
+ * Gravações (create, update, delete) sem fundamento (`fundamento->>permitido = 'false'`, predicado do índice parcial
+ * idx_audit_logs_fundamento_negado) no período, até o limite, lidas em páginas pelo cursor da `sequencia`
+ * (buscarTrilhaParaExportar). Eventos de leitura (view/export/download) não contam. As gravações em cascata
+ * (`fundamento.em_cascata`: levam o fundamento de quem disparou e não são checadas) ficam de fora, no servidor e de novo
+ * aqui. Lê limite + 1 para saber se cortou.
  */
 export function useBloqueiosLancamento(filtros: FiltrosBloqueios, habilitado = true) {
   const qc = useQueryClient();
@@ -252,11 +251,13 @@ export function useBloqueiosLancamento(filtros: FiltrosBloqueios, habilitado = t
         inicio: filtros.inicio,
         fim: filtros.fim,
         modulo: filtros.modulo,
-        vias: VIAS_NEGADAS,
+        fundamentoNegado: true,
+        acoes: ["create", "update", "delete"],
         semCascata: true,
       };
-      const lidas = await buscarTrilhaParaExportar(f, qc, LIMITE_RELATORIO_BLOQUEIOS);
-      return { linhas: semCascata(lidas), cortado: lidas.length >= LIMITE_RELATORIO_BLOQUEIOS };
+      const lidas = await buscarTrilhaParaExportar(f, qc, LIMITE_RELATORIO_BLOQUEIOS + 1);
+      const cortado = lidas.length > LIMITE_RELATORIO_BLOQUEIOS;
+      return { linhas: semCascata(lidas.slice(0, LIMITE_RELATORIO_BLOQUEIOS)), cortado };
     },
   });
 }

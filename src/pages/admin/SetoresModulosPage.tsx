@@ -1,18 +1,19 @@
 /**
  * Setores dos módulos (/admin/setores-modulos) — regra "só lança servidor do setor", fase 1.
  *
- * Por módulo: quais unidades da estrutura organizacional são o setor (com ou sem as subordinadas) e o modo da regra
- * (desligado, registrar, exigir). Os dados vêm do órgão; nada é fixo no código. Só o papel admin grava (RLS de
- * setores_modulo e regra_lancamento); quem abre a tela sem o papel vê só a consulta.
+ * Por módulo: quais unidades da estrutura organizacional são o setor (com ou sem as subordinadas) e o modo da regra.
+ * Os dados vêm do órgão; nada é fixo no código. Só o papel admin grava (RLS de setores_modulo e regra_lancamento);
+ * quem abre a tela sem o papel vê só a consulta.
  *
  * Nesta fase o banco só checa o fundamento nas tabelas do RH: nos demais módulos o setor pode ser cadastrado, mas o
- * modo fica travado (MODULOS_COM_REGRA_NO_BANCO). Passar para "exigir" pede confirmação e mostra quantos teriam sido
- * bloqueados nos últimos 30 dias (trilha com fundamento negado).
+ * modo fica travado (MODULOS_COM_REGRA_NO_BANCO). Pela tela o modo só vai entre desligado e registrar: "exigir" liga
+ * por migração, módulo a módulo (o banco recusa pela API). Quantos seriam bloqueados (trilha dos últimos 30 dias) é
+ * lido só quando o admin pede.
  */
 
 import { useMemo, useState } from "react";
 import { subDays } from "date-fns";
-import { Building2, Info, Plus, Trash2 } from "lucide-react";
+import { BarChart3, Building2, Info, Plus, Trash2 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/design-system";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -59,10 +60,14 @@ import {
   type SetorModulo,
 } from "@/types/lancamentoSetor";
 
-const TOM_MODO = { desligado: "neutro", registrar: "andamento", exigir: "sucesso" } as const;
+// "Exigir" não é sucesso: é a regra recusando gravações (tom de atenção)
+const TOM_MODO = { desligado: "neutro", registrar: "andamento", exigir: "pendente" } as const;
 
 // Premissa 1 da spec: configuração de acesso continua com o admin; a regra vale para lançamento de domínio.
 const MODULOS_FORA_DA_REGRA = new Set(["admin"]);
+
+const AVISO_SUBORDINADAS =
+  "Com as subordinadas, quem está lotado em qualquer unidade abaixo desta na estrutura também lança no módulo.";
 
 interface CartaoModuloProps {
   modulo: ModuleConfig;
@@ -70,14 +75,26 @@ interface CartaoModuloProps {
   setores: SetorModulo[];
   unidades: UnidadeEstrutura[];
   carregandoUnidades: boolean;
-  resumo: ResumoBloqueioModulo | null;
+  /** Resumo da trilha (30 dias); undefined enquanto não foi pedido. */
+  resumo: ResumoBloqueioModulo | null | undefined;
   podeEditar: boolean;
-  aoPedirModo: (modulo: ModuleConfig, modo: ModoRegraLancamento) => void;
+  aoTrocarModo: (modulo: ModuleConfig, modo: Exclude<ModoRegraLancamento, "exigir">) => void;
+  aoRetirar: (modulo: ModuleConfig, setor: SetorModulo) => void;
 }
 
-function CartaoModulo({ modulo, modo, setores, unidades, carregandoUnidades, resumo, podeEditar, aoPedirModo }: CartaoModuloProps) {
+function CartaoModulo({
+  modulo,
+  modo,
+  setores,
+  unidades,
+  carregandoUnidades,
+  resumo,
+  podeEditar,
+  aoTrocarModo,
+  aoRetirar,
+}: CartaoModuloProps) {
   const [unidadeId, setUnidadeId] = useState("");
-  const [comSubordinadas, setComSubordinadas] = useState(true);
+  const [comSubordinadas, setComSubordinadas] = useState(false); // mesmo padrão do banco
   const adicionar = useAdicionarSetorModulo();
   const alterar = useAlterarSetorModulo();
   const comRegra = moduloTemRegraNoBanco(modulo.codigo);
@@ -101,7 +118,12 @@ function CartaoModulo({ modulo, modo, setores, unidades, carregandoUnidades, res
         inclui_subordinadas: comSubordinadas,
         existente: setores.find((s) => s.unidade_id === unidadeId && !s.ativo) ?? null,
       },
-      { onSuccess: () => setUnidadeId("") },
+      {
+        onSuccess: () => {
+          setUnidadeId("");
+          setComSubordinadas(false);
+        },
+      },
     );
   };
 
@@ -113,26 +135,30 @@ function CartaoModulo({ modulo, modo, setores, unidades, carregandoUnidades, res
             <CardTitle>{modulo.nome}</CardTitle>
             <CardDescription>
               {ativos.length === 0 ? "Nenhum setor cadastrado" : `${ativos.length} setor(es)`}
-              {resumo && comRegra && modo !== "desligado" && (
-                <> · {resumo.responsaveis} responsável(is) sem fundamento nos últimos 30 dias</>
+              {resumo !== undefined && comRegra && modo !== "desligado" && (
+                <>
+                  {" · "}
+                  {resumo
+                    ? `${resumo.responsaveis} responsável(is) sem fundamento nos últimos 30 dias (${resumo.gravacoes} gravações)`
+                    : "ninguém sem fundamento nos últimos 30 dias"}
+                </>
               )}
             </CardDescription>
           </div>
-          <div className="flex flex-col gap-1 sm:w-56">
+          <div className="flex flex-col gap-1 sm:w-60">
             <Label htmlFor={`${idBase}-modo`}>Modo da regra</Label>
-            {comRegra ? (
+            {comRegra && podeEditar && modo !== "exigir" ? (
               <Select
                 value={modo}
-                disabled={!podeEditar}
-                onValueChange={(v) => aoPedirModo(modulo, v as ModoRegraLancamento)}
+                onValueChange={(v) => aoTrocarModo(modulo, v as Exclude<ModoRegraLancamento, "exigir">)}
               >
                 <SelectTrigger id={`${idBase}-modo`} aria-describedby={`${idBase}-modo-desc`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {MODOS_REGRA_LANCAMENTO.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {MODO_REGRA_LABELS[m]}
+                    <SelectItem key={m} value={m} disabled={m === "exigir"}>
+                      {m === "exigir" ? "Exigir (liga por migração, módulo a módulo)" : MODO_REGRA_LABELS[m]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -143,7 +169,11 @@ function CartaoModulo({ modulo, modo, setores, unidades, carregandoUnidades, res
               </span>
             )}
             <p id={`${idBase}-modo-desc`} className="text-caption text-muted-foreground">
-              {comRegra ? MODO_REGRA_DESCRICOES[modo] : "A checagem deste módulo no banco chega numa próxima fase."}
+              {!comRegra
+                ? "A checagem deste módulo no banco chega numa próxima fase."
+                : modo === "exigir"
+                  ? `${MODO_REGRA_DESCRICOES.exigir} Para sair do modo exigir, também por migração.`
+                  : MODO_REGRA_DESCRICOES[modo]}
             </p>
           </div>
         </div>
@@ -163,6 +193,7 @@ function CartaoModulo({ modulo, modo, setores, unidades, carregandoUnidades, res
                       id={`${idBase}-sub-${s.id}`}
                       checked={s.inclui_subordinadas}
                       disabled={!podeEditar || alterar.isPending}
+                      aria-describedby={`${idBase}-aviso-sub`}
                       onCheckedChange={(v) => alterar.mutate({ id: s.id, inclui_subordinadas: v })}
                     />
                     <Label htmlFor={`${idBase}-sub-${s.id}`} className="text-caption font-normal">
@@ -175,7 +206,7 @@ function CartaoModulo({ modulo, modo, setores, unidades, carregandoUnidades, res
                       variant="ghost"
                       aria-label={`Retirar ${s.unidade?.nome ?? "unidade"} dos setores de ${modulo.nome}`}
                       disabled={alterar.isPending}
-                      onClick={() => alterar.mutate({ id: s.id, ativo: false })}
+                      onClick={() => aoRetirar(modulo, s)}
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </Button>
@@ -187,34 +218,40 @@ function CartaoModulo({ modulo, modo, setores, unidades, carregandoUnidades, res
         )}
 
         {podeEditar && (
-          <div className="flex flex-col gap-3 rounded-md border border-dashed p-3 md:flex-row md:items-end">
-            <div className="min-w-0 flex-1 space-y-1">
-              <Label htmlFor={`${idBase}-unidade`}>Incluir unidade</Label>
-              <SeletorBusca
-                id={`${idBase}-unidade`}
-                opcoes={opcoes}
-                valor={unidadeId}
-                aoEscolher={setUnidadeId}
-                carregando={carregandoUnidades}
-                placeholder="Escolha a unidade da estrutura"
-                placeholderBusca="Nome ou sigla"
-                vazio="Nenhuma unidade encontrada."
-              />
+          <div className="space-y-2 rounded-md border border-dashed p-3">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end">
+              <div className="min-w-0 flex-1 space-y-1">
+                <Label htmlFor={`${idBase}-unidade`}>Incluir unidade</Label>
+                <SeletorBusca
+                  id={`${idBase}-unidade`}
+                  opcoes={opcoes}
+                  valor={unidadeId}
+                  aoEscolher={setUnidadeId}
+                  carregando={carregandoUnidades}
+                  placeholder="Escolha a unidade da estrutura"
+                  placeholderBusca="Nome ou sigla"
+                  vazio="Nenhuma unidade encontrada."
+                />
+              </div>
+              <div className="flex items-center gap-2 md:pb-2">
+                <Checkbox
+                  id={`${idBase}-com-sub`}
+                  checked={comSubordinadas}
+                  aria-describedby={`${idBase}-aviso-sub`}
+                  onCheckedChange={(v) => setComSubordinadas(v === true)}
+                />
+                <Label htmlFor={`${idBase}-com-sub`} className="font-normal">
+                  Incluir subordinadas
+                </Label>
+              </div>
+              <Button type="button" className="gap-2" onClick={incluir} disabled={!unidadeId} loading={adicionar.isPending}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Incluir
+              </Button>
             </div>
-            <div className="flex items-center gap-2 md:pb-2">
-              <Checkbox
-                id={`${idBase}-com-sub`}
-                checked={comSubordinadas}
-                onCheckedChange={(v) => setComSubordinadas(v === true)}
-              />
-              <Label htmlFor={`${idBase}-com-sub`} className="font-normal">
-                Com as subordinadas
-              </Label>
-            </div>
-            <Button type="button" className="gap-2" onClick={incluir} disabled={!unidadeId} loading={adicionar.isPending}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Incluir
-            </Button>
+            <p id={`${idBase}-aviso-sub`} className="text-caption text-muted-foreground">
+              {AVISO_SUBORDINADAS}
+            </p>
           </div>
         )}
       </CardContent>
@@ -229,25 +266,25 @@ export default function SetoresModulosPage() {
   const setores = useSetoresModulo();
   const unidades = useUnidadesEstrutura(podeEditar);
   const salvarModo = useSalvarModoRegra();
+  const alterar = useAlterarSetorModulo();
+  // A trilha (até 5000 linhas) só é lida quando o admin pede
+  const [contar, setContar] = useState(false);
   const periodo = useMemo(() => ({ inicio: hojeISO(subDays(new Date(), 30)) }), []);
-  const bloqueios = useBloqueiosLancamento(periodo, isSuperAdmin);
-  const resumo = useMemo(() => resumirBloqueiosPorModulo(bloqueios.data?.linhas ?? []), [bloqueios.data]);
-  const [pedido, setPedido] = useState<{ modulo: ModuleConfig; modo: ModoRegraLancamento } | null>(null);
+  const bloqueios = useBloqueiosLancamento(periodo, contar && isSuperAdmin);
+  const resumo = useMemo(
+    () => (bloqueios.data ? resumirBloqueiosPorModulo(bloqueios.data.linhas) : null),
+    [bloqueios.data],
+  );
+  const [retirando, setRetirando] = useState<{ modulo: ModuleConfig; setor: SetorModulo } | null>(null);
 
   const modulos = modulosHabilitados().filter((m) => !MODULOS_FORA_DA_REGRA.has(m.codigo));
   const modoDe = (codigo: string): ModoRegraLancamento =>
     regras.data?.find((r) => r.modulo === codigo)?.modo ?? "desligado";
 
-  const pedirModo = (modulo: ModuleConfig, modo: ModoRegraLancamento) => {
-    if (modo === modoDe(modulo.codigo)) return;
-    if (modo === "exigir") setPedido({ modulo, modo });
-    else salvarModo.mutate({ modulo: modulo.codigo, modo });
+  const trocarModo = (modulo: ModuleConfig, modo: Exclude<ModoRegraLancamento, "exigir">) => {
+    if (modo !== modoDe(modulo.codigo)) salvarModo.mutate({ modulo: modulo.codigo, modo });
   };
 
-  const resumoPedido = pedido ? resumo.get(pedido.modulo.codigo) ?? null : null;
-  const setoresPedido = pedido
-    ? (setores.data ?? []).filter((s) => s.modulo === pedido.modulo.codigo && s.ativo).length
-    : 0;
   const carregando = regras.isLoading || setores.isLoading;
   const erro = regras.error || setores.error;
 
@@ -257,7 +294,20 @@ export default function SetoresModulosPage() {
         <PageHeader
           migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Setores dos módulos" }]}
           titulo="Setores dos módulos"
-          descricao="Quais unidades lançam em cada módulo e se a regra de setor só registra ou já exige"
+          descricao="Quais unidades lançam em cada módulo e se a regra de setor está desligada ou só registra"
+          acoes={
+            isSuperAdmin && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => (contar ? bloqueios.refetch() : setContar(true))}
+                loading={bloqueios.isFetching}
+              >
+                <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                {contar ? "Contar de novo" : "Contar quem seria bloqueado (30 dias)"}
+              </Button>
+            )
+          }
         />
 
         <Alert role="note">
@@ -265,13 +315,14 @@ export default function SetoresModulosPage() {
           <AlertTitle>Como a regra funciona</AlertTitle>
           <AlertDescription className="space-y-1">
             <p>
-              Lança no módulo o servidor lotado num setor dele, designado para o setor (designação aprovada, vigente e
-              com ato) ou membro de comissão vigente do módulo. Login sem servidor só consulta. O que é do próprio
-              servidor (férias, frequência, requerimentos) e as decisões de chefia continuam liberados.
+              Lança no módulo o servidor lotado num setor dele ou designado para o setor (designação aprovada por outra
+              pessoa, vigente e com ato). Login sem servidor só consulta. Na fase 1, comissão é só cadastro e ainda não
+              vale como fundamento.
             </p>
             <p>
-              Nesta fase o banco só checa o RH. Em "registrar" ninguém é bloqueado: a trilha anota quem seria (relatório
-              em RH › Trilha de auditoria › Lançamento por setor).
+              Nesta fase o banco só checa o RH, e pela tela o modo vai só até "registrar": ninguém é bloqueado e a trilha
+              anota quem seria (relatório em RH › Trilha de auditoria › Lançamento por setor). "Exigir" liga por
+              migração, módulo a módulo.
             </p>
             {!podeEditar && <p className="font-medium">Somente consulta: só o papel administrador altera esta configuração.</p>}
           </AlertDescription>
@@ -282,6 +333,17 @@ export default function SetoresModulosPage() {
             <AlertTitle>Não foi possível carregar a configuração</AlertTitle>
             <AlertDescription>Verifique sua permissão ou se a migração da regra de setor já foi aplicada.</AlertDescription>
           </Alert>
+        )}
+
+        {contar && bloqueios.error && (
+          <p role="alert" className="text-sm text-destructive">
+            Não foi possível contar quem seria bloqueado (leitura da trilha).
+          </p>
+        )}
+        {bloqueios.data?.cortado && (
+          <p role="status" className="text-caption text-muted-foreground">
+            A contagem leu só as gravações mais recentes e pode estar abaixo do real.
+          </p>
         )}
 
         {carregando ? (
@@ -300,53 +362,35 @@ export default function SetoresModulosPage() {
                 setores={(setores.data ?? []).filter((s) => s.modulo === m.codigo)}
                 unidades={unidades.data ?? []}
                 carregandoUnidades={unidades.isLoading}
-                resumo={resumo.get(m.codigo) ?? null}
+                resumo={resumo ? resumo.get(m.codigo) ?? null : undefined}
                 podeEditar={podeEditar}
-                aoPedirModo={pedirModo}
+                aoTrocarModo={trocarModo}
+                aoRetirar={(modulo, setor) => setRetirando({ modulo, setor })}
               />
             ))}
           </div>
         )}
       </div>
 
-      <AlertDialog open={!!pedido} onOpenChange={(a) => !a && setPedido(null)}>
+      <AlertDialog open={!!retirando} onOpenChange={(a) => !a && setRetirando(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Exigir a regra de setor em {pedido?.modulo.nome}?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <p>
-                  Quem não tem fundamento passa a <strong>não lançar</strong> em {pedido?.modulo.nome}: o banco recusa a
-                  gravação e a tela fica só para consulta. Inclui logins sem servidor vinculado, até de administradores.
-                </p>
-                <p>
-                  {bloqueios.isLoading
-                    ? "Contando quem teria sido bloqueado…"
-                    : bloqueios.error
-                      ? "Não foi possível contar quem teria sido bloqueado (leitura da trilha)."
-                      : resumoPedido
-                        ? `Nos últimos 30 dias, ${resumoPedido.responsaveis} responsável(is) teriam sido bloqueados (${resumoPedido.gravacoes} gravações).`
-                        : "Nos últimos 30 dias, a trilha não anotou ninguém sem fundamento neste módulo."}
-                  {bloqueios.data?.cortado && " A contagem leu só as gravações mais recentes e pode estar abaixo do real."}
-                </p>
-                {setoresPedido === 0 && (
-                  <p className="font-medium text-destructive">
-                    Nenhum setor cadastrado: ninguém lança por lotação, só por designação ou comissão.
-                  </p>
-                )}
-              </div>
+            <AlertDialogTitle>Retirar setor de {retirando?.modulo.nome}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {retirando?.setor.unidade?.nome ?? "A unidade"} deixa de ser setor de {retirando?.modulo.nome}
+              {retirando?.setor.inclui_subordinadas ? ", junto com as subordinadas" : ""}: quem está lotado nela perde o
+              fundamento de lançamento por lotação neste módulo. Incluir de novo reativa o mesmo cadastro.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Manter como está</AlertDialogCancel>
+            <AlertDialogCancel>Manter</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
-                if (pedido) salvarModo.mutate({ modulo: pedido.modulo.codigo, modo: pedido.modo });
-                setPedido(null);
+                if (retirando) alterar.mutate({ id: retirando.setor.id, ativo: false });
+                setRetirando(null);
               }}
             >
-              Passar para exigir
+              Retirar setor
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

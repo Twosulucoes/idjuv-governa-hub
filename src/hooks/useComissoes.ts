@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { descreverErroBanco } from "@/lib/folhaFichaRegras";
+import { buscarTodasPaginas } from "@/hooks/useRelatoriosRH";
 import type { Comissao, DadosComissao, DadosMembroComissao, MembroComissao } from "@/types/comissao";
 
 // Cast local mínimo: comissoes e comissoes_membros não estão em types.ts (gerado); este client só é usado aqui.
@@ -25,6 +26,29 @@ const COLUNAS_COMISSAO =
 
 const COLUNAS_MEMBRO =
   "id, comissao_id, servidor_id, papel, data_inicio, data_fim, servidor:servidores(id, nome_completo, matricula)";
+
+/**
+ * Recusas do banco ao gravar comissão e membro, em texto para a tela:
+ *   - objeto obrigatório quando o tipo não é "outra" (CHECK de comissoes) e par objeto_tipo/objeto_id;
+ *   - membro que é o próprio servidor de quem grava ou quem criou a comissão (RAISE do trigger: o texto do banco passa);
+ *   - período inválido (CHECK).
+ * O resto vai para `descreverErroBanco` (sem DETAIL, sem nome de tabela).
+ */
+export function mensagemErroComissao(erro: unknown): string {
+  const e = (erro && typeof erro === "object" ? erro : null) as { code?: string; message?: string } | null;
+  const msg = e?.message ?? "";
+  if (e?.code === "23514") {
+    if (/objeto/i.test(msg)) {
+      return "Informe o objeto da comissão (campanha, contrato ou processo): é obrigatório quando o tipo não é \"Outra\".";
+    }
+    if (/periodo/i.test(msg)) return "O fim não pode ser antes do início.";
+  }
+  if (e?.code === "23505") return "Este servidor já é membro desta comissão.";
+  // Regras de trigger (autoinclusão, criador da comissão): o RAISE traz o motivo em português
+  const recusaRls = e?.code === "42501" && /row-level security/i.test(msg);
+  if (msg && (e?.code === "P0001" || (e?.code === "42501" && !recusaRls) || e?.code === "22023")) return msg;
+  return descreverErroBanco(erro);
+}
 
 /** Comissões com os membros (a lista é pequena: sem paginação no servidor). */
 export function useComissoes() {
@@ -69,7 +93,7 @@ export function useSalvarComissao() {
       qc.invalidateQueries({ queryKey: ["fundamentos-lancamento"] });
       toast.success(id ? "Comissão atualizada." : "Comissão cadastrada.");
     },
-    onError: (erro) => toast.error(`Não foi possível gravar a comissão: ${descreverErroBanco(erro)}`),
+    onError: (erro) => toast.error(`Não foi possível gravar a comissão: ${mensagemErroComissao(erro)}`),
   });
 }
 
@@ -88,7 +112,7 @@ export function useSalvarMembroComissao() {
       qc.invalidateQueries({ queryKey: ["fundamentos-lancamento"] });
       toast.success(id ? "Membro atualizado." : "Membro incluído.");
     },
-    onError: (erro) => toast.error(`Não foi possível gravar o membro: ${descreverErroBanco(erro)}`),
+    onError: (erro) => toast.error(`Não foi possível gravar o membro: ${mensagemErroComissao(erro)}`),
   });
 }
 
@@ -104,7 +128,7 @@ export function useExcluirMembroComissao() {
       qc.invalidateQueries({ queryKey: ["fundamentos-lancamento"] });
       toast.success("Membro retirado da comissão.");
     },
-    onError: (erro) => toast.error(`Não foi possível retirar o membro: ${descreverErroBanco(erro)}`),
+    onError: (erro) => toast.error(`Não foi possível retirar o membro: ${mensagemErroComissao(erro)}`),
   });
 }
 
@@ -114,19 +138,20 @@ export interface ServidorOpcao {
   matricula: string | null;
 }
 
-/** Servidores ativos para escolher membro. */
+/** Servidores ativos para escolher membro (todas as páginas: o PostgREST corta em 1000 por consulta). */
 export function useServidoresAtivosOpcoes(habilitado = true) {
   return useQuery({
     queryKey: ["servidores-ativos-opcoes"],
     enabled: habilitado,
-    queryFn: async (): Promise<ServidorOpcao[]> => {
-      const { data, error } = await supabase
-        .from("servidores")
-        .select("id, nome_completo, matricula")
-        .eq("ativo", true)
-        .order("nome_completo");
-      if (error) throw error;
-      return (data ?? []) as ServidorOpcao[];
-    },
+    queryFn: () =>
+      buscarTodasPaginas<ServidorOpcao>((de, ate) =>
+        supabase
+          .from("servidores")
+          .select("id, nome_completo, matricula")
+          .eq("ativo", true)
+          .order("nome_completo")
+          .order("id")
+          .range(de, ate),
+      ),
   });
 }

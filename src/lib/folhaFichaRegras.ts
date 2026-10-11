@@ -302,7 +302,8 @@ interface ErroBancoLike {
  * do banco (nome de tabela/constraint, "Failing row contains (...)" com dados pessoais).
  * Só `P0001` (RAISE dos triggers, texto escrito pelo time), `RHS01` (recusa da regra de lançamento por
  * setor no modo exigir: "seu login não tem servidor vinculado", "você não está lotado nem designado no
- * setor…", seguida do HINT, que diz o que vale como fundamento; o DETAIL `via=…` não vai para a tela) e `Error`
+ * setor de <módulo>", seguida do HINT, que diz o que vale como fundamento; o DETAIL, com a via e a tabela, não vai
+ * para a tela) e `Error`
  * lançado pelo próprio front chegam com a mensagem original.
  */
 export function descreverErroBanco(erro: unknown): string {

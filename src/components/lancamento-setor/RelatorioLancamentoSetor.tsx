@@ -1,8 +1,8 @@
 /**
  * Relatório "Lançamento por setor" (aba de /rh/auditoria):
- *   1. quem seria bloqueado: linhas da trilha com fundamento negado (negado_sem_servidor, negado_setor) no período,
- *      sem as gravações em cascata (fundamento.em_cascata), agrupadas por responsável, tabela e motivo (lidas em
- *      páginas pelo cursor da sequencia, até um limite);
+ *   1. quem seria bloqueado: gravações (inclusão, alteração, exclusão) com fundamento negado
+ *      (fundamento->>permitido = 'false') no período, sem leituras e sem as gravações em cascata (fundamento.em_cascata),
+ *      agrupadas por responsável, tabela e motivo (lidas em páginas pelo cursor da sequencia, até um limite);
  *   2. saneamento: servidores ativos sem login vinculado, sem lotação vigente ou com lotação divergente
  *      (RPC saneamento_lancamento, que exige admin ou rh.auditoria.visualizar).
  * A RLS de audit_logs decide o que volta (rh.auditoria.visualizar lê só o módulo rh). Tudo é texto: nada vira HTML.
@@ -174,9 +174,9 @@ export function RelatorioLancamentoSetor({ moduloFixo }: RelatorioLancamentoSeto
             Quem seria bloqueado
           </h2>
           <p className="text-body text-muted-foreground">
-            Gravações sem fundamento no setor (login sem servidor, ou servidor sem lotação, designação ou comissão no
-            setor). No modo registrar nada foi bloqueado: a trilha só anotou. No modo exigir, estas gravações seriam
-            recusadas.
+            Inclusões, alterações e exclusões sem fundamento no setor (login sem servidor, ou servidor sem lotação ou
+            designação no setor). Leituras e gravações em cascata não contam. No modo registrar nada foi bloqueado: a
+            trilha só anotou. No modo exigir, estas gravações seriam recusadas.
           </p>
         </div>
 
@@ -247,8 +247,9 @@ export function RelatorioLancamentoSetor({ moduloFixo }: RelatorioLancamentoSeto
             Saneamento do cadastro
           </h2>
           <p className="text-body text-muted-foreground">
-            Servidores ativos sem login vinculado, sem lotação vigente ou com lotação divergente. Acerte antes de passar
-            um módulo para o modo exigir.
+            Servidores ativos sem login vinculado, sem lotação vigente, com lotação divergente ou com fundamento
+            autoconcedido (designação ou comissão aprovada ou criada por ele mesmo). Acerte antes de um módulo passar para
+            o modo exigir.
           </p>
         </div>
         <DataTable

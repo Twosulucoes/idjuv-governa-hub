@@ -5,6 +5,7 @@
  */
 
 import type { Designacao } from "@/types/designacao";
+import type { SetorModulo } from "@/types/lancamentoSetor";
 import {
   VIAS_NEGADAS,
   type AtoFundamento,
@@ -16,14 +17,14 @@ import {
 } from "@/types/lancamentoSetor";
 
 /**
- * Módulos em que o banco já checa o fundamento (fase 1: só as tabelas do RH, no trigger zz_fixar_autoria). Nos demais,
+ * Módulos em que o banco já checa o fundamento (fase 1: só as tabelas do RH, no trigger zz_exigir_setor). Nos demais,
  * o modo gravado em regra_lancamento ainda não tem efeito; a tela não deixa trocá-lo nem mostra o aviso.
  */
 export const MODULOS_COM_REGRA_NO_BANCO: readonly string[] = ["rh"];
 
 export const moduloTemRegraNoBanco = (modulo: string) => MODULOS_COM_REGRA_NO_BANCO.includes(modulo);
 
-/** Data de hoje (yyyy-MM-dd) no fuso do navegador. */
+/** Data (yyyy-MM-dd) no fuso local do navegador, nunca em UTC (toISOString viraria o dia à noite). */
 export function hojeISO(d = new Date()): string {
   const mes = String(d.getMonth() + 1).padStart(2, "0");
   const dia = String(d.getDate()).padStart(2, "0");
@@ -40,12 +41,54 @@ export interface AvaliacaoDesignacao {
   faltas: string[];
 }
 
+/** Unidade da estrutura com o superior (para subir a hierarquia). */
+export interface UnidadeHierarquia {
+  id: string;
+  superior_id: string | null;
+}
+
+/**
+ * Módulos em que a unidade é setor ativo: ela própria cadastrada, ou uma superior cadastrada com as subordinadas.
+ * Mesmo critério do banco (unidade_e_superiores + setores_modulo).
+ */
+export function modulosDaUnidade(
+  unidadeId: string | null | undefined,
+  setores: Pick<SetorModulo, "modulo" | "unidade_id" | "inclui_subordinadas" | "ativo">[],
+  unidades: UnidadeHierarquia[],
+): string[] {
+  if (!unidadeId) return [];
+  const superior = new Map(unidades.map((u) => [u.id, u.superior_id]));
+  const modulos = new Set<string>();
+  const vistos = new Set<string>();
+  for (let atual: string | null | undefined = unidadeId, nivel = 0; atual && !vistos.has(atual); nivel += 1) {
+    vistos.add(atual);
+    for (const s of setores) {
+      if (s.ativo && s.unidade_id === atual && (nivel === 0 || s.inclui_subordinadas)) modulos.add(s.modulo);
+    }
+    atual = superior.get(atual) ?? null;
+  }
+  return [...modulos];
+}
+
+export interface ContextoDesignacao {
+  /** Módulos cujo setor ativo contém a unidade de destino; null enquanto setores e estrutura carregam. */
+  modulosDoDestino: string[] | null;
+  /** Servidor vinculado ao perfil que aprovou (vazio quando a RLS de profiles não deixa ler). */
+  aprovadorServidorId?: string | null;
+}
+
 /**
  * Designação só vale como fundamento de lançamento quando está aprovada, vigente na data (início até hoje e fim
- * vazio ou a partir de hoje) e tem o número e a data do ato. Mesmo critério da função do banco.
+ * vazio ou a partir de hoje), tem o número e a data do ato, foi aprovada por alguém registrado em aprovado_por que
+ * não é o próprio servidor nem quem a criou, e o destino é setor ativo de algum módulo. Mesmo critério do banco;
+ * a tela só explica.
  */
 export function avaliarDesignacaoComoFundamento(
-  d: Pick<Designacao, "status" | "data_inicio" | "data_fim" | "ato_numero" | "ato_data" | "ativo">,
+  d: Pick<
+    Designacao,
+    "status" | "data_inicio" | "data_fim" | "ato_numero" | "ato_data" | "ativo" | "aprovado_por" | "created_by" | "servidor_id"
+  >,
+  ctx: ContextoDesignacao,
   hoje = hojeISO(),
 ): AvaliacaoDesignacao {
   const faltas: string[] = [];
@@ -64,10 +107,16 @@ export function avaliarDesignacaoComoFundamento(
   if (d.status === "aprovada") {
     if (inicio && inicio > hoje) faltas.push("começar (início no futuro)");
     if (fim && fim < hoje) faltas.push("estar vigente (período terminou)");
+    if (!d.aprovado_por) faltas.push("aprovador registrado");
+    else if (d.created_by && d.aprovado_por === d.created_by) faltas.push("aprovação por outra pessoa (quem criou aprovou)");
+    else if (ctx.aprovadorServidorId && ctx.aprovadorServidorId === d.servidor_id) {
+      faltas.push("aprovação por outra pessoa (o próprio servidor aprovou)");
+    }
   }
   if (!d.ato_numero?.trim()) faltas.push("número do ato");
   if (!d.ato_data) faltas.push("data do ato");
-  return { vale: faltas.length === 0, faltas };
+  if (ctx.modulosDoDestino && ctx.modulosDoDestino.length === 0) faltas.push("destino ser setor de algum módulo");
+  return { vale: faltas.length === 0 && ctx.modulosDoDestino !== null, faltas };
 }
 
 // ============================================================================
@@ -76,14 +125,6 @@ export function avaliarDesignacaoComoFundamento(
 
 export const viaNegada = (via: string | null | undefined): boolean =>
   !!via && (VIAS_NEGADAS as string[]).includes(via);
-
-/**
- * Sem fundamento de **setor** no módulo (lotação, cessão, designação ou comissão). Não diz nada sobre autoatendimento e
- * chefia, que valem por registro e não aparecem em meus_fundamentos_lancamento().
- */
-export function semFundamento(f: Pick<FundamentoLancamento, "permitido"> | null | undefined): boolean {
-  return !!f && f.permitido === false;
-}
 
 const MODOS = new Set<string>(["desligado", "registrar", "exigir"]);
 const textoOuNulo = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
@@ -225,7 +266,7 @@ export function resumirBloqueiosPorModulo(linhas: LinhaBloqueio[]): Map<string, 
 // Saneamento
 // ============================================================================
 
-const PROBLEMAS = new Set<string>(["sem_login", "sem_lotacao", "lotacao_divergente"]);
+const PROBLEMAS = new Set<string>(["sem_login", "sem_lotacao", "lotacao_divergente", "fundamento_autoconcedido"]);
 
 /** Linhas de saneamento_lancamento() no tipo da tela (problemas fora da lista conhecida são ignorados). */
 export function normalizarSaneamento(dados: unknown): LinhaSaneamento[] {
@@ -250,37 +291,8 @@ export function normalizarSaneamento(dados: unknown): LinhaSaneamento[] {
 }
 
 // ============================================================================
-// Comissão como fundamento
+// Vigência
 // ============================================================================
-
-/** Comissão com objeto: na fase 1 o banco ainda não a conta como fundamento (fase 2: só no objeto). */
-export const comissaoComObjeto = (c: { objeto_id?: string | null }) => !!c.objeto_id;
-
-/**
- * Comissão vale como fundamento quando está ativa, vigente na data e com número e data do ato. Comissão com objeto
- * (campanha, contrato, processo) ainda não conta (vale só no objeto, o que chega na fase 2): veja `comissaoComObjeto`.
- */
-export function avaliarComissaoComoFundamento(
-  c: {
-    status: string;
-    data_inicio: string;
-    data_fim: string | null;
-    ato_numero: string | null;
-    ato_data: string | null;
-    objeto_id?: string | null;
-  },
-  hoje = hojeISO(),
-): AvaliacaoDesignacao {
-  const faltas: string[] = [];
-  if (c.status !== "ativa") faltas.push("estar ativa (foi encerrada)");
-  const inicio = (c.data_inicio ?? "").slice(0, 10);
-  const fim = c.data_fim ? c.data_fim.slice(0, 10) : null;
-  if (inicio && inicio > hoje) faltas.push("começar (início no futuro)");
-  if (fim && fim < hoje) faltas.push("estar vigente (período terminou)");
-  if (!c.ato_numero?.trim()) faltas.push("número do ato");
-  if (!c.ato_data) faltas.push("data do ato");
-  return { vale: faltas.length === 0, faltas };
-}
 
 /** Participação vigente na data (início até hoje e fim vazio ou a partir de hoje). */
 export function vigenteEm(inicio: string | null | undefined, fim: string | null | undefined, hoje = hojeISO()): boolean {

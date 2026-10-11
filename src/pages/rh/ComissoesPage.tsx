@@ -1,7 +1,7 @@
 /**
  * Comissões (/rh/comissoes): inventário, licitação, fiscalização de contrato… com ato, período, motivo, módulo, objeto
- * opcional e membros. Membro de comissão vigente, com ato, é fundamento de lançamento no módulo da comissão (spec do
- * lançamento por setor, fase 1). Rota com o módulo rh; criar, editar e mexer em membros pede `rh.comissoes.gerenciar`
+ * (obrigatório exceto no tipo "Outra") e membros. Na fase 1 da regra de setor a comissão é só cadastro: não vale como
+ * fundamento de lançamento. Rota com o módulo rh; criar, editar e mexer em membros pede `rh.comissoes.gerenciar`
  * (a RLS exige o mesmo).
  */
 
@@ -15,12 +15,7 @@ import { MembrosComissaoDialog } from "@/components/rh/comissoes/MembrosComissao
 import { nomeModulo } from "@/components/auditoria/trilhaRotulos";
 import { useAuth } from "@/contexts/AuthContext";
 import { useComissoes } from "@/hooks/useComissoes";
-import {
-  avaliarComissaoComoFundamento,
-  comissaoComObjeto,
-  formatarDataISO,
-  vigenteEm,
-} from "@/lib/lancamentoSetorRegras";
+import { formatarDataISO, vigenteEm } from "@/lib/lancamentoSetorRegras";
 import { OBJETO_COMISSAO_LABELS, STATUS_COMISSAO_LABELS, TIPO_COMISSAO_LABELS, type Comissao } from "@/types/comissao";
 
 export default function ComissoesPage() {
@@ -97,28 +92,18 @@ export default function ComissoesPage() {
     },
     {
       id: "situacao",
-      cabecalho: "Fundamento de lançamento",
+      cabecalho: "Situação",
       celula: (c) => {
-        if (comissaoComObjeto(c)) {
-          // Fase 1: o banco só conta comissão sem objeto; com objeto vale só nele, na fase 2
-          return (
-            <span>
-              <StatusBadge tom="neutro">Ainda não vale</StatusBadge>
-              <span className="block pt-1 text-caption text-muted-foreground">
-                Comissão com objeto passa a contar na fase 2 (e só no objeto).
-              </span>
-            </span>
-          );
-        }
-        const { vale, faltas } = avaliarComissaoComoFundamento(c);
+        const vigente = c.status === "ativa" && vigenteEm(c.data_inicio, c.data_fim);
         return (
           <span>
-            <StatusBadge tom={vale ? "sucesso" : c.status === "encerrada" ? "neutro" : "pendente"}>
-              {vale ? "Vale" : c.status === "encerrada" ? STATUS_COMISSAO_LABELS.encerrada : "Não vale"}
+            <StatusBadge tom={vigente ? "andamento" : "neutro"}>
+              {c.status === "encerrada" ? STATUS_COMISSAO_LABELS.encerrada : vigente ? "Ativa e vigente" : "Fora do período"}
             </StatusBadge>
-            {!vale && faltas.length > 0 && c.status !== "encerrada" && (
-              <span className="block pt-1 text-caption text-muted-foreground">Falta: {faltas.join(", ")}</span>
-            )}
+            {/* Fase 1: o banco não conta comissão como fundamento (só cadastro) */}
+            <span className="block pt-1 text-caption text-muted-foreground">
+              Cadastro; não vale como fundamento na fase 1
+            </span>
           </span>
         );
       },
@@ -131,7 +116,7 @@ export default function ComissoesPage() {
         <PageHeader
           migalhas={[{ rotulo: "Recursos Humanos", href: "/rh" }, { rotulo: "Comissões" }]}
           titulo="Comissões"
-          descricao="Comissões com ato e período: seus membros lançam no módulo da comissão (por exemplo, o levantamento patrimonial)"
+          descricao="Cadastro das comissões com ato, período e membros (por exemplo, o levantamento patrimonial). Na fase 1 a comissão ainda não vale como fundamento de lançamento"
           acoes={
             podeGerenciar && (
               <Button

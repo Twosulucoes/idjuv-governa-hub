@@ -23,7 +23,7 @@ export const MODO_REGRA_LABELS: Record<ModoRegraLancamento, string> = {
 export const MODO_REGRA_DESCRICOES: Record<ModoRegraLancamento, string> = {
   desligado: "Ninguém é checado e a trilha não anota o fundamento.",
   registrar: "Ninguém é bloqueado; a trilha anota quem seria bloqueado.",
-  exigir: "Quem não tem fundamento no setor deixa de lançar: o banco recusa a gravação.",
+  exigir: "Quem não tem fundamento no setor deixa de lançar: o banco recusa a gravação. Liga por migração, módulo a módulo.",
 };
 
 /** Vias de `meus_fundamentos_lancamento()` e de `audit_logs.fundamento->>via`. */
@@ -98,12 +98,13 @@ export interface FundamentoLancamento {
 }
 
 /** Pendência do saneamento (um servidor pode ter mais de uma). */
-export type ProblemaSaneamento = "sem_login" | "sem_lotacao" | "lotacao_divergente";
+export type ProblemaSaneamento = "sem_login" | "sem_lotacao" | "lotacao_divergente" | "fundamento_autoconcedido";
 
 export const PROBLEMA_SANEAMENTO_LABELS: Record<ProblemaSaneamento, string> = {
   sem_login: "Sem login vinculado",
   sem_lotacao: "Sem lotação vigente",
   lotacao_divergente: "Lotação divergente da unidade atual",
+  fundamento_autoconcedido: "Fundamento autoconcedido (designação ou comissão aprovada/criada por ele mesmo)",
 };
 
 /** Linha de `saneamento_lancamento()`: servidor ativo com pelo menos um problema (sem CPF nem outro dado pessoal). */

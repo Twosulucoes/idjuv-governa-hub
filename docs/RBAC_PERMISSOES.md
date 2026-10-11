@@ -856,11 +856,13 @@ segurar a outra). Mesmas policies em `supabase/baseline/rls/mapa.csv` → `35_po
 ### Lançamento por setor (fase 1)
 
 Spec [`2026-10-11-lancamento-por-setor-design.md`](./superpowers/specs/2026-10-11-lancamento-por-setor-design.md).
-Além da permissão, a gravação passa a exigir um **fundamento** no setor do módulo (lotação, designação aprovada e
-vigente com ato, comissão vigente com ato, autoatendimento ou chefia); login sem servidor só consulta. Quem decide é o
+Além da permissão, a gravação passa a exigir um **fundamento** no setor do módulo (lotação, designação aprovada por
+outra pessoa e vigente com ato, autoatendimento ou chefia; na fase 1 a comissão é só cadastro e não vale); login sem
+servidor só consulta. Quem decide é o
 banco (migração `supabase/migrations/20261011020000_lancamento_por_setor.sql`, ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)); nesta fase
-só nas tabelas do RH e em modo `registrar` (anota na trilha, não bloqueia). No modo `exigir` a recusa vem com o
-SQLSTATE `RHS01` e a tela mostra a mensagem do banco. Telas e hooks em
+só nas tabelas do RH e em modo `registrar` (anota na trilha, não bloqueia); `exigir` só entra por migração, módulo a
+módulo (a tela não oferece). No modo `exigir` a recusa vem com o SQLSTATE `RHS01` e a tela mostra a mensagem e o HINT
+do banco. Telas e hooks em
 [GUIA_FRONTEND.md](./GUIA_FRONTEND.md#lançamento-por-setor-fase-1).
 
 | Rota | Guarda (`ProtectedRoute` e `ROUTE_PERMISSIONS`) | Menu | Gravação |
@@ -869,10 +871,10 @@ SQLSTATE `RHS01` e a tela mostra a mensagem do banco. Telas e hooks em
 | `/rh/comissoes` (comissões e membros) | módulo `rh` (`ROUTE_PERMISSIONS`: `'rh'`) | "Comissões" no RH (`menu.config.ts` com `rh.visualizar`, como os vizinhos; `module-menus.config.ts` sem permissão) | `rh.comissoes.gerenciar` (botões e RLS de `comissoes` e `comissoes_membros`) |
 | `/rh/auditoria`, aba "Lançamento por setor" | `rh.auditoria.visualizar` (a mesma da trilha) | — | — (leitura: RLS de `audit_logs` e RPC `saneamento_lancamento`, que pede admin ou a mesma permissão) |
 
-- O aviso "somente consulta" (`AvisoSomenteConsulta`, no `ModuleLayout`) e o `podeLancar` de
-  `useFundamentosLancamento` são UX: a fronteira é o trigger do banco. Valem só para lançamentos do setor:
-  autoatendimento e chefia não aparecem em `meus_fundamentos_lancamento()`, então não use `podeLancar` em telas do
-  próprio servidor nem de aprovação da chefia.
+- O aviso "somente consulta" (`AvisoSomenteConsulta`, no `ModuleLayout`, só no modo `exigir`) é UX: a fronteira é o
+  trigger do banco. Vale só para lançamentos do setor: autoatendimento e chefia não aparecem em
+  `meus_fundamentos_lancamento()`, então o `bloqueado` dela não deve travar telas do próprio servidor nem de aprovação
+  da chefia.
 - Configuração de acesso (usuários, papéis, permissões, setores dos módulos) continua com o admin (premissa 1): o
   módulo `admin` não aparece na tela de setores.
 - No banco: `rh.comissoes.gerenciar` ("Gerenciar Comissões", módulo `rh`, `action_type = 'gerenciar'`) vem para os

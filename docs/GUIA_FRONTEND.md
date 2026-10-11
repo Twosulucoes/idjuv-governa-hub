@@ -191,52 +191,62 @@ O banco grava quem fez cada lançamento (onda E1); o front consulta a trilha e r
 ## Lançamento por setor (fase 1)
 
 Spec: [`superpowers/specs/2026-10-11-lancamento-por-setor-design.md`](./superpowers/specs/2026-10-11-lancamento-por-setor-design.md).
-Quem lança no módulo é o servidor lotado no setor dele, designado para o setor ou membro de comissão; login sem
-servidor só consulta. O banco decide (migração `supabase/migrations/20261011020000_lancamento_por_setor.sql`, ver
-[BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)); nesta fase só as tabelas do RH são checadas, em modo **registrar** (nada é
-bloqueado). As tabelas e RPCs novas ainda não estão em `types.ts`: os hooks usam o client sem tipagem, como
-`useTrilhaAuditoria.ts`.
+Quem lança no módulo é o servidor lotado no setor dele ou designado para o setor; login sem servidor só consulta. Na
+fase 1 a comissão é só cadastro (não vale como fundamento). O banco decide (migração
+`supabase/migrations/20261011020000_lancamento_por_setor.sql`, ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)); nesta
+fase só as tabelas do RH são checadas, em modo **registrar** (nada é bloqueado). O modo **exigir** só entra por
+migração, módulo a módulo: o banco o recusa pela API. As tabelas e RPCs novas ainda não estão em `types.ts`: os hooks
+usam o client sem tipagem, como `useTrilhaAuditoria.ts`.
 
 - **Hook** `src/hooks/useLancamentoPorSetor.ts`:
-  - `useFundamentosLancamento(habilitado?)`: RPC `meus_fundamentos_lancamento()`, uma linha por módulo (`modo`,
-    `permitido`, `bloqueado` = exigir e não permitido, `via`, unidade, `lotacao_id`/`cessao_id`/`designacao_id`/
-    `comissao_id` e `ato` jsonb `{tipo, numero, data, doe_numero, doe_data}`), cache de 30 s, sem retry; erro (42501
-    para usuário inativo) não quebra o layout: nenhum aviso. `doModulo(m)` e `podeLancar(m)` (= não `bloqueado`).
-    A RPC só fala de fundamento de **setor**: autoatendimento e chefia não aparecem nela e continuam valendo, então
-    `podeLancar` não serve para travar telas do próprio servidor nem de aprovação da chefia;
-  - `useRegrasLancamento`/`useSalvarModoRegra` (`regra_lancamento`, upsert por módulo) e `useSetoresModulo`/
-    `useAdicionarSetorModulo`/`useAlterarSetorModulo` (`setores_modulo`; retirar desativa a linha e incluir de novo a
-    reativa). Gravar é só do papel admin (RLS);
-  - `useSaneamentoLancamento` (RPC `saneamento_lancamento()`) e `useBloqueiosLancamento(filtros)`: linhas da trilha
-    com `fundamento->>via` negada no período, sem as gravações em cascata (`fundamento->>em_cascata = 'true'`: levam o
-    fundamento de quem disparou e não são checadas), lidas pelo cursor da `sequencia` (`buscarTrilhaParaExportar`, até
-    5000 linhas; a tela avisa quando corta). `useTrilhaAuditoria` ganhou os filtros `vias` (só com ele `via` e
-    `em_cascata` entram no select) e `semCascata`; o detalhe da linha mostra o fundamento (via, ato e se foi em
-    cascata).
-- **Regras puras** `src/lib/lancamentoSetorRegras.ts`: designação e comissão como fundamento (aprovada/ativa, vigente
-  na data, com número e data do ato; devolve o que falta; comissão com objeto ainda não conta, `comissaoComObjeto`,
-  fase 2), agrupamento do relatório por responsável, tabela e motivo,
-  normalização das respostas das RPCs e `MODULOS_COM_REGRA_NO_BANCO` (hoje `["rh"]`).
+  - `useFundamentosLancamento(habilitado?)`: RPC `meus_fundamentos_lancamento()` chamada sem argumento, uma linha por
+    módulo (`modo`, `permitido`, `bloqueado` = exigir e não permitido, `via`, unidade, `lotacao_id`/`cessao_id`/
+    `designacao_id`/`comissao_id` e `ato` jsonb `{tipo, numero, data, doe_numero, doe_data}`), cache de 30 s, sem
+    retry; erro (42501 para usuário inativo) não quebra o layout: nenhum aviso. Expõe `doModulo(m)`. A RPC só fala de
+    fundamento de **setor**: autoatendimento e chefia não aparecem nela e continuam valendo, então `bloqueado` não
+    serve para travar telas do próprio servidor nem de aprovação da chefia (hoje só o aviso o lê);
+  - `useRegrasLancamento`/`useSalvarModoRegra` (`regra_lancamento`, upsert por módulo, só `desligado`/`registrar`) e
+    `useSetoresModulo`/`useAdicionarSetorModulo`/`useAlterarSetorModulo` (`setores_modulo`; retirar desativa a linha e
+    incluir de novo a reativa). Gravar é só do papel admin (RLS);
+  - `useSaneamentoLancamento` (RPC `saneamento_lancamento()`) e `useBloqueiosLancamento(filtros, habilitado)`:
+    gravações (`create`, `update`, `delete`; leituras não contam) com `fundamento->>permitido = 'false'` (predicado do
+    índice parcial `idx_audit_logs_fundamento_negado`) no período, sem as gravações em cascata
+    (`fundamento->>em_cascata = 'true'`: levam o fundamento de quem disparou e não são checadas), lidas pelo cursor da
+    `sequencia` (`buscarTrilhaParaExportar`, até 5000 linhas; lê 5001 para saber se cortou e a tela avisa).
+    `useTrilhaAuditoria` ganhou os filtros `fundamentoNegado` (só com ele `via` e `em_cascata` entram no select),
+    `acoes` e `semCascata`; o detalhe da linha mostra o fundamento (via, ato e se foi em cascata).
+- **Regras puras** `src/lib/lancamentoSetorRegras.ts`: designação como fundamento com o critério do banco (aprovada,
+  vigente, com número e data do ato, `aprovado_por` preenchido e diferente de quem criou e do próprio servidor, destino
+  que é setor ativo de algum módulo, por `modulosDaUnidade`, que sobe a hierarquia quando o setor inclui as
+  subordinadas; devolve o que falta), agrupamento do relatório por responsável, tabela e motivo, normalização das
+  respostas das RPCs, `hojeISO` no fuso local e `MODULOS_COM_REGRA_NO_BANCO` (hoje `["rh"]`).
 - **Aviso** `AvisoSomenteConsulta` (`src/components/lancamento-setor/`), no `ModuleLayout` (um ponto só, não tela por
-  tela), só nos módulos de `MODULOS_COM_REGRA_NO_BANCO`: com `bloqueado`, "Somente consulta" dos lançamentos do setor
-  com o motivo (sem servidor vinculado ou fora do setor) e o que fazer; em `registrar` sem fundamento, nota discreta
-  de que os lançamentos do setor seriam recusados quando a regra passar a ser exigida. Os dois textos dizem que o que
-  é do próprio servidor e as decisões de chefia continuam liberados. É aviso: quem recusa é o banco.
-- **Erro `RHS01`** (recusa da regra no modo exigir): `descreverErroBanco` e `mensagemErroBanco` mostram a mensagem do
-  banco ("seu login não tem servidor vinculado", "você não está lotado nem designado no setor…") seguida do HINT (o
-  que vale como fundamento); o DETAIL `via=…` não vai para a tela.
+  tela), só nos módulos de `MODULOS_COM_REGRA_NO_BANCO` e só com `bloqueado` (modo exigir): "Somente consulta" dos
+  lançamentos do setor, com o motivo e o que fazer. Cita só o que o banco libera sem fundamento de setor: os pedidos do
+  próprio servidor (abono, ajuste e justificativa de ponto, requerimento de documentos), a assinatura da própria
+  frequência e a validação da chefia na frequência. Férias e licenças não têm autoatendimento nem chefia no banco. Em
+  `registrar` nada aparece. É aviso: quem recusa é o banco.
+- **Erro `RHS01`** (recusa da regra no modo exigir): `descreverErroBanco` (e `mensagemErroBanco`, que o repassa) mostra
+  a mensagem do banco ("seu login não tem servidor vinculado", "você não está lotado nem designado no setor de
+  <módulo>") seguida do HINT (o que vale como fundamento); o DETAIL (via e tabela) não vai para a tela.
 - **Telas:**
   - `/admin/setores-modulos` (`SetoresModulosPage`): por módulo habilitado (menos `admin`, premissa 1), as unidades da
-    estrutura que são o setor (busca por nome/sigla, com ou sem subordinadas) e o modo da regra. O modo só é editável
-    nos módulos que o banco já checa; passar para `exigir` pede confirmação e mostra quantos responsáveis teriam sido
-    bloqueados nos últimos 30 dias (e alerta quando o módulo não tem setor). Sem o papel admin, só consulta;
+    estrutura que são o setor (busca por nome/sigla; "incluir subordinadas" desmarcado por padrão, como no banco, com o
+    aviso do efeito) e o modo da regra. O modo só é editável nos módulos que o banco já checa e só entre desligado e
+    registrar ("Exigir" aparece desabilitado: liga por migração, módulo a módulo; não é mostrado em verde). Retirar
+    setor pede confirmação. Quantos seriam bloqueados nos últimos 30 dias só é lido quando o admin pede (botão no
+    cabeçalho). Sem o papel admin, só consulta;
   - `/rh/comissoes` (`ComissoesPage`, `ComissaoFormDialog`, `MembrosComissaoDialog`): lista com ato, período, membros
-    e se a comissão vale como fundamento (com objeto: "ainda não vale", fase 2); criar/editar (react-hook-form + zod: ato com tipo, número e data
-    obrigatórios, período, motivo, módulo, objeto opcional por tipo e UUID) e membros (servidor, papel, período);
-  - `/rh/designacoes`: coluna "Fundamento de lançamento" (`FundamentoDesignacaoBadge`) com o que falta;
+    e situação, com o selo "cadastro; não vale como fundamento na fase 1"; criar/editar (react-hook-form + zod: ato
+    com tipo, número e data obrigatórios, período, motivo, módulo, objeto obrigatório exceto no tipo "Outra") e
+    membros (servidor, papel, período; o próprio servidor não aparece na lista). `mensagemErroComissao` traduz as
+    recusas do banco (objeto obrigatório, membro repetido, autoinclusão ou criador da comissão pelo texto do RAISE);
+    os servidores para escolher são lidos em todas as páginas (`buscarTodasPaginas`);
+  - `/rh/designacoes`: coluna "Fundamento de lançamento" (`FundamentoDesignacaoBadge`) com os módulos em que vale ou o
+    que falta (o aprovador vem de `profiles` com `servidor_id`; se a RLS não deixar ler, o banco ainda confere);
   - `/rh/auditoria`, aba "Lançamento por setor" (`RelatorioLancamentoSetor`): quem seria bloqueado no período
-    (agrupado por responsável, tabela e motivo) e o saneamento (servidores ativos sem login, sem lotação vigente ou
-    com lotação divergente, com a unidade da lotação, a do cadastro e login inativo).
+    (agrupado por responsável, tabela e motivo) e o saneamento (servidores ativos sem login, sem lotação vigente, com
+    lotação divergente ou com fundamento autoconcedido, com a unidade da lotação, a do cadastro e login inativo).
 - `SeletorBusca` (`src/components/lancamento-setor/`): combobox com busca (Popover + Command) para listas longas
   (servidores, unidades).
 
