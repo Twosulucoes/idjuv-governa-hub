@@ -877,10 +877,14 @@ do banco. Telas e hooks em
   da chefia.
 - Configuração de acesso (usuários, papéis, permissões, setores dos módulos) continua com o admin (premissa 1): o
   módulo `admin` não aparece na tela de setores.
-- No banco: `rh.comissoes.gerenciar` ("Gerenciar Comissões", módulo `rh`, `action_type = 'gerenciar'`) vem para os
-  papéis `admin` e `manager`. `setores_modulo` e `regra_lancamento` são `catalogo_admin` (todo ativo lê, só o papel
-  admin grava, mesmo sem servidor; ficam fora da regra de setor). `comissoes` e `comissoes_membros` são `permissao`
-  com `escrita=rh.comissoes.gerenciar` (INSERT, UPDATE e DELETE). A regra de setor é um trigger por cima da RLS: a
+- No banco: `rh.comissoes.gerenciar` ("Gerenciar Comissões", módulo `rh`, `action_type = 'gerenciar'`) vem **só para
+  o papel `admin`** até o órgão decidir quem cadastra comissões (a migração tira do `manager` onde já estava).
+  `setores_modulo` e `regra_lancamento` são `catalogo_admin` (todo ativo lê, só o papel admin grava, mesmo sem
+  servidor; ficam fora da regra de setor); `regra_lancamento` não tem policy de DELETE e o trigger
+  `trg_regra_lancamento_exigir` recusa (`42501`) levar um módulo a `exigir` com usuário na sessão (só por migração).
+  `comissoes` e `comissoes_membros` são `permissao` com `escrita=rh.comissoes.gerenciar` (INSERT, UPDATE e DELETE);
+  `trg_comissoes_membros_validar` recusa (`42501`) incluir quem cadastrou a comissão e incluir a si mesmo (exceto o
+  papel admin). A regra de setor é um trigger por cima da RLS: a
   permissão continua necessária, e em modo `exigir` falta também o fundamento. O papel admin não tem atalho: sem
   servidor vinculado, ele é recusado no RH em `exigir`. Chefia: quem tem `rh.aprovar` sem `rh.frequencia.lancar`
   decide a etapa da frequência fora do setor (detalhe em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#lançamento-por-setor-fase-1-banco)).

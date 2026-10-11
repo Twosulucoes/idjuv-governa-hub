@@ -24,7 +24,8 @@ ainda não veio: a fase 1 nasce com o cadastro vazio e em modo registrar, sem bl
   `processos_licitatorios.pregoeiro_id`).
 - **Onde a regra cabe:** a E1 já tem o ponto certo no RH, o trigger `zz_fixar_autoria`, que roda em toda
   gravação (inclusive pelas RPCs) e já checa o vínculo (`rh_exige_servidor_vinculado()`, hoje `false`). Fora do
-  RH não há autoria nem trilha genérica.
+  RH não há autoria nem trilha genérica. (Na implementação a checagem ficou num trigger próprio, `zz_exigir_setor`,
+  com `zz_exigir_setor_fim` por comando; `zz_fixar_autoria` só fixa a autoria. Ver "Fase 1".)
 
 ## Desenho proposto
 
@@ -37,10 +38,13 @@ vinculado e há um **fundamento** vigente na data:
 |---|---|
 | `lotacao` | lotação ativa do servidor numa unidade que é setor de M |
 | `designacao` | designação aprovada e vigente para uma unidade que é setor de M, com ato |
-| `comissao` | o servidor é membro de comissão vigente de M (com ato), no objeto dela |
+| `comissao` | o servidor é membro de comissão vigente de M (com ato), no objeto dela (fase 2) |
 | `autoatendimento` | o servidor grava o que é dele (pedir férias, frequência, abono, requerimento) |
 | `chefia` | o chefe da unidade decide etapa do subordinado (frequência, férias, licença) |
 | `sistema` / `anonimo` | jobs, Edge Functions e formulários públicos, que têm regra própria |
+
+Fundamento **autoconcedido não conta**: lotação, cessão ou designação lançada ou aprovada pelo próprio servidor não
+é fundamento (ver "Ajustes das revisões").
 
 Sem fundamento, o banco recusa com mensagem clara ("seu login não tem servidor vinculado" ou "você não está
 lotado nem designado no setor de patrimônio"). A trilha grava o fundamento usado (lotação, designação ou
@@ -100,9 +104,11 @@ Infraestrutura da regra e o RH em **modo registrar** (nada é bloqueado):
    - `setores_modulo`, `comissoes`, `comissoes_membros` e `regra_lancamento(modulo, modo)` com RLS na mesma
      migração; modo inicial `registrar` para `rh` e `desligado` para os demais;
    - `designacoes` só vale como fundamento aprovada, vigente e com ato;
-   - funções `lotacao_vigente`, `fundamento_lancamento` (cache por transação) e `meus_fundamentos_lancamento`;
-   - checagem no trigger `zz_fixar_autoria` das tabelas do RH (já roda em toda gravação, inclusive RPC) e
-     `BEFORE DELETE` onde faltar; em modo `registrar` só anota, em `exigir` recusa;
+   - funções `data_local`, `lotacao_vigente`, `fundamento_lancamento` (cache por transação) e
+     `meus_fundamentos_lancamento`;
+   - checagem no trigger próprio `zz_exigir_setor` (`BEFORE INSERT OR UPDATE OR DELETE`, por linha) das tabelas do
+     RH, mais `zz_exigir_setor_fim` (`AFTER`, por comando) que fecha a marca de cascata; roda em toda gravação,
+     inclusive RPC. Em modo `registrar` só anota, em `exigir` recusa;
    - `audit_logs.fundamento jsonb` gravado pela trilha; `rh_exige_servidor_vinculado()` passa a ler a regra.
 2. **Front:**
    - Administração: setores de cada módulo e modo da regra por módulo;
@@ -110,5 +116,38 @@ Infraestrutura da regra e o RH em **modo registrar** (nada é bloqueado):
    - relatório "quem seria bloqueado" (linhas da trilha com fundamento negado) e saneamento (servidores ativos
      sem login vinculado, sem lotação ativa ou com lotação divergente);
    - aviso "somente consulta" para quem não tem fundamento no módulo, quando o modo for `exigir`.
-3. **Fora da fase 1:** os outros módulos (autoria e trilha da E1 estendidas a eles), modo `exigir` e a
-   Edge Function `enviar-convite-reuniao`.
+3. **Fora da fase 1:** os outros módulos (autoria e trilha da E1 estendidas a eles), comissão como fundamento
+   (por objeto), modo `exigir` e a Edge Function `enviar-convite-reuniao`.
+
+### Ajustes das revisões de código e segurança (fase 1)
+
+Aplicados na mesma migração (detalhes em [`docs/BANCO_DE_DADOS.md`](../../BANCO_DE_DADOS.md), seção "Lançamento por
+setor (fase 1, banco)"):
+
+1. **Autoconcessão não conta.** Lotação e cessão de entrada lançadas pelo próprio servidor (autoria E1
+   `created_by_servidor_id`; nulo = legado, conta) não são fundamento. Designação só vale com `aprovado_por`
+   preenchido, e o aprovador não pode ser o próprio designado nem quem lançou a designação. O saneamento aponta
+   `fundamento_autoconcedido`. Em `comissoes_membros`, quem cadastrou a comissão não pode ser membro, e ninguém se
+   inclui (exceto o papel admin). `rh.comissoes.gerenciar` fica só com o admin até o órgão decidir (decisão 2).
+2. **Comissão vale só no objeto (premissa 6).** `objeto_tipo` e `objeto_id` são obrigatórios quando o tipo não é
+   `outra`. Como nenhuma tabela do RH é objeto de comissão, na fase 1 a comissão é **só cadastro** e não é
+   fundamento; a checagem por linha nas tabelas do objeto (campanha, contrato, processo) fica para a fase 2.
+3. **Autoatendimento** só no INSERT do pedido ainda sem decisão (status pendente e colunas de aprovação nulas).
+4. **Cascata:** só deixa de ser checada a gravação que descende de uma gravação já checada (marca na transação);
+   cascata que começa fora da regra (ex.: `estrutura_organizacional` → `lotacoes`) é checada.
+5. **Sem usuário:** `anonimo` só para o papel `anon`; `authenticated` sem `auth.uid()` é negado
+   (`negado_sem_login`).
+6. **Modo `exigir` só por migração:** trigger recusa levar um módulo a `exigir` com usuário na sessão;
+   `regra_lancamento` não tem policy de DELETE. Sair de `exigir` continua com o admin.
+7. `setores_modulo.inclui_subordinadas` nasce `false` (o admin liga quando quiser a subárvore).
+8. **Data local:** a regra usa `data_local()` (variável `app.fuso_horario` do banco, por instância; padrão
+   `America/Sao_Paulo`), não `CURRENT_DATE`.
+9. **`audit_logs.org_unit_id` muda de significado:** passa a ser a unidade onde a pessoa trabalha (a do fundamento
+   ou, sem ele, a da lotação vigente), também em `log_audit`, e não mais a unidade de acesso de `user_org_units`.
+   Linhas antigas não mudam.
+10. **Riscos aceitos:**
+    - **Storage fora da regra:** arquivos em `storage.objects` (anexos, documentos assinados) não passam pela regra
+      de setor; o controle continua nas policies de Storage existentes. Aceito na fase 1: o lançamento que importa
+      é a linha da tabela, que é checada. Rever quando algum módulo for a `exigir`.
+    - **Cascata de FK:** na exclusão em cascata (`ON DELETE CASCADE`) a trilha da linha filha sai sem `em_cascata`
+      (o Postgres a enfileira para depois do comando); a checagem da linha filha continua correta.
