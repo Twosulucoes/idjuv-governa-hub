@@ -62,12 +62,13 @@ export function useDadosOficiais(): UseDadosOficiaisReturn {
       setLoading(true);
       const { data, error: fetchError } = await supabase
         .from('dados_oficiais')
-        .select('*')
+        // Só as colunas que o portal anônimo pode ler (as demais são só de logados).
+        .select('chave, valor, categoria')
         .order('categoria')
         .order('chave');
 
       if (fetchError) throw fetchError;
-      setDados(data || []);
+      setDados((data || []) as DadoOficial[]);
       setError(null);
     } catch (err: any) {
       console.error('Erro ao carregar dados oficiais:', err);

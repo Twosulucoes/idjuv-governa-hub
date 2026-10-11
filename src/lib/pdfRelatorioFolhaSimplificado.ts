@@ -302,7 +302,7 @@ export async function gerarRelatorioFolhaSimplificado(
     doc.setFontSize(7);
     doc.setTextColor(...CORES.branco);
     
-    doc.text([nomeDoSistema(getTenantSnapshot()), getTenantSnapshot().entidadeSuperior?.nome].filter(Boolean).join(' | '), marginX, pageHeight - 4);
+    doc.text([nomeDoSistema(getTenantSnapshot()), getTenantSnapshot().entidadeSuperior?.exibirEmDocumentos && getTenantSnapshot().entidadeSuperior?.nome].filter(Boolean).join(' | '), marginX, pageHeight - 4);
     doc.text(`Página ${paginaAtual}`, pageWidth - marginX - 20, pageHeight - 4);
   };
 

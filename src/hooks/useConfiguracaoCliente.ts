@@ -50,7 +50,10 @@ export function useSalvarConfiguracaoCliente() {
 
   return useMutation({
     mutationFn: async ({ valores, gravados, motivo }: SalvarConfiguracaoCliente) => {
-      const gravar = [];
+      // Chave nova leva a descrição; chave existente não (não sobrescreve a de quem cadastrou
+      // antes). Upserts separados porque, num lote, coluna ausente vira NULL.
+      const novas = [];
+      const existentes = [];
       const apagar: string[] = [];
 
       for (const campo of CAMPOS_CLIENTE) {
@@ -58,25 +61,27 @@ export function useSalvarConfiguracaoCliente() {
         const atual = gravados[campo.chave]?.valor ?? null;
         if (novo === '' && atual !== null) apagar.push(campo.chave);
         else if (novo !== '' && novo !== atual) {
-          gravar.push({
+          const linha = {
             chave: campo.chave,
             valor: novo,
             categoria: campo.categoria,
-            descricao: campo.rotulo,
             motivo_alteracao: motivo?.trim() || null,
-          });
+          };
+          if (atual === null) novas.push({ ...linha, descricao: campo.rotulo });
+          else existentes.push(linha);
         }
       }
 
-      if (gravar.length > 0) {
-        const { error } = await supabase.from('dados_oficiais').upsert(gravar, { onConflict: 'chave' });
+      for (const lote of [novas, existentes]) {
+        if (lote.length === 0) continue;
+        const { error } = await supabase.from('dados_oficiais').upsert(lote, { onConflict: 'chave' });
         if (error) throw error;
       }
       if (apagar.length > 0) {
         const { error } = await supabase.from('dados_oficiais').delete().in('chave', apagar);
         if (error) throw error;
       }
-      return { alterados: gravar.length + apagar.length };
+      return { alterados: novas.length + existentes.length + apagar.length };
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: CHAVE_QUERY });

@@ -39,17 +39,20 @@ tenants/_template (neutro, nunca o IDJUV)
 - **Quando vale:** o `TenantProvider` lê a tabela ao abrir o app e aplica os valores por cima do
   perfil (`src/core/tenant/identidadeBanco.ts`). O snapshot síncrono dos geradores de PDF é
   atualizado junto. Ao salvar na tela, a identidade é relida na hora, sem novo deploy.
-- **Quem lê:** qualquer pessoa, inclusive sem login (portal, tela de login). É dado institucional
-  público; a RPC `obter_dado_oficial` já entregava qualquer chave a quem não tinha sessão.
-  Dado pessoal não entra nessa tabela.
+- **Quem lê:** qualquer pessoa, inclusive sem login (portal, tela de login), mas só as colunas
+  `chave`, `valor` e `categoria` (o mesmo que a RPC `obter_dado_oficial` já entregava). Autoria e
+  motivo da alteração ficam só para logados. Dado pessoal não entra nessa tabela.
+- **Trilha:** inclusão, alteração e exclusão vão para `audit_logs` (módulo admin), com quem alterou.
+- **Endereços** (site, Diário Oficial, Portal da Transparência) só aceitam `http(s)://`: a tela, o
+  banco (CHECK) e a aplicação do perfil recusam outro esquema, porque o valor vira link no portal.
 - **Quem altera:** só o papel admin (RLS da classe `publico_admin`). Ver a tela exige
   `admin.configuracao_cliente` (o super admin passa por cima); quem vê sem ser admin só consulta.
 - **Campo vazio** apaga a chave do banco e o valor volta a ser o do arquivo de instalação. Na
   primeira vez, a tela mostra os valores do arquivo e avisa quantos ainda não estão no banco: basta
   conferir e salvar.
 
-Migração: `supabase/migrations/20261011023500_configuracao_cliente.sql` (leitura pública e
-permissão da tela). Não grava valores: os dados entram pela tela.
+Migração: `supabase/migrations/20261011023500_configuracao_cliente.sql` (leitura pública,
+endereços só http(s), trilha e permissão da tela). Não grava valores: os dados entram pela tela.
 
 ## O que ainda está no código (próximos passos)
 

@@ -76,7 +76,7 @@ conteudo_rascunho,comunicacao,modulo,alta,o portal público lê conteúdo public
 contratos,compras|contratos,modulo,alta,"policies por módulo (as mesmas do replay, agora geradas e testadas)",,comp_module_delete|comp_module_select|comp_module_update|comp_module_write,
 controles_internos,governanca|integridade,modulo,alta,,,,
 creditos_adicionais,financeiro,modulo,alta,,,,
-dados_oficiais,,publico_admin,alta,"configuração do cliente (nome do sistema, identidade, CNPJ, endereço, dirigente; migração 20261011020000): só dado institucional público, lido por anon (portal, login) e logados, como já fazia a RPC obter_dado_oficial; escrita só do papel admin (tela /admin/configuracao-cliente)",,,select
+dados_oficiais,,publico_admin,alta,"configuração do cliente (nome do sistema, identidade, CNPJ, endereço, dirigente; migração 20261011023500): só dado institucional público, lido por anon (portal, login) e logados, como já fazia a RPC obter_dado_oficial; escrita só do papel admin (tela /admin/configuracao-cliente)",,,select
 datas_importantes,comunicacao,preservar,alta,"policies próprias na migração 20261009120000 (público-alvo por módulo, gestor = avisos.gerenciar); entra no schema na próxima regeneração do baseline",,,
 debitos_tecnicos,admin,admin,alta,configuração do sistema; leitura por RPC onde o portal precisa (obter_dado_oficial),,,
 decisoes_administrativas,workflow,modulo,alta,,,,

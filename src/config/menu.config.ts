@@ -138,7 +138,8 @@ export type PermissaoInstitucional =
   | 'admin.auditoria'
   | 'admin.config'
   | 'admin.backup'
-  | 'admin.envios';
+  | 'admin.envios'
+  | 'admin.configuracao_cliente';
 
 export interface MenuItem {
   id: string;

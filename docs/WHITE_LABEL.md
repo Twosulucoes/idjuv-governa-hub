@@ -501,7 +501,6 @@ pública; `config_institucional` segue como parâmetro do RH. O perfil do tenant
 partida e reserva. Detalhes, e o que ainda falta (logos, cores, textos em páginas e PDFs), em
 [CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md).
 
-
 **Fase 0 — CONCLUÍDA.** O que foi entregue:
 
 | Entregue | Onde |

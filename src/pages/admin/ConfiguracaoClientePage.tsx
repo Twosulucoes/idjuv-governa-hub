@@ -51,6 +51,11 @@ const CNPJ = /^\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}$/;
 const texto = z.string().trim().max(500, 'Use no máximo 500 caracteres');
 const opcional = (schema: z.ZodString) => z.union([schema, z.literal('')]);
 
+// Só http(s): o valor vira link no portal público (z.url() aceitaria javascript:).
+const url = opcional(
+  z.string().trim().regex(/^https?:\/\/\S+$/i, 'Endereço inválido (comece com https://)')
+);
+
 const ESPECIFICOS: Record<string, z.ZodTypeAny> = {
   nome_oficial: texto.min(1, 'Informe o nome oficial'),
   sigla: texto.min(1, 'Informe a sigla').max(30, 'Use no máximo 30 caracteres'),
@@ -58,9 +63,9 @@ const ESPECIFICOS: Record<string, z.ZodTypeAny> = {
   email_institucional: opcional(z.string().trim().email('E-mail inválido')),
   email_suporte: opcional(z.string().trim().email('E-mail inválido')),
   endereco_uf: opcional(z.string().trim().regex(/^[A-Za-z]{2}$/, 'Use a sigla de 2 letras')),
-  site: opcional(z.string().trim().url('Endereço inválido (comece com https://)')),
-  diario_oficial_url: opcional(z.string().trim().url('Endereço inválido (comece com https://)')),
-  portal_transparencia_url: opcional(z.string().trim().url('Endereço inválido (comece com https://)')),
+  site: url,
+  diario_oficial_url: url,
+  portal_transparencia_url: url,
 };
 
 const schema = z.object({
@@ -95,9 +100,10 @@ export default function ConfiguracaoClientePage() {
   const form = useForm<Valores>({ resolver: zodResolver(schema), defaultValues: iniciais });
   const { register, handleSubmit, reset, watch, formState } = form;
 
+  // Recarga dos dados (refetch) não apaga o que a pessoa está digitando.
   useEffect(() => {
-    reset(iniciais);
-  }, [iniciais, reset]);
+    if (!formState.isDirty) reset(iniciais);
+  }, [iniciais, reset, formState.isDirty]);
 
   const previa = nomeDoSistema(
     aplicarDadosOficiais(TENANT_ATIVO, { sistema_nome: watch('sistema_nome') ?? '', sigla: watch('sigla') ?? '' })
@@ -108,7 +114,8 @@ export default function ConfiguracaoClientePage() {
     try {
       const { alterados } = await salvar.mutateAsync({ valores, gravados: gravados ?? {}, motivo });
       toast.success(alterados > 0 ? 'Configuração salva.' : 'Nada mudou.');
-      reset({ ...valores, motivo: '' });
+      // Sem reset manual: a releitura dos dados preenche o formulário (campo apagado volta ao arquivo).
+      reset(undefined, { keepValues: true });
     } catch (err) {
       const mensagem = err instanceof Error ? err.message : 'Tente de novo.';
       toast.error(`Não foi possível salvar: ${mensagem}`);

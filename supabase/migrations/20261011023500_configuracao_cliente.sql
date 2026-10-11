@@ -9,14 +9,19 @@
 --
 -- 1. dados_oficiais passa da classe catalogo_admin para publico_admin (supabase/baseline/rls/mapa.csv; bloco
 --    copiado de supabase/baseline/rls/35_policies_geradas.sql): anon e logados leem; só o papel admin escreve
---    (como antes). A leitura anônima não abre nada novo: a RPC obter_dado_oficial(text), com EXECUTE para anon
---    (overlay/40_privilegios.sql), já devolvia qualquer chave a quem não tem sessão. A tabela só guarda dado
---    institucional público (CNPJ, endereço, nome do dirigente, leis); dado pessoal não entra nela.
--- 2. GRANT SELECT para anon (igual ao overlay 40).
--- 3. Permissão admin.configuracao_cliente (ver a tela) no catálogo. Gravar continua exigindo o papel admin pela RLS.
+--    (como antes). A tabela só guarda dado institucional público (CNPJ, endereço, nome do dirigente, leis).
+-- 2. anon lê só as colunas chave, valor e categoria (privilégio por coluna, igual ao overlay 40): o mesmo que a
+--    RPC obter_dado_oficial(text), com EXECUTE para anon, já entregava. motivo_alteracao, ultima_alteracao_por,
+--    descricao, lei_referencia e documento_url continuam só para logados.
+-- 3. Endereços (site, diario_oficial_url, portal_transparencia_url) só com http(s): o valor vira link no portal
+--    público, e javascript: seria XSS gravado. CHECK NOT VALID: vale para toda gravação nova sem recusar a
+--    migração se já houver linha antiga fora do padrão.
+-- 4. Autoria e trilha: ultima_alteracao_por/em também no INSERT (antes só no UPDATE) e trilha em audit_logs
+--    (módulo admin) para inclusão, alteração e exclusão, no padrão de audit_config_institucional.
+-- 5. Permissão admin.configuracao_cliente (ver a tela) no catálogo. Gravar continua exigindo o papel admin pela RLS.
 --
--- Idempotente (DROP/CREATE POLICY, GRANT, ON CONFLICT DO NOTHING) e válida nos dois estados do banco
--- (baseline e só migrações). Não grava nenhum valor: os dados entram pela tela.
+-- Idempotente (DROP/CREATE POLICY e TRIGGER, REVOKE/GRANT, ON CONFLICT DO NOTHING, constraint condicional) e
+-- válida nos dois estados do banco (baseline e só migrações). Não grava nenhum valor: os dados entram pela tela.
 -- ============================================================================
 
 -- ---- 1. RLS ----
@@ -42,10 +47,33 @@ DROP POLICY IF EXISTS "rls_delete" ON public.dados_oficiais;
 CREATE POLICY "rls_delete" ON public.dados_oficiais FOR DELETE TO authenticated
   USING (public.is_admin_user(auth.uid()));
 
--- ---- 2. Privilégio anônimo (só leitura) ----
-GRANT SELECT ON public.dados_oficiais TO anon;
+-- ---- 2. Privilégio anônimo (só leitura, só colunas públicas) ----
+REVOKE ALL ON public.dados_oficiais FROM anon;
+GRANT SELECT (chave, valor, categoria) ON public.dados_oficiais TO anon;
 
--- ---- 3. Permissão da tela ----
+-- ---- 3. Endereços só http(s) ----
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dados_oficiais_url_http'
+                   AND conrelid = 'public.dados_oficiais'::regclass) THEN
+    ALTER TABLE public.dados_oficiais ADD CONSTRAINT dados_oficiais_url_http
+      CHECK (chave NOT IN ('site', 'diario_oficial_url', 'portal_transparencia_url') OR valor ~* '^https?://')
+      NOT VALID;
+  END IF;
+END $$;
+
+-- ---- 4. Autoria e trilha ----
+DROP TRIGGER IF EXISTS trigger_dados_oficiais_updated_at ON public.dados_oficiais;
+CREATE TRIGGER trigger_dados_oficiais_updated_at
+  BEFORE INSERT OR UPDATE ON public.dados_oficiais
+  FOR EACH ROW EXECUTE FUNCTION public.update_dados_oficiais_updated_at();
+
+DROP TRIGGER IF EXISTS audit_dados_oficiais ON public.dados_oficiais;
+CREATE TRIGGER audit_dados_oficiais
+  AFTER INSERT OR UPDATE OR DELETE ON public.dados_oficiais
+  FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('admin');
+
+-- ---- 5. Permissão da tela ----
 INSERT INTO public.module_permissions_catalog
   (module_code, permission_code, label, category, action_type, sort_order)
 VALUES

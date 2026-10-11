@@ -13,6 +13,7 @@
  * mostram a identidade. Ver docs/CONFIGURACAO_CLIENTE.md.
  */
 
+import { supabase } from '@/integrations/supabase/client';
 import { aplicarDadosOficiais } from './dadosOficiais';
 import { TENANT_ATIVO } from './resolver';
 import { definirTenant } from './snapshot';
@@ -44,9 +45,6 @@ export function assinarTenantEfetivo(ouvinte: () => void): () => void {
  */
 export async function recarregarIdentidadeDoBanco(): Promise<void> {
   try {
-    // Import dinâmico: o núcleo de tenant não depende do cliente Supabase no
-    // carregamento (tipos e scripts de build o importam fora do navegador).
-    const { supabase } = await import('@/integrations/supabase/client');
     const { data, error } = await supabase.from('dados_oficiais').select('chave, valor');
     if (error) throw error;
 

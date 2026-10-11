@@ -279,7 +279,7 @@ export async function gerarRelatorioPDF(
     doc.rect(0, pageHeight - 10, pageWidth, 10, 'F');
     doc.setTextColor(...CORES.branco);
     doc.setFontSize(7);
-    doc.text([nomeDoSistema(getTenantSnapshot()), getTenantSnapshot().entidadeSuperior?.nome].filter(Boolean).join(' | '), margin, pageHeight - 4);
+    doc.text([nomeDoSistema(getTenantSnapshot()), getTenantSnapshot().entidadeSuperior?.exibirEmDocumentos && getTenantSnapshot().entidadeSuperior?.nome].filter(Boolean).join(' | '), margin, pageHeight - 4);
     doc.text(`Página ${paginaAtual}`, pageWidth - margin - 15, pageHeight - 4);
   };
 

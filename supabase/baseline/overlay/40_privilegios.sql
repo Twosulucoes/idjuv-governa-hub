@@ -39,8 +39,9 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.audit_logs FROM anon, authenti
 -- ---- exceções públicas intencionais: tabelas ----
 -- leitura (portal e formulários públicos); as policies de RLS filtram o conteúdo
 GRANT SELECT ON public.config_menu_publico, public.config_paginas_publicas, public.links_uteis,
-                public.escolas_jer, public.form_field_config, public.publicacoes_lai,
-                public.dados_oficiais TO anon;
+                public.escolas_jer, public.form_field_config, public.publicacoes_lai TO anon;
+-- configuração do cliente (migração 20261011023500): só as colunas públicas, não a autoria nem o motivo
+GRANT SELECT (chave, valor, categoria) ON public.dados_oficiais TO anon;
 -- escrita (formulários públicos de cadastro); sem SELECT: ver as RPCs abaixo
 GRANT INSERT ON public.cadastro_arbitros, public.cadastro_arbitros_modalidades,
                 public.federacoes_esportivas, public.gestores_escolares TO anon;

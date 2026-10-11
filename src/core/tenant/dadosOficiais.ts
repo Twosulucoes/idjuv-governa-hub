@@ -37,6 +37,8 @@ export interface CampoCliente {
   ajuda?: string;
   /** Campo longo (textarea). */
   longo?: boolean;
+  /** Endereço web: só http(s) é aceito. */
+  url?: boolean;
   /** Valor no perfil do tenant (fallback). */
   ler: (t: TenantConfig) => string | undefined;
   /** Devolve o perfil com o valor do banco aplicado (sem mutar o original). */
@@ -286,6 +288,7 @@ export const CAMPOS_CLIENTE: CampoCliente[] = [
   },
   {
     chave: 'site',
+    url: true,
     categoria: 'contato',
     rotulo: 'Site',
     ler: (t) => t.contato?.site,
@@ -331,6 +334,7 @@ export const CAMPOS_CLIENTE: CampoCliente[] = [
   // ---- Integrações ----
   {
     chave: 'diario_oficial_url',
+    url: true,
     categoria: 'integracoes',
     rotulo: 'Endereço do Diário Oficial',
     ler: (t) => t.integracoes?.diarioOficialUrl,
@@ -338,6 +342,7 @@ export const CAMPOS_CLIENTE: CampoCliente[] = [
   },
   {
     chave: 'portal_transparencia_url',
+    url: true,
     categoria: 'integracoes',
     rotulo: 'Endereço do Portal da Transparência',
     ler: (t) => t.integracoes?.portalTransparenciaUrl,
@@ -372,6 +377,8 @@ export function aplicarDadosOficiais(
   let resultado = tenant;
   for (const campo of CAMPOS_CLIENTE) {
     const valor = valores[campo.chave]?.trim();
+    // Endereço vira link no portal: só http(s), nunca javascript: (o banco também confere).
+    if (campo.url && valor && !/^https?:\/\//i.test(valor)) continue;
     if (valor) resultado = campo.aplicar(resultado, valor);
   }
   return resultado;
