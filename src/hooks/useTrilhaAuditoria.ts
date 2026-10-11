@@ -19,12 +19,14 @@
  */
 
 import { useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { AuditAction } from "@/types/auth";
 
+// Cast local mínimo: as colunas da E1/E2 em audit_logs (sequencia, origem, servidor_*, alvos...) e a RPC
+// registrar_evento não estão em types.ts (gerado, não editar); este client sem tipagem só é usado neste hook.
 const db = supabase as unknown as SupabaseClient;
 
 // ============================================================================
@@ -88,6 +90,7 @@ export interface DetalheTrilha extends LinhaTrilha {
 
 /**
  * Recorte de uma ficha: as linhas de uma entidade e das tabelas ligadas a ela.
+ * O recorte usa a coluna gerada `alvos` (migração 20261011000300), que junta os ids abaixo:
  *  - servidor: a linha em `servidores` e toda linha cujo antes/depois aponte para o servidor (servidor_id) —
  *    vínculos, lotações, férias, licenças, viagens, frequência, documentos, fichas financeiras...; os eventos
  *    registrados com metadados.servidor_id; e os arquivos do Storage do servidor (metadados.servidor_alvo_id, aceito
@@ -165,28 +168,16 @@ function aplicarFiltros(query: ConsultaTrilha, f: FiltrosTrilha): ConsultaTrilha
   if (ehUuid(f.registroId)) q = q.eq("entity_id", f.registroId.trim());
   if (ehUuid(f.usuarioId)) q = q.eq("user_id", f.usuarioId.trim());
   if (ehUuid(f.servidorId)) q = q.eq("servidor_id", f.servidorId.trim());
-  // Grupos "ou": um só parâmetro `or` na URL (vários grupos viram and(or(...),or(...))).
-  const grupos: string[] = [];
   const resp = f.responsavel ? limparTexto(f.responsavel) : "";
-  if (resp && resp !== "*") grupos.push(`servidor_nome.ilike.*${resp}*,servidor_matricula.ilike.*${resp}*`);
+  if (resp && resp !== "*") q = q.or(`servidor_nome.ilike.*${resp}*,servidor_matricula.ilike.*${resp}*`);
+  // Recorte da aba: coluna gerada audit_logs.alvos (text[] com GIN, migração 20261011000300), com 's:<servidor>' e
+  // 'f:<folha>' em minúsculas. A coluna já aceita metadata.servidor_alvo_id só com metadata.fonte = 'storage'.
   if (f.escopo?.tipo === "servidor" && ehUuid(f.escopo.servidorId)) {
-    const s = f.escopo.servidorId;
-    q = q.eq("module_name", "rh");
-    grupos.push(
-      `and(entity_type.eq.servidores,entity_id.eq.${s}),after_data->>servidor_id.eq.${s},` +
-        `before_data->>servidor_id.eq.${s},metadata->>servidor_id.eq.${s},` +
-        `and(metadata->>fonte.eq.storage,metadata->>servidor_alvo_id.eq.${s})`,
-    );
+    q = q.eq("module_name", "rh").contains("alvos", [`s:${f.escopo.servidorId.trim().toLowerCase()}`]);
   } else if (f.escopo?.tipo === "folha" && ehUuid(f.escopo.folhaId)) {
-    const id = f.escopo.folhaId;
-    q = q.in("module_name", ["rh", "folha"]);
-    grupos.push(
-      `and(entity_type.eq.folhas_pagamento,entity_id.eq.${id}),after_data->>folha_id.eq.${id},` +
-        `before_data->>folha_id.eq.${id},metadata->>folha_id.eq.${id}`,
-    );
+    // 'folha': linhas antigas de fechar_folha/reabrir_folha (só o admin as lê)
+    q = q.in("module_name", ["rh", "folha"]).contains("alvos", [`f:${f.escopo.folhaId.trim().toLowerCase()}`]);
   }
-  if (grupos.length === 1) q = q.or(grupos[0]);
-  else if (grupos.length > 1) q = q.or(`and(${grupos.map((g) => `or(${g})`).join(",")})`);
   return q;
 }
 
@@ -221,9 +212,67 @@ export interface PaginaTrilha {
   proximoCursor: number | null;
 }
 
+/**
+ * Faixa de `sequencia` de um período: sem ela, um período antigo sem cursor varre tudo o que é mais novo. `de` é a
+ * sequencia da primeira linha com timestamp >= início - 1 h; `ate` (exclusivo) a da primeira com timestamp >= fim + 1 h
+ * (nula: sem limite). A folga de 1 h existe porque `timestamp` é o início da transação; o filtro de timestamp continua
+ * fazendo o recorte exato. `vazio`: nada gravado a partir do início do período.
+ */
+interface LimitesSequencia {
+  de: number | null;
+  ate: number | null;
+  vazio: boolean;
+}
+
+const UMA_HORA = 60 * 60 * 1000;
+
+async function primeiraSequenciaDesde(iso: string): Promise<number | null> {
+  const { data, error } = await db
+    .from("audit_logs")
+    .select("sequencia")
+    .gte("timestamp", iso)
+    .order("timestamp", { ascending: true })
+    .limit(1);
+  if (error) throw error;
+  const linha = (data ?? [])[0] as { sequencia: number } | undefined;
+  return linha?.sequencia ?? null;
+}
+
+async function buscarLimites(inicio?: string, fim?: string): Promise<LimitesSequencia> {
+  let de: number | null = null;
+  let ate: number | null = null;
+  const ini = inicio ? inicioDoDia(inicio) : null;
+  if (ini) {
+    de = await primeiraSequenciaDesde(new Date(new Date(ini).getTime() - UMA_HORA).toISOString());
+    if (de == null) return { de: null, ate: null, vazio: true };
+  }
+  const fimExclusivo = fim ? inicioDoDia(fim, true) : null;
+  if (fimExclusivo) ate = await primeiraSequenciaDesde(new Date(new Date(fimExclusivo).getTime() + UMA_HORA).toISOString());
+  return { de, ate, vazio: false };
+}
+
+/** Limites do período, guardados no cache do React Query pela chave do período (1 min). */
+function obterLimites(qc: QueryClient | null, f: FiltrosTrilha): Promise<LimitesSequencia | null> {
+  if (!f.inicio && !f.fim) return Promise.resolve(null);
+  if (!qc) return buscarLimites(f.inicio, f.fim);
+  return qc.fetchQuery({
+    queryKey: ["trilha-auditoria-limites", f.inicio ?? null, f.fim ?? null],
+    queryFn: () => buscarLimites(f.inicio, f.fim),
+    staleTime: 60_000,
+  });
+}
+
 /** Uma página a partir do cursor (sequencia < cursor), na ordem sequencia desc; lê `tamanho + 1` para saber se há mais. */
-async function lerPagina(filtros: FiltrosTrilha, cursor: number | null, tamanho: number) {
+async function lerPagina(
+  filtros: FiltrosTrilha,
+  cursor: number | null,
+  tamanho: number,
+  limites: LimitesSequencia | null,
+): Promise<PaginaTrilha> {
+  if (limites?.vazio) return { linhas: [], temProxima: false, proximoCursor: null };
   let query = aplicarFiltros(consultaTrilha(), filtros);
+  if (limites?.de != null) query = query.gte("sequencia", limites.de);
+  if (limites?.ate != null) query = query.lt("sequencia", limites.ate);
   if (cursor != null) query = query.lt("sequencia", cursor);
   const { data, error } = await query.order("sequencia", { ascending: false }).limit(tamanho + 1);
   if (error) throw error;
@@ -238,12 +287,13 @@ async function lerPagina(filtros: FiltrosTrilha, cursor: number | null, tamanho:
  * primeira página; a tela guarda a pilha de cursores para voltar.
  */
 export function useTrilhaAuditoria(filtros: FiltrosTrilha, cursor: number | null, tamanho = 50, habilitado = true) {
+  const qc = useQueryClient();
   return useQuery({
     queryKey: ["trilha-auditoria", filtros, cursor, tamanho],
     enabled: habilitado,
     placeholderData: (anterior) => anterior,
     queryFn: async (): Promise<PaginaTrilha> => {
-      const pagina = await lerPagina(filtros, cursor, tamanho);
+      const pagina = await lerPagina(filtros, cursor, tamanho, await obterLimites(qc, filtros));
       await completarNomes(pagina.linhas);
       return pagina;
     },
@@ -273,13 +323,17 @@ export function useDetalheTrilha(id: string | null) {
 /** Máximo de linhas no CSV da trilha (o filtro reduz; o arquivo diz quando cortou). */
 export const LIMITE_EXPORTACAO_TRILHA = 5000;
 
-/** Todas as linhas do filtro (até o limite), sem antes/depois, para o CSV. */
-export async function buscarTrilhaParaExportar(filtros: FiltrosTrilha): Promise<LinhaTrilha[]> {
+/** Todas as linhas do filtro (até o limite), sem antes/depois, para o CSV (com a faixa de sequencia do período). */
+export async function buscarTrilhaParaExportar(
+  filtros: FiltrosTrilha,
+  qc: QueryClient | null = null,
+): Promise<LinhaTrilha[]> {
+  const limites = await obterLimites(qc, filtros);
   const linhas: LinhaTrilha[] = [];
   let cursor: number | null = null;
   while (linhas.length < LIMITE_EXPORTACAO_TRILHA) {
     const lote = Math.min(1000, LIMITE_EXPORTACAO_TRILHA - linhas.length);
-    const pagina = await lerPagina(filtros, cursor, lote);
+    const pagina = await lerPagina(filtros, cursor, lote, limites);
     linhas.push(...pagina.linhas);
     if (!pagina.temProxima || pagina.proximoCursor == null) break;
     cursor = pagina.proximoCursor;
