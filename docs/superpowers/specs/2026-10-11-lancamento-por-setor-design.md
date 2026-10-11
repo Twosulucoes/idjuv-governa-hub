@@ -6,8 +6,9 @@ servidor (inclusive o administrador) só consulta. A exceção é o servidor **d
 responder por outro setor ou membro de uma comissão (por exemplo, o levantamento patrimonial), com ato,
 período e motivo, e a trilha mostra por qual designação ele lançou.
 
-Classificação: **architectural** (trigger e RLS de ~200 tabelas, RBAC, trilha, Edge Functions e front). Nada
-entra no banco sem o "sim" do dono a este desenho.
+Classificação: **architectural** (trigger e RLS de ~200 tabelas, RBAC, trilha, Edge Functions e front).
+**Desenho aprovado pelo dono em 2026-10-11** ("Sim"), com as premissas 1 a 8. A lista de setores de cada módulo
+ainda não veio: a fase 1 nasce com o cadastro vazio e em modo registrar, sem bloquear ninguém.
 
 ## O que existe hoje (levantamento de 2026-10-11, só leitura)
 
@@ -90,3 +91,24 @@ comissão, com o ato).
 1. Quais unidades da estrutura são o setor de cada módulo (lista que o órgão informa).
 2. Quem registra e aprova designações e comissões (RH? Gabinete?).
 3. Confirmar ou trocar as premissas 1 a 8.
+
+## Fase 1 (esta entrega)
+
+Infraestrutura da regra e o RH em **modo registrar** (nada é bloqueado):
+
+1. **Banco** (migração `20261011020000_lancamento_por_setor.sql`, idempotente nos dois estados):
+   - `setores_modulo`, `comissoes`, `comissoes_membros` e `regra_lancamento(modulo, modo)` com RLS na mesma
+     migração; modo inicial `registrar` para `rh` e `desligado` para os demais;
+   - `designacoes` só vale como fundamento aprovada, vigente e com ato;
+   - funções `lotacao_vigente`, `fundamento_lancamento` (cache por transação) e `meus_fundamentos_lancamento`;
+   - checagem no trigger `zz_fixar_autoria` das tabelas do RH (já roda em toda gravação, inclusive RPC) e
+     `BEFORE DELETE` onde faltar; em modo `registrar` só anota, em `exigir` recusa;
+   - `audit_logs.fundamento jsonb` gravado pela trilha; `rh_exige_servidor_vinculado()` passa a ler a regra.
+2. **Front:**
+   - Administração: setores de cada módulo e modo da regra por módulo;
+   - RH: cadastro de comissões e membros; designação mostra se vale como fundamento;
+   - relatório "quem seria bloqueado" (linhas da trilha com fundamento negado) e saneamento (servidores ativos
+     sem login vinculado, sem lotação ativa ou com lotação divergente);
+   - aviso "somente consulta" para quem não tem fundamento no módulo, quando o modo for `exigir`.
+3. **Fora da fase 1:** os outros módulos (autoria e trilha da E1 estendidas a eles), modo `exigir` e a
+   Edge Function `enviar-convite-reuniao`.
