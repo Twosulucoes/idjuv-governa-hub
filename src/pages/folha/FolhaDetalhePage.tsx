@@ -31,6 +31,7 @@ import {
   Info,
   Printer,
   History,
+  Ban,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +45,12 @@ import { ProcessarFolhaDialog } from "@/components/folha/ProcessarFolhaDialog";
 import { PendenciasServidoresDialog } from "@/components/folha/PendenciasServidoresDialog";
 import { GerarRemessaDialog } from "@/components/folha/GerarRemessaDialog";
 import { GerarESocialDialog } from "@/components/folha/GerarESocialDialog";
+import { CancelarRemessaDialog } from "@/components/folha/CancelarRemessaDialog";
+import {
+  useBaixarEventoESocial,
+  useBaixarRemessaGuardada,
+  type RemessaComArquivo,
+} from "@/hooks/useArquivosFolha";
 import { FichaFinanceiraDialog } from "@/components/folha/FichaFinanceiraDialog";
 import { format } from "date-fns";
 import { generateContracheque } from "@/lib/pdfContracheque";
@@ -68,6 +75,10 @@ export default function FolhaDetalhePage() {
   const [showRemessa, setShowRemessa] = useState(false);
   const [showESocial, setShowESocial] = useState(false);
   const [fichaDetalheId, setFichaDetalheId] = useState<string | null>(null);
+  const [remessaCancelar, setRemessaCancelar] = useState<RemessaComArquivo | null>(null);
+  const [baixandoArquivoId, setBaixandoArquivoId] = useState<string | null>(null);
+  const baixarRemessaGuardada = useBaixarRemessaGuardada();
+  const baixarEventoESocial = useBaixarEventoESocial();
   
   // Estado de busca
   const [busca, setBusca] = useState("");
@@ -180,8 +191,54 @@ export default function FolhaDetalhePage() {
   // estados, hash e histórico) — mesmas regras da lista em /folha.
   const podeFechar = (status === "processando" || status === "aberta") && !!permissoes?.podeFechar;
   const podeReabrir = status === "fechada" && !!permissoes?.podeReabrir;
+  // Remessa CNAB e eSocial: botões aparecem com fichas, mas só geram com a folha fechada (o banco também recusa).
   const podeGerarRemessa = status !== "previa" && (fichas?.length || 0) > 0;
   const podeGerarESocial = status !== "previa" && (fichas?.length || 0) > 0;
+  const folhaFechada = status === "fechada";
+  const motivoSemArquivos = "Disponível com a folha fechada: remessa e eventos do eSocial saem só da folha conferida.";
+  // Guardar o arquivo da remessa, baixá-lo de novo e cancelar exigem financeiro.folha.processar no banco (UX aqui).
+  const podeProcessarFolha = hasPermission("financeiro.folha.processar");
+  const motivoSemProcessar = "Exige a permissão de processar a folha (financeiro.folha.processar).";
+  const podeAbrirRemessa = folhaFechada && podeProcessarFolha;
+  const motivoRemessa = !folhaFechada ? motivoSemArquivos : !podeProcessarFolha ? motivoSemProcessar : undefined;
+  // eSocial: gerar e baixar também exigem financeiro.folha.processar (o banco exige o mesmo para gravar e ler)
+  const podeAbrirESocial = folhaFechada && podeProcessarFolha;
+  const motivoESocial = !folhaFechada ? motivoSemArquivos : !podeProcessarFolha ? motivoSemProcessar : undefined;
+  // Leitura restrita: sem rh.contracheques.visualizar nem processar, a RLS só devolve a ficha do próprio servidor.
+  // Totais e contagens desta tela seriam parciais ou expõem a folha inteira: ficam escondidos (UX; a fronteira é a RLS).
+  const leituraRestrita = !hasPermission("rh.contracheques.visualizar") && !podeProcessarFolha;
+
+  const handleBaixarRemessa = async (remessa: RemessaComArquivo) => {
+    setBaixandoArquivoId(remessa.id);
+    try {
+      if (await baixarRemessaGuardada(remessa)) toast.success("Arquivo da remessa baixado (hash conferido).");
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível baixar o arquivo da remessa.");
+    } finally {
+      setBaixandoArquivoId(null);
+    }
+  };
+
+  const handleBaixarEvento = async (evento: NonNullable<typeof eventosESocial>[number]) => {
+    setBaixandoArquivoId(evento.id);
+    try {
+      const ok = await baixarEventoESocial({
+        id: evento.id,
+        tipo_evento: evento.tipo_evento,
+        id_evento: evento.id_evento,
+        payload_xml: evento.payload_xml,
+        folhaId: folha.id,
+        ano: folha.competencia_ano,
+        mes: folha.competencia_mes,
+      });
+      if (ok) toast.success("XML (rascunho) baixado.");
+    } catch (erro) {
+      console.error("Erro ao baixar o XML do evento:", erro);
+      toast.error("Não foi possível baixar o XML do evento.");
+    } finally {
+      setBaixandoArquivoId(null);
+    }
+  };
 
   return (
     <ModuleLayout module="rh">
@@ -261,25 +318,31 @@ export default function FolhaDetalhePage() {
             )}
             
             {podeGerarRemessa && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowRemessa(true)}
-              >
-                <Building className="mr-2 h-4 w-4" />
-                Gerar CNAB
-              </Button>
+              <span title={motivoRemessa}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowRemessa(true)}
+                  disabled={!podeAbrirRemessa}
+                >
+                  <Building className="mr-2 h-4 w-4" />
+                  Gerar CNAB
+                </Button>
+              </span>
             )}
             
             {podeGerarESocial && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowESocial(true)}
-              >
-                <FileCode className="mr-2 h-4 w-4" />
-                eSocial
-              </Button>
+              <span title={motivoESocial}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowESocial(true)}
+                  disabled={!podeAbrirESocial}
+                >
+                  <FileCode className="mr-2 h-4 w-4" />
+                  eSocial
+                </Button>
+              </span>
             )}
           </div>
         </div>
@@ -299,8 +362,20 @@ export default function FolhaDetalhePage() {
           </Alert>
         )}
 
+        {/* Leitura restrita: só a própria ficha */}
+        {leituraRestrita && (
+          <Alert>
+            <Lock className="h-4 w-4" />
+            <AlertTitle>Você vê apenas a sua ficha</AlertTitle>
+            <AlertDescription>
+              Nesta folha aparecem só os seus dados. Ver as fichas e os totais de todos os servidores exige a permissão
+              de consultar contracheques (rh.contracheques.visualizar) ou de processar a folha.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Alerta de dados bancários faltantes */}
-        {fichas && fichas.length > 0 && (() => {
+        {!leituraRestrita && fichas && fichas.length > 0 && (() => {
           const semDadosBancarios = fichas.filter(f => !f.banco_codigo || !f.banco_agencia || !f.banco_conta);
           if (semDadosBancarios.length > 0) {
             return (
@@ -317,7 +392,8 @@ export default function FolhaDetalhePage() {
           return null;
         })()}
 
-        {/* Cards de Resumo */}
+        {/* Cards de Resumo (totais da folha inteira: escondidos na leitura restrita) */}
+        {!leituraRestrita && (
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
@@ -369,7 +445,10 @@ export default function FolhaDetalhePage() {
           </Card>
         </div>
 
+        )}
+
         {/* Encargos Patronais */}
+        {!leituraRestrita && (
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
@@ -412,6 +491,7 @@ export default function FolhaDetalhePage() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Tabs de Conteúdo */}
         <Tabs defaultValue="fichas" className="space-y-4">
@@ -472,6 +552,13 @@ export default function FolhaDetalhePage() {
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     {busca ? (
                       <p>Nenhuma ficha encontrada para "{busca}".</p>
+                    ) : leituraRestrita ? (
+                      <>
+                        <p>Você vê apenas a sua ficha, e não há ficha sua nesta folha.</p>
+                        <p className="text-sm mt-2">
+                          As fichas dos outros servidores exigem a permissão de consultar contracheques.
+                        </p>
+                      </>
                     ) : (
                       <>
                         <p>Nenhuma ficha financeira processada para esta competência.</p>
@@ -611,19 +698,27 @@ export default function FolhaDetalhePage() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <CardTitle>Remessas Bancárias (CNAB 240)</CardTitle>
                   {podeGerarRemessa && (
-                    <Button size="sm" onClick={() => setShowRemessa(true)}>
-                      <Building className="mr-2 h-4 w-4" />
-                      Nova Remessa
-                    </Button>
+                    <span title={motivoRemessa}>
+                      <Button size="sm" onClick={() => setShowRemessa(true)} disabled={!podeAbrirRemessa}>
+                        <Building className="mr-2 h-4 w-4" />
+                        Nova Remessa
+                      </Button>
+                    </span>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
+                {podeGerarRemessa && motivoRemessa && (
+                  <Alert className="mb-4">
+                    <Lock className="h-4 w-4" />
+                    <AlertDescription>{motivoRemessa}</AlertDescription>
+                  </Alert>
+                )}
                 {!remessas || remessas.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>Nenhuma remessa bancária gerada para esta folha.</p>
-                    {podeGerarRemessa && (
+                    {podeGerarRemessa && podeAbrirRemessa && (
                       <p className="text-sm mt-2">
                         Clique em "Nova Remessa" para gerar o arquivo CNAB.
                       </p>
@@ -680,15 +775,60 @@ export default function FolhaDetalhePage() {
                               {remessa.status === "rejeitada" && (
                                 <Badge variant="destructive">Rejeitada</Badge>
                               )}
+                              {remessa.status === "cancelada" && (
+                                <Badge
+                                  variant="outline"
+                                  title={(remessa as unknown as RemessaComArquivo).motivo_cancelamento ?? undefined}
+                                >
+                                  <Ban className="h-3 w-3 mr-1" />
+                                  Cancelada
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell className="text-center">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Baixar arquivo"
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
+                              {(() => {
+                                // Colunas da E3 (arquivo_path, arquivo_sha256) fora de types.ts (gerado)
+                                const r = remessa as unknown as RemessaComArquivo;
+                                return (
+                                  <div className="flex items-center justify-center gap-1">
+                                    {r.arquivo_path ? (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title={
+                                          r.status === "cancelada"
+                                            ? "Remessa cancelada: não envie ao banco"
+                                            : podeProcessarFolha
+                                              ? "Baixar o arquivo guardado (confere o hash)"
+                                              : motivoSemProcessar
+                                        }
+                                        disabled={
+                                          r.status === "cancelada" || !podeProcessarFolha || baixandoArquivoId === r.id
+                                        }
+                                        onClick={() => handleBaixarRemessa(r)}
+                                      >
+                                        {baixandoArquivoId === r.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Download className="h-4 w-4" />
+                                        )}
+                                      </Button>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">arquivo não guardado</span>
+                                    )}
+                                    {r.status !== "cancelada" && r.status !== "processada" && podeProcessarFolha && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title="Cancelar remessa (com motivo)"
+                                        onClick={() => setRemessaCancelar(r)}
+                                      >
+                                        <Ban className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -705,21 +845,37 @@ export default function FolhaDetalhePage() {
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <CardTitle>Eventos eSocial</CardTitle>
+                  <CardTitle>Eventos eSocial (rascunho, não transmitido)</CardTitle>
                   {podeGerarESocial && (
-                    <Button size="sm" onClick={() => setShowESocial(true)}>
-                      <FileCode className="mr-2 h-4 w-4" />
-                      Gerar Eventos
-                    </Button>
+                    <span title={motivoESocial}>
+                      <Button size="sm" onClick={() => setShowESocial(true)} disabled={!podeAbrirESocial}>
+                        <FileCode className="mr-2 h-4 w-4" />
+                        Gerar Eventos
+                      </Button>
+                    </span>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
+                <Alert className="mb-4">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Este sistema ainda não transmite ao eSocial: os eventos abaixo são rascunho para conferência.
+                    {podeGerarESocial && motivoESocial && ` ${motivoESocial}`}
+                  </AlertDescription>
+                </Alert>
                 {!eventosESocial || eventosESocial.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <FileCode className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhum evento eSocial gerado para esta folha.</p>
-                    {podeGerarESocial && (
+                    {leituraRestrita ? (
+                      <p>
+                        Os eventos do eSocial só aparecem para quem tem a permissão de consultar contracheques
+                        (rh.contracheques.visualizar) ou de processar a folha.
+                      </p>
+                    ) : (
+                      <p>Nenhum evento eSocial gerado para esta folha.</p>
+                    )}
+                    {podeGerarESocial && podeAbrirESocial && (
                       <p className="text-sm mt-2">
                         Clique em "Gerar Eventos" para criar os eventos S-1200, S-1210 e S-1299.
                       </p>
@@ -755,7 +911,10 @@ export default function FolhaDetalhePage() {
                             </TableCell>
                             <TableCell className="text-center">
                               {evento.status === "pendente" && (
-                                <Badge variant="secondary">Pendente</Badge>
+                                <Badge variant="secondary">Rascunho (não transmitido)</Badge>
+                              )}
+                              {evento.status === "erro" && (
+                                <Badge variant="outline">Rascunho com pendências</Badge>
                               )}
                               {evento.status === "enviado" && (
                                 <Badge className="bg-blue-100 text-blue-800">Enviado</Badge>
@@ -771,9 +930,17 @@ export default function FolhaDetalhePage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                title="Ver detalhes"
+                                title={
+                                  podeProcessarFolha ? "Baixar XML (rascunho, não transmitido)" : motivoSemProcessar
+                                }
+                                disabled={!podeProcessarFolha || !evento.payload_xml || baixandoArquivoId === evento.id}
+                                onClick={() => handleBaixarEvento(evento)}
                               >
-                                <Eye className="h-4 w-4" />
+                                {baixandoArquivoId === evento.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Download className="h-4 w-4" />
+                                )}
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -844,6 +1011,15 @@ export default function FolhaDetalhePage() {
         onOpenChange={setShowRemessa}
         folhaId={id || ""}
         competencia={competencia}
+        competenciaAno={folha.competencia_ano}
+        competenciaMes={folha.competencia_mes}
+        folhaFechada={folhaFechada}
+        quantidadeServidores={folha.quantidade_servidores}
+      />
+
+      <CancelarRemessaDialog
+        remessa={remessaCancelar}
+        onOpenChange={(aberto) => !aberto && setRemessaCancelar(null)}
       />
       
       <GerarESocialDialog
@@ -853,6 +1029,8 @@ export default function FolhaDetalhePage() {
         competencia={competencia}
         mes={folha.competencia_mes}
         ano={folha.competencia_ano}
+        folhaFechada={folhaFechada}
+        quantidadeServidores={folha.quantidade_servidores}
       />
       
       {fichaDetalheId && (

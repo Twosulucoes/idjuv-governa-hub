@@ -24,7 +24,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle, Info, Loader2, Pause, Pencil, Play, Plus, Receipt } from "lucide-react";
+import { CheckCircle, Info, Loader2, Lock, Pause, Pencil, Play, Plus, Receipt } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   useConsignacoesAtivas,
   useLancarConsignacaoNaFicha,
@@ -90,6 +91,10 @@ export function ConsignacoesFichaTab({
   const [motivo, setMotivo] = useState("");
 
   const dataReferencia = ultimoDiaCompetencia(competenciaAno, competenciaMes);
+  // Consignações só são lidas (RLS) com rh.contracheques.visualizar ou financeiro.folha.processar; sem elas a lista
+  // vem vazia e a margem sairia errada: a aba mostra o aviso em vez de "nenhuma consignação".
+  const { hasPermission } = useAuth();
+  const leituraRestrita = !hasPermission("rh.contracheques.visualizar") && !hasPermission("financeiro.folha.processar");
   const { data: consignacoes, isLoading } = useConsignacoesAtivas(servidorId, true);
   const { data: parametros } = useParametrosFolha(dataReferencia);
   const salvar = useSaveConsignacao();
@@ -162,6 +167,18 @@ export function ConsignacoesFichaTab({
         return `Cria um desconto de ${formatCurrency(Number(c.valor_parcela))} nesta ficha com referência "${c.numero_contrato ?? ""}" e recalcula os totais. INSS/IRRF não mudam.`;
     }
   };
+
+  if (leituraRestrita) {
+    return (
+      <Alert>
+        <Lock className="h-4 w-4" />
+        <AlertDescription>
+          Consignações e margem consignável só aparecem para quem tem a permissão de consultar contracheques
+          (rh.contracheques.visualizar) ou de processar a folha.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-4">

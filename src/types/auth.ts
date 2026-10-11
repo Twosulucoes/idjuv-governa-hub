@@ -129,7 +129,8 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   '/rh/relatorios': 'rh.relatorios.visualizar',
   '/rh/aniversariantes': 'rh.servidores.visualizar',
   '/rh/modelos': 'rh.modelos.visualizar',
-  '/rh/exportacao': 'rh.exportar',
+  '/rh/exportar': 'rh.exportar',
+  '/rh/contracheques': 'rh.contracheques.visualizar',
   '/rh/pendencias': 'rh.servidores.visualizar',
   '/rh/auditoria': 'rh.auditoria.visualizar',
   

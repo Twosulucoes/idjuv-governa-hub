@@ -36,6 +36,8 @@ export function ReabrirFolhaDialog({
 }: ReabrirFolhaDialogProps) {
   const [justificativa, setJustificativa] = useState('');
   const [erro, setErro] = useState('');
+  // Recusa do banco (ex.: "A folha tem remessa bancária ativa …"): fica no diálogo, além do toast
+  const [erroServidor, setErroServidor] = useState('');
   const reabrir = useReabrirFolha();
 
   const handleReabrir = async () => {
@@ -45,10 +47,16 @@ export function ReabrirFolhaDialog({
     }
     
     setErro('');
-    await reabrir.mutateAsync({
-      folhaId,
-      justificativa: justificativa.trim(),
-    });
+    setErroServidor('');
+    try {
+      await reabrir.mutateAsync({
+        folhaId,
+        justificativa: justificativa.trim(),
+      });
+    } catch (e) {
+      setErroServidor(e instanceof Error && e.message ? e.message : 'Erro ao reabrir folha');
+      return;
+    }
     setJustificativa('');
     onOpenChange(false);
   };
@@ -56,7 +64,13 @@ export function ReabrirFolhaDialog({
   const competenciaLabel = `${MESES[competenciaMes - 1]}/${competenciaAno}`;
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(aberto) => {
+        if (!aberto) setErroServidor('');
+        onOpenChange(aberto);
+      }}
+    >
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
           <div className="flex items-center gap-3">
@@ -94,18 +108,28 @@ export function ReabrirFolhaDialog({
               onChange={(e) => {
                 setJustificativa(e.target.value);
                 if (e.target.value.trim()) setErro('');
+                setErroServidor('');
               }}
               rows={4}
               className={erro ? 'border-destructive' : ''}
             />
             {erro && <p className="text-sm text-destructive">{erro}</p>}
           </div>
+          {erroServidor && (
+            <p className="text-sm text-destructive" role="alert">
+              {erroServidor}
+            </p>
+          )}
         </div>
 
         <AlertDialogFooter>
           <AlertDialogCancel disabled={reabrir.isPending}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleReabrir}
+            onClick={(e) => {
+              // Não fecha sozinho: se o banco recusar (remessa ativa etc.), o motivo aparece aqui
+              e.preventDefault();
+              void handleReabrir();
+            }}
             disabled={reabrir.isPending || !justificativa.trim()}
             className="bg-purple-600 text-white hover:bg-purple-700"
           >

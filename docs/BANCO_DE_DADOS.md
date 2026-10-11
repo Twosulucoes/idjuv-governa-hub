@@ -22,14 +22,18 @@ muda em relação ao estado das migrações:
   `;proprio`, `;pai=<tabela>.<fk>` e `;filho=<tabela>.<fk>` acrescentam a leitura do próprio servidor, direta,
   pela tabela pai ou por uma tabela filha com `servidor_id`); escrita (INSERT/UPDATE/DELETE) exige o módulo
   **e** a permissão granular do `extra` (`escrita=<código>`), via `can_access_module` + `has_permission_code`.
-  Hoje são 25 tabelas (apurado em 2026-10-10): as 10 da folha (`financeiro.folha.processar` para operar,
+  Hoje são 29 tabelas (apurado em 2026-10-11): as 10 da folha (`financeiro.folha.processar` para operar,
   `financeiro.folha.configurar` para rubricas, parâmetros e tabelas de INSS/IRRF) — detalhe em
   [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1) —, 12 do RH na B2 (férias,
   licenças, viagens, frequência; seção "RH — frequência e ponto" abaixo) e 3 na B3 (`frequencia_pacotes`,
-  `frequencia_arquivos`, `documentos_requerimento_servidor`; mesma seção). A B2 acrescentou ao gerador lista de
+  `frequencia_arquivos`, `documentos_requerimento_servidor`; mesma seção) e 4 que passaram de `modulo` na E3
+  (`eventos_esocial`, `remessas_bancarias`, `pensoes_alimenticias`, `itens_retorno_bancario`; seção "Leitura dos
+  contracheques e da remuneração" abaixo). A B2 acrescentou ao gerador lista de
   códigos (`escrita=a|b`) e os sufixos `;excluir=`, `;insere_proprio`, `;sem_autoaprovacao`, `;coluna=` e
   `;posse=usuario`; a correção de contornos levou `escrita=` à classe `catalogo` e `sem_autoaprovacao` à
-  `proprio_leitura` (formato no [README do baseline](../supabase/baseline/README.md)). `scripts/db/testar-rls.sql`
+  `proprio_leitura`; a E3 acrescentou `;leitura=<código>|<código>` (leitura pelo módulo exige também um dos
+  códigos) e `excluir=ninguem` (sem policy de DELETE), este também na classe `modulo` (formato no
+  [README do baseline](../supabase/baseline/README.md)). `scripts/db/testar-rls.sql`
   cobre a classe com uma persona por código (módulo + código em `user_modules.permissions`) e uma persona
   com a permissão avulsa sem o módulo (não lê nem escreve).
 - **Perfil ativo é pré-condição.** `is_admin_user`, `has_permission_code` e `meu_servidor_id` passam a
@@ -483,6 +487,159 @@ só-migrações; spec [`2026-10-10-rh-trilha-tela-design.md`](./superpowers/spec
 - **Fora**: o bucket `documentos` (workflow e RH) continua sem trilha; leitura (download por URL assinada) não passa
   pelo banco e é registrada pelo front com `registrar_evento`.
 
+### Integridade da remessa CNAB e do eSocial — Onda E3 (banco)
+
+Migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`, **em PR rascunho**; spec
+[`2026-10-11-rh-vazamentos-arquivos-design.md`](./superpowers/specs/2026-10-11-rh-vazamentos-arquivos-design.md)
+(itens 3 e 4). Idempotente, vale para o banco do baseline e para o só-migrações. Não mexe em RLS existente: o fim do
+DELETE pela API nas duas tabelas e a leitura dos contracheques ficam na `20261011010100` (seção seguinte). O gerador
+de CNAB, a tela e o eSocial do front são da mesma spec.
+
+- **Folha fechada** — trigger `trg_exigir_folha_fechada` (função `exigir_folha_fechada`, `SECURITY DEFINER`) em
+  `remessas_bancarias` (BEFORE INSERT) e `eventos_esocial` (BEFORE INSERT e UPDATE de `folha_id`): folha com status
+  diferente de `fechada` recusa com **`RHE01`**, para todos (admin e service role inclusive). A folha é lida com
+  `FOR SHARE`, e `reabrir_folha` a trava com `FOR UPDATE`: geração e reabertura simultâneas se esperam (a que vem
+  depois vê o resultado da outra).
+- **Número da remessa** — `trg_remessa_integridade` (função `remessa_integridade`) dá `numero_remessa` no INSERT:
+  maior número da conta + 1, sob `pg_advisory_xact_lock` por conta (duas gerações simultâneas na mesma conta esperam
+  uma pela outra). O valor mandado pelo cliente é **ignorado**; o front lê o número com `.select()` depois do INSERT.
+  Não reinicia no ano e não reaproveita número de remessa cancelada. Índice único
+  `remessas_bancarias_conta_numero_uidx (conta_autarquia_id, numero_remessa)`. `get_proximo_numero_remessa(p_conta_id,
+  p_ano)` passa a ser só prévia com a mesma regra (`p_ano` ignorado; nenhuma tela a chama) e exige o módulo `rh`
+  (`42501`; antes qualquer logado consultava; o EXECUTE não mudou).
+- **Valor e quantidade** — `valor_total` e `quantidade_registros` são calculados no INSERT das fichas da folha (fechada,
+  logo imutável): líquido > 0 com banco, agência e conta preenchidos, a mesma regra dos favorecidos do front
+  (`fichaTemBanco`). O que o cliente manda é ignorado; o front deve ler os dois com `.select()` e conferir com o
+  arquivo que gerou. O conteúdo do arquivo **não** é validado no servidor (risco aceito: quem processa a folha poderia
+  subir um arquivo diferente do que os totais dizem; a trilha guarda quem enviou e o sha256).
+- **Campos fixos** — `folha_id`, `conta_autarquia_id`, `numero_remessa`, `valor_total` e `quantidade_registros` não
+  mudam depois do INSERT (**`RHE02`**).
+- **Uma remessa ativa por folha e conta** — índice único parcial `remessas_bancarias_folha_conta_ativa_uidx
+  (folha_id, conta_autarquia_id) WHERE status <> 'cancelada'`: a segunda dá `23505`; para gerar de novo, cancele a
+  anterior.
+- **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
+  `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez**, depois do INSERT, e só
+  por quem: tem o módulo `rh` e `financeiro.folha.processar` (`42501`), **gerou a remessa** (`gerado_por`, fixado pela
+  E1; senão `42501`) e **já enviou o objeto** ao bucket — `storage.objects` com `bucket_id = 'remessas-cnab'`, `name =
+  arquivo_path` e dono (`owner_id`, ou `owner` nas versões antigas do Storage) igual ao usuário (senão **`P0002`**).
+  Caminho ou hash fora do formato: `22023`. Depois não mudam nem somem (`RHE02`, também para o admin). A origem
+  `sistema` (service role) dispensa a permissão, o autor e o objeto, não o formato. A checagem do objeto lê
+  `storage.objects` como o dono da função: precisa de `BYPASSRLS` (o `postgres` do Supabase e o do shim têm; o CI
+  confere). As colunas antigas `arquivo_url` e `hash_arquivo` ficam sem uso.
+- **Bucket `remessas-cnab`** (privado, 10 MB, `text/plain` ou `application/octet-stream`): `st_remessas-cnab_select`
+  exige o módulo `rh` **e** `financeiro.folha.processar`; `st_remessas-cnab_insert`, o mesmo e o nome `<uuid>.rem` de
+  uma remessa que existe, **foi gerada pelo próprio usuário**, está `gerada` (não cancelada nem enviada), ainda não tem
+  arquivo e foi gerada **há menos de 1 hora** (`data_geracao`, fixada pela E1). Não há policy de UPDATE nem de DELETE:
+  o arquivo não é trocado nem apagado pela API, e baixar de novo serve o mesmo arquivo (URL assinada). `anon` não lê
+  nem envia. Mesmo texto no `overlay/50_storage.sql`. Outra policy de `storage.objects` que valha para o bucket (cita o
+  bucket, não filtra `bucket_id`, ou o filtra por exclusão: `bucket_id <> 'outro'`, `NOT IN` sem ele) **aborta a
+  migração** (`42501`, com o nome da policy): como o CI aplica no merge, o deploy falha até a policy ser restrita.
+- **Objeto órfão** — se o envio der certo e a gravação de `arquivo_path` falhar, o objeto fica no bucket sem remessa
+  apontando para ele (o front cancela a remessa sem arquivo). A API não apaga; a limpeza é da service role (Studio ou
+  `psql` na VPS), depois de conferir que a remessa está cancelada ou que o objeto é de remessa inexistente:
+  `select o.name, o.created_at, r.status from storage.objects o left join public.remessas_bancarias r on r.id::text =
+  left(o.name, 36) where o.bucket_id = 'remessas-cnab' and (r.id is null or r.arquivo_path is distinct from o.name)`.
+  Apague pelo Storage (API com a service role ou o Studio), não por `DELETE` em `storage.objects`, para o arquivo sair
+  também do disco.
+- **Cancelamento** — colunas `cancelada_em`, `cancelada_por` (sem FK, como a autoria da E1) e `motivo_cancelamento`.
+  RPC `cancelar_remessa(p_remessa_id uuid, p_motivo text)` (`SECURITY DEFINER`, `search_path` fixo, EXECUTE só para
+  `authenticated`): exige o módulo `rh` e `financeiro.folha.processar` (`42501`), motivo de 5 a 1000 caracteres
+  (`22023`), remessa existente (`P0002`) que não esteja cancelada nem `processada` (`RHE03`); grava status
+  `cancelada`, `cancelada_em = now()`, `cancelada_por = auth.uid()` e o motivo, e devolve uma linha (`id`,
+  `numero_remessa`, `status`, `cancelada_em`, `cancelada_por`, `motivo_cancelamento`). Status `cancelada` ou as
+  colunas de cancelamento por UPDATE direto, ou INSERT já cancelado: **`RHE03`**. Remessa cancelada não muda mais
+  (`RHE02`). A trilha da E1 (`audit_remessas_bancarias`) registra o cancelamento com o servidor responsável.
+- **Reabrir a folha** — `reabrir_folha` (mesmo texto no `overlay/18_funcoes_rpc.sql`) recusa folha com remessa ativa
+  (devolve `{success: false, error: "A folha tem remessa bancária ativa (nº …). Cancele a remessa antes de reabrir a
+  folha."}`, o padrão de erro dela) e, ao reabrir, tira da vigência os eventos do eSocial rascunho da folha (status
+  `erro`, `mensagem_retorno` "Folha reaberta: gere o evento de novo depois de fechar"), para não ficarem presos no
+  índice. Evento transmitido (com recibo) fica: a retificação é da onda G.
+- **eSocial** — índice único parcial `eventos_esocial_folha_evento_servidor_uidx` em
+  `(folha_id, tipo_evento, coalesce(servidor_id, '00000000-…'))` onde `folha_id IS NOT NULL` e status fora de
+  `erro`/`rejeitado`: gerar de novo o mesmo evento da mesma folha para o mesmo servidor dá `23505` (o S-1299 conta uma
+  vez por folha); evento com `erro` de validação pode ser gerado de novo. CHECK
+  `eventos_esocial_periodico_com_folha_check`: S-1200, S-1210 e S-1299 exigem `folha_id`, e S-1200/S-1210 exigem
+  `servidor_id` (`23514`; status `erro`/`rejeitado` ficam fora). CHECK `eventos_esocial_transmitido_com_recibo_check`:
+  status `enviado` ou `aceito` exige `recibo` (`23514`). Coluna gerada `rascunho` (`recibo IS NULL`): todo evento é
+  rascunho não transmitido até existir a transmissão (onda G).
+- **Banco já em uso** — os três índices únicos **existem sempre** depois da migração; nada é apagado nem renumerado:
+  - eventos rascunho antigos que furam a regra nova viram status `erro` com o motivo em `mensagem_retorno`: S-1200/S-1210
+    sem `servidor_id` (o diálogo antigo não gravava o servidor, então todos da folha caíam na mesma chave) e periódicos
+    sem `folha_id` ("Sem servidor ou folha antes da E3"); dos repetidos na chave do índice (o S-1299 duplicava a cada
+    clique) fica o mais recente e os outros viram `erro` ("Duplicado antes da E3"). O `servidor_id` não é preenchido
+    pelo CPF do payload: o formato antigo não é fixo e um CPF errado ligaria o evento a outra pessoa. Sobrando repetição
+    só entre transmitidos (não há transmissão antes da onda G), os mais antigos ficam fora do índice pelo id
+    (`WARNING` pedindo migração de correção);
+  - remessas com número repetido na conta ou mais de uma ativa da mesma folha e conta: o número já foi ao banco e a
+    remessa pode ter sido paga, então nada é renumerado nem cancelado; as antigas repetidas, menos a mais recente de cada
+    grupo, ficam fora do índice pelo id (predicado `id <> ALL ('{…}')`, lista no `WARNING`). Seguro porque número novo é
+    sempre maior que o maior da conta e remessa nova da folha só entra depois de cancelar a ativa que ficou no índice.
+  - os CHECKs entram `NOT VALID` e são validados quando nenhuma linha viola (com a limpeza acima, só uma linha
+    transmitida impediria; aí ficam `NOT VALID`, valendo para linha nova e alterada, e a migração avisa).
+  O CI confere os três índices e o `BYPASSRLS` do dono de `remessa_integridade()` depois de aplicar
+  (`.github/workflows/migracoes-banco.yml`, passo "Conferir integridade da remessa e do eSocial").
+- **Códigos de erro**: `RHE01` folha não fechada; `RHE02` campo fixo da remessa ou remessa cancelada alterados;
+  `RHE03` cancelamento fora da RPC ou remessa que não se cancela; `42501` sem permissão (inclusive arquivo de remessa
+  gerada por outro e prévia do número sem o módulo); `22023` valor inválido; `P0002` objeto do arquivo ausente no
+  bucket (ou de outro dono) e remessa inexistente; `23505` evento ou número repetido, ou segunda remessa ativa da folha
+  e conta; `23514` transmitido sem recibo, ou evento periódico sem folha/servidor.
+- **No baseline** colunas, funções, triggers, índices e CHECKs chegam por `schema/`; o bucket e as policies pelo
+  `overlay/50_storage.sql`; `reabrir_folha` pelo `overlay/18_funcoes_rpc.sql`; os REVOKE/GRANT pelo
+  `overlay/40_privilegios.sql`. Testes no bloco "RH: integridade de CNAB e eSocial (Onda E3)" de
+  `scripts/db/testar-rls.sql`.
+- **Fora**: retorno CNAB e conciliação (onda H); transmissão, lote e retificação do eSocial (onda G); validação do
+  conteúdo do arquivo CNAB no servidor; evento do eSocial não periódico sem `folha_id` não passa pela regra da folha
+  fechada.
+
+### Leitura dos contracheques e da remuneração; fim do DELETE — Onda E3 (banco, RLS)
+
+Migração `supabase/migrations/20261011010100_rh_contracheques_leitura.sql`, **em PR rascunho**; mesma spec (item 1,
+premissas 1 e 2; "sem DELETE pela API" dos itens 3 e 4). Separada da `20261011010000` porque **muda RLS existente**
+(decisão 3 da revisão do RH): pode ser segurada sem segurar a outra; sem ela, todo o módulo `rh` continua lendo
+contracheques, lançamentos, consignações, pensões e eventos do eSocial de todos e apagando remessas e eventos.
+Idempotente.
+
+- **Permissão nova** `rh.contracheques.visualizar` (módulo `rh`, `action_type = 'consultar'`), papéis `admin` e
+  `manager`. `financeiro.folha.visualizar` não serve: o papel `user` a recebe (carga por `action_type = 'visualizar'`).
+- **Leitura da remuneração e do dado bancário por pessoa**: o SELECT pelo módulo `rh` passa a exigir também
+  `rh.contracheques.visualizar` **ou** `financeiro.folha.processar` em `fichas_financeiras`, `itens_ficha_financeira`
+  (o servidor continua lendo os próprios, posse por `meu_servidor_id()`), `lancamentos_folha`, `consignacoes`,
+  `eventos_esocial` (payload com CPF e remuneração), `pensoes_alimenticias` (CPF e conta do beneficiário) e
+  `itens_retorno_bancario` (valor pago por servidor). `folhas_pagamento` não muda (só totais).
+- **Escrita com `financeiro.folha.processar`**: já era assim em fichas, itens, lançamentos e consignações (B1);
+  passa a ser em `eventos_esocial`, `pensoes_alimenticias`, `itens_retorno_bancario` e no INSERT/UPDATE de
+  `remessas_bancarias` (antes bastava o módulo). A leitura das remessas continua pelo módulo: a linha só tem os
+  totais da folha, e o arquivo (com a conta de cada servidor) está no bucket `remessas-cnab`, que já exige
+  `processar`.
+- **`remessas_bancarias` e `eventos_esocial`**: sem policy de DELETE e sem o privilégio `DELETE` para `anon` e
+  `authenticated` (a API recebe `42501`, não "0 linhas"). Remessa se cancela pela RPC `cancelar_remessa`; a service
+  role continua podendo apagar.
+- **`fn_validar_margem_consignavel(p_servidor_id)`** (líquido do servidor e soma das consignações): era
+  `SECURITY DEFINER` sem checagem no banco só de migrações (qualquer logado consultava qualquer servidor). Passa a
+  `SECURITY INVOKER` (como o overlay 18 já fazia no baseline) com checagem explícita: módulo `rh` com
+  `rh.contracheques.visualizar` ou `financeiro.folha.processar`, ou o próprio servidor; fora disso, `42501`. Limite: o
+  próprio servidor não lê as próprias consignações pela RLS, então para ele `margem_utilizada` sai 0 (nenhuma tela do
+  servidor usa a função). O EXECUTE não mudou.
+- **Ficaram de fora**, com o motivo:
+  - `retornos_bancarios` e `exportacoes_folha`: totais por arquivo, sem pessoa na linha. Atenção: `detalhes`
+    (jsonb) do retorno e o arquivo de `exportacoes_folha.arquivo_url` não têm formato fixado; o retorno fica para a
+    onda H.
+  - `dependentes_irrf`: CPF e nascimento de dependentes, sem valor; é dado pessoal sensível, não remuneração. A
+    escrita já exige `processar` (B1) e a leitura continua com o módulo, à espera de decisão do RH.
+  - `adicionais_tempo_servico` (`valor_adicional`): registro funcional que o RH mantém sem a permissão da folha;
+    restringir quebraria o cadastro.
+  - `servidores` (`remuneracao_bruta`, `descontos`, `banco_*`), `vinculos_servidor` (`remuneracao_bruta`) e
+    `pre_cadastros` (`banco_*`): a RLS restringe linhas, não colunas, e essas tabelas são o cadastro que todo o RH
+    lê. **Risco registrado**: quem tem o módulo `rh` lê a remuneração e a conta de todos por aí. Privilégio por coluna
+    quebraria os `select('*')` do front; fechar exige view própria ou mover as colunas (decisão futura).
+  - `cadastro_arbitros` (banco e conta) e `viagens_diarias` (diárias): fora do RH ou indenização, não remuneração.
+- Tabela por tabela e impacto no front em
+  [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#contracheques-remessas-e-eventos-do-esocial-rls-onda-e3-banco). No
+  baseline: `mapa.csv` (sufixos `;leitura=` e `excluir=ninguem`) → `35_policies_geradas.sql`, o REVOKE no
+  `overlay/40_privilegios.sql` e as linhas do catálogo em `schema/02_dados_catalogo.sql`. Testes no bloco "RH: leitura
+  dos contracheques e fim do DELETE (Onda E3, 0100)" de `scripts/db/testar-rls.sql`, mais as checagens genéricas de
+  `leitura=` e `excluir=ninguem`.
+
 ### Financeiro / orçamento
 Núcleo (prefixo `fin_`): `fin_solicitacoes`, `fin_solicitacao_itens`,
 `fin_empenhos`, `fin_sub_empenhos`, `fin_empenho_anulacoes`, `fin_liquidacoes`,
@@ -687,9 +844,11 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   trigger dos metadados e limita antes/depois/metadados a 32 KB (seção "Trilha de auditoria ... Onda E1").
 - **Folha / RH**: `calcular_inss_servidor`, `calcular_irrf`, `count_dependentes_irrf`,
   `fn_calcular_ferias`, `calcular_horas_trabalhadas`, `fechar_folha`,
-  `reabrir_folha`, `usuario_pode_fechar_folha`, `usuario_pode_reabrir_folha`,
+  `reabrir_folha` (desde a E3 recusa folha com remessa ativa), `usuario_pode_fechar_folha`, `usuario_pode_reabrir_folha`,
   `processar_folha_pagamento(p_folha_id)` (`SECURITY DEFINER`; exige `financeiro.folha.processar` e folha em
-  `aberta|processando|reaberta|previa`; grava `processado_por` desde a E1), `fn_validar_margem_consignavel`,
+  `aberta|processando|reaberta|previa`; grava `processado_por` desde a E1), `fn_validar_margem_consignavel` (desde a
+  E3 `SECURITY INVOKER`, só com o módulo `rh` e `rh.contracheques.visualizar` ou `financeiro.folha.processar`, ou para o
+  próprio servidor; `42501` fora disso),
   `fn_validar_teto_remuneratorio`, `fn_atualizar_situacao_servidor`.
 - **Trilha do RH (E1)**: `registrar_evento(p_acao, p_entidade, p_entidade_id, p_descricao, p_metadados)` —
   `SECURITY DEFINER`, EXECUTE só para `authenticated`, exige perfil ativo. Registra em `audit_logs` (módulo `rh`) uma
@@ -748,7 +907,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   qualquer usuário ativo (sem ano, CPF, contato ou lotação).
 - **Envios**: `pode_ver_envios`, `pode_configurar_envios` (policies), `salvar_segredo_envio(canal, segredo)`
   (grava a credencial no Vault) e `config_envio_servidor(canal)` (só service role).
-- **Bancário**: `get_proximo_numero_remessa`.
+- **Bancário**: `get_proximo_numero_remessa` (prévia do número; desde a E3 o número vem do trigger no INSERT) e
+  `cancelar_remessa(p_remessa_id, p_motivo)` (E3: cancela com motivo e autor; seção "Integridade da remessa CNAB e do
+  eSocial — Onda E3").
 
 ## Convenções
 

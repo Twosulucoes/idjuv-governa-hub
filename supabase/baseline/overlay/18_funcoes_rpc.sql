@@ -283,6 +283,8 @@ ALTER FUNCTION public.desmarcar_escola_cadastrada() SECURITY DEFINER;
 --     texto (`column "entity_id" is of type uuid but expression is of type text`). Consequência:
 --     fechar_folha/reabrir_folha e qualquer escrita em config_parametros_valores falhavam, até para admin.
 --     Desde a E2 (20261011000300, mesmo texto) as duas gravam module_name 'rh' (antes 'folha').
+--     Desde a E3 (20261011010000, mesmo texto) reabrir_folha trava a folha, recusa folha com remessa ativa e tira da
+--     vigência os eventos do eSocial rascunho da folha.
 CREATE OR REPLACE FUNCTION public.fechar_folha(p_folha_id uuid, p_justificativa text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -353,6 +355,7 @@ AS $function$
 DECLARE
   v_folha RECORD;
   v_user_id UUID;
+  v_remessas text;
 BEGIN
   v_user_id := auth.uid();
   
@@ -371,8 +374,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Apenas super administradores podem reabrir folhas');
   END IF;
   
-  -- Buscar folha
-  SELECT * INTO v_folha FROM public.folhas_pagamento WHERE id = p_folha_id;
+  -- Buscar folha (travada até o fim: geração de remessa/eSocial em curso termina antes; a que vier depois espera)
+  SELECT * INTO v_folha FROM public.folhas_pagamento WHERE id = p_folha_id FOR UPDATE;
   
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Folha não encontrada');
@@ -381,6 +384,15 @@ BEGIN
   -- Verificar status atual
   IF v_folha.status != 'fechada' THEN
     RETURN jsonb_build_object('success', false, 'error', 'Apenas folhas fechadas podem ser reabertas');
+  END IF;
+
+  -- Remessa bancária ativa: cancelar antes (E3)
+  SELECT string_agg(r.numero_remessa::text, ', ' ORDER BY r.numero_remessa) INTO v_remessas
+    FROM public.remessas_bancarias r
+   WHERE r.folha_id = p_folha_id AND r.status <> 'cancelada';
+  IF v_remessas IS NOT NULL THEN
+    RETURN jsonb_build_object('success', false, 'error',
+      format('A folha tem remessa bancária ativa (nº %s). Cancele a remessa antes de reabrir a folha.', v_remessas));
   END IF;
   
   -- Atualizar para reaberta
@@ -391,6 +403,11 @@ BEGIN
     reaberto_em = now(),
     justificativa_reabertura = p_justificativa
   WHERE id = p_folha_id;
+
+  -- Eventos do eSocial rascunho da folha saem da vigência (E3)
+  UPDATE public.eventos_esocial
+     SET status = 'erro', mensagem_retorno = 'Folha reaberta: gere o evento de novo depois de fechar'
+   WHERE folha_id = p_folha_id AND recibo IS NULL AND status NOT IN ('erro', 'rejeitado');
   
   -- Registrar no audit_log
   INSERT INTO public.audit_logs (
