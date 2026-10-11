@@ -22,6 +22,8 @@ import {
   valorComoTexto,
 } from "@/hooks/useTrilhaAuditoria";
 import { TOM_ACAO_TRILHA, nomeModulo, rotuloEntidade } from "@/components/auditoria/trilhaRotulos";
+import { descreverAto, viaNegada } from "@/lib/lancamentoSetorRegras";
+import { VIA_FUNDAMENTO_LABELS, type ViaFundamento } from "@/types/lancamentoSetor";
 
 interface DetalheTrilhaDialogProps {
   id: string | null;
@@ -45,6 +47,9 @@ export function DetalheTrilhaDialog({ id, onOpenChange }: DetalheTrilhaDialogPro
   const visiveis = todosCampos ? diff : diff.filter((c) => c.alterado);
   const ehAtualizacao = !!linha?.before_data && !!linha?.after_data;
   const metadados = linha?.metadata && Object.keys(linha.metadata).length > 0 ? linha.metadata : null;
+  // Regra de lançamento por setor: por onde o responsável lançou (ou por que seria/foi recusado)
+  const via = typeof linha?.fundamento?.via === "string" ? linha.fundamento.via : null;
+  const ato = descreverAto(linha?.fundamento?.ato);
 
   return (
     <Dialog open={!!id} onOpenChange={onOpenChange}>
@@ -105,6 +110,14 @@ export function DetalheTrilhaDialog({ id, onOpenChange }: DetalheTrilhaDialogPro
               <Campo rotulo="Transação">
                 <span className="font-mono">{linha.transacao ?? "—"}</span>
               </Campo>
+              {via && (
+                <Campo rotulo="Fundamento do lançamento">
+                  <StatusBadge tom={viaNegada(via) ? "pendente" : "neutro"} icone={viaNegada(via)}>
+                    {VIA_FUNDAMENTO_LABELS[via as ViaFundamento] ?? via}
+                  </StatusBadge>
+                  {ato && <span className="block text-sm text-muted-foreground">Ato: {ato}</span>}
+                </Campo>
+              )}
             </dl>
 
             {linha.description && (

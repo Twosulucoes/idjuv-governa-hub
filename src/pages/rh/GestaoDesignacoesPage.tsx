@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { DesignacaoForm } from "@/components/rh/DesignacaoForm";
+import { FundamentoDesignacaoBadge } from "@/components/rh/FundamentoDesignacaoBadge";
 import { 
   useDesignacoes, 
   useAprovarDesignacao, 
@@ -246,19 +247,20 @@ export default function GestaoDesignacoesPage() {
                   <TableHead>Origem → Destino</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead className="text-center">Status</TableHead>
+                  <TableHead>Fundamento de lançamento</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       Carregando...
                     </TableCell>
                   </TableRow>
                 ) : filteredDesignacoes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       Nenhuma designação encontrada
                     </TableCell>
                   </TableRow>
@@ -302,6 +304,10 @@ export default function GestaoDesignacoesPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         {getStatusBadge(designacao.status)}
+                      </TableCell>
+                      <TableCell>
+                        {/* Aprovada, vigente e com ato: o servidor lança no setor de destino (regra de setor) */}
+                        <FundamentoDesignacaoBadge designacao={designacao} />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
