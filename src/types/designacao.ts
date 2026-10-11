@@ -77,7 +77,9 @@ export interface Designacao {
   aprovador?: {
     id: string;
     full_name?: string;
-  };
+    /** Servidor vinculado ao perfil do aprovador (regra de setor: não vale aprovar a própria designação). */
+    servidor_id?: string | null;
+  } | null;
 }
 
 export interface CreateDesignacaoData {

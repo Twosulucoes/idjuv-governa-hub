@@ -109,9 +109,11 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   '/admin/backup': 'admin.backup',
   '/admin/importacoes': 'orcamento.importar',
   '/admin/envios': ['admin.envios', 'admin.envios.configurar'],
+  '/admin/configuracao-cliente': 'admin.configuracao_cliente',
   '/admin/disaster-recovery': 'admin.disaster_recovery',
   '/admin/calibrador-segad': 'admin.segad',
   '/admin/reunioes': 'admin.reunioes',
+  '/admin/setores-modulos': 'admin.config',
   
   // ============================================
   // RH
@@ -133,6 +135,8 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   '/rh/contracheques': 'rh.contracheques.visualizar',
   '/rh/pendencias': 'rh.servidores.visualizar',
   '/rh/auditoria': 'rh.auditoria.visualizar',
+  // Leitura com o módulo; criar/editar comissão e membros pede rh.comissoes.gerenciar (botões e RLS)
+  '/rh/comissoes': 'rh',
   
   // ============================================
   // GOVERNANÇA
@@ -250,6 +254,7 @@ export const MODULE_PERMISSIONS = {
     'admin.backup',
     'admin.envios',
     'admin.envios.configurar',
+    'admin.configuracao_cliente',
     'admin.disaster_recovery',
     'admin.segad',
     'admin.reunioes',

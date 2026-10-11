@@ -27,6 +27,11 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
   oficial (Meta Cloud API, templates por uso), grava as credenciais (só escrita, no Vault), envia teste
   e consulta o histórico. Desenho: `docs/superpowers/specs/2026-10-09-envio-email-whatsapp-design.md`.
 
+- **Configuração do cliente**: `ConfiguracaoClientePage` (`/admin/configuracao-cliente`, menu
+  "Configuração do Cliente"). Nome do sistema, nome oficial, sigla, CNPJ, base legal, dirigente,
+  endereço, contato e integrações da instituição, gravados em `dados_oficiais` e aplicados ao app
+  inteiro sem novo deploy. Ver `docs/CONFIGURACAO_CLIENTE.md`.
+
 ## Recursos Humanos (`rh`)
 
 O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curriculo/`:

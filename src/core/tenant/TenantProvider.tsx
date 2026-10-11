@@ -5,13 +5,19 @@
  * de marca. Deve envolver o app inteiro — inclusive rotas públicas, que também
  * exibem marca.
  *
- * O perfil já foi resolvido no carregamento do módulo (`resolver.ts`), então
- * não há estado de "carregando": o provider só publica o que já existe.
+ * O perfil do arquivo (`resolver.ts`) vale desde o primeiro render; em seguida
+ * os dados da tabela `dados_oficiais` (tela "Configuração do cliente") são
+ * aplicados por cima, sem estado de "carregando" (ver `identidadeBanco.ts`).
  */
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { TenantContext } from './context';
-import { TENANT_ATIVO } from './resolver';
+import {
+  assinarTenantEfetivo,
+  getTenantEfetivo,
+  recarregarIdentidadeDoBanco,
+} from './identidadeBanco';
+import { nomeDoSistema } from './produto';
 import { aplicarTema } from './tema';
 import type { TenantConfig } from './types';
 
@@ -22,10 +28,19 @@ interface TenantProviderProps {
 }
 
 export function TenantProvider({ children, config }: TenantProviderProps) {
-  const tenant = config ?? TENANT_ATIVO;
+  const efetivo = useSyncExternalStore(assinarTenantEfetivo, getTenantEfetivo);
+  const tenant = config ?? efetivo;
+
+  useEffect(() => {
+    if (!config) void recarregarIdentidadeDoBanco();
+  }, [config]);
 
   useEffect(() => {
     aplicarTema(tenant.marca.paleta);
+  }, [tenant.marca.paleta]);
+
+  useEffect(() => {
+    document.title = nomeDoSistema(tenant);
   }, [tenant]);
 
   return (

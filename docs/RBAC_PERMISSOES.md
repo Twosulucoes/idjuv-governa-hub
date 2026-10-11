@@ -853,6 +853,42 @@ segurar a outra). Mesmas policies em `supabase/baseline/rls/mapa.csv` → `35_po
   portanto vai no bundle do front; são valores públicos (ato normativo de diárias), sem dado
   pessoal.
 
+### Lançamento por setor (fase 1)
+
+Spec [`2026-10-11-lancamento-por-setor-design.md`](./superpowers/specs/2026-10-11-lancamento-por-setor-design.md).
+Além da permissão, a gravação passa a exigir um **fundamento** no setor do módulo (lotação, designação aprovada por
+outra pessoa e vigente com ato, autoatendimento ou chefia; na fase 1 a comissão é só cadastro e não vale); login sem
+servidor só consulta. Quem decide é o
+banco (migração `supabase/migrations/20261011020000_lancamento_por_setor.sql`, ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)); nesta fase
+só nas tabelas do RH e em modo `registrar` (anota na trilha, não bloqueia); `exigir` só entra por migração, módulo a
+módulo (a tela não oferece). No modo `exigir` a recusa vem com o SQLSTATE `RHS01` e a tela mostra a mensagem e o HINT
+do banco. Telas e hooks em
+[GUIA_FRONTEND.md](./GUIA_FRONTEND.md#lançamento-por-setor-fase-1).
+
+| Rota | Guarda (`ProtectedRoute` e `ROUTE_PERMISSIONS`) | Menu | Gravação |
+|---|---|---|---|
+| `/admin/setores-modulos` (setores de cada módulo e modo da regra) | módulo `admin` e `admin.config` | "Setores dos Módulos" em Administração (`menu.config.ts` e `module-menus.config.ts`, `admin.config`) | só o **papel** admin (RLS de `setores_modulo` e `regra_lancamento`); sem o papel a tela é só consulta |
+| `/rh/comissoes` (comissões e membros) | módulo `rh` (`ROUTE_PERMISSIONS`: `'rh'`) | "Comissões" no RH, nos dois menus com a mesma exigência da rota: `permission: "rh"` (código sem ponto = o módulo) | `rh.comissoes.gerenciar` (botões e RLS de `comissoes` e `comissoes_membros`) |
+| `/rh/auditoria`, aba "Lançamento por setor" | `rh.auditoria.visualizar` (a mesma da trilha) | — | — (leitura: RLS de `audit_logs` e RPC `saneamento_lancamento`, que pede admin ou a mesma permissão) |
+
+- O aviso "somente consulta" (`AvisoSomenteConsulta`, no `ModuleLayout`, só no modo `exigir`) é UX: a fronteira é o
+  trigger do banco. Vale só para lançamentos do setor: autoatendimento e chefia não aparecem em
+  `meus_fundamentos_lancamento()`, então o `bloqueado` dela não deve travar telas do próprio servidor nem de aprovação
+  da chefia.
+- Configuração de acesso (usuários, papéis, permissões, setores dos módulos) continua com o admin (premissa 1): o
+  módulo `admin` não aparece na tela de setores.
+- No banco: `rh.comissoes.gerenciar` ("Gerenciar Comissões", módulo `rh`, `action_type = 'gerenciar'`) vem **só para
+  o papel `admin`** até o órgão decidir quem cadastra comissões (a migração tira do `manager` onde já estava).
+  `setores_modulo` e `regra_lancamento` são `catalogo_admin` (todo ativo lê, só o papel admin grava, mesmo sem
+  servidor; ficam fora da regra de setor); `regra_lancamento` não tem policy de DELETE e o trigger
+  `trg_regra_lancamento_exigir` recusa (`42501`) levar um módulo a `exigir` com usuário na sessão (só por migração).
+  `comissoes` e `comissoes_membros` são `permissao` com `escrita=rh.comissoes.gerenciar` (INSERT, UPDATE e DELETE);
+  `trg_comissoes_membros_validar` recusa (`42501`) incluir quem cadastrou a comissão e incluir a si mesmo (exceto o
+  papel admin). A regra de setor é um trigger por cima da RLS: a
+  permissão continua necessária, e em modo `exigir` falta também o fundamento. O papel admin não tem atalho: sem
+  servidor vinculado, ele é recusado no RH em `exigir`. Chefia: quem tem `rh.aprovar` sem `rh.frequencia.lancar`
+  decide a etapa da frequência fora do setor (detalhe em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#lançamento-por-setor-fase-1-banco)).
+
 ### Importação de dados
 
 Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a
@@ -884,7 +920,11 @@ Permissão nova do catálogo do módulo `financeiro` (categoria "Pagamentos"), c
 - **Banco:** as RPCs `importar_arquivo_bancario`, `conciliar_movimento_bancario`, `registrar_remessa_bancaria` e
   `confirmar_remessa_bancaria` exigem perfil ativo, `can_access_module(…, 'financeiro')` e
   `has_permission_code(…, 'pagamento.conciliar')` (erro `42501`). A permissão avulsa sem o módulo não basta.
-  `pode_conciliar_pagamentos()` faz a mesma checagem para a tela e para a Edge Function.
+  `pode_conciliar_pagamentos()` faz a mesma checagem para a tela e para a Edge Function. Também `corrigir_conta_movimento`,
+  `obter_remessa_bancaria` e `cancelar_remessa_bancaria` (esta: autor da reserva ou papel admin).
+- **Baixa do pagamento (migração `20261011100400`):** marcar `fin_pagamentos` como `pago` (ou gravar
+  `data_efetivacao`) deixou de ser possível pela API para qualquer papel, admin inclusive (`42501`): só o retorno do
+  banco ou a conciliação bancária baixam, logo, na prática, quem tem `pagamento.conciliar`.
 - **Edge Function `bb-api`:** chama `pode_conciliar_pagamentos()` como o próprio usuário antes de usar a service
   role; sem permissão responde `403` (ver [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md#banco-do-brasil-bb-api)).
 - **Leitura:** `fin_movimentos_bancarios`, `fin_remessas_bancarias` e `fin_extrato_lancamentos` são lidas por quem
@@ -892,7 +932,8 @@ Permissão nova do catálogo do módulo `financeiro` (categoria "Pagamentos"), c
   em `/financeiro/pagamentos/:id`, rota com `orcamento.aprovar`). Ninguém escreve nelas direto pela API.
 - **Alteração orçamentária no FIPLAN:** "Confirmar no FIPLAN" em `/financeiro/alteracoes-orcamentarias` usa a RPC
   `confirmar_alteracao_fiplan`, que exige o módulo `financeiro` e `orcamento.aprovar` (não há permissão própria de
-  alteração no catálogo). Detalhes das tabelas e RPCs em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+  alteração no catálogo). Confirmada, a alteração não muda valor/dotações/tipo/exercício/status nem é excluída pela
+  API (admin inclusive). Detalhes das tabelas e RPCs em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
 
 ### Envio de e-mail e WhatsApp
 
@@ -901,6 +942,13 @@ configuração, gravar credenciais e enviar teste), no catálogo do módulo `adm
 Nenhuma das duas vem por padrão de papel: conceda em `user_permissions` a quem administra o envio (as duas juntas: o item de menu filtra por `admin.envios`). A
 rota aceita qualquer das duas; a RLS de `config_envio`/`envios_log`, a RPC `salvar_segredo_envio` e a
 Edge Function `enviar-notificacao` exigem a mesma permissão.
+
+### Configuração do cliente
+
+`admin.configuracao_cliente` (ver a tela `/admin/configuracao-cliente`), no catálogo do módulo `admin`,
+com `action_type` `consultar`, para que nenhuma carga por tipo a conceda ao papel `user`. Gravar exige o papel
+admin: a RLS de `dados_oficiais` (classe `publico_admin`) só deixa o admin escrever, e a tela só habilita
+o formulário para ele. Leitura de `dados_oficiais` é pública (anon). Ver `docs/CONFIGURACAO_CLIENTE.md`.
 
 ## Enforcement de rota (`ProtectedRoute`)
 

@@ -68,6 +68,7 @@
  *                                          da coluna de posse apontar para profiles: scripts/db/testar-rls.sql confere.
  *   catalogo_admin   SELECT para qualquer usuário ativo; escrita só do papel admin (catálogos de permissão,
  *                    configuração de módulos, dados oficiais: o app os lê no login/rodapé, mas só admin altera).
+ *                    extra opcional `excluir=ninguem`: sem policy de DELETE (ninguém apaga pela API, nem o admin).
  *   proprio_user     dado de configuração por usuário: extra=coluna=<col_do_usuario>; o próprio usuário (ativo)
  *                    lê as suas linhas, admin lê todas; escrita só do papel admin.
  *   trilha           trilha de auditoria/histórico: SELECT por módulo; NINGUÉM escreve por API (os registros
@@ -333,11 +334,16 @@ for (const r of dados) {
       break;
     }
     case "catalogo_admin": {
+      // extra opcional `excluir=ninguem`: sem policy de DELETE (nem o admin apaga pela API; ex.: regra_lancamento)
+      const op = extra === "" ? {} : lerSufixos(t, extra.split(";"), ["excluir"]);
+      if (op === null) break;
+      if (op.excluir && op.excluir !== "ninguem") { erros.push(`${t}: em catalogo_admin, "excluir=" só aceita ninguem`); break; }
       const A = "public.is_admin_user(auth.uid())";
       politica("rls_select", "SELECT", "public.is_active_user()", null);
       politica("rls_insert", "INSERT", null, A);
       politica("rls_update", "UPDATE", A, A);
-      politica("rls_delete", "DELETE", A, null);
+      if (op.excluir === "ninguem") L.push(`DROP POLICY IF EXISTS "rls_delete" ON public.${t};`);
+      else politica("rls_delete", "DELETE", A, null);
       break;
     }
     case "proprio_user": {

@@ -40,6 +40,8 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.audit_logs FROM anon, authenti
 -- leitura (portal e formulários públicos); as policies de RLS filtram o conteúdo
 GRANT SELECT ON public.config_menu_publico, public.config_paginas_publicas, public.links_uteis,
                 public.escolas_jer, public.form_field_config, public.publicacoes_lai TO anon;
+-- configuração do cliente (migração 20261011023500): só as colunas públicas, não a autoria nem o motivo
+GRANT SELECT (chave, valor, categoria) ON public.dados_oficiais TO anon;
 -- escrita (formulários públicos de cadastro); sem SELECT: ver as RPCs abaixo
 GRANT INSERT ON public.cadastro_arbitros, public.cadastro_arbitros_modalidades,
                 public.federacoes_esportivas, public.gestores_escolares TO anon;
@@ -127,6 +129,25 @@ REVOKE EXECUTE ON FUNCTION public.exigir_folha_fechada() FROM PUBLIC, anon, auth
 REVOKE EXECUTE ON FUNCTION public.remessa_integridade() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.cancelar_remessa(uuid, text) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.cancelar_remessa(uuid, text) TO authenticated;
+-- lançamento por setor (migração 20261011020000, fase 1): funções de apoio e de trigger fora da API;
+-- meus_fundamentos_lancamento e saneamento_lancamento só para authenticated (a guarda no corpo exige usuário ativo
+-- e, no saneamento, admin ou rh.auditoria.visualizar)
+REVOKE EXECUTE ON FUNCTION public.data_local() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.lotacao_vigente(uuid, date) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.unidade_e_superiores(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.lancamento_modulos_tabela(text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fundamento_lancamento(text[]) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fundamento_tabela(text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fundamento_linha(text, text, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.lancamento_cache_invalidar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.exigir_setor() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.exigir_setor_fim() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.regra_lancamento_proteger_exigir() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.comissoes_membros_validar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.meus_fundamentos_lancamento(public.app_module[]) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.meus_fundamentos_lancamento(public.app_module[]) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.saneamento_lancamento() FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.saneamento_lancamento() TO authenticated;
 -- remessas e eventos do eSocial sem DELETE pela API (migração 20261011010100, E3; a RLS também não tem policy de DELETE,
 -- classe modulo com excluir=ninguem no rls/mapa.csv): a remessa é cancelada por cancelar_remessa
 REVOKE DELETE ON public.remessas_bancarias, public.eventos_esocial FROM anon, authenticated;
@@ -141,6 +162,9 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.importacoes FROM authenticated
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_movimentos_bancarios, public.fin_remessas_bancarias,
                                            public.fin_extrato_lancamentos FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_alteracoes_proteger_situacao_fiplan() FROM PUBLIC, anon, authenticated;
+-- baixa do pagamento só pelo banco e exclusão de alteração confirmada (migração 20261011100400): triggers fora da API
+REVOKE EXECUTE ON FUNCTION public.fin_pagamentos_proteger_baixa() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_alteracoes_bloquear_exclusao_confirmada() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_casar_movimento_pagamento(text, text, numeric, date) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_marcar_pagamento_pago(uuid, date) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fin_remessa_bancaria_json(uuid) FROM PUBLIC, anon, authenticated;

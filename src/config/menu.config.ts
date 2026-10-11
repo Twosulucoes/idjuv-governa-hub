@@ -95,6 +95,8 @@ export type PermissaoInstitucional =
   | 'contratos.tramitar'
   | 'contratos.aprovar'
   // RH
+  // Código sem ponto = o módulo (hasPermission confere user_modules): para itens cuja rota pede só requiredModule
+  | 'rh'
   | 'rh.visualizar'
   | 'rh.criar'
   | 'rh.tramitar'
@@ -140,7 +142,8 @@ export type PermissaoInstitucional =
   | 'admin.auditoria'
   | 'admin.config'
   | 'admin.backup'
-  | 'admin.envios';
+  | 'admin.envios'
+  | 'admin.configuracao_cliente';
 
 export interface MenuItem {
   id: string;
@@ -300,6 +303,15 @@ export const menuConfig: MenuSection[] = [
         icon: UserCog,
         permission: "rh.tramitar",
         priority: 2,
+      },
+      {
+        id: "comissoes",
+        label: "Comissões",
+        route: "/rh/comissoes",
+        icon: Scale,
+        // Mesma exigência da rota (requiredModule="rh" e ROUTE_PERMISSIONS '/rh/comissoes': 'rh'): o módulo rh
+        permission: "rh",
+        priority: 2.5,
       },
       {
         id: "portarias",
@@ -1216,6 +1228,14 @@ export const menuConfig: MenuSection[] = [
         permission: "admin.auditoria",
       },
       {
+        id: "setores-modulos",
+        label: "Setores dos Módulos",
+        labelShort: "Setores",
+        route: "/admin/setores-modulos",
+        icon: Network,
+        permission: "admin.config",
+      },
+      {
         id: "paginas-publicas",
         label: "Páginas Públicas",
         route: "/admin/paginas",
@@ -1270,6 +1290,13 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/envios",
         icon: Mail,
         permission: "admin.envios",
+      },
+      {
+        id: "configuracao-cliente",
+        label: "Configuração do Cliente",
+        route: "/admin/configuracao-cliente",
+        icon: Building2,
+        permission: "admin.configuracao_cliente",
       },
       {
         id: "ajuda",

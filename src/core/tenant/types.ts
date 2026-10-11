@@ -238,8 +238,16 @@ export interface TenantRH {
   diarias?: TabelaDiariasConfig;
 }
 
+/** Produto (o sistema vendido), não a instituição. Ver `produto.ts`. */
+export interface TenantSistema {
+  /** Nome do produto. Ausente: `NOME_PRODUTO_PADRAO`. */
+  nomeProduto?: string;
+}
+
 export interface TenantConfig {
   slug: string;
+  /** Nome do produto nesta instalação; normalmente vem do banco (`sistema_nome`). */
+  sistema?: TenantSistema;
   identidade: TenantIdentidade;
   entidadeSuperior?: TenantEntidadeSuperior;
   marca: TenantMarca;

@@ -493,6 +493,14 @@ As fases 5 e 7 exigem validação jurídica e janela de manutenção do banco.
 
 ### Status da execução
 
+**Fase 3 — EM ANDAMENTO (2026-10-11).** Decisão do dono do produto: tudo que identifica a
+instituição, **inclusive o nome do sistema** (`<produto> / <sigla>`), é dado de banco, cadastrado em
+`/admin/configuracao-cliente`. Escolha de desenho: em vez de consolidar as três tabelas da §5.1, a
+identidade textual mora só em `dados_oficiais` (já auditável e já lida pelo app), agora com leitura
+pública; `config_institucional` segue como parâmetro do RH. O perfil do tenant virou ponto de
+partida e reserva. Detalhes, e o que ainda falta (logos, cores, textos em páginas e PDFs), em
+[CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md).
+
 **Fase 0 — CONCLUÍDA.** O que foi entregue:
 
 | Entregue | Onde |
