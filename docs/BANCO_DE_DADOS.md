@@ -351,7 +351,9 @@ levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3
   `/admin/auditoria` fica pesada depois de processar a folha (a E2 refaz a tela).
 - **Guard** — `scripts/check-autoria-rh.mjs` (no `scripts/gate.sh`) reprova tabela com `rh` no mapa sem, no schema do
   baseline, `zz_fixar_autoria` (`BEFORE INSERT OR UPDATE`, por linha, sem `WHEN`, `fixar_autoria`) e
-  `audit_<tabela>` (`AFTER INSERT OR DELETE OR UPDATE` de todas as colunas, por linha, `fn_audit_trigger('rh')`);
+  `audit_<tabela>` (`AFTER INSERT OR DELETE OR UPDATE` de todas as colunas, por linha, `fn_audit_trigger('rh')`)
+  e, desde a regra de setor, `zz_exigir_setor` (`BEFORE INSERT OR DELETE OR UPDATE`, por linha, `exigir_setor()`) e
+  `zz_exigir_setor_fim` (`AFTER INSERT OR DELETE OR UPDATE`, por comando, `exigir_setor_fim()`);
   classe `trilha`: `trilha_imutavel` e `trilha_imutavel_truncate`, ambos `ENABLE ALWAYS`; e reprova qualquer um deles
   desligado (`DISABLE TRIGGER` ou `ENABLE REPLICA TRIGGER`). Exceção só com motivo em `scripts/autoria-rh-excecoes.txt`
   (hoje nenhuma).
@@ -639,6 +641,123 @@ Idempotente.
   `overlay/40_privilegios.sql` e as linhas do catálogo em `schema/02_dados_catalogo.sql`. Testes no bloco "RH: leitura
   dos contracheques e fim do DELETE (Onda E3, 0100)" de `scripts/db/testar-rls.sql`, mais as checagens genéricas de
   `leitura=` e `excluir=ninguem`.
+
+### Lançamento por setor (fase 1, banco)
+
+Migração `supabase/migrations/20261011020000_lancamento_por_setor.sql`, **em PR rascunho**; spec
+[`2026-10-11-lancamento-por-setor-design.md`](./superpowers/specs/2026-10-11-lancamento-por-setor-design.md)
+(premissas 1 a 8, seção "Fase 1"). Idempotente (roda de novo sobre o replay, o baseline novo e o anterior). Nesta fase a
+regra só roda nas 79 tabelas do RH (as do `mapa.csv` com `rh`, menos as 2 de classe `trilha`) e o RH nasce em modo
+`registrar`: **nada é bloqueado**, a trilha anota quem seria.
+
+- **Tabelas novas** (RLS e policies na mesma migração, autoria `zz_fixar_autoria` e trilha `audit_<tabela>`):
+  - `setores_modulo` (módulo `app_module`, `unidade_id` → `estrutura_organizacional`, `inclui_subordinadas` com
+    **padrão `false`**, `ativo`, `observacao`; único por módulo e unidade) e `regra_lancamento` (`id` PK, `modulo`
+    único, `modo` `desligado`/`registrar`/`exigir`, `observacao`): classe `catalogo_admin`. Todo usuário ativo lê, só o
+    **papel** admin grava, mesmo sem servidor (premissa 1). Trilha no módulo `admin`, fora da regra.
+    `regra_lancamento` não tem policy de DELETE (`excluir=ninguem` no mapa: nem o admin apaga a linha de um módulo) e
+    o trigger `trg_regra_lancamento_exigir` recusa (`42501`) INSERT ou UPDATE que leve um módulo a `exigir` quando há
+    usuário na sessão: o modo `exigir` só entra por migração, módulo a módulo. Sair de `exigir` continua com o admin
+    (saída de emergência).
+  - `comissoes` (nome; tipo `inventario`/`licitacao`/`fiscalizacao_contrato`/`outra`; módulo; objeto
+    `objeto_tipo` `campanha_inventario`/`contrato`/`processo_licitatorio` + `objeto_id`, os dois ou nenhum, e
+    **obrigatórios quando o tipo não é `outra`**; ato obrigatório `ato_tipo`, `ato_numero`, `ato_data`, mais
+    `ato_doe_numero`/`ato_doe_data` opcionais; `data_inicio` obrigatória, `data_fim`; `motivo` obrigatório; `status`
+    `ativa`/`encerrada`) e `comissoes_membros` (`comissao_id` com `ON DELETE CASCADE`, `servidor_id`, `papel`
+    `presidente`/`membro`/`secretario`, período próprio opcional): classe `permissao`, o módulo `rh` lê e escreve com
+    `rh.comissoes.gerenciar` (permissão nova, **só o papel `admin`** até o órgão decidir quem cadastra). Retirar
+    membro é `DELETE`. O trigger `trg_comissoes_membros_validar` recusa (`42501`) incluir quem cadastrou a comissão e
+    incluir o próprio servidor do login (exceto o papel admin).
+- **Carga:** `regra_lancamento` com uma linha por valor de `app_module`: `rh` = `registrar`, os demais `desligado`.
+  Linha existente não muda (`ON CONFLICT DO NOTHING`), então rodar a migração de novo não desfaz a escolha do admin.
+  `setores_modulo` nasce vazio: a lista de setores vem do órgão.
+- **Data de hoje** (`data_local()`): a regra não usa `CURRENT_DATE` (no Supabase o fuso da sessão é UTC: à noite já
+  seria "amanhã"). `data_local()` usa a variável `app.fuso_horario` do banco, definida por instância
+  (`ALTER DATABASE <banco> SET app.fuso_horario = '<zona IANA do órgão>'`, junto com o resto do provisionamento); sem
+  ela, ou com nome inválido, `America/Sao_Paulo`. É `now()` no fuso, estável na transação.
+- **Fundamento** (`fundamento_lancamento(text[])`, interna): para o login atual (`profiles.servidor_id`, premissa 7)
+  e os módulos da tabela, na data de hoje, na ordem:
+  1. `lotacao`: `lotacao_vigente(servidor, data)` (lotação ativa e vigente fora de `lotacao_externa`, ou cessão de
+     entrada ativa com `unidade_idjuv_id`, premissa 4) numa unidade de `setores_modulo` ativo, ou abaixo dela quando
+     `inclui_subordinadas` (subida por `superior_id` com limite de 50 níveis: um ciclo na estrutura não trava a
+     gravação). **Não vale** a lotação ou cessão lançada pelo próprio servidor (`created_by_servidor_id` = ele, da
+     autoria E1; nulo = legado, vale);
+  2. `designacao`: `status = 'aprovada'`, `ativo`, vigente, com ato (`ato_numero` não vazio e `ato_data`), com
+     `aprovado_por` preenchido, e o aprovador **não** é o próprio designado nem quem lançou a designação, para uma
+     unidade do setor (premissa 5: soma à lotação);
+  3. senão `negado_setor`; login sem servidor: `negado_sem_servidor`. Sem `auth.uid()`: papel `anon` é `anonimo`
+     (formulário público), papel `authenticated` é `negado_sem_login`, qualquer outro (service role, jobs) é `sistema`.
+  **Comissão não é fundamento na fase 1:** pela premissa 6 ela vale só no seu objeto (campanha, contrato, processo), o
+  que exige checagem por linha nas tabelas desses módulos (fase 2); nenhuma tabela do RH é objeto de comissão. O
+  cadastro já fica pronto.
+  O papel admin não tem atalho. Tabela com mais de um módulo usa o modo mais restritivo entre eles e aceita o setor
+  de qualquer um (`lancamento_modulos_tabela`: folha com `rh` e `financeiro`, premissa 3; `documentos` com `rh`,
+  `workflow`, `gabinete`, `governanca` e `admin`; etc.). Cache por transação em variável local, com chave usuário +
+  papel da sessão + geração; o trigger `lancamento_cache_invalidar` (lotações, designações, cessões, comissões,
+  membros, setores, regra, estrutura e vínculo do perfil) sobe a geração e zera o contexto da trilha.
+- **Autoatendimento e chefia** (`fundamento_linha`, só quando o fundamento de setor é negado, e só em
+  `solicitacoes_abono`, `solicitacoes_ajuste_ponto`, `justificativas_ponto`, `frequencia_fechamento` e
+  `documentos_requerimento_servidor`; exige servidor vinculado):
+  - `autoatendimento`: INSERT do **pedido ainda sem decisão** do próprio servidor (abono e requerimento por
+    `servidor_id`; ajuste de ponto por `servidor_id = auth.uid()`; justificativa pelo dono do registro de ponto), com
+    `status = 'pendente'` e as colunas de decisão nulas (abono: `aprovado_chefia_*`, `aprovado_rh_*`,
+    `motivo_rejeicao`; ajuste e justificativa: `aprovador_id`, `data_aprovacao`, `observacao_aprovador`; requerimento:
+    `arquivo_assinado_url`, `data_upload_assinado`); e o UPDATE do próprio fechamento que só muda
+    `assinado_servidor`/`assinado_servidor_em`. O pedido que já entra decidido não é autoatendimento;
+  - `chefia`: quem tem `rh.aprovar` e **não** tem `rh.frequencia.lancar`, no UPDATE das quatro tabelas de etapa (a
+    etapa já é limitada por `validar_etapa_frequencia`); em `frequencia_fechamento` só se mudar apenas
+    `validado_chefia*` e `observacoes`, e no INSERT já com `validado_chefia = true`. O admin tem todos os códigos e
+    nunca cai aqui. Férias e licenças não têm etapa de chefia no banco, então não há via chefia nelas. A hierarquia
+    (se o aprovador chefia mesmo a unidade do servidor) não é conferida, como já não era.
+- **Triggers** nas 79 tabelas (o guard `check-autoria-rh.mjs` cobra os dois):
+  - `zz_exigir_setor` (`BEFORE INSERT OR UPDATE OR DELETE`, por linha): recusa só em modo `exigir`, sem fundamento de
+    setor e sem fundamento da linha, com SQLSTATE **`RHS01`**. Mensagens (com o nome do módulo de
+    `module_settings.display_name`, ou o código): "Seu login não tem servidor vinculado: lançamento no setor de
+    <módulos> recusado", "Sessão sem usuário identificado: lançamento no setor de <módulos> recusado" ou "Você não
+    está lotado nem designado no setor de <módulos>: lançamento recusado". `DETAIL` = `via=<via>; tabela=<tabela>`, e
+    há `HINT`. Roda antes de `zz_fixar_autoria`, que perdeu a checagem de vínculo da E1;
+    `rh_exige_servidor_vinculado()` passa a responder "o RH está em `exigir`?".
+  - `zz_exigir_setor_fim` (`AFTER`, por comando): apaga a marca de cascata. **Cascata:** a gravação de nível 1
+    aceita deixa a marca `lancamento.cadeia` na transação até o fim do comando; gravação feita por outro trigger
+    (`pg_trigger_depth() > 1`) com a marca descende de uma gravação já checada e não é checada de novo. Sem a marca
+    (cascata que começa numa tabela fora da regra, ex.: apagar uma unidade em `estrutura_organizacional` leva as
+    lotações; ou trigger BEFORE que grava antes da checagem da própria linha) é checada como qualquer gravação.
+- **Trilha:** `audit_logs.fundamento jsonb` (gravado por `fn_audit_trigger` e `registrar_evento`; nulo com a regra
+  desligada ou tabela fora dela) com `permitido`, `via`, `modo`, `modulos`, `modulo`, `servidor_id`, `data`,
+  `unidade_id`, `setor_unidade_id` e o registro usado (`lotacao_id` ou `cessao_id`, ou `designacao_id`), e `ato` =
+  `{tipo, numero, data, doe_numero, doe_data}` (chaves nulas omitidas). A gravação feita por trigger AFTER dentro de
+  uma gravação checada leva `em_cascata: true` (o relatório de bloqueios deve ignorá-la). Limite: na cascata de FK
+  (`ON DELETE CASCADE`) o Postgres enfileira a trilha da linha filha para depois do comando; ela sai sem
+  `em_cascata` e com o fundamento calculado para a tabela filha (mesmo login). Índice parcial
+  `idx_audit_logs_fundamento_negado` para "quem seria bloqueado" (criado sem `CONCURRENTLY`: nasce vazio).
+- **Mudança de significado de `audit_logs.org_unit_id`:** passa a ser a unidade **onde a pessoa trabalha**, não a
+  unidade de acesso. Nas linhas da regra, a unidade do fundamento usado (designação: a de destino); nas demais (e em
+  `log_audit`, `trilha_completar_contexto` e `registrar_evento`), a da lotação vigente do servidor do login. Antes era
+  a unidade principal de `user_org_units` (escopo de acesso). Sem servidor ou sem lotação: nula. Linhas antigas não
+  mudam; relatório que filtre a trilha por unidade deve considerar a data da mudança.
+- **RPCs para o front** (só `authenticated`; as demais funções novas sem EXECUTE pela API):
+  - `meus_fundamentos_lancamento(p_modulos app_module[] DEFAULT NULL)` → **linhas**, uma por módulo do enum (ou só os
+    pedidos, na ordem do enum; a chamada sem argumento continua valendo): `modulo`, `modo`, `permitido`, `bloqueado`
+    (`modo = 'exigir'` e sem fundamento de setor), `via`, `unidade_id`, `unidade_nome`, `lotacao_id`, `cessao_id`,
+    `designacao_id`, `comissao_id` (sempre nulo na fase 1), `ato` (jsonb como acima). Exige usuário ativo (`42501`).
+    Autoatendimento e chefia não aparecem aqui e valem mesmo com `bloqueado`.
+  - `saneamento_lancamento()` → servidores ativos (`ativo` e situação fora de exonerado, aposentado, falecido e
+    inativo) com problema: `servidor_id`, `nome`, `matricula`, `situacao`, `tem_login`, `login_ativo`,
+    `lotacao_unidade_id`, `lotacao_unidade_nome`, `unidade_atual_id`, `unidade_atual_nome`, `problemas` (`text[]` com
+    `sem_login`, `sem_lotacao`, `lotacao_divergente`, `fundamento_autoconcedido`: lotação ou cessão vigente lançada
+    pelo próprio servidor, ou designação aprovada e vigente aprovada por ele ou por quem a lançou). Sem CPF. Papel
+    admin, ou módulo `rh` com `rh.auditoria.visualizar`; senão `42501`.
+- **Desempenho** (`processar_folha_pagamento`, 2000 servidores, banco local, 3 a 4 rodadas;
+  `scripts/db/medir-desempenho-folha.sql`): antes 0,89 a 0,96 s / reprocessar 1,26 a 1,42 s; depois, em `registrar`
+  e admin sem servidor, 1,00 a 1,22 s / 1,56 a 1,69 s; em `exigir` com o usuário lotado no setor, 1,10 a 1,26 s / 1,75
+  a 1,81 s (6004 linhas na trilha nos três). O custo vem da trilha com fundamento e dos dois triggers por comando.
+- **Fora da fase 1:** os outros módulos (autoria, trilha e o trigger), comissão por objeto, modo `exigir` em
+  qualquer módulo (migração própria, depois de um ciclo em `registrar`), arquivos do Storage (a regra não roda em
+  `storage.objects`: risco aceito, ver a spec) e a Edge Function `enviar-convite-reuniao`.
+- No baseline: `mapa.csv` → `35_policies_geradas.sql` (o gerador aceita `excluir=ninguem` em `catalogo_admin`);
+  `regra_lancamento` nas sementes do `gerar-baseline.sh`; REVOKE e GRANT no `overlay/40_privilegios.sql`; `log_audit`
+  no `overlay/18_funcoes_rpc.sql` (mesmo texto da migração). Testes no bloco "Lançamento por setor (fase 1)" de
+  `scripts/db/testar-rls.sql`. Telas e rotas: [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#lançamento-por-setor-fase-1).
 
 ### Financeiro / orçamento
 Núcleo (prefixo `fin_`): `fin_solicitacoes`, `fin_solicitacao_itens`,

@@ -112,6 +112,7 @@ import PendenciasPortariasPage from "./pages/rh/PendenciasPortariasPage";
 import DiagnosticoPendenciasServidoresPage from "./pages/rh/DiagnosticoPendenciasServidoresPage";
 import ExportacaoPlanilhaPage from "./pages/rh/ExportacaoPlanilhaPage";
 import AuditoriaRHPage from "./pages/rh/AuditoriaRHPage";
+import ComissoesPage from "./pages/rh/ComissoesPage";
 import AniversariantesPage from "./pages/rh/AniversariantesPage";
 import GestaoLotacaoPage from "./pages/rh/GestaoLotacaoPage";
 import ControlePacotesFrequenciaPage from "./pages/rh/ControlePacotesFrequenciaPage";
@@ -173,6 +174,7 @@ import GerenciadorMenuPublicoPage from "./pages/admin/GerenciadorMenuPublicoPage
 import GerenciadorLinksUteisPage from "./pages/admin/GerenciadorLinksUteisPage";
 import GestaoModulosPage from "./pages/admin/GestaoModulosPage";
 import PainelPermissoesPage from "./pages/admin/PainelPermissoesPage";
+import SetoresModulosPage from "./pages/admin/SetoresModulosPage";
 import ConfigCamposPreCadastroPage from "./pages/admin/ConfigCamposPreCadastroPage";
 
 // ASCOM / Comunicação
@@ -549,6 +551,12 @@ const App = () => (
                   <GestaoPerfilPage />
                 </ProtectedRoute>
               } />
+              {/* Regra de setor: setores de cada módulo e modo da regra (gravar: só o papel admin, pela RLS) */}
+              <Route path="/admin/setores-modulos" element={
+                <ProtectedRoute requiredModule="admin" requiredPermissions="admin.config">
+                  <SetoresModulosPage />
+                </ProtectedRoute>
+              } />
               {/* Rota removida - sistema simplificado */}
               <Route path="/admin/backup" element={
                 <ProtectedRoute requiredPermissions="admin.backup">
@@ -877,6 +885,12 @@ const App = () => (
               <Route path="/rh/auditoria" element={
                 <ProtectedRoute requiredPermissions="rh.auditoria.visualizar">
                   <AuditoriaRHPage />
+                </ProtectedRoute>
+              } />
+              {/* Comissões (regra de setor): lê quem tem o módulo rh; gravar pede rh.comissoes.gerenciar (tela e RLS) */}
+              <Route path="/rh/comissoes" element={
+                <ProtectedRoute requiredModule="rh">
+                  <ComissoesPage />
                 </ProtectedRoute>
               } />
               <Route path="/rh/frequencia/configuracao" element={

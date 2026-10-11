@@ -472,6 +472,7 @@ $function$;
 --     E1 (migração 20261011000000, mesmo texto): no módulo rh só view/export/download sem antes/depois; chaves de
 --     trigger/registrar_evento tiradas dos metadados, que levam fonte = log_audit; antes/depois/metadados até 32 KB.
 --     Desde a E2 (20261011000200, mesmo texto): recusa entity_type storage.* e tira servidor_alvo_id dos metadados.
+--     Desde a regra de setor (20261011020000, mesmo texto): org_unit_id = unidade da lotação vigente do login.
 CREATE OR REPLACE FUNCTION public.log_audit(_action audit_action, _entity_type character varying DEFAULT NULL::character varying, _entity_id uuid DEFAULT NULL::uuid, _module_name character varying DEFAULT NULL::character varying, _before_data jsonb DEFAULT NULL::jsonb, _after_data jsonb DEFAULT NULL::jsonb, _description text DEFAULT NULL::text, _metadata jsonb DEFAULT '{}'::jsonb)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -517,10 +518,12 @@ BEGIN
   WHERE user_id = auth.uid() 
   LIMIT 1;
   
-  SELECT unidade_id INTO _user_org_unit
-  FROM public.user_org_units
-  WHERE user_id = auth.uid() AND is_primary = true
-  LIMIT 1;
+  -- unidade da lotação vigente do servidor do login (como o resto da trilha, regra de setor 20261011020000); antes,
+  -- a unidade principal de user_org_units (escopo de acesso, não onde a pessoa trabalha)
+  SELECT lv.unidade_id INTO _user_org_unit
+    FROM public.profiles p CROSS JOIN LATERAL public.lotacao_vigente(p.servidor_id) lv
+   WHERE p.id = auth.uid() AND p.servidor_id IS NOT NULL
+   LIMIT 1;
   
   INSERT INTO public.audit_logs (
     user_id, action, entity_type, entity_id, module_name,

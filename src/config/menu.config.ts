@@ -94,6 +94,8 @@ export type PermissaoInstitucional =
   | 'contratos.tramitar'
   | 'contratos.aprovar'
   // RH
+  // Código sem ponto = o módulo (hasPermission confere user_modules): para itens cuja rota pede só requiredModule
+  | 'rh'
   | 'rh.visualizar'
   | 'rh.criar'
   | 'rh.tramitar'
@@ -298,6 +300,15 @@ export const menuConfig: MenuSection[] = [
         icon: UserCog,
         permission: "rh.tramitar",
         priority: 2,
+      },
+      {
+        id: "comissoes",
+        label: "Comissões",
+        route: "/rh/comissoes",
+        icon: Scale,
+        // Mesma exigência da rota (requiredModule="rh" e ROUTE_PERMISSIONS '/rh/comissoes': 'rh'): o módulo rh
+        permission: "rh",
+        priority: 2.5,
       },
       {
         id: "portarias",
@@ -1201,6 +1212,14 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/auditoria",
         icon: Eye,
         permission: "admin.auditoria",
+      },
+      {
+        id: "setores-modulos",
+        label: "Setores dos Módulos",
+        labelShort: "Setores",
+        route: "/admin/setores-modulos",
+        icon: Network,
+        permission: "admin.config",
       },
       {
         id: "paginas-publicas",

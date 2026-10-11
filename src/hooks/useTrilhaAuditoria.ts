@@ -15,6 +15,12 @@
  * `registrar_evento` (RPC da E1) grava ver/exportar/baixar (imprimir = baixar) no módulo 'rh', com listas fechadas
  * de ação e entidade; usuário, servidor, origem, IP e user agent são do banco.
  *
+ * Lançamento por setor (migração 20261011020000): `audit_logs.fundamento` (jsonb) guarda a via usada na gravação
+ * (lotação, designação, comissão...) ou a negada (`negado_sem_servidor`, `negado_setor`). O filtro `fundamentoNegado`
+ * pede `fundamento->>permitido = 'false'` (o predicado do índice parcial idx_audit_logs_fundamento_negado) e só então
+ * `via` e `em_cascata` entram no select (as consultas sem o filtro não dependem da coluna); `semCascata` tira as
+ * gravações disparadas por outra (`fundamento->>em_cascata = 'true'`), que não são checadas; `acoes` limita as ações.
+ *
  * As colunas novas e a RPC ainda não estão em types.ts (gerado): consulta sem tipagem do client.
  */
 
@@ -65,6 +71,9 @@ export interface LinhaTrilha {
   gatilho?: string | null;
   /** Nome do perfil (profiles.full_name) quando não há servidor vinculado; o que a RLS não liberar fica vazio. */
   usuario_nome?: string | null;
+  /** fundamento->>via e fundamento->>em_cascata (só quando o filtro `fundamentoNegado` é usado). */
+  via?: string | null;
+  em_cascata?: string | null;
 }
 
 /** De onde veio a linha (metadata.fonte / metadata.trigger), para exibir. */
@@ -86,6 +95,8 @@ export interface DetalheTrilha extends LinhaTrilha {
   transacao: number | null;
   org_unit_id: string | null;
   org_unit?: { nome: string | null } | null;
+  /** Fundamento do lançamento (via, ids, ato); nulo nas linhas anteriores à regra de setor. */
+  fundamento?: Record<string, unknown> | null;
 }
 
 /**
@@ -121,6 +132,13 @@ export interface FiltrosTrilha {
   /** ID do servidor responsável. */
   servidorId?: string;
   escopo?: EscopoTrilha;
+  /** Vias do fundamento (fundamento->>via), ex.: negado_sem_servidor e negado_setor. */
+  /** Só as gravações sem fundamento: fundamento->>permitido = 'false' (usa o índice parcial do banco). */
+  fundamentoNegado?: boolean;
+  /** Só estas ações (ex.: create, update, delete). */
+  acoes?: AuditAction[];
+  /** Tira as linhas com fundamento->>em_cascata = 'true'. */
+  semCascata?: boolean;
 }
 
 const COLUNAS_LISTA =
@@ -147,8 +165,11 @@ function inicioDoDia(data: string, fimDoDia = false): string | null {
   return d.toISOString();
 }
 
-// Consulta de audit_logs (builder do PostgREST sem tipagem).
-const consultaTrilha = () => db.from("audit_logs").select(COLUNAS_LISTA);
+// Consulta de audit_logs (builder do PostgREST sem tipagem). Com fundamentoNegado, traz também a via e a cascata.
+const consultaTrilha = (comVia = false) =>
+  db
+    .from("audit_logs")
+    .select(comVia ? `${COLUNAS_LISTA}, via:fundamento->>via, em_cascata:fundamento->>em_cascata` : COLUNAS_LISTA);
 type ConsultaTrilha = ReturnType<typeof consultaTrilha>;
 
 function aplicarFiltros(query: ConsultaTrilha, f: FiltrosTrilha): ConsultaTrilha {
@@ -164,6 +185,9 @@ function aplicarFiltros(query: ConsultaTrilha, f: FiltrosTrilha): ConsultaTrilha
   if (f.modulo) q = q.eq("module_name", f.modulo);
   if (f.acao) q = q.eq("action", f.acao);
   if (f.origem) q = q.eq("origem", f.origem);
+  if (f.fundamentoNegado) q = q.eq("fundamento->>permitido", "false");
+  if (f.acoes?.length) q = q.in("action", f.acoes);
+  if (f.semCascata) q = q.or("fundamento->>em_cascata.is.null,fundamento->>em_cascata.neq.true");
   if (f.entidade?.trim()) q = q.eq("entity_type", f.entidade.trim());
   if (ehUuid(f.registroId)) q = q.eq("entity_id", f.registroId.trim());
   if (ehUuid(f.usuarioId)) q = q.eq("user_id", f.usuarioId.trim());
@@ -270,7 +294,7 @@ async function lerPagina(
   limites: LimitesSequencia | null,
 ): Promise<PaginaTrilha> {
   if (limites?.vazio) return { linhas: [], temProxima: false, proximoCursor: null };
-  let query = aplicarFiltros(consultaTrilha(), filtros);
+  let query = aplicarFiltros(consultaTrilha(!!filtros.fundamentoNegado), filtros);
   if (limites?.de != null) query = query.gte("sequencia", limites.de);
   if (limites?.ate != null) query = query.lt("sequencia", limites.ate);
   if (cursor != null) query = query.lt("sequencia", cursor);
@@ -323,16 +347,20 @@ export function useDetalheTrilha(id: string | null) {
 /** Máximo de linhas no CSV da trilha (o filtro reduz; o arquivo diz quando cortou). */
 export const LIMITE_EXPORTACAO_TRILHA = 5000;
 
-/** Todas as linhas do filtro (até o limite), sem antes/depois, para o CSV (com a faixa de sequencia do período). */
+/**
+ * Todas as linhas do filtro (até o limite), sem antes/depois, para o CSV (com a faixa de sequencia do período). Também
+ * usada pelo relatório "quem seria bloqueado" (lançamento por setor), que agrupa as linhas na tela.
+ */
 export async function buscarTrilhaParaExportar(
   filtros: FiltrosTrilha,
   qc: QueryClient | null = null,
+  limite = LIMITE_EXPORTACAO_TRILHA,
 ): Promise<LinhaTrilha[]> {
   const limites = await obterLimites(qc, filtros);
   const linhas: LinhaTrilha[] = [];
   let cursor: number | null = null;
-  while (linhas.length < LIMITE_EXPORTACAO_TRILHA) {
-    const lote = Math.min(1000, LIMITE_EXPORTACAO_TRILHA - linhas.length);
+  while (linhas.length < limite) {
+    const lote = Math.min(1000, limite - linhas.length);
     const pagina = await lerPagina(filtros, cursor, lote, limites);
     linhas.push(...pagina.linhas);
     if (!pagina.temProxima || pagina.proximoCursor == null) break;
