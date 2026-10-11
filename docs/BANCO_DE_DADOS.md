@@ -738,6 +738,12 @@ histórico de migrações; o baseline já as remove); a correção no banco ao v
 `decisoes_administrativas`, `debitos_tecnicos`, `publicacoes_legais`,
 `dados_oficiais`, `config_institucional`.
 
+`dados_oficiais` é a configuração do cliente (chave → valor: nome do sistema, identidade, CNPJ,
+endereço, dirigente, contato), editada em `/admin/configuracao-cliente`. Desde a migração
+`supabase/migrations/20261011023500_configuracao_cliente.sql` a leitura é pública (anon e logados, classe `publico_admin`)
+e a escrita só do papel admin. As chaves válidas estão em `CAMPOS_CLIENTE`
+(`src/core/tenant/dadosOficiais.ts`). Ver [CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md).
+
 ### Transparência / LAI
 `solicitacoes_sic`, `recursos_lai`, `prazos_lai`, `historico_lai`, `publicacoes_lai`.
 

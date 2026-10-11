@@ -1259,6 +1259,13 @@ export const menuConfig: MenuSection[] = [
         permission: "admin.envios",
       },
       {
+        id: "configuracao-cliente",
+        label: "Configuração do Cliente",
+        route: "/admin/configuracao-cliente",
+        icon: Building2,
+        permission: "admin.configuracao_cliente",
+      },
+      {
         id: "ajuda",
         label: "Ajuda",
         route: "/admin/ajuda",

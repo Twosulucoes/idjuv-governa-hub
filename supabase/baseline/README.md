@@ -69,10 +69,10 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
 | `proprio_leitura` / `proprio` / `proprio_filho` | 8 / 0 / 0 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20). Desde a B2, `servidores` (posse pela coluna `id`, DELETE com `rh.servidores.excluir`, e nos contornos `sem_autoaprovacao`: ninguém grava a própria ficha), `vinculos_servidor` e `lotacoes` estão aqui; as tabelas do RH que estavam em `proprio`/`proprio_filho` passaram a `permissao` (a última, `documentos_requerimento_servidor`, na B3). As classes `proprio` e `proprio_filho` continuam no gerador, sem tabela |
 | `catalogo` | 7 | qualquer usuário ativo lê; escrita por módulo, ou com `escrita=<código>` também pelo código (`tipos_abono`: `rh.frequencia.configurar`, nos contornos). `cargos` entrou na B2 |
-| `catalogo_admin` | 6 | qualquer usuário ativo lê (o app lê no login); só o papel admin escreve. `audit_colunas_sensiveis` (catálogo da máscara da trilha) entrou na E1 |
+| `catalogo_admin` | 5 | qualquer usuário ativo lê (o app lê no login); só o papel admin escreve. `audit_colunas_sensiveis` (catálogo da máscara da trilha) entrou na E1 |
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
 | `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`; desde a E1 imutável por trigger e com a policy extra `audit_logs_rh_auditoria_select` da migração `20261011000100`, fora do gerador: módulo `rh` e `rh.auditoria.visualizar` leem as linhas do RH) |
-| `publico_admin` | 3 | `anon` e logados leem (portal público); só admin escreve |
+| `publico_admin` | 4 | `anon` e logados leem (portal público); só admin escreve. `dados_oficiais` (configuração do cliente) entrou em 2026-10-11 (migração `20261011023500`) |
 | `preservar` | 9 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `fotos_vistoria_inventario`, `avisos`, `avisos_leituras`, `datas_importantes`, `importacoes`, `config_envio` e `envios_log`: policies das próprias migrações, que chegam pelo replay em `schema/03_post_data.sql` (as notas do `mapa.csv` ainda dizem "próxima regeneração"; o schema foi regenerado em 2026-10-10 e já as contém) |
 
 - Toda tabela de `public` precisa de uma linha no mapa e de RLS ligado: o teste de RLS reprova

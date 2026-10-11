@@ -10,7 +10,7 @@ import type {
 import { CAMPOS_POR_TIPO, TIPO_RELATORIO_LABELS } from '@/types/relatorios';
 import { STATUS_PORTARIA_LABELS } from '@/types/portaria';
 
-import { getMarcaAssets } from '@/core/tenant';
+import { getMarcaAssets, getTenantSnapshot, nomeDoSistema } from '@/core/tenant';
 // ================================================================
 // GERADOR DE PDF AVANÇADO PARA RELATÓRIOS
 // ================================================================
@@ -279,7 +279,7 @@ export async function gerarRelatorioPDF(
     doc.rect(0, pageHeight - 10, pageWidth, 10, 'F');
     doc.setTextColor(...CORES.branco);
     doc.setFontSize(7);
-    doc.text('Sistema de Gestão - IDJUV | Governo do Estado de Roraima', margin, pageHeight - 4);
+    doc.text([nomeDoSistema(getTenantSnapshot()), getTenantSnapshot().entidadeSuperior?.nome].filter(Boolean).join(' | '), margin, pageHeight - 4);
     doc.text(`Página ${paginaAtual}`, pageWidth - margin - 15, pageHeight - 4);
   };
 

@@ -873,6 +873,13 @@ Nenhuma das duas vem por padrão de papel: conceda em `user_permissions` a quem 
 rota aceita qualquer das duas; a RLS de `config_envio`/`envios_log`, a RPC `salvar_segredo_envio` e a
 Edge Function `enviar-notificacao` exigem a mesma permissão.
 
+### Configuração do cliente
+
+`admin.configuracao_cliente` (ver a tela `/admin/configuracao-cliente`), no catálogo do módulo `admin`,
+com `action_type` `consultar` para nenhuma carga por tipo a dar ao papel `user`. Gravar exige o papel
+admin: a RLS de `dados_oficiais` (classe `publico_admin`) só deixa o admin escrever, e a tela só habilita
+o formulário para ele. Leitura de `dados_oficiais` é pública (anon). Ver `docs/CONFIGURACAO_CLIENTE.md`.
+
 ## Enforcement de rota (`ProtectedRoute`)
 
 O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso

@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 
-import { getMarcaAssets } from '@/core/tenant';
+import { getMarcaAssets, getTenantSnapshot, nomeDoSistema } from '@/core/tenant';
 
 import { nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos } from './pdfTemplate';
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
@@ -128,7 +128,7 @@ const generateFooter = (doc: jsPDF, pageHeight: number) => {
   doc.text('Assinatura da Chefia Imediata', 150, y + 5, { align: 'center' });
   
   doc.setFontSize(7);
-  doc.text('Documento gerado pelo Sistema de Governança Digital IDJUV', 105, pageHeight - 15, { align: 'center' });
+  doc.text(`Documento gerado pelo ${nomeDoSistema(getTenantSnapshot())}`, 105, pageHeight - 15, { align: 'center' });
   doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, pageHeight - 10, { align: 'center' });
 };
 
@@ -399,7 +399,7 @@ export const generateRequisicaoMaterial = (data: RequisicaoMaterialData, numero:
   doc.text('Responsável pelo Almoxarifado', 105, y + 5, { align: 'center' });
   
   doc.setFontSize(7);
-  doc.text('Documento gerado pelo Sistema de Governança Digital IDJUV', 105, pageHeight - 15, { align: 'center' });
+  doc.text(`Documento gerado pelo ${nomeDoSistema(getTenantSnapshot())}`, 105, pageHeight - 15, { align: 'center' });
   doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, pageHeight - 10, { align: 'center' });
   
   doc.save(`Requisicao_Material_${numero}.pdf`);
@@ -535,7 +535,7 @@ export const generateRelatorioCargos = (data: RelatorioCargosData): void => {
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 100, 100);
-    doc.text('Documento gerado pelo Sistema de Governança Digital IDJUV', pageWidth / 2, pageHeight - 15, { align: 'center' });
+    doc.text(`Documento gerado pelo ${nomeDoSistema(getTenantSnapshot())}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
     doc.text(`Página ${pageNum} de ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
   };
   
@@ -992,7 +992,7 @@ export const generateRelatorioGovernancaPDF = (): void => {
   // Footer
   doc.setFontSize(7);
   doc.setTextColor(128, 128, 128);
-  doc.text('Documento gerado pelo Sistema de Governança Digital IDJuv', 105, 285, { align: 'center' });
+  doc.text(`Documento gerado pelo ${nomeDoSistema(getTenantSnapshot())}`, 105, 285, { align: 'center' });
   doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, 290, { align: 'center' });
   
   doc.save('Relatorio_Governanca_Integridade_2025.pdf');
@@ -2096,7 +2096,7 @@ export const generateFichaCadastralModelo = async (): Promise<void> => {
   doc.setTextColor(255, 255, 255);
   doc.text('Instituto de Desporto, Juventude e Lazer de Roraima - IDJuv-RR', pageWidth / 2, pageHeight - 4.5, { align: 'center' });
   doc.setFontSize(4.5);
-  doc.text('Documento gerado pelo Sistema de Gestão Institucional', pageWidth / 2, pageHeight - 2, { align: 'center' });
+  doc.text(`Documento gerado pelo ${nomeDoSistema(getTenantSnapshot())}`, pageWidth / 2, pageHeight - 2, { align: 'center' });
   
   doc.save('Modelo_Ficha_Cadastral_IDJUV.pdf');
 };

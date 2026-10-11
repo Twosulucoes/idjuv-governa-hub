@@ -7,6 +7,7 @@
 
 import { useContext } from 'react';
 import { TenantContext } from './context';
+import { nomeDoSistema } from './produto';
 import type {
   TenantConfig,
   TenantIdentidade,
@@ -38,4 +39,9 @@ export function useMarcaAssets(): TenantAssets {
 export function useModuloHabilitado(codigo: string): boolean {
   const { modulos } = useContext(TenantContext);
   return (modulos as string[]).includes(codigo);
+}
+
+/** Nome do sistema nesta instalação: "<produto> / <sigla>". */
+export function useNomeSistema(): string {
+  return nomeDoSistema(useContext(TenantContext));
 }

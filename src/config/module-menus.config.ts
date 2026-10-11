@@ -330,6 +330,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "backup", label: "Backup", icon: Archive, route: "/admin/backup" },
       { id: "importacoes", label: "Importação de Dados", icon: Upload, route: "/admin/importacoes" },
       { id: "envios", label: "E-mail e WhatsApp", icon: Mail, route: "/admin/envios" },
+      { id: "configuracao-cliente", label: "Configuração do Cliente", icon: Building2, route: "/admin/configuracao-cliente" },
       { id: "modulos", label: "Gestão de Módulos", icon: Package, route: "/admin/modulos" },
       { id: "permissoes", label: "Painel de Permissões", icon: Shield, route: "/admin/permissoes" },
       { id: "ajuda", label: "Ajuda", icon: HelpCircle, route: "/admin/ajuda" },

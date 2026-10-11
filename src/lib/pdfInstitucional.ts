@@ -28,7 +28,7 @@
 import jsPDF from 'jspdf';
 import { LOGO_ASPECTOS, getLogosPDF } from './pdfLogos';
 
-import { getMarcaAssets } from '@/core/tenant';
+import { getMarcaAssets, getTenantSnapshot, nomeDoSistema } from '@/core/tenant';
 
 import { nomeEntidadeSuperiorDocumentos } from './pdfTemplate';
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
@@ -466,7 +466,7 @@ export const gerarRodapeInstitucional = (
     setTipografia(doc, { ...TIPOGRAFIA.rodape, size: 7 });
     setCor(doc, CORES_INSTITUCIONAIS.textoClaro);
     doc.text(
-      'Documento gerado eletronicamente pelo Sistema de Governança Digital',
+      `Documento gerado eletronicamente pelo ${nomeDoSistema(getTenantSnapshot())}`,
       largura / 2,
       yBase + 10,
       { align: 'center' }
