@@ -135,6 +135,16 @@ GRANT SELECT, INSERT, DELETE ON public.avisos_leituras TO authenticated;
 REVOKE ALL ON public.envios_log FROM anon, authenticated;
 GRANT SELECT ON public.envios_log TO authenticated;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.importacoes FROM authenticated;
+-- financeiro: arquivos bancários, reenvio e extrato do BB (migrações 20261011100000 a 20261011100300). As tabelas só
+-- são lidas pela API (escrita pelas RPCs com pagamento.conciliar ou pela service role na Edge Function bb-api);
+-- funções de apoio e de trigger fora da API; registrar_extrato_bb só para a service role.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_movimentos_bancarios, public.fin_remessas_bancarias,
+                                           public.fin_extrato_lancamentos FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_alteracoes_proteger_situacao_fiplan() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_casar_movimento_pagamento(text, text, numeric, date) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fin_marcar_pagamento_pago(uuid, date) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.registrar_extrato_bb(uuid, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.registrar_extrato_bb(uuid, jsonb) TO service_role;
 REVOKE ALL ON public.config_envio FROM anon, authenticated;
 GRANT SELECT (
   canal, ativo, provedor, remetente_nome, remetente_email, responder_para,

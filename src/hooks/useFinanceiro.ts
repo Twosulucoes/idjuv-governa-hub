@@ -3,8 +3,8 @@
  * Gerencia operações de orçamento, despesas, receitas e contabilidade
  */
 
-import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuditLog } from '@/hooks/useAuditLog';
@@ -106,7 +106,7 @@ export function useSolicitacoes(filtros?: { status?: string; exercicio?: number 
   const ano = filtros?.exercicio || new Date().getFullYear();
   
   return useQuery({
-    queryKey: ['fin_solicitacoes', filtros],
+    queryKey: ['fin_solicitacoes', ano, filtros?.status ?? null],
     queryFn: async () => {
       let query = supabase
         .from('fin_solicitacoes')
@@ -188,6 +188,23 @@ export function useCriarSolicitacao() {
   });
 }
 
+/** Unidades ativas da estrutura organizacional, para o campo "unidade solicitante". */
+export function useUnidadesSolicitantes() {
+  return useQuery({
+    queryKey: ['fin_unidades_solicitantes'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('estrutura_organizacional')
+        .select('id, nome, sigla')
+        .eq('ativo', true)
+        .order('nome');
+
+      if (error) throw error;
+      return data as { id: string; nome: string; sigla: string | null }[];
+    },
+  });
+}
+
 // ===========================================
 // EMPENHOS
 // ===========================================
@@ -196,7 +213,7 @@ export function useEmpenhos(filtros?: { status?: string; exercicio?: number }) {
   const ano = filtros?.exercicio || new Date().getFullYear();
   
   return useQuery({
-    queryKey: ['fin_empenhos', filtros],
+    queryKey: ['fin_empenhos', ano, filtros?.status ?? null],
     queryFn: async () => {
       let query = supabase
         .from('fin_empenhos')
@@ -284,9 +301,10 @@ export function useCriarEmpenho() {
 // LIQUIDAÇÕES
 // ===========================================
 
-export function useLiquidacoes(filtros?: { status?: string; empenho_id?: string }) {
+/** Sem `exercicio`, traz todos os anos (ex.: liquidação de ano anterior ainda a pagar). */
+export function useLiquidacoes(filtros?: { status?: string; empenho_id?: string; exercicio?: number }) {
   return useQuery({
-    queryKey: ['fin_liquidacoes', filtros],
+    queryKey: ['fin_liquidacoes', filtros?.exercicio ?? 'todos', filtros?.status ?? null, filtros?.empenho_id ?? null],
     queryFn: async () => {
       let query = supabase
         .from('fin_liquidacoes')
@@ -305,6 +323,10 @@ export function useLiquidacoes(filtros?: { status?: string; empenho_id?: string 
       
       if (filtros?.empenho_id) {
         query = query.eq('empenho_id', filtros.empenho_id);
+      }
+
+      if (filtros?.exercicio) {
+        query = query.eq('exercicio', filtros.exercicio);
       }
       
       const { data, error } = await query;
@@ -382,7 +404,7 @@ export function usePagamentos(filtros?: { status?: string; exercicio?: number })
   const ano = filtros?.exercicio || new Date().getFullYear();
   
   return useQuery({
-    queryKey: ['fin_pagamentos', filtros],
+    queryKey: ['fin_pagamentos', ano, filtros?.status ?? null],
     queryFn: async () => {
       let query = supabase
         .from('fin_pagamentos')
@@ -491,13 +513,66 @@ export function useContasBancarias() {
   });
 }
 
+export interface NovaContaBancariaInput {
+  banco_codigo: string;
+  banco_nome: string;
+  agencia: string;
+  agencia_digito?: string;
+  conta: string;
+  conta_digito?: string;
+  tipo: ContaBancaria['tipo'];
+  nome_conta: string;
+}
+
+/** Cadastro de conta bancária (RLS: quem acessa o módulo financeiro). */
+export function useCriarContaBancaria() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { logCreate } = useAuditLog();
+
+  return useMutation({
+    mutationFn: async (dados: NovaContaBancariaInput) => {
+      const { data, error } = await supabase
+        .from('fin_contas_bancarias')
+        .insert({
+          banco_codigo: dados.banco_codigo.trim(),
+          banco_nome: dados.banco_nome.trim(),
+          agencia: dados.agencia.trim(),
+          agencia_digito: dados.agencia_digito?.trim() || null,
+          conta: dados.conta.trim(),
+          conta_digito: dados.conta_digito?.trim() || null,
+          tipo: dados.tipo,
+          nome_conta: dados.nome_conta.trim(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      logCreate('fin_contas_bancarias', data.id, data, 'financeiro');
+      queryClient.invalidateQueries({ queryKey: ['fin_contas_bancarias'] });
+      toast({ title: 'Conta bancária cadastrada' });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao cadastrar conta bancária',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // ===========================================
 // ADIANTAMENTOS
 // ===========================================
 
-export function useAdiantamentos(filtros?: { status?: string; servidor_id?: string }) {
+/** Sem `exercicio`, traz todos os anos. */
+export function useAdiantamentos(filtros?: { status?: string; servidor_id?: string; exercicio?: number }) {
   return useQuery({
-    queryKey: ['fin_adiantamentos', filtros],
+    queryKey: ['fin_adiantamentos', filtros?.exercicio ?? 'todos', filtros?.status ?? null, filtros?.servidor_id ?? null],
     queryFn: async () => {
       let query = supabase
         .from('fin_adiantamentos')
@@ -515,6 +590,10 @@ export function useAdiantamentos(filtros?: { status?: string; servidor_id?: stri
       
       if (filtros?.servidor_id) {
         query = query.eq('servidor_suprido_id', filtros.servidor_id);
+      }
+
+      if (filtros?.exercicio) {
+        query = query.eq('exercicio', filtros.exercicio);
       }
       
       const { data, error } = await query;
@@ -613,11 +692,12 @@ export function useDashboardFinanceiro(exercicio?: number) {
   
   // Adiantamentos com prestação pendente
   const adiantamentosPendentes = useQuery({
-    queryKey: ['fin_adiantamentos_pendentes'],
+    queryKey: ['fin_adiantamentos_pendentes', ano],
     queryFn: async () => {
       const { count, error } = await supabase
         .from('fin_adiantamentos')
         .select('*', { count: 'exact', head: true })
+        .eq('exercicio', ano)
         .in('status', ['em_uso', 'prestacao_pendente', 'bloqueado']);
       
       if (error) throw error;
@@ -648,4 +728,35 @@ export function useDashboardFinanceiro(exercicio?: number) {
     solicitacoesPendentes,
     loading: resumoOrcamentario.isLoading || contasBancarias.isLoading,
   };
+}
+
+// ===========================================
+// IMPORTAÇÕES DO FIPLAN
+// ===========================================
+
+export interface UltimaImportacao {
+  arquivo_nome: string;
+  created_at: string;
+}
+
+// `importacoes` ainda não está em types.ts (gerado): consulta sem tipagem do client.
+const dbSemTipos = supabase as unknown as SupabaseClient;
+
+/** Última importação do QDD do FIPLAN no exercício (null se nunca importado). */
+export function useUltimaImportacaoQdd(exercicio: number) {
+  return useQuery({
+    queryKey: ['importacoes', 'qdd_fiplan', 'ultima', exercicio],
+    queryFn: async () => {
+      const { data, error } = await dbSemTipos
+        .from('importacoes')
+        .select('arquivo_nome, created_at')
+        .eq('tipo', 'qdd_fiplan')
+        .eq('exercicio', exercicio)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+      return ((data ?? [])[0] as UltimaImportacao | undefined) ?? null;
+    },
+  });
 }

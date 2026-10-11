@@ -18,6 +18,8 @@ import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela, type To
 import { Plus, Eye, CreditCard, CalendarClock, CheckCircle2, ListOrdered } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { usePagamentos } from "@/hooks/useFinanceiro";
+import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
+import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { formatCurrency } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -109,8 +111,10 @@ export default function PagamentosPage() {
   
   const [filtroStatus, setFiltroStatus] = useState(statusParam);
   const [formOpen, setFormOpen] = useState(false);
+  const { exercicio, comExercicio } = useExercicioFinanceiro();
   
   const { data: pagamentos, isLoading, isError, refetch } = usePagamentos({ 
+    exercicio,
     status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined 
   });
 
@@ -124,14 +128,17 @@ export default function PagamentosPage() {
     <ModuleLayout module="financeiro">
       <div className="space-y-6">
         <PageHeader
-          migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Pagamentos" }]}
+          migalhas={[{ rotulo: "Financeiro", href: comExercicio("/financeiro") }, { rotulo: "Pagamentos" }]}
           titulo="Pagamentos"
-          descricao="Gestão de ordens de pagamento"
+          descricao={`Gestão de ordens de pagamento · exercício ${exercicio}`}
           acoes={
-            <Button onClick={() => setFormOpen(true)}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Novo pagamento
-            </Button>
+            <>
+              <SeletorExercicio />
+              <Button onClick={() => setFormOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Novo pagamento
+              </Button>
+            </>
           }
         />
 
@@ -172,7 +179,7 @@ export default function PagamentosPage() {
           }}
           acoesLinha={(pag) => (
             <Button variant="ghost" size="icon" asChild>
-              <Link to={`/financeiro/pagamentos/${pag.id}`} aria-label={`Ver pagamento ${pag.numero}`}>
+              <Link to={comExercicio(`/financeiro/pagamentos/${pag.id}`)} aria-label={`Ver pagamento ${pag.numero}`}>
                 <Eye className="h-4 w-4" aria-hidden="true" />
               </Link>
             </Button>

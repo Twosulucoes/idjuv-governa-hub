@@ -2300,6 +2300,70 @@ COMMENT ON FUNCTION public.cancelar_remessa(p_remessa_id uuid, p_motivo text) IS
 
 
 --
+-- Name: conciliar_movimento_bancario(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.conciliar_movimento_bancario(p_movimento_id uuid, p_pagamento_id uuid) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_mov public.fin_movimentos_bancarios%ROWTYPE;
+  v_pag public.fin_pagamentos%ROWTYPE;
+  v_marcado text;
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'pagamento.conciliar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para conciliar pagamentos (pagamento.conciliar).' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_mov FROM public.fin_movimentos_bancarios WHERE id = p_movimento_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Movimento bancário não encontrado.' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF p_pagamento_id IS NULL THEN
+    UPDATE public.fin_movimentos_bancarios
+       SET pagamento_id = NULL, conciliado_em = NULL, conciliado_por = NULL, updated_at = now()
+     WHERE id = p_movimento_id;
+    RETURN jsonb_build_object('movimento_id', p_movimento_id, 'pagamento_id', NULL);
+  END IF;
+
+  SELECT * INTO v_pag FROM public.fin_pagamentos WHERE id = p_pagamento_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Pagamento não encontrado.' USING ERRCODE = 'P0002';
+  END IF;
+
+  UPDATE public.fin_movimentos_bancarios
+     SET pagamento_id = p_pagamento_id, conciliado_em = now(), conciliado_por = v_uid, updated_at = now()
+   WHERE id = p_movimento_id;
+
+  IF v_mov.situacao = 'pago' THEN
+    v_marcado := public.fin_marcar_pagamento_pago(p_pagamento_id, v_mov.data_pagamento);
+  END IF;
+
+  RETURN jsonb_build_object(
+    'movimento_id', p_movimento_id,
+    'pagamento_id', p_pagamento_id,
+    'pagamento_numero', v_pag.numero,
+    'pagamento_marcado_pago', v_marcado IS NOT NULL,
+    'valor_confere', v_pag.valor_liquido = v_mov.valor
+  );
+END;
+$$;
+
+
+--
+-- Name: FUNCTION conciliar_movimento_bancario(p_movimento_id uuid, p_pagamento_id uuid); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.conciliar_movimento_bancario(p_movimento_id uuid, p_pagamento_id uuid) IS 'Vincula manualmente um movimento bancário a um pagamento (NULL desfaz). Movimento pago marca o pagamento como pago. Exige pagamento.conciliar.';
+
+
+--
 -- Name: config_envio_servidor(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2321,6 +2385,119 @@ BEGIN
   RETURN (to_jsonb(v_cfg) - 'segredo_id') || jsonb_build_object('segredo', v_segredo);
 END;
 $$;
+
+
+--
+-- Name: confirmar_alteracao_fiplan(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.confirmar_alteracao_fiplan(p_id uuid) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_alt public.fin_alteracoes_orcamentarias%ROWTYPE;
+  v_ja boolean;
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'orcamento.aprovar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para confirmar alteração no FIPLAN (orcamento.aprovar).' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_alt FROM public.fin_alteracoes_orcamentarias WHERE id = p_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Alteração orçamentária não encontrada.' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_alt.status IN ('cancelado', 'rejeitado') THEN
+    RAISE EXCEPTION 'Alteração % está %: não pode ser confirmada no FIPLAN.', v_alt.numero, v_alt.status
+      USING ERRCODE = '22023';
+  END IF;
+
+  v_ja := v_alt.situacao_fiplan = 'confirmada';
+  IF NOT v_ja THEN
+    UPDATE public.fin_alteracoes_orcamentarias
+       SET situacao_fiplan = 'confirmada',
+           confirmado_fiplan_em = now(),
+           confirmado_fiplan_por = v_uid,
+           updated_at = now()
+     WHERE id = p_id
+     RETURNING * INTO v_alt;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'id', v_alt.id,
+    'situacao_fiplan', v_alt.situacao_fiplan,
+    'confirmado_fiplan_em', v_alt.confirmado_fiplan_em,
+    'confirmado_fiplan_por', v_alt.confirmado_fiplan_por,
+    'ja_confirmada', v_ja
+  );
+END;
+$$;
+
+
+--
+-- Name: FUNCTION confirmar_alteracao_fiplan(p_id uuid); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.confirmar_alteracao_fiplan(p_id uuid) IS 'Marca a alteração orçamentária como confirmada no FIPLAN (data e autor). Exige o módulo financeiro e orcamento.aprovar.';
+
+
+--
+-- Name: confirmar_remessa_bancaria(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.confirmar_remessa_bancaria(p_id uuid, p_sha256 text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_rem public.fin_remessas_bancarias%ROWTYPE;
+  v_marcados integer := 0;
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'pagamento.conciliar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para confirmar remessa bancária (pagamento.conciliar).' USING ERRCODE = '42501';
+  END IF;
+  IF COALESCE(p_sha256, '') !~ '^[0-9a-f]{64}$' THEN
+    RAISE EXCEPTION 'Hash do arquivo inválido.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_rem FROM public.fin_remessas_bancarias WHERE id = p_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Remessa não encontrada.' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_rem.arquivo_sha256 IS NOT NULL THEN
+    IF v_rem.arquivo_sha256 <> p_sha256 THEN
+      RAISE EXCEPTION 'A remessa NSA % já foi confirmada com outro arquivo.', v_rem.nsa USING ERRCODE = '22023';
+    END IF;
+    RETURN jsonb_build_object('id', v_rem.id, 'nsa', v_rem.nsa, 'arquivo_sha256', v_rem.arquivo_sha256,
+                              'movimentos_marcados', 0, 'ja_confirmada', true);
+  END IF;
+
+  UPDATE public.fin_remessas_bancarias SET arquivo_sha256 = p_sha256 WHERE id = p_id;
+
+  UPDATE public.fin_movimentos_bancarios
+     SET remessa_id = p_id, reenviado_em = now(), updated_at = now()
+   WHERE id = ANY (v_rem.movimentos) AND reenviado_em IS NULL;
+  GET DIAGNOSTICS v_marcados = ROW_COUNT;
+
+  RETURN jsonb_build_object('id', v_rem.id, 'nsa', v_rem.nsa, 'arquivo_sha256', p_sha256,
+                            'movimentos_marcados', v_marcados, 'ja_confirmada', false);
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION confirmar_remessa_bancaria(p_id uuid, p_sha256 text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.confirmar_remessa_bancaria(p_id uuid, p_sha256 text) IS 'Grava o SHA-256 do arquivo de reenvio gerado e marca os movimentos recusados como reenviados. Exige pagamento.conciliar.';
 
 
 --
@@ -2666,6 +2843,116 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'message', 'Folha fechada com sucesso');
 END;
 $$;
+
+
+--
+-- Name: fin_alteracoes_proteger_situacao_fiplan(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_alteracoes_proteger_situacao_fiplan() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF current_user IN ('anon', 'authenticated') THEN
+    IF TG_OP = 'INSERT' THEN
+      NEW.situacao_fiplan := 'pendente';
+      NEW.confirmado_fiplan_em := NULL;
+      NEW.confirmado_fiplan_por := NULL;
+    ELSIF NEW.situacao_fiplan IS DISTINCT FROM OLD.situacao_fiplan
+       OR NEW.confirmado_fiplan_em IS DISTINCT FROM OLD.confirmado_fiplan_em
+       OR NEW.confirmado_fiplan_por IS DISTINCT FROM OLD.confirmado_fiplan_por THEN
+      RAISE EXCEPTION 'A situação no FIPLAN só muda pela ação "Confirmar no FIPLAN".' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fin_casar_movimento_pagamento(text, text, numeric, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_casar_movimento_pagamento(p_identificador text, p_documento text, p_valor numeric, p_data date) RETURNS uuid
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_doc text := NULLIF(ltrim(COALESCE(p_documento, ''), '0'), '');
+  v_ids uuid[];
+  v_pontos integer[];
+BEGIN
+  SELECT array_agg(c.id ORDER BY c.pontos DESC, c.id), array_agg(c.pontos ORDER BY c.pontos DESC, c.id)
+    INTO v_ids, v_pontos
+    FROM (
+      SELECT p.id,
+             (CASE WHEN p.identificador_transacao IS NOT NULL
+                        AND btrim(p.identificador_transacao) = btrim(p_identificador) THEN 100 ELSE 0 END)
+           + (CASE WHEN p.data_pagamento = p_data THEN 10 ELSE 0 END)
+           + (CASE WHEN NOT EXISTS (SELECT 1 FROM public.fin_movimentos_bancarios m
+                                     WHERE m.pagamento_id = p.id) THEN 1 ELSE 0 END) AS pontos
+        FROM public.fin_pagamentos p
+        LEFT JOIN public.fornecedores f ON f.id = p.fornecedor_id
+       WHERE COALESCE(p.status::text, '') NOT IN ('cancelado', 'estornado')
+         AND NOT COALESCE(p.estornado, false)
+         AND (
+           (p.identificador_transacao IS NOT NULL AND p_identificador IS NOT NULL
+            AND btrim(p.identificador_transacao) = btrim(p_identificador))
+           OR (v_doc IS NOT NULL AND p_data IS NOT NULL
+               AND p.exercicio = extract(year FROM p_data)::integer
+               AND p.valor_liquido = p_valor
+               AND ltrim(regexp_replace(COALESCE(f.cpf_cnpj, ''), '\D', '', 'g'), '0') = v_doc)
+         )
+    ) c;
+
+  IF v_ids IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF cardinality(v_ids) > 1 AND v_pontos[1] = v_pontos[2] THEN
+    RETURN NULL;  -- empate: deixa para a conciliação manual
+  END IF;
+  RETURN v_ids[1];
+END;
+$$;
+
+
+--
+-- Name: FUNCTION fin_casar_movimento_pagamento(p_identificador text, p_documento text, p_valor numeric, p_data date); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.fin_casar_movimento_pagamento(p_identificador text, p_documento text, p_valor numeric, p_data date) IS 'Uso interno das RPCs de conciliação bancária: devolve o pagamento que casa com o movimento (ou NULL se nenhum/empate). Fora da API.';
+
+
+--
+-- Name: fin_marcar_pagamento_pago(uuid, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_marcar_pagamento_pago(p_pagamento_id uuid, p_data date) RETURNS text
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_numero text;
+BEGIN
+  UPDATE public.fin_pagamentos
+     SET status = 'pago',
+         data_efetivacao = COALESCE(p_data, data_efetivacao, CURRENT_DATE),
+         updated_at = now()
+   WHERE id = p_pagamento_id
+     AND COALESCE(status::text, '') NOT IN ('pago', 'estornado', 'cancelado', 'devolvido')
+     AND NOT COALESCE(estornado, false)
+  RETURNING numero INTO v_numero;
+  RETURN v_numero;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION fin_marcar_pagamento_pago(p_pagamento_id uuid, p_data date); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.fin_marcar_pagamento_pago(p_pagamento_id uuid, p_data date) IS 'Uso interno das RPCs de conciliação bancária: marca o pagamento como pago (status e data_efetivacao). Fora da API.';
 
 
 --
@@ -5664,6 +5951,270 @@ $$;
 
 
 --
+-- Name: importar_arquivo_bancario(jsonb, jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.importar_arquivo_bancario(p_linhas jsonb, p_arquivo jsonb, p_parametros jsonb, p_simular boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_origem text := p_parametros->>'origem';
+  v_sentido text := p_parametros->>'sentido';
+  v_data_arquivo date;
+  v_seq text := NULLIF(btrim(COALESCE(p_parametros->>'sequencial_arquivo', '')), '');
+  v_linha jsonb;
+  v_idx integer := -1;
+  v_ident text; v_doc text; v_tipo text; v_sit text; v_valor numeric(15,2); v_data date;
+  v_chave text;
+  v_chaves text[] := '{}';
+  v_existente public.fin_movimentos_bancarios%ROWTYPE;
+  v_achou boolean;
+  v_novo jsonb;
+  v_mudancas jsonb;
+  v_pag_id uuid;
+  v_pag_status text;
+  v_pago_numero text;
+  v_mov_id uuid;
+  v_resultado jsonb := '[]'::jsonb;
+  v_ins integer := 0; v_upd integer := 0; v_igual integer := 0;
+  v_vinculados text[] := '{}';
+  v_pagos text[] := '{}';
+  v_resumo jsonb;
+  v_import_id uuid;
+BEGIN
+  p_simular := COALESCE(p_simular, true);
+
+  -- COALESCE: um NULL em qualquer checagem nega (NOT NULL não dispararia o RAISE).
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'pagamento.conciliar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar arquivo bancário (pagamento.conciliar).' USING ERRCODE = '42501';
+  END IF;
+
+  IF jsonb_typeof(p_parametros) IS DISTINCT FROM 'object'
+     OR COALESCE(v_origem, '') NOT IN ('obn600', 'cnab240')
+     OR COALESCE(v_sentido, '') NOT IN ('remessa', 'retorno') THEN
+    RAISE EXCEPTION 'Parâmetros do arquivo inválidos (origem obn600|cnab240, sentido remessa|retorno).' USING ERRCODE = '22023';
+  END IF;
+  IF char_length(COALESCE(v_seq, '')) > 20
+     OR char_length(COALESCE(p_parametros->>'convenio', '')) > 20 THEN
+    RAISE EXCEPTION 'Sequencial ou convênio do arquivo inválido.' USING ERRCODE = '22023';
+  END IF;
+  IF NULLIF(p_parametros->>'data_arquivo', '') IS NOT NULL THEN
+    IF (p_parametros->>'data_arquivo') !~ '^\d{4}-\d{2}-\d{2}$' THEN
+      RAISE EXCEPTION 'Data do arquivo inválida.' USING ERRCODE = '22023';
+    END IF;
+    BEGIN
+      v_data_arquivo := (p_parametros->>'data_arquivo')::date;
+    EXCEPTION WHEN others THEN
+      RAISE EXCEPTION 'Data do arquivo inválida.' USING ERRCODE = '22023';
+    END;
+  END IF;
+  IF jsonb_typeof(p_linhas) IS DISTINCT FROM 'array'
+     OR jsonb_array_length(p_linhas) NOT BETWEEN 1 AND 20000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 20000 pagamentos.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT p_simular AND (
+       char_length(COALESCE(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
+       OR COALESCE(p_arquivo->>'sha256', '') !~ '^[0-9a-f]{64}$'
+       OR COALESCE(p_arquivo->>'tamanho', '') !~ '^\d{1,15}$') THEN
+    RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Uma importação de arquivo bancário de cada vez (a chave é global).
+  PERFORM pg_advisory_xact_lock(hashtext('importar_arquivo_bancario'));
+
+  IF NOT p_simular THEN
+    -- O log nasce antes para os movimentos apontarem para ele; resumo e detalhes vêm no fim.
+    INSERT INTO public.importacoes
+      (tipo, modulo, arquivo_nome, arquivo_sha256, arquivo_tamanho, exercicio, created_by)
+    VALUES
+      ('arquivo_bancario', 'financeiro', p_arquivo->>'nome', p_arquivo->>'sha256',
+       (p_arquivo->>'tamanho')::bigint, extract(year FROM v_data_arquivo)::integer, v_uid)
+    RETURNING id INTO v_import_id;
+  END IF;
+
+  FOR v_linha IN SELECT value FROM jsonb_array_elements(p_linhas) LOOP
+    v_idx := v_idx + 1;
+
+    IF jsonb_typeof(v_linha) IS DISTINCT FROM 'object' THEN
+      RAISE EXCEPTION 'Linha %: formato inválido.', v_idx + 1 USING ERRCODE = '22023';
+    END IF;
+    v_ident := btrim(COALESCE(v_linha->>'identificador', ''));
+    v_doc := NULLIF(v_linha->>'favorecido_documento', '');
+    v_tipo := btrim(COALESCE(v_linha->>'tipo_lancamento', ''));
+    v_sit := v_linha->>'situacao';
+
+    IF COALESCE(v_linha->>'origem', v_origem) <> v_origem
+       OR COALESCE(v_linha->>'sentido', v_sentido) <> v_sentido THEN
+      RAISE EXCEPTION 'Linha %: origem/sentido diferente do arquivo.', v_idx + 1 USING ERRCODE = '22023';
+    END IF;
+    IF char_length(v_ident) NOT BETWEEN 1 AND 60
+       OR char_length(v_tipo) > 50
+       OR COALESCE(v_sit, '') NOT IN ('enviado', 'pago', 'recusado')
+       OR (v_doc IS NOT NULL AND v_doc !~ '^(\d{11}|\d{14})$')
+       OR char_length(COALESCE(v_linha->>'favorecido_nome', '')) > 255
+       OR char_length(COALESCE(v_linha->>'banco', '')) > 10
+       OR char_length(COALESCE(v_linha->>'agencia', '')) > 20
+       OR char_length(COALESCE(v_linha->>'conta', '')) > 30
+       OR char_length(COALESCE(v_linha->>'codigo_barras', '')) > 60
+       OR char_length(COALESCE(v_linha->>'autenticacao', '')) > 100
+       OR char_length(COALESCE(v_linha->>'codigo_retorno', '')) > 50
+       OR char_length(COALESCE(v_linha->>'motivo_recusa', '')) > 500 THEN
+      RAISE EXCEPTION 'Linha %: campos fora do padrão do arquivo bancário.', v_idx + 1 USING ERRCODE = '22023';
+    END IF;
+    IF jsonb_typeof(v_linha->'valor') IS DISTINCT FROM 'number'
+       OR (v_linha->>'valor')::numeric < 0
+       OR (v_linha->>'valor')::numeric >= 1e13 THEN
+      RAISE EXCEPTION 'Linha %: valor inválido.', v_idx + 1 USING ERRCODE = '22023';
+    END IF;
+    v_valor := round((v_linha->>'valor')::numeric, 2);
+    v_data := NULL;
+    IF NULLIF(v_linha->>'data_pagamento', '') IS NOT NULL THEN
+      IF (v_linha->>'data_pagamento') !~ '^\d{4}-\d{2}-\d{2}$' THEN
+        RAISE EXCEPTION 'Linha %: data de pagamento inválida.', v_idx + 1 USING ERRCODE = '22023';
+      END IF;
+      BEGIN
+        v_data := (v_linha->>'data_pagamento')::date;
+      EXCEPTION WHEN others THEN
+        RAISE EXCEPTION 'Linha %: data de pagamento inválida.', v_idx + 1 USING ERRCODE = '22023';
+      END;
+    END IF;
+
+    v_chave := concat_ws('|', v_origem, v_ident, v_valor::text, COALESCE(v_data::text, ''), v_tipo);
+    IF v_chave = ANY (v_chaves) THEN
+      RAISE EXCEPTION 'Linha %: pagamento repetido no arquivo (identificador %).', v_idx + 1, v_ident USING ERRCODE = '22023';
+    END IF;
+    v_chaves := v_chaves || v_chave;
+
+    SELECT * INTO v_existente FROM public.fin_movimentos_bancarios WHERE chave_unica = v_chave FOR UPDATE;
+    v_achou := FOUND;
+
+    -- Casamento com fin_pagamentos (só quando ainda não há vínculo)
+    v_pag_id := CASE WHEN v_achou THEN v_existente.pagamento_id END;
+    IF v_pag_id IS NULL THEN
+      v_pag_id := public.fin_casar_movimento_pagamento(v_ident, v_doc, v_valor, v_data);
+    END IF;
+
+    IF NOT v_achou THEN
+      v_ins := v_ins + 1;
+      IF NOT p_simular THEN
+        INSERT INTO public.fin_movimentos_bancarios (
+          origem, sentido, importacao_id, data_arquivo, sequencial_arquivo, tipo_lancamento, identificador,
+          favorecido_nome, favorecido_documento, banco, agencia, conta, valor, data_pagamento,
+          codigo_barras, autenticacao, situacao, motivo_recusa, codigo_retorno,
+          pagamento_id, conciliado_em, importacao_retorno_id, chave_unica
+        ) VALUES (
+          v_origem, v_sentido, v_import_id, v_data_arquivo, v_seq, v_tipo, v_ident,
+          NULLIF(btrim(COALESCE(v_linha->>'favorecido_nome', '')), ''), v_doc,
+          NULLIF(v_linha->>'banco', ''), NULLIF(v_linha->>'agencia', ''), NULLIF(v_linha->>'conta', ''),
+          v_valor, v_data,
+          NULLIF(v_linha->>'codigo_barras', ''), NULLIF(v_linha->>'autenticacao', ''), v_sit,
+          NULLIF(v_linha->>'motivo_recusa', ''), NULLIF(v_linha->>'codigo_retorno', ''),
+          v_pag_id, CASE WHEN v_pag_id IS NOT NULL THEN now() END,
+          CASE WHEN v_sentido = 'retorno' THEN v_import_id END, v_chave
+        );
+      END IF;
+      v_resultado := v_resultado || jsonb_strip_nulls(jsonb_build_object(
+        'indice', v_idx, 'acao', 'inserir',
+        'mudancas', CASE WHEN v_pag_id IS NOT NULL
+                         THEN jsonb_build_object('pagamento_id', jsonb_build_array(NULL, v_pag_id)) END));
+      v_mov_id := NULL;
+    ELSE
+      v_mov_id := v_existente.id;
+      -- A remessa nunca rebaixa o que o retorno já disse: reimportar remessa só pode vincular.
+      IF v_sentido = 'retorno' THEN
+        v_novo := jsonb_build_object(
+          -- Retorno que só diz "agendado/enviado" não desfaz um pago.
+          'situacao', CASE WHEN v_existente.situacao = 'pago' AND v_sit = 'enviado' THEN 'pago' ELSE v_sit END,
+          'codigo_retorno', NULLIF(v_linha->>'codigo_retorno', ''),
+          'motivo_recusa', NULLIF(v_linha->>'motivo_recusa', ''),
+          'autenticacao', COALESCE(NULLIF(v_linha->>'autenticacao', ''), v_existente.autenticacao)
+        );
+      ELSE
+        v_novo := '{}'::jsonb;
+      END IF;
+      v_novo := v_novo || jsonb_strip_nulls(jsonb_build_object('pagamento_id', v_pag_id));
+
+      SELECT COALESCE(jsonb_object_agg(k, jsonb_build_array(to_jsonb(v_existente) -> k, v_novo -> k)), '{}'::jsonb)
+        INTO v_mudancas
+        FROM jsonb_object_keys(v_novo) AS k
+       WHERE (to_jsonb(v_existente) -> k) IS DISTINCT FROM (v_novo -> k);
+
+      IF v_mudancas = '{}'::jsonb THEN
+        v_igual := v_igual + 1;
+        v_resultado := v_resultado || jsonb_build_object('indice', v_idx, 'acao', 'sem_alteracao');
+      ELSE
+        v_upd := v_upd + 1;
+        v_resultado := v_resultado || jsonb_build_object('indice', v_idx, 'acao', 'atualizar', 'mudancas', v_mudancas);
+        IF NOT p_simular THEN
+          UPDATE public.fin_movimentos_bancarios SET
+            situacao       = COALESCE(v_novo->>'situacao', situacao),
+            codigo_retorno = CASE WHEN v_novo ? 'situacao' THEN v_novo->>'codigo_retorno' ELSE codigo_retorno END,
+            motivo_recusa  = CASE WHEN v_novo ? 'situacao' THEN v_novo->>'motivo_recusa' ELSE motivo_recusa END,
+            autenticacao   = CASE WHEN v_novo ? 'situacao' THEN v_novo->>'autenticacao' ELSE autenticacao END,
+            importacao_retorno_id = CASE WHEN v_novo ? 'situacao' THEN v_import_id ELSE importacao_retorno_id END,
+            pagamento_id   = COALESCE(v_pag_id, pagamento_id),
+            conciliado_em  = CASE WHEN pagamento_id IS NULL AND v_pag_id IS NOT NULL THEN now() ELSE conciliado_em END,
+            updated_at     = now()
+          WHERE id = v_existente.id;
+        END IF;
+      END IF;
+      v_sit := COALESCE(v_novo->>'situacao', v_existente.situacao);
+    END IF;
+
+    -- Pagamento vinculado e pago pelo banco: marca no fin_pagamentos.
+    IF v_pag_id IS NOT NULL THEN
+      SELECT p.numero, p.status::text INTO v_pago_numero, v_pag_status FROM public.fin_pagamentos p WHERE p.id = v_pag_id;
+      IF NOT (v_pago_numero = ANY (v_vinculados)) THEN v_vinculados := v_vinculados || v_pago_numero; END IF;
+      IF v_sit = 'pago' AND COALESCE(v_pag_status, '') NOT IN ('pago', 'estornado', 'cancelado', 'devolvido') THEN
+        IF p_simular THEN
+          IF NOT (v_pago_numero = ANY (v_pagos)) THEN v_pagos := v_pagos || v_pago_numero; END IF;
+        ELSE
+          v_pago_numero := public.fin_marcar_pagamento_pago(v_pag_id, v_data);
+          IF v_pago_numero IS NOT NULL AND NOT (v_pago_numero = ANY (v_pagos)) THEN
+            v_pagos := v_pagos || v_pago_numero;
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+  END LOOP;
+
+  v_resumo := jsonb_build_object(
+    'totais', jsonb_build_object('inserir', v_ins, 'atualizar', v_upd, 'sem_alteracao', v_igual),
+    'criados', jsonb_strip_nulls(jsonb_build_object(
+      'Pagamentos vinculados', CASE WHEN cardinality(v_vinculados) > 0 THEN to_jsonb(v_vinculados) END,
+      'Pagamentos marcados como pagos', CASE WHEN cardinality(v_pagos) > 0 THEN to_jsonb(v_pagos) END)),
+    'ausentes', '[]'::jsonb,
+    'parametros', jsonb_strip_nulls(jsonb_build_object(
+      'origem', v_origem, 'sentido', v_sentido, 'data_arquivo', v_data_arquivo,
+      'sequencial_arquivo', v_seq, 'convenio', NULLIF(p_parametros->>'convenio', '')))
+  );
+
+  IF NOT p_simular THEN
+    UPDATE public.importacoes SET resumo = v_resumo, detalhes = v_resultado WHERE id = v_import_id;
+  END IF;
+
+  RETURN v_resumo || jsonb_build_object(
+    'simulacao', p_simular,
+    'importacao_id', v_import_id,
+    'linhas', v_resultado
+  );
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION importar_arquivo_bancario(p_linhas jsonb, p_arquivo jsonb, p_parametros jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.importar_arquivo_bancario(p_linhas jsonb, p_arquivo jsonb, p_parametros jsonb, p_simular boolean) IS 'Importa as linhas de um arquivo bancário (OBN600/CNAB240) para fin_movimentos_bancarios, casa com fin_pagamentos e marca os pagos (p_simular = true só calcula). Exige pagamento.conciliar.';
+
+
+--
 -- Name: importar_qdd_fiplan(integer, jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -6664,6 +7215,28 @@ $$;
 
 
 --
+-- Name: pode_conciliar_pagamentos(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pode_conciliar_pagamentos() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT COALESCE(auth.uid() IS NOT NULL
+                  AND public.perfil_ativo_atual()
+                  AND public.can_access_module(auth.uid(), 'financeiro')
+                  AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'), false);
+$$;
+
+
+--
+-- Name: FUNCTION pode_conciliar_pagamentos(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.pode_conciliar_pagamentos() IS 'Verdadeiro se o usuário logado tem perfil ativo, o módulo financeiro e pagamento.conciliar.';
+
+
+--
 -- Name: pode_configurar_envios(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -7246,6 +7819,105 @@ COMMENT ON FUNCTION public.registrar_evento(p_acao text, p_entidade text, p_enti
 
 
 --
+-- Name: registrar_extrato_bb(uuid, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_l jsonb;
+  v_idx integer := 0;
+  v_chave text;
+  v_id uuid;
+  v_ins integer := 0; v_exist integer := 0; v_casados integer := 0;
+  v_lanc record;
+  v_pag uuid[];
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.fin_contas_bancarias WHERE id = p_conta_bancaria_id) THEN
+    RAISE EXCEPTION 'Conta bancária não encontrada.' USING ERRCODE = 'P0002';
+  END IF;
+  IF jsonb_typeof(p_lancamentos) IS DISTINCT FROM 'array' OR jsonb_array_length(p_lancamentos) > 50000 THEN
+    RAISE EXCEPTION 'Lançamentos inválidos.' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtext('registrar_extrato_bb'), hashtext(p_conta_bancaria_id::text));
+
+  FOR v_l IN SELECT value FROM jsonb_array_elements(p_lancamentos) LOOP
+    v_idx := v_idx + 1;
+    IF jsonb_typeof(v_l) IS DISTINCT FROM 'object'
+       OR char_length(COALESCE(v_l->>'identificador_bb', '')) NOT BETWEEN 1 AND 200
+       OR COALESCE(v_l->>'data_lancamento', '') !~ '^\d{4}-\d{2}-\d{2}$'
+       OR (NULLIF(v_l->>'data_movimento', '') IS NOT NULL AND (v_l->>'data_movimento') !~ '^\d{4}-\d{2}-\d{2}$')
+       OR jsonb_typeof(v_l->'valor') IS DISTINCT FROM 'number'
+       OR (v_l->>'valor')::numeric < 0 OR (v_l->>'valor')::numeric >= 1e13
+       OR COALESCE(v_l->>'sinal', '') NOT IN ('C', 'D') THEN
+      RAISE EXCEPTION 'Lançamento %: formato inválido.', v_idx USING ERRCODE = '22023';
+    END IF;
+
+    v_chave := p_conta_bancaria_id::text || '|' || (v_l->>'identificador_bb');
+    INSERT INTO public.fin_extrato_lancamentos (
+      conta_bancaria_id, data_lancamento, data_movimento, valor, sinal, codigo_historico, descricao,
+      informacao_complementar, contrapartida_documento, contrapartida_tipo, contrapartida_banco,
+      contrapartida_agencia, contrapartida_conta, numero_documento, identificador_bb, chave_unica
+    ) VALUES (
+      p_conta_bancaria_id, (v_l->>'data_lancamento')::date, NULLIF(v_l->>'data_movimento', '')::date,
+      round((v_l->>'valor')::numeric, 2), v_l->>'sinal', NULLIF(v_l->>'codigo_historico', '')::integer,
+      left(NULLIF(btrim(COALESCE(v_l->>'descricao', '')), ''), 255),
+      left(NULLIF(btrim(COALESCE(v_l->>'informacao_complementar', '')), ''), 500),
+      NULLIF(v_l->>'contrapartida_documento', ''), NULLIF(v_l->>'contrapartida_tipo', ''),
+      NULLIF(v_l->>'contrapartida_banco', '')::integer, NULLIF(v_l->>'contrapartida_agencia', '')::integer,
+      NULLIF(v_l->>'contrapartida_conta', ''), NULLIF(v_l->>'numero_documento', ''),
+      v_l->>'identificador_bb', v_chave
+    )
+    ON CONFLICT (chave_unica) DO NOTHING
+    RETURNING id INTO v_id;
+    IF v_id IS NULL THEN v_exist := v_exist + 1; ELSE v_ins := v_ins + 1; END IF;
+    v_id := NULL;
+  END LOOP;
+
+  -- Casamento dos débitos ainda sem vínculo desta conta (inclui os de importações anteriores).
+  FOR v_lanc IN
+    SELECT e.id, e.valor, e.data_lancamento, ltrim(e.contrapartida_documento, '0') AS doc
+      FROM public.fin_extrato_lancamentos e
+     WHERE e.conta_bancaria_id = p_conta_bancaria_id
+       AND e.sinal = 'D' AND e.pagamento_id IS NULL
+       AND NULLIF(ltrim(COALESCE(e.contrapartida_documento, ''), '0'), '') IS NOT NULL
+  LOOP
+    SELECT array_agg(p.id) INTO v_pag
+      FROM public.fin_pagamentos p
+      JOIN public.fornecedores f ON f.id = p.fornecedor_id
+     WHERE COALESCE(p.status::text, '') NOT IN ('cancelado', 'estornado')
+       AND NOT COALESCE(p.estornado, false)
+       AND p.valor_liquido = v_lanc.valor
+       AND COALESCE(p.data_efetivacao, p.data_pagamento) = v_lanc.data_lancamento
+       AND ltrim(regexp_replace(COALESCE(f.cpf_cnpj, ''), '\D', '', 'g'), '0') = v_lanc.doc
+       AND NOT EXISTS (SELECT 1 FROM public.fin_extrato_lancamentos o WHERE o.pagamento_id = p.id);
+    IF cardinality(v_pag) = 1 THEN
+      UPDATE public.fin_extrato_lancamentos SET pagamento_id = v_pag[1] WHERE id = v_lanc.id;
+      v_casados := v_casados + 1;
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'recebidos', v_idx,
+    'inseridos', v_ins,
+    'existentes', v_exist,
+    'conciliados', v_casados
+  );
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) IS 'Grava lançamentos do extrato do BB (idempotente pela chave_unica) e casa débitos com fin_pagamentos. Só a service role executa (Edge Function bb-api, que confere usuário e pagamento.conciliar).';
+
+
+--
 -- Name: registrar_gestor_publico(uuid, text, text, text, date, text, text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -7565,6 +8237,118 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: registrar_remessa_bancaria(uuid, text, integer, numeric, uuid[], integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registrar_remessa_bancaria(p_conta_autarquia_id uuid, p_layout text, p_quantidade integer, p_valor_total numeric, p_movimentos uuid[], p_nsa_minimo integer DEFAULT NULL::integer) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_conta public.contas_autarquia%ROWTYPE;
+  v_ultima public.fin_remessas_bancarias%ROWTYPE;
+  v_movs uuid[] := COALESCE(p_movimentos, '{}');
+  v_invalidos integer;
+  v_nsa integer;
+  v_id uuid;
+  v_reaproveitada boolean := false;
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'pagamento.conciliar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para gerar remessa bancária (pagamento.conciliar).' USING ERRCODE = '42501';
+  END IF;
+
+  IF COALESCE(p_layout, '') NOT IN ('gestao_max_cnab240') THEN
+    RAISE EXCEPTION 'Layout de remessa inválido: %', p_layout USING ERRCODE = '22023';
+  END IF;
+  IF p_quantidade IS NULL OR p_quantidade NOT BETWEEN 1 AND 100000 THEN
+    RAISE EXCEPTION 'Quantidade de pagamentos inválida.' USING ERRCODE = '22023';
+  END IF;
+  IF p_valor_total IS NULL OR p_valor_total < 0 OR p_valor_total >= 1e13 THEN
+    RAISE EXCEPTION 'Valor total inválido.' USING ERRCODE = '22023';
+  END IF;
+  IF p_nsa_minimo IS NOT NULL AND p_nsa_minimo NOT BETWEEN 1 AND 999999 THEN
+    RAISE EXCEPTION 'NSA mínimo inválido.' USING ERRCODE = '22023';
+  END IF;
+  IF array_position(v_movs, NULL) IS NOT NULL
+     OR cardinality(v_movs) > p_quantidade
+     OR cardinality(v_movs) <> (SELECT count(DISTINCT m) FROM unnest(v_movs) m) THEN
+    RAISE EXCEPTION 'Lista de movimentos reenviados inválida.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_conta FROM public.contas_autarquia WHERE id = p_conta_autarquia_id AND COALESCE(ativo, true);
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Conta pagadora não encontrada ou inativa.' USING ERRCODE = 'P0002';
+  END IF;
+  IF NULLIF(btrim(COALESCE(v_conta.convenio_pagamento, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'A conta pagadora não tem convênio de pagamento cadastrado.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Só recusados que ainda não foram reenviados num arquivo confirmado.
+  SELECT count(*) INTO v_invalidos
+    FROM unnest(v_movs) AS x(id)
+    LEFT JOIN public.fin_movimentos_bancarios m ON m.id = x.id
+   WHERE m.id IS NULL OR m.situacao <> 'recusado' OR m.reenviado_em IS NOT NULL;
+  IF v_invalidos > 0 THEN
+    RAISE EXCEPTION '% movimento(s) não existem, não estão recusados ou já foram reenviados.', v_invalidos
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Um NSA por vez para a mesma conta e layout.
+  PERFORM pg_advisory_xact_lock(hashtext('registrar_remessa_bancaria'), hashtext(p_conta_autarquia_id::text || '|' || p_layout));
+
+  SELECT * INTO v_ultima FROM public.fin_remessas_bancarias
+   WHERE conta_autarquia_id = p_conta_autarquia_id AND layout = p_layout
+   ORDER BY nsa DESC LIMIT 1;
+
+  IF FOUND AND v_ultima.arquivo_sha256 IS NULL AND v_ultima.created_by = v_uid
+     AND v_ultima.nsa >= COALESCE(p_nsa_minimo, 0) THEN
+    -- Nova tentativa do mesmo usuário: reaproveita a reserva não confirmada.
+    v_reaproveitada := true;
+    v_nsa := v_ultima.nsa;
+    UPDATE public.fin_remessas_bancarias
+       SET convenio = btrim(v_conta.convenio_pagamento), quantidade = p_quantidade,
+           valor_total = round(p_valor_total, 2), movimentos = v_movs, data_geracao = now()
+     WHERE id = v_ultima.id
+     RETURNING id INTO v_id;
+  ELSE
+    v_nsa := GREATEST(COALESCE(v_ultima.nsa, 0) + 1, COALESCE(p_nsa_minimo, 1));
+    IF v_nsa > 999999 THEN
+      RAISE EXCEPTION 'NSA esgotado para esta conta.' USING ERRCODE = '22023';
+    END IF;
+    INSERT INTO public.fin_remessas_bancarias
+      (layout, conta_autarquia_id, convenio, nsa, quantidade, valor_total, movimentos, created_by)
+    VALUES
+      (p_layout, p_conta_autarquia_id, btrim(v_conta.convenio_pagamento), v_nsa, p_quantidade,
+       round(p_valor_total, 2), v_movs, v_uid)
+    RETURNING id INTO v_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'id', v_id,
+    'nsa', v_nsa,
+    'convenio', btrim(v_conta.convenio_pagamento),
+    'agencia', v_conta.agencia,
+    'agencia_digito', v_conta.agencia_digito,
+    'conta', v_conta.conta,
+    'conta_digito', v_conta.conta_digito,
+    'reaproveitada', v_reaproveitada
+  );
+END;
+$$;
+
+
+--
+-- Name: FUNCTION registrar_remessa_bancaria(p_conta_autarquia_id uuid, p_layout text, p_quantidade integer, p_valor_total numeric, p_movimentos uuid[], p_nsa_minimo integer); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.registrar_remessa_bancaria(p_conta_autarquia_id uuid, p_layout text, p_quantidade integer, p_valor_total numeric, p_movimentos uuid[], p_nsa_minimo integer) IS 'Reserva o próximo NSA da conta pagadora para uma remessa de reenvio (Gestão MAX) e devolve convênio, agência e conta. Exige pagamento.conciliar.';
 
 
 --
@@ -12986,10 +13770,29 @@ CREATE TABLE public.fin_alteracoes_orcamentarias (
     observacoes text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    created_by uuid
+    created_by uuid,
+    processo_sei character varying(50),
+    situacao_fiplan text DEFAULT 'pendente'::text NOT NULL,
+    confirmado_fiplan_em timestamp with time zone,
+    confirmado_fiplan_por uuid,
+    CONSTRAINT fin_alteracoes_orcamentarias_situacao_fiplan_check CHECK ((situacao_fiplan = ANY (ARRAY['pendente'::text, 'confirmada'::text])))
 );
 
 ALTER TABLE ONLY public.fin_alteracoes_orcamentarias FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: COLUMN fin_alteracoes_orcamentarias.processo_sei; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_alteracoes_orcamentarias.processo_sei IS 'Número do processo SEI que formaliza a alteração.';
+
+
+--
+-- Name: COLUMN fin_alteracoes_orcamentarias.situacao_fiplan; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_alteracoes_orcamentarias.situacao_fiplan IS 'pendente = registrada só no sistema; confirmada = lançada no FIPLAN (marcada por confirmar_alteracao_fiplan).';
 
 
 --
@@ -13268,6 +14071,56 @@ ALTER TABLE ONLY public.fin_empenhos FORCE ROW LEVEL SECURITY;
 
 
 --
+-- Name: fin_extrato_lancamentos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_extrato_lancamentos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    conta_bancaria_id uuid NOT NULL,
+    data_lancamento date NOT NULL,
+    data_movimento date,
+    valor numeric(15,2) NOT NULL,
+    sinal character(1) NOT NULL,
+    codigo_historico integer,
+    descricao text,
+    informacao_complementar text,
+    contrapartida_documento text,
+    contrapartida_tipo character(1),
+    contrapartida_banco integer,
+    contrapartida_agencia integer,
+    contrapartida_conta text,
+    numero_documento text,
+    identificador_bb text NOT NULL,
+    chave_unica text NOT NULL,
+    pagamento_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_extrato_lancamentos_contrapartida_conta_check CHECK ((char_length(contrapartida_conta) <= 30)),
+    CONSTRAINT fin_extrato_lancamentos_contrapartida_documento_check CHECK ((contrapartida_documento ~ '^\d{1,14}$'::text)),
+    CONSTRAINT fin_extrato_lancamentos_contrapartida_tipo_check CHECK ((contrapartida_tipo = ANY (ARRAY['F'::bpchar, 'J'::bpchar]))),
+    CONSTRAINT fin_extrato_lancamentos_descricao_check CHECK ((char_length(descricao) <= 255)),
+    CONSTRAINT fin_extrato_lancamentos_identificador_bb_check CHECK (((char_length(identificador_bb) >= 1) AND (char_length(identificador_bb) <= 200))),
+    CONSTRAINT fin_extrato_lancamentos_informacao_complementar_check CHECK ((char_length(informacao_complementar) <= 500)),
+    CONSTRAINT fin_extrato_lancamentos_numero_documento_check CHECK ((char_length(numero_documento) <= 50)),
+    CONSTRAINT fin_extrato_lancamentos_sinal_check CHECK ((sinal = ANY (ARRAY['C'::bpchar, 'D'::bpchar]))),
+    CONSTRAINT fin_extrato_lancamentos_valor_check CHECK ((valor >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE fin_extrato_lancamentos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_extrato_lancamentos IS 'Lançamentos do extrato do Banco do Brasil (API Extratos v2), gravados pela Edge Function bb-api via registrar_extrato_bb. chave_unica = conta_bancaria_id|identificador_bb. Contrapartida (CPF/CNPJ e conta): só o módulo financeiro lê.';
+
+
+--
+-- Name: COLUMN fin_extrato_lancamentos.identificador_bb; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_extrato_lancamentos.identificador_bb IS 'Identificação do lançamento montada pela Edge Function a partir dos campos do BB (data, lote, documento, histórico, valor, sinal e ordem dos repetidos no dia).';
+
+
+--
 -- Name: fin_extrato_transacoes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -13434,6 +14287,94 @@ ALTER TABLE ONLY public.fin_liquidacoes FORCE ROW LEVEL SECURITY;
 
 
 --
+-- Name: fin_movimentos_bancarios; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_movimentos_bancarios (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    origem text NOT NULL,
+    sentido text NOT NULL,
+    importacao_id uuid,
+    data_arquivo date,
+    sequencial_arquivo text,
+    tipo_lancamento text DEFAULT ''::text NOT NULL,
+    identificador text NOT NULL,
+    favorecido_nome text,
+    favorecido_documento text,
+    banco text,
+    agencia text,
+    conta text,
+    valor numeric(15,2) NOT NULL,
+    data_pagamento date,
+    codigo_barras text,
+    autenticacao text,
+    situacao text NOT NULL,
+    motivo_recusa text,
+    codigo_retorno text,
+    pagamento_id uuid,
+    conciliado_em timestamp with time zone,
+    conciliado_por uuid,
+    importacao_retorno_id uuid,
+    chave_unica text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    remessa_id uuid,
+    reenviado_em timestamp with time zone,
+    CONSTRAINT fin_movimentos_bancarios_agencia_check CHECK ((char_length(agencia) <= 20)),
+    CONSTRAINT fin_movimentos_bancarios_autenticacao_check CHECK ((char_length(autenticacao) <= 100)),
+    CONSTRAINT fin_movimentos_bancarios_banco_check CHECK ((char_length(banco) <= 10)),
+    CONSTRAINT fin_movimentos_bancarios_codigo_barras_check CHECK ((char_length(codigo_barras) <= 60)),
+    CONSTRAINT fin_movimentos_bancarios_codigo_retorno_check CHECK ((char_length(codigo_retorno) <= 50)),
+    CONSTRAINT fin_movimentos_bancarios_conta_check CHECK ((char_length(conta) <= 30)),
+    CONSTRAINT fin_movimentos_bancarios_favorecido_documento_check CHECK ((favorecido_documento ~ '^(\d{11}|\d{14})$'::text)),
+    CONSTRAINT fin_movimentos_bancarios_favorecido_nome_check CHECK ((char_length(favorecido_nome) <= 255)),
+    CONSTRAINT fin_movimentos_bancarios_identificador_check CHECK (((char_length(btrim(identificador)) >= 1) AND (char_length(btrim(identificador)) <= 60))),
+    CONSTRAINT fin_movimentos_bancarios_motivo_recusa_check CHECK ((char_length(motivo_recusa) <= 500)),
+    CONSTRAINT fin_movimentos_bancarios_origem_check CHECK ((origem = ANY (ARRAY['obn600'::text, 'cnab240'::text]))),
+    CONSTRAINT fin_movimentos_bancarios_sentido_check CHECK ((sentido = ANY (ARRAY['remessa'::text, 'retorno'::text]))),
+    CONSTRAINT fin_movimentos_bancarios_sequencial_arquivo_check CHECK ((char_length(sequencial_arquivo) <= 20)),
+    CONSTRAINT fin_movimentos_bancarios_situacao_check CHECK ((situacao = ANY (ARRAY['enviado'::text, 'pago'::text, 'recusado'::text]))),
+    CONSTRAINT fin_movimentos_bancarios_tipo_lancamento_check CHECK ((char_length(tipo_lancamento) <= 50)),
+    CONSTRAINT fin_movimentos_bancarios_valor_check CHECK ((valor >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE fin_movimentos_bancarios; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_movimentos_bancarios IS 'Pagamentos vistos nos arquivos do banco (OBN600 do FIPLAN, CNAB240 da SEGAD e do Gestão MAX). Escrita só pelas RPCs importar_arquivo_bancario e conciliar_movimento_bancario. CPF/CNPJ e conta do favorecido: só o módulo financeiro lê.';
+
+
+--
+-- Name: COLUMN fin_movimentos_bancarios.importacao_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_movimentos_bancarios.importacao_id IS 'Importação que criou o registro (remessa ou, sem remessa prévia, o retorno).';
+
+
+--
+-- Name: COLUMN fin_movimentos_bancarios.importacao_retorno_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_movimentos_bancarios.importacao_retorno_id IS 'Última importação de retorno que atualizou a situação do registro.';
+
+
+--
+-- Name: COLUMN fin_movimentos_bancarios.chave_unica; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_movimentos_bancarios.chave_unica IS 'origem|identificador|valor|data_pagamento|tipo_lancamento, calculada pela RPC de importação.';
+
+
+--
+-- Name: COLUMN fin_movimentos_bancarios.remessa_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_movimentos_bancarios.remessa_id IS 'Remessa de reenvio (fin_remessas_bancarias) em que o pagamento recusado foi reenviado.';
+
+
+--
 -- Name: fin_naturezas_despesa; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -13585,6 +14526,46 @@ CREATE TABLE public.fin_receitas (
 );
 
 ALTER TABLE ONLY public.fin_receitas FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: fin_remessas_bancarias; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_remessas_bancarias (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    layout text DEFAULT 'gestao_max_cnab240'::text NOT NULL,
+    conta_autarquia_id uuid NOT NULL,
+    convenio text NOT NULL,
+    nsa integer NOT NULL,
+    data_geracao timestamp with time zone DEFAULT now() NOT NULL,
+    quantidade integer NOT NULL,
+    valor_total numeric(15,2) NOT NULL,
+    arquivo_sha256 text,
+    movimentos uuid[] DEFAULT '{}'::uuid[] NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_remessas_bancarias_arquivo_sha256_check CHECK ((arquivo_sha256 ~ '^[0-9a-f]{64}$'::text)),
+    CONSTRAINT fin_remessas_bancarias_convenio_check CHECK (((char_length(convenio) >= 1) AND (char_length(convenio) <= 20))),
+    CONSTRAINT fin_remessas_bancarias_layout_check CHECK ((layout = 'gestao_max_cnab240'::text)),
+    CONSTRAINT fin_remessas_bancarias_nsa_check CHECK (((nsa >= 1) AND (nsa <= 999999))),
+    CONSTRAINT fin_remessas_bancarias_quantidade_check CHECK (((quantidade >= 1) AND (quantidade <= 100000))),
+    CONSTRAINT fin_remessas_bancarias_valor_total_check CHECK ((valor_total >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE fin_remessas_bancarias; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_remessas_bancarias IS 'Arquivos de reenvio (CNAB240 do BB Gestão MAX) gerados pelo sistema: NSA reservado por registrar_remessa_bancaria e hash gravado por confirmar_remessa_bancaria. arquivo_sha256 nulo = reserva não confirmada. Escrita só pelas RPCs.';
+
+
+--
+-- Name: COLUMN fin_remessas_bancarias.movimentos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_remessas_bancarias.movimentos IS 'fin_movimentos_bancarios recusados reenviados neste arquivo.';
 
 
 --

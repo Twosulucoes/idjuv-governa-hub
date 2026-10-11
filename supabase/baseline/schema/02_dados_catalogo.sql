@@ -578,6 +578,7 @@ INSERT INTO public.module_permissions_catalog (id, module_code, permission_code,
 INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('283b1747-ac3e-42fe-a5a2-5aaa88b4ca1c', 'rh', 'financeiro.folha.configurar', 'Configurar Folha de Pagamento', NULL, 'Folha de Pagamento', 'configurar', 503, '2026-10-10 07:03:18.476244+00');
 INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('ec61f6af-1e43-4284-a560-14bc98b63252', 'rh', 'rh.auditoria.visualizar', 'Visualizar Trilha de Auditoria do RH', 'Lê a trilha (audit_logs) do módulo RH: quem lançou, alterou ou excluiu, e o antes/depois mascarado', 'Auditoria', 'auditar', 510, '2026-10-10 22:53:23.691153+00');
 INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('df904087-85f1-427a-8046-7d514b3fab6e', 'rh', 'rh.contracheques.visualizar', 'Visualizar Contracheques de Outros Servidores', 'Lê contracheques (fichas e itens), lançamentos, consignações, pensões, retorno bancário e eventos do eSocial de todos os servidores; o servidor sempre lê o próprio contracheque', 'Folha', 'consultar', 511, '2026-10-11 01:46:26.180433+00');
+INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('c9c409ba-b6c4-476a-a915-e01294a2e36f', 'financeiro', 'pagamento.conciliar', 'Conciliar pagamentos com arquivos e extratos do banco', NULL, 'Pagamentos', 'conciliar', 508, '2026-10-11 14:02:11.78468+00');
 
 
 --
@@ -1030,6 +1031,8 @@ INSERT INTO public.role_permissions (id, role, permission, created_at, created_b
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('6ed00e85-fdde-4061-972a-c4641ca7db90', 'user', 'rh.self', '2026-10-10 07:03:18.476244+00', NULL);
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('fe9e2c8a-fe04-457e-8f94-f893f8b9e973', 'admin', 'rh.contracheques.visualizar', '2026-10-11 01:46:26.180433+00', NULL);
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('ec5c216b-02e8-43bc-923f-2a205b156f53', 'manager', 'rh.contracheques.visualizar', '2026-10-11 01:46:26.180433+00', NULL);
+INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('2beb17f2-b8a4-4802-9b1f-f4495ef7f426', 'admin', 'pagamento.conciliar', '2026-10-11 14:02:11.78468+00', NULL);
+INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('1b46b13a-c092-4405-b3d8-e09780e3ce6d', 'manager', 'pagamento.conciliar', '2026-10-11 14:02:11.78468+00', NULL);
 
 
 --

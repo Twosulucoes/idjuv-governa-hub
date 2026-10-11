@@ -21,6 +21,7 @@ São invocadas do front via `supabase.functions.invoke('<nome>', { body })`.
 | `database-schema` | Inspeciona o schema do banco (apoia a tela `DatabaseSchemaPage`). |
 | `backup-offsite` | Executa/orquestra backup off-site (apoia `BackupOffsitePage`). |
 | `cpsi-ai-assistant` | Assistente de IA para o formulário CPSI (`CPSIPage`). |
+| `bb-api` | APIs de leitura do Banco do Brasil: `status` da conexão, `extrato` (API Extratos v2, grava em `fin_extrato_lancamentos`) e `validar-conta` (API Validação de Contas v1). Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
 
 ### Envio de e-mail e WhatsApp (`_shared/envio`)
 
@@ -99,6 +100,70 @@ O CORS continua `Access-Control-Allow-Origin: *`: a função só aceita o token 
 cookie. Restringir o CORS à origem do tenant é pendência. O ZIP do pacote nunca é gravado hoje, então o download
 fica sem arquivo até isso existir. Regras de acesso completas em
 [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3).
+
+### Banco do Brasil (`bb-api`)
+
+Spec: [`2026-10-11-financeiro-fiplan-banco-design.md`](./superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md)
+(Etapa 4). Só leitura: pagamento pela API (Pagamentos em Lote/PagBB) está fora.
+
+- **Autorização**: `Authorization: Bearer` obrigatório (`401`); a RPC `pode_conciliar_pagamentos()` roda como o
+  próprio usuário (perfil ativo, módulo `financeiro` e `pagamento.conciliar`) antes de criar o cliente com a service
+  role. Sem permissão, `403`; erro na checagem, `500` (falha fechada).
+- **Ações** (`POST`, body `{acao, ...}`):
+  - `status` → `{ambiente, configurado: {BB_*: boolean}, mtls_pronto, token: {extrato, validacao}}`: diz quais
+    segredos existem (nunca o valor) e tenta obter o token OAuth de cada escopo.
+  - `extrato` `{conta_bancaria_id, data_inicio, data_fim}` (`YYYY-MM-DD`, até 31 dias): lê agência e conta em
+    `fin_contas_bancarias` (só banco `001`), chama `GET /conta-corrente/agencia/{agencia}/conta/{conta}` da API
+    Extratos v2 com mTLS, paginando (200 por página) até `numeroPaginaProximo = 0`, descarta as linhas de saldo e grava
+    pela RPC `registrar_extrato_bb` (só service role; idempotente). Devolve `periodo`, `paginas`,
+    `recebidos_do_banco`, `recebidos`, `inseridos`, `existentes` e `conciliados` (débitos casados com
+    `fin_pagamentos`). A API não traz id do lançamento: `identificador_bb` junta data, lote, documento, histórico,
+    valor, sinal e a ordem entre lançamentos idênticos do dia.
+  - `validar-conta` `{agencia, conta, cpf_cnpj}` → `{contaAtiva, titularConta}` (API Validação de Contas v1,
+    `GET /contas/{agencia}-{conta}/situacao?cpfCnpj=`; sem mTLS).
+- **Segredos** (por instância, `supabase secrets set`; nada no banco nem no front): `BB_AMBIENTE`
+  (`homologacao`|`producao`, padrão `homologacao`), `BB_CLIENT_ID`, `BB_CLIENT_SECRET`, `BB_APP_KEY`, `BB_CERT_PEM` e
+  `BB_KEY_PEM` (certificado e chave do cliente em PEM para o mTLS da API de Extratos; `\n` literal é aceito no lugar
+  da quebra de linha). Token: OAuth2 `client_credentials` com Basic auth (`oauth.hm.bb.com.br` /
+  `oauth.bb.com.br`), escopos `extrato-info` e `validacao-contas.info`, guardado em memória até expirar. A chave da
+  aplicação vai na query como `gw-dev-app-key` em homologação e `gw-app-key` em produção (conferir no portal do BB na
+  homologação).
+- **Erros**: falha do BB responde `502` com `etapa` (`token`, `extrato`, `validacao`) e `status_bb`, sem o corpo da
+  resposta; certificado ausente/inválido ou runtime sem `Deno.createHttpClient` responde `503`
+  (`codigo` `certificado_ausente`, `certificado_invalido`, `runtime_sem_mtls`).
+- **LGPD**: o log leva só a ação, a etapa e o código HTTP; nunca token, CPF/CNPJ, agência ou conta.
+- **Não verificado** contra o BB: a função passou em `deno check` e nas funções puras (datas, normalização do
+  extrato), mas não foi chamada na homologação do BB (exige credenciais e certificado do cliente).
+
+#### Configurar as credenciais do BB numa instância
+
+Cada cliente roda numa instância própria do Supabase ([NOVO_BANCO.md](./NOVO_BANCO.md)), com as próprias
+credenciais do BB. Nada disso vai para o repositório, para `tenants/<slug>/`, para o `.env` do front ou para o
+banco: a tela não recebe nem guarda segredo.
+
+1. No portal do desenvolvedor do BB, o cliente cria a aplicação, libera as APIs Extratos e Validação de Contas
+   e obtém `client_id`, `client_secret`, a chave da aplicação e o certificado do cliente para o mTLS (certificado
+   e chave privada em PEM). Comece em homologação.
+2. Grave os seis segredos no ambiente das Edge Functions da instância:
+
+   | Segredo | Valor |
+   |---|---|
+   | `BB_AMBIENTE` | `homologacao` ou `producao` (ausente = `homologacao`; outro valor é tratado como inválido) |
+   | `BB_CLIENT_ID` | `client_id` da aplicação no BB |
+   | `BB_CLIENT_SECRET` | `client_secret` da aplicação |
+   | `BB_APP_KEY` | chave da aplicação (vai como `gw-dev-app-key` ou `gw-app-key`) |
+   | `BB_CERT_PEM` | certificado do cliente em PEM (pode ser uma linha só, com `\n` literal no lugar das quebras) |
+   | `BB_KEY_PEM` | chave privada do certificado em PEM (mesmo formato) |
+
+   Com a CLI do Supabase: `supabase secrets set BB_AMBIENTE=homologacao BB_CLIENT_ID=... (etc.)`. No Supabase
+   self-hosted da VPS, as Edge Functions leem as variáveis de ambiente do serviço de funções do Docker: inclua as
+   seis no ambiente desse serviço e reinicie-o. Defina também `ALLOWED_ORIGINS` com a URL do front.
+3. Publique a função `bb-api` na instância.
+4. Em `/financeiro/conciliacao`, aba "Banco do Brasil (API)", use "Testar conexão": a ação `status` mostra o
+   ambiente, quais segredos faltam (sem mostrar valores) e se o token de cada API saiu. Só depois importe um
+   extrato curto para conferir.
+5. Para ir para produção, troque `BB_AMBIENTE` para `producao` e as credenciais/certificado pelos de produção.
+   Confira no portal do BB o nome do parâmetro da chave da aplicação (ver "Segredos" acima).
 
 ## Boas práticas ao mexer
 

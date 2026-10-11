@@ -25,7 +25,17 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, ArrowUpDown, TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, ArrowUpDown, TrendingUp, TrendingDown, ArrowRightLeft, CheckCheck } from "lucide-react";
 import {
   DataTable,
   KpiCard,
@@ -34,8 +44,14 @@ import {
   type ColunaTabela,
   type TomStatus,
 } from "@/components/design-system";
-import { useAlteracoesOrcamentarias, useCriarAlteracaoOrcamentaria } from "@/hooks/useAlteracoesOrcamentarias";
+import {
+  useAlteracoesOrcamentarias,
+  useConfirmarAlteracaoFiplan,
+  useCriarAlteracaoOrcamentaria,
+} from "@/hooks/useAlteracoesOrcamentarias";
 import { useDotacoes } from "@/hooks/useFinanceiro";
+import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
+import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { formatCurrency } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -72,6 +88,15 @@ const SITUACAO: Record<StatusWorkflowFinanceiro, { label: string; tom: TomStatus
   cancelado: { label: "Cancelado", tom: "erro" },
   estornado: { label: "Estornado", tom: "neutro" },
 };
+
+// Sem a coluna no banco (ou nulo), a alteração ainda não foi confirmada no FIPLAN
+const confirmadaNoFiplan = (alt: AlteracaoOrcamentaria) => alt.situacao_fiplan === "confirmada";
+
+// Situações em que não faz sentido lançar a alteração no FIPLAN
+const SEM_LANCAMENTO_FIPLAN: StatusWorkflowFinanceiro[] = ["rejeitado", "cancelado", "estornado"];
+
+const podeConfirmarNoFiplan = (alt: AlteracaoOrcamentaria) =>
+  !confirmadaNoFiplan(alt) && !SEM_LANCAMENTO_FIPLAN.includes(alt.status);
 
 const colunas: ColunaTabela<AlteracaoComDotacoes>[] = [
   {
@@ -133,10 +158,27 @@ const colunas: ColunaTabela<AlteracaoComDotacoes>[] = [
     },
     ordenarPor: (alt) => SITUACAO[alt.status]?.label ?? alt.status,
   },
+  {
+    id: "fiplan",
+    cabecalho: "FIPLAN",
+    celula: (alt) =>
+      confirmadaNoFiplan(alt) ? (
+        <StatusBadge tom="sucesso">
+          Confirmada
+          {alt.confirmado_fiplan_em
+            ? ` em ${format(new Date(alt.confirmado_fiplan_em), "dd/MM/yyyy", { locale: ptBR })}`
+            : ""}
+        </StatusBadge>
+      ) : (
+        <StatusBadge tom="pendente">Pendente</StatusBadge>
+      ),
+    ordenarPor: (alt) => alt.confirmado_fiplan_em ?? (confirmadaNoFiplan(alt) ? "1" : ""),
+    buscarPor: (alt) => alt.processo_sei,
+  },
 ];
 
 export default function AlteracoesOrcamentariasPage() {
-  const [exercicio] = useState(new Date().getFullYear());
+  const { exercicio, comExercicio } = useExercicioFinanceiro();
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -145,6 +187,8 @@ export default function AlteracoesOrcamentariasPage() {
   const alteracoes = data as AlteracaoComDotacoes[] | undefined;
   const { data: dotacoes } = useDotacoes(exercicio);
   const criarAlteracao = useCriarAlteracaoOrcamentaria();
+  const confirmarFiplan = useConfirmarAlteracaoFiplan();
+  const [aConfirmar, setAConfirmar] = useState<AlteracaoComDotacoes | null>(null);
 
   // Form state
   const [formTipo, setFormTipo] = useState<TipoAlteracaoOrcamentaria>("suplementacao");
@@ -153,6 +197,7 @@ export default function AlteracoesOrcamentariasPage() {
   const [formValor, setFormValor] = useState("");
   const [formJustificativa, setFormJustificativa] = useState("");
   const [formFundamentacao, setFormFundamentacao] = useState("");
+  const [formProcessoSei, setFormProcessoSei] = useState("");
 
   const needsOrigem = ["remanejamento", "transposicao", "transferencia", "reducao"].includes(formTipo);
   const needsDestino = ["suplementacao", "remanejamento", "transposicao", "transferencia", "credito_especial", "credito_extraordinario"].includes(formTipo);
@@ -185,6 +230,7 @@ export default function AlteracoesOrcamentariasPage() {
       valor: parseFloat(formValor),
       justificativa: formJustificativa.trim(),
       fundamentacao_legal: formFundamentacao.trim() || null,
+      processo_sei: formProcessoSei.trim() || null,
     });
 
     setDialogOpen(false);
@@ -198,6 +244,17 @@ export default function AlteracoesOrcamentariasPage() {
     setFormValor("");
     setFormJustificativa("");
     setFormFundamentacao("");
+    setFormProcessoSei("");
+  };
+
+  const confirmarNoFiplan = async () => {
+    if (!aConfirmar) return;
+    try {
+      await confirmarFiplan.mutateAsync(aConfirmar.id);
+      setAConfirmar(null);
+    } catch {
+      // erro já exibido pelo toast da mutation; o diálogo continua aberto
+    }
   };
 
   const temFiltro = filtroStatus !== "todos" || filtroTipo !== "todos";
@@ -206,14 +263,17 @@ export default function AlteracoesOrcamentariasPage() {
     <ModuleLayout module="financeiro">
       <div className="space-y-6">
         <PageHeader
-          migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Alterações orçamentárias" }]}
+          migalhas={[{ rotulo: "Financeiro", href: comExercicio("/financeiro") }, { rotulo: "Alterações orçamentárias" }]}
           titulo="Alterações orçamentárias"
-          descricao="Suplementações, reduções, remanejamentos e créditos"
+          descricao={`Suplementações, reduções, remanejamentos e créditos · exercício ${exercicio}`}
           acoes={
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Nova alteração
-            </Button>
+            <>
+              <SeletorExercicio />
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Nova alteração
+              </Button>
+            </>
           }
         />
 
@@ -235,7 +295,7 @@ export default function AlteracoesOrcamentariasPage() {
           carregando={isLoading}
           erro={isError ? "Não foi possível carregar as alterações orçamentárias." : null}
           aoTentarNovamente={() => refetch()}
-          busca={{ placeholder: "Buscar por número, justificativa ou dotação…" }}
+          busca={{ placeholder: "Buscar por número, justificativa, dotação ou processo SEI…" }}
           filtros={
             <>
               <Select value={filtroTipo} onValueChange={setFiltroTipo}>
@@ -283,8 +343,48 @@ export default function AlteracoesOrcamentariasPage() {
               </Button>
             ),
           }}
+          acoesLinha={(alt) =>
+            podeConfirmarNoFiplan(alt) ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAConfirmar(alt)}
+                aria-label={`Confirmar no FIPLAN a alteração ${alt.numero}`}
+              >
+                <CheckCheck className="h-4 w-4" aria-hidden="true" />
+                Confirmar
+              </Button>
+            ) : null
+          }
         />
       </div>
+
+      {/* Confirmação manual do lançamento no FIPLAN */}
+      <AlertDialog open={!!aConfirmar} onOpenChange={(aberto) => !aberto && !confirmarFiplan.isPending && setAConfirmar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar no FIPLAN?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirme só depois de conferir que a alteração {aConfirmar?.numero}
+              {aConfirmar?.processo_sei ? ` (processo SEI ${aConfirmar.processo_sei})` : ""} de{" "}
+              {aConfirmar ? formatCurrency(aConfirmar.valor) : ""} já está lançada no FIPLAN. A data da confirmação
+              fica registrada.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={confirmarFiplan.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmarNoFiplan();
+              }}
+              disabled={confirmarFiplan.isPending}
+            >
+              {confirmarFiplan.isPending ? "Confirmando..." : "Confirmar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialog Nova Alteração */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -384,6 +484,17 @@ export default function AlteracoesOrcamentariasPage() {
                 value={formFundamentacao}
                 onChange={(e) => setFormFundamentacao(e.target.value)}
                 maxLength={200}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="alt-processo-sei">Processo SEI</Label>
+              <Input
+                id="alt-processo-sei"
+                placeholder="Nº do processo"
+                value={formProcessoSei}
+                onChange={(e) => setFormProcessoSei(e.target.value)}
+                maxLength={50}
               />
             </div>
           </div>

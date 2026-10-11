@@ -16,6 +16,9 @@ import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus }
 import { Plus, Eye, FileText } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useSolicitacoes } from "@/hooks/useFinanceiro";
+import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
+import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
+import SolicitacaoFormDialog from "@/components/financeiro/SolicitacaoFormDialog";
 import { formatCurrency } from "@/lib/formatters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -102,29 +105,48 @@ const colunas: ColunaTabela<SolicitacaoDespesa>[] = [
 ];
 
 export default function SolicitacoesPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const statusParam = searchParams.get("status") || "";
+  // "?acao=nova" (botão do cabeçalho, atalho do painel) abre o formulário
+  const formAberto = searchParams.get("acao") === "nova";
+  const { exercicio, comExercicio } = useExercicioFinanceiro();
 
   const [filtroStatus, setFiltroStatus] = useState(statusParam);
 
   const { data: solicitacoes, isLoading, isError, refetch } = useSolicitacoes({
+    exercicio,
     status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined
   });
+
+  const alterarFormulario = (aberto: boolean) => {
+    setSearchParams(
+      (atual) => {
+        const proximo = new URLSearchParams(atual);
+        if (aberto) proximo.set("acao", "nova");
+        else proximo.delete("acao");
+        return proximo;
+      },
+      { replace: true },
+    );
+  };
 
   return (
     <ModuleLayout module="financeiro">
       <div className="space-y-6">
         <PageHeader
-          migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Solicitações de despesa" }]}
+          migalhas={[{ rotulo: "Financeiro", href: comExercicio("/financeiro") }, { rotulo: "Solicitações de despesa" }]}
           titulo="Solicitações de despesa"
-          descricao="Gerencie as solicitações de despesa da instituição"
+          descricao={`Solicitações de despesa da instituição · exercício ${exercicio}`}
           acoes={
-            <Button asChild>
-              <Link to="/financeiro/solicitacoes?acao=nova">
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Nova solicitação
-              </Link>
-            </Button>
+            <>
+              <SeletorExercicio />
+              <Button asChild>
+                <Link to={comExercicio("/financeiro/solicitacoes?acao=nova")}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Nova solicitação
+                </Link>
+              </Button>
+            </>
           }
         />
 
@@ -160,12 +182,13 @@ export default function SolicitacoesPage() {
           }}
           acoesLinha={(sol) => (
             <Button variant="ghost" size="icon" asChild>
-              <Link to={`/financeiro/solicitacoes/${sol.id}`} aria-label={`Ver solicitação ${sol.numero}`}>
+              <Link to={comExercicio(`/financeiro/solicitacoes/${sol.id}`)} aria-label={`Ver solicitação ${sol.numero}`}>
                 <Eye className="h-4 w-4" aria-hidden="true" />
               </Link>
             </Button>
           )}
         />
+        <SolicitacaoFormDialog open={formAberto} onOpenChange={alterarFormulario} exercicio={exercicio} />
       </div>
     </ModuleLayout>
   );

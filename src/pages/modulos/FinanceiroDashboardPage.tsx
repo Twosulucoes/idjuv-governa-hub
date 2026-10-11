@@ -8,6 +8,8 @@ import { DollarSign, FileText, CreditCard, TrendingUp, Receipt, Calculator, Aler
 import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { useDashboardFinanceiro } from "@/hooks/useFinanceiro";
+import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
+import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -27,11 +29,12 @@ interface Indicador {
 }
 
 export default function FinanceiroDashboardPage() {
+  const { exercicio, comExercicio } = useExercicioFinanceiro();
   const {
     resumoOrcamentario,
     solicitacoesPendentes,
     loading,
-  } = useDashboardFinanceiro();
+  } = useDashboardFinanceiro(exercicio);
 
   const resumo = resumoOrcamentario.data;
 
@@ -41,7 +44,7 @@ export default function FinanceiroDashboardPage() {
       rotulo: "Dotação atual",
       valor: resumo ? formatCurrency(resumo.dotacao_atual || 0) : "—",
       icone: DollarSign,
-      href: "/financeiro/orcamento",
+      href: "/financeiro/qdd",
       carregando: loading,
     },
     {
@@ -78,7 +81,8 @@ export default function FinanceiroDashboardPage() {
       <div className="space-y-6">
         <PageHeader
           titulo="Financeiro"
-          descricao="Orçamento, empenhos, liquidações e pagamentos"
+          descricao={`Orçamento, empenhos, liquidações e pagamentos · exercício ${exercicio}`}
+          acoes={<SeletorExercicio />}
         />
 
         {resumoOrcamentario.isError && (
@@ -111,7 +115,7 @@ export default function FinanceiroDashboardPage() {
                 <li key={ind.rotulo}>
                   {ind.href ? (
                     <Link
-                      to={ind.href}
+                      to={comExercicio(ind.href)}
                       className="block h-full rounded-lg transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       {cartao}
@@ -142,7 +146,7 @@ export default function FinanceiroDashboardPage() {
                     className="h-auto sm:h-auto py-4 flex flex-col items-center gap-2 whitespace-normal"
                     asChild
                   >
-                    <Link to={action.href}>
+                    <Link to={comExercicio(action.href)}>
                       <Icon className="h-6 w-6" aria-hidden="true" />
                       <span className="font-medium">{action.label}</span>
                       <span className="text-caption text-muted-foreground">{action.description}</span>

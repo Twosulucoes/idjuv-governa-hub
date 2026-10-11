@@ -17,6 +17,7 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
   - a migração `supabase/migrations/20261009160000_inventario_campo_fase1.sql` já está aplicada no banco de produção (foi aplicada à mão em 09/10, e por isso o arquivo foi renomeado de `20261009120000` para `20261009160000`, a versão registrada em `supabase_migrations.schema_migrations`); falta regenerar `src/integrations/supabase/types.ts` (o front usa `supabase as any` nas tabelas novas até lá);
   - decidir a correção das policies `acesso_total_*` em `campanhas_inventario` e `coletas_inventario` no banco ao vivo (o baseline já as remove);
   - confirmar os termos de uso da Esri World Imagery para uso institucional.
+- [ ] **Financeiro — FIPLAN como fonte da verdade, arquivos bancários e APIs do BB:** exercício único no módulo (`useExercicioFinanceiro`), QDD com resumo e "Atualizado pelo FIPLAN em…", `/financeiro/orcamento` redirecionando para o QDD, formulários de solicitação e de conta bancária, alteração orçamentária com processo SEI e confirmação no FIPLAN, detalhe do pagamento com histórico bancário, conciliação (`/financeiro/conciliacao`: leitura de OBN600/CNAB 240, conciliação manual, reenvio de recusados no leiaute Gestão MAX) e Edge Function `bb-api` (extrato e validação de conta, só leitura); permissão nova `pagamento.conciliar` e tabelas `fin_movimentos_bancarios`, `fin_remessas_bancarias`, `fin_extrato_lancamentos` — em PR rascunho, [spec](../superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md). Falta: merge (o CI aplica as migrações `20261011100000`–`20261011100300`), regenerar os tipos, publicar `bb-api` e configurar as credenciais do BB por instância ([EDGE_FUNCTIONS.md](../EDGE_FUNCTIONS.md#configurar-as-credenciais-do-bb-numa-instância)); `bb-api` ainda não foi chamada na homologação do BB. Pendências no Backlog.
 - [ ] **E-mails do Supabase Auth no design system:** confirmação, convite, link mágico, senha, troca de e-mail e reautenticação gerados por tenant (`tenants/<slug>/emails/`) — ver [EMAILS_AUTH.md](../EMAILS_AUTH.md). Falta aplicar na VPS (bucket `emails` + override do compose).
 
 ## Em planejamento
@@ -32,6 +33,11 @@ Documento vivo, mantido pelo agente `documentador-idjuv`. Fluxo de trabalho: ver
 - [ ] Higiene: `package-lock.json` fora de sincronia (`npm ci` falha)
 - [ ] Hardening de RLS pendente (ver `docs/AUDITORIA_USUARIOS.md`, `docs/RLS_USUARIOS_PROPOSTA.sql`)
 - [ ] Inventário de hardcode de cliente (ver `docs/INVENTARIO_HARDCODE.md`)
+- [ ] Financeiro — Pagamentos em Lote / PagBB (envio de pagamento pela API do BB): fora da entrega de 11/10; depende do contrato e da homologação com o BB ([spec](../superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md), "Fora desta entrega")
+- [ ] Financeiro — conciliação do retorno CNAB da folha: a tabela `fin_movimentos_bancarios` já comporta; falta um `.RET` da folha de exemplo para validar o leitor
+- [ ] Financeiro — conferir o leitor OBN600 com o manual oficial: tipos de OB (31/32/38) e códigos de retorno (01/09) foram deduzidos dos arquivos; trechos marcados "conferir no manual" em `src/lib/bancario/obn600.ts`, `src/lib/bancario/cnab240.ts` e `src/lib/bancario/gestaoMaxCnab240.ts`
+- [ ] Financeiro — rota `/financeiro` declarada duas vezes em `src/App.tsx` (painel do módulo e `DashboardFinanceiroPage`, com guardas diferentes): escolher uma e remover a outra
+- [ ] Financeiro — credenciais do BB por instância: cada cliente precisa gravar os segredos `BB_*` na própria instância e homologar com o BB antes de usar a aba "Banco do Brasil (API)" (passo a passo em [EDGE_FUNCTIONS.md](../EDGE_FUNCTIONS.md#configurar-as-credenciais-do-bb-numa-instância))
 - [ ] Patrimônio — Inventário de campo, fases 2–3: edificações e instalações, relatórios automáticos (vistoria, diário, semanal), conciliação com a relação da SEED, importação de planilha (fora da fase 1 na spec de 2026-10-09)
 
 ## Concluído

@@ -657,6 +657,58 @@ Legado/compartilhado: `dotacoes_orcamentarias`, `empenhos`, `liquidacoes`,
 `pagamentos`, `creditos_adicionais`, `centros_custo`, `contas_autarquia`,
 `config_autarquia`.
 
+#### FIPLAN, arquivos bancários e extrato do BB (banco)
+
+Migrações `20261011100000` a `20261011100300` (**em PR rascunho**), spec
+[`2026-10-11-financeiro-fiplan-banco-design.md`](./superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md).
+Todas idempotentes.
+
+- **Alteração orçamentária confirmada no FIPLAN** (`20261011100000`): `fin_alteracoes_orcamentarias` ganha
+  `processo_sei`, `situacao_fiplan` (`pendente`|`confirmada`, padrão `pendente`), `confirmado_fiplan_em` e
+  `confirmado_fiplan_por`. `confirmar_alteracao_fiplan(p_id uuid) → jsonb` (`id`, `situacao_fiplan`,
+  `confirmado_fiplan_em`, `confirmado_fiplan_por`, `ja_confirmada`) exige o módulo financeiro e `orcamento.aprovar`
+  (o catálogo não tem permissão própria de alteração) e recusa alteração `cancelado`/`rejeitado`. O trigger
+  `trg_fin_alteracoes_proteger_situacao_fiplan` impede `anon`/`authenticated` de mudar a situação direto (`42501`)
+  e força `pendente` no INSERT: a RLS da tabela (classe `modulo`) deixa o módulo editar a linha.
+- **Movimentos bancários** (`20261011100100`): `fin_movimentos_bancarios`, um registro por pagamento visto num
+  arquivo do banco (OBN600 do FIPLAN, CNAB240 da SEGAD/Gestão MAX), com `chave_unica` =
+  `origem|identificador|valor|data_pagamento|tipo_lancamento`, `importacao_id` (quem criou),
+  `importacao_retorno_id` (último retorno), `pagamento_id`, `conciliado_em`/`conciliado_por`.
+  `importar_arquivo_bancario(p_linhas jsonb, p_arquivo jsonb, p_parametros jsonb, p_simular boolean DEFAULT true) →
+  jsonb` segue o `ResultadoBanco` dos importadores (`src/lib/importacao/types.ts`; `criados` lista os pagamentos
+  vinculados e os marcados como pagos) e registra em `importacoes` (`tipo = 'arquivo_bancario'`). Reimportar o mesmo
+  arquivo dá `sem_alteracao`; o retorno atualiza situação, código, motivo e autenticação do registro com a mesma
+  chave (nunca rebaixa `pago` para `enviado`); o casamento com `fin_pagamentos` é pelo `identificador_transacao` ou
+  por exercício + `valor_liquido` + CPF/CNPJ do fornecedor (`fornecedores.cpf_cnpj`), só com candidato único;
+  movimento `pago` vinculado marca o pagamento `pago` com `data_efetivacao` (não mexe em pago, estornado, cancelado
+  ou devolvido). O UPDATE de status não dispara a atualização de empenho/dotação (o trigger só age no INSERT): o
+  valor pago vem do QDD do FIPLAN. `conciliar_movimento_bancario(p_movimento_id uuid, p_pagamento_id uuid) → jsonb`
+  vincula à mão (`NULL` desfaz) e `pode_conciliar_pagamentos() → boolean` serve à tela e à Edge Function `bb-api`.
+  Permissão nova **`pagamento.conciliar`** (catálogo do financeiro; papéis `admin` e `manager`).
+- **Reenvio Gestão MAX** (`20261011100200`): `fin_remessas_bancarias` (`UNIQUE (conta_autarquia_id, layout, nsa)`,
+  `arquivo_sha256` nulo = reserva não confirmada) e, em `fin_movimentos_bancarios`, `remessa_id` e `reenviado_em`.
+  `registrar_remessa_bancaria(p_conta_autarquia_id uuid, p_layout text, p_quantidade int, p_valor_total numeric,
+  p_movimentos uuid[], p_nsa_minimo int DEFAULT NULL) → jsonb` (`id`, `nsa`, `convenio`, `agencia`,
+  `agencia_digito`, `conta`, `conta_digito`, `reaproveitada`) trava por conta/layout (advisory lock) e devolve
+  `max(nsa) + 1` ou `p_nsa_minimo`, se maior; o convênio vem de `contas_autarquia.convenio_pagamento`. Só aceita
+  movimentos `recusado` ainda não reenviados; nova chamada do mesmo usuário com a última reserva não confirmada
+  reaproveita o NSA (de outro usuário, o número fica pulado). `confirmar_remessa_bancaria(p_id uuid, p_sha256 text)
+  → jsonb` grava o hash (idempotente; outro hash é recusado) e marca os movimentos como reenviados.
+- **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
+  `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
+  `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver
+  [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md)); casa débitos sem vínculo com pagamento de mesmo valor líquido, data
+  (efetivação ou pagamento) e CPF/CNPJ do fornecedor, só com candidato único. Casar não muda o status do pagamento.
+  As tabelas antigas `fin_extratos_bancarios`/`fin_extrato_transacoes` continuam como estão.
+- **RLS e privilégios**: as três tabelas novas só têm policy de SELECT (perfil ativo + módulo financeiro; CPF/CNPJ e
+  conta de favorecido são dado pessoal) e sem INSERT/UPDATE/DELETE para `anon`/`authenticated`. As RPCs são
+  `SECURITY DEFINER` com `search_path` fixo e conferem `perfil_ativo_atual()`, `can_access_module(…, 'financeiro')` e
+  a permissão; `fin_casar_movimento_pagamento` e `fin_marcar_pagamento_pago` são de uso interno (sem EXECUTE para a
+  API). Erros: `42501` sem permissão; `22023` dado inválido; `P0002` registro inexistente.
+- **No baseline**: `schema/` regenerado, as três tabelas como `preservar` no `rls/mapa.csv`, REVOKE/GRANT no
+  `overlay/40_privilegios.sql` e testes no bloco "Financeiro: FIPLAN, arquivos bancários e extrato do BB" de
+  `scripts/db/testar-rls.sql`.
+
 ### Patrimônio e inventário
 `bens_patrimoniais`, `movimentacoes_bem`, `movimentacoes_patrimonio`,
 `historico_patrimonio`, `baixas_patrimonio`, `manutencoes_patrimonio`,
@@ -910,6 +962,10 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
 - **Bancário**: `get_proximo_numero_remessa` (prévia do número; desde a E3 o número vem do trigger no INSERT) e
   `cancelar_remessa(p_remessa_id, p_motivo)` (E3: cancela com motivo e autor; seção "Integridade da remessa CNAB e do
   eSocial — Onda E3").
+- **Financeiro (FIPLAN e banco)**: `confirmar_alteracao_fiplan`, `importar_arquivo_bancario`,
+  `conciliar_movimento_bancario`, `pode_conciliar_pagamentos`, `registrar_remessa_bancaria`,
+  `confirmar_remessa_bancaria` e `registrar_extrato_bb` (só service role); seção "FIPLAN, arquivos bancários e
+  extrato do BB".
 
 ## Convenções
 

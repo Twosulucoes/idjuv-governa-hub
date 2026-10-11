@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
+import ContaBancariaFormDialog from "@/components/financeiro/ContaBancariaFormDialog";
 import { Button } from "@/components/ui/button";
 import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
-import { Plus, Building2, Eye, RefreshCw, CheckCircle2, Wallet } from "lucide-react";
+import { Plus, Building2, CheckCircle2, Wallet } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { useContasBancarias } from "@/hooks/useFinanceiro";
 import type { ContaBancaria } from "@/types/financeiro";
@@ -67,6 +69,7 @@ const colunas: ColunaTabela<ContaBancaria>[] = [
 
 export default function ContasBancariasPage() {
   const { data: contas, isLoading, isError, refetch } = useContasBancarias();
+  const [formOpen, setFormOpen] = useState(false);
 
   const saldoTotal = contas?.reduce((acc, conta) => acc + (conta.saldo_atual || 0), 0) || 0;
 
@@ -78,16 +81,10 @@ export default function ContasBancariasPage() {
         titulo="Contas bancárias"
         descricao="Gestão de contas e saldos bancários"
         acoes={
-          <>
-            <Button variant="outline">
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              Atualizar saldos
-            </Button>
-            <Button>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Nova conta
-            </Button>
-          </>
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Nova conta
+          </Button>
         }
       />
 
@@ -116,13 +113,9 @@ export default function ContasBancariasPage() {
           titulo: "Nenhuma conta encontrada",
           descricao: "Cadastre uma conta bancária para começar.",
         }}
-        acoesLinha={(conta) => (
-          <Button variant="ghost" size="icon" aria-label={`Ver conta ${conta.nome_conta}`}>
-            <Eye className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        )}
       />
     </div>
+    <ContaBancariaFormDialog open={formOpen} onOpenChange={setFormOpen} />
     </ModuleLayout>
   );
 }

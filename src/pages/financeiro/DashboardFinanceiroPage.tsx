@@ -32,6 +32,8 @@ import {
   History,
 } from "lucide-react";
 import { useDashboardFinanceiro } from "@/hooks/useFinanceiro";
+import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
+import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { useIdentidade } from "@/core/tenant";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/formatters";
@@ -62,6 +64,7 @@ const operacoes = [
 
 export default function DashboardFinanceiroPage() {
   const { sigla } = useIdentidade();
+  const { exercicio, comExercicio } = useExercicioFinanceiro();
   const {
     resumoOrcamentario,
     contasBancarias,
@@ -69,7 +72,7 @@ export default function DashboardFinanceiroPage() {
     adiantamentosPendentes,
     solicitacoesPendentes,
     loading,
-  } = useDashboardFinanceiro();
+  } = useDashboardFinanceiro(exercicio);
 
   const resumo = resumoOrcamentario.data;
   const contas = contasBancarias.data || [];
@@ -81,10 +84,10 @@ export default function DashboardFinanceiroPage() {
   const contagem = (n: number | undefined) => (typeof n === "number" ? numero.format(n) : "—");
 
   const orcamento: Indicador[] = [
-    { rotulo: "Dotação atual", valor: moeda(resumo?.dotacao_atual), icone: Wallet, href: "/financeiro/orcamento", carregando: loading },
+    { rotulo: "Dotação atual", valor: moeda(resumo?.dotacao_atual), icone: Wallet, href: "/financeiro/qdd", carregando: loading },
     { rotulo: "Empenhado", valor: moeda(resumo?.empenhado), icone: TrendingUp, href: "/financeiro/empenhos", carregando: loading },
     { rotulo: "Pago", valor: moeda(resumo?.pago), icone: TrendingDown, href: "/financeiro/pagamentos", carregando: loading },
-    { rotulo: "Saldo disponível para empenho", valor: moeda(resumo?.saldo_disponivel), icone: PiggyBank, href: "/financeiro/orcamento", carregando: loading },
+    { rotulo: "Saldo disponível para empenho", valor: moeda(resumo?.saldo_disponivel), icone: PiggyBank, href: "/financeiro/qdd", carregando: loading },
   ];
 
   const pendencias: Indicador[] = [
@@ -126,7 +129,7 @@ export default function DashboardFinanceiroPage() {
       {lista.map((ind) => (
         <li key={ind.rotulo}>
           <Link
-            to={ind.href}
+            to={comExercicio(ind.href)}
             className="block h-full rounded-lg transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <KpiCard
@@ -147,14 +150,15 @@ export default function DashboardFinanceiroPage() {
       <div className="space-y-6">
         <PageHeader
           titulo="Financeiro"
-          descricao={`Gestão orçamentária e financeira do ${sigla}`}
+          descricao={`Gestão orçamentária e financeira do ${sigla} · exercício ${exercicio}`}
           acoes={
             <>
+              <SeletorExercicio />
               <Button variant="outline" asChild>
-                <Link to="/financeiro/relatorios">Relatórios</Link>
+                <Link to={comExercicio("/financeiro/relatorios")}>Relatórios</Link>
               </Button>
               <Button asChild>
-                <Link to="/financeiro/solicitacoes?acao=nova">
+                <Link to={comExercicio("/financeiro/solicitacoes?acao=nova")}>
                   <Plus className="h-4 w-4" aria-hidden="true" />
                   Nova solicitação
                 </Link>
@@ -248,7 +252,7 @@ export default function DashboardFinanceiroPage() {
                 </ul>
               )}
               <Button variant="outline" className="w-full" asChild>
-                <Link to="/financeiro/contas-bancarias">Ver todas as contas</Link>
+                <Link to={comExercicio("/financeiro/contas-bancarias")}>Ver todas as contas</Link>
               </Button>
             </CardContent>
           </Card>
@@ -267,7 +271,7 @@ export default function DashboardFinanceiroPage() {
                     className="h-auto sm:h-auto py-4 flex flex-col items-center gap-2 whitespace-normal"
                     asChild
                   >
-                    <Link to={op.href}>
+                    <Link to={comExercicio(op.href)}>
                       <Icon className="h-6 w-6" aria-hidden="true" />
                       <span className="font-medium">{op.label}</span>
                     </Link>

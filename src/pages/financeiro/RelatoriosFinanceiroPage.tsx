@@ -1,7 +1,6 @@
 import { ModuleLayout } from "@/components/layout";
-import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/design-system";
+import { Card, CardHeader, CardDescription } from "@/components/ui/card";
+import { PageHeader, StatusBadge } from "@/components/design-system";
 import {
   FileText,
   PieChart,
@@ -9,7 +8,6 @@ import {
   Building2,
   Users,
   Wallet,
-  Download,
   Calendar,
 } from "lucide-react";
 
@@ -84,6 +82,11 @@ export default function RelatoriosFinanceiroPage() {
           descricao="Central de relatórios e demonstrativos do módulo financeiro"
         />
 
+        <p className="text-body text-muted-foreground">
+          Os relatórios abaixo ainda não estão disponíveis para geração. Enquanto isso, use a exportação do QDD e
+          as listagens de cada tela.
+        </p>
+
         {categorias.map((categoria) => (
           <section key={categoria} className="space-y-4" aria-labelledby={`cat-${categoria}`}>
             <h2 id={`cat-${categoria}`} className="text-h2 text-foreground border-b border-border pb-2">
@@ -95,32 +98,16 @@ export default function RelatoriosFinanceiroPage() {
                 .map((relatorio) => (
                   <li key={relatorio.id}>
                     <Card className="h-full">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-2">
                           <div className="p-2 bg-primary/10 rounded-lg">
                             <relatorio.icon className="h-5 w-5 text-primary" aria-hidden="true" />
                           </div>
+                          <StatusBadge tom="neutro">Em preparação</StatusBadge>
                         </div>
                         <h3 className="text-h3 text-foreground">{relatorio.titulo}</h3>
                         <CardDescription>{relatorio.descricao}</CardDescription>
                       </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            aria-label={`Visualizar ${relatorio.titulo}`}
-                          >
-                            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                            Visualizar
-                          </Button>
-                          <Button variant="ghost" size="sm" aria-label={`Baixar PDF de ${relatorio.titulo}`}>
-                            <Download className="h-3.5 w-3.5" aria-hidden="true" />
-                            PDF
-                          </Button>
-                        </div>
-                      </CardContent>
                     </Card>
                   </li>
                 ))}

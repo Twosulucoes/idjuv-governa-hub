@@ -66,6 +66,11 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
   `docs/GUIA_FRONTEND.md` (Importação de dados).
+- Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"
+  requiredPermissions="pagamento.conciliar"`); `/financeiro/pagamentos/:id` abre o detalhe real do pagamento
+  (`orcamento.aprovar`); `/financeiro/orcamento` só redireciona para `/financeiro/qdd`. O ano das telas do
+  módulo vai na query `?exercicio=` (ver [MODULOS.md](./MODULOS.md)). Pendência conhecida: `/financeiro` está
+  declarada duas vezes em `src/App.tsx` (painel do módulo e `DashboardFinanceiroPage`, com guardas diferentes).
 - Inventário de campo: `/inventario/campanhas/:id/painel` (painel com mapa,
   `ProtectedRoute requiredPermissions="patrimonio.visualizar"`), com link na
   página de detalhe da campanha.

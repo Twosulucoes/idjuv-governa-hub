@@ -201,6 +201,8 @@ export interface Dotacao {
   fonte_recurso?: FonteRecurso;
 }
 
+export type SituacaoFiplan = 'pendente' | 'confirmada';
+
 export interface AlteracaoOrcamentaria {
   id: string;
   numero: string;
@@ -212,6 +214,11 @@ export interface AlteracaoOrcamentaria {
   valor: number;
   justificativa: string;
   fundamentacao_legal?: string | null;
+  /** Nº do processo no SEI que formaliza a alteração. */
+  processo_sei?: string | null;
+  /** A alteração nasce no sistema e é confirmada manualmente depois de lançada no FIPLAN. */
+  situacao_fiplan?: SituacaoFiplan | null;
+  confirmado_fiplan_em?: string | null;
   status: StatusWorkflowFinanceiro;
   aprovado_por?: string | null;
   aprovado_em?: string | null;
