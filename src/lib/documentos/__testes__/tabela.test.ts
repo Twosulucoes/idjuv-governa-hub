@@ -58,4 +58,20 @@ describe('tabela', () => {
     const valor = p[0].itens.find((i) => i.str === '10')!;
     expect(valor.x + valor.largura).toBeGreaterThan(mmParaPt(250));
   });
+
+  it('título de coluna estreita nunca é partido no meio da palavra: a coluna ganha o mínimo necessário', async () => {
+    // pesos reais de uma portaria com 5 colunas padrão + 1 personalizada (a última fica com ~20 mm)
+    const cols: ColunaTabela[] = [
+      { chave: 'num', titulo: 'Nº', peso: 8 },
+      { chave: 'n', titulo: 'NOME COMPLETO', peso: 45 },
+      { chave: 'c', titulo: 'CPF', peso: 28 },
+      { chave: 'g', titulo: 'CARGO', peso: 35 },
+      { chave: 'u', titulo: 'UNIDADE/SETOR', peso: 30 },
+      { chave: 'o', titulo: 'OBSERVAÇÃO', peso: 20 },
+    ];
+    const p = await lerPdf(gerar([tabela({ colunas: cols, linhas: [{ num: '1', n: 'A', c: '1', g: 'x', u: 'y', o: 'x' }] })]));
+    expect(p[0].itens.map((i) => i.str)).toContain('OBSERVAÇÃO');
+    const limite = p[0].largura - mmParaPt(20) + 1;
+    for (const i of p[0].itens) expect(i.x + i.largura).toBeLessThanOrEqual(limite);
+  });
 });

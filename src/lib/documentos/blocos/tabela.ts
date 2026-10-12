@@ -19,8 +19,26 @@ export const tabela =
   (ctx) => {
     const { doc } = ctx;
     const lh = alturaLinha(FONTE.tabela);
-    const soma = p.colunas.reduce((s, c) => s + (c.peso ?? 1), 0);
-    const larguras = p.colunas.map((c) => (ctx.largura * (c.peso ?? 1)) / soma);
+    const pesos = p.colunas.map((c) => c.peso ?? 1);
+    // Largura mínima: a maior palavra do título (em negrito) cabe inteira — título nunca é partido no meio.
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(FONTE.tabela);
+    const minimos = p.colunas.map((c) =>
+      Math.max(...ouTraco(c.titulo).split(/\s+/).map((w) => doc.getTextWidth(w))) + 2 * PAD + 0.5,
+    );
+    const proporcionais = pesos.map((w) => (ctx.largura * w) / pesos.reduce((a, b) => a + b, 0));
+    const repartir = (): number[] => {
+      const fixas = new Set<number>();
+      for (;;) {
+        const livre = ctx.largura - [...fixas].reduce((s, i) => s + minimos[i], 0);
+        const somaLivres = pesos.reduce((s, w, i) => (fixas.has(i) ? s : s + w), 0);
+        const ls = pesos.map((w, i) => (fixas.has(i) ? minimos[i] : (livre * w) / somaLivres));
+        const abaixo = ls.findIndex((l, i) => !fixas.has(i) && l < minimos[i]);
+        if (abaixo < 0) return ls;
+        fixas.add(abaixo);
+      }
+    };
+    const larguras = minimos.reduce((a, b) => a + b, 0) <= ctx.largura ? repartir() : proporcionais;
 
     const quebrar = (valor: Celula, i: number, negrito: boolean, vazioComoTraco: boolean): string[] => {
       doc.setFont('helvetica', negrito ? 'bold' : 'normal');
