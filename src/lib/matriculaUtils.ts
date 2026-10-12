@@ -1,34 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-/**
- * Gera uma matrícula automática no formato 0001, 0002, etc.
- */
-export async function gerarMatricula(): Promise<string> {
-  // Buscar a maior matrícula existente
-  const { data, error } = await supabase
-    .from("servidores")
-    .select("matricula")
-    .not("matricula", "is", null)
-    .order("matricula", { ascending: false })
-    .limit(1);
-  
-  if (error) {
-    console.error("Erro ao buscar matrícula:", error);
-    throw error;
-  }
-  
-  let sequencial = 1;
-  
-  if (data && data.length > 0 && data[0].matricula) {
-    // Extrair número da matrícula (pode ser formato antigo ou novo)
-    const numeros = data[0].matricula.replace(/\D/g, '');
-    if (numeros) {
-      sequencial = parseInt(numeros, 10) + 1;
-    }
-  }
-  
-  return sequencial.toString().padStart(4, "0");
-}
+// A matrícula é numerada pelo banco (trigger `gerar_matricula_servidor`, numérico e com trava): o cliente não gera mais.
 
 /**
  * Encerra o vínculo ativo anterior de um servidor e registra no histórico

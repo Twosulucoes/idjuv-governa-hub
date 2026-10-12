@@ -2,9 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { PreCadastro } from '@/types/preCadastro';
-import type { TipoServidor } from '@/types/servidor';
+import { TIPO_VINCULO_POR_TIPO_SERVIDOR, type TipoServidor } from '@/types/servidor';
 import type { Json } from '@/integrations/supabase/types';
-import { gerarMatricula } from '@/lib/matriculaUtils';
+import { admitirServidor } from '@/lib/rhRpc';
 
 // Helper para converter dados do banco para o tipo PreCadastro
 function mapToPreCadastro(data: any): PreCadastro {
@@ -31,7 +31,6 @@ function mapToDatabase(dados: Partial<PreCadastro>): Record<string, any> {
 function mapPreCadastroToServidor(
   pc: PreCadastro,
   extras: {
-    matricula: string;
     tipoServidor: TipoServidor;
     cargoId?: string;
     unidadeId: string;
@@ -151,7 +150,6 @@ function mapPreCadastroToServidor(
   // Dependentes (JSON)
   if (pc.dependentes && pc.dependentes.length > 0) servidor.dependentes = pc.dependentes;
   // Dados do vínculo (sempre presentes)
-  servidor.matricula = extras.matricula;
   servidor.tipo_servidor = extras.tipoServidor;
   servidor.cargo_atual_id = extras.cargoId || null;
   servidor.unidade_atual_id = extras.unidadeId;
@@ -385,12 +383,14 @@ export function usePreCadastros() {
       cargoId,
       unidadeId,
       dataAdmissao,
+      orgaoOrigem,
     }: {
       preCadastroId: string;
       tipoServidor: TipoServidor;
       cargoId?: string;
       unidadeId: string;
       dataAdmissao: string;
+      orgaoOrigem?: string;
     }) => {
       // 1. Buscar dados do pré-cadastro
       const { data: pcData, error: pcError } = await supabase
@@ -413,97 +413,23 @@ export function usePreCadastros() {
         throw new Error('Já existe um servidor cadastrado com este CPF');
       }
       
-      // 3. Gerar matrícula
-      const matricula = await gerarMatricula();
-      
-      // 4. Mapear e inserir servidor
+      // 3. Gravar o servidor (a matrícula é numerada pelo banco)
       const servidorData = mapPreCadastroToServidor(preCadastro, {
-        matricula,
         tipoServidor,
         cargoId,
         unidadeId,
         dataAdmissao,
       });
-      
+
       const { data: novoServidor, error: srvError } = await supabase
         .from('servidores')
         .insert(servidorData as any)
-        .select('id')
+        .select('id, matricula')
         .single();
-      
-      if (srvError) throw srvError;
-      
-      // 5. Criar lotação inicial
-      const { data: novaLotacao, error: lotError } = await supabase
-        .from('lotacoes')
-        .insert({
-          servidor_id: novoServidor.id,
-          unidade_id: unidadeId,
-          cargo_id: cargoId || null,
-          tipo_lotacao: 'lotacao_interna',
-          data_inicio: dataAdmissao,
-          ativo: true,
-        })
-        .select('id')
-        .single();
-      
-      if (lotError) {
-        console.error('Erro ao criar lotação:', lotError);
-      }
-      
-      // Nota: Portarias devem ser criadas manualmente pela Central de Portarias
-      // após a conversão do servidor
-      
-      // 8. Criar provimento sem portaria vinculada
-      try {
-        const { error: provError } = await supabase
-          .from('provimentos')
-          .insert({
-            servidor_id: novoServidor.id,
-            cargo_id: cargoId || null,
-            unidade_id: unidadeId,
-            status: 'ativo',
-            data_nomeacao: dataAdmissao,
-            data_posse: dataAdmissao,
-            data_exercicio: dataAdmissao,
-          });
-        
-        if (provError) {
-          console.error('Erro ao criar provimento:', provError);
-        }
-      } catch (err) {
-        console.error('Erro ao criar provimento:', err);
-      }
-      
-      // 9. Registrar no histórico funcional (sem portaria - será adicionada manualmente)
-      try {
-        // Buscar nome do cargo para descrição
-        let nomeCargo = 'cargo não especificado';
-        if (cargoId) {
-          const { data: cargoData } = await supabase
-            .from('cargos')
-            .select('nome, sigla')
-            .eq('id', cargoId)
-            .single();
-          if (cargoData) {
-            nomeCargo = cargoData.sigla ? `${cargoData.sigla} - ${cargoData.nome}` : cargoData.nome;
-          }
-        }
 
-        await supabase.from('historico_funcional').insert({
-          servidor_id: novoServidor.id,
-          tipo: tipoServidor === 'cedido_entrada' ? 'cessao_entrada' : 'nomeacao',
-          data_evento: dataAdmissao,
-          data_vigencia_inicio: dataAdmissao,
-          cargo_novo_id: cargoId || null,
-          unidade_nova_id: unidadeId,
-          descricao: `Nomeação para ${nomeCargo} - Matrícula ${matricula}`,
-        } as any);
-      } catch (err) {
-        console.error('Erro ao registrar histórico:', err);
-      }
-      
-      // 10. Atualizar pré-cadastro com referência ao servidor
+      if (srvError) throw srvError;
+
+      // 4. Marcar o pré-cadastro como convertido já aqui: o servidor existe e não pode ser convertido de novo
       const { error: updateError } = await supabase
         .from('pre_cadastros')
         .update({
@@ -512,14 +438,30 @@ export function usePreCadastros() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', preCadastroId);
-      
-      if (updateError) {
-        console.error('Erro ao atualizar pré-cadastro:', updateError);
+
+      if (updateError) throw new Error(`Servidor criado (matrícula ${novoServidor.matricula}), mas o pré-cadastro não foi marcado como convertido: ${updateError.message}`);
+
+      // 5. Vínculo + lotação + provimento (ou cessão) + histórico + minuta de portaria, numa transação.
+      // Se falhar, o servidor fica cadastrado e a admissão é refeita na aba de histórico do servidor.
+      try {
+        await admitirServidor({
+          servidorId: novoServidor.id,
+          tipo: TIPO_VINCULO_POR_TIPO_SERVIDOR[tipoServidor],
+          cargoId: cargoId || null,
+          unidadeId,
+          dataInicio: dataAdmissao,
+          orgaoOrigem,
+        });
+      } catch (e) {
+        throw new Error(
+          `Servidor cadastrado (matrícula ${novoServidor.matricula}), mas a admissão não foi concluída: ` +
+            `${e instanceof Error ? e.message : String(e)}. Registre o vínculo na aba Histórico do servidor.`,
+        );
       }
-      
+
       return { 
         servidorId: novoServidor.id, 
-        matricula
+        matricula: novoServidor.matricula
       };
     },
     onSuccess: (data) => {

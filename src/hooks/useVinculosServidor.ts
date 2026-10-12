@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { desligarServidor, MOTIVOS_QUE_DESLIGAM, type MotivoDesligamento } from "@/lib/rhRpc";
 
 // Tipos
 export type TipoVinculoServidor =
@@ -356,6 +357,26 @@ export function useVinculoMutations(servidorId?: string) {
         .select("*")
         .eq("id", id)
         .single();
+
+      // Último vínculo ativo + motivo de desligamento = fim da vida funcional: o banco encerra tudo de uma vez
+      // (lotação, provimento, cessões, designações, férias, licenças…), grava histórico e minuta.
+      if (vinculoAtual && motivo && MOTIVOS_QUE_DESLIGAM.includes(motivo)) {
+        const { count, error: contErr } = await supabase
+          .from("vinculos_servidor")
+          .select("id", { count: "exact", head: true })
+          .eq("servidor_id", vinculoAtual.servidor_id)
+          .eq("ativo", true)
+          .neq("id", id);
+        if (contErr) throw contErr;
+        if (!count) {
+          await desligarServidor({
+            servidorId: vinculoAtual.servidor_id,
+            data: dataFim,
+            motivo: motivo as MotivoDesligamento,
+          });
+          return;
+        }
+      }
 
       const { error } = await supabase
         .from("vinculos_servidor")
