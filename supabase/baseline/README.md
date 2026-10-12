@@ -46,7 +46,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 8 | `overlay/20_campos_iniciais.sql` | triggers: formulários públicos e pedidos do servidor não escolhem `status`, aprovação, autoria (nos pedidos do RH a isenção é por permissão, formato `perm:`, e nunca no próprio pedido); links do formulário de árbitros só do próprio bucket | à mão |
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
-| 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas; funções da E1 (autoria e trilha) sem EXECUTE pela API, exceto `registrar_evento` para `authenticated`; `trilha_storage` e `trilha_storage_chave` (E2) sem EXECUTE pela API; `exigir_folha_fechada` e `remessa_integridade` (E3) sem EXECUTE pela API e `cancelar_remessa` só para `authenticated`; regra de setor (`20261011020000`): `lotacao_vigente`, `unidade_e_superiores`, `lancamento_modulos_tabela`, `fundamento_*`, `lancamento_cache_invalidar`, `data_local`, `exigir_setor`, `exigir_setor_fim`, `regra_lancamento_proteger_exigir` e `comissoes_membros_validar` sem EXECUTE pela API, `meus_fundamentos_lancamento(app_module[])` e `saneamento_lancamento` só para `authenticated` | à mão |
+| 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas; funções da E1 (autoria e trilha) sem EXECUTE pela API, exceto `registrar_evento` para `authenticated`; `trilha_storage` e `trilha_storage_chave` (E2) sem EXECUTE pela API; `exigir_folha_fechada` e `remessa_integridade` (E3) sem EXECUTE pela API e `cancelar_remessa` só para `authenticated`; regra de setor (`20261011020000`): `lotacao_vigente`, `unidade_e_superiores`, `lancamento_modulos_tabela`, `fundamento_*`, `lancamento_cache_invalidar`, `data_local`, `exigir_setor`, `exigir_setor_fim`, `regra_lancamento_proteger_exigir` e `comissoes_membros_validar` sem EXECUTE pela API, `meus_fundamentos_lancamento(app_module[])` e `saneamento_lancamento` só para `authenticated`; RH de 2026-10-12 (migrações `20261012090000` a `20261012140000`): funções de apoio e de trigger sem EXECUTE pela API e só as 4 RPCs do pré-cadastro público para `anon`; quadro de vagas (`20261012150000`): `rh_provimento_vaga` e `rh_vagas_cargo_validar` sem EXECUTE pela API | à mão |
 | 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros, no privado `inventario-evidencias` e, desde a B3, no privado `documentos-requerimento`) e policies de storage por módulo; `frequencias` e `documentos-requerimento` (B3) gravam com módulo e código e o servidor lê o próprio arquivo; triggers `trilha_rh_storage_*` (E2) gravam na trilha a gravação, troca e exclusão de arquivo nesses dois buckets; bucket privado `remessas-cnab` (E3: ler e enviar `<remessa_id>.rem` com o módulo `rh` e `financeiro.folha.processar`, sem UPDATE/DELETE) | à mão |
 | 13 | `overlay/60_realtime.sql` | publicação realtime (folha) | à mão |
 
@@ -60,7 +60,7 @@ INSERT não dispara auditoria e as FKs são validadas depois, contra os dados se
 ## Modelo de RLS (`rls/mapa.csv`)
 
 O mapa tabela → classe/módulo é a **fonte da verdade** e deve ser lido por quem conhece o negócio.
-Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas em 2026-10-11, 248 tabelas):
+Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas em 2026-10-12, 252 tabelas):
 
 | Classe | Tabelas | Regra |
 |---|---|---|
@@ -68,7 +68,7 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 | `permissao` | 31 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha (B1, `financeiro.folha.processar\|configurar`; migração `20261010070000_onda_b_folha_rls_permissao.sql`) e 12 do RH (B2: férias, licenças, viagens, ponto, frequência, abono, ajuste, justificativa, fechamento, configuração do fechamento, banco de horas e lançamentos; migração `20261010090000_onda_b_rh_permissoes.sql`) e 3 do RH na B3 (`frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`; migração `20261010210000_onda_b_rh_storage.sql`). Na E3 (migração `20261011010100_rh_contracheques_leitura.sql`) entraram `eventos_esocial`, `remessas_bancarias` (as duas com `excluir=ninguem`), `pensoes_alimenticias` e `itens_retorno_bancario`, e `;leitura=` passou a valer em fichas, itens, lançamentos, consignações, pensões, retorno e eSocial. Na regra de setor (migração `20261011020000_lancamento_por_setor.sql`) entraram `comissoes` e `comissoes_membros` (`escrita=rh.comissoes.gerenciar`). As migrações carregam o mesmo SQL gerado |
 | `trilha` | 9 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger) |
 | `proprio_leitura` / `proprio` / `proprio_filho` | 8 / 0 / 0 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20). Desde a B2, `servidores` (posse pela coluna `id`, DELETE com `rh.servidores.excluir`, e nos contornos `sem_autoaprovacao`: ninguém grava a própria ficha), `vinculos_servidor` e `lotacoes` estão aqui; as tabelas do RH que estavam em `proprio`/`proprio_filho` passaram a `permissao` (a última, `documentos_requerimento_servidor`, na B3). As classes `proprio` e `proprio_filho` continuam no gerador, sem tabela |
-| `catalogo` | 7 | qualquer usuário ativo lê; escrita por módulo, ou com `escrita=<código>` também pelo código (`tipos_abono`: `rh.frequencia.configurar`, nos contornos). `cargos` entrou na B2 |
+| `catalogo` | 8 | qualquer usuário ativo lê; escrita por módulo, ou com `escrita=<código>` também pelo código (`tipos_abono`: `rh.frequencia.configurar`, nos contornos). `cargos` entrou na B2; `vagas_cargo` (quadro de vagas, módulos `rh\|governanca`, `escrita=governanca.cargos.gerenciar`) na migração `20261012150000` |
 | `catalogo_admin` | 7 | qualquer usuário ativo lê (o app lê no login); só o papel admin escreve. `audit_colunas_sensiveis` (catálogo da máscara da trilha) entrou na E1; `setores_modulo` e `regra_lancamento` (configuração da regra de setor, premissa 1: o admin sem servidor configura) na migração `20261011020000` (`regra_lancamento` com `excluir=ninguem`: sem policy de DELETE, nem para o admin); `dados_oficiais` saiu para `publico_admin` (migração `20261011023500`) |
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
 | `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`; desde a E1 imutável por trigger e com a policy extra `audit_logs_rh_auditoria_select` da migração `20261011000100`, fora do gerador: módulo `rh` e `rh.auditoria.visualizar` leem as linhas do RH) |
@@ -215,11 +215,16 @@ migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + c
 - inventário de campo: `fotos_vistoria_inventario` (INSERT só em nome próprio, UPDATE só do autor ou com
   `patrimonio.tramitar`, DELETE só com `patrimonio.tramitar`, campos de prova imutáveis), no bloco de
   cobertura adicional de `testar-rls.sql`;
+- quadro de vagas (migração `20261012150000`): `vagas_cargo` entra nos blocos por tabela da classe `catalogo`, com
+  semente de código em maiúsculas (exigido pelo CHECK `vagas_cargo_codigo_check`);
 - identidade: auto-ativação, troca de `servidor_id`, auto-promoção, admin bloqueado, `handle_new_user`;
-- RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada, privilégios padrão,
-  campos que o autor não pode escolher nos formulários.
+- RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada (desde 2026-10-12 a lista inclui as 4
+  RPCs do pré-cadastro público e `frequencia_competencia_travada`), privilégios padrão, `anon` executando exatamente
+  14 funções, campos que o autor não pode escolher nos formulários.
 
-Último resultado (2026-10-11, onda E3, migrações `20261011010000` e `20261011010100`, PostgreSQL 16): replay de
+Último resultado (2026-10-12, quadro de vagas, migração `20261012150000`): schema regenerado do replay, incluindo
+também as migrações `20261012090000` a `20261012140000`, que ainda não estavam nele; `validar-baseline.sh` com
+`PG_REPLAY` **APROVADO**, schema idêntico ao replay. Antes, em 2026-10-11 (onda E3, migrações `20261011010000` e `20261011010100`, PostgreSQL 16): replay de
 **270 migrações com 0 falhas**; `validar-baseline.sh` com `EXIGIR_REPLAY=1` **APROVADO** — RLS com 0 falhas em 4550
 checagens de UPDATE/DELETE (235 tabelas), schema idêntico ao replay (44102 linhas), policies de storage, buckets, ACL de
 funções e triggers de `storage.objects` idênticos. As duas migrações aplicadas duas vezes no replay, no baseline novo e
@@ -381,6 +386,11 @@ Limites conhecidos:
   de `rls/35_policies_geradas.sql` (gerado do `mapa.csv`); o REVOKE de `DELETE` está no overlay `40`; a permissão
   `rh.contracheques.visualizar` e as linhas de `role_permissions` (admin, manager) estão em `schema/02_dados_catalogo.sql`.
   Se a migração for segurada no merge, o baseline fica à frente do banco só-migrações nesses pontos.
+- **Migração `20261012150000` (quadro de vagas, em PR rascunho) × baseline.** `vagas_cargo`, `provimentos.vaga_id`, os
+  triggers, as views `v_quadro_vagas`/`v_vagas_historico` e as funções chegam pelo replay em `schema/`; as policies de
+  `vagas_cargo` na migração são cópia do SQL gerado do `mapa.csv` (classe `catalogo`); os REVOKE das funções de trigger
+  estão no overlay `40` (o dump não leva privilégios). Detalhe em
+  [`docs/BANCO_DE_DADOS.md`](../../docs/BANCO_DE_DADOS.md#quadro-de-vagas).
 - **`servidores.situacao`** (anterior à B2): quem tem o módulo `rh` muda a situação de outro servidor, e isso
   bloqueia o perfil vinculado. Sem correção ainda.
 - Tabelas com fluxo de aprovação por RPC e UPDATE livre para o módulo: `folhas_pagamento` foi protegida (só quem
@@ -401,9 +411,11 @@ Limites conhecidos:
   de todos) foi fechada; as telas públicas passam a usar as RPCs `consultar_gestor_por_cpf` e
   `registrar_gestor_publico` (só devolvem id, nome, status e nome da escola). O front foi ajustado
   (`useGestoresEscolares.ts`), que cai no acesso direto à tabela quando a RPC não existe (banco anterior, sem o
-  baseline); `anon` executa **10** RPCs públicas no total (essas 6 e as 4 do Portal da Transparência:
+  baseline); `anon` executa **14** RPCs públicas no total (essas 6, as 4 do Portal da Transparência:
   `transparencia_execucao_orcamentaria`, `transparencia_licitacoes`, `transparencia_patrimonio` e
-  `transparencia_cargos_publicos`, esta última no lugar de `public/data/cargos.json`, que publicava a indicação dos ocupantes). O formulário de árbitros segue o mesmo princípio e
+  `transparencia_cargos_publicos`, esta última no lugar de `public/data/cargos.json`, que publicava a indicação dos ocupantes,
+  e as 4 do pré-cadastro público, migração `20261012140000`: `pre_cadastro_publico_criar`, `_obter`, `_salvar` e
+  `_enviar`, com o token de cada pré-cadastro como guarda). O formulário de árbitros segue o mesmo princípio e
   tolera a falta das RPCs (`CadastroArbitroPage.tsx`), mas o log de acesso ao contracheque e o cadastro de
   árbitros só ficam íntegros depois de aplicada a migração `20261006230500`.
 - O banco ao vivo nunca foi inspecionado: o baseline foi derivado só dos arquivos do repositório.

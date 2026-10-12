@@ -202,6 +202,12 @@ Estrutura e compliance. `src/pages/governanca/` + `organograma/` + `cargos/`:
 `RelatorioGovernancaPage`. Inclui riscos, controles internos, checklists e
 decisões administrativas (no menu/banco).
 
+`QuadroVagasPage` (`/cargos/vagas`, botão "Quadro de vagas" em `GestaoCargosPage`): cada vaga com código, cargo,
+unidade, situação (livre, ocupada, extinta) e ocupante; KPIs de vagas ativas, ocupadas, livres e extintas; abas
+"Vagas" e "Histórico do quadro" e histórico por vaga. "Importar planilha" (`ImportarQuadroVagasDialog`, só com
+`governanca.cargos.gerenciar`) baixa o modelo XLSX, lê XLSX/XLS/CSV, simula e depois grava. Dados em
+`useQuadroVagas`; regras no banco em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#quadro-de-vagas).
+
 ## Integridade (`integridade`)
 
 Ética e canal de denúncias. `src/pages/integridade/`: `DenunciasPage` (público),

@@ -84,7 +84,9 @@ CREATE INDEX IF NOT EXISTS idx_provimentos_vaga ON public.provimentos (vaga_id) 
 CREATE UNIQUE INDEX IF NOT EXISTS provimentos_vaga_aberta_uidx ON public.provimentos (vaga_id)
   WHERE vaga_id IS NOT NULL AND data_encerramento IS NULL;
 
--- Escolhe vaga livre, trava a vaga e recusa sobreposição. Nome trg_provimento_vaga: roda antes de
+-- Escolhe vaga livre, trava a vaga e recusa sobreposição. A trava conta com READ COMMITTED (padrão do PostgREST e
+-- das RPCs): depois de esperar o FOR UPDATE, a busca seguinte já enxerga o provimento confirmado pela outra transação.
+-- Em aberto, o índice único parcial abaixo garante sozinho; btree_gist/EXCLUDE ficou de fora para não exigir extensão. Nome trg_provimento_vaga: roda antes de
 -- trg_validar_provimento e trigger_validar_provimento (ordem alfabética), que pulam a contagem quando há vaga.
 CREATE OR REPLACE FUNCTION public.rh_provimento_vaga()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -97,6 +99,11 @@ BEGIN
   -- encerrado sem data: a vaga fica livre a partir de hoje (senão o período ficaria aberto para sempre)
   IF NEW.vaga_id IS NOT NULL AND NEW.status IN ('encerrado', 'vacante') AND NEW.data_encerramento IS NULL THEN
     NEW.data_encerramento := public.data_local();
+  END IF;
+
+  -- tirar a vaga de quem continua no cargo liberaria a vaga para outra pessoa (duas pessoas para uma vaga)
+  IF TG_OP = 'UPDATE' AND OLD.vaga_id IS NOT NULL AND NEW.vaga_id IS NULL AND NEW.status IN ('ativo', 'suspenso') THEN
+    RAISE EXCEPTION 'Provimento em vigor não pode ficar sem vaga: registre a saída ou troque por outra vaga livre do cargo';
   END IF;
 
   -- provimento que passa a ocupar o cargo sem vaga informada: pega a primeira vaga livre do cargo
@@ -136,6 +143,11 @@ BEGIN
     IF v_vaga.cargo_id IS DISTINCT FROM NEW.cargo_id THEN
       RAISE EXCEPTION 'A vaga % é de outro cargo', v_vaga.codigo;
     END IF;
+    IF NEW.status IN ('ativo', 'suspenso') AND NEW.data_encerramento IS NOT NULL
+       AND NEW.data_encerramento <= public.data_local() THEN
+      RAISE EXCEPTION 'Provimento em vigor com data de saída já passada (%): limpe a data ao reativar',
+        to_char(NEW.data_encerramento, 'DD/MM/YYYY');
+    END IF;
     IF NEW.data_encerramento IS NOT NULL AND NEW.data_encerramento < NEW.data_nomeacao THEN
       RAISE EXCEPTION 'Data de saída (%) anterior à de entrada (%)',
         to_char(NEW.data_encerramento, 'DD/MM/YYYY'), to_char(NEW.data_nomeacao, 'DD/MM/YYYY');
@@ -145,7 +157,9 @@ BEGIN
       RAISE EXCEPTION 'A vaga % foi extinta em %: ocupação não pode passar dessa data',
         v_vaga.codigo, to_char(v_vaga.data_extincao, 'DD/MM/YYYY');
     END IF;
-    SELECT p.data_nomeacao, p.data_encerramento, coalesce(s.nome_social, s.nome_completo) AS nome
+    -- o nome do ocupante só vai na mensagem para quem lê servidores (RH); o gabinete também grava provimentos
+    SELECT p.data_nomeacao, p.data_encerramento,
+           CASE WHEN public.can_access_module(auth.uid(), 'rh') THEN coalesce(s.nome_social, s.nome_completo) END AS nome
       INTO v_conf
       FROM public.provimentos p
       LEFT JOIN public.servidores s ON s.id = p.servidor_id
@@ -198,8 +212,11 @@ BEGIN
     END IF;
   END IF;
 
-  -- cargo com quadro de vagas: a vaga (trg_provimento_vaga) já garante o limite
-  IF NEW.vaga_id IS NULL THEN
+  -- cargo com quadro de vagas: a vaga (trg_provimento_vaga) já garante o limite. Sem vaga, conta só quando o
+  -- provimento entra em ativo (nomeação, reativação ou troca de cargo): encerrar ou suspender quem sobrou acima do
+  -- quadro nunca é barrado.
+  IF NEW.vaga_id IS NULL AND NEW.status = 'ativo'
+     AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'ativo' OR OLD.cargo_id IS DISTINCT FROM NEW.cargo_id) THEN
     SELECT COUNT(*) INTO v_vagas_ocupadas
     FROM public.provimentos
     WHERE cargo_id = NEW.cargo_id AND status = 'ativo'
@@ -233,8 +250,10 @@ DECLARE
   qtd_atual INTEGER;
   qtd_max INTEGER;
 BEGIN
-  -- cargo com quadro de vagas: a vaga (trg_provimento_vaga) já garante o limite
-  IF NEW.vaga_id IS NOT NULL THEN
+  -- cargo com quadro de vagas: a vaga (trg_provimento_vaga) já garante o limite; sem vaga, conta só quando o
+  -- provimento entra em ativo (encerrar ou suspender quem sobrou acima do quadro nunca é barrado)
+  IF NEW.vaga_id IS NOT NULL
+     OR (TG_OP = 'UPDATE' AND OLD.status = 'ativo' AND OLD.cargo_id IS NOT DISTINCT FROM NEW.cargo_id) THEN
     RETURN NEW;
   END IF;
 
@@ -352,18 +371,21 @@ CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR UPDATE OR DELETE ON public.va
 -- ---------------------------------------------------------------------------
 -- 3. Situação atual e histórico
 -- ---------------------------------------------------------------------------
--- Situação e ocupante de hoje (data_local, no fuso do órgão). DEFINER para enxergar todos os provimentos, mas só
--- devolvem a situação e o id do provimento (sem dado pessoal): quem não lê provimentos (RLS) vê a vaga ocupada sem o nome.
+-- Situação e ocupante de hoje (data_local, no fuso do órgão). DEFINER para enxergar todos os provimentos e usar
+-- data_local. A situação vale para qualquer usuário ativo (sem dado pessoal); o id do provimento só sai para rh ou
+-- gabinete, que já leem provimentos: os demais veem a vaga ocupada sem o ocupante.
 CREATE OR REPLACE FUNCTION public.rh_vaga_ocupante_atual(p_vaga_id uuid)
 RETURNS uuid LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_id uuid;
 BEGIN
-  IF NOT public.is_active_user() THEN
+  -- o id do provimento só para quem já lê provimentos pela RLS (rh ou gabinete)
+  IF NOT (public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'gabinete')) THEN
     RETURN NULL;
   END IF;
   SELECT p.id INTO v_id FROM public.provimentos p
    WHERE p.vaga_id = p_vaga_id
+     AND p.data_nomeacao <= public.data_local()
      AND (p.data_encerramento IS NULL OR p.data_encerramento > public.data_local())
    ORDER BY p.data_nomeacao DESC
    LIMIT 1;
@@ -386,7 +408,11 @@ BEGIN
   IF v_extincao IS NOT NULL AND v_extincao <= public.data_local() THEN
     RETURN 'extinta';
   END IF;
-  RETURN CASE WHEN public.rh_vaga_ocupante_atual(p_vaga_id) IS NULL THEN 'livre' ELSE 'ocupada' END;
+  RETURN CASE WHEN EXISTS (SELECT 1 FROM public.provimentos p
+                            WHERE p.vaga_id = p_vaga_id
+                              AND p.data_nomeacao <= public.data_local()
+                              AND (p.data_encerramento IS NULL OR p.data_encerramento > public.data_local()))
+              THEN 'ocupada' ELSE 'livre' END;
 END;
 $$;
 
@@ -466,7 +492,8 @@ GRANT SELECT ON public.v_quadro_vagas, public.v_vagas_historico TO authenticated
 -- p_linhas: array de objetos com as chaves (texto ou número):
 --   cargo (obrigatório), sigla (símbolo), categoria (efetivo | comissionado | funcao_gratificada | temporario |
 --   estagiario; obrigatória só para cargo novo), vencimento, unidade (sigla ou nome da unidade), quantidade (vagas;
---   padrão 1) OU codigo (uma linha = uma vaga com esse código), lei_numero, lei_data (AAAA-MM-DD ou DD/MM/AAAA).
+--   padrão 1) OU codigo (uma linha = uma vaga com esse código), lei_numero, lei_data (AAAA-MM-DD ou DD/MM/AAAA),
+--   linha (número da linha na planilha, para as mensagens).
 -- p_gravar = false: simula (nada fica gravado) e devolve o relatório. true: grava tudo, ou nada se houver erro.
 -- Roda como o usuário: RLS, autoria, trilha e regra de setor valem para cada gravação.
 CREATE OR REPLACE FUNCTION public.rh_importar_quadro_vagas(p_linhas jsonb, p_gravar boolean DEFAULT false)
@@ -502,6 +529,15 @@ DECLARE
   v_seq int;
   v_vaga uuid;
   v_gravado boolean := false;
+  v_linha int;
+  v_cargo_ativo boolean;
+  v_chaves text[] := '{}';
+  l_cargo_criado int;
+  l_cargo_existente int;
+  l_vagas_criadas int;
+  l_vagas_existentes int;
+  l_chave text;
+  c_max_vagas constant int := 5000;
   p record;
 BEGIN
   IF auth.uid() IS NULL OR NOT public.has_permission_code(auth.uid(), 'governanca.cargos.gerenciar') THEN
@@ -517,10 +553,22 @@ BEGIN
   BEGIN
     FOR l IN SELECT x FROM jsonb_array_elements(p_linhas) AS x LOOP
       i := i + 1;
+      v_linha := i;
       BEGIN
         IF jsonb_typeof(l) <> 'object' THEN
           RAISE EXCEPTION 'linha em formato inválido';
         END IF;
+        -- número da linha na planilha, quando a tela informa (senão, a posição na lista)
+        IF coalesce(l ->> 'linha', '') ~ '^\d{1,7}$' THEN
+          v_linha := (l ->> 'linha')::int;
+        END IF;
+        -- contadores da linha: só entram no total se a linha inteira der certo
+        l_cargo_criado := 0;
+        l_cargo_existente := 0;
+        l_vagas_criadas := 0;
+        l_vagas_existentes := 0;
+        l_chave := NULL;
+
         v_nome := nullif(btrim(l ->> 'cargo'), '');
         IF v_nome IS NULL THEN
           RAISE EXCEPTION 'informe o nome do cargo';
@@ -528,22 +576,20 @@ BEGIN
         v_sigla := nullif(upper(btrim(l ->> 'sigla')), '');
         v_lei_numero := nullif(btrim(l ->> 'lei_numero'), '');
 
+        -- data da lei: AAAA-MM-DD ou DD/MM/AAAA (também com - ou . no lugar da barra); nada que dependa de DateStyle
         v_txt := nullif(btrim(l ->> 'lei_data'), '');
         v_lei_data := NULL;
-        IF v_txt ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN
-          v_lei_data := to_date(v_txt, 'DD/MM/YYYY');
-        ELSIF v_txt IS NOT NULL THEN
-          v_lei_data := v_txt::date;
-        END IF;
-
-        v_txt := nullif(btrim(l ->> 'vencimento'), '');
-        v_venc := NULL;
-        IF v_txt IS NOT NULL THEN
-          IF v_txt ~ ',' THEN
-            v_txt := replace(replace(v_txt, '.', ''), ',', '.');
+        BEGIN
+          IF v_txt ~ '^\d{4}-\d{2}-\d{2}$' THEN
+            v_lei_data := to_date(v_txt, 'YYYY-MM-DD');
+          ELSIF v_txt ~ '^\d{1,2}[/.-]\d{1,2}[/.-]\d{4}$' THEN
+            v_lei_data := to_date(translate(v_txt, '.-', '//'), 'DD/MM/YYYY');
+          ELSIF v_txt IS NOT NULL THEN
+            RAISE EXCEPTION USING ERRCODE = '22007';
           END IF;
-          v_venc := regexp_replace(v_txt, '[^0-9.\-]', '', 'g')::numeric;
-        END IF;
+        EXCEPTION WHEN invalid_datetime_format OR datetime_field_overflow THEN
+          RAISE EXCEPTION 'data da lei "%" inválida (use DD/MM/AAAA)', v_txt;
+        END;
 
         -- unidade: pela sigla, depois pelo nome (só unidades ativas)
         v_txt := nullif(btrim(l ->> 'unidade'), '');
@@ -561,7 +607,7 @@ BEGIN
         END IF;
 
         -- cargo: o existente com o mesmo nome e símbolo é reaproveitado (nada dele é alterado)
-        SELECT id INTO v_cargo_id FROM public.cargos
+        SELECT id, ativo INTO v_cargo_id, v_cargo_ativo FROM public.cargos
          WHERE lower(btrim(nome)) = lower(v_nome) AND coalesce(upper(btrim(sigla)), '') = coalesce(v_sigla, '')
          ORDER BY ativo DESC NULLS LAST, created_at
          LIMIT 1;
@@ -578,6 +624,16 @@ BEGIN
           EXCEPTION WHEN invalid_text_representation THEN
             RAISE EXCEPTION 'categoria "%" inválida (use efetivo, comissionado, funcao_gratificada, temporario ou estagiario)', l ->> 'categoria';
           END;
+          -- vencimento (só para cargo novo): 15000,00 | 15.000,00 | 15.000 | 15000.00
+          v_txt := regexp_replace(coalesce(l ->> 'vencimento', ''), '[R$[:space:]]', '', 'g');
+          v_venc := NULL;
+          IF v_txt ~ '^\d{1,3}(\.\d{3})+(,\d{1,2})?$' OR v_txt ~ '^\d+(,\d{1,2})?$' THEN
+            v_venc := replace(replace(v_txt, '.', ''), ',', '.')::numeric;
+          ELSIF v_txt ~ '^\d+\.\d{1,2}$' THEN
+            v_venc := v_txt::numeric;
+          ELSIF v_txt <> '' THEN
+            RAISE EXCEPTION 'vencimento "%" inválido (use 15000,00)', l ->> 'vencimento';
+          END IF;
           INSERT INTO public.cargos (nome, sigla, categoria, natureza, vencimento_base, lei_criacao_numero, lei_criacao_data,
                                      quantidade_vagas, ativo)
           VALUES (v_nome, v_sigla, v_cat,
@@ -585,59 +641,90 @@ BEGIN
                        WHEN v_cat IN ('comissionado', 'funcao_gratificada') THEN 'comissionado'::public.natureza_cargo END,
                   v_venc, v_lei_numero, v_lei_data, 0, true)
           RETURNING id INTO v_cargo_id;
-          v_cargos_criados := v_cargos_criados + 1;
+          l_cargo_criado := 1;
         ELSIF NOT (v_cargo_id = ANY (v_cargos)) THEN
-          v_cargos_existentes := v_cargos_existentes + 1;
-        END IF;
-        IF NOT (v_cargo_id = ANY (v_cargos)) THEN
-          v_cargos := v_cargos || v_cargo_id;
+          l_cargo_existente := 1;
+          IF v_cargo_ativo IS NOT TRUE THEN
+            v_avisos := v_avisos || jsonb_build_object('linha', v_linha, 'aviso',
+              format('o cargo %s está inativo no cadastro; as vagas foram ligadas a ele assim mesmo', v_nome));
+          END IF;
         END IF;
 
         v_cod := nullif(upper(btrim(l ->> 'codigo')), '');
         IF v_cod IS NOT NULL THEN
           SELECT cargo_id INTO v_dono FROM public.vagas_cargo WHERE codigo = v_cod;
           IF FOUND AND v_dono = v_cargo_id THEN
-            v_vagas_existentes := v_vagas_existentes + 1;
+            l_vagas_existentes := 1;
           ELSIF FOUND THEN
             RAISE EXCEPTION 'o código de vaga % já pertence a outro cargo', v_cod;
           ELSE
             INSERT INTO public.vagas_cargo (codigo, cargo_id, unidade_id, data_criacao, ato_criacao)
             VALUES (v_cod, v_cargo_id, v_unidade_id, v_lei_data,
                     CASE WHEN v_lei_numero IS NOT NULL THEN 'Lei ' || v_lei_numero END);
-            v_vagas_criadas := v_vagas_criadas + 1;
+            l_vagas_criadas := 1;
           END IF;
         ELSE
           v_txt := nullif(btrim(l ->> 'quantidade'), '');
-          v_qtd := coalesce(v_txt::numeric::int, 1);
+          IF v_txt IS NOT NULL AND v_txt !~ '^\d{1,3}$' THEN
+            RAISE EXCEPTION 'quantidade de vagas "%" inválida (use um número inteiro)', v_txt;
+          END IF;
+          v_qtd := coalesce(v_txt::int, 1);
           IF v_qtd < 1 OR v_qtd > 500 THEN
             RAISE EXCEPTION 'quantidade de vagas inválida (%)', v_txt;
+          END IF;
+          -- a quantidade é o total do cargo naquela unidade: duas linhas iguais na planilha não somariam
+          l_chave := v_cargo_id::text || '|' || coalesce(v_unidade_id::text, '-');
+          IF l_chave = ANY (v_chaves) THEN
+            RAISE EXCEPTION 'cargo % repetido na planilha para a mesma unidade: some as quantidades numa linha só', v_nome;
           END IF;
           SELECT count(*) INTO v_existentes FROM public.vagas_cargo
            WHERE cargo_id = v_cargo_id AND unidade_id IS NOT DISTINCT FROM v_unidade_id AND data_extincao IS NULL;
           IF v_existentes > v_qtd THEN
-            v_avisos := v_avisos || jsonb_build_object('linha', i, 'aviso',
+            v_avisos := v_avisos || jsonb_build_object('linha', v_linha, 'aviso',
               format('%s já tem %s vaga(s) ativas e a planilha pede %s: nenhuma vaga foi extinta (extinção é por ato, na tela)',
                      v_nome, v_existentes, v_qtd));
           END IF;
-          v_vagas_existentes := v_vagas_existentes + least(v_existentes, v_qtd);
+          l_vagas_existentes := least(v_existentes, v_qtd);
           IF v_existentes < v_qtd THEN
             v_prefixo := coalesce(nullif(btrim(regexp_replace(coalesce(v_sigla, ''), '[^A-Z0-9-]+', '-', 'g'), '-'), ''), 'VAGA');
             SELECT coalesce(max(substr(codigo, length(v_prefixo) + 2)::int), 0) INTO v_seq
               FROM public.vagas_cargo WHERE codigo ~ ('^' || v_prefixo || '\.[0-9]+$');
+            IF v_vagas_criadas + (v_qtd - v_existentes) > c_max_vagas THEN
+              RAISE EXCEPTION 'importação passaria de % vagas novas; divida a planilha', c_max_vagas;
+            END IF;
             FOR k IN 1 .. (v_qtd - v_existentes) LOOP
               v_seq := v_seq + 1;
               INSERT INTO public.vagas_cargo (codigo, cargo_id, unidade_id, data_criacao, ato_criacao)
               VALUES (v_prefixo || '.' || lpad(v_seq::text, 3, '0'), v_cargo_id, v_unidade_id,
                       v_lei_data,
                       CASE WHEN v_lei_numero IS NOT NULL THEN 'Lei ' || v_lei_numero END);
-              v_vagas_criadas := v_vagas_criadas + 1;
+              l_vagas_criadas := l_vagas_criadas + 1;
             END LOOP;
           END IF;
         END IF;
+
+        -- linha concluída
+        v_cargos_criados := v_cargos_criados + l_cargo_criado;
+        v_cargos_existentes := v_cargos_existentes + l_cargo_existente;
+        v_vagas_criadas := v_vagas_criadas + l_vagas_criadas;
+        v_vagas_existentes := v_vagas_existentes + l_vagas_existentes;
+        IF NOT (v_cargo_id = ANY (v_cargos)) THEN
+          v_cargos := v_cargos || v_cargo_id;
+        END IF;
+        IF l_chave IS NOT NULL THEN
+          v_chaves := v_chaves || l_chave;
+        END IF;
       EXCEPTION WHEN OTHERS THEN
-        v_erros := v_erros || jsonb_build_object('linha', i, 'erro', SQLERRM);
+        v_erros := v_erros || jsonb_build_object('linha', v_linha, 'erro', SQLERRM);
       END;
     END LOOP;
+
+    -- a ligação dos ocupantes lê e altera provimentos, que a RLS só abre para rh ou gabinete
+    IF jsonb_array_length(v_erros) = 0
+       AND NOT (public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'gabinete')) THEN
+      v_avisos := v_avisos || jsonb_build_object('aviso',
+        'os ocupantes atuais não foram ligados às vagas: isso exige acesso ao RH. Peça a alguém do RH para reimportar a mesma planilha');
+    END IF;
 
     IF jsonb_array_length(v_erros) = 0 THEN
       -- ocupantes atuais sem vaga: ligados a uma vaga livre do cargo (mesma unidade primeiro), por ordem de nomeação

@@ -65,6 +65,8 @@ export interface LinhaPlanilhaVagas {
   codigo?: string;
   lei_numero?: string;
   lei_data?: string;
+  /** Linha da planilha (cabeçalho = 1), usada nas mensagens de erro. */
+  linha?: number;
 }
 
 export interface RelatorioImportacaoVagas {
@@ -118,7 +120,7 @@ export function useImportarQuadroVagas() {
   return useMutation({
     mutationFn: async ({ linhas, gravar }: { linhas: LinhaPlanilhaVagas[]; gravar: boolean }) => {
       const { data, error } = await db.rpc("rh_importar_quadro_vagas", { p_linhas: linhas, p_gravar: gravar });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(error.hint ? `${error.message}. ${error.hint}` : error.message);
       return data as RelatorioImportacaoVagas;
     },
     onSuccess: (relatorio) => {

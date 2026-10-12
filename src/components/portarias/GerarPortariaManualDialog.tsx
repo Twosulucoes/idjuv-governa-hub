@@ -143,13 +143,17 @@ export function GerarPortariaManualDialog({
 
         if (!provimentoExistente) {
           // Criar provimento (sem campos de ato_nomeacao - usar Central de Portarias)
-          await supabase.from("provimentos").insert([{
+          // o banco recusa nomeação sem vaga livre no cargo (quadro de vagas, migração 20261012150000)
+          const { error: erroProvimento } = await supabase.from("provimentos").insert([{
             servidor_id: servidor.id,
             cargo_id: formData.cargo_id,
             unidade_id: formData.unidade_id,
             data_nomeacao: formData.data_documento,
             status: "ativo",
           }]);
+          if (erroProvimento) {
+            throw new Error(`Portaria gerada, mas o provimento não foi lançado: ${erroProvimento.message}`);
+          }
         }
 
         // Registrar no histórico funcional
@@ -175,7 +179,7 @@ export function GerarPortariaManualDialog({
       onSuccess?.();
     } catch (error) {
       console.error("Erro ao gerar portaria:", error);
-      toast.error("Erro ao gerar portaria");
+      toast.error(error instanceof Error && error.message ? error.message : "Erro ao gerar portaria");
     }
   };
 

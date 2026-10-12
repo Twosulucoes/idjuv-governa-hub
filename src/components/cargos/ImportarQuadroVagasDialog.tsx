@@ -95,22 +95,33 @@ const paraTexto = (valor: unknown): string => {
   return valor == null ? "" : String(valor).trim();
 };
 
-async function lerPlanilha(arquivo: File): Promise<LinhaPlanilhaVagas[]> {
+type CampoTexto = Exclude<keyof LinhaPlanilhaVagas, "linha">;
+
+async function lerPlanilha(arquivo: File): Promise<{ linhas: LinhaPlanilhaVagas[]; semCargo: number }> {
   const dados = await arquivo.arrayBuffer();
-  const pasta = XLSX.read(dados, { type: "array", cellDates: true });
+  // raw: o CSV chega como texto (sem o palpite americano de número e data: 15000,00 e 10/02/2019 ficam como estão);
+  // a RPC interpreta no padrão brasileiro. No XLSX, data de verdade vem como Date (cellDates).
+  const pasta = XLSX.read(dados, { type: "array", cellDates: true, raw: true });
   const aba = pasta.Sheets[pasta.SheetNames[0]];
   const brutas = XLSX.utils.sheet_to_json<Record<string, unknown>>(aba, { raw: true, defval: "" });
-  return brutas
-    .map((bruta) => {
-      const linha: Partial<LinhaPlanilhaVagas> = {};
-      for (const [cabecalho, valor] of Object.entries(bruta)) {
-        const chave = COLUNAS[normalizar(cabecalho)];
-        const texto = paraTexto(valor);
-        if (chave && texto) linha[chave] = texto;
-      }
-      return linha;
-    })
-    .filter((linha): linha is LinhaPlanilhaVagas => Boolean(linha.cargo));
+  let semCargo = 0;
+  const linhas: LinhaPlanilhaVagas[] = [];
+  for (const bruta of brutas) {
+    const linha: Partial<LinhaPlanilhaVagas> = {};
+    for (const [cabecalho, valor] of Object.entries(bruta)) {
+      const chave = COLUNAS[normalizar(cabecalho)] as CampoTexto | undefined;
+      const texto = paraTexto(valor);
+      if (chave && texto) linha[chave] = texto;
+    }
+    if (!linha.cargo) {
+      if (Object.keys(linha).length > 0) semCargo += 1;
+      continue;
+    }
+    // __rowNum__ é a linha da planilha começando em 0 (o cabeçalho é a linha 1 do Excel)
+    const indice = (bruta as { __rowNum__?: number }).__rowNum__;
+    linhas.push({ ...(linha as LinhaPlanilhaVagas), linha: typeof indice === "number" ? indice + 1 : undefined });
+  }
+  return { linhas, semCargo };
 }
 
 function baixarModelo() {
@@ -147,11 +158,16 @@ export function ImportarQuadroVagasDialog({ open, onOpenChange }: ImportarQuadro
       toast.error("Arquivo muito grande (máximo 5 MB).");
       return;
     }
+    setRelatorio(null);
+    setLinhas([]);
     try {
-      const lidas = await lerPlanilha(arquivo);
+      const { linhas: lidas, semCargo } = await lerPlanilha(arquivo);
       if (lidas.length === 0) {
         toast.error('Nenhuma linha com a coluna "cargo" preenchida. Use o modelo.');
         return;
+      }
+      if (semCargo > 0) {
+        toast.warning(`${semCargo} linha(s) sem a coluna "cargo" foram ignoradas.`);
       }
       setArquivoNome(arquivo.name);
       setLinhas(lidas);
@@ -240,7 +256,7 @@ export function ImportarQuadroVagasDialog({ open, onOpenChange }: ImportarQuadro
                   <AlertDescription>
                     <ul className="mt-2 list-disc space-y-1 pl-4">
                       {relatorio.erros.map((e, i) => (
-                        <li key={i}>Linha {e.linha + 1}: {e.erro}</li>
+                        <li key={i}>Linha {e.linha}: {e.erro}</li>
                       ))}
                     </ul>
                   </AlertDescription>
@@ -254,7 +270,7 @@ export function ImportarQuadroVagasDialog({ open, onOpenChange }: ImportarQuadro
                   <AlertDescription>
                     <ul className="mt-2 list-disc space-y-1 pl-4">
                       {relatorio.avisos.map((a, i) => (
-                        <li key={i}>{a.linha ? `Linha ${a.linha + 1}: ` : ""}{a.aviso}</li>
+                        <li key={i}>{a.linha ? `Linha ${a.linha}: ` : ""}{a.aviso}</li>
                       ))}
                     </ul>
                   </AlertDescription>

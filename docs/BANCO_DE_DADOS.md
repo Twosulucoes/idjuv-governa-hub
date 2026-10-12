@@ -50,7 +50,8 @@ muda em relação ao estado das migrações:
   PUBLIC e `anon`) (`processar_folha_pagamento` voltou a ser executável por `authenticated` na migração
   `20261010070000`, com guarda `financeiro.folha.processar` no corpo); função nova não nasce executável por
   `anon` nem por PUBLIC.
-- **`anon`** só tem as 9 RPCs públicas (denúncia, dado oficial, árbitros, gestores escolares, portal da transparência) e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
+- **`anon`** só tem as 14 RPCs públicas (denúncia, dado oficial, árbitros, gestores escolares, portal da transparência e,
+  desde a migração `20261012140000`, as 4 do pré-cadastro público) e as tabelas de formulário/portal declaradas no mapa (coluna `anon`);
   `authenticated` mantém os privilégios padrão de tabela (menos `TRUNCATE`/`TRIGGER`, e sem escrita em
   `audit_logs`), limitados pela RLS. As exceções são as funções `SECURITY DEFINER` de apoio listadas no teste.
 - **Formulários e pedidos.** Quem não gere o módulo não escolhe `status`, aprovação nem autoria (nos pedidos
@@ -961,7 +962,7 @@ histórico de migrações; o baseline já as remove); a correção no banco ao v
 `acesso_processo_sigiloso`, `acoes`.
 
 ### Governança e compliance
-`estrutura_organizacional`, `cargos`, `composicao_cargos`,
+`estrutura_organizacional`, `cargos`, `composicao_cargos`, `vagas_cargo`,
 `cargo_unidade_compatibilidade`, `nomeacoes_chefe_unidade`,
 `matriz_raci_papeis`, `matriz_raci_processos`, `matriz_raci_atribuicoes`,
 `riscos_institucionais`, `avaliacoes_risco`, `planos_tratamento_risco`,
@@ -975,6 +976,41 @@ endereço, dirigente, contato), editada em `/admin/configuracao-cliente`. Desde 
 `supabase/migrations/20261011023500_configuracao_cliente.sql` a leitura é pública (anon e logados, classe `publico_admin`)
 e a escrita só do papel admin. As chaves válidas estão em `CAMPOS_CLIENTE`
 (`src/core/tenant/dadosOficiais.ts`). Ver [CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md).
+
+#### Quadro de vagas
+
+Migração `supabase/migrations/20261012150000_rh_quadro_vagas.sql` (**em PR rascunho**; spec
+[2026-10-12-rh-quadro-vagas-design](./superpowers/specs/2026-10-12-rh-quadro-vagas-design.md)). Antes, o cargo tinha
+só um número (`cargos.quantidade_vagas`) e a vaga não tinha identidade.
+
+- **`vagas_cargo`**: uma linha por vaga do cargo — `codigo` único em maiúsculas (ex.: `CDS-1.001`), `cargo_id`,
+  `unidade_id` opcional, `data_criacao`/`ato_criacao`, `data_extincao`/`ato_extincao` (extinção não anterior à
+  criação), `observacoes` e autoria. RLS no baseline: classe `catalogo`, módulos `rh|governanca`,
+  `escrita=governanca.cargos.gerenciar` (qualquer usuário ativo lê; gravar exige um dos módulos **e** o código); a
+  migração traz o mesmo SQL do gerador, e `anon` perde todo privilégio. Triggers: `trg_vagas_cargo_validar`
+  (normaliza o código; sem data de criação usa `data_local()`; vaga com histórico de ocupação não muda de cargo nem
+  de código e não é apagada — registra-se a extinção; não extingue com ocupante depois da data), `zz_fixar_autoria`,
+  `audit_vagas_cargo` (trilha no módulo `rh`) e a regra de setor (`zz_exigir_setor`/`zz_exigir_setor_fim`;
+  `lancamento_modulos_tabela` devolve `rh` e `governanca` para a tabela).
+- **`provimentos.vaga_id`** (FK para `vagas_cargo`): a ocupação da vaga é o provimento, no período
+  `[data_nomeacao, data_encerramento)`. O trigger `trg_provimento_vaga` (função `rh_provimento_vaga`, `SECURITY
+  DEFINER`, sem EXECUTE pela API): provimento ativo ou suspenso sem vaga, num cargo que tem vagas, recebe a primeira
+  vaga livre (mesma unidade primeiro), ou é recusado com `23P01`; trava a vaga (`FOR UPDATE`) e recusa período
+  sobreposto com outro ocupante da mesma vaga (o dia da saída já pode ser o da entrada do sucessor), vaga de outro
+  cargo e ocupação depois da extinção; provimento `encerrado`/`vacante` sem data de saída recebe `data_local()`.
+  Índice único parcial `provimentos_vaga_aberta_uidx`: no máximo um provimento em aberto por vaga.
+  `fn_validar_provimento` e `validar_provimento` pulam a contagem por cargo quando há vaga; cargo sem vaga cadastrada
+  segue a regra antiga (`cargos.quantidade_vagas`).
+- **Views** `v_quadro_vagas` (situação atual de cada vaga e ocupante) e `v_vagas_historico` (vaga criada/extinta,
+  entrada e saída de ocupantes), ambas `security_invoker`: o nome do ocupante segue a RLS de `provimentos` e
+  `servidores`. A situação (`livre`, `ocupada`, `extinta`) vem de `rh_vaga_situacao(uuid)` (`SECURITY DEFINER`, exige
+  usuário ativo, sem dado pessoal) e o ocupante de `rh_vaga_ocupante_atual(uuid)` (`SECURITY DEFINER`, devolve o id do
+  provimento só para os módulos rh ou gabinete, que já leem `provimentos`); os demais veem a vaga ocupada sem o nome.
+  A mensagem de vaga ocupada do trigger só traz o nome do ocupante para quem tem o módulo rh. Tirar a vaga de um
+  provimento em vigor é recusado, assim como provimento em vigor com data de saída já passada. A trava conta com
+  READ COMMITTED (padrão da API). Sem vaga, a contagem antiga só roda quando o provimento entra em ativo: encerrar ou
+  suspender quem sobrou acima do quadro nunca é barrado. Nomeação com data futura só ocupa a vaga a partir dela.
+- **RPC `rh_importar_quadro_vagas(p_linhas jsonb, p_gravar boolean)`**: seção "Funções / RPC" abaixo.
 
 ### Transparência / LAI
 `solicitacoes_sic`, `recursos_lai`, `prazos_lai`, `historico_lai`, `publicacoes_lai`.
@@ -1058,7 +1094,8 @@ Usadas em relatórios e transparência (muitas expõem dados agregados/sem PII):
 `v_historico_bem_completo`, `v_movimentacoes_completas`,
 `v_relatorio_unidades_locais`, `v_relatorio_uso_unidades`, `v_cedencias_a_vencer`,
 `v_processos_resumo`, `v_instituicoes_resumo`, `v_gestores_workflow_auditoria`,
-`v_sic_consulta_publica`.
+`v_sic_consulta_publica`, `v_quadro_vagas`, `v_vagas_historico` (quadro de vagas, `security_invoker`; seção
+"Quadro de vagas").
 
 ## Funções / RPC (`47`)
 
@@ -1106,6 +1143,17 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   que mudaria; com `false` grava numa transação (cria programa, ação/PAOE, natureza e fonte que faltarem,
   insere/atualiza `fin_dotacoes`, nunca apaga) e registra em `importacoes`. Dotações do antigo import de
   planilha (`natureza.fonte.IDU`) são reconhecidas e migradas para a chave nova.
+- **Quadro de vagas**: `rh_importar_quadro_vagas(p_linhas, p_gravar)` (migração `20261012150000`, em PR rascunho) —
+  `SECURITY INVOKER` (RLS, autoria, trilha e regra de setor valem para cada gravação), exige
+  `governanca.cargos.gerenciar` (`42501`), até 2000 linhas. Cada linha traz `cargo` e, opcionais, `sigla`, `categoria`
+  (obrigatória só para cargo novo), `vencimento`, `unidade` (sigla ou nome), `quantidade` **ou** `codigo`,
+  `lei_numero`, `lei_data`. Com `p_gravar = false` só simula e devolve o relatório (`cargos_criados`,
+  `cargos_existentes`, `vagas_criadas`, `vagas_existentes`, `ocupantes_vinculados`, `erros`, `avisos`); com `true`
+  grava tudo ou nada. Nunca apaga nem sobrescreve: cargo com mesmo nome e símbolo é reaproveitado, código existente é
+  pulado, por quantidade só cria as vagas que faltam (código `<SIGLA>.001`, ou `VAGA.nnn` sem sigla) e vaga a mais
+  vira aviso, não extinção. Depois liga os provimentos ativos sem vaga a vagas livres do cargo (quem sobra vira aviso de
+  excesso) e atualiza `cargos.quantidade_vagas` com o número de vagas ativas. `rh_vaga_situacao(uuid)` e
+  `rh_vaga_ocupante_atual(uuid)` são executáveis por `authenticated` (seção "Quadro de vagas").
 - **Processos / workflow**: `fn_calcular_sla_processo`,
   `fn_contar_processos_por_status`, `fn_pode_arquivar_processo`.
 - **Patrimônio / unidades**: `gerar_numero_tombamento`, `patrimonio_buscar_bem_por_codigo`,
