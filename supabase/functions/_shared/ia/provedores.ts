@@ -12,9 +12,10 @@
  * Só Web APIs (sem dependências npm), para rodar no Edge Runtime e no `deno test`.
  */
 
-import { validarUrlBase } from "./url.ts";
+import { type ResolverDns, validarUrlBase, verificarDestino } from "./url.ts";
 
 export { validarUrlBase };
+export type { ResolverDns };
 
 export type ProvedorIA = "openai" | "anthropic" | "gemini" | "compativel_openai";
 
@@ -23,6 +24,13 @@ export interface ConfigProvedor {
   url_base: string | null;
   modelo: string;
   chave: string;
+  /**
+   * Hosts que a URL base do "compatível" não pode usar (o gateway passa o host de
+   * `SUPABASE_URL`, a própria instância). Opcional.
+   */
+  hostsProibidos?: string[];
+  /** Resolvedor de DNS do "compatível"; padrão `Deno.resolveDns`. Injetado nos testes. */
+  resolverDns?: ResolverDns;
 }
 
 export interface PedidoIA {
@@ -188,8 +196,11 @@ function montarChamada(cfg: ConfigProvedor, p: PedidoIA, stream: boolean): Chama
           { role: "system", content: p.sistema },
           { role: "user", content: p.prompt },
         ],
-        max_tokens: p.maxTokens,
       };
+      // A OpenAI recusa `max_tokens` nos modelos com raciocínio (o-series, gpt-5):
+      // lá o limite é `max_completion_tokens`. Os compatíveis seguem com `max_tokens`.
+      if (cfg.provedor === "openai") corpo.max_completion_tokens = p.maxTokens;
+      else corpo.max_tokens = p.maxTokens;
       if (stream) {
         corpo.stream = true;
         corpo.stream_options = { include_usage: true };
@@ -251,6 +262,24 @@ function saidaGemini(meta: Json): number | undefined {
   return (resposta ?? 0) + (raciocinio ?? 0);
 }
 
+/**
+ * Monta a chamada e, no "compatível", confere o destino no DNS antes do `fetch`
+ * (ver `verificarDestino`: o DNS rebinding entre a checagem e a conexão continua
+ * sendo risco residual; a barreira definitiva é o firewall de saída da VPS).
+ */
+async function prepararChamada(cfg: ConfigProvedor, p: PedidoIA, stream: boolean): Promise<Chamada> {
+  const chamada = montarChamada(cfg, p, stream); // já aplica `validarUrlBase`
+  if (cfg.provedor === "compativel_openai") {
+    const erro = await verificarDestino(
+      cfg.url_base as string,
+      cfg.resolverDns,
+      cfg.hostsProibidos ?? [],
+    );
+    if (erro) throw new ErroProvedor(400, erro);
+  }
+  return chamada;
+}
+
 // ---------------------------------------------------------------------------
 // Resposta completa
 // ---------------------------------------------------------------------------
@@ -261,7 +290,7 @@ export async function gerarTexto(
   p: PedidoIA,
   f: typeof fetch = fetch,
 ): Promise<RespostaIA> {
-  const res = await chamar(f, montarChamada(cfg, p, false));
+  const res = await chamar(f, await prepararChamada(cfg, p, false));
   const d: Json = await lerJson(res);
 
   let texto: string;
@@ -502,7 +531,7 @@ export async function gerarStream(
   aoTerminar: (u: UsoIA) => void,
   f: typeof fetch = fetch,
 ): Promise<ReadableStream<Uint8Array>> {
-  const res = await chamar(f, montarChamada(cfg, p, true));
+  const res = await chamar(f, await prepararChamada(cfg, p, true));
   if (!res.body) throw erroRespostaInesperada();
 
   const interpretar = cfg.provedor === "anthropic"

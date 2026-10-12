@@ -400,8 +400,9 @@ Limites conhecidos:
   inexistente (`lancamentos_folha.folha_id`) e falha para todos; `fechar_folha`/`reabrir_folha` e
   `fn_audit_parametros` foram consertados (auditoria gravava texto em coluna uuid).
 - `backup-offsite`: só a própria service role key vale como "cron" e o perfil do usuário precisa estar ativo.
-  No self-hosted, confirme `FUNCTIONS_VERIFY_JWT=true` no `.env`; outras Edge Functions (`cpsi-ai-assistant`,
-  `enviar-convite-reuniao`) aceitam qualquer sessão, sem checar módulo nem perfil ativo. `download-frequencia`
+  No self-hosted, confirme `FUNCTIONS_VERIFY_JWT=true` no `.env`; `enviar-convite-reuniao` aceita qualquer
+  sessão, sem checar módulo nem perfil ativo. `ia-gateway` (que substituiu a `cpsi-ai-assistant`) exige `ia.usar` com o
+  módulo `compras` ou `ia.configurar`, com perfil ativo. `download-frequencia`
   exige o módulo `rh` e `rh.frequencia.visualizar` desde a B3 (`docs/EDGE_FUNCTIONS.md`).
 - `overlay/40_privilegios.sql` ajusta os privilégios padrão só do papel `postgres`; objetos criados pelo Studio
   self-hosted (que conecta como `supabase_admin`) herdam os padrões da plataforma (EXECUTE para anon e authenticated).

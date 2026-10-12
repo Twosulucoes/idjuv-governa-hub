@@ -29,6 +29,15 @@ import {
 } from "../_shared/ia/provedores.ts";
 import { ErroRecurso, MENSAGEM_CORTADO, prepararCpsi } from "../_shared/ia/recursos/cpsi.ts";
 
+/** Host de `SUPABASE_URL` (a própria instância), recusado como URL base do "compatível". */
+function hostsDaInstancia(): string[] {
+  try {
+    return [new URL(Deno.env.get("SUPABASE_URL") ?? "").hostname];
+  } catch {
+    return [];
+  }
+}
+
 // CORS com allowlist por ambiente (mesmo padrão de admin-create-user/delete-user).
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
   .split(",")
@@ -212,6 +221,8 @@ Deno.serve(async (req) => {
       url_base: cfg.url_base,
       modelo: cfg.modelo,
       chave: cfg.chave,
+      // A URL base do "compatível" não pode apontar para a própria instância.
+      hostsProibidos: hostsDaInstancia(),
     };
     const registrar = criarRegistro(admin, caller.id, recurso, cfgProvedor);
 

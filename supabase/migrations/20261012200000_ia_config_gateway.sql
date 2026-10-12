@@ -236,9 +236,11 @@ BEGIN
   IF NOT public.pode_configurar_ia() THEN
     RAISE EXCEPTION 'Sem permissão para configurar a IA' USING ERRCODE = '42501';
   END IF;
+  -- [[:graph:]] em todo o texto: sem espaço, quebra de linha nem caractere de controle (a chave vai
+  -- num header HTTP; um \n embutido permitiria injetar header).
   IF p_chave IS NULL OR char_length(p_chave) < 8 OR char_length(p_chave) > 4096
-     OR p_chave ~ '^[[:space:]]' OR p_chave ~ '[[:space:]]$' THEN
-    RAISE EXCEPTION 'Chave inválida: de 8 a 4096 caracteres, sem espaço no começo ou no fim' USING ERRCODE = '22023';
+     OR p_chave !~ '^[[:graph:]]+$' THEN
+    RAISE EXCEPTION 'Chave inválida: de 8 a 4096 caracteres, sem espaço, quebra de linha ou caractere de controle' USING ERRCODE = '22023';
   END IF;
 
   -- Exige a configuração salva antes: trocar o provedor depois apagaria a chave (trigger acima).

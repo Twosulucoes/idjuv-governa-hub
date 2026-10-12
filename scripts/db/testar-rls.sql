@@ -1751,8 +1751,11 @@ BEGIN
   r := pg_temp.sql_como(u_cfg, 'authenticated', 'DELETE FROM public.ia_config');
   IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('ia_config: API apaga a config (' || r || ')'); END IF;
 
-  -- chave: validação de tamanho e espaços; gravada no Vault com o nome ia_chave_api, só os 4 últimos no front
-  FOREACH r IN ARRAY ARRAY['''curta''', '''  sk-teste-com-espaco''', '''sk-teste-com-espaco ''', 'repeat(''x'', 4097)', 'NULL'] LOOP
+  -- chave: validação de tamanho, espaços e caracteres de controle (inclusive no meio: \n, \t, \r);
+  -- gravada no Vault com o nome ia_chave_api, só os 4 últimos no front
+  FOREACH r IN ARRAY ARRAY['''curta''', '''  sk-teste-com-espaco''', '''sk-teste-com-espaco ''', 'repeat(''x'', 4097)', 'NULL',
+                           '''sk-teste-0000'' || chr(10) || ''7777''', '''sk-teste-0000'' || chr(13) || chr(10) || ''X-Inject: 1''',
+                           '''sk-teste-0000'' || chr(9) || ''7777''', '''sk-teste 0000-7777'''] LOOP
     IF pg_temp.sql_como(u_cfg, 'authenticated', 'SELECT public.salvar_chave_ia(' || r || ')') NOT LIKE 'erro:22023%' THEN
       PERFORM pg_temp.falha('salvar_chave_ia: aceita chave inválida ' || r);
     END IF;

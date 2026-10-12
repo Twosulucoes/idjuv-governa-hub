@@ -12,6 +12,7 @@ import {
   gerarStream,
   gerarTexto,
   type PedidoIA,
+  type ResolverDns,
   type UsoIA,
   validarUrlBase,
 } from "./provedores.ts";
@@ -89,11 +90,17 @@ function conferirFetchSeguro(req: Request) {
 const cfgOpenAI: ConfigProvedor = { provedor: "openai", url_base: null, modelo: "gpt-teste", chave: CHAVE };
 const cfgAnthropic: ConfigProvedor = { provedor: "anthropic", url_base: null, modelo: "claude-teste", chave: CHAVE };
 const cfgGemini: ConfigProvedor = { provedor: "gemini", url_base: null, modelo: "gemini-teste", chave: CHAVE };
+/** DNS falso: responde com os endereços dados (sem rede nos testes). */
+function dnsFalso(a: string[], aaaa: string[] = []): ResolverDns {
+  return (_host, tipo) => Promise.resolve(tipo === "A" ? a : aaaa);
+}
+
 const cfgCompat: ConfigProvedor = {
   provedor: "compativel_openai",
   url_base: "https://openrouter.ai/api/v1/",
   modelo: "meta/llama:free",
   chave: CHAVE,
+  resolverDns: dnsFalso(["104.18.2.115"], ["2606:4700::6812:273"]),
 };
 
 // ---------------------------------------------------------------------------
@@ -122,8 +129,9 @@ Deno.test("OpenAI: URL, Bearer, corpo, texto e tokens", async () => {
       { role: "system", content: PEDIDO.sistema },
       { role: "user", content: PEDIDO.prompt },
     ],
-    max_tokens: 500,
+    max_completion_tokens: 500,
   });
+  assertFalse("max_tokens" in corpo, "OpenAI usa max_completion_tokens (modelos com raciocínio)");
 });
 
 Deno.test("OpenAI: finish_reason length vira cortado", async () => {
@@ -221,7 +229,47 @@ Deno.test("Compatível: URL base sem barra final, Bearer e chave fora da URL", a
   assertEquals(req.headers.get("authorization"), `Bearer ${CHAVE}`);
   conferirSemChaveNaUrl(req);
   conferirFetchSeguro(req);
-  assertEquals((await req.json()).model, "meta/llama:free");
+  const corpo = await req.json();
+  assertEquals(corpo.model, "meta/llama:free");
+  assertEquals(corpo.max_tokens, 500);
+  assertFalse("max_completion_tokens" in corpo, "compatíveis seguem com max_tokens");
+});
+
+Deno.test("Compatível: nome que resolve para IP privado/reservado vira 400 sem chamar o provedor", async () => {
+  const resolvers: ResolverDns[] = [
+    dnsFalso(["10.0.0.5"]),
+    dnsFalso(["104.18.2.115", "127.0.0.1"]), // basta um endereço ruim
+    dnsFalso([], ["::1"]),
+    dnsFalso([], ["::ffff:169.254.169.254"]),
+    dnsFalso([], ["fd00::1"]),
+    () => Promise.reject(new Error("NXDOMAIN")),
+  ];
+  for (const resolverDns of resolvers) {
+    const { f, pedidos } = falso(() => json({}));
+    const cfg = { ...cfgCompat, resolverDns };
+    const e1 = await assertRejects(() => gerarTexto(cfg, PEDIDO, f), ErroProvedor);
+    assertEquals(e1.status, 400);
+    const e2 = await assertRejects(() => gerarStream(cfg, PEDIDO, () => {}, f), ErroProvedor);
+    assertEquals(e2.status, 400);
+    assertEquals(pedidos.length, 0);
+  }
+});
+
+Deno.test("Compatível: host da própria instância (hostsProibidos) vira 400", async () => {
+  const { f, pedidos } = falso(() => json({}));
+  const cfg = { ...cfgCompat, url_base: "https://bd.exemplo.gov.br/functions/v1", hostsProibidos: ["bd.exemplo.gov.br"] };
+  const e = await assertRejects(() => gerarTexto(cfg, PEDIDO, f), ErroProvedor);
+  assertEquals(e.status, 400);
+  assertEquals(pedidos.length, 0);
+});
+
+Deno.test("OpenAI oficial não passa pela checagem de DNS", async () => {
+  const { f, pedidos } = falso(() =>
+    json({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }], usage: { prompt_tokens: 1, completion_tokens: 1 } })
+  );
+  const cfg = { ...cfgOpenAI, resolverDns: () => Promise.reject(new Error("não deveria resolver")) };
+  assertEquals((await gerarTexto(cfg, PEDIDO, f)).texto, "ok");
+  assertEquals(pedidos.length, 1);
 });
 
 Deno.test("Compatível sem usage: estima ceil(caracteres/4) com estimado true", async () => {
@@ -351,7 +399,8 @@ Deno.test("OpenAI stream: traduz para o SSE do front, termina em [DONE] e entreg
   const corpo = await req.json();
   assertEquals(corpo.stream, true);
   assertEquals(corpo.stream_options, { include_usage: true });
-  assertEquals(corpo.max_tokens, 500);
+  assertEquals(corpo.max_completion_tokens, 500);
+  assertFalse("max_tokens" in corpo);
 });
 
 Deno.test("Anthropic stream: traduz eventos, termina em [DONE] e entrega os tokens", async () => {
