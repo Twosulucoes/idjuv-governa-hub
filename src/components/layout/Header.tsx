@@ -203,7 +203,9 @@ export function Header() {
       </div>
 
       {/* Header principal */}
-      <div className="bg-background/98 backdrop-blur-md border-b border-border/50 shadow-sm">
+      {/* bg-background/95: /98 não existe na escala de opacidade do Tailwind (a faixa ficava
+          transparente e logo/menu perdiam contraste sobre seções escuras ao rolar). */}
+      <div className="bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             {/* Logo do órgão — sem container, direta */}
