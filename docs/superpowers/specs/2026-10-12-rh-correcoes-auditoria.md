@@ -127,7 +127,7 @@ filtro por protocolo e prestação de contas de viagem — cada fluxo conferido 
 Medida disciplinar (aguarda decisão do órgão); granularidade de RLS em `lotacoes`, `provimentos`, `historico_funcional`,
 `designacoes`, `cessoes`; cálculo de aposentadoria e de acerto financeiro além da rescisão descrita.
 
-## 6. Parâmetros da folha: grafia do nome e data de vigência (migration `20261012150000`)
+## 6. Parâmetros da folha: grafia do nome e data de vigência (migration `20261012160000`)
 
 Achados ao conferir se o RH conseguiria configurar tudo pelas telas:
 - **Nome em maiúsculas × minúsculas.** A tela de Parâmetros gravava `TETO_INSS`, `DEDUCAO_DEPENDENTE_IRRF`; o cálculo da folha e todo o resto procuram em minúsculas. O valor digitado na tela era ignorado (a ficha saía marcada "dedução de dependente não configurada"). Corrigido em três camadas: o banco normaliza o nome em todo INSERT/UPDATE (minúsculas, sem acento, `_`) e as linhas já gravadas; `get_parametro_vigente` compara sem diferença de caixa; a tela usa um catálogo único (`src/lib/parametrosFolha.ts`) e grava normalizado.

@@ -3,7 +3,7 @@
  *
  * O NOME é a chave que o banco procura, sempre em minúsculas (`teto_inss`, `deducao_dependente_irrf`…). Antes a tela
  * gravava em MAIÚSCULAS (`TETO_INSS`) e o cálculo, que procura em minúsculas, ignorava o valor digitado. Agora a tela
- * normaliza o nome ao salvar e o banco também (trigger da migração 20261012150000).
+ * normaliza o nome ao salvar e o banco também (trigger da migração 20261012160000).
  */
 
 export type UnidadeParametro = "reais" | "percentual" | "sim_nao" | "numero";
