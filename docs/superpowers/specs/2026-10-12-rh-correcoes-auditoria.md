@@ -6,7 +6,8 @@ aprovador; `provimentos` + `lotacoes` mandam e `vinculos_servidor` é registro c
 para depois.**
 
 Migrations (ordem): `20261012090000_rh_protocolo.sql`, `20261012100000_rh_correcoes_auditoria.sql`,
-`20261012110000_rh_folha_calculo_completo.sql`, `20261012120000_rh_transferencia_e_diarias.sql`. Sem mudança de RLS nem de tabela nova (tabela do RH exigiria regenerar o
+`20261012110000_rh_folha_calculo_completo.sql`, `20261012120000_rh_transferencia_e_diarias.sql`, `20261012130000_rh_portaria_sequencia.sql`,
+`20261012140000_rh_pre_cadastro_publico.sql`. Sem mudança de RLS nem de tabela nova (tabela do RH exigiria regenerar o
 baseline). Colunas novas: `audit_logs.protocolo`, `itens_ficha_financeira.origem`. O baseline (`supabase/baseline/`)
 **não foi regenerado**: as migrations são idempotentes e valem por cima dele.
 
@@ -78,6 +79,31 @@ abono pecuniário e verbas indenizadas sem INSS/IRRF; avos de 13º com 15 dias o
   **concluir exige o relatório apresentado e a data** (prestação de contas). Formulário de viagem ganhou a seção
   "Prestação de contas" (relatório, data, link) a partir de "em andamento".
 
+## 3d. Portaria: sequência obrigatória e nomeação amparada (migration `…130000`)
+
+Decisão do dono: a portaria condiciona a posse e o exercício.
+- Trigger em `documentos` (tipo portaria): o status só anda `minuta → aguardando assinatura → assinada → aguardando publicação →
+  publicada → vigente → revogada`, com retorno para ajuste e revogação em qualquer etapa. Assinar exige quem assinou e a data;
+  publicar exige nº e data do DOE; vigente exige a data de início. Portaria assinada ou publicada não se apaga (revoga-se).
+  A criação segue livre (ato antigo já publicado entra e segue o ciclo).
+- `rh_pendencias_nomeacao()`: servidores com provimento ativo sem portaria de nomeação **publicada ou vigente**. A folha marca a
+  ficha (`portaria_de_nomeacao_nao_publicada`) em vez de bloquear, porque a publicação pode vir depois com efeito retroativo.
+  **Decisão em aberto:** se o dono quiser bloquear o fechamento da folha com essa pendência, é uma linha em `fechar_folha`.
+
+## 3e. Pré-cadastro público por token (migration `…140000`)
+
+Implementa `2026-10-12-pre-cadastro-publico-design.md` com um desvio: **funções no banco em vez de Edge Function** (mesmas
+garantias, testáveis em SQL, sem infraestrutura nova) e limite de criação por IP guardado na própria linha (sem tabela nova).
+- `anon` continua **sem** acesso à tabela; só executa `pre_cadastro_publico_criar/obter/salvar/enviar`.
+- Token de 122 bits (UUID aleatório) no link `/curriculo/<token>`, válido 30 dias sem uso; o código `PC-AAAA-nnnn` passa a ser só
+  protocolo para falar com o RH e **não abre nada**. Salvar ignora `status`, `servidor_id`, `observacoes`, código e token.
+- Não revela se o CPF já existe; a verificação de CPF do formulário público (que lia `servidores`/`pre_cadastros` e devolvia nome,
+  matrícula e código) foi **removida** junto com `VerificarCpfDialog`/`useVerificarCpf`. O RH resolve duplicidade na conversão.
+- 20 criações/hora por IP; honeypot e captcha não incluídos (decisão do dono: só se houver abuso). RH ganhou "Copiar link do
+  candidato" para reenviar o link de quem perdeu.
+- Padrões adotados nas quatro decisões abertas do desenho: limite na própria linha, sem captcha, validade 30 dias, o candidato
+  cria o próprio rascunho (sem confirmação de e-mail). Mudar qualquer uma é pequeno.
+
 ## 3c. Defeito encontrado ao testar no navegador
 
 O formulário de cargos grava só `cargos.categoria`; o formulário de vínculo e o painel de vínculos filtravam por
@@ -99,5 +125,4 @@ filtro por protocolo e prestação de contas de viagem — cada fluxo conferido 
 ## 5. Fora do escopo
 
 Medida disciplinar (aguarda decisão do órgão); granularidade de RLS em `lotacoes`, `provimentos`, `historico_funcional`,
-`designacoes`, `cessoes`; sequência obrigatória do ciclo da portaria; formulário público de pré-cadastro (desenho para
-aprovação em `2026-10-12-pre-cadastro-publico-design.md`); cálculo de aposentadoria e de acerto financeiro além da rescisão descrita.
+`designacoes`, `cessoes`; cálculo de aposentadoria e de acerto financeiro além da rescisão descrita.

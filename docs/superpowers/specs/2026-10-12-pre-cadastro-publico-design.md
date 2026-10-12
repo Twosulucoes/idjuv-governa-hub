@@ -1,7 +1,8 @@
 # Pré-cadastro público (`/curriculo`) — desenho para aprovação (12/10/2026)
 
-**Status:** proposta, nada implementado. Precisa de aprovação do dono antes de construir (cria superfície pública e
-tabela nova do RH, que exige regenerar o baseline).
+**Status:** aprovado pelo dono e **implementado** em 12/10/2026 (migration `20261012140000`), com um desvio: funções no banco no
+lugar da Edge Function e limite de uso na própria linha (sem tabela nova, sem regenerar o baseline). Ver
+`2026-10-12-rh-correcoes-auditoria.md` §3e. O texto abaixo é o desenho original.
 
 ## 1. Problema (verificado no banco de produção e no código)
 

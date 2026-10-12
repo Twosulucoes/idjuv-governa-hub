@@ -16,7 +16,7 @@
 --     1ª parcela já paga
 --   * rescisão: verbas do desligamento no mês — férias proporcionais + 1/3 (indenizatórias) e 13º proporcional (o saldo
 --     de salário já vem na folha mensal do mês). Sempre marcada para conferência
---   * cada ficha leva `inconsistencias` (tabela de INSS/IRRF ausente, dedução de dependente não configurada, sem
+--   * cada ficha leva `inconsistencias` (nomeação sem portaria publicada, tabela de INSS/IRRF ausente, dedução de dependente não configurada, sem
 --     frequência do mês, sem dados bancários, líquido negativo, acima do teto, ônus de cessão não informado…)
 --   * protocolo (RH-AAAA-NNNNNN) abre o processamento; a trilha (audit_logs) guarda cada ficha e item com esse número
 --
@@ -107,6 +107,23 @@ BEGIN
               OR (p_tipo_afastamento = 'licenca' AND p_tipo_licenca IN ('interesse_particular', 'mandato_eletivo')));
 END;
 $function$;
+
+
+-- a nomeação do servidor está amparada por portaria PUBLICADA (publicada ou vigente)? Sem ato publicado, a posse e o
+-- exercício ainda não têm amparo: a folha marca a ficha (não bloqueia: a publicação pode vir depois, com efeito retroativo)
+CREATE OR REPLACE FUNCTION public.portaria_nomeacao_publicada(p_servidor_id uuid, p_provimento_id uuid, p_cargo_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT EXISTS (
+    SELECT 1 FROM public.documentos d
+     WHERE d.tipo = 'portaria' AND d.categoria = 'nomeacao' AND d.status IN ('publicado', 'vigente')
+       AND (d.provimento_id = p_provimento_id
+            OR (p_servidor_id = ANY (d.servidores_ids) AND (d.cargo_id IS NULL OR d.cargo_id = p_cargo_id))));
+$function$;
+REVOKE EXECUTE ON FUNCTION public.portaria_nomeacao_publicada(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- monta uma ficha (sem gravar): itens, bases, impostos, totais e inconsistências
@@ -522,6 +539,9 @@ BEGIN
       END IF;
 
       v_r := public.folha_montar_ficha(v_srv.id, v_srv.provimento_id, v_tipo, v_d1, v_d2, v_manuais, v_tabelas);
+      IF NOT public.portaria_nomeacao_publicada(v_srv.id, v_srv.provimento_id, v_srv.cargo_id) THEN
+        v_r := jsonb_set(v_r, '{inconsistencias}', (v_r -> 'inconsistencias') || jsonb_build_array('portaria_de_nomeacao_nao_publicada'));
+      END IF;
 
       -- 13º sem avos (ingresso depois do ano) ou ficha sem nenhum valor: não gera ficha vazia
       IF (v_r ->> 'total_proventos')::numeric = 0 AND (v_r ->> 'total_descontos')::numeric = 0 THEN

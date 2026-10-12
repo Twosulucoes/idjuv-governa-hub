@@ -162,111 +162,53 @@ function mapPreCadastroToServidor(
   return servidor;
 }
 
-export function usePreCadastro(codigoAcesso?: string) {
+// ---------------------------------------------------------------------------
+// Formulário PÚBLICO (/curriculo): o candidato não tem login e não toca na tabela. Entra por um TOKEN secreto no
+// link (/curriculo/<token>) e fala só com as funções pre_cadastro_publico_* (migração 20261012140000), que devolvem e
+// gravam apenas o rascunho daquele token. O código PC-AAAA-nnnn é só protocolo para conversar com o RH.
+// ---------------------------------------------------------------------------
+interface RespostaRpc { data: unknown; error: { message: string } | null }
+
+async function chamarPublico<T>(nome: string, args: Record<string, unknown>): Promise<T> {
+  const cliente = supabase as unknown as { rpc: (n: string, a: Record<string, unknown>) => PromiseLike<RespostaRpc> };
+  const { data, error } = await cliente.rpc(nome, args);
+  if (error) throw new Error(error.message);
+  return data as T;
+}
+
+export function usePreCadastro(token?: string) {
   const queryClient = useQueryClient();
 
-  // Buscar pré-cadastro pelo código de acesso
+  // Buscar o próprio rascunho pelo token
   const { data: preCadastro, isLoading } = useQuery({
-    queryKey: ['pre-cadastro', codigoAcesso],
+    queryKey: ['pre-cadastro', token],
     queryFn: async () => {
-      if (!codigoAcesso) return null;
-      
-      const { data, error } = await supabase
-        .from('pre_cadastros')
-        .select('*')
-        .eq('codigo_acesso', codigoAcesso)
-        .maybeSingle();
-      
-      if (error) throw error;
-      if (!data) return null;
-      return mapToPreCadastro(data);
+      if (!token) return null;
+      try {
+        const data = await chamarPublico<Record<string, unknown>>('pre_cadastro_publico_obter', { p_token: token });
+        return mapToPreCadastro(data);
+      } catch {
+        return null; // link inválido ou expirado
+      }
     },
-    enabled: !!codigoAcesso,
+    enabled: !!token,
+    retry: false,
   });
 
-  // Gerar novo código de acesso
-  const gerarCodigo = async (): Promise<string> => {
-    const { data, error } = await supabase.rpc('gerar_codigo_pre_cadastro');
-    if (error) throw error;
-    return data as string;
-  };
-
-  // Criar novo pré-cadastro
+  // Criar o rascunho: devolve o token (vira o link do candidato) e o código de protocolo
   const criarMutation = useMutation({
-    mutationFn: async (dados: Partial<PreCadastro>) => {
-      // Verificar se CPF já existe antes de criar
-      if (dados.cpf) {
-        // Verificar se já existe servidor com este CPF
-        const { data: servidorExistente } = await supabase
-          .from('servidores')
-          .select('id, nome_completo, matricula')
-          .eq('cpf', dados.cpf)
-          .maybeSingle();
-
-        if (servidorExistente) {
-          throw new Error(
-            `CPF já cadastrado como servidor: ${servidorExistente.nome_completo} (Matrícula: ${servidorExistente.matricula})`
-          );
-        }
-
-        // Verificar se já existe pré-cadastro ativo com este CPF
-        const { data: preCadastroExistente } = await supabase
-          .from('pre_cadastros')
-          .select('id, nome_completo, codigo_acesso, status')
-          .eq('cpf', dados.cpf)
-          .neq('status', 'convertido')
-          .neq('status', 'rejeitado')
-          .maybeSingle();
-
-        if (preCadastroExistente) {
-          throw new Error(
-            `CPF já possui pré-cadastro: ${preCadastroExistente.nome_completo} (Código: ${preCadastroExistente.codigo_acesso}, Status: ${preCadastroExistente.status})`
-          );
-        }
-      }
-
-      const codigo = await gerarCodigo();
-      
-      const dbData = mapToDatabase({
-        ...dados,
-        codigo_acesso: codigo,
-        status: 'rascunho',
-      });
-      
-      const { data, error } = await supabase
-        .from('pre_cadastros')
-        .insert(dbData as any)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return mapToPreCadastro(data);
-    },
-    onSuccess: () => {
-      toast.success('Pré-cadastro iniciado com sucesso!');
-    },
+    mutationFn: (dados: Partial<PreCadastro>) =>
+      chamarPublico<{ token: string; codigo: string }>('pre_cadastro_publico_criar', { p_dados: mapToDatabase(dados) }),
     onError: (error: Error) => {
       toast.error('Erro ao criar pré-cadastro: ' + error.message);
     },
   });
 
-  // Atualizar pré-cadastro existente
+  // Salvar o rascunho (o servidor aceita só os campos do candidato)
   const atualizarMutation = useMutation({
-    mutationFn: async ({ id, dados }: { id: string; dados: Partial<PreCadastro> }) => {
-      const dbData = mapToDatabase({
-        ...dados,
-        updated_at: new Date().toISOString(),
-      });
-      
-      const { data, error } = await supabase
-        .from('pre_cadastros')
-        .update(dbData)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return mapToPreCadastro(data);
+    mutationFn: async ({ dados }: { dados: Partial<PreCadastro> }) => {
+      if (!token) throw new Error('Link inválido');
+      return chamarPublico<{ ok: boolean }>('pre_cadastro_publico_salvar', { p_token: token, p_dados: mapToDatabase(dados) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre-cadastro'] });
@@ -276,22 +218,11 @@ export function usePreCadastro(codigoAcesso?: string) {
     },
   });
 
-  // Enviar pré-cadastro (finalizar)
+  // Enviar (finalizar)
   const enviarMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await supabase
-        .from('pre_cadastros')
-        .update({
-          status: 'enviado',
-          data_envio: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return mapToPreCadastro(data);
+    mutationFn: async () => {
+      if (!token) throw new Error('Link inválido');
+      return chamarPublico<{ ok: boolean; codigo: string }>('pre_cadastro_publico_enviar', { p_token: token });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre-cadastro'] });

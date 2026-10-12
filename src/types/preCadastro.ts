@@ -31,6 +31,10 @@ export type StatusPreCadastro = 'rascunho' | 'enviado' | 'aprovado' | 'rejeitado
 export interface PreCadastro {
   id: string;
   codigo_acesso: string;
+  /** Token secreto do link do candidato (só o RH lê; o candidato recebe pelo link). */
+  token_acesso?: string | null;
+  /** Motivo da rejeição, devolvido ao candidato só quando o RH rejeitou. */
+  motivo_rejeicao?: string | null;
   status: StatusPreCadastro;
   
   // Dados Pessoais

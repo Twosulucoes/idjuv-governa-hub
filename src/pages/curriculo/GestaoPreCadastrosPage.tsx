@@ -41,8 +41,10 @@ import {
   CheckCircle,
   XCircle,
   ClipboardList,
+  Link2,
 } from "lucide-react";
 import { usePreCadastros } from "@/hooks/usePreCadastro";
+import { toast } from "sonner";
 import { gerarPdfMiniCurriculo } from "@/lib/pdfMiniCurriculo";
 import { formatCPF } from "@/lib/formatters";
 import type { PreCadastro, StatusPreCadastro } from "@/types/preCadastro";
@@ -98,6 +100,21 @@ export default function GestaoPreCadastrosPage() {
       await rejeitar({ id: rejectDialog.id, observacoes: rejectReason });
       setRejectDialog({ open: false, id: null });
       setRejectReason("");
+    }
+  };
+
+  // O candidato entra pelo link com o token secreto; o RH reenvia o link quando ele perde.
+  const handleCopiarLink = async (data: PreCadastro) => {
+    if (!data.token_acesso) {
+      toast.error("Este pré-cadastro não tem link (token) gerado.");
+      return;
+    }
+    const link = `${window.location.origin}/curriculo/${data.token_acesso}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Link do candidato copiado. É pessoal: envie só para ele.");
+    } catch {
+      toast.message("Copie o link abaixo e envie só ao candidato", { description: link, duration: 15000 });
     }
   };
 
@@ -280,6 +297,12 @@ export default function GestaoPreCadastrosPage() {
                               <FileDown className="h-4 w-4 mr-2" />
                               Baixar PDF
                             </DropdownMenuItem>
+                            {p.status === "rascunho" && (
+                              <DropdownMenuItem onClick={() => handleCopiarLink(p)}>
+                                <Link2 className="h-4 w-4 mr-2" />
+                                Copiar link do candidato
+                              </DropdownMenuItem>
+                            )}
                             {p.status === "enviado" && (
                               <>
                                 <DropdownMenuItem onClick={() => handleAprovar(p.id)}>
