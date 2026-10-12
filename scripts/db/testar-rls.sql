@@ -85,7 +85,9 @@ INSERT INTO seed_ov VALUES
   -- apagada do catálogo logo depois das personas (bloco de sementes, em modo réplica)
   ('regra_lancamento', '{"modulo":"arbitros"}'),
   -- comissão de inventário, licitação ou fiscalização exige objeto (comissoes_objeto_obrigatorio_check): `outra` não
-  ('comissoes', '{"tipo":"outra"}');
+  ('comissoes', '{"tipo":"outra"}'),
+  -- código da vaga em maiúsculas (vagas_cargo_codigo_check, migração 20261012150000)
+  ('vagas_cargo', '{"codigo":"VAGA-TESTE.001"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -890,7 +892,8 @@ BEGIN
 
   -- anon: só as exceções públicas
   SELECT count(*) INTO n FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.prokind IN ('f','p') AND has_function_privilege('anon', p.oid, 'EXECUTE');
-  IF n <> 10 THEN PERFORM pg_temp.falha('anon executa ' || n || ' funções (esperado: 10 RPCs públicas)'); END IF;
+  -- 10 do portal e formulários + 4 do pré-cadastro público (migração 20261012140000)
+  IF n <> 14 THEN PERFORM pg_temp.falha('anon executa ' || n || ' funções (esperado: 14 RPCs públicas)'); END IF;
   SELECT count(*) INTO n FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r','p') AND (has_any_column_privilege('anon', c.oid, 'SELECT') OR has_table_privilege('anon', c.oid, 'INSERT') OR has_table_privilege('anon', c.oid, 'UPDATE') OR has_table_privilege('anon', c.oid, 'DELETE'));
   IF n <> (SELECT count(*) FROM mapa WHERE anon <> '') THEN PERFORM pg_temp.falha('anon tem privilégio em ' || n || ' tabelas; o mapa declara ' || (SELECT count(*) FROM mapa WHERE anon <> '')); END IF;
   FOR x IN SELECT tabela, anon FROM mapa WHERE anon <> '' LOOP
@@ -1132,7 +1135,11 @@ BEGIN
     -- quadro de cargos: só nome do ocupante, nunca indicação/CPF/contato (migração 20261010234000)
     'transparencia_cargos_publicos',
     -- só authenticated executa (anon não); incrementa o contador de bloqueio por token errado
-    'consultar_protocolo_sic'];
+    'consultar_protocolo_sic',
+    -- pré-cadastro público (migração 20261012140000): formulário sem login, a guarda é o token de cada pré-cadastro
+    'pre_cadastro_publico_criar','pre_cadastro_publico_obter','pre_cadastro_publico_salvar','pre_cadastro_publico_enviar',
+    -- folha/frequência travada (migração 20261012100000): só devolve se a competência do servidor está fechada
+    'frequencia_competencia_travada'];
   FOR f IN
     SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef AND p.prorettype <> 'trigger'::regtype

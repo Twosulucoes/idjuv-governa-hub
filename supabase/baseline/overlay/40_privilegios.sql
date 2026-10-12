@@ -150,6 +150,29 @@ REVOKE EXECUTE ON FUNCTION public.meus_fundamentos_lancamento(public.app_module[
 GRANT EXECUTE ON FUNCTION public.meus_fundamentos_lancamento(public.app_module[]) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.saneamento_lancamento() FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.saneamento_lancamento() TO authenticated;
+-- RH de 2026-10-12 (migrações 20261012090000 a 20261012140000; o dump não leva GRANT/REVOKE e o baseline só foi
+-- regenerado com elas na migração 20261012150000): funções de apoio e de trigger fora da API; o pré-cadastro público
+-- expõe ao anônimo só as quatro RPCs do formulário (guarda: token)
+REVOKE EXECUTE ON FUNCTION public.trilha_atribuir_protocolo() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.rh_avancar_status_por_data() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.portaria_nomeacao_publicada(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.folha_montar_ficha(uuid, uuid, text, date, date, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.afastamento_remunerado(text, text, date) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.viagens_diarias_validar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.documentos_portaria_validar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.pre_cadastros_gerar_token() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.pre_cadastro_publico_colunas() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.pre_cadastro_publico_filtrar(jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.pre_cadastro_publico_buscar(text, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.pre_cadastro_publico_criar(jsonb) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.pre_cadastro_publico_obter(text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.pre_cadastro_publico_salvar(text, jsonb) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.pre_cadastro_publico_enviar(text) TO anon, authenticated;
+-- quadro de vagas (migração 20261012150000): funções de trigger fora da API; rh_vaga_situacao e
+-- rh_vaga_ocupante_atual (guarda: usuário ativo; sem dado pessoal) e rh_importar_quadro_vagas (INVOKER, guarda:
+-- governanca.cargos.gerenciar) seguem executáveis por authenticated
+REVOKE EXECUTE ON FUNCTION public.rh_provimento_vaga() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.rh_vagas_cargo_validar() FROM PUBLIC, anon, authenticated;
 -- remessas e eventos do eSocial sem DELETE pela API (migração 20261011010100, E3; a RLS também não tem policy de DELETE,
 -- classe modulo com excluir=ninguem no rls/mapa.csv): a remessa é cancelada por cancelar_remessa
 REVOKE DELETE ON public.remessas_bancarias, public.eventos_esocial FROM anon, authenticated;

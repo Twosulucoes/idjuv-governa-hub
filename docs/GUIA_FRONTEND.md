@@ -169,6 +169,11 @@ que confere a permissão, valida cada linha, devolve o formato de `ResultadoBanc
 `importacoes`; (2) `importadores/<algo>.ts` implementando `Importador`; (3) incluir em `registro.ts`.
 Erro de leitura bloqueia a importação; aviso só informa.
 
+Fora dessa estrutura: a planilha do **quadro de vagas** (`ImportarQuadroVagasDialog`, em `/cargos/vagas`) lê
+XLSX/XLS/CSV com `xlsx` e chama a RPC `rh_importar_quadro_vagas` pelo hook `src/hooks/useQuadroVagas.ts` (simular,
+depois gravar); não grava em `importacoes` nem aparece na Central. As views e a RPC ainda não estão em `types.ts`:
+o hook usa o client sem tipagem, como `useTrilhaAuditoria.ts`.
+
 ## Trilha de auditoria no front (onda E2)
 
 Spec: [`superpowers/specs/2026-10-10-rh-trilha-tela-design.md`](./superpowers/specs/2026-10-10-rh-trilha-tela-design.md).

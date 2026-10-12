@@ -58,6 +58,7 @@ import RegimentoInternoPage from "./pages/governanca/RegimentoInternoPage";
 import OrganogramaPage from "./pages/organograma/OrganogramaPage";
 import GestaoOrganogramaPage from "./pages/organograma/GestaoOrganogramaPage";
 import GestaoCargosPage from "./pages/cargos/GestaoCargosPage";
+import QuadroVagasPage from "./pages/cargos/QuadroVagasPage";
 
 import TermoDemandaPage from "./pages/formularios/TermoDemandaPage";
 import OrdemMissaoPage from "./pages/formularios/OrdemMissaoPage";
@@ -791,6 +792,11 @@ const App = () => (
               <Route path="/cargos" element={
                 <ProtectedRoute requiredPermissions="governanca.cargos.visualizar">
                   <GestaoCargosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/cargos/vagas" element={
+                <ProtectedRoute requiredPermissions="governanca.cargos.visualizar">
+                  <QuadroVagasPage />
                 </ProtectedRoute>
               } />
               <Route path="/lotacoes" element={

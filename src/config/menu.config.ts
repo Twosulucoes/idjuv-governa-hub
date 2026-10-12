@@ -735,6 +735,13 @@ export const menuConfig: MenuSection[] = [
             icon: Briefcase,
             permission: "governanca.visualizar",
           },
+          {
+            id: "quadro-vagas",
+            label: "Quadro de Vagas",
+            route: "/cargos/vagas",
+            icon: Briefcase,
+            permission: "governanca.cargos.visualizar",
+          },
         ],
       },
       {

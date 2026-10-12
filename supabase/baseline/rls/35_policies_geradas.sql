@@ -3629,6 +3629,21 @@ DROP POLICY IF EXISTS "rls_delete" ON public.user_roles;
 CREATE POLICY "rls_delete" ON public.user_roles FOR DELETE TO authenticated
   USING (public.is_admin_user(auth.uid()));
 
+-- vagas_cargo  [catalogo: rh | governanca]
+DROP POLICY IF EXISTS "rls_select" ON public.vagas_cargo;
+CREATE POLICY "rls_select" ON public.vagas_cargo FOR SELECT TO authenticated
+  USING (public.is_active_user());
+DROP POLICY IF EXISTS "rls_insert" ON public.vagas_cargo;
+CREATE POLICY "rls_insert" ON public.vagas_cargo FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'governanca')) AND public.has_permission_code(auth.uid(), 'governanca.cargos.gerenciar'));
+DROP POLICY IF EXISTS "rls_update" ON public.vagas_cargo;
+CREATE POLICY "rls_update" ON public.vagas_cargo FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'governanca')) AND public.has_permission_code(auth.uid(), 'governanca.cargos.gerenciar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'governanca')) AND public.has_permission_code(auth.uid(), 'governanca.cargos.gerenciar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.vagas_cargo;
+CREATE POLICY "rls_delete" ON public.vagas_cargo FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'governanca')) AND public.has_permission_code(auth.uid(), 'governanca.cargos.gerenciar'));
+
 -- viagens_diarias  [permissao: rh | financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.viagens_diarias;
 CREATE POLICY "rls_select" ON public.viagens_diarias FOR SELECT TO authenticated

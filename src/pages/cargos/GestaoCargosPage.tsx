@@ -29,7 +29,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Briefcase, Eye, EyeOff, Building2, FileDown, Power } from "lucide-react";
+import { Plus, Pencil, Trash2, Briefcase, Eye, EyeOff, Building2, FileDown, Power, ListOrdered } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { CargoForm, type CargoFormData, type ComposicaoItem } from "@/components/cargos/CargoForm";
@@ -586,6 +587,12 @@ export default function GestaoCargosPage() {
             descricao="Gerencie os cargos da estrutura organizacional"
             acoes={
               <>
+                <Button variant="outline" asChild>
+                  <Link to="/cargos/vagas">
+                    <ListOrdered className="h-4 w-4" aria-hidden="true" />
+                    Quadro de vagas
+                  </Link>
+                </Button>
                 <Button variant="outline" onClick={handleExportPDF}>
                   <FileDown className="h-4 w-4" aria-hidden="true" />
                   Exportar PDF

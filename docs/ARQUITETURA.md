@@ -75,6 +75,10 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   (`orcamento.aprovar`); `/financeiro/orcamento` só redireciona para `/financeiro/qdd`. O ano das telas do
   módulo vai na query `?exercicio=` (ver [MODULOS.md](./MODULOS.md)). `/financeiro` é declarada uma vez só
   (painel do módulo, `FinanceiroDashboardPage`, `requiredModule="financeiro"`).
+- Quadro de vagas: `/cargos/vagas` (`QuadroVagasPage`, `ProtectedRoute requiredPermissions="governanca.cargos.visualizar"`,
+  também em `ROUTE_PERMISSIONS`; a página exige ainda o módulo `governanca`), com link em `/cargos` e item "Quadro de
+  Vagas" no menu de governança. Importar a planilha exige `governanca.cargos.gerenciar` (ver
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#quadro-de-vagas)).
 - Inventário de campo: `/inventario/campanhas/:id/painel` (painel com mapa,
   `ProtectedRoute requiredPermissions="patrimonio.visualizar"`), com link na
   página de detalhe da campanha.

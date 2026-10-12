@@ -114,9 +114,10 @@ Rode estas consultas como `postgres` no banco novo:
 ```sql
 -- 0 policies "acesso total"
 SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND policyname ILIKE 'acesso_total%';
--- anon executa exatamente 10 funções (registrar_denuncia_publica, obter_dado_oficial, arbitro_cpf_cadastrado,
+-- anon executa exatamente 14 funções (registrar_denuncia_publica, obter_dado_oficial, arbitro_cpf_cadastrado,
 -- obter_protocolo_arbitro, consultar_gestor_por_cpf, registrar_gestor_publico, transparencia_execucao_orcamentaria,
--- transparencia_licitacoes, transparencia_patrimonio, transparencia_cargos_publicos)
+-- transparencia_licitacoes, transparencia_patrimonio, transparencia_cargos_publicos, pre_cadastro_publico_criar,
+-- pre_cadastro_publico_obter, pre_cadastro_publico_salvar, pre_cadastro_publico_enviar)
 SELECT p.oid::regprocedure FROM pg_proc p
  WHERE p.pronamespace = 'public'::regnamespace AND has_function_privilege('anon', p.oid, 'EXECUTE');
 -- toda tabela com RLS ligado (esperado: nenhuma linha)
@@ -149,6 +150,9 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   (migração `supabase/migrations/20261010210000_onda_b_rh_storage.sql`, em PR rascunho) o documento assinado do
   servidor abre por URL assinada, mas portarias, atos e cedência ainda gravam link público (`getPublicUrl`) do
   bucket `documentos`, que num bucket privado não abre (pendência; ver [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3)).
+- O schema do baseline foi regenerado em 2026-10-12 com as migrações até `20261012150000` (RH de 12/10 e quadro de
+  vagas, tabela `vagas_cargo` na classe `catalogo`; 252 tabelas no mapa) e aprovado por `validar-baseline.sh` com
+  `PG_REPLAY` ([detalhe](../supabase/baseline/README.md#verificação)).
 - `fotos_vistoria_inventario` é da classe `preservar` do mapa de RLS: as policies vêm da migração
   `20261009160000` pelo replay, não do gerador ([detalhe](../supabase/baseline/README.md)).
 - A migração `20260110184920` e o histórico git contêm 74 nomes de servidores (CPF placeholder); o baseline não
