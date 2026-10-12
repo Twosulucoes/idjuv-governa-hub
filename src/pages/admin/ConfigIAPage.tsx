@@ -10,7 +10,7 @@
  * Acesso: ia.configurar (a RLS, as RPCs e o recurso "testar" exigem a mesma permissão).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -98,7 +98,7 @@ function Erro({ id, mensagem }: { id?: string; mensagem?: string }) {
   ) : null;
 }
 
-const valoresIniciais = (c?: ConfigIA | null): ConfigForm => ({
+const valoresIniciais = (c?: ConfigIAInput | null): ConfigForm => ({
   ativo: c?.ativo ?? false,
   provedor: c?.provedor ?? "openai",
   url_base: c?.url_base ?? "",
@@ -112,7 +112,14 @@ const valoresIniciais = (c?: ConfigIA | null): ConfigForm => ({
 // Provedor, modelo e limites
 // ---------------------------------------------------------------------------
 
-function ConfiguracaoCard({ config }: { config: ConfigIA | null }) {
+function ConfiguracaoCard({
+  config,
+  onDestinoPendente,
+}: {
+  config: ConfigIA | null;
+  /** Avisa a página quando o provedor/URL do formulário difere do salvo (a chave seria apagada). */
+  onDestinoPendente: (pendente: boolean) => void;
+}) {
   const salvar = useSalvarConfigIA();
 
   const { register, control, handleSubmit, watch, reset, setValue, formState: { errors, isDirty } } = useForm<
@@ -136,20 +143,41 @@ function ConfiguracaoCard({ config }: { config: ConfigIA | null }) {
   const mudouDestino =
     !!config && (provedor !== config.provedor || urlEfetiva !== (config.url_base ?? ""));
   const temChave = !!config?.segredo_atualizado_em;
+
+  useEffect(() => {
+    onDestinoPendente(mudouDestino);
+  }, [mudouDestino, onDestinoPendente]);
+
   const motivoBloqueio = !temChave
     ? "Cadastre a chave de API antes de ligar."
     : mudouDestino
       ? "Ao trocar o provedor ou a URL a chave é apagada: salve, cadastre a nova chave e depois ligue."
       : null;
 
+  // Desliga enquanto houver bloqueio; se o administrador voltar ao destino salvo (com chave),
+  // devolve o valor salvo em vez de manter a IA forçada como desligada.
+  const forcouDesligar = useRef(false);
   useEffect(() => {
-    if (motivoBloqueio && ativo) setValue("ativo", false, { shouldDirty: true });
-  }, [motivoBloqueio, ativo, setValue]);
+    if (motivoBloqueio && ativo) {
+      forcouDesligar.current = true;
+      setValue("ativo", false, { shouldDirty: true });
+    } else if (!motivoBloqueio && forcouDesligar.current) {
+      forcouDesligar.current = false;
+      setValue("ativo", config?.ativo ?? false, { shouldDirty: true });
+    }
+  }, [motivoBloqueio, ativo, setValue, config?.ativo]);
 
   // handleSubmit entrega os valores já transformados pelo zod (url_base e teto vazios → null).
-  const onSubmit = handleSubmit((dados) =>
-    salvar.mutate({ ...(dados as ConfigIAInput), ativo: motivoBloqueio ? false : dados.ativo }),
-  );
+  const onSubmit = handleSubmit((dados) => {
+    const input: ConfigIAInput = { ...(dados as ConfigIAInput), ativo: motivoBloqueio ? false : dados.ativo };
+    // Após salvar, o salvo vira a base do formulário (isDirty volta a false).
+    salvar.mutate(input, {
+      onSuccess: () => {
+        forcouDesligar.current = false;
+        reset(valoresIniciais(input));
+      },
+    });
+  });
 
   return (
     <form onSubmit={onSubmit} noValidate>
@@ -280,7 +308,9 @@ function ConfiguracaoCard({ config }: { config: ConfigIA | null }) {
             <div className="space-y-1">
               <Label htmlFor="ia-dados-pessoais">Permitir envio de dados pessoais ao provedor</Label>
               <p id="ia-dados-pessoais-ajuda" className="text-sm text-muted-foreground">
-                Mantenha desligado salvo base legal (LGPD). Os recursos de IA que tratam dados de pessoas usam esta opção para decidir se mascaram nome, CPF e outros dados antes do envio.
+                Mantenha desligado salvo base legal (LGPD). Os próximos recursos de IA (biblioteca e instrução de
+                processos) vão usar esta opção para mascarar dados pessoais. Hoje o CPSI envia ao provedor o que for
+                digitado no formulário, inclusive responsável e cargo.
               </p>
             </div>
           </div>
@@ -314,11 +344,12 @@ function ConfiguracaoCard({ config }: { config: ConfigIA | null }) {
 // Chave de API (só escrita)
 // ---------------------------------------------------------------------------
 
-function ChaveCard({ config }: { config: ConfigIA | null }) {
+function ChaveCard({ config, destinoPendente }: { config: ConfigIA | null; destinoPendente: boolean }) {
   const [valor, setValor] = useState("");
   const salvar = useSalvarChaveIA();
-  // A chave pertence ao provedor salvo: sem configuração salva não há onde gravá-la.
-  const liberado = !!config;
+  // A chave pertence ao provedor salvo: sem configuração salva, ou com provedor/URL alterados
+  // e não salvos (salvar depois apagaria a chave), não se grava.
+  const liberado = !!config && !destinoPendente;
   const valida = valor.length >= 8 && valor.length <= 4096 && valor === valor.trim();
 
   return (
@@ -341,7 +372,9 @@ function ChaveCard({ config }: { config: ConfigIA | null }) {
         <p className="text-sm text-muted-foreground">
           {liberado
             ? "A chave fica guardada no cofre do banco e não é exibida de novo. Digite outra para trocar."
-            : "Salve o provedor e o modelo acima antes de cadastrar a chave."}
+            : destinoPendente
+              ? "Salve a configuração antes de cadastrar a chave: trocar o provedor ou a URL apaga a chave."
+              : "Salve o provedor e o modelo acima antes de cadastrar a chave."}
         </p>
         <div className="space-y-1">
           <Label htmlFor="ia-chave">Nova chave</Label>
@@ -483,6 +516,7 @@ function UsoMesCard() {
 
 export default function ConfigIAPage() {
   const { data: config, isLoading, isError, refetch } = useConfigIA();
+  const [destinoPendente, setDestinoPendente] = useState(false);
 
   return (
     <ModuleLayout module="admin">
@@ -508,9 +542,9 @@ export default function ConfigIAPage() {
         </Alert>
       ) : (
         <div className="space-y-4">
-          <ConfiguracaoCard config={config ?? null} />
+          <ConfiguracaoCard config={config ?? null} onDestinoPendente={setDestinoPendente} />
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChaveCard config={config ?? null} />
+            <ChaveCard config={config ?? null} destinoPendente={destinoPendente} />
             <TesteCard config={config ?? null} />
           </div>
           <UsoMesCard />

@@ -37,29 +37,29 @@ interface AIFieldProps {
 const AIField = ({ label, fieldName, children, isLoading, onGenerate }: AIFieldProps) => {
   const { data: iaDisponivel } = useIADisponivel();
   return (
-  <div className="space-y-2">
-    <div className="flex items-center justify-between">
-      <label className="text-sm font-medium">{label}</label>
-      {iaDisponivel === true && (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onGenerate}
-        disabled={isLoading}
-        className="h-7 px-2 text-xs text-primary hover:text-primary"
-      >
-        {isLoading ? (
-          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-        ) : (
-          <Wand2 className="h-3 w-3 mr-1" />
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium">{label}</label>
+        {iaDisponivel === true && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onGenerate}
+            disabled={isLoading}
+            className="h-7 px-2 text-xs text-primary hover:text-primary"
+          >
+            {isLoading ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <Wand2 className="h-3 w-3 mr-1" />
+            )}
+            {isLoading ? 'Gerando...' : 'IA'}
+          </Button>
         )}
-        {isLoading ? 'Gerando...' : 'IA'}
-      </Button>
-      )}
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
   );
 };
 
@@ -76,34 +76,34 @@ const AIToolbar = ({ onFillAll, onReview, isFillingAll, isReviewing }: AIToolbar
   const { data: iaDisponivel } = useIADisponivel();
   if (iaDisponivel !== true) return null;
   return (
-  <div className="flex flex-wrap gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-    <div className="flex items-center gap-1.5 mr-2">
-      <Sparkles className="h-4 w-4 text-primary" />
-      <span className="text-sm font-medium text-primary">Assistente IA</span>
+    <div className="flex flex-wrap gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+      <div className="flex items-center gap-1.5 mr-2">
+        <Sparkles className="h-4 w-4 text-primary" />
+        <span className="text-sm font-medium text-primary">Assistente IA</span>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onFillAll}
+        disabled={isFillingAll || isReviewing}
+        className="h-8"
+      >
+        {isFillingAll ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
+        {isFillingAll ? 'Preenchendo...' : 'Preencher Tudo'}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onReview}
+        disabled={isFillingAll || isReviewing}
+        className="h-8"
+      >
+        {isReviewing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1.5" />}
+        {isReviewing ? 'Revisando...' : 'Revisar com IA'}
+      </Button>
     </div>
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={onFillAll}
-      disabled={isFillingAll || isReviewing}
-      className="h-8"
-    >
-      {isFillingAll ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
-      {isFillingAll ? 'Preenchendo...' : 'Preencher Tudo'}
-    </Button>
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={onReview}
-      disabled={isFillingAll || isReviewing}
-      className="h-8"
-    >
-      {isReviewing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1.5" />}
-      {isReviewing ? 'Revisando...' : 'Revisar com IA'}
-    </Button>
-  </div>
   );
 };
 

@@ -14,6 +14,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
   COLUNAS_CONFIG_IA,
@@ -84,6 +85,8 @@ export function useSalvarChaveIA() {
 }
 
 export function useTestarIA() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (): Promise<ResultadoTesteIA> => {
       const { data, error } = await supabase.functions.invoke("ia-gateway", {
@@ -101,6 +104,10 @@ export function useTestarIA() {
     },
     onSuccess: () => toast.success("Conexão com o provedor de IA funcionando"),
     onError: (e: Error) => toast.error("Teste falhou: " + e.message),
+    // O teste registra uso mesmo quando o provedor responde com erro.
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: CHAVE_USO });
+    },
   });
 }
 
@@ -123,8 +130,14 @@ export function useResumoUsoIA() {
 
 /** true só com a IA ligada e a pessoa com permissão de usar; qualquer erro conta como indisponível. */
 export function useIADisponivel() {
+  // A resposta depende de quem está logado: a chave inclui o usuário para outro login
+  // na mesma aba não reaproveitar o cache.
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+
   return useQuery({
-    queryKey: CHAVE_DISPONIVEL,
+    queryKey: [...CHAVE_DISPONIVEL, userId],
+    enabled: !!userId,
     queryFn: async (): Promise<boolean> => {
       const { data, error } = await db.rpc("ia_disponivel");
       if (error) throw error;

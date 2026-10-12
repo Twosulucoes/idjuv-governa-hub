@@ -5,7 +5,6 @@
  */
 
 export const PERMISSAO_CONFIGURAR_IA = "ia.configurar";
-export const PERMISSAO_USAR_IA = "ia.usar";
 
 export type ProvedorIA = "openai" | "anthropic" | "gemini" | "compativel_openai";
 
@@ -20,9 +19,9 @@ export const PROVEDOR_IA_LABEL: Record<ProvedorIA, string> = {
 export interface ConfigIA {
   id: boolean;
   ativo: boolean;
-  provedor: ProvedorIA;
+  provedor: ProvedorIA | null;
   url_base: string | null;
-  modelo: string;
+  modelo: string | null;
   limite_chamadas_hora: number;
   teto_tokens_mes: number | null;
   enviar_dados_pessoais: boolean;
