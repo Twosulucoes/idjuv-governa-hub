@@ -50,6 +50,7 @@
 | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | Gate local de qualidade, checklist de PR |
 | [`.claude/skills/SUPERPOWERS-VENDOR.md`](../.claude/skills/SUPERPOWERS-VENDOR.md) | Inventário dos skills de processo vendorizados |
 | [`.claude/skills/UI-UX-PRO-MAX-VENDOR.md`](../.claude/skills/UI-UX-PRO-MAX-VENDOR.md) | Origem, revisão de segurança e uso do skill de UI/UX vendorizado |
+| [`docs/PADRAO_DOCUMENTOS.md`](./PADRAO_DOCUMENTOS.md) | Padrão único de impressão: famílias, tokens, como criar documento novo, inventário dos geradores de PDF |
 
 `docs/AUDITORIA_USUARIOS.md` e `docs/INVENTARIO_HARDCODE.md` **não estão**
 nesta lista: são registros datados de auditorias pontuais, não docs vivas —
@@ -79,6 +80,7 @@ Ao abrir uma PR, localize **cada** linha aplicável. A doc da coluna
 | Decisão ou andamento de planejamento | `docs/planejamento/ROADMAP.md` | Spec/plano datado em `docs/superpowers/` |
 | Skill vendorizada nova/alterada (`.claude/skills/`) | `.claude/skills/SUPERPOWERS-VENDOR.md` (gerado por `scripts/sync-superpowers-skills.sh` — não editar à mão); `ui-ux-pro-max` → `.claude/skills/UI-UX-PRO-MAX-VENDOR.md` | Skill de domínio nova é autodocumentada (frontmatter + corpo) — não precisa de entrada aqui |
 | **Criação de doc canônica nova** | `LIVING_DOCS` em `scripts/check-doc-links.mjs` + linha em `docs/README.md` + linha nesta matriz | — |
+| Documento/PDF novo ou alterado (`src/lib/documentos/`, `src/lib/pdf*.ts`) | `docs/PADRAO_DOCUMENTOS.md` | Skill `novo-documento-idjuv` |
 
 **Regra de leitura da matriz**: na dúvida entre "documentar em A ou B",
 documente no dono do assunto (tabela do §2) e **aponte** de B para A. Nunca

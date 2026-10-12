@@ -67,7 +67,7 @@ bun run lint         # ESLint
 bun run preview      # preview do build
 ```
 
-> Não há suíte de testes. Verificação: **`bash scripts/gate.sh`** (`npm run gate`:
+> Não há suíte de testes (exceto `src/lib/documentos`, com vitest, dentro do gate). Verificação: **`bash scripts/gate.sh`** (`npm run gate`:
 > guards de migrações/docs/RLS do baseline/contraste AA dos tokens + typecheck + lint + cor crua + build;
 > typecheck, lint e cor crua comparam com `scripts/gate-baseline.json` e falham só se a dívida piorar). Roda no `pre-push`
 > e no CI (`.github/workflows/quality.yml`) — ver `CONTRIBUTING.md`.
@@ -195,8 +195,10 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 - Tipos do banco: `src/integrations/supabase/types.ts` (**gerado**, não editar).
 
 ### Geração de documentos
-- Tudo em `src/lib/pdf*.ts` (jsPDF/pdf-lib) e `src/lib/word*.ts` (docx). Há um
-  `pdfTemplate.ts`/`pdfLogos.ts` base. Exportações de planilha em `src/export/`
+- **PDF novo nasce em `src/lib/documentos/`** (modelo declarativo + blocos; ver `docs/PADRAO_DOCUMENTOS.md`
+  e o skill `novo-documento-idjuv`). Os geradores antigos `src/lib/pdf*.ts` (jsPDF/pdf-lib) e
+  `src/lib/word*.ts` (docx) são migrados por fases; o gate impede `import` novo de `jspdf` fora de
+  `src/lib/documentos/core/`. Há um `pdfTemplate.ts`/`pdfLogos.ts` base legado. Exportações de planilha em `src/export/`
   e `src/lib/exportar*.ts` (xlsx). Geradores fiscais: `cnabGenerator.ts`,
   `esocialGenerator.ts`, `esocialXmlGenerator.ts`.
 

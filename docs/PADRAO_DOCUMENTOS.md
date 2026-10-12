@@ -1,7 +1,7 @@
 # Padrão de impressão de documentos
 
-> **Estado:** F0 concluída em 2026-10-12 (inventário). A camada `src/lib/documentos/` é entregue na F1;
-> até cada gerador ser migrado (F2–F5) ele continua valendo como está. Spec:
+> **Estado (2026-10-12):** F0 (inventário) e F1 (camada `src/lib/documentos/`) concluídas no branch `claude/padrao-impressao`,
+> ainda não mergeadas. Até cada gerador ser migrado (F2–F5) ele continua valendo como está. Spec:
 > [`superpowers/specs/2026-10-12-padrao-impressao-documentos-design.md`](./superpowers/specs/2026-10-12-padrao-impressao-documentos-design.md).
 > Plano da F0+F1: [`superpowers/plans/2026-10-12-padrao-impressao-f0-f1.md`](./superpowers/plans/2026-10-12-padrao-impressao-f0-f1.md).
 
@@ -97,4 +97,71 @@ por leitura dos nomes e exports — a fase de cada família confirma ao migrar.
 
 ## 3. Como criar um documento novo
 
-(preenchido na Task 13 do plano)
+Regra: **nenhum PDF novo fora de `src/lib/documentos/`**. O gate conta `import` de `jspdf` (valor, não tipo)
+fora de `core/` e de `__testes__/`, e não deixa a contagem subir (`scripts/check-jspdf-fora-do-core.mjs`,
+chave `jspdfForaDoCore` em `scripts/gate-baseline.json`).
+
+1. **Escolha a família** (§1). Na dúvida: texto corrido com assinatura = ato; tabela = relatório;
+   rótulo/valor de uma pessoa ou coisa = ficha; documento de conferência de valores = comprovante.
+2. **Declare os dados** como interface TypeScript. Tudo que o documento imprime vem dela — inclusive
+   a unidade emissora (`unidadeEmissora`), o local e a data. **Nunca** escreva nome de órgão, cargo de
+   dirigente ou sigla no modelo (white label).
+3. **Escreva o modelo** em `src/lib/documentos/modelos/<nome>.ts`: um `DocumentoModelo<Dados>` com
+   `tipo`, `familia`, `titulo`, `nomeArquivo` e `blocos(dados)` (lista de blocos de `../blocos`).
+   Exemplos vivos: `modelos/requerimento.ts` (ato) e `__testes__/modelosReferencia.ts`
+   (relatório, ficha, comprovante).
+4. **Registre** em `registro.ts` (uma linha em `REGISTRO`).
+5. **Teste** em `__testes__/<nome>.test.ts` com `renderizarDocumento` + `lerPdf`: título, campos
+   principais, campo ausente (sem `undefined`), texto longo atravessando página, protocolo.
+6. **Veja o PDF**: `DOCUMENTOS_AMOSTRAS=<pasta> npx vitest run src/lib/documentos/__testes__/amostras.test.ts`
+   (acrescente o novo modelo ao arquivo de amostras), `pdftoppm -r 70 -png`, e abra o PNG. Traço fino
+   (régua) só se confere em 200 dpi. Para migração de gerador antigo, use
+   `node scripts/documentos-comparar.mjs antes.pdf depois.pdf`.
+7. **Use na tela** com `emitirDocumento('<tipo>', dados, { emitidoPor })` e `baixarDocumento(...)`.
+8. **Gate**: `bash scripts/gate.sh` verde.
+
+Se faltar um bloco (ex.: lista numerada, QR), crie em `blocos/`, exporte em `blocos/index.ts` e teste;
+não desenhe direto no `doc` dentro de um modelo.
+
+## 4. Anatomia
+
+```
+src/lib/documentos/
+  tipos.ts            Familia, MarcaImpressao, ContextoDocumento, Bloco, DocumentoModelo
+  core/               tokens, texto, pintura, familias, pagina (único `new jsPDF`), moldura, renderizar
+  blocos/             titulo, secao, paragrafo, localData, camposChaveValor, tabela, assinaturas, carimbo
+  modelos/            um arquivo declarativo por documento (hoje: requerimento)
+  registro.ts         REGISTRO: única lista de documentos do sistema
+  marca.ts            marcaDoTenant (puro) · logos.ts: carregarLogo (navegador)
+  emitir.ts           emitirDocumento / baixarDocumento (casca do navegador)
+  __testes__/         lerPdf, fixtures, modelosReferencia e os testes (vitest)
+```
+
+| Token | Valor |
+|---|---|
+| Página | A4; margens 20 mm (laterais), 18 mm (topo), 22 mm (rodapé, inclui a faixa do rodapé); escala de espaço 4 / 8 / 12 / 16 mm |
+| Tipografia | Ato em **Times**; relatório, ficha e comprovante em **Helvetica** (fontes nativas do PDF) |
+| Escala | título 14 pt · seção 11 pt · corpo 10,5 pt · tabela 9 pt · rótulo 8 pt · rodapé 7,5 pt |
+| Cor | primária = cor do tenant (se tiver < 4,5:1 sobre branco, cai para o texto neutro); neutros slate |
+| Preto e branco | significado nunca só por cor: zebra leve, réguas, rótulos |
+
+**Cabeçalho:** na 1ª página, logo da entidade superior à esquerda, logo do órgão à direita, nomes e até 2 linhas
+de unidade emissora ao centro, título e protocolo; nas demais, cabeçalho compacto com protocolo.
+**Rodapé (todas as páginas):** sistema, "emitido por … em …" e "Página X de Y"; comprovantes ganham a linha
+"Documento emitido eletronicamente".
+
+## 5. Protocolo
+
+A camada **imprime** o protocolo que o modelo devolve em `protocolo(dados)`; ela não numera. Hoje só o
+RH numera atos (`RH-AAAA-NNNNNN`, RPCs de `src/lib/rhRpc.ts`). Numerar documentos de outros módulos
+exige tabela/RPC com RLS (decisão e spec próprias; fora de escopo desta fase).
+
+## 6. Limitações conhecidas
+
+- Fontes nativas do PDF (Times/Helvetica): caracteres fora do WinAnsi (emoji, `ł`, `ž`, `✓`…) saem como `?`.
+- **Assinatura isolada em página (pendência obrigatória da F2):** os blocos `assinaturas` e `carimbo` são
+  indivisíveis; se faltarem poucos milímetros, vão sozinhos para a página seguinte (visto na amostra do
+  requerimento). Antes de migrar os Atos, criar "manter junto" (medir local/data + assinatura antes de desenhar).
+- Texto recuado quebra pela largura da 1ª linha em todas as linhas do parágrafo (ver `blocos/paragrafo.ts`).
+- Não há QR de verificação pública (fase opcional pós-F5).
+- A comparação antes/depois (`scripts/documentos-comparar.mjs`) usa poppler: roda na VPS, não no CI.
