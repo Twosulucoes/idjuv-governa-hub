@@ -1,4 +1,5 @@
 import { assinaturas, localData, manterJunto, paragrafo, tabela } from '../../blocos';
+import { medirAltura } from '../../core/medir';
 import type { Celula, ColunaTabela } from '../../blocos';
 import { paraNomeArquivo } from '../../core/texto';
 import type { Bloco, DocumentoModelo } from '../../tipos';
@@ -32,20 +33,26 @@ export const portariaModelo: DocumentoModelo<DadosPortariaModelo> = {
   unidadeEmissora: (d) => d.unidadeEmissora ?? [],
   nomeArquivo: (d) => `${paraNomeArquivo(d.titulo.split(' DE ')[0])}.pdf`,
   blocos: (d) => {
-    const corpo: { bloco: Bloco; artigo: boolean }[] = [];
-    const apos = d.tabela?.depoisDoArtigo ?? 1;
-    d.artigos.forEach((a, i) => {
-      corpo.push({ bloco: paragrafo({ texto: `Art. ${a.numero} ${a.conteudo}`, alinhamento: 'justificado' }), artigo: true });
-      if (d.tabela && i === apos - 1) corpo.push({ bloco: tabela({ colunas: d.tabela.colunas, linhas: d.tabela.linhas }), artigo: false });
-    });
-    if (d.tabela && d.artigos.length < apos) corpo.push({ bloco: tabela({ colunas: d.tabela.colunas, linhas: d.tabela.linhas }), artigo: false });
-
-    // O último artigo (quando não é seguido por tabela) viaja com o local/data e a assinatura: nunca assinatura isolada.
-    const ultimo = corpo[corpo.length - 1]?.artigo ? corpo.pop()!.bloco : undefined;
     const fecho: Bloco[] = [
       ...(d.local ? [localData({ local: d.local, data: dataExtenso(d.dataDocumento) })] : []),
       assinaturas({ assinantes: [{ nome: d.assinatura.nome, cargo: d.assinatura.cargo }] }),
     ];
+    const apos = d.tabela?.depoisDoArtigo ?? 1;
+    // Se a tabela é o último bloco do corpo, ela reserva o espaço do fecho: a última linha viaja com a assinatura
+    // (nunca assinatura sozinha). Com artigos depois dela, não precisa reservar.
+    const tabelaEhUltima = apos >= d.artigos.length;
+    const blocoTabela: Bloco = (ctx) =>
+      tabela({ colunas: d.tabela!.colunas, linhas: d.tabela!.linhas, reservaNoFim: tabelaEhUltima ? medirAltura(ctx, fecho).altura : 0 })(ctx);
+
+    const corpo: { bloco: Bloco; artigo: boolean }[] = [];
+    d.artigos.forEach((a, i) => {
+      corpo.push({ bloco: paragrafo({ texto: `Art. ${a.numero} ${a.conteudo}`, alinhamento: 'justificado' }), artigo: true });
+      if (d.tabela && i === apos - 1) corpo.push({ bloco: blocoTabela, artigo: false });
+    });
+    if (d.tabela && d.artigos.length < apos) corpo.push({ bloco: blocoTabela, artigo: false });
+
+    // O último artigo (quando não é seguido por tabela) viaja com o local/data e a assinatura: nunca assinatura isolada.
+    const ultimo = corpo[corpo.length - 1]?.artigo ? corpo.pop()!.bloco : undefined;
     return [
       paragrafo({ texto: d.preambulo, alinhamento: 'justificado' }),
       ...(d.resolve ? [paragrafo({ texto: 'RESOLVE:', negrito: true })] : []),

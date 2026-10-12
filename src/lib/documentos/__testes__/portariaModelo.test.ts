@@ -79,4 +79,18 @@ describe('portariaModelo', () => {
     expect(p1.texto).toContain('PORTARIA Nº 12/IDJuv/PRESI/GAB/2026 DE 05 DE OUTUBRO DE 2026');
     expect(p1.texto).not.toContain('/IDJUV/');
   });
+
+  it('REVIEW (importante): com a TABELA como último bloco do corpo, a assinatura nunca fica numa página sem artigo nem linha da tabela', async () => {
+    for (let n = 1; n <= 45; n++) {
+      const d: DadosPortariaModelo = {
+        ...base, local: 'Cidade de Teste', resolve: false,
+        artigos: [{ numero: '1º', conteudo: 'DESIGNAR os servidores abaixo relacionados:' }],
+        tabela: { colunas: [{ chave: 'nome', titulo: 'NOME' }], linhas: Array.from({ length: n }, (_, i) => ({ nome: `SERVIDOR-${i + 1}` })) },
+      };
+      const p = await lerPdf(gerar(d).doc);
+      const comAssinatura = p.find((x) => x.texto.includes('BELTRANO DE TESTE'))!;
+      expect(comAssinatura.texto.includes('SERVIDOR-') || comAssinatura.texto.includes('Art. 1º'), `n=${n}`).toBe(true);
+      expect(p.flatMap((x) => x.itens).filter((i) => /^SERVIDOR-\d+$/.test(i.str))).toHaveLength(n);
+    }
+  });
 });

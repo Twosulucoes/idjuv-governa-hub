@@ -15,7 +15,13 @@ export type Celula = string | number | null | undefined;
 const PAD = 1.5;
 
 export const tabela =
-  (p: { colunas: ColunaTabela[]; linhas: Record<string, Celula>[]; totais?: Record<string, Celula> }): Bloco =>
+  (p: {
+    colunas: ColunaTabela[];
+    linhas: Record<string, Celula>[];
+    totais?: Record<string, Celula>;
+    /** Altura (mm) que deve caber DEPOIS da última linha (ex.: assinatura): senão a última linha vai para a página seguinte, com o cabeçalho. */
+    reservaNoFim?: number;
+  }): Bloco =>
   (ctx) => {
     const { doc } = ctx;
     const lh = alturaLinha(FONTE.tabela);
@@ -101,10 +107,11 @@ export const tabela =
       ctx.y += h;
     };
 
-    const linha = (valores: Record<string, Celula>, indice: number, negrito = false, vazioComoTraco = true): void => {
+    const linha = (valores: Record<string, Celula>, indice: number, negrito = false, vazioComoTraco = true, ultima = false): void => {
       let celulas = celulasDe(valores, negrito, vazioComoTraco);
       if (linhasDe(celulas) <= capacidade) {
-        if (ctx.y + alturaDe(celulas) > ctx.limiteInferior) {
+        const reserva = ultima ? (p.reservaNoFim ?? 0) : 0;
+        if (ctx.y + alturaDe(celulas) + reserva > ctx.limiteInferior) {
           ctx.novaPagina();
           cabecalho();
         }
@@ -140,8 +147,8 @@ export const tabela =
       ctx.y += lh + 2 * PAD;
       regua(ctx.y, false);
     } else {
-      p.linhas.forEach((v, i) => linha(v, i));
+      p.linhas.forEach((v, i) => linha(v, i, false, true, i === p.linhas.length - 1 && !p.totais));
     }
-    if (p.totais) linha(p.totais, 0, true, false);
+    if (p.totais) linha(p.totais, 0, true, false, true);
     ctx.y += ESPACO.sm;
   };
