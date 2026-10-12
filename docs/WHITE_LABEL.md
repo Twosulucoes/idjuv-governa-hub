@@ -197,6 +197,13 @@ export interface TenantConfig {
     redesSociais?: Partial<Record<'instagram'|'facebook'|'youtube'|'twitter', string>>;
   };
 
+  legal?: {                     // usados nos atos (portarias): preâmbulo, assinatura e título
+    leiCriacao?: string;        // "Lei nº 2.301, de 29 de dezembro de 2025"
+    dirigenteNome?: string;
+    dirigenteCargo?: string;
+    numeracaoAtos?: string;     // "IDJuv/PRESI/GAB" em "PORTARIA Nº 12/IDJuv/PRESI/GAB/2026"; ausente: título sem ela
+  };
+
   rh?: {
     // Tabela de valores de diária do ato normativo da instituição. Lida por
     // `useTenant().rh?.diarias` no formulário de viagens (`ViagemFormDialog`);

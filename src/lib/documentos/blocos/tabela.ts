@@ -15,12 +15,36 @@ export type Celula = string | number | null | undefined;
 const PAD = 1.5;
 
 export const tabela =
-  (p: { colunas: ColunaTabela[]; linhas: Record<string, Celula>[]; totais?: Record<string, Celula> }): Bloco =>
+  (p: {
+    colunas: ColunaTabela[];
+    linhas: Record<string, Celula>[];
+    totais?: Record<string, Celula>;
+    /** Altura (mm) que deve caber DEPOIS da última linha (ex.: assinatura): senão a última linha vai para a página seguinte, com o cabeçalho. */
+    reservaNoFim?: number;
+  }): Bloco =>
   (ctx) => {
     const { doc } = ctx;
     const lh = alturaLinha(FONTE.tabela);
-    const soma = p.colunas.reduce((s, c) => s + (c.peso ?? 1), 0);
-    const larguras = p.colunas.map((c) => (ctx.largura * (c.peso ?? 1)) / soma);
+    const pesos = p.colunas.map((c) => c.peso ?? 1);
+    // Largura mínima: a maior palavra do título (em negrito) cabe inteira — título nunca é partido no meio.
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(FONTE.tabela);
+    const minimos = p.colunas.map((c) =>
+      Math.max(...ouTraco(c.titulo).split(/\s+/).map((w) => doc.getTextWidth(w))) + 2 * PAD + 0.5,
+    );
+    const proporcionais = pesos.map((w) => (ctx.largura * w) / pesos.reduce((a, b) => a + b, 0));
+    const repartir = (): number[] => {
+      const fixas = new Set<number>();
+      for (;;) {
+        const livre = ctx.largura - [...fixas].reduce((s, i) => s + minimos[i], 0);
+        const somaLivres = pesos.reduce((s, w, i) => (fixas.has(i) ? s : s + w), 0);
+        const ls = pesos.map((w, i) => (fixas.has(i) ? minimos[i] : (livre * w) / somaLivres));
+        const abaixo = ls.findIndex((l, i) => !fixas.has(i) && l < minimos[i]);
+        if (abaixo < 0) return ls;
+        fixas.add(abaixo);
+      }
+    };
+    const larguras = minimos.reduce((a, b) => a + b, 0) <= ctx.largura ? repartir() : proporcionais;
 
     const quebrar = (valor: Celula, i: number, negrito: boolean, vazioComoTraco: boolean): string[] => {
       doc.setFont('helvetica', negrito ? 'bold' : 'normal');
@@ -83,10 +107,11 @@ export const tabela =
       ctx.y += h;
     };
 
-    const linha = (valores: Record<string, Celula>, indice: number, negrito = false, vazioComoTraco = true): void => {
+    const linha = (valores: Record<string, Celula>, indice: number, negrito = false, vazioComoTraco = true, ultima = false): void => {
       let celulas = celulasDe(valores, negrito, vazioComoTraco);
       if (linhasDe(celulas) <= capacidade) {
-        if (ctx.y + alturaDe(celulas) > ctx.limiteInferior) {
+        const reserva = ultima ? (p.reservaNoFim ?? 0) : 0;
+        if (ctx.y + alturaDe(celulas) + reserva > ctx.limiteInferior) {
           ctx.novaPagina();
           cabecalho();
         }
@@ -122,8 +147,8 @@ export const tabela =
       ctx.y += lh + 2 * PAD;
       regua(ctx.y, false);
     } else {
-      p.linhas.forEach((v, i) => linha(v, i));
+      p.linhas.forEach((v, i) => linha(v, i, false, true, i === p.linhas.length - 1 && !p.totais));
     }
-    if (p.totais) linha(p.totais, 0, true, false);
+    if (p.totais) linha(p.totais, 0, true, false, true);
     ctx.y += ESPACO.sm;
   };

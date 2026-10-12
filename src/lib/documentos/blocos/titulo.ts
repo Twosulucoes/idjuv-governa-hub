@@ -5,7 +5,7 @@ import type { Bloco } from '../tipos';
 
 /** Título centralizado em caixa alta e subtítulo opcional. A moldura (cabeçalho) fica por conta de `aplicarMoldura`. */
 export const titulo =
-  (p: { texto: string; subtitulo?: string }): Bloco =>
+  (p: { texto: string; subtitulo?: string; comoEscrito?: boolean }): Bloco =>
   (ctx) => {
     const { doc } = ctx;
     const centro = ctx.esquerda + ctx.largura / 2;
@@ -13,7 +13,7 @@ export const titulo =
     doc.setFont(ctx.fonteCorpo, 'bold');
     doc.setFontSize(FONTE.titulo);
     usarTexto(doc, NEUTROS.texto);
-    for (const linha of quebrarEmLinhas(doc, p.texto.toUpperCase(), ctx.largura)) {
+    for (const linha of quebrarEmLinhas(doc, p.comoEscrito ? p.texto : p.texto.toUpperCase(), ctx.largura)) {
       ctx.garantirEspaco(alturaLinha(FONTE.titulo));
       doc.text(linha, centro, ctx.y + ptParaMm(FONTE.titulo), { align: 'center' });
       ctx.y += alturaLinha(FONTE.titulo);

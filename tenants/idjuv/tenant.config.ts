@@ -175,6 +175,8 @@ export const idjuvConfig: TenantConfig = {
     dirigenteNome: 'Marcelo de Magalhães Nunes',
     dirigenteCargo: 'Presidente',
     dirigenteDecretoNomeacao: 'Decreto nº 86-P, de 12 de janeiro de 2026',
+    // Forma já impressa nas portarias emitidas — mantida byte a byte.
+    numeracaoAtos: 'IDJuv/PRESI/GAB',
   },
 
   integracoes: {

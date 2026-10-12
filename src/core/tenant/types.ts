@@ -168,6 +168,8 @@ export interface TenantLegal {
   dirigenteNome?: string;
   dirigenteCargo?: string;
   dirigenteDecretoNomeacao?: string;
+  /** Sigla de numeração dos atos: "IDJuv/PRESI/GAB" em "PORTARIA Nº 12/IDJuv/PRESI/GAB/2026". Ausente: o título sai sem ela. */
+  numeracaoAtos?: string;
 }
 
 export interface TenantIntegracoes {

@@ -10,3 +10,4 @@ export type { ColunaTabela, Celula } from './tabela';
 export { assinaturas } from './assinaturas';
 export type { Assinante } from './assinaturas';
 export { carimbo } from './carimbo';
+export { manterJunto } from './manterJunto';

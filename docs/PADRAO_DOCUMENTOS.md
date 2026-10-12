@@ -1,7 +1,7 @@
 # Padrão de impressão de documentos
 
-> **Estado (2026-10-12):** F0 (inventário) e F1 (camada `src/lib/documentos/`) concluídas no branch `claude/padrao-impressao`,
-> ainda não mergeadas. Até cada gerador ser migrado (F2–F5) ele continua valendo como está. Spec:
+> **Estado (2026-10-12):** F0 (inventário) e F1 (camada `src/lib/documentos/`) no PR #89; F2a (portarias) no branch
+> `claude/padrao-impressao-f2a`, empilhado sobre ele; nada mergeado. Geradores ainda não migrados (F2b em diante) continuam valendo como estão. Spec:
 > [`superpowers/specs/2026-10-12-padrao-impressao-documentos-design.md`](./superpowers/specs/2026-10-12-padrao-impressao-documentos-design.md).
 > Plano da F0+F1: [`superpowers/plans/2026-10-12-padrao-impressao-f0-f1.md`](./superpowers/plans/2026-10-12-padrao-impressao-f0-f1.md).
 
@@ -48,7 +48,7 @@ por leitura dos nomes e exports — a fase de cada família confirma ao migrar.
 | `src/lib/pdfMiniCurriculo.ts` | 453 | `gerarPdfMiniCurriculo` | 2 | 0 | Ficha | F3 |
 | `src/lib/pdfModelos.ts` | 1335 | `generateRelacaoDocumentosModelo`, `generateFichaCadastralModelo`, `generateFichaCadastralPreenchida`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoAcumulacaoPreenchida`, `generateDeclaracaoBensModelo`, `generateDeclaracaoBensPreenchida`, `generateTermoDemandaModelo`, `generateOrdemMissaoModelo`, `generateRelatorioViagemModelo`, `generateRequisicaoMaterialModelo`, `generateTermoResponsabilidadeModelo` | 2 | 0 | Misto (dividir por documento) | F2/F3/F4 |
 | `src/lib/pdfOrganograma.ts` | 650 | `gerarOrganogramaPDF`, `gerarOrganogramaListaPDF` | 2 | 0 | Relatório | F4 |
-| `src/lib/pdfPortarias.ts` | 930 | `generatePortariaUnificadaPdf`, `generatePortariaColetivaComTabela`, `generatePortariaNomeacao`, `generatePortariaExoneracao`, `generatePortariaDesignacao` | 2 | 1 | Ato | F2 |
+| `src/lib/pdfPortarias.ts` | 49 | `generatePortariaUnificadaPdf`, `generatePortariaColetivaComTabela`, `generatePortariaNomeacao`, `generatePortariaExoneracao`, `generatePortariaDesignacao` | 2 | 1 | Ato | **F2a — migrado** (fachada `async` sobre o modelo `portaria`) |
 | `src/lib/pdfRelatorioAgrupadoPortaria.ts` | 298 | `generateRelatorioAgrupadoPortaria` | 1 | 0 | Relatório | F4 |
 | `src/lib/pdfRelatorioArbitros.ts` | 258 | `gerarRelatorioArbitrosPDF` | 1 | 0 | Relatório | F4 |
 | `src/lib/pdfRelatorioAvancado.ts` | 468 | `gerarRelatorioPDF` | 1 | 0 | Relatório | F4 |
@@ -72,7 +72,7 @@ por leitura dos nomes e exports — a fase de cada família confirma ao migrar.
 | `src/lib/pdfTermoAutorizacao.ts` | 210 | `generateTermoAutorizacao` | 0 | 0 | Ato | F2 |
 | `src/lib/pdfTermoCessao.ts` | 138 | `generateTermoCessao` | 1 | 0 | Ato | F2 |
 | `src/lib/pdfTermoResponsabilidade.ts` | 181 | `generateTermoResponsabilidade` | 0 | 0 | Ato | F2 |
-| `src/lib/portariaPdf.ts` | 150 | `buildPortariaPdfDoc`, `savePortariaPdf` | 1 | 0 | Ato | F2 |
+| `src/lib/portariaPdf.ts` | 150 | `buildPortariaPdfDoc`, `savePortariaPdf` | 1 | 0 | Ato | **F2a — migrado** (`buildPortariaPdfDoc` agora `async`) |
 
 ### Documentos dentro de arquivos multiuso
 
@@ -120,7 +120,8 @@ chave `jspdfForaDoCore` em `scripts/gate-baseline.json`).
 7. **Use na tela** com `emitirDocumento('<tipo>', dados, { emitidoPor })` e `baixarDocumento(...)`.
 8. **Gate**: `bash scripts/gate.sh` verde.
 
-Se faltar um bloco (ex.: lista numerada, QR), crie em `blocos/`, exporte em `blocos/index.ts` e teste;
+Para manter o último parágrafo, o local/data e a assinatura na mesma página, agrupe-os com `manterJunto(...)`
+(ver `modelos/portaria/modelo.ts`). Se faltar um bloco (ex.: lista numerada, QR), crie em `blocos/`, exporte em `blocos/index.ts` e teste;
 não desenhe direto no `doc` dentro de um modelo.
 
 ## 4. Anatomia
@@ -128,9 +129,9 @@ não desenhe direto no `doc` dentro de um modelo.
 ```
 src/lib/documentos/
   tipos.ts            Familia, MarcaImpressao, ContextoDocumento, Bloco, DocumentoModelo
-  core/               tokens, texto, pintura, familias, pagina (único `new jsPDF`), moldura, renderizar
-  blocos/             titulo, secao, paragrafo, localData, camposChaveValor, tabela, assinaturas, carimbo
-  modelos/            um arquivo declarativo por documento (hoje: requerimento)
+  core/               tokens, texto, pintura, familias, pagina (único `new jsPDF`), moldura, medir, renderizar
+  blocos/             titulo, secao, paragrafo, localData, camposChaveValor, tabela, assinaturas, carimbo, manterJunto
+  modelos/            um arquivo declarativo por documento (hoje: requerimento e portaria/ — construtores por tipo de portaria)
   registro.ts         REGISTRO: única lista de documentos do sistema
   marca.ts            marcaDoTenant (puro) · logos.ts: carregarLogo (navegador)
   emitir.ts           emitirDocumento / baixarDocumento (casca do navegador)
@@ -147,7 +148,7 @@ src/lib/documentos/
 
 **Cabeçalho:** na 1ª página, logo da entidade superior à esquerda, logo do órgão à direita, nomes e até 2 linhas
 de unidade emissora ao centro, título e protocolo; nas demais, cabeçalho compacto com protocolo.
-**Rodapé (todas as páginas):** sistema, "emitido por … em …" e "Página X de Y"; comprovantes ganham a linha
+**Rodapé (todas as páginas):** "emitido por … em …" e "Página X de Y"; na 2ª linha, o **endereço do perfil do tenant** (`MarcaImpressao.enderecoRodape`) à esquerda e o nome do sistema à direita; comprovantes ganham a linha
 "Documento emitido eletronicamente".
 
 ## 5. Protocolo
@@ -159,9 +160,10 @@ exige tabela/RPC com RLS (decisão e spec próprias; fora de escopo desta fase).
 ## 6. Limitações conhecidas
 
 - Fontes nativas do PDF (Times/Helvetica): caracteres fora do WinAnsi (emoji, `ł`, `ž`, `✓`…) saem como `?`.
-- **Assinatura isolada em página (pendência obrigatória da F2):** os blocos `assinaturas` e `carimbo` são
-  indivisíveis; se faltarem poucos milímetros, vão sozinhos para a página seguinte (visto na amostra do
-  requerimento). Antes de migrar os Atos, criar "manter junto" (medir local/data + assinatura antes de desenhar).
+- **Título em caixa alta:** o título é impresso em caixa alta; atos com sigla oficial em caixa mista (`IDJuv`) ligam
+  `tituloComoEscrito` no modelo (portarias já ligam).
+- **Word:** a exportação Word das portarias (`src/lib/wordPortarias.ts`) ainda duplica o texto das portarias; migrar numa fase própria a partir dos mesmos dados.
+- **Sem chamador no código:** `pdfMemorandoLotacao`, `pdfTermoAutorizacao`, `pdfTermoResponsabilidade` e `pdfFederacoesModular` seguem sem chamador (possível código morto; não apagar sem autorização).
 - Cabeçalho/rodapé: nome do órgão muito longo no cabeçalho compacto (páginas 2+) pode encostar no protocolo, e `emitidoPor` muito longo no rodapé pode encostar em "Página X de Y"; logo mais largo que 3,2:1 sai achatado (limite de 45 mm de largura com 14 mm de altura). Nenhum tenant atual passa desses limites.
 - `tabela` não valida `colunas` vazio nem `peso <= 0` (erro de programação, lança); rótulo de campo maior que a coluna é cortado na 1ª linha.
 - O logo entra no PDF em resolução total (peso do arquivo); reduzir no canvas é melhoria futura.

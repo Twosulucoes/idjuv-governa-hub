@@ -1,7 +1,7 @@
 import type { ContextoDocumento, Emissao, LogoImpressao } from '../tipos';
 import { usarTexto, usarTraco } from './pintura';
 import { FONTE, NEUTROS, PAGINA, corLegivel } from './tokens';
-import { paraWinAnsi } from './texto';
+import { paraWinAnsi, quebrarEmLinhas } from './texto';
 
 export interface OpcoesMoldura {
   protocolo?: string;
@@ -92,7 +92,14 @@ function rodape(ctx: ContextoDocumento, o: OpcoesMoldura, pagina: number, total:
   doc.setFont('helvetica', 'normal');
   const quem = o.emissao.emitidoPor ? ` por ${o.emissao.emitidoPor}` : '';
   doc.text(paraWinAnsi(`Emitido${quem} em ${formatarData(o.emissao.emitidoEm)}`), esquerda, yBase + 4);
-  doc.text(paraWinAnsi(marca.nomeSistema), esquerda, yBase + 8);
+  // 2ª linha: endereço à esquerda (cortado antes de encostar no sistema) e nome do sistema à direita.
+  const ySegunda = yBase + 8;
+  const sistema = paraWinAnsi(marca.nomeSistema);
+  doc.text(sistema, esquerda + largura, ySegunda, { align: 'right' });
+  if (marca.enderecoRodape) {
+    const [primeira] = quebrarEmLinhas(doc, marca.enderecoRodape, largura - doc.getTextWidth(sistema) - 4);
+    doc.text(primeira, esquerda, ySegunda);
+  }
   doc.text(`Página ${pagina} de ${total}`, esquerda + largura, yBase + 4, { align: 'right' });
 }
 

@@ -168,7 +168,7 @@ export default function CentralPortariasPage() {
         return;
       }
 
-      const doc = buildPortariaPdfDoc({
+      const doc = await buildPortariaPdfDoc({
         portaria: {
           numero: portaria.numero,
           data_documento: portaria.data_documento,
