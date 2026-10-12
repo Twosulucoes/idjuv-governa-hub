@@ -66,6 +66,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `requiredPermissions="admin.configuracao_cliente"`): grava a identidade da instituição em
   `dados_oficiais`, que o `TenantProvider` aplica por cima do perfil do tenant. Ver
   [CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md).
+- **IA da instituição** em `/admin/ia` (`ConfigIAPage`, `requiredPermissions="ia.configurar"`, também em
+  `ROUTE_PERMISSIONS`): configuração do provedor e da chave; as chamadas de IA passam pela Edge Function
+  `ia-gateway`. Ver [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#ia-da-instituição).
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver

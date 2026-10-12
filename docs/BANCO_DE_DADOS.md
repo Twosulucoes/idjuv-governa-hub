@@ -1038,6 +1038,27 @@ Supabase Vault: `config_envio.segredo_id` não é legível pela API, `salvar_seg
 `admin.envios` ou `admin.envios.configurar`, escrita com `admin.envios.configurar`; `envios_log` só é
 gravada pelas Edge Functions. No baseline as duas tabelas estão no `rls/mapa.csv` como `preservar`.
 
+### IA da instituição
+
+Migração `supabase/migrations/20261012200000_ia_config_gateway.sql` (fase 1 da IA de compras, em PR rascunho), mesmo
+desenho de `config_envio`:
+
+- `ia_config` — linha única (`id = true`): `ativo` (nasce `false`), `provedor` (`openai`, `anthropic`, `gemini`,
+  `compativel_openai`), `url_base` (obrigatória só no compatível com OpenAI; CHECK de `https`, host com ponto, sem
+  credencial, query nem fragmento), `modelo` (digitado pelo administrador), `limite_chamadas_hora` (1 a 1000, padrão 30),
+  `teto_tokens_mes` (nulo = sem teto), `enviar_dados_pessoais` e a chave no Vault (`segredo_id`, `segredo_final` com os 4
+  últimos caracteres, `segredo_atualizado_em`). Ligar exige provedor, modelo e chave (CHECK). O trigger
+  `trg_ia_config_autoria` (`fixar_autoria_ia_config`) fixa autor e datas e, quando provedor ou URL base mudam, apaga o
+  vínculo com a chave e desliga a IA (impede redirecionar a chave para outro servidor). RLS: SELECT/INSERT/UPDATE com
+  `pode_configurar_ia()`, sem DELETE; privilégios por coluna: `segredo_id` não é legível pela API e `segredo_*` não são
+  graváveis.
+- `ia_uso` — uma linha por chamada ao provedor: `user_id`, `recurso`, `provedor`, `modelo`, `tokens_entrada`,
+  `tokens_saida`, `tokens_estimados`, `status` (`ok`, `erro`, `cortado`), sem o texto do pedido nem da resposta. Só
+  acréscimo: SELECT com `pode_configurar_ia()`, gravação só pela service role (Edge Function `ia-gateway`).
+
+No baseline as duas tabelas estão no `rls/mapa.csv` como `preservar` (módulo `admin`); privilégios em
+`overlay/40_privilegios.sql`. Funções na lista abaixo ("IA").
+
 ### Unidades locais e cessões
 `unidades_locais`, `agenda_unidade`, `agrupamento_unidade_vinculo`,
 `config_agrupamento_unidades`, `cessoes`, `termos_cessao`, `documentos_cedencia`.
@@ -1195,6 +1216,13 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   qualquer usuário ativo (sem ano, CPF, contato ou lotação).
 - **Envios**: `pode_ver_envios`, `pode_configurar_envios` (policies), `salvar_segredo_envio(canal, segredo)`
   (grava a credencial no Vault) e `config_envio_servidor(canal)` (só service role).
+- **IA** (migração `20261012200000`): `pode_configurar_ia()` e `pode_usar_ia()` (policies, RPCs e Edge Function;
+  ver [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#ia-da-instituição)), `ia_disponivel()` (IA ligada e a pessoa pode
+  usar; o front esconde os botões quando `false`), `salvar_chave_ia(p_chave)` (exige `ia.configurar` e provedor já
+  salvo; grava/troca a chave no Vault com o nome `ia_chave_api`, de 8 a 4096 caracteres, e devolve só a data),
+  `resumo_uso_ia_mes()` (chamadas e tokens do mês em UTC e o teto, para `/admin/ia`) e `ia_config_servidor()`
+  (config + chave decifrada + tokens do mês; EXECUTE só para a service role). Todas `SECURITY DEFINER` com
+  `search_path` fixo e sem EXECUTE para `anon`.
 - **Bancário**: `get_proximo_numero_remessa` (prévia do número; desde a E3 o número vem do trigger no INSERT) e
   `cancelar_remessa(p_remessa_id, p_motivo)` (E3: cancela com motivo e autor; seção "Integridade da remessa CNAB e do
   eSocial — Onda E3").

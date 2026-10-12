@@ -26,6 +26,10 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
   cliente configura o remetente (SMTP próprio ou Resend), a identidade visual do e-mail e o WhatsApp
   oficial (Meta Cloud API, templates por uso), grava as credenciais (só escrita, no Vault), envia teste
   e consulta o histórico. Desenho: `docs/superpowers/specs/2026-10-09-envio-email-whatsapp-design.md`.
+- **Inteligência Artificial**: `ConfigIAPage` (`/admin/ia`, menu "Inteligência Artificial", `ia.configurar`). A
+  instituição liga/desliga a IA, escolhe o provedor (OpenAI, Anthropic, Gemini ou compatível com OpenAI), o modelo,
+  o limite por pessoa por hora e o teto mensal de tokens, grava a chave (só escrita, no Vault), testa a conexão e
+  vê o uso do mês. Desenho: `docs/superpowers/specs/2026-10-11-ia-compras-design.md`.
 
 - **Configuração do cliente**: `ConfiguracaoClientePage` (`/admin/configuracao-cliente`, menu
   "Configuração do Cliente"). Nome do sistema, nome oficial, sigla, CNPJ, base legal, dirigente,
@@ -274,7 +278,8 @@ relatório de viagem.
 
 `src/pages/formularios/`: `TermoDemandaPage`, `OrdemMissaoPage`,
 `RelatorioViagemPage`, `RequisicaoMaterialPage`, `TermoResponsabilidadePage`,
-`CPSIPage` (com assistente de IA via Edge Function `cpsi-ai-assistant`).
+`CPSIPage` (com assistente de IA via Edge Function `ia-gateway`, recurso `cpsi`; os botões de IA só aparecem
+com a IA ligada em `/admin/ia` e a permissão `ia.usar`).
 
 ## Portal público (sem login)
 
