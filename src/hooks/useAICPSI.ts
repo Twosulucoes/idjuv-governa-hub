@@ -1,6 +1,7 @@
 /**
  * Hook para integração de IA nos formulários CPSI
  * Suporta: preenchimento automático, assistência por campo e revisão
+ * Chama a Edge Function ia-gateway (recurso "cpsi"), que aplica permissão, cota e teto mensal.
  */
 
 import { useState, useCallback } from 'react';
@@ -30,8 +31,9 @@ export function useAICPSI({ documentType }: UseAICPSIOptions) {
       formData?: Record<string, string>;
     }
   ) => {
-    const { data, error } = await supabase.functions.invoke('cpsi-ai-assistant', {
+    const { data, error } = await supabase.functions.invoke('ia-gateway', {
       body: {
+        recurso: 'cpsi',
         action,
         documentType,
         ...params,
@@ -111,7 +113,7 @@ export function useAICPSI({ documentType }: UseAICPSIOptions) {
       const token = sessao.session?.access_token;
       if (!token) throw new Error('Sessão expirada. Entre novamente.');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cpsi-ai-assistant`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ia-gateway`,
         {
           method: 'POST',
           headers: {
@@ -120,6 +122,7 @@ export function useAICPSI({ documentType }: UseAICPSIOptions) {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
+            recurso: 'cpsi',
             action: 'review',
             documentType,
             formData,
