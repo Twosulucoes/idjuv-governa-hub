@@ -14,6 +14,8 @@ export default function MiniCurriculoSucessoPage() {
   const location = useLocation();
   const { nomeOficial, sigla } = useIdentidade();
   const codigo = location.state?.codigo || "PC-0000-0000";
+  const token: string | undefined = location.state?.token;
+  const link = token ? `${window.location.origin}/curriculo/${token}` : "";
 
   const copiarCodigo = () => {
     navigator.clipboard.writeText(codigo);
@@ -56,7 +58,7 @@ export default function MiniCurriculoSucessoPage() {
             </div>
 
             <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-              <p className="text-sm text-muted-foreground">Seu código de acesso:</p>
+              <p className="text-sm text-muted-foreground">Seu código de protocolo (informe-o ao falar com o RH):</p>
               <div className="flex items-center justify-center gap-2">
                 <Badge
                   variant="secondary"
@@ -69,8 +71,13 @@ export default function MiniCurriculoSucessoPage() {
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">
-                Guarde este código para acompanhar ou editar seu cadastro.
+                O código identifica o seu pré-cadastro para a equipe do RH. Ele não dá acesso ao formulário.
               </p>
+              {link && (
+                <p className="text-sm text-muted-foreground break-all">
+                  Link do seu pré-cadastro (guarde, é pessoal): <span className="font-mono">{link}</span>
+                </p>
+              )}
             </div>
 
             <div className="p-4 border rounded-lg text-left space-y-2">
@@ -80,15 +87,14 @@ export default function MiniCurriculoSucessoPage() {
                 <li>Você poderá ser contatado para apresentar documentos originais</li>
                 <li>Após aprovação, seu cadastro será convertido para servidor</li>
                 <li>
-                  Você pode acessar seu formulário a qualquer momento usando o código
-                  acima
+                  Você pode ver o formulário a qualquer momento pelo link pessoal acima
                 </li>
               </ol>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
               <Button variant="outline" asChild>
-                <Link to={`/curriculo/${codigo}`}>
+                <Link to={token ? `/curriculo/${token}` : "/curriculo"}>
                   <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
                   Ver meu cadastro
                 </Link>

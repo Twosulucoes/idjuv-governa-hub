@@ -2,6 +2,7 @@
 // HOOK PARA GERENCIAMENTO DE USUÁRIOS
 // ============================================
 
+import { gerarSenhaTemporaria } from '@/lib/senhaTemporaria';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { UsuarioSistema, TipoUsuario } from '@/types/usuario';
@@ -380,12 +381,5 @@ export function useUsuarios() {
   };
 }
 
-// Gerar senha temporária
-function generateTempPassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
+// Gerar senha temporária (gerador criptográfico em src/lib/senhaTemporaria.ts)
+const generateTempPassword = (): string => gerarSenhaTemporaria();

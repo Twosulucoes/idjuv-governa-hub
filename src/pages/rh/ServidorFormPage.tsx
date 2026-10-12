@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { gerarMatricula } from "@/lib/matriculaUtils";
+import { admitirServidor } from "@/lib/rhRpc";
+import { gerarSenhaTemporaria } from "@/lib/senhaTemporaria";
 import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -192,6 +193,8 @@ type FormData = {
   cargo_atual_id: string;
   unidade_atual_id: string;
   data_admissao: string;
+  // Cedido (entrada): órgão de onde o servidor vem
+  orgao_origem: string;
 };
 
 const initialFormData: FormData = {
@@ -285,6 +288,7 @@ const initialFormData: FormData = {
   cargo_atual_id: '',
   unidade_atual_id: '',
   data_admissao: new Date().toISOString().split('T')[0],
+  orgao_origem: '',
 };
 
 export default function ServidorFormPage() {
@@ -447,6 +451,7 @@ export default function ServidorFormPage() {
         cargo_atual_id: servidor.cargo_atual_id || '',
         unidade_atual_id: servidor.unidade_atual_id || '',
         data_admissao: servidor.data_admissao || new Date().toISOString().split('T')[0],
+        orgao_origem: servidor.orgao_origem || '',
       });
     }
   }, [servidor]);
@@ -454,12 +459,6 @@ export default function ServidorFormPage() {
   // Mutation
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      // Gerar matrícula automaticamente se for novo servidor e não tiver matrícula
-      let matriculaFinal = data.matricula;
-      if (!isEditing && !matriculaFinal) {
-        matriculaFinal = await gerarMatricula();
-      }
-
       const payload = {
         nome_completo: data.nome_completo,
         nome_social: data.nome_social || null,
@@ -492,7 +491,8 @@ export default function ServidorFormPage() {
         endereco_cidade: data.endereco_cidade || null,
         endereco_uf: data.endereco_uf || null,
         endereco_cep: data.endereco_cep?.replace(/\D/g, '') || null,
-        matricula: matriculaFinal || null,
+        // vazia no cadastro novo: o banco numera (trigger, sem corrida)
+        matricula: data.matricula || null,
         carga_horaria: parseInt(data.carga_horaria) || 40,
         escolaridade: data.escolaridade || null,
         formacao_academica: data.formacao_academica || null,
@@ -552,9 +552,11 @@ export default function ServidorFormPage() {
         cargo_atual_id: data.cargo_atual_id || null,
         unidade_atual_id: data.unidade_atual_id || null,
         data_admissao: data.data_admissao || null,
+        orgao_origem: data.orgao_origem || null,
       };
 
       let servidorId: string | null = null;
+      let protocolo: string | undefined;
 
       if (isEditing && id) {
         const { error } = await supabase
@@ -573,28 +575,30 @@ export default function ServidorFormPage() {
         if (error) throw error;
         servidorId = novoServidor.id;
 
-       
 
-        // Criar vínculo inicial (fonte única: vinculos_servidor). O tipo do
-        // formulário é traduzido para o enum da tabela; a validação do submit
-        // garante tipo, unidade e data preenchidos.
+        // Admissão numa transação só: vínculo + lotação + provimento (ou cessão) + histórico + minuta de portaria.
+        // O tipo do formulário é traduzido para o enum do vínculo; a validação do submit garante tipo, unidade e data.
         if (servidorId && data.tipo_servidor && data.unidade_atual_id) {
-          const { error: vinculoError } = await supabase.from('vinculos_servidor').insert({
-            servidor_id: servidorId,
-            tipo: TIPO_VINCULO_POR_TIPO_SERVIDOR[data.tipo_servidor],
-            origem: 'idjuv',
-            cargo_id: data.cargo_atual_id || null,
-            unidade_id: data.unidade_atual_id,
-            data_inicio: data.data_admissao,
-            ativo: true,
-          });
-          if (vinculoError) throw new VinculoNaoCriadoError(servidorId, vinculoError.message);
+          try {
+            const admissao = await admitirServidor({
+              servidorId,
+              tipo: TIPO_VINCULO_POR_TIPO_SERVIDOR[data.tipo_servidor],
+              cargoId: data.cargo_atual_id || null,
+              unidadeId: data.unidade_atual_id,
+              dataInicio: data.data_admissao,
+              orgaoOrigem: data.orgao_origem,
+            });
+            protocolo = admissao.protocolo;
+          } catch (e) {
+            throw new VinculoNaoCriadoError(servidorId, e instanceof Error ? e.message : String(e));
+          }
         }
       }
+      return { protocolo };
     },
-    onSuccess: () => {
+    onSuccess: (resultado) => {
       queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
-      toast.success(isEditing ? "Servidor atualizado!" : "Servidor cadastrado!");
+      toast.success(isEditing ? "Servidor atualizado!" : `Servidor cadastrado! Protocolo ${resultado?.protocolo ?? "—"}`);
       navigate("/rh/servidores");
     },
     onError: (error: unknown) => {
@@ -618,14 +622,7 @@ export default function ServidorFormPage() {
   });
 
   // Função para gerar senha temporária
-  const generateTempPassword = (): string => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-    let password = '';
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
-  };
+  const generateTempPassword = (): string => gerarSenhaTemporaria();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -636,6 +633,11 @@ export default function ServidorFormPage() {
       const aba = campo ? ABA_DO_CAMPO[campo] : null;
       if (aba) setAbaAtiva(aba);
       toast.error((campo && validacao.erros[campo]) || "Verifique os campos destacados");
+      return;
+    }
+    if (!isEditing && formData.tipo_servidor === 'cedido_entrada' && !formData.orgao_origem.trim()) {
+      setAbaAtiva("vinculo");
+      toast.error("Informe o órgão de origem do servidor cedido");
       return;
     }
     setErros({});
@@ -1101,6 +1103,18 @@ export default function ServidorFormPage() {
                       onUnidadeChange={(unidadeId) => updateField('unidade_atual_id', unidadeId)}
                       onDataAdmissaoChange={(data) => updateField('data_admissao', data)}
                     />
+                    {!isEditing && formData.tipo_servidor === 'cedido_entrada' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="orgao_origem">Órgão de origem *</Label>
+                        <Input
+                          id="orgao_origem"
+                          value={formData.orgao_origem}
+                          onChange={(e) => updateField('orgao_origem', e.target.value)}
+                          placeholder="Órgão que cedeu o servidor"
+                          maxLength={120}
+                        />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

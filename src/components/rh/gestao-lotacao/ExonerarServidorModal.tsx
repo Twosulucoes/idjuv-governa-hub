@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, UserMinus, AlertTriangle } from "lucide-react";
 import { useExonerarServidor, type ServidorGestao } from "@/hooks/useGestaoLotacao";
+import { MOTIVOS_DESLIGAMENTO, type MotivoDesligamento } from "@/lib/rhRpc";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -33,28 +34,38 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
   const exonerarServidor = useExonerarServidor();
 
   const [dataExoneracao, setDataExoneracao] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [motivo, setMotivo] = useState<MotivoDesligamento>("exoneracao_oficio");
+  const [atoTipo, setAtoTipo] = useState("portaria");
   const [atoNumero, setAtoNumero] = useState("");
-  const [atoTipo, setAtoTipo] = useState("");
+  const [atoData, setAtoData] = useState("");
+  const [doeNumero, setDoeNumero] = useState("");
   const [dataPublicacaoDoe, setDataPublicacaoDoe] = useState("");
   const [observacao, setObservacao] = useState("");
 
   const resetForm = () => {
     setDataExoneracao(format(new Date(), "yyyy-MM-dd"));
+    setMotivo("exoneracao_oficio");
+    setAtoTipo("portaria");
     setAtoNumero("");
-    setAtoTipo("");
+    setAtoData("");
+    setDoeNumero("");
     setDataPublicacaoDoe("");
     setObservacao("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!servidor || !servidor.lotacao_id || !dataExoneracao) return;
+    if (!servidor || !dataExoneracao) return;
 
     await exonerarServidor.mutateAsync({
-      lotacaoId: servidor.lotacao_id,
-      dataExoneracao,
-      atoNumero: atoNumero.trim() || undefined,
+      servidorId: servidor.id,
+      data: dataExoneracao,
+      motivo,
       atoTipo: atoTipo || undefined,
+      atoNumero: atoNumero.trim() || undefined,
+      atoData: atoData || undefined,
+      atoDoeNumero: doeNumero.trim() || undefined,
+      atoDoeData: dataPublicacaoDoe || undefined,
       observacao: observacao.trim() || undefined,
     });
 
@@ -83,8 +94,9 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
           <Alert variant="destructive" className="bg-destructive/5">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Atenção:</strong> Esta ação encerrará a lotação atual e liberará o cargo ocupado.
-              O servidor passará para o status "VAGANDO".
+              <strong>Atenção:</strong> Esta ação desliga o servidor: encerra lotação, vínculos, provimento,
+              cessões, designações, férias e licenças em aberto, viagens ainda não iniciadas, chefia de unidade e
+              comissões; registra no histórico funcional e gera a minuta da portaria. Bloqueia o acesso ao sistema.
             </AlertDescription>
           </Alert>
 
@@ -108,6 +120,23 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
             </p>
           </div>
 
+          {/* Motivo do desligamento */}
+          <div className="space-y-2">
+            <Label>Motivo do desligamento *</Label>
+            <Select value={motivo} onValueChange={(v) => setMotivo(v as MotivoDesligamento)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MOTIVOS_DESLIGAMENTO.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Data de Exoneração */}
           <div className="space-y-2">
             <Label>Data da Exoneração *</Label>
@@ -119,22 +148,42 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
             />
           </div>
 
-          {/* Processo SEI e DOE */}
-          <div className="space-y-2">
-            <Label>Nº do Processo SEI</Label>
-            <Input
-              value={atoTipo}
-              onChange={(e) => setAtoTipo(e.target.value)}
-              placeholder="Ex: 0001234-56.2026.8.00.0000"
-              maxLength={50}
-            />
+          {/* Ato que fundamenta o desligamento */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Tipo do ato</Label>
+              <Select value={atoTipo} onValueChange={setAtoTipo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="portaria">Portaria</SelectItem>
+                  <SelectItem value="decreto">Decreto</SelectItem>
+                  <SelectItem value="ato">Ato</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Nº do ato</Label>
+              <Input
+                value={atoNumero}
+                onChange={(e) => setAtoNumero(e.target.value)}
+                placeholder="Ex: 123/2026"
+                maxLength={30}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data do ato</Label>
+              <Input type="date" value={atoData} onChange={(e) => setAtoData(e.target.value)} />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nº do DOE</Label>
               <Input
-                value={atoNumero}
-                onChange={(e) => setAtoNumero(e.target.value)}
+                value={doeNumero}
+                onChange={(e) => setDoeNumero(e.target.value)}
                 placeholder="Ex: 12345"
                 maxLength={30}
               />

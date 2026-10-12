@@ -68,6 +68,7 @@ interface Rascunho {
   usuarioId: string;
   responsavel: string;
   servidorId: string;
+  protocolo: string;
 }
 
 const RASCUNHO_VAZIO: Rascunho = {
@@ -81,6 +82,7 @@ const RASCUNHO_VAZIO: Rascunho = {
   usuarioId: "",
   responsavel: "",
   servidorId: "",
+  protocolo: "",
 };
 
 function paraFiltros(r: Rascunho, moduloFixo?: string, escopo?: EscopoTrilha): FiltrosTrilha {
@@ -95,6 +97,7 @@ function paraFiltros(r: Rascunho, moduloFixo?: string, escopo?: EscopoTrilha): F
     usuarioId: r.usuarioId.trim() || undefined,
     responsavel: r.responsavel.trim() || undefined,
     servidorId: r.servidorId.trim() || undefined,
+    protocolo: r.protocolo.trim() || undefined,
     escopo,
   };
 }
@@ -109,6 +112,7 @@ const ENTIDADE_VALIDA = /^[a-z0-9_.-]{1,63}$/;
 function montarCsv(linhas: LinhaTrilha[]): string {
   const cabecalho = [
     "Sequência",
+    "Protocolo",
     "Data/hora",
     "Responsável",
     "Matrícula",
@@ -125,6 +129,7 @@ function montarCsv(linhas: LinhaTrilha[]): string {
   ];
   const corpo = linhas.map((l) => [
     l.sequencia ?? "",
+    l.protocolo ?? "",
     format(new Date(l.timestamp), "dd/MM/yyyy HH:mm:ss"),
     l.servidor_nome ?? l.usuario_nome ?? responsavelTrilha(l),
     l.servidor_matricula ?? "",
@@ -263,6 +268,9 @@ export function TrilhaAuditoria({
           {l.sequencia != null && (
             <span className="block text-caption text-muted-foreground">nº {l.sequencia}</span>
           )}
+          {l.protocolo && (
+            <span className="block font-mono text-caption text-muted-foreground">{l.protocolo}</span>
+          )}
         </span>
       ),
     },
@@ -329,7 +337,7 @@ export function TrilhaAuditoria({
 
   const temFiltroAvancado =
     !compacta &&
-    (rascunho.entidade || rascunho.registroId || rascunho.usuarioId || rascunho.servidorId || rascunho.origem !== TODOS);
+    (rascunho.entidade || rascunho.registroId || rascunho.usuarioId || rascunho.servidorId || rascunho.protocolo || rascunho.origem !== TODOS);
 
   return (
     <div className="space-y-4">
@@ -439,6 +447,16 @@ export function TrilhaAuditoria({
                     placeholder="ex.: servidores"
                     value={rascunho.entidade}
                     onChange={(e) => alterar("entidade")(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="trilha-protocolo">Protocolo</Label>
+                  <Input
+                    id="trilha-protocolo"
+                    className="font-mono"
+                    placeholder="RH-2026-000123"
+                    value={rascunho.protocolo}
+                    onChange={(e) => alterar("protocolo")(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1">

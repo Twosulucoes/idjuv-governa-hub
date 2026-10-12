@@ -2,9 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { PreCadastro } from '@/types/preCadastro';
-import type { TipoServidor } from '@/types/servidor';
+import { TIPO_VINCULO_POR_TIPO_SERVIDOR, type TipoServidor } from '@/types/servidor';
 import type { Json } from '@/integrations/supabase/types';
-import { gerarMatricula } from '@/lib/matriculaUtils';
+import { admitirServidor } from '@/lib/rhRpc';
 
 // Helper para converter dados do banco para o tipo PreCadastro
 function mapToPreCadastro(data: any): PreCadastro {
@@ -31,7 +31,6 @@ function mapToDatabase(dados: Partial<PreCadastro>): Record<string, any> {
 function mapPreCadastroToServidor(
   pc: PreCadastro,
   extras: {
-    matricula: string;
     tipoServidor: TipoServidor;
     cargoId?: string;
     unidadeId: string;
@@ -151,7 +150,6 @@ function mapPreCadastroToServidor(
   // Dependentes (JSON)
   if (pc.dependentes && pc.dependentes.length > 0) servidor.dependentes = pc.dependentes;
   // Dados do vínculo (sempre presentes)
-  servidor.matricula = extras.matricula;
   servidor.tipo_servidor = extras.tipoServidor;
   servidor.cargo_atual_id = extras.cargoId || null;
   servidor.unidade_atual_id = extras.unidadeId;
@@ -164,111 +162,53 @@ function mapPreCadastroToServidor(
   return servidor;
 }
 
-export function usePreCadastro(codigoAcesso?: string) {
+// ---------------------------------------------------------------------------
+// Formulário PÚBLICO (/curriculo): o candidato não tem login e não toca na tabela. Entra por um TOKEN secreto no
+// link (/curriculo/<token>) e fala só com as funções pre_cadastro_publico_* (migração 20261012140000), que devolvem e
+// gravam apenas o rascunho daquele token. O código PC-AAAA-nnnn é só protocolo para conversar com o RH.
+// ---------------------------------------------------------------------------
+interface RespostaRpc { data: unknown; error: { message: string } | null }
+
+async function chamarPublico<T>(nome: string, args: Record<string, unknown>): Promise<T> {
+  const cliente = supabase as unknown as { rpc: (n: string, a: Record<string, unknown>) => PromiseLike<RespostaRpc> };
+  const { data, error } = await cliente.rpc(nome, args);
+  if (error) throw new Error(error.message);
+  return data as T;
+}
+
+export function usePreCadastro(token?: string) {
   const queryClient = useQueryClient();
 
-  // Buscar pré-cadastro pelo código de acesso
+  // Buscar o próprio rascunho pelo token
   const { data: preCadastro, isLoading } = useQuery({
-    queryKey: ['pre-cadastro', codigoAcesso],
+    queryKey: ['pre-cadastro', token],
     queryFn: async () => {
-      if (!codigoAcesso) return null;
-      
-      const { data, error } = await supabase
-        .from('pre_cadastros')
-        .select('*')
-        .eq('codigo_acesso', codigoAcesso)
-        .maybeSingle();
-      
-      if (error) throw error;
-      if (!data) return null;
-      return mapToPreCadastro(data);
+      if (!token) return null;
+      try {
+        const data = await chamarPublico<Record<string, unknown>>('pre_cadastro_publico_obter', { p_token: token });
+        return mapToPreCadastro(data);
+      } catch {
+        return null; // link inválido ou expirado
+      }
     },
-    enabled: !!codigoAcesso,
+    enabled: !!token,
+    retry: false,
   });
 
-  // Gerar novo código de acesso
-  const gerarCodigo = async (): Promise<string> => {
-    const { data, error } = await supabase.rpc('gerar_codigo_pre_cadastro');
-    if (error) throw error;
-    return data as string;
-  };
-
-  // Criar novo pré-cadastro
+  // Criar o rascunho: devolve o token (vira o link do candidato) e o código de protocolo
   const criarMutation = useMutation({
-    mutationFn: async (dados: Partial<PreCadastro>) => {
-      // Verificar se CPF já existe antes de criar
-      if (dados.cpf) {
-        // Verificar se já existe servidor com este CPF
-        const { data: servidorExistente } = await supabase
-          .from('servidores')
-          .select('id, nome_completo, matricula')
-          .eq('cpf', dados.cpf)
-          .maybeSingle();
-
-        if (servidorExistente) {
-          throw new Error(
-            `CPF já cadastrado como servidor: ${servidorExistente.nome_completo} (Matrícula: ${servidorExistente.matricula})`
-          );
-        }
-
-        // Verificar se já existe pré-cadastro ativo com este CPF
-        const { data: preCadastroExistente } = await supabase
-          .from('pre_cadastros')
-          .select('id, nome_completo, codigo_acesso, status')
-          .eq('cpf', dados.cpf)
-          .neq('status', 'convertido')
-          .neq('status', 'rejeitado')
-          .maybeSingle();
-
-        if (preCadastroExistente) {
-          throw new Error(
-            `CPF já possui pré-cadastro: ${preCadastroExistente.nome_completo} (Código: ${preCadastroExistente.codigo_acesso}, Status: ${preCadastroExistente.status})`
-          );
-        }
-      }
-
-      const codigo = await gerarCodigo();
-      
-      const dbData = mapToDatabase({
-        ...dados,
-        codigo_acesso: codigo,
-        status: 'rascunho',
-      });
-      
-      const { data, error } = await supabase
-        .from('pre_cadastros')
-        .insert(dbData as any)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return mapToPreCadastro(data);
-    },
-    onSuccess: () => {
-      toast.success('Pré-cadastro iniciado com sucesso!');
-    },
+    mutationFn: (dados: Partial<PreCadastro>) =>
+      chamarPublico<{ token: string; codigo: string }>('pre_cadastro_publico_criar', { p_dados: mapToDatabase(dados) }),
     onError: (error: Error) => {
       toast.error('Erro ao criar pré-cadastro: ' + error.message);
     },
   });
 
-  // Atualizar pré-cadastro existente
+  // Salvar o rascunho (o servidor aceita só os campos do candidato)
   const atualizarMutation = useMutation({
-    mutationFn: async ({ id, dados }: { id: string; dados: Partial<PreCadastro> }) => {
-      const dbData = mapToDatabase({
-        ...dados,
-        updated_at: new Date().toISOString(),
-      });
-      
-      const { data, error } = await supabase
-        .from('pre_cadastros')
-        .update(dbData)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return mapToPreCadastro(data);
+    mutationFn: async ({ dados }: { dados: Partial<PreCadastro> }) => {
+      if (!token) throw new Error('Link inválido');
+      return chamarPublico<{ ok: boolean }>('pre_cadastro_publico_salvar', { p_token: token, p_dados: mapToDatabase(dados) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre-cadastro'] });
@@ -278,22 +218,11 @@ export function usePreCadastro(codigoAcesso?: string) {
     },
   });
 
-  // Enviar pré-cadastro (finalizar)
+  // Enviar (finalizar)
   const enviarMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await supabase
-        .from('pre_cadastros')
-        .update({
-          status: 'enviado',
-          data_envio: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return mapToPreCadastro(data);
+    mutationFn: async () => {
+      if (!token) throw new Error('Link inválido');
+      return chamarPublico<{ ok: boolean; codigo: string }>('pre_cadastro_publico_enviar', { p_token: token });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pre-cadastro'] });
@@ -385,12 +314,14 @@ export function usePreCadastros() {
       cargoId,
       unidadeId,
       dataAdmissao,
+      orgaoOrigem,
     }: {
       preCadastroId: string;
       tipoServidor: TipoServidor;
       cargoId?: string;
       unidadeId: string;
       dataAdmissao: string;
+      orgaoOrigem?: string;
     }) => {
       // 1. Buscar dados do pré-cadastro
       const { data: pcData, error: pcError } = await supabase
@@ -413,97 +344,23 @@ export function usePreCadastros() {
         throw new Error('Já existe um servidor cadastrado com este CPF');
       }
       
-      // 3. Gerar matrícula
-      const matricula = await gerarMatricula();
-      
-      // 4. Mapear e inserir servidor
+      // 3. Gravar o servidor (a matrícula é numerada pelo banco)
       const servidorData = mapPreCadastroToServidor(preCadastro, {
-        matricula,
         tipoServidor,
         cargoId,
         unidadeId,
         dataAdmissao,
       });
-      
+
       const { data: novoServidor, error: srvError } = await supabase
         .from('servidores')
         .insert(servidorData as any)
-        .select('id')
+        .select('id, matricula')
         .single();
-      
-      if (srvError) throw srvError;
-      
-      // 5. Criar lotação inicial
-      const { data: novaLotacao, error: lotError } = await supabase
-        .from('lotacoes')
-        .insert({
-          servidor_id: novoServidor.id,
-          unidade_id: unidadeId,
-          cargo_id: cargoId || null,
-          tipo_lotacao: 'lotacao_interna',
-          data_inicio: dataAdmissao,
-          ativo: true,
-        })
-        .select('id')
-        .single();
-      
-      if (lotError) {
-        console.error('Erro ao criar lotação:', lotError);
-      }
-      
-      // Nota: Portarias devem ser criadas manualmente pela Central de Portarias
-      // após a conversão do servidor
-      
-      // 8. Criar provimento sem portaria vinculada
-      try {
-        const { error: provError } = await supabase
-          .from('provimentos')
-          .insert({
-            servidor_id: novoServidor.id,
-            cargo_id: cargoId || null,
-            unidade_id: unidadeId,
-            status: 'ativo',
-            data_nomeacao: dataAdmissao,
-            data_posse: dataAdmissao,
-            data_exercicio: dataAdmissao,
-          });
-        
-        if (provError) {
-          console.error('Erro ao criar provimento:', provError);
-        }
-      } catch (err) {
-        console.error('Erro ao criar provimento:', err);
-      }
-      
-      // 9. Registrar no histórico funcional (sem portaria - será adicionada manualmente)
-      try {
-        // Buscar nome do cargo para descrição
-        let nomeCargo = 'cargo não especificado';
-        if (cargoId) {
-          const { data: cargoData } = await supabase
-            .from('cargos')
-            .select('nome, sigla')
-            .eq('id', cargoId)
-            .single();
-          if (cargoData) {
-            nomeCargo = cargoData.sigla ? `${cargoData.sigla} - ${cargoData.nome}` : cargoData.nome;
-          }
-        }
 
-        await supabase.from('historico_funcional').insert({
-          servidor_id: novoServidor.id,
-          tipo: tipoServidor === 'cedido_entrada' ? 'cessao_entrada' : 'nomeacao',
-          data_evento: dataAdmissao,
-          data_vigencia_inicio: dataAdmissao,
-          cargo_novo_id: cargoId || null,
-          unidade_nova_id: unidadeId,
-          descricao: `Nomeação para ${nomeCargo} - Matrícula ${matricula}`,
-        } as any);
-      } catch (err) {
-        console.error('Erro ao registrar histórico:', err);
-      }
-      
-      // 10. Atualizar pré-cadastro com referência ao servidor
+      if (srvError) throw srvError;
+
+      // 4. Marcar o pré-cadastro como convertido já aqui: o servidor existe e não pode ser convertido de novo
       const { error: updateError } = await supabase
         .from('pre_cadastros')
         .update({
@@ -512,20 +369,39 @@ export function usePreCadastros() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', preCadastroId);
-      
-      if (updateError) {
-        console.error('Erro ao atualizar pré-cadastro:', updateError);
+
+      if (updateError) throw new Error(`Servidor criado (matrícula ${novoServidor.matricula}), mas o pré-cadastro não foi marcado como convertido: ${updateError.message}`);
+
+      // 5. Vínculo + lotação + provimento (ou cessão) + histórico + minuta de portaria, numa transação.
+      // Se falhar, o servidor fica cadastrado e a admissão é refeita na aba de histórico do servidor.
+      let protocolo: string | undefined;
+      try {
+        const admissao = await admitirServidor({
+          servidorId: novoServidor.id,
+          tipo: TIPO_VINCULO_POR_TIPO_SERVIDOR[tipoServidor],
+          cargoId: cargoId || null,
+          unidadeId,
+          dataInicio: dataAdmissao,
+          orgaoOrigem,
+        });
+        protocolo = admissao.protocolo;
+      } catch (e) {
+        throw new Error(
+          `Servidor cadastrado (matrícula ${novoServidor.matricula}), mas a admissão não foi concluída: ` +
+            `${e instanceof Error ? e.message : String(e)}. Registre o vínculo na aba Histórico do servidor.`,
+        );
       }
-      
+
       return { 
         servidorId: novoServidor.id, 
-        matricula
+        matricula: novoServidor.matricula,
+        protocolo,
       };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['pre-cadastros'] });
       queryClient.invalidateQueries({ queryKey: ['servidores'] });
-      toast.success(`Servidor criado com matrícula ${data.matricula}!`);
+      toast.success(`Servidor criado com matrícula ${data.matricula}! Protocolo ${data.protocolo ?? '—'}`);
     },
     onError: (error: Error) => {
       toast.error('Erro ao converter: ' + error.message);

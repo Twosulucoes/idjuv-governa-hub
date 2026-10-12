@@ -15,6 +15,8 @@ import { Loader2, UserPlus } from "lucide-react";
 import { formatCPF } from "@/lib/formatters";
 import type { PreCadastro } from "@/types/preCadastro";
 import type { TipoServidor } from "@/types/servidor";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { REGRAS_TIPO_SERVIDOR } from "@/types/servidor";
 import { VinculoFuncionalForm, useVinculoFuncionalValidation } from "@/components/rh/VinculoFuncionalForm";
 
@@ -28,6 +30,7 @@ interface ConversaoServidorDialogProps {
     cargoId?: string;
     unidadeId: string;
     dataAdmissao: string;
+    orgaoOrigem?: string;
   }) => Promise<{ servidorId: string } | undefined>;
   isConverting?: boolean;
 }
@@ -43,6 +46,7 @@ export function ConversaoServidorDialog({
   const [tipoServidor, setTipoServidor] = useState<TipoServidor | "">("");
   const [cargoId, setCargoId] = useState<string>("");
   const [unidadeId, setUnidadeId] = useState<string>("");
+  const [orgaoOrigem, setOrgaoOrigem] = useState<string>("");
   const [dataAdmissao, setDataAdmissao] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -61,6 +65,7 @@ export function ConversaoServidorDialog({
       setTipoServidor("");
       setCargoId("");
       setUnidadeId("");
+      setOrgaoOrigem("");
       setDataAdmissao(new Date().toISOString().split("T")[0]);
     }
   }, [open]);
@@ -70,6 +75,7 @@ export function ConversaoServidorDialog({
 
     const regras = REGRAS_TIPO_SERVIDOR[tipoServidor as TipoServidor];
     if (regras.permiteCargo && !cargoId) return;
+    if (tipoServidor === "cedido_entrada" && !orgaoOrigem.trim()) return;
 
     const result = await onConverter({
       preCadastroId: preCadastro.id,
@@ -77,6 +83,7 @@ export function ConversaoServidorDialog({
       cargoId: cargoId || undefined,
       unidadeId,
       dataAdmissao,
+      orgaoOrigem: orgaoOrigem.trim() || undefined,
     });
 
     if (result?.servidorId) {
@@ -141,6 +148,19 @@ export function ConversaoServidorDialog({
               onDataAdmissaoChange={setDataAdmissao}
               disabled={isConverting}
             />
+            {tipoServidor === "cedido_entrada" && (
+              <div className="space-y-2">
+                <Label htmlFor="conv-orgao-origem">Órgão de origem *</Label>
+                <Input
+                  id="conv-orgao-origem"
+                  value={orgaoOrigem}
+                  onChange={(e) => setOrgaoOrigem(e.target.value)}
+                  placeholder="Órgão que cedeu o servidor"
+                  maxLength={120}
+                  disabled={isConverting}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -154,7 +174,7 @@ export function ConversaoServidorDialog({
           </Button>
           <Button
             onClick={handleConverter}
-            disabled={!isValid || isConverting}
+            disabled={!isValid || isConverting || (tipoServidor === "cedido_entrada" && !orgaoOrigem.trim())}
           >
             {isConverting ? (
               <>

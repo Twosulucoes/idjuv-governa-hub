@@ -86,6 +86,9 @@ export function DetalheTrilhaDialog({ id, onOpenChange }: DetalheTrilhaDialogPro
               <Campo rotulo="Sequência">
                 <span className="font-mono">{linha.sequencia ?? "—"}</span>
               </Campo>
+              <Campo rotulo="Protocolo">
+                <span className="font-mono">{linha.protocolo ?? "—"}</span>
+              </Campo>
               <Campo rotulo="Responsável">{responsavelTrilha(linha)}</Campo>
               <Campo rotulo="Origem">{linha.origem ? ORIGEM_TRILHA_LABELS[linha.origem] ?? linha.origem : "—"}</Campo>
               <Campo rotulo="Ação">

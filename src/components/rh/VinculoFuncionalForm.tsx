@@ -61,11 +61,12 @@ export function VinculoFuncionalForm({
 
       let query = supabase
         .from("cargos")
-        .select("id, nome, sigla, natureza")
+        .select("id, nome, sigla, categoria")
         .eq("ativo", true);
 
       if (regras.tiposCargo.length > 0) {
-        query = query.in("natureza", regras.tiposCargo);
+        // `categoria` é a coluna que o formulário de cargos grava (e que o banco usa); `natureza` fica nula.
+        query = query.in("categoria", regras.tiposCargo);
       }
 
       const { data, error } = await query.order("nome");

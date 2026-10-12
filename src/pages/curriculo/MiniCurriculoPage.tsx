@@ -67,7 +67,8 @@ const ALL_STEPS = [
 ];
 
 export default function MiniCurriculoPage() {
-  const { codigo } = useParams<{ codigo: string }>();
+  // o parâmetro da rota é o TOKEN secreto do candidato (não o código PC-AAAA-nnnn)
+  const { codigo: token } = useParams<{ codigo: string }>();
   const navigate = useNavigate();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [formData, setFormData] = useState<Partial<PreCadastro>>({
@@ -75,7 +76,7 @@ export default function MiniCurriculoPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const { preCadastro, isLoading, criar, atualizar, enviar } = usePreCadastro(codigo);
+  const { preCadastro, isLoading, criar, atualizar, enviar } = usePreCadastro(token);
   const { nomeOficial, sigla } = useIdentidade();
   const { isSectionEnabled, isFieldEnabled, loading: configLoading } = useFormFieldConfig('pre_cadastro');
 
@@ -115,8 +116,8 @@ export default function MiniCurriculoPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (preCadastro?.id) {
-        await atualizar({ id: preCadastro.id, dados: formData });
+      if (preCadastro) {
+        await atualizar({ dados: formData });
         toast.success("Dados salvos com sucesso!");
       } else {
         if (!formData.nome_completo || !formData.cpf || !formData.email) {
@@ -124,8 +125,8 @@ export default function MiniCurriculoPage() {
           return;
         }
         const novo = await criar(formData);
-        navigate(`/curriculo/${novo.codigo_acesso}`, { replace: true });
-        toast.success(`Pré-cadastro criado! Código: ${novo.codigo_acesso}`);
+        navigate(`/curriculo/${novo.token}`, { replace: true });
+        toast.success(`Pré-cadastro criado (${novo.codigo}). Guarde o link desta página: é a sua chave de acesso.`, { duration: 12000 });
       }
     } catch (error) {
       console.error(error);
@@ -135,7 +136,7 @@ export default function MiniCurriculoPage() {
   };
 
   const handleSubmit = async () => {
-    if (!preCadastro?.id) {
+    if (!preCadastro) {
       toast.error("Salve o formulário antes de enviar.");
       return;
     }
@@ -157,9 +158,9 @@ export default function MiniCurriculoPage() {
     }
 
     try {
-      await enviar(preCadastro.id);
+      await enviar();
       navigate("/curriculo/sucesso", {
-        state: { codigo: preCadastro.codigo_acesso },
+        state: { codigo: preCadastro.codigo_acesso, token },
       });
     } catch (error) {
       console.error(error);
@@ -171,21 +172,12 @@ export default function MiniCurriculoPage() {
     doc.save(`pre-cadastro-${formData.codigo_acesso || "rascunho"}.pdf`);
   };
 
-  const handleRecuperarPreCadastro = (codigoRecuperar: string) => {
-    navigate(`/curriculo/${codigoRecuperar}`, { replace: true });
-  };
-
   const renderStepContent = () => {
     if (!currentStep) return null;
     switch (currentStep.id) {
       case 1:
         return (
-          <DadosPessoaisForm
-            dados={formData}
-            onChange={setFormData}
-            codigoAtual={codigo}
-            onRecuperarPreCadastro={handleRecuperarPreCadastro}
-          />
+          <DadosPessoaisForm dados={formData} onChange={setFormData} />
         );
       case 2:
         return <DocumentosForm dados={formData} onChange={setFormData} fieldConfig={{ isFieldEnabled }} />;

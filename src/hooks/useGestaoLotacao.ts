@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { admitirServidor, desligarServidor, transferirServidor, type DesligarServidorParams, type TransferirServidorParams } from "@/lib/rhRpc";
 import type { TipoLotacao } from "@/types/servidor";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -340,6 +341,9 @@ export function usePortariasParaAto() {
 }
 
 // Mutation: Lotar servidor
+// Vínculo + lotação + provimento + histórico + minuta de nomeação numa transação (rh_admitir_servidor).
+// Antes eram cinco escritas soltas, as três últimas com `catch` mudo. Vaga do cargo e provimento duplicado
+// são conferidos pelo banco (fn_validar_provimento).
 export function useLotarServidor() {
   const queryClient = useQueryClient();
 
@@ -349,7 +353,6 @@ export function useLotarServidor() {
       unidadeId,
       cargoId,
       dataInicio,
-      tipoLotacao = 'lotacao_interna',
       funcaoExercida,
       atoNumero,
       atoData,
@@ -367,224 +370,92 @@ export function useLotarServidor() {
       atoTipo?: string;
       observacao?: string;
     }) => {
-      // 1. Verificar se servidor já está lotado
-      const { data: lotacaoExistente, error: checkErr } = await supabase
-        .from("lotacoes")
-        .select("id")
-        .eq("servidor_id", servidorId)
-        .eq("ativo", true)
-        .maybeSingle();
-
-      if (checkErr) throw checkErr;
-      if (lotacaoExistente) {
-        throw new Error("Servidor já possui lotação ativa. Exonere primeiro.");
-      }
-
-      // 2. Verificar se cargo ainda tem vagas
       const { data: cargo, error: cargoErr } = await supabase
         .from("cargos")
-        .select("id, quantidade_vagas")
+        .select("categoria")
         .eq("id", cargoId)
         .single();
-
       if (cargoErr) throw cargoErr;
 
-      const { data: ocupacoes, error: ocupErr } = await supabase
-        .from("lotacoes")
-        .select("id")
-        .eq("cargo_id", cargoId)
-        .eq("ativo", true);
-
-      if (ocupErr) throw ocupErr;
-
-      const vagasDisponiveis = (cargo.quantidade_vagas || 0) - (ocupacoes?.length || 0);
-      if (vagasDisponiveis <= 0) {
-        throw new Error("Este cargo não possui mais vagas disponíveis. Selecione outro cargo.");
-      }
-
-      // 3. Criar lotação
-      const { data, error } = await supabase
-        .from("lotacoes")
-        .insert({
-          servidor_id: servidorId,
-          unidade_id: unidadeId,
-          cargo_id: cargoId,
-          data_inicio: dataInicio,
-          tipo_lotacao: tipoLotacao,
-          funcao_exercida: funcaoExercida,
-          ato_numero: atoNumero,
-          ato_data: atoData,
-          ato_tipo: atoTipo,
-          observacao: observacao,
-          tipo_movimentacao: 'lotacao_inicial',
-          ativo: true,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // 4. Criar provimento automático
-      try {
-        await supabase.from("provimentos").insert({
-          servidor_id: servidorId,
-          cargo_id: cargoId,
-          unidade_id: unidadeId,
-          status: 'ativo',
-          data_nomeacao: dataInicio,
-          data_posse: dataInicio,
-          data_exercicio: dataInicio,
-          observacoes: atoNumero ? `Ato: ${atoTipo || 'Portaria'} nº ${atoNumero}${atoData ? ` de ${atoData}` : ''}` : null,
-        });
-      } catch (provErr) {
-        console.error("[Lotação] Erro ao criar provimento:", provErr);
-      }
-
-      // 5. Registrar no histórico funcional
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        
-        // Buscar nomes do cargo e unidade para descrição
-        const [cargoRes, unidadeRes, servidorRes] = await Promise.all([
-          supabase.from("cargos").select("nome, sigla").eq("id", cargoId).maybeSingle(),
-          supabase.from("estrutura_organizacional").select("nome, sigla").eq("id", unidadeId).maybeSingle(),
-          supabase.from("servidores").select("nome_completo").eq("id", servidorId).maybeSingle(),
-        ]);
-
-        const cargoNome = cargoRes.data?.sigla 
-          ? `${cargoRes.data.sigla} - ${cargoRes.data.nome}` 
-          : cargoRes.data?.nome || 'N/A';
-        const unidadeSigla = unidadeRes.data?.sigla || unidadeRes.data?.nome || '';
-
-        await supabase.from("historico_funcional").insert({
-          servidor_id: servidorId,
-          tipo: "nomeacao",
-          data_evento: dataInicio,
-          data_vigencia_inicio: dataInicio,
-          cargo_novo_id: cargoId,
-          unidade_nova_id: unidadeId,
-          portaria_numero: atoNumero || null,
-          portaria_data: atoData || null,
-          descricao: `Lotação e nomeação para cargo ${cargoNome}${unidadeSigla ? ` na ${unidadeSigla}` : ''}`,
-          created_by: userData?.user?.id,
-        });
-
-        // 6. Gerar minuta de portaria
-        const nomeServidor = servidorRes.data?.nome_completo || 'Servidor';
-        const dataDoc = dataInicio;
-        const ano = new Date(dataDoc).getFullYear();
-
-        let numero = `PENDENTE/${ano}`;
-        try {
-          const { data: numData } = await supabase.rpc("gerar_numero_portaria", { p_ano: ano });
-          if (numData) numero = numData as string;
-        } catch { /* keep default */ }
-
-        await supabase.from("documentos").insert({
-          tipo: "portaria",
-          categoria: "nomeacao",
-          status: "minuta",
-          titulo: `Portaria de Nomeação - ${nomeServidor}`,
-          ementa: `Nomeia ${nomeServidor} para o cargo de ${cargoNome}${unidadeSigla ? ` na ${unidadeSigla}` : ''}.`,
-          numero,
-          data_documento: dataDoc,
-          servidores_ids: [servidorId],
-          cargo_id: cargoId,
-          unidade_id: unidadeId,
-          created_by: userData?.user?.id,
-        });
-      } catch (histErr) {
-        console.error("[Lotação] Erro ao registrar histórico/portaria:", histErr);
-      }
-
-      return data;
+      return admitirServidor({
+        servidorId,
+        tipo: cargo.categoria === "efetivo" ? "efetivo" : "comissionado",
+        cargoId,
+        unidadeId,
+        dataInicio,
+        atoTipo,
+        atoNumero,
+        atoData,
+        funcaoExercida,
+        observacao,
+      });
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["servidores-gestao"] });
       queryClient.invalidateQueries({ queryKey: ["estatisticas-lotacao"] });
       queryClient.invalidateQueries({ queryKey: ["cargos-vagos"] });
       queryClient.invalidateQueries({ queryKey: ["provimentos", variables.servidorId] });
       queryClient.invalidateQueries({ queryKey: ["historico-funcional", variables.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["vinculos-servidor", variables.servidorId] });
       queryClient.invalidateQueries({ queryKey: ["portarias"] });
       queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
-      toast.success("Servidor lotado com sucesso! Provimento e histórico registrados.");
+      toast.success(`Servidor lotado! Vínculo, provimento, histórico e minuta de portaria registrados. Protocolo ${data.protocolo}`);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || "Erro ao lotar servidor");
     },
   });
 }
 
-// Mutation: Exonerar servidor (encerrar lotação)
+// Mutation: transferir/remover servidor de unidade, sem exonerar (rh_transferir_servidor)
+export function useTransferirServidor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: TransferirServidorParams) => transferirServidor(params),
+    onSuccess: (resultado, variaveis) => {
+      queryClient.invalidateQueries({ queryKey: ["servidores-gestao"] });
+      queryClient.invalidateQueries({ queryKey: ["estatisticas-lotacao"] });
+      queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
+      queryClient.invalidateQueries({ queryKey: ["historico-funcional", variaveis.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["historico-lotacoes", variaveis.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["vinculos-servidor", variaveis.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["portarias"] });
+      toast.success(`Servidor transferido! Protocolo ${resultado.protocolo}`, {
+        description: resultado.avisos.join(" · ") || undefined,
+        duration: 10000,
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Erro ao transferir servidor");
+    },
+  });
+}
+
+// Mutation: desligar servidor (exoneração, aposentadoria, falecimento…)
+// Uma transação no banco (rh_desligar_servidor): lotação, vínculos, provimento, cessões, designações, férias,
+// licenças, viagens, chefia de unidade e comissões; histórico funcional; minuta de portaria; situação e
+// data de desligamento. O ato e o DOE informados são gravados (antes eram descartados).
 export function useExonerarServidor() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      lotacaoId,
-      dataExoneracao,
-      atoNumero,
-      atoData,
-      atoTipo,
-      observacao,
-    }: {
-      lotacaoId: string;
-      dataExoneracao: string;
-      atoNumero?: string;
-      atoData?: string;
-      atoTipo?: string;
-      observacao?: string;
-    }) => {
-      // Encerrar lotação
-      const { data, error } = await supabase
-        .from("lotacoes")
-        .update({
-          ativo: false,
-          data_fim: dataExoneracao,
-          observacao: observacao 
-            ? `Exoneração: ${observacao}` 
-            : `Exonerado em ${dataExoneracao}`,
-        })
-        .eq("id", lotacaoId)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Também encerrar vínculos ativos do servidor
-      if (data?.servidor_id) {
-        await supabase
-          .from("vinculos_servidor")
-          .update({
-            ativo: false,
-            data_fim: dataExoneracao,
-            motivo_encerramento: observacao || "Exoneração",
-          })
-          .eq("servidor_id", data.servidor_id)
-          .eq("ativo", true);
-
-        // Atualizar situação do servidor
-        await supabase
-          .from("servidores")
-          .update({
-            situacao: "inativo",
-            ativo: false,
-            cargo_atual_id: null,
-            unidade_atual_id: null,
-          })
-          .eq("id", data.servidor_id);
-      }
-
-      return data;
-    },
-    onSuccess: () => {
+    mutationFn: (params: DesligarServidorParams) => desligarServidor(params),
+    onSuccess: (resultado, variaveis) => {
       queryClient.invalidateQueries({ queryKey: ["servidores-gestao"] });
       queryClient.invalidateQueries({ queryKey: ["estatisticas-lotacao"] });
       queryClient.invalidateQueries({ queryKey: ["cargos-vagos"] });
-      toast.success("Servidor exonerado! Lotação encerrada e cargo liberado.");
+      queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
+      queryClient.invalidateQueries({ queryKey: ["historico-funcional", variaveis.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["vinculos-servidor", variaveis.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["portarias"] });
+      toast.success(`Servidor desligado! Protocolo ${resultado.protocolo}`, {
+        description: resultado.avisos.join(" · "),
+        duration: 12000,
+      });
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Erro ao exonerar servidor");
+    onError: (error: Error) => {
+      toast.error(error.message || "Erro ao desligar servidor");
     },
   });
 }

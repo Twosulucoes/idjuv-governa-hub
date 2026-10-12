@@ -189,7 +189,10 @@ export type CampoViagem =
   | "meio_transporte"
   | "quantidade_diarias"
   | "valor_diaria"
-  | "observacoes";
+  | "observacoes"
+  | "relatorio_apresentado"
+  | "relatorio_data"
+  | "relatorio_url";
 
 export const TODOS_CAMPOS_VIAGEM: CampoViagem[] = [
   "servidor_id",
@@ -209,13 +212,22 @@ export const TODOS_CAMPOS_VIAGEM: CampoViagem[] = [
   "observacoes",
 ];
 
-const CAMPOS_EM_ANDAMENTO: CampoViagem[] = ["portaria_numero", "portaria_data", "meio_transporte", "observacoes"];
+/** Prestação de contas: o relatório da viagem. Só se registra depois que a viagem começou (o banco exige para concluir). */
+export const CAMPOS_PRESTACAO_CONTAS: CampoViagem[] = ["relatorio_apresentado", "relatorio_data", "relatorio_url"];
+
+const CAMPOS_EM_ANDAMENTO: CampoViagem[] = [
+  "portaria_numero",
+  "portaria_data",
+  "meio_transporte",
+  "observacoes",
+  ...CAMPOS_PRESTACAO_CONTAS,
+];
 
 /**
  * Campos editáveis em cada status: `solicitada` (ou sem status) → todos;
  * `autorizada` → todos menos o servidor; `em_andamento` → portaria, meio de
- * transporte e observações; `concluida`/`cancelada` → nenhum. (Relatório/prestação
- * de contas ainda não tem tela — fica para o item de prestação de contas.)
+ * transporte, observações e prestação de contas (relatório); `concluida`/`cancelada` → nenhum.
+ * Concluir exige o relatório apresentado e a data (regra do banco).
  */
 export function camposEditaveisPorStatus(status?: string | null): CampoViagem[] {
   if (!status || status === "solicitada") return TODOS_CAMPOS_VIAGEM;

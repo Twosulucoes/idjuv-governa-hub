@@ -22,6 +22,8 @@ interface ResultadoProcessamento {
   total_com_provimento?: number;
   total_sem_vencimento?: number;
   erros?: Array<{ servidor_id: string; nome: string; erro: string }>;
+  avisos?: string[];
+  protocolo?: string;
   erro?: string;
 }
 
@@ -57,13 +59,15 @@ export function ProcessarFolhaDialog({
         total_com_provimento: rawData.total_com_provimento,
         total_sem_vencimento: rawData.total_sem_vencimento,
         erros: rawData.erros ?? rawData.errors ?? [],
+        avisos: rawData.avisos ?? [],
+        protocolo: rawData.protocolo,
         erro: rawData.erro ?? rawData.error,
       };
       
       setResultado(res);
 
       if (res.sucesso) {
-        toast.success(`Folha processada com ${res.servidores_processados} servidores`);
+        toast.success(`Folha processada com ${res.servidores_processados} servidores. Protocolo ${res.protocolo ?? '—'}`);
         queryClient.invalidateQueries({ queryKey: ["folha-detalhe", folhaId] });
         queryClient.invalidateQueries({ queryKey: ["fichas-financeiras", folhaId] });
         queryClient.invalidateQueries({ queryKey: ["folhas-pagamento"] });
@@ -103,19 +107,19 @@ export function ProcessarFolhaDialog({
               <AlertDescription>
                 Este processo irá:
                 <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
-                  <li>Buscar todos os servidores ativos <strong>com provimento ativo</strong></li>
-                  <li>Calcular vencimento base, INSS e IRRF</li>
-                  <li>Aplicar deduções de dependentes</li>
-                  <li>Gerar fichas financeiras individuais</li>
-                  <li>Atualizar totalizadores da folha</li>
+                  <li>Incluir quem tem <strong>provimento no período</strong> (inclusive em férias e licença remunerada)</li>
+                  <li>Calcular vencimento proporcional, faltas, licença sem remuneração, 1/3 de férias, INSS, IRRF, consignações e pensão (13º e rescisão conforme o tipo da folha)</li>
+                  <li>Preservar os <strong>lançamentos manuais</strong> das fichas e refazer o restante</li>
+                  <li>Gerar as fichas, marcar inconsistências e atualizar os totais</li>
+                  <li>Registrar tudo na trilha com um número de protocolo</li>
                 </ul>
                 <p className="mt-2 font-medium">
                   Fichas existentes serão substituídas.
                 </p>
                 {(qtdItens ?? 0) > 0 && (
-                  <p className="mt-1 font-medium text-destructive">
-                    As fichas atuais têm {qtdItens} item(ns) de rubrica, incluindo lançamentos manuais e consignações
-                    lançadas na ficha — todos serão apagados e precisarão ser relançados.
+                  <p className="mt-1 text-sm">
+                    As fichas atuais têm {qtdItens} item(ns). Os itens calculados serão refeitos; os lançamentos manuais
+                    voltam para a ficha do mesmo servidor.
                   </p>
                 )}
               </AlertDescription>
@@ -144,6 +148,9 @@ export function ProcessarFolhaDialog({
                     <strong>{resultado.servidores_processados}</strong> servidores
                     processados com sucesso.
                   </p>
+                  {resultado.protocolo && (
+                    <p className="mt-1">Protocolo: <strong className="font-mono">{resultado.protocolo}</strong></p>
+                  )}
                 </AlertDescription>
               </Alert>
 
@@ -155,14 +162,28 @@ export function ProcessarFolhaDialog({
                   <AlertDescription className="text-blue-700 text-sm">
                     <ul className="space-y-1 mt-1">
                       {resultado.total_servidores_ativos !== undefined && (
-                        <li>• Servidores ativos no sistema: <strong>{resultado.total_servidores_ativos}</strong></li>
+                        <li>• Servidores com provimento no período: <strong>{resultado.total_servidores_ativos}</strong></li>
                       )}
                       {resultado.total_com_provimento !== undefined && (
-                        <li>• Com provimento ativo (elegíveis): <strong>{resultado.total_com_provimento}</strong></li>
+                        <li>• Entraram na folha (elegíveis): <strong>{resultado.total_com_provimento}</strong></li>
                       )}
                       {resultado.total_sem_vencimento !== undefined && resultado.total_sem_vencimento > 0 && (
                         <li className="text-orange-600">• Pulados por cargo sem vencimento: <strong>{resultado.total_sem_vencimento}</strong></li>
                       )}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {resultado.avisos && resultado.avisos.length > 0 && (
+                <Alert className="border-orange-200 bg-orange-50">
+                  <AlertTriangle className="h-4 w-4 text-orange-600" />
+                  <AlertTitle className="text-orange-800">Avisos</AlertTitle>
+                  <AlertDescription>
+                    <ul className="mt-1 text-sm space-y-1">
+                      {resultado.avisos.map((a, i) => (
+                        <li key={i} className="text-orange-700">• {a}</li>
+                      ))}
                     </ul>
                   </AlertDescription>
                 </Alert>
