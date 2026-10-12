@@ -58,11 +58,11 @@ const configSchema = z
     provedor: z.enum(["openai", "anthropic", "gemini", "compativel_openai"]),
     url_base: z.string().trim(),
     modelo: z.string().trim().regex(REGEX_MODELO, "Use letras, números e . _ : / @ - (até 120 caracteres)"),
-    limite_chamadas_hora: z.coerce
-      .number({ invalid_type_error: "Informe um número" })
-      .int("Use um número inteiro")
-      .min(1, "Mínimo 1")
-      .max(1000, "Máximo 1000"),
+    // texto no formulário (sem z.coerce, cujo tipo de entrada muda entre versões do zod)
+    limite_chamadas_hora: z
+      .string()
+      .trim()
+      .refine((v) => /^[0-9]{1,4}$/.test(v) && Number(v) >= 1 && Number(v) <= 1000, "Use um número inteiro de 1 a 1000"),
     teto_tokens_mes: z
       .string()
       .trim()
@@ -80,15 +80,21 @@ const configSchema = z
         message: "Use um endereço https:// com domínio (ex.: https://ia.instituicao.gov.br/v1), até 300 caracteres",
       });
     }
-  })
-  .transform((v) => ({
-    ...v,
-    url_base: v.provedor === "compativel_openai" ? v.url_base : null,
-    teto_tokens_mes: v.teto_tokens_mes === "" ? null : Number(v.teto_tokens_mes),
-  }));
+  });
 
-type ConfigForm = z.input<typeof configSchema>;
-type ConfigDados = z.output<typeof configSchema>;
+type ConfigForm = z.infer<typeof configSchema>;
+
+// Conversão para o banco fora do schema: transform no objeto inteiro quebra a inferência do
+// zodResolver em versões novas do react-hook-form.
+const paraBanco = (v: ConfigForm): ConfigIAInput => ({
+  ativo: !!v.ativo,
+  provedor: v.provedor,
+  url_base: v.provedor === "compativel_openai" ? v.url_base || null : null,
+  modelo: v.modelo,
+  limite_chamadas_hora: Number(v.limite_chamadas_hora),
+  teto_tokens_mes: v.teto_tokens_mes ? Number(v.teto_tokens_mes) : null,
+  enviar_dados_pessoais: !!v.enviar_dados_pessoais,
+});
 
 function Erro({ id, mensagem }: { id?: string; mensagem?: string }) {
   return mensagem ? (
@@ -103,7 +109,7 @@ const valoresIniciais = (c?: ConfigIAInput | null): ConfigForm => ({
   provedor: c?.provedor ?? "openai",
   url_base: c?.url_base ?? "",
   modelo: c?.modelo ?? "",
-  limite_chamadas_hora: c?.limite_chamadas_hora ?? 30,
+  limite_chamadas_hora: String(c?.limite_chamadas_hora ?? 30),
   teto_tokens_mes: c?.teto_tokens_mes != null ? String(c.teto_tokens_mes) : "",
   enviar_dados_pessoais: c?.enviar_dados_pessoais ?? false,
 });
@@ -122,11 +128,7 @@ function ConfiguracaoCard({
 }) {
   const salvar = useSalvarConfigIA();
 
-  const { register, control, handleSubmit, watch, reset, setValue, formState: { errors, isDirty } } = useForm<
-    ConfigForm,
-    unknown,
-    ConfigDados
-  >({ resolver: zodResolver(configSchema), defaultValues: valoresIniciais(config) });
+  const { register, control, handleSubmit, watch, reset, setValue, formState: { errors, isDirty } } = useForm<ConfigForm>({ resolver: zodResolver(configSchema), defaultValues: valoresIniciais(config) });
 
   // Nova versão do banco (ex.: depois de gravar a chave) sem perder o que está sendo editado.
   useEffect(() => {
@@ -167,9 +169,9 @@ function ConfiguracaoCard({
     }
   }, [motivoBloqueio, ativo, setValue, config?.ativo]);
 
-  // handleSubmit entrega os valores já transformados pelo zod (url_base e teto vazios → null).
-  const onSubmit = handleSubmit((dados) => {
-    const input: ConfigIAInput = { ...(dados as ConfigIAInput), ativo: motivoBloqueio ? false : dados.ativo };
+  const onSubmit = handleSubmit((valores) => {
+    const dados = paraBanco(valores);
+    const input: ConfigIAInput = { ...dados, ativo: motivoBloqueio ? false : dados.ativo };
     // Após salvar, o salvo vira a base do formulário (isDirty volta a false).
     salvar.mutate(input, {
       onSuccess: () => {
