@@ -37,7 +37,7 @@ function sanitizeFilename(input: string) {
     .trim();
 }
 
-export function buildPortariaPdfDoc(params: {
+export async function buildPortariaPdfDoc(params: {
   portaria: MinimalPortaria;
   servidor: MinimalServidor;
   cargo: MinimalCargo;
@@ -47,12 +47,12 @@ export function buildPortariaPdfDoc(params: {
   unidadeDestino?: MinimalUnidade;
   dataInicio?: string;
   dataFim?: string;
-}): jsPDF {
+}): Promise<jsPDF> {
   const { portaria, servidor, cargo, unidade } = params;
 
   switch (portaria.categoria) {
     case "nomeacao":
-      return generatePortariaNomeacao(
+      return await generatePortariaNomeacao(
         {
           numero: portaria.numero,
           data_documento: portaria.data_documento,
@@ -75,7 +75,7 @@ export function buildPortariaPdfDoc(params: {
       );
 
     case "exoneracao":
-      return generatePortariaExoneracao(
+      return await generatePortariaExoneracao(
         {
           numero: portaria.numero,
           data_documento: portaria.data_documento,
@@ -103,7 +103,7 @@ export function buildPortariaPdfDoc(params: {
         params.unidadeDestino &&
         params.dataInicio
       ) {
-        return generatePortariaDesignacao(
+        return await generatePortariaDesignacao(
           {
             numero: portaria.numero,
             data_documento: portaria.data_documento,

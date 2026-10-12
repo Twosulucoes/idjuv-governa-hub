@@ -187,7 +187,7 @@ export function PortariaColetivaDialog({
       const servidoresParaPdf = await fetchServidoresData();
       const tipoAcao = categoria === 'exoneracao_coletiva' ? 'exoneracao' : 'nomeacao';
 
-      const doc = generatePortariaColetivaComTabela(
+      const doc = await generatePortariaColetivaComTabela(
         { numero, data_documento: dataDocumento },
         cabecalho,
         servidoresParaPdf,
