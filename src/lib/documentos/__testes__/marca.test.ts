@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { TenantConfig } from '@/core/tenant';
-import { marcaDoTenant } from '../marca';
+import { enderecoDoTenant, marcaDoTenant } from '../marca';
 import { PNG_1X1 } from './fixtures';
 
 const tenant = {
   identidade: { nomeOficial: 'Instituto de Exemplo', nomeParaDocumentos: undefined },
   entidadeSuperior: { nome: 'Governo de Exemplo', exibirEmDocumentos: true },
   marca: { corPrimariaHex: '#164069' },
+  endereco: { logradouro: 'Av. Exemplo', numero: '10', complemento: 'Anexo X', bairro: 'Centro', cep: '00.000-000', cidade: 'Cidade Exemplo', uf: 'EX' },
 } as unknown as TenantConfig;
 
 describe('marcaDoTenant', () => {
@@ -31,5 +32,14 @@ describe('marcaDoTenant', () => {
     expect(m.nomeSistema).toBe('Sistema / EX');
     expect(m.logoOrgao).toBe(logo);
     expect(m.logoEntidadeSuperior).toBeUndefined();
+  });
+
+  it('endereço do rodapé: junta só o que existe, nunca "undefined"', () => {
+    expect(enderecoDoTenant(tenant)).toBe('Av. Exemplo, 10, Anexo X – Centro – CEP 00.000-000 – Cidade Exemplo/EX');
+    const parcial = { ...tenant, endereco: { cidade: 'Cidade Exemplo', uf: 'EX' } } as TenantConfig;
+    expect(enderecoDoTenant(parcial)).toBe('Cidade Exemplo/EX');
+    expect(enderecoDoTenant({ ...tenant, endereco: undefined } as TenantConfig)).toBe('');
+    expect(marcaDoTenant(tenant, { nomeSistema: 'S' }).enderecoRodape).toBe('Av. Exemplo, 10, Anexo X – Centro – CEP 00.000-000 – Cidade Exemplo/EX');
+    expect(marcaDoTenant({ ...tenant, endereco: undefined } as TenantConfig, { nomeSistema: 'S' }).enderecoRodape).toBeUndefined();
   });
 });

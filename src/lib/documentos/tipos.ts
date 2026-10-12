@@ -25,6 +25,8 @@ export interface MarcaImpressao {
   corPrimaria: RGB;
   logoOrgao?: LogoImpressao;
   logoEntidadeSuperior?: LogoImpressao;
+  /** Endereço impresso no rodapé de todas as páginas (vem do perfil do tenant). */
+  enderecoRodape?: string;
 }
 
 export interface Emissao {

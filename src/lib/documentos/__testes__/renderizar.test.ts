@@ -30,7 +30,7 @@ const modelo: DocumentoModelo<Dados> = {
   ],
 };
 
-const renderizar = (d: Dados, m = modelo) => renderizarDocumento(m, d, marcaTeste, emissaoTeste);
+const renderizar = (d: Dados, m = modelo, marca = marcaTeste) => renderizarDocumento(m, d, marca, emissaoTeste);
 
 describe('renderizarDocumento', () => {
   it('120 linhas ocupam 3 páginas e o rodapé numera "Página X de 3"', async () => {
@@ -89,5 +89,23 @@ describe('renderizarDocumento', () => {
     expect(p1.largura).toBeGreaterThan(p1.altura);
     const minX = Math.min(...p1.itens.map((i) => i.x));
     expect(minX).toBeGreaterThanOrEqual(mmParaPt(PAGINA.margemLateral) - 1);
+  });
+
+  it('rodapé imprime o endereço da marca sem encostar no nome do sistema; sem endereço, nada é impresso', async () => {
+    const marca = { ...marcaTeste, enderecoRodape: 'Av. Exemplo, 10, Anexo X – Centro – CEP 00.000-000 – Cidade Exemplo/EX' };
+    const [com] = await lerPdf(renderizar({ n: 1 }, modelo, marca).doc);
+    const end = com.itens.find((i) => i.str.startsWith('Av. Exemplo'))!;
+    const sis = com.itens.find((i) => i.str.includes('Sistema de Teste'))!;
+    expect(end.x + end.largura).toBeLessThan(sis.x);
+    const [sem] = await lerPdf(renderizar({ n: 1 }).doc);
+    expect(sem.texto).not.toContain('Av. Exemplo');
+  });
+
+  it('endereço muito longo é cortado antes do nome do sistema (nunca sobrepõe)', async () => {
+    const marca = { ...marcaTeste, enderecoRodape: 'Rua '.concat('muito longa '.repeat(30)) };
+    const [p1] = await lerPdf(renderizar({ n: 1 }, modelo, marca).doc);
+    const end = p1.itens.find((i) => i.str.startsWith('Rua'))!;
+    const sis = p1.itens.find((i) => i.str.includes('Sistema de Teste'))!;
+    expect(end.x + end.largura).toBeLessThan(sis.x);
   });
 });
