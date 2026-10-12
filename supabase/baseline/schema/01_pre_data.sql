@@ -3617,6 +3617,34 @@ $$;
 
 
 --
+-- Name: fixar_autoria_ia_config(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fixar_autoria_ia_config() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  NEW.updated_by := auth.uid();
+  NEW.updated_at := now();
+  IF TG_OP = 'INSERT' THEN
+    NEW.created_at := now();
+  ELSE
+    NEW.created_at := OLD.created_at;
+    IF NEW.provedor IS DISTINCT FROM OLD.provedor
+       OR NEW.url_base IS DISTINCT FROM OLD.url_base THEN
+      NEW.segredo_id := NULL;
+      NEW.segredo_final := NULL;
+      NEW.segredo_atualizado_em := NULL;
+      NEW.ativo := false;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: fn_atualizar_empenho_liquidacao(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -7023,6 +7051,47 @@ $$;
 
 
 --
+-- Name: ia_config_servidor(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.ia_config_servidor() RETURNS jsonb
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_cfg public.ia_config%ROWTYPE;
+  v_chave text;
+  v_tokens bigint;
+BEGIN
+  SELECT * INTO v_cfg FROM public.ia_config WHERE id;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_cfg.segredo_id IS NOT NULL THEN
+    SELECT d.decrypted_secret INTO v_chave FROM vault.decrypted_secrets d WHERE d.id = v_cfg.segredo_id;
+  END IF;
+  SELECT coalesce(sum(u.tokens_entrada::bigint + u.tokens_saida), 0) INTO v_tokens
+    FROM public.ia_uso u
+   WHERE u.created_at >= date_trunc('month', now(), 'UTC');
+  RETURN (to_jsonb(v_cfg) - 'segredo_id') || jsonb_build_object('chave', v_chave, 'tokens_mes', v_tokens);
+END;
+$$;
+
+
+--
+-- Name: ia_disponivel(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.ia_disponivel() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT public.pode_usar_ia()
+     AND coalesce((SELECT c.ativo FROM public.ia_config c WHERE c.id), false);
+$$;
+
+
+--
 -- Name: importar_arquivo_bancario(jsonb, jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -8518,6 +8587,19 @@ $$;
 
 
 --
+-- Name: pode_configurar_ia(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pode_configurar_ia() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT public.perfil_ativo_atual()
+     AND public.has_permission_code(auth.uid(), 'ia.configurar');
+$$;
+
+
+--
 -- Name: pode_gerenciar_avisos(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -8527,6 +8609,20 @@ CREATE FUNCTION public.pode_gerenciar_avisos() RETURNS boolean
     AS $$
   SELECT public.perfil_ativo_atual()
      AND public.has_permission_code(auth.uid(), 'avisos.gerenciar');
+$$;
+
+
+--
+-- Name: pode_usar_ia(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pode_usar_ia() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT public.perfil_ativo_atual()
+     AND public.can_access_module(auth.uid(), 'compras')
+     AND public.has_permission_code(auth.uid(), 'ia.usar');
 $$;
 
 
@@ -10283,6 +10379,33 @@ COMMENT ON FUNCTION public.responsavel_atual() IS 'Responsável pelo comando atu
 
 
 --
+-- Name: resumo_uso_ia_mes(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.resumo_uso_ia_mes() RETURNS jsonb
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v jsonb;
+BEGIN
+  IF NOT public.pode_configurar_ia() THEN
+    RAISE EXCEPTION 'Sem permissão para ver o uso da IA' USING ERRCODE = '42501';
+  END IF;
+  SELECT jsonb_build_object(
+           'chamadas', count(*),
+           'tokens_entrada', coalesce(sum(u.tokens_entrada), 0),
+           'tokens_saida', coalesce(sum(u.tokens_saida), 0),
+           'teto_tokens_mes', (SELECT c.teto_tokens_mes FROM public.ia_config c WHERE c.id))
+    INTO v
+    FROM public.ia_uso u
+   WHERE u.created_at >= date_trunc('month', now(), 'UTC');
+  RETURN v;
+END;
+$$;
+
+
+--
 -- Name: rh_admitir_servidor(uuid, public.tipo_vinculo_servidor, uuid, uuid, date, text, text, text, date, text, date, boolean, text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -11449,6 +11572,57 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: salvar_chave_ia(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.salvar_chave_ia(p_chave text) RETURNS timestamp with time zone
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_id uuid;
+  v_nome constant text := 'ia_chave_api';
+  v_agora timestamptz := now();
+BEGIN
+  IF NOT public.pode_configurar_ia() THEN
+    RAISE EXCEPTION 'Sem permissão para configurar a IA' USING ERRCODE = '42501';
+  END IF;
+  -- [[:graph:]] em todo o texto: sem espaço, quebra de linha nem caractere de controle (a chave vai
+  -- num header HTTP; um \n embutido permitiria injetar header).
+  IF p_chave IS NULL OR char_length(p_chave) < 8 OR char_length(p_chave) > 4096
+     OR p_chave !~ '^[[:graph:]]+$' THEN
+    RAISE EXCEPTION 'Chave inválida: de 8 a 4096 caracteres, sem espaço, quebra de linha ou caractere de controle' USING ERRCODE = '22023';
+  END IF;
+
+  -- Exige a configuração salva antes: trocar o provedor depois apagaria a chave (trigger acima).
+  SELECT segredo_id INTO v_id FROM public.ia_config
+   WHERE id AND provedor IS NOT NULL
+   FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Salve o provedor da IA antes de gravar a chave' USING ERRCODE = '22023';
+  END IF;
+
+  -- vínculo apagado (troca de provedor/URL) mas segredo ainda no Vault: reaproveita pelo nome (que é único)
+  IF v_id IS NULL THEN
+    SELECT s.id INTO v_id FROM vault.secrets s WHERE s.name = v_nome;
+  END IF;
+
+  IF v_id IS NULL THEN
+    v_id := vault.create_secret(p_chave, v_nome, 'Chave de API do provedor de IA');
+  ELSE
+    PERFORM vault.update_secret(v_id, p_chave);
+  END IF;
+
+  UPDATE public.ia_config
+     SET segredo_id = v_id, segredo_final = right(p_chave, 4), segredo_atualizado_em = v_agora
+   WHERE id;
+
+  RETURN v_agora;
+END;
+$_$;
 
 
 --
@@ -18456,6 +18630,73 @@ CREATE TABLE public.horarios_jornada (
     updated_by uuid,
     updated_by_servidor_id uuid
 );
+
+
+--
+-- Name: ia_config; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ia_config (
+    id boolean DEFAULT true NOT NULL,
+    ativo boolean DEFAULT false NOT NULL,
+    provedor text,
+    url_base text,
+    modelo text,
+    limite_chamadas_hora integer DEFAULT 30 NOT NULL,
+    teto_tokens_mes bigint,
+    enviar_dados_pessoais boolean DEFAULT false NOT NULL,
+    segredo_id uuid,
+    segredo_final text,
+    segredo_atualizado_em timestamp with time zone,
+    updated_by uuid DEFAULT auth.uid(),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ia_config_ativo_ck CHECK (((NOT ativo) OR ((provedor IS NOT NULL) AND (modelo IS NOT NULL) AND (segredo_id IS NOT NULL)))),
+    CONSTRAINT ia_config_id_check CHECK (id),
+    CONSTRAINT ia_config_limite_chamadas_hora_check CHECK (((limite_chamadas_hora >= 1) AND (limite_chamadas_hora <= 1000))),
+    CONSTRAINT ia_config_modelo_check CHECK (((modelo IS NULL) OR (modelo ~ '^[A-Za-z0-9._:/@-]{1,120}$'::text))),
+    CONSTRAINT ia_config_provedor_check CHECK ((provedor = ANY (ARRAY['openai'::text, 'anthropic'::text, 'gemini'::text, 'compativel_openai'::text]))),
+    CONSTRAINT ia_config_segredo_final_check CHECK (((segredo_final IS NULL) OR (char_length(segredo_final) = 4))),
+    CONSTRAINT ia_config_teto_tokens_mes_check CHECK (((teto_tokens_mes IS NULL) OR (teto_tokens_mes > 0))),
+    CONSTRAINT ia_config_url_base_check CHECK (((url_base IS NULL) OR ((char_length(url_base) <= 300) AND (url_base ~ '^https://[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(:[0-9]{2,5})?(/[A-Za-z0-9._~/-]*)?$'::text)))),
+    CONSTRAINT ia_config_url_base_ck CHECK (((url_base IS NOT NULL) = (NOT (provedor IS DISTINCT FROM 'compativel_openai'::text))))
+);
+
+
+--
+-- Name: TABLE ia_config; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.ia_config IS 'Configuração da IA da instância (linha única). A chave de API fica no Vault (segredo_id), nunca legível pela API.';
+
+
+--
+-- Name: ia_uso; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ia_uso (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid,
+    recurso text NOT NULL,
+    provedor text NOT NULL,
+    modelo text NOT NULL,
+    tokens_entrada integer DEFAULT 0 NOT NULL,
+    tokens_saida integer DEFAULT 0 NOT NULL,
+    tokens_estimados boolean DEFAULT false NOT NULL,
+    status text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ia_uso_recurso_check CHECK ((recurso ~ '^[a-z0-9_]{2,40}$'::text)),
+    CONSTRAINT ia_uso_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'erro'::text, 'cortado'::text]))),
+    CONSTRAINT ia_uso_tokens_entrada_check CHECK ((tokens_entrada >= 0)),
+    CONSTRAINT ia_uso_tokens_saida_check CHECK ((tokens_saida >= 0))
+);
+
+
+--
+-- Name: TABLE ia_uso; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.ia_uso IS 'Uma linha por chamada de IA (sem prompt nem resposta). Gravada só pela Edge Function ia-gateway (service role).';
 
 
 --

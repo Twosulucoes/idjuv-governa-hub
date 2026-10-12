@@ -66,6 +66,7 @@ import {
   Bell,
   Mail,
   ArrowLeftRight,
+  Sparkles,
 } from "lucide-react";
 
 // ================================
@@ -143,7 +144,9 @@ export type PermissaoInstitucional =
   | 'admin.config'
   | 'admin.backup'
   | 'admin.envios'
-  | 'admin.configuracao_cliente';
+  | 'admin.configuracao_cliente'
+  // IA da instituição
+  | 'ia.configurar';
 
 export interface MenuItem {
   id: string;
@@ -1297,6 +1300,14 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/envios",
         icon: Mail,
         permission: "admin.envios",
+      },
+      {
+        id: "ia",
+        label: "Inteligência Artificial",
+        labelShort: "IA",
+        route: "/admin/ia",
+        icon: Sparkles,
+        permission: "ia.configurar",
       },
       {
         id: "configuracao-cliente",

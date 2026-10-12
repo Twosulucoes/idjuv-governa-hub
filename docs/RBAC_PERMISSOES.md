@@ -948,6 +948,26 @@ Nenhuma das duas vem por padrão de papel: conceda em `user_permissions` a quem 
 rota aceita qualquer das duas; a RLS de `config_envio`/`envios_log`, a RPC `salvar_segredo_envio` e a
 Edge Function `enviar-notificacao` exigem a mesma permissão.
 
+### IA da instituição
+
+Migração `supabase/migrations/20261012200000_ia_config_gateway.sql` (fase 1 da IA de compras, em PR rascunho):
+
+- **`ia.usar`** (módulo `compras`, categoria `IA`, `action_type = 'usar'`): usar o assistente de IA (hoje os botões
+  do formulário CPSI). Exige também o módulo `compras`: `pode_usar_ia()` = perfil ativo + `can_access_module(compras)`
+  + `has_permission_code(ia.usar)`; a permissão avulsa sem o módulo não basta. Os botões só aparecem quando
+  `ia_disponivel()` (IA ligada e `pode_usar_ia()`) devolve `true`; a rota `/formularios/cpsi` continua só com login.
+- **`ia.configurar`** (módulo `admin`, categoria `IA`, `action_type = 'configurar'`): ligar/desligar a IA, escolher
+  provedor, modelo e limites, gravar a chave e ver o uso. `pode_configurar_ia()` = perfil ativo +
+  `has_permission_code(ia.configurar)`.
+- Nenhuma das duas vem por padrão de papel (admin passa por cima em `has_permission_code`): conceda em
+  `user_permissions`.
+- **Rota:** `/admin/ia` (`ConfigIAPage`, `ProtectedRoute requiredPermissions="ia.configurar"`, também em
+  `ROUTE_PERMISSIONS`), item "Inteligência Artificial" no menu do admin filtrado pela mesma permissão.
+- **Banco e Edge Function:** a RLS de `ia_config`/`ia_uso` e as RPCs `salvar_chave_ia` e `resumo_uso_ia_mes` exigem
+  `pode_configurar_ia()`; o `ia-gateway` chama `pode_usar_ia()` (recurso `cpsi`) ou `pode_configurar_ia()` (recurso
+  `testar`) como o próprio usuário antes de usar a service role e responde `403` sem permissão (ver
+  [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md#ia-da-instituição-ia-gateway)).
+
 ### Configuração do cliente
 
 `admin.configuracao_cliente` (ver a tela `/admin/configuracao-cliente`), no catálogo do módulo `admin`,

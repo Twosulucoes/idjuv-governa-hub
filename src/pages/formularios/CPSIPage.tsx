@@ -4,6 +4,8 @@
  * 
  * Gera: DFD, ETP e TR para processo de aquisição de soluções inovadoras
  * Integra IA para: preenchimento automático, assistência por campo e revisão
+ * (os botões de IA só aparecem quando ia_disponivel() confirma IA ligada e permissão ia.usar;
+ * sem IA o formulário continua funcionando normalmente)
  */
 
 import { useState } from 'react';
@@ -20,6 +22,7 @@ import { toast } from 'sonner';
 import { generateDFD, generateETP, generateTR } from '@/lib/pdfCPSI';
 import type { DFDData, ETPData, TRData } from '@/lib/pdfCPSI';
 import { useAICPSI } from '@/hooks/useAICPSI';
+import { useIADisponivel } from '@/hooks/useConfigIA';
 
 // ============ AI FIELD WRAPPER ============
 
@@ -31,29 +34,34 @@ interface AIFieldProps {
   onGenerate: () => void;
 }
 
-const AIField = ({ label, fieldName, children, isLoading, onGenerate }: AIFieldProps) => (
-  <div className="space-y-2">
-    <div className="flex items-center justify-between">
-      <label className="text-sm font-medium">{label}</label>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onGenerate}
-        disabled={isLoading}
-        className="h-7 px-2 text-xs text-primary hover:text-primary"
-      >
-        {isLoading ? (
-          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-        ) : (
-          <Wand2 className="h-3 w-3 mr-1" />
+const AIField = ({ label, fieldName, children, isLoading, onGenerate }: AIFieldProps) => {
+  const { data: iaDisponivel } = useIADisponivel();
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium">{label}</label>
+        {iaDisponivel === true && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onGenerate}
+            disabled={isLoading}
+            className="h-7 px-2 text-xs text-primary hover:text-primary"
+          >
+            {isLoading ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <Wand2 className="h-3 w-3 mr-1" />
+            )}
+            {isLoading ? 'Gerando...' : 'IA'}
+          </Button>
         )}
-        {isLoading ? 'Gerando...' : 'IA'}
-      </Button>
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+};
 
 // ============ AI TOOLBAR ============
 
@@ -64,36 +72,40 @@ interface AIToolbarProps {
   isReviewing: boolean;
 }
 
-const AIToolbar = ({ onFillAll, onReview, isFillingAll, isReviewing }: AIToolbarProps) => (
-  <div className="flex flex-wrap gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-    <div className="flex items-center gap-1.5 mr-2">
-      <Sparkles className="h-4 w-4 text-primary" />
-      <span className="text-sm font-medium text-primary">Assistente IA</span>
+const AIToolbar = ({ onFillAll, onReview, isFillingAll, isReviewing }: AIToolbarProps) => {
+  const { data: iaDisponivel } = useIADisponivel();
+  if (iaDisponivel !== true) return null;
+  return (
+    <div className="flex flex-wrap gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+      <div className="flex items-center gap-1.5 mr-2">
+        <Sparkles className="h-4 w-4 text-primary" />
+        <span className="text-sm font-medium text-primary">Assistente IA</span>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onFillAll}
+        disabled={isFillingAll || isReviewing}
+        className="h-8"
+      >
+        {isFillingAll ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
+        {isFillingAll ? 'Preenchendo...' : 'Preencher Tudo'}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onReview}
+        disabled={isFillingAll || isReviewing}
+        className="h-8"
+      >
+        {isReviewing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1.5" />}
+        {isReviewing ? 'Revisando...' : 'Revisar com IA'}
+      </Button>
     </div>
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={onFillAll}
-      disabled={isFillingAll || isReviewing}
-      className="h-8"
-    >
-      {isFillingAll ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
-      {isFillingAll ? 'Preenchendo...' : 'Preencher Tudo'}
-    </Button>
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={onReview}
-      disabled={isFillingAll || isReviewing}
-      className="h-8"
-    >
-      {isReviewing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1.5" />}
-      {isReviewing ? 'Revisando...' : 'Revisar com IA'}
-    </Button>
-  </div>
-);
+  );
+};
 
 // ============ AI FILL DIALOG ============
 
@@ -787,6 +799,7 @@ const TRForm = () => {
 // ============ PÁGINA PRINCIPAL ============
 
 const CPSIPage = () => {
+  const { data: iaDisponivel } = useIADisponivel();
   return (
     <MainLayout>
       <div className="container mx-auto px-4 py-8">
@@ -806,13 +819,15 @@ const CPSIPage = () => {
                   <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle>CPSI — Contrato Público de Solução Inovadora</CardTitle>
                     <Badge variant="secondary" className="text-xs">LC 182/2021</Badge>
-                    <Badge className="text-xs bg-primary/20 text-primary border-primary/30">
-                      <Sparkles className="h-3 w-3 mr-1" />
-                      IA Integrada
-                    </Badge>
+                    {iaDisponivel === true && (
+                      <Badge className="text-xs bg-primary/20 text-primary border-primary/30">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        IA Integrada
+                      </Badge>
+                    )}
                   </div>
                   <CardDescription>
-                    Gere os documentos necessários para abrir processo de contratação de soluções inovadoras — com assistência de IA
+                    Gere os documentos necessários para abrir processo de contratação de soluções inovadoras{iaDisponivel === true && ' — com assistência de IA'}
                   </CardDescription>
                 </div>
               </div>
@@ -838,8 +853,13 @@ const CPSIPage = () => {
                 </TabsList>
 
                 <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                  <strong>Fluxo recomendado:</strong> DFD → ETP → TR (conforme IN SEGES/MP nº 5/2017, art. 20) &nbsp;|&nbsp;
-                  <Sparkles className="h-3.5 w-3.5 inline" /> Use os botões de IA para preencher campos automaticamente ou revisar o documento.
+                  <strong>Fluxo recomendado:</strong> DFD → ETP → TR (conforme IN SEGES/MP nº 5/2017, art. 20)
+                  {iaDisponivel === true && (
+                    <>
+                      {' '}&nbsp;|&nbsp;
+                      <Sparkles className="h-3.5 w-3.5 inline" /> Use os botões de IA para preencher campos automaticamente ou revisar o documento.
+                    </>
+                  )}
                 </div>
 
                 <TabsContent value="dfd" className="mt-6">

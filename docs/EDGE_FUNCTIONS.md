@@ -20,7 +20,7 @@ São invocadas do front via `supabase.functions.invoke('<nome>', { body })`.
 | `download-frequencia` | Devolve URL assinada (1 h) do arquivo de um pacote de frequência do bucket privado `frequencias`, ou só os dados do pacote (`action=info`). Exige o módulo `rh` e `rh.frequencia.visualizar` (ver abaixo). |
 | `database-schema` | Inspeciona o schema do banco (apoia a tela `DatabaseSchemaPage`). |
 | `backup-offsite` | Executa/orquestra backup off-site (apoia `BackupOffsitePage`). |
-| `cpsi-ai-assistant` | Assistente de IA para o formulário CPSI (`CPSIPage`). |
+| `ia-gateway` | Porta única de IA do sistema: recurso `cpsi` (assistente do formulário CPSI, `CPSIPage`) e `testar` (tela `/admin/ia`). Substitui a antiga `cpsi-ai-assistant` (ver abaixo). |
 | `bb-api` | APIs de leitura do Banco do Brasil: `status` da conexão, `extrato` (API Extratos v2, grava em `fin_extrato_lancamentos`) e `validar-conta` (API Validação de Contas v1). Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
 
 ### Envio de e-mail e WhatsApp (`_shared/envio`)
@@ -66,11 +66,56 @@ senha de **outro** administrador (só a recuperação por e-mail, que chega ao d
 trilha de `user_roles`). Todo reset de senha grava `audit_logs` (`password_reset`, quem fez e para quem, nunca a senha).
 `database-schema` também passou a exigir o papel `admin` (antes bastava `admin.usuarios`).
 
-### Assistente de IA (`cpsi-ai-assistant`)
+### IA da instituição (`ia-gateway`)
 
-Exige sessão, o módulo `compras` e respeita limites: 10.000 caracteres por campo, 60.000 no pedido inteiro,
-16.384 tokens de resposta (com 2.048 de raciocínio) e 30 chamadas por usuário por hora. Resposta cortada pelo
-teto vira erro claro (422). Erros internos não vão para o navegador.
+Fase 1 da IA de compras ([spec](./superpowers/specs/2026-10-11-ia-compras-design.md)). Substitui a
+`cpsi-ai-assistant`, que usava uma chave fixa do Gemini (`GEMINI_API_KEY`/`GEMINI_MODEL`): esses segredos
+deixam de ser lidos. Provedor, modelo, URL base, limites e chave vêm do banco da instância (`ia_config`,
+preenchida em `/admin/ia`, chave no Vault) pela RPC `ia_config_servidor()`, que só a service role executa
+([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)). Do ambiente, a função lê só `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY` e `ALLOWED_ORIGINS` (CORS por allowlist, como `admin-create-user`).
+
+- **Ordem do handler:** sessão → permissão com o cliente da própria pessoa (`pode_usar_ia()` no `cpsi`,
+  `pode_configurar_ia()` no `testar`) → validação do corpo → `ia_config_servidor()` → IA desligada (`409`) →
+  teto mensal de tokens (`429`) → `consumir_cota_uso` (tipo `ia`, módulo `compras`, limite
+  `ia_config.limite_chamadas_hora`) → provedor → linha em `ia_uso` (também em erro e cortado; no stream, ao
+  terminar, com os tokens contados até ali).
+- **Recursos** (`POST`, body `{recurso, ...}`):
+  - `cpsi` `{action, documentType, context?, fieldName?, fieldLabel?, currentValue?, formData?}`: mesmas entradas,
+    prompts e respostas da antiga função (`{fields}` no `fill_all`, `{content}` no `fill_field`, stream SSE no
+    `review`, no formato `data: {"choices":[{"delta":{"content":...}}]}` que `useAICPSI.ts` lê). Limites: 10.000
+    caracteres por campo, 60.000 no pedido, 60 entradas em `formData`, 16.384 tokens de resposta.
+  - `testar`: chamada mínima (16 tokens) para conferir provedor, modelo e chave; funciona com a IA desligada e
+    devolve `{ok, provedor, modelo}`.
+- **Erros:** sempre JSON `{error, codigo}`:
+
+  | HTTP | `codigo` | Quando |
+  |---|---|---|
+  | 401 | `sem_sessao` | sem `Authorization` ou sessão inválida |
+  | 403 | `sem_permissao` | sem `ia.usar` + módulo `compras` (`cpsi`) ou sem `ia.configurar` (`testar`) |
+  | 400 | `pedido_invalido` | recurso desconhecido ou corpo fora dos limites |
+  | 409 | `ia_desligada` / `sem_chave` | IA desligada ou incompleta (`cpsi`) / sem chave, provedor ou modelo (`testar`) |
+  | 429 | `cota_hora` / `teto_mes` | limite por pessoa por hora / teto mensal de tokens da instituição |
+  | 422 | `cortado` / `resposta_invalida` | resposta passou do tamanho máximo / JSON do `fill_all` ilegível |
+  | 502 / 504 | `provedor` | provedor recusou, falhou, redirecionou ou demorou (504 = tempo esgotado) |
+  | 500 | `erro_interno` | falha ao checar permissão, ler a configuração, verificar a cota ou erro inesperado |
+
+- **Adaptadores** em `supabase/functions/_shared/ia/`: `provedores.ts` (`gerarTexto`/`gerarStream` para
+  `openai`, `anthropic`, `gemini` e `compativel_openai`; chave só no header, nunca na URL; `redirect: "manual"`;
+  timeout de 120 s; erro do provedor sem o corpo da resposta; tokens estimados por caracteres/4 quando o provedor
+  não informa), `url.ts` (`validarUrlBase` do provedor compatível: só `https`, sem usuário/senha, query ou
+  fragmento, sem `localhost`/`.local`/`.internal`, IPv6 literal, IPv4 privado ou reservado, nem nome sem ponto;
+  `verificarDestino` ainda resolve o nome via `Deno.resolveDns` e recusa se algum endereço for privado ou for o
+  host de `SUPABASE_URL`. Resta o risco de DNS rebinding entre a checagem e a conexão: a proteção definitiva é
+  um firewall de saída na VPS bloqueando faixas privadas para o container das Edge Functions)
+  e `recursos/cpsi.ts` (prompts, campos, validação e parse movidos da função antiga). Testes `deno test` em
+  `*.test.ts` na mesma pasta.
+- **LGPD:** nem a chave, nem o texto do pedido, nem o da resposta vão para log ou para `ia_uso`; o log leva só
+  mensagens genéricas e o status HTTP do provedor. O campo `ia_config.enviar_dados_pessoais` é gravado pela tela,
+  mas o gateway ainda não o usa.
+- **Deploy (pós-merge):** `supabase functions deploy ia-gateway` e `supabase functions delete cpsi-ai-assistant`;
+  em `/admin/ia`, escolher o provedor, gravar a chave, testar e ligar; conceder `ia.usar` a quem é de compras.
+  Depois de conferir, apagar os segredos `GEMINI_API_KEY` e `GEMINI_MODEL`.
 
 ### Convite de reunião (`enviar-convite-reuniao`)
 

@@ -203,7 +203,7 @@ Não há servidor de relatórios: 38 geradores `pdf*.ts`, `wordPortarias.ts` (do
 | `database-schema` | Introspecção de schema para a UI de admin |
 | `download-frequencia` | Pacotes de frequência |
 | `enviar-convite-reuniao` | E-mail transacional (Resend) |
-| `cpsi-ai-assistant` | Assistente de IA |
+| `ia-gateway` | Porta única de IA (provedor e chave configurados pela instituição em `/admin/ia`) |
 
 ### Banco e migrações
 

@@ -66,6 +66,9 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useLancamentoPorSetor` (regra de lançamento por setor; ver abaixo),
   `useBackupOffsite`, `useDatabaseSchema`, `useModuleSettings`,
   `useConfigPaginasPublicas`, `useFormFieldConfig`.
+- **IA da instituição**: `useConfigIA` (inclui `useSalvarConfigIA`, `useSalvarChaveIA`, `useTestarIA`,
+  `useResumoUsoIA` e `useIADisponivel`, que chama `ia_disponivel()` para mostrar ou esconder os botões de IA) e
+  `useAICPSI` (assistente do CPSI pela Edge Function `ia-gateway`); tipos em `src/types/ia.ts`.
 - **Organização**: `useOrganograma`, `useInstituicoes`, `useAgrupamentoUnidades`,
   `usePortalDiretoria`, `useEscolasJer`, `useFederacoesRelatorio`,
   `useGestoresEscolares`.

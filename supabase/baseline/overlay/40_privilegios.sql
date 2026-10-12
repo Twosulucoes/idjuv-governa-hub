@@ -215,6 +215,27 @@ GRANT UPDATE (
   marca_nome, marca_logo_url, marca_cor, rodape,
   wa_phone_number_id, wa_business_account_id, wa_templates
 ) ON public.config_envio TO authenticated;
+-- IA da instituição (migração 20261012200000; o dump não leva GRANT/REVOKE): ia_config com privilégios por coluna
+-- (segredo_id nunca legível, segredo_* fora da API, sem DELETE); ia_uso só leitura pela API (grava a service role);
+-- trigger fora da API; ia_config_servidor (chave decifrada) só da service role
+REVOKE EXECUTE ON FUNCTION public.fixar_autoria_ia_config() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.ia_config_servidor() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ia_config_servidor() TO service_role;
+REVOKE ALL ON public.ia_config FROM anon, authenticated;
+GRANT SELECT (
+  id, ativo, provedor, url_base, modelo, limite_chamadas_hora, teto_tokens_mes, enviar_dados_pessoais,
+  segredo_final, segredo_atualizado_em, updated_by, created_at, updated_at
+) ON public.ia_config TO authenticated;
+GRANT INSERT (
+  id, ativo, provedor, url_base, modelo, limite_chamadas_hora, teto_tokens_mes, enviar_dados_pessoais
+) ON public.ia_config TO authenticated;
+GRANT UPDATE (
+  ativo, provedor, url_base, modelo, limite_chamadas_hora, teto_tokens_mes, enviar_dados_pessoais
+) ON public.ia_config TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.ia_config TO service_role;
+REVOKE ALL ON public.ia_uso FROM anon, authenticated;
+GRANT SELECT ON public.ia_uso TO authenticated;
+GRANT SELECT, INSERT ON public.ia_uso TO service_role;
 
 -- ---- funções que ESCREVEM e não são chamadas por usuário logado ----
 -- fn_atualizar_situacao_servidor só é chamada por triggers SECURITY DEFINER. processar_folha_pagamento

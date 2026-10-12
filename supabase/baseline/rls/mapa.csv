@@ -161,6 +161,8 @@ historico_funcional,rh|gabinete,proprio_leitura,alta,RH vê tudo; o servidor lê
 historico_lai,transparencia,trilha,alta,trilha de auditoria/histórico: o módulo lê; ninguém escreve por API (triggers SECURITY DEFINER e service role gravam),,,
 historico_patrimonio,patrimonio|patrimonio_mobile,trilha,alta,trilha de auditoria/histórico: o módulo lê; ninguém escreve por API (triggers SECURITY DEFINER e service role gravam),,,
 horarios_jornada,rh,catalogo,media,lookup lido por qualquer usuário ativo (cálculo de prazos/escalas); escrita por RH,,,
+ia_config,admin,preservar,alta,"policies próprias na migração 20261012200000 (ia.configurar lê e grava; linha única; chave no Vault, segredo_id ilegível pela API; testes no bloco IA de testar-rls.sql)",,,
+ia_uso,admin,preservar,alta,"policies próprias na migração 20261012200000 (registro de uso da IA sem conteúdo: SELECT com ia.configurar, escrita só pela service role; testes no bloco IA de testar-rls.sql)",,,
 importacoes,financeiro,preservar,alta,"policies próprias na migração 20261009153000 (log de importações: SELECT por módulo da linha, escrita só pelas RPCs de importação); entra no schema na próxima regeneração do baseline",,,
 instituicoes,organizacoes|patrimonio|comunicacao|programas,modulo,media,cadastro de instituições,,,
 itens_ata_registro_preco,compras|contratos,modulo,alta,,,,
