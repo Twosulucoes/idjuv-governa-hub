@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { TenantConfig } from '@/core/tenant';
 import { renderizarDocumento } from '../core/renderizar';
 import { dadosColetiva, dadosDesignacao, dadosExoneracao, dadosNomeacao, dadosUnificada } from '../modelos/portaria/construtores';
+import type { ConfiguracaoTabela } from '@/types/portariaUnificada';
 import { portariaModelo, type DadosPortariaModelo } from '../modelos/portaria/modelo';
+import type { ServidorTabela } from '../modelos/portaria/tabelaServidores';
 import { emissaoTeste, marcaTeste } from './fixtures';
 import { entradasLegado as e } from './fixturesPortaria';
 import { lerPdf } from './lerPdf';
@@ -15,7 +17,8 @@ const t = {
 const norm = (s: string) => s.replace(/\s+/g, ' ');
 const pdfDe = async (d: DadosPortariaModelo) =>
   norm((await lerPdf(renderizarDocumento(portariaModelo, d, marcaTeste, emissaoTeste).doc)).map((p) => p.texto).join(' '));
-const cfg = (habilitada = true) => ({ ...e.unificada.configTabela, habilitada, colunas: [...e.unificada.configTabela.colunas] }) as any;
+const cfg = (habilitada = true): ConfiguracaoTabela => ({ ...e.unificada.configTabela, habilitada, colunas: [...e.unificada.configTabela.colunas] });
+const servidoresUnificada: ServidorTabela[] = e.unificada.servidores;
 
 describe('construtores das portarias', () => {
   it('nomeação: redação do Art. 1º e do Art. 2º', async () => {
@@ -71,7 +74,7 @@ describe('construtores das portarias', () => {
   });
 
   it('unificada: artigos, tabela com coluna personalizada, assinatura e local informados pelo usuário', async () => {
-    const d = dadosUnificada(t, e.unificada.portaria, e.unificada.preambulo, e.unificada.artigos, e.unificada.servidores as any, cfg(), e.unificada.assinatura);
+    const d = dadosUnificada(t, e.unificada.portaria, e.unificada.preambulo, e.unificada.artigos, servidoresUnificada, cfg(), e.unificada.assinatura);
     const texto = await pdfDe(d);
     expect(texto).toContain('PORTARIA Nº 12/ITE/PRESI/GAB/2026 DE 05 DE OUTUBRO DE 2026');
     expect(texto).toContain('OBSERVAÇÃO');
@@ -83,7 +86,7 @@ describe('construtores das portarias', () => {
   });
 
   it('unificada com tabela desabilitada ou sem servidores não imprime tabela', () => {
-    expect(dadosUnificada(t, e.unificada.portaria, 'p', e.unificada.artigos, e.unificada.servidores as any, cfg(false), e.unificada.assinatura).tabela).toBeUndefined();
+    expect(dadosUnificada(t, e.unificada.portaria, 'p', e.unificada.artigos, servidoresUnificada, cfg(false), e.unificada.assinatura).tabela).toBeUndefined();
     expect(dadosUnificada(t, e.unificada.portaria, 'p', e.unificada.artigos, [], cfg(true), e.unificada.assinatura).tabela).toBeUndefined();
   });
 

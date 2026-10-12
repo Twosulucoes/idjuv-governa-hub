@@ -32,4 +32,5 @@ Padrão canônico: `docs/PADRAO_DOCUMENTOS.md`. Spec: `docs/superpowers/specs/20
 - Desenhar direto no `doc` dentro de um modelo (crie um bloco).
 - Texto fixo de órgão/cargo/sigla; cor fixa (`#004444`) — a cor vem da marca do tenant.
 - Mergear: merge na `main` publica o front. Deixe o PR em rascunho para o usuário validar o PDF.
-- Migrar Atos antes de resolver "assinatura isolada em página" (ver `docs/PADRAO_DOCUMENTOS.md` §6).
+- Deixar a assinatura sozinha numa página: agrupe o último parágrafo, o local/data e a assinatura com `manterJunto(...)`.
+- Esquecer `tituloComoEscrito: true` quando o título tem sigla oficial em caixa mista (ex.: `IDJuv`).

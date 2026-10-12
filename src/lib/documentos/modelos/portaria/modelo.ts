@@ -26,7 +26,7 @@ export const portariaModelo: DocumentoModelo<DadosPortariaModelo> = {
   tipo: 'portaria',
   familia: 'ato',
   titulo: (d) => d.titulo,
-  // O título já vem na forma oficial ("…/IDJuv/PRESI/GAB/…"): a caixa da sigla não pode mudar.
+  // O título já vem na forma oficial (sigla em caixa mista, ex.: "…/Inst/GAB/…"): a caixa não pode mudar.
   tituloComoEscrito: true,
   protocolo: (d) => d.protocolo,
   unidadeEmissora: (d) => d.unidadeEmissora ?? [],

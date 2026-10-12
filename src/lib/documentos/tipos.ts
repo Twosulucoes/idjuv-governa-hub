@@ -60,7 +60,7 @@ export interface DocumentoModelo<D> {
   tipo: string;
   familia: Familia;
   titulo(dados: D): string;
-  /** Imprime o título exatamente como veio (padrão: caixa alta). Atos com sigla oficial em caixa mista, como "IDJuv". */
+  /** Imprime o título exatamente como veio (padrão: caixa alta). Atos com sigla oficial em caixa mista (ex.: "Inst" em "…/Inst/GAB/…"). */
   tituloComoEscrito?: boolean;
   subtitulo?(dados: D): string | undefined;
   /** Padrão da família quando omitido. */
