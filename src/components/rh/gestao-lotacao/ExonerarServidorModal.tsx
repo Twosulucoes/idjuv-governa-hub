@@ -149,7 +149,7 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
           </div>
 
           {/* Ato que fundamenta o desligamento */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Tipo do ato</Label>
               <Select value={atoTipo} onValueChange={setAtoTipo}>

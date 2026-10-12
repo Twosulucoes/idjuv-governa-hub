@@ -43,6 +43,7 @@ import {
 } from "@/hooks/useGestaoLotacao";
 import { LotarServidorModal } from "@/components/rh/gestao-lotacao/LotarServidorModal";
 import { ExonerarServidorModal } from "@/components/rh/gestao-lotacao/ExonerarServidorModal";
+import { TransferirServidorModal } from "@/components/rh/gestao-lotacao/TransferirServidorModal";
 import { HistoricoServidorModal } from "@/components/rh/gestao-lotacao/HistoricoServidorModal";
 
 type StatusFiltro = 'todos' | 'lotado' | 'vagando' | 'exonerado';
@@ -57,6 +58,7 @@ export default function GestaoLotacaoPage() {
   const [servidorSelecionado, setServidorSelecionado] = useState<ServidorGestao | null>(null);
   const [modalLotar, setModalLotar] = useState(false);
   const [modalExonerar, setModalExonerar] = useState(false);
+  const [modalTransferir, setModalTransferir] = useState(false);
   const [modalHistorico, setModalHistorico] = useState(false);
 
   // Dados
@@ -75,6 +77,11 @@ export default function GestaoLotacaoPage() {
   const handleLotar = (servidor: ServidorGestao) => {
     setServidorSelecionado(servidor);
     setModalLotar(true);
+  };
+
+  const handleTransferir = (servidor: ServidorGestao) => {
+    setServidorSelecionado(servidor);
+    setModalTransferir(true);
   };
 
   const handleExonerar = (servidor: ServidorGestao) => {
@@ -433,6 +440,17 @@ export default function GestaoLotacaoPage() {
                                   </Button>
                                 )}
 
+                                {/* Transferir (apenas para lotado) */}
+                                {servidor.status_lotacao === 'lotado' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleTransferir(servidor)}
+                                  >
+                                    TRANSFERIR
+                                  </Button>
+                                )}
+
                                 {/* Exonerar (apenas para lotado) */}
                                 {servidor.status_lotacao === 'lotado' && (
                                   <Button
@@ -461,6 +479,11 @@ export default function GestaoLotacaoPage() {
         servidor={servidorSelecionado}
         open={modalLotar}
         onOpenChange={setModalLotar}
+      />
+      <TransferirServidorModal
+        servidor={servidorSelecionado}
+        open={modalTransferir}
+        onOpenChange={setModalTransferir}
       />
       <ExonerarServidorModal
         servidor={servidorSelecionado}

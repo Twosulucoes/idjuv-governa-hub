@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { admitirServidor, desligarServidor, type DesligarServidorParams } from "@/lib/rhRpc";
+import { admitirServidor, desligarServidor, transferirServidor, type DesligarServidorParams, type TransferirServidorParams } from "@/lib/rhRpc";
 import type { TipoLotacao } from "@/types/servidor";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -403,6 +403,31 @@ export function useLotarServidor() {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Erro ao lotar servidor");
+    },
+  });
+}
+
+// Mutation: transferir/remover servidor de unidade, sem exonerar (rh_transferir_servidor)
+export function useTransferirServidor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: TransferirServidorParams) => transferirServidor(params),
+    onSuccess: (resultado, variaveis) => {
+      queryClient.invalidateQueries({ queryKey: ["servidores-gestao"] });
+      queryClient.invalidateQueries({ queryKey: ["estatisticas-lotacao"] });
+      queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
+      queryClient.invalidateQueries({ queryKey: ["historico-funcional", variaveis.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["historico-lotacoes", variaveis.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["vinculos-servidor", variaveis.servidorId] });
+      queryClient.invalidateQueries({ queryKey: ["portarias"] });
+      toast.success(`Servidor transferido! Protocolo ${resultado.protocolo}`, {
+        description: resultado.avisos.join(" · ") || undefined,
+        duration: 10000,
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Erro ao transferir servidor");
     },
   });
 }

@@ -6,7 +6,7 @@ aprovador; `provimentos` + `lotacoes` mandam e `vinculos_servidor` é registro c
 para depois.**
 
 Migrations (ordem): `20261012090000_rh_protocolo.sql`, `20261012100000_rh_correcoes_auditoria.sql`,
-`20261012110000_rh_folha_calculo_completo.sql`. Sem mudança de RLS nem de tabela nova (tabela do RH exigiria regenerar o
+`20261012110000_rh_folha_calculo_completo.sql`, `20261012120000_rh_transferencia_e_diarias.sql`. Sem mudança de RLS nem de tabela nova (tabela do RH exigiria regenerar o
 baseline). Colunas novas: `audit_logs.protocolo`, `itens_ficha_financeira.origem`. O baseline (`supabase/baseline/`)
 **não foi regenerado**: as migrations são idempotentes e valem por cima dele.
 
@@ -66,6 +66,24 @@ Todo ato do módulo `rh` tem um número **RH-AAAA-NNNNNN**. Não há tabela nova
 Nenhum valor legal está fixado no código. Premissas a validar com o RH: mês de 30 dias; 1/3 de férias sem INSS e com IRRF;
 abono pecuniário e verbas indenizadas sem INSS/IRRF; avos de 13º com 15 dias ou mais no mês; saldo de salário na folha mensal.
 
+
+## 3b. Transferência de unidade e diárias (migration `…120000`)
+
+- **`rh_transferir_servidor`** (permissão `rh.lotacoes.editar`, com protocolo): muda de unidade **sem exonerar e lotar de
+  novo** — encerra a lotação na véspera, abre a nova, move provimento e vínculos, mantém cargo e carreira, grava histórico
+  (`transferencia` ou `remocao`) e a minuta de portaria. Respeita a composição do cargo por unidade; permissão parcial
+  desfaz tudo. Botão **TRANSFERIR** em `/rh/gestao-lotacao`.
+- **Diárias** (trigger no banco, vale para qualquer tela): a viagem não pode cruzar férias, licença/afastamento (missão e
+  serviço externo não contam) nem outra viagem do servidor; viagem já retornada **sem relatório** impede abrir outra;
+  **concluir exige o relatório apresentado e a data** (prestação de contas). Formulário de viagem ganhou a seção
+  "Prestação de contas" (relatório, data, link) a partir de "em andamento".
+
+## 3c. Defeito encontrado ao testar no navegador
+
+O formulário de cargos grava só `cargos.categoria`; o formulário de vínculo e o painel de vínculos filtravam por
+`cargos.natureza` (sempre nula nos cargos criados pela tela). Efeito: **no cadastro de servidor e na conversão de
+pré-cadastro a lista de cargos ficava vazia**. Corrigido para `categoria`.
+
 ## 4. Verificação
 
 Baterias SQL num banco descartável com o esquema de produção: admissão, férias, licença, desligamento, reingresso, cessão,
@@ -74,9 +92,12 @@ sem protocolo, imutável) e **folha** (valores conferidos à mão: mês cheio, f
 remunerada e não remunerada, 1/3 de férias, lançamento manual preservado, 13º 1ª e 2ª parcela, rescisão, fechamento).
 Migrations aplicadas duas vezes (idempotentes). `scripts/gate.sh` verde.
 
+**No navegador** (front local contra banco de teste descartável, Chromium headless, desktop e 390 px, sem estouro
+horizontal): cadastro de servidor, lotar, transferir, exonerar, conversão de pré-cadastro, processar folha, trilha com
+filtro por protocolo e prestação de contas de viagem — cada fluxo conferido também no banco.
+
 ## 5. Fora do escopo
 
 Medida disciplinar (aguarda decisão do órgão); granularidade de RLS em `lotacoes`, `provimentos`, `historico_funcional`,
-`designacoes`, `cessoes`; sequência obrigatória do ciclo da portaria; formulário público de pré-cadastro (o visitante
-anônimo não tem acesso à tabela e o código de acesso é sequencial — pede desenho próprio); prestação de contas de diárias;
-cálculo de aposentadoria e de acerto financeiro além da rescisão descrita.
+`designacoes`, `cessoes`; sequência obrigatória do ciclo da portaria; formulário público de pré-cadastro (desenho para
+aprovação em `2026-10-12-pre-cadastro-publico-design.md`); cálculo de aposentadoria e de acerto financeiro além da rescisão descrita.

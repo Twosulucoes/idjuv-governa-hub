@@ -133,3 +133,44 @@ export function desligarServidor(p: DesligarServidorParams): Promise<DesligarSer
     p_gerar_minuta: p.gerarMinuta ?? true,
   });
 }
+
+export const MOTIVOS_TRANSFERENCIA = [
+  { value: "transferencia", label: "Transferência" },
+  { value: "remocao", label: "Remoção" },
+] as const;
+
+export type MotivoTransferencia = (typeof MOTIVOS_TRANSFERENCIA)[number]["value"];
+
+export interface TransferirServidorParams extends AtoFuncional {
+  servidorId: string;
+  unidadeId: string;
+  data: string;
+  motivo: MotivoTransferencia;
+  observacao?: string;
+  gerarMinuta?: boolean;
+}
+
+export interface TransferirServidorResultado {
+  protocolo: string;
+  lotacao_id: string;
+  minuta_numero: string | null;
+  unidade_anterior_id: string;
+  avisos: string[];
+}
+
+/** Muda de unidade sem exonerar: encerra a lotação atual, abre a nova, move provimento e vínculos, histórico e minuta. */
+export function transferirServidor(p: TransferirServidorParams): Promise<TransferirServidorResultado> {
+  return chamar<TransferirServidorResultado>("rh_transferir_servidor", {
+    p_servidor_id: p.servidorId,
+    p_unidade_id: p.unidadeId,
+    p_data: p.data,
+    p_motivo: p.motivo,
+    p_observacao: p.observacao || null,
+    p_ato_tipo: p.atoTipo || null,
+    p_ato_numero: p.atoNumero || null,
+    p_ato_data: p.atoData || null,
+    p_ato_doe_numero: p.atoDoeNumero || null,
+    p_ato_doe_data: p.atoDoeData || null,
+    p_gerar_minuta: p.gerarMinuta ?? true,
+  });
+}

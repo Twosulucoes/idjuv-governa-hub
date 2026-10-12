@@ -442,7 +442,8 @@ function NovoVinculoWizard({
         .from("cargos")
         .select("id, nome, sigla, natureza, quantidade_vagas, vencimento_base")
         .eq("ativo", true)
-        .eq("natureza", naturezaParaBusca)
+        // `categoria` é a coluna que o formulário de cargos grava; `natureza` fica nula nos cargos criados pela tela.
+        .eq("categoria", naturezaParaBusca)
         .order("nome");
       if (error) throw error;
       if (!cargosData) return [];

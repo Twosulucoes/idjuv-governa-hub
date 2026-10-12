@@ -34,6 +34,7 @@ import {
   calcularQuantidadeDiarias,
   calcularTotalDiarias,
   camposEditaveisPorStatus,
+  CAMPOS_PRESTACAO_CONTAS,
   classificarDestino,
   contarPernoites,
   ehBrasil,
@@ -76,12 +77,21 @@ const schema = z
     valor_diaria: z.coerce.number().min(0, "Não pode ser negativo"),
     ajuste_manual: z.boolean(),
     observacoes: z.string().optional(),
+    relatorio_apresentado: z.boolean(),
+    relatorio_data: z.string().optional(),
+    relatorio_url: z.string().optional(),
   })
   .superRefine((d, ctx) => {
     const erroPeriodo = validarPeriodo(d.data_saida, d.data_retorno);
     if (erroPeriodo) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["data_retorno"], message: erroPeriodo });
     if (ehBrasil(d.destino_pais) && !d.destino_uf) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["destino_uf"], message: "Informe a UF de destino" });
+    }
+    if (d.relatorio_apresentado && !d.relatorio_data) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["relatorio_data"], message: "Informe a data do relatório" });
+    }
+    if (d.relatorio_apresentado && d.relatorio_data && d.data_retorno && d.relatorio_data < d.data_retorno) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["relatorio_data"], message: "A data do relatório não pode ser anterior ao retorno" });
     }
     if (d.tipo_onus === "com_onus" && d.ajuste_manual && !d.justificativa?.trim()) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["justificativa"], message: "Justifique o ajuste manual de quantidade/valor" });
@@ -107,6 +117,9 @@ const VALORES_VAZIOS: ViagemFormValues = {
   valor_diaria: 0,
   ajuste_manual: false,
   observacoes: "",
+  relatorio_apresentado: false,
+  relatorio_data: "",
+  relatorio_url: "",
 };
 
 const formatarMoeda = (valor: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
@@ -217,6 +230,9 @@ export function ViagemFormDialog({ open, onOpenChange, servidores, viagem }: Via
         valor_diaria: val,
         ajuste_manual: ajustado,
         observacoes: viagem.observacoes ?? "",
+        relatorio_apresentado: viagem.relatorio_apresentado ?? false,
+        relatorio_data: viagem.relatorio_data ?? "",
+        relatorio_url: viagem.relatorio_url ?? "",
       };
     }
     form.reset(valores);
@@ -278,6 +294,9 @@ export function ViagemFormDialog({ open, onOpenChange, servidores, viagem }: Via
       valor_diaria: semOnusFinal ? null : d.valor_diaria,
       valor_total: semOnusFinal ? null : calcularTotalDiarias(d.quantidade_diarias, d.valor_diaria),
       observacoes: d.observacoes?.trim() || null,
+      relatorio_apresentado: d.relatorio_apresentado,
+      relatorio_data: d.relatorio_apresentado ? d.relatorio_data || null : null,
+      relatorio_url: d.relatorio_url?.trim() || null,
     };
 
     try {
@@ -652,6 +671,54 @@ export function ViagemFormDialog({ open, onOpenChange, servidores, viagem }: Via
                 </FormItem>
               )}
             />
+
+            {editando && editaveis.some((c) => CAMPOS_PRESTACAO_CONTAS.includes(c)) && (
+              <div className="space-y-3 rounded-md border p-3">
+                <p className="text-sm font-medium">Prestação de contas</p>
+                <FormField
+                  control={form.control}
+                  name="relatorio_apresentado"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-2 space-y-0">
+                      <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />
+                      </FormControl>
+                      <FormLabel className="font-normal">Relatório da viagem apresentado (obrigatório para concluir)</FormLabel>
+                    </FormItem>
+                  )}
+                />
+                {form.watch("relatorio_apresentado") && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="relatorio_data"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data do relatório</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="relatorio_url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Link do relatório (SEI/arquivo)</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="https://" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

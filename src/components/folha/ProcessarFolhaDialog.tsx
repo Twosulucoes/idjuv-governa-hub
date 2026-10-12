@@ -162,10 +162,10 @@ export function ProcessarFolhaDialog({
                   <AlertDescription className="text-blue-700 text-sm">
                     <ul className="space-y-1 mt-1">
                       {resultado.total_servidores_ativos !== undefined && (
-                        <li>• Servidores ativos no sistema: <strong>{resultado.total_servidores_ativos}</strong></li>
+                        <li>• Servidores com provimento no período: <strong>{resultado.total_servidores_ativos}</strong></li>
                       )}
                       {resultado.total_com_provimento !== undefined && (
-                        <li>• Com provimento ativo (elegíveis): <strong>{resultado.total_com_provimento}</strong></li>
+                        <li>• Entraram na folha (elegíveis): <strong>{resultado.total_com_provimento}</strong></li>
                       )}
                       {resultado.total_sem_vencimento !== undefined && resultado.total_sem_vencimento > 0 && (
                         <li className="text-orange-600">• Pulados por cargo sem vencimento: <strong>{resultado.total_sem_vencimento}</strong></li>
