@@ -194,6 +194,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "organograma", label: "Organograma", icon: Network, route: "/organograma" },
       { id: "estrutura", label: "Estrutura", icon: Building2, route: "/governanca/estrutura" },
       { id: "cargos", label: "Cargos", icon: Users, route: "/cargos" },
+      { id: "quadro-vagas", label: "Quadro de Vagas", icon: Users, route: "/cargos/vagas" },
       { id: "federacoes", label: "Federações", icon: Trophy, route: "/admin/federacoes" },
       { id: "instituicoes", label: "Instituições", icon: Landmark, route: "/admin/instituicoes" },
       { id: "riscos", label: "Gestão de Riscos", icon: AlertTriangle, route: "/governanca/riscos" },

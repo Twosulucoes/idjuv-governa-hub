@@ -156,6 +156,7 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   // CARGOS E LOTAÇÕES
   // ============================================
   '/cargos': 'governanca.cargos.visualizar',
+  '/cargos/vagas': 'governanca.cargos.visualizar',
   '/lotacoes': 'rh.lotacoes.visualizar',
   
   // ============================================
