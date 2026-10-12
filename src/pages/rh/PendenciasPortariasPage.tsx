@@ -2,9 +2,10 @@
  * PÁGINA DE PENDÊNCIAS DE PORTARIAS (RH)
  * 
  * Dashboard para acompanhar portarias pendentes de ação no RH
- * - Portarias em minuta/rascunho
+ * - Portarias aguardando o SEI (status minuta: ainda sem número oficial)
  * - Portarias aguardando assinatura
  * - Portarias aguardando publicação
+ * - Nomeações sem portaria publicada (rh_pendencias_nomeacao)
  * 
  * @version 1.0.0
  */
@@ -47,6 +48,7 @@ import {
 } from '@/components/ui/table';
 import { usePortarias } from '@/hooks/usePortarias';
 import { VisualizarPortariaDialog } from '@/components/portarias/VisualizarPortariaDialog';
+import { NomeacoesSemPortariaCard } from '@/components/portarias/NomeacoesSemPortariaCard';
 import { STATUS_PORTARIA_LABELS, StatusPortaria, Portaria } from '@/types/portaria';
 
 const STATUS_PENDENTES: StatusPortaria[] = ['minuta', 'aguardando_assinatura', 'aguardando_publicacao'];
@@ -140,7 +142,7 @@ export default function PendenciasPortariasPage() {
               Pendências de Portarias
             </h1>
             <p className="text-muted-foreground">
-              Acompanhe portarias que precisam de ação do RH
+              Acompanhe as portarias feitas no SEI até a publicação no DOE
             </p>
         </div>
         </div>
@@ -155,7 +157,7 @@ export default function PendenciasPortariasPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{contadores.minuta}</p>
-                  <p className="text-sm text-muted-foreground">Em minuta</p>
+                  <p className="text-sm text-muted-foreground">Aguardando SEI</p>
                 </div>
               </div>
             </CardContent>
@@ -189,6 +191,9 @@ export default function PendenciasPortariasPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Nomeações cuja portaria ainda não saiu no DOE */}
+        <NomeacoesSemPortariaCard />
 
         {/* Filtros */}
         <div className="flex flex-wrap items-center gap-3">

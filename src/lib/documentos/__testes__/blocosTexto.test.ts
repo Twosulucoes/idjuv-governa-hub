@@ -9,7 +9,7 @@ import { lerPdf, mmParaPt } from './lerPdf';
 
 const gerar = (blocos: Bloco[]) => {
   const modelo: DocumentoModelo<null> = {
-    tipo: 't', familia: 'ato', titulo: () => 'T', nomeArquivo: () => 't.pdf', blocos: () => blocos,
+    tipo: 't', familia: 'ficha', titulo: () => 'T', nomeArquivo: () => 't.pdf', blocos: () => blocos,
   };
   return renderizarDocumento(modelo, null, marcaTeste, emissaoTeste).doc;
 };

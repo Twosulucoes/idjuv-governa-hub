@@ -26,6 +26,9 @@ import {
   Eye,
 } from "lucide-react";
 import { format } from "date-fns";
+
+// processo_sei é coluna nova de documentos (ainda fora de types.ts)
+const processoSei = (doc: object) => (doc as { processo_sei?: string | null }).processo_sei || null;
 import { Link } from "react-router-dom";
 import { 
   STATUS_PORTARIA_LABELS, 
@@ -141,13 +144,19 @@ export function PortariasServidorSection({
                         {portaria.ementa || portaria.titulo}
                       </p>
                       
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {format(new Date(portaria.data_documento), "dd/MM/yyyy")}
                         </span>
                         {portaria.doe_numero && (
-                          <span>DOE: {portaria.doe_numero}</span>
+                          <span>
+                            DOE: {portaria.doe_numero}
+                            {portaria.doe_data && ` de ${format(new Date(`${portaria.doe_data}T00:00:00`), "dd/MM/yyyy")}`}
+                          </span>
+                        )}
+                        {processoSei(portaria) && (
+                          <span>Processo SEI: {processoSei(portaria)}</span>
                         )}
                         {portaria.cargo?.sigla && (
                           <span>{portaria.cargo.sigla}</span>

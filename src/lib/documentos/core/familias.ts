@@ -8,7 +8,6 @@ export interface ConfigFamilia {
 }
 
 export const FAMILIAS: Record<Familia, ConfigFamilia> = {
-  ato: { fonteCorpo: 'times', orientacaoPadrao: 'retrato', linhaAutenticidade: false },
   relatorio: { fonteCorpo: 'helvetica', orientacaoPadrao: 'retrato', linhaAutenticidade: false },
   ficha: { fonteCorpo: 'helvetica', orientacaoPadrao: 'retrato', linhaAutenticidade: false },
   comprovante: { fonteCorpo: 'helvetica', orientacaoPadrao: 'retrato', linhaAutenticidade: true },

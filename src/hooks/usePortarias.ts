@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { 
@@ -8,6 +9,27 @@ import type {
   StatusPortaria,
   CategoriaPortaria 
 } from '@/types/portaria';
+
+// O texto da portaria é feito no SEI; aqui só se acompanha o ciclo (processo SEI, número, assinatura, DOE).
+// processo_sei é coluna nova (20261012160000) ainda fora de types.ts: as consultas que a usam vão sem tipo do banco.
+const db = supabase as unknown as SupabaseClient;
+
+/** Número provisório da portaria enquanto o número oficial do SEI não sai (o banco não deixa passar de "aguardando assinatura"). */
+export const NUMERO_PORTARIA_PENDENTE = /^PENDENTE/i;
+export const numeroPortariaPendente = (ano: number) => `PENDENTE/${ano}`;
+
+const COLUNAS_PORTARIA = `
+  id, numero, titulo, categoria, status, data_documento, ementa, observacoes,
+  servidores_ids, doe_numero, doe_data, doe_link, data_publicacao, data_vigencia_inicio, data_vigencia_fim,
+  data_assinatura, assinado_por, arquivo_url, arquivo_assinado_url, processo_sei,
+  cargo_id, unidade_id, provimento_id
+`;
+
+/** Campo opcional de texto: vazio vira null (para limpar no banco). */
+const textoOuNulo = (v?: string | null) => {
+  const t = v?.trim();
+  return t ? t : null;
+};
 
 interface PortariaFilters {
   status?: StatusPortaria;
@@ -23,13 +45,9 @@ export function usePortarias(filters?: PortariaFilters) {
   return useQuery({
     queryKey: ['portarias', filters],
     queryFn: async () => {
-      let query = supabase
+      let query = db
         .from('documentos')
-        .select(`
-          id, numero, titulo, categoria, status, data_documento, ementa,
-          servidores_ids, doe_numero, doe_data, data_vigencia_inicio, data_vigencia_fim,
-          cargo_id, unidade_id
-        `)
+        .select(COLUNAS_PORTARIA)
         .eq('tipo', 'portaria')
         .order('data_documento', { ascending: false });
 
@@ -68,13 +86,9 @@ export function usePortaria(id: string | undefined) {
     queryFn: async () => {
       if (!id) return null;
       
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('documentos')
-        .select(`
-          id, numero, titulo, categoria, status, data_documento, ementa,
-          servidores_ids, doe_numero, doe_data, data_vigencia_inicio, data_vigencia_fim,
-          cargo_id, unidade_id
-        `)
+        .select(COLUNAS_PORTARIA)
         .eq('id', id)
         .single();
 
@@ -92,13 +106,9 @@ export function usePortariasServidor(servidorId: string | undefined) {
     queryFn: async () => {
       if (!servidorId) return [];
       
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('documentos')
-        .select(`
-          id, numero, titulo, categoria, status, data_documento, ementa,
-          servidores_ids, doe_numero, doe_data, data_vigencia_inicio, data_vigencia_fim,
-          cargo_id, unidade_id
-        `)
+        .select(COLUNAS_PORTARIA)
         .eq('tipo', 'portaria')
         .contains('servidores_ids', [servidorId])
         .order('data_documento', { ascending: false });
@@ -110,32 +120,15 @@ export function usePortariasServidor(servidorId: string | undefined) {
   });
 }
 
-// Hook para gerar número automático de portaria
-export function useGerarNumeroPortaria() {
-  return useMutation({
-    mutationFn: async (ano?: number) => {
-      const anoAtual = ano || new Date().getFullYear();
-      const { data, error } = await supabase.rpc('gerar_numero_portaria', { p_ano: anoAtual });
-      if (error) throw error;
-      return data as string;
-    },
-  });
-}
-
 // Hook para criar portaria
 export function useCreatePortaria() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const gerarNumero = useGerarNumeroPortaria();
 
   return useMutation({
     mutationFn: async (dados: CreatePortariaData) => {
-      // Gerar número automático se não informado
-      let numero = dados.numero;
-      if (!numero) {
-        const ano = new Date(dados.data_documento).getFullYear();
-        numero = await gerarNumero.mutateAsync(ano);
-      }
+      // O número oficial vem do SEI; sem ele, a portaria fica com o número provisório até ser informado
+      const numero = dados.numero?.trim() || numeroPortariaPendente(new Date(dados.data_documento).getFullYear());
 
       const { data: userData } = await supabase.auth.getUser();
       
@@ -147,7 +140,7 @@ export function useCreatePortaria() {
         created_by: userData.user?.id,
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('documentos')
         .insert(insertData)
         .select()
@@ -178,7 +171,7 @@ export function useUpdatePortaria() {
 
   return useMutation({
     mutationFn: async ({ id, dados }: { id: string; dados: UpdatePortariaData }) => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('documentos')
         .update(dados)
         .eq('id', id)
@@ -273,21 +266,30 @@ export function useRegistrarAssinatura() {
       id, 
       assinado_por, 
       data_assinatura, 
-      arquivo_assinado_url 
+      arquivo_assinado_url,
+      numero,
+      processo_sei,
     }: { 
       id: string; 
       assinado_por: string;
       data_assinatura: string;
       arquivo_assinado_url?: string;
+      /** Número oficial do SEI, quando a portaria ainda está com o provisório. */
+      numero?: string;
+      processo_sei?: string;
     }) => {
-      const { data, error } = await supabase
+      const updateData: Record<string, unknown> = {
+        status: 'assinado',
+        assinado_por,
+        data_assinatura,
+        arquivo_assinado_url,
+      };
+      if (numero?.trim()) updateData.numero = numero.trim();
+      if (processo_sei !== undefined) updateData.processo_sei = textoOuNulo(processo_sei);
+
+      const { data, error } = await db
         .from('documentos')
-        .update({ 
-          status: 'assinado',
-          assinado_por,
-          data_assinatura,
-          arquivo_assinado_url,
-        })
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
@@ -353,6 +355,8 @@ export function useRegistrarPublicacao() {
       data_publicacao,
       doe_link,
       arquivo_url,
+      numero,
+      processo_sei,
     }: { 
       id: string; 
       doe_numero: string;
@@ -360,6 +364,9 @@ export function useRegistrarPublicacao() {
       data_publicacao?: string;
       doe_link?: string;
       arquivo_url?: string;
+      /** Número oficial do SEI, quando a portaria ainda está com o provisório. */
+      numero?: string;
+      processo_sei?: string;
     }) => {
       const updateData: Record<string, unknown> = { 
         status: 'publicado',
@@ -374,8 +381,10 @@ export function useRegistrarPublicacao() {
       if (arquivo_url) {
         updateData.arquivo_url = arquivo_url;
       }
+      if (numero?.trim()) updateData.numero = numero.trim();
+      if (processo_sei !== undefined) updateData.processo_sei = textoOuNulo(processo_sei);
 
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('documentos')
         .update(updateData)
         .eq('id', id)
@@ -467,233 +476,26 @@ export function useRevogarPortaria() {
   });
 }
 
-// Hook para gerar minuta automática de nomeação
-export function useGerarMinutaNomeacao() {
-  const createPortaria = useCreatePortaria();
+/** Linha de rh_pendencias_nomeacao(): servidor com provimento ativo sem portaria de nomeação publicada. */
+export interface NomeacaoSemPortaria {
+  servidor_id: string;
+  nome: string;
+  matricula: string | null;
+  cargo: string | null;
+  provimento_id: string;
+  data_nomeacao: string | null;
+  portaria_numero: string | null;
+  portaria_status: StatusPortaria | null;
+}
 
-  return useMutation({
-    mutationFn: async ({
-      servidor_id,
-      servidor_nome,
-      cargo_id,
-      cargo_nome,
-      unidade_id,
-      provimento_id,
-      tipo_nomeacao = 'comissionado',
-    }: {
-      servidor_id: string;
-      servidor_nome: string;
-      servidor_cpf?: string;
-      cargo_id: string;
-      cargo_nome: string;
-      unidade_id: string;
-      unidade_nome?: string;
-      provimento_id: string;
-      tipo_nomeacao?: 'comissionado' | 'efetivo';
-    }) => {
-      const dataAtual = new Date().toISOString().split('T')[0];
-      
-      const titulo = `Nomeação - ${servidor_nome}`;
-      const ementa = tipo_nomeacao === 'comissionado'
-        ? `Nomeia ${servidor_nome} para cargo em comissão de ${cargo_nome}.`
-        : `Nomeia ${servidor_nome} para cargo efetivo de ${cargo_nome}.`;
-
-      return createPortaria.mutateAsync({
-        titulo,
-        tipo: 'portaria',
-        categoria: 'nomeacao',
-        status: 'minuta',
-        data_documento: dataAtual,
-        ementa,
-        servidores_ids: [servidor_id],
-        cargo_id,
-        unidade_id,
-        provimento_id,
-      });
+// Nomeações cuja portaria ainda não saiu no DOE (RPC SECURITY INVOKER: a RLS de quem consulta vale)
+export function useNomeacoesSemPortaria() {
+  return useQuery({
+    queryKey: ['portarias', 'nomeacoes-sem-portaria'],
+    queryFn: async () => {
+      const { data, error } = await db.rpc('rh_pendencias_nomeacao');
+      if (error) throw error;
+      return (data ?? []) as NomeacaoSemPortaria[];
     },
   });
-}
-
-// Hook para gerar minuta automática de exoneração
-export function useGerarMinutaExoneracao() {
-  const createPortaria = useCreatePortaria();
-
-  return useMutation({
-    mutationFn: async ({
-      servidor_id,
-      servidor_nome,
-      cargo_id,
-      cargo_nome,
-      unidade_id,
-      motivo = 'pedido',
-    }: {
-      servidor_id: string;
-      servidor_nome: string;
-      servidor_cpf?: string;
-      cargo_id: string;
-      cargo_nome: string;
-      unidade_id: string;
-      unidade_nome?: string;
-      motivo?: 'pedido' | 'oficio';
-    }) => {
-      const dataAtual = new Date().toISOString().split('T')[0];
-      
-      const titulo = `Exoneração - ${servidor_nome}`;
-      const ementa = motivo === 'pedido'
-        ? `Exonera, a pedido, ${servidor_nome} do cargo de ${cargo_nome}.`
-        : `Exonera, de ofício, ${servidor_nome} do cargo de ${cargo_nome}.`;
-
-      return createPortaria.mutateAsync({
-        titulo,
-        tipo: 'portaria',
-        categoria: 'exoneracao',
-        status: 'minuta',
-        data_documento: dataAtual,
-        ementa,
-        servidores_ids: [servidor_id],
-        cargo_id,
-        unidade_id,
-      });
-    },
-  });
-}
-
-// Hook para gerar minuta automática de designação
-export function useGerarMinutaDesignacao() {
-  const createPortaria = useCreatePortaria();
-
-  return useMutation({
-    mutationFn: async ({
-      servidor_id,
-      servidor_nome,
-      unidade_destino_nome,
-      unidade_destino_id,
-      designacao_id,
-    }: {
-      servidor_id: string;
-      servidor_nome: string;
-      cargo_nome?: string;
-      unidade_origem_nome?: string;
-      unidade_destino_nome: string;
-      unidade_destino_id: string;
-      designacao_id: string;
-      data_inicio?: string;
-      data_fim?: string;
-    }) => {
-      const dataAtual = new Date().toISOString().split('T')[0];
-      
-      const titulo = `Designação - ${servidor_nome}`;
-      const ementa = `Designa ${servidor_nome} para exercício no(a) ${unidade_destino_nome}.`;
-
-      return createPortaria.mutateAsync({
-        titulo,
-        tipo: 'portaria',
-        categoria: 'designacao',
-        status: 'minuta',
-        data_documento: dataAtual,
-        ementa,
-        servidores_ids: [servidor_id],
-        unidade_id: unidade_destino_id,
-      designacao_id,
-    });
-  },
-});
-}
-
-// Hook para registrar portaria no histórico funcional dos servidores
-export function useRegistrarPortariaNoHistorico() {
-const queryClient = useQueryClient();
-const { toast } = useToast();
-
-return useMutation({
-  mutationFn: async ({
-    servidores_ids,
-    portaria_numero,
-    portaria_data,
-    categoria,
-    cargo_id,
-    unidade_id,
-    descricao_adicional,
-  }: {
-    servidores_ids: string[];
-    portaria_numero: string;
-    portaria_data: string;
-    categoria: string;
-    cargo_id?: string;
-    unidade_id?: string;
-    descricao_adicional?: string;
-  }) => {
-    if (!servidores_ids || servidores_ids.length === 0) {
-      throw new Error('Nenhum servidor selecionado');
-    }
-
-    // Mapear categoria para tipo de movimentação válido
-    type TipoHistorico = 'nomeacao' | 'exoneracao' | 'designacao' | 'dispensa' | 'cessao' | 'afastamento' | 'retorno' | 'transferencia' | 'remocao' | 'vacancia' | 'promocao' | 'redistribuicao' | 'requisicao' | 'aposentadoria';
-    
-    const tipoMap: Record<string, TipoHistorico> = {
-      nomeacao: 'nomeacao',
-      exoneracao: 'exoneracao',
-      designacao: 'designacao',
-      dispensa: 'dispensa',
-      cessao: 'cessao',
-      ferias: 'afastamento',
-      licenca: 'afastamento',
-      pessoal: 'nomeacao',
-      estruturante: 'nomeacao',
-      normativa: 'nomeacao',
-      delegacao: 'designacao',
-    };
-
-    const tipo: TipoHistorico = tipoMap[categoria] || 'nomeacao';
-    
-    // Buscar dados dos servidores para enriquecer a descrição
-    const { data: servidoresData } = await supabase
-      .from('v_servidores_situacao')
-      .select('id, nome_completo, cargo_nome, unidade_nome')
-      .in('id', servidores_ids);
-
-    const registros = (servidoresData || []).map((servidor) => {
-      const descricao = descricao_adicional 
-        ? `${descricao_adicional} - Portaria nº ${portaria_numero}`
-        : `Portaria nº ${portaria_numero}. Cargo: ${servidor.cargo_nome || 'N/A'}. Unidade: ${servidor.unidade_nome || 'N/A'}.`;
-
-      return {
-        servidor_id: servidor.id,
-        tipo,
-        data_evento: portaria_data,
-        data_vigencia_inicio: portaria_data,
-        portaria_numero: portaria_numero,
-        portaria_data: portaria_data,
-        cargo_novo_id: ['nomeacao', 'designacao'].includes(categoria) ? cargo_id : null,
-        cargo_anterior_id: ['exoneracao', 'dispensa'].includes(categoria) ? cargo_id : null,
-        unidade_nova_id: ['nomeacao', 'designacao'].includes(categoria) ? unidade_id : null,
-        unidade_anterior_id: ['exoneracao', 'dispensa'].includes(categoria) ? unidade_id : null,
-        descricao,
-        ato_tipo: 'portaria',
-        ato_numero: portaria_numero,
-        ato_data: portaria_data,
-      };
-    });
-
-    const { error } = await supabase
-      .from('historico_funcional')
-      .insert(registros);
-
-    if (error) throw error;
-    
-    return registros.length;
-  },
-  onSuccess: (count) => {
-    queryClient.invalidateQueries({ queryKey: ['historico-funcional'] });
-    toast({ title: `${count} registro(s) adicionado(s) ao histórico funcional` });
-  },
-  onError: (error) => {
-    console.error('Erro ao registrar histórico funcional:', error);
-    toast({
-      title: 'Erro ao registrar histórico funcional',
-      description: error.message,
-      variant: 'destructive',
-    });
-  },
-});
 }

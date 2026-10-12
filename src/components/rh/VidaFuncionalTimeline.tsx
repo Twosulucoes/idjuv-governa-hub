@@ -97,6 +97,23 @@ const TIPO_DOC_LABELS: Record<string, string> = {
   outro: "Outro",
 };
 
+// Ato vinculado ao servidor (documentos). processo_sei é coluna nova, ainda fora de types.ts.
+interface AtoTimeline {
+  id: string;
+  tipo: string;
+  numero: string;
+  data_documento: string;
+  ementa: string | null;
+  titulo: string;
+  status: string;
+  doe_numero: string | null;
+  doe_data: string | null;
+  processo_sei: string | null;
+  categoria: string | null;
+}
+
+const dataCurta = (d: string) => format(new Date(`${d.slice(0, 10)}T00:00:00`), "dd/MM/yyyy");
+
 interface VidaFuncionalTimelineProps {
   servidorId: string;
 }
@@ -122,7 +139,8 @@ export function VidaFuncionalTimeline({ servidorId }: VidaFuncionalTimelineProps
         .order("data_evento", { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      // processo_sei é coluna nova de historico_funcional (ainda fora de types.ts)
+      return (data || []) as Array<NonNullable<typeof data>[number] & { processo_sei?: string | null }>;
     },
   });
 
@@ -132,12 +150,12 @@ export function VidaFuncionalTimeline({ servidorId }: VidaFuncionalTimelineProps
     queryFn: async () => {
       const { data, error } = await supabase
         .from("documentos")
-        .select("id, tipo, numero, data_documento, ementa, titulo, status, doe_numero, categoria")
+        .select("id, tipo, numero, data_documento, ementa, titulo, status, doe_numero, doe_data, processo_sei, categoria")
         .contains("servidores_ids", [servidorId])
         .order("data_documento", { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return (data || []) as unknown as AtoTimeline[];
     },
   });
 
@@ -294,6 +312,20 @@ export function VidaFuncionalTimeline({ servidorId }: VidaFuncionalTimelineProps
                           <p className="text-sm text-muted-foreground mt-2">{mov.descricao}</p>
                         )}
 
+                        {/* Publicação no DOE e processo SEI gravados na ficha (vêm da portaria publicada) */}
+                        {(mov.diario_oficial_numero || mov.processo_sei) && (
+                          <p className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                            {mov.diario_oficial_numero && (
+                              <span className="flex items-center gap-1">
+                                <Newspaper className="h-3 w-3" />
+                                DOE nº {mov.diario_oficial_numero}
+                                {mov.diario_oficial_data && ` de ${dataCurta(mov.diario_oficial_data)}`}
+                              </span>
+                            )}
+                            {mov.processo_sei && <span>Processo SEI {mov.processo_sei}</span>}
+                          </p>
+                        )}
+
                         {mov.portaria_numero && !temAtos && (
                           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                             <FileText className="h-3 w-3" />
@@ -364,6 +396,12 @@ export function VidaFuncionalTimeline({ servidorId }: VidaFuncionalTimelineProps
                                     <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 shrink-0">
                                       <Newspaper className="h-3 w-3" />
                                       DOE {ato.doe_numero}
+                                      {ato.doe_data && ` de ${dataCurta(ato.doe_data)}`}
+                                    </span>
+                                  )}
+                                  {ato.processo_sei && (
+                                    <span className="text-[10px] text-muted-foreground shrink-0">
+                                      SEI {ato.processo_sei}
                                     </span>
                                   )}
                                   <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" asChild>

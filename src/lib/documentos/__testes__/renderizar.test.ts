@@ -12,7 +12,7 @@ interface Dados {
 
 const modelo: DocumentoModelo<Dados> = {
   tipo: 'teste',
-  familia: 'ato',
+  familia: 'ficha',
   titulo: () => 'Documento de teste',
   subtitulo: () => 'subtítulo de teste',
   protocolo: (d) => d.protocolo,

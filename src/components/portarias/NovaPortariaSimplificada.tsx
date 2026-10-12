@@ -1,14 +1,15 @@
 /**
- * FORMULÁRIO SIMPLIFICADO DE PORTARIA
- * 
- * Central de cadastro de portarias genéricas.
- * Campos: Tipo, Número, Data, DOE, PDF, Ementa, Servidores
- * 
- * @version 1.0.0
+ * REGISTRO DE PORTARIA FEITA NO SEI
+ *
+ * O sistema não redige portaria: o texto, a assinatura e a numeração são do SEI.
+ * Aqui se registra o ato para acompanhar o ciclo (processo SEI, número oficial,
+ * publicação no DOE, PDF e servidores) e levá-lo à ficha funcional.
+ * Campos: Tipo, Processo SEI, Número, Data, DOE, PDF, Ementa, Servidores
  */
 
 import { useState, useEffect } from 'react';
-import { FileText, Wand2, Upload, X, Users, Save, Loader2 } from 'lucide-react';
+import { FileText, Upload, X, Users, Save, Loader2 } from 'lucide-react';
+import { z } from 'zod';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -40,8 +41,8 @@ import {
 } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useGerarNumeroPortaria, useCreatePortaria, useUpdatePortaria, usePortaria } from '@/hooks/usePortarias';
-import { CategoriaPortaria, Portaria } from '@/types/portaria';
+import { useCreatePortaria, useUpdatePortaria, usePortaria, NUMERO_PORTARIA_PENDENTE } from '@/hooks/usePortarias';
+import { CategoriaPortaria, Portaria, StatusPortaria } from '@/types/portaria';
 import { SelecionarServidoresTable } from './SelecionarServidoresTable';
 
 interface NovaPortariaSimplificadaProps {
@@ -52,6 +53,29 @@ interface NovaPortariaSimplificadaProps {
   portariaId?: string;
   initialPortaria?: Portaria | null;
 }
+
+// Número e DOE: o DOE só entra com nº e data juntos, e um ato publicado precisa do número oficial do SEI
+// (o banco recusa número provisório além de "aguardando assinatura").
+const registroSchema = z
+  .object({
+    numero: z.string().trim(),
+    processoSei: z.string().trim().max(60, 'Processo SEI muito longo'),
+    dataDocumento: z.string().min(1, 'Informe a data do documento'),
+    doeNumero: z.string().trim(),
+    doeData: z.string(),
+  })
+  .refine((v) => !v.numero || !NUMERO_PORTARIA_PENDENTE.test(v.numero), {
+    message: 'Informe o número oficial do SEI ou deixe em branco (fica como pendente)',
+    path: ['numero'],
+  })
+  .refine((v) => !!v.doeNumero === !!v.doeData, {
+    message: 'Informe o número e a data do DOE juntos',
+    path: ['doeNumero'],
+  })
+  .refine((v) => !v.doeNumero || !!v.numero, {
+    message: 'Para registrar a publicação no DOE, informe o número oficial da portaria',
+    path: ['numero'],
+  });
 
 const CATEGORIAS: { value: CategoriaPortaria; label: string }[] = [
   { value: 'pessoal', label: 'Pessoal (Genérica)' },
@@ -82,13 +106,14 @@ export function NovaPortariaSimplificada({
   // Dados básicos
   const [categoria, setCategoria] = useState<CategoriaPortaria>('pessoal');
   const [numero, setNumero] = useState('');
+  const [processoSei, setProcessoSei] = useState('');
+  const [statusAtual, setStatusAtual] = useState<StatusPortaria | null>(null);
   const [dataDocumento, setDataDocumento] = useState(new Date().toISOString().split('T')[0]);
   const [ementa, setEmenta] = useState('');
 
   // Publicação DOE
   const [doeNumero, setDoeNumero] = useState('');
   const [doeData, setDoeData] = useState('');
-  const [doePagina, setDoePagina] = useState('');
 
   // Anexo
   const [arquivoUrl, setArquivoUrl] = useState('');
@@ -98,7 +123,6 @@ export function NovaPortariaSimplificada({
   // Servidores
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const gerarNumero = useGerarNumeroPortaria();
   const createPortaria = useCreatePortaria();
   const updatePortaria = useUpdatePortaria();
 
@@ -111,12 +135,14 @@ export function NovaPortariaSimplificada({
       const portaria = initialPortaria || portariaData;
       if (portaria) {
         setCategoria((portaria.categoria as CategoriaPortaria) || 'pessoal');
-        setNumero(portaria.numero || '');
+        // número provisório aparece em branco: o campo é para o número oficial do SEI
+        setNumero(portaria.numero && !NUMERO_PORTARIA_PENDENTE.test(portaria.numero) ? portaria.numero : '');
+        setProcessoSei(portaria.processo_sei || '');
+        setStatusAtual(portaria.status);
         setDataDocumento(portaria.data_documento || new Date().toISOString().split('T')[0]);
         setEmenta(portaria.ementa || '');
         setDoeNumero(portaria.doe_numero || '');
         setDoeData(portaria.doe_data || '');
-        setDoePagina((portaria as any).doe_pagina || '');
         setArquivoUrl(portaria.arquivo_url || '');
         setSelectedIds(portaria.servidores_ids || []);
         setIsLoaded(true);
@@ -134,27 +160,17 @@ export function NovaPortariaSimplificada({
   const handleReset = () => {
     setCategoria('pessoal');
     setNumero('');
+    setProcessoSei('');
+    setStatusAtual(null);
     setDataDocumento(new Date().toISOString().split('T')[0]);
     setEmenta('');
     setDoeNumero('');
     setDoeData('');
-    setDoePagina('');
     setArquivoUrl('');
     setArquivoNome('');
     setSelectedIds([]);
     setShowServidores(false);
     setIsLoaded(false);
-  };
-
-  const handleGerarNumero = async () => {
-    try {
-      const ano = new Date(dataDocumento).getFullYear();
-      const novoNumero = await gerarNumero.mutateAsync(ano);
-      setNumero(novoNumero);
-      toast.success('Número gerado com sucesso!');
-    } catch {
-      toast.error('Erro ao gerar número da portaria');
-    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,43 +225,59 @@ export function NovaPortariaSimplificada({
     setArquivoNome('');
   };
 
+  const isEditMode = mode === 'edit';
+  // Na edição, DOE só se mexe em ato já publicado; as etapas avançam por "Registrar assinatura/publicação"
+  const podeEditarDoe = !isEditMode || statusAtual === 'publicado' || statusAtual === 'vigente';
+
   const handleSalvar = async () => {
-    if (!numero.trim()) {
-      toast.error('Informe o número da portaria');
+    const validacao = registroSchema.safeParse({
+      numero,
+      processoSei,
+      dataDocumento,
+      doeNumero: podeEditarDoe ? doeNumero : '',
+      doeData: podeEditarDoe ? doeData : '',
+    });
+    if (!validacao.success) {
+      toast.error(validacao.error.issues[0]?.message || 'Verifique os campos');
       return;
     }
+    const v = validacao.data;
+    const rotuloCategoria = CATEGORIAS.find(c => c.value === categoria)?.label || categoria;
 
     setIsSaving(true);
     try {
-      // Determinar status baseado nos dados preenchidos
-      let status: 'minuta' | 'aguardando_assinatura' | 'publicado' | 'vigente' = 'minuta';
-      if (doeNumero && doeData) {
-        status = 'vigente';
-      } else if (arquivoUrl) {
-        status = 'publicado';
-      }
-
       const portariaPayload = {
         tipo: 'portaria' as const,
         categoria,
-        numero,
-        data_documento: dataDocumento,
-        ementa: ementa || `Portaria de ${CATEGORIAS.find(c => c.value === categoria)?.label || categoria}`,
-        titulo: ementa || `Portaria nº ${numero}`,
-        status,
-        doe_numero: doeNumero || undefined,
-        doe_data: doeData || undefined,
-        doe_pagina: doePagina || undefined,
+        // sem número oficial, o hook grava o provisório PENDENTE/AAAA (na edição, mantém o atual)
+        numero: v.numero || undefined,
+        processo_sei: v.processoSei || null,
+        data_documento: v.dataDocumento,
+        ementa: ementa || `Portaria de ${rotuloCategoria}`,
+        titulo: ementa || (v.numero ? `Portaria nº ${v.numero}` : `Portaria de ${rotuloCategoria}`),
         arquivo_url: arquivoUrl || undefined,
         servidores_ids: selectedIds.length > 0 ? selectedIds : undefined,
+        ...(podeEditarDoe && {
+          doe_numero: v.doeNumero || undefined,
+          doe_data: v.doeData || undefined,
+          data_publicacao: v.doeData || undefined,
+        }),
       };
 
-      if (mode === 'edit' && portariaId) {
+      if (isEditMode && portariaId) {
+        // a edição não muda a etapa do ciclo
         await updatePortaria.mutateAsync({ id: portariaId, dados: portariaPayload });
         toast.success('Portaria atualizada!');
       } else {
-        await createPortaria.mutateAsync(portariaPayload);
-        toast.success(`Portaria ${numero} cadastrada com sucesso!`);
+        // Etapa conforme o que já aconteceu no SEI: publicado no DOE; com número oficial, aguardando assinatura;
+        // sem número, "Aguardando SEI" (minuta)
+        const status: StatusPortaria = v.doeNumero && v.doeData
+          ? 'publicado'
+          : v.numero
+            ? 'aguardando_assinatura'
+            : 'minuta';
+        await createPortaria.mutateAsync({ ...portariaPayload, status });
+        toast.success(v.numero ? `Portaria ${v.numero} registrada!` : 'Portaria registrada como pendente do SEI');
       }
 
       onSuccess?.();
@@ -258,21 +290,17 @@ export function NovaPortariaSimplificada({
     }
   };
 
-  const isEditMode = mode === 'edit';
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            {isEditMode ? 'Editar Portaria' : 'Cadastrar Portaria'}
+            {isEditMode ? 'Editar registro da portaria' : 'Registrar portaria do SEI'}
           </DialogTitle>
           <DialogDescription>
-            {isEditMode 
-              ? `Editando portaria nº ${numero}`
-              : 'Registre uma portaria existente ou nova'
-            }
+            O texto, a assinatura e o número da portaria são feitos no SEI. Aqui fica só o registro do ato
+            para acompanhar o ciclo (processo, número, assinatura e publicação no DOE) e levá-lo à ficha do servidor.
           </DialogDescription>
         </DialogHeader>
 
@@ -306,32 +334,35 @@ export function NovaPortariaSimplificada({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="numero">Número da Portaria *</Label>
-            <div className="flex gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="processo-sei">Processo SEI</Label>
+              <Input
+                id="processo-sei"
+                placeholder="Número do processo no SEI"
+                value={processoSei}
+                onChange={(e) => setProcessoSei(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="numero">Número da portaria (SEI)</Label>
               <Input
                 id="numero"
-                placeholder="Ex: 001/IDJuv/PRESI/GAB/2026"
+                placeholder="Em branco se ainda não saiu"
                 value={numero}
                 onChange={(e) => setNumero(e.target.value)}
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGerarNumero}
-                disabled={gerarNumero.isPending}
-              >
-                <Wand2 className="h-4 w-4 mr-1" />
-                Gerar
-              </Button>
+              <p className="text-xs text-muted-foreground">
+                Sem o número oficial, a portaria fica como "Aguardando SEI".
+              </p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ementa">Ementa / Resumo</Label>
+            <Label htmlFor="ementa">Ementa / Resumo (opcional)</Label>
             <Textarea
               id="ementa"
-              placeholder="Breve descrição do conteúdo da portaria..."
+              placeholder="Copie a ementa do ato publicado no SEI"
               value={ementa}
               onChange={(e) => setEmenta(e.target.value)}
               rows={3}
@@ -342,36 +373,34 @@ export function NovaPortariaSimplificada({
 
           {/* Publicação DOE */}
           <div className="space-y-4">
-            <h4 className="font-medium text-sm">Publicação no DOE (opcional)</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="doe-numero">Nº DOE</Label>
-                <Input
-                  id="doe-numero"
-                  placeholder="Ex: 12.345"
-                  value={doeNumero}
-                  onChange={(e) => setDoeNumero(e.target.value)}
-                />
+            <h4 className="font-medium text-sm">Publicação no DOE (se já saiu)</h4>
+            {podeEditarDoe ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="doe-numero">Nº DOE</Label>
+                  <Input
+                    id="doe-numero"
+                    placeholder="Ex: 12.345"
+                    value={doeNumero}
+                    onChange={(e) => setDoeNumero(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="doe-data">Data do DOE</Label>
+                  <Input
+                    id="doe-data"
+                    type="date"
+                    value={doeData}
+                    onChange={(e) => setDoeData(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="doe-data">Data Publicação</Label>
-                <Input
-                  id="doe-data"
-                  type="date"
-                  value={doeData}
-                  onChange={(e) => setDoeData(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="doe-pagina">Página</Label>
-                <Input
-                  id="doe-pagina"
-                  placeholder="Ex: 15"
-                  value={doePagina}
-                  onChange={(e) => setDoePagina(e.target.value)}
-                />
-              </div>
-            </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Para registrar assinatura e publicação, use as ações "Registrar assinatura" e
+                "Registrar publicação" da portaria.
+              </p>
+            )}
           </div>
 
           <Separator />
@@ -470,7 +499,7 @@ export function NovaPortariaSimplificada({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSalvar} disabled={isSaving || !numero.trim()}>
+          <Button onClick={handleSalvar} disabled={isSaving}>
             {isSaving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -479,7 +508,7 @@ export function NovaPortariaSimplificada({
             ) : (
               <>
                 <Save className="h-4 w-4 mr-2" />
-                {isEditMode ? 'Salvar Alterações' : 'Cadastrar Portaria'}
+                {isEditMode ? 'Salvar Alterações' : 'Registrar Portaria'}
               </>
             )}
           </Button>

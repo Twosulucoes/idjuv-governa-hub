@@ -18,7 +18,8 @@ export const TIPO_PORTARIA_LABELS: Record<TipoPortaria, string> = {
 };
 
 export const STATUS_PORTARIA_LABELS: Record<StatusPortaria, string> = {
-  minuta: 'Minuta',
+  // 'minuta' no banco: o ato ainda está sendo feito no SEI (o sistema não redige portaria)
+  minuta: 'Aguardando SEI',
   aguardando_assinatura: 'Aguardando Assinatura',
   assinado: 'Assinado',
   aguardando_publicacao: 'Aguardando Publicação',
@@ -66,6 +67,9 @@ export interface Portaria {
   doe_numero?: string;
   doe_data?: string;
   doe_link?: string;
+
+  // Processo SEI onde o ato foi formalizado
+  processo_sei?: string | null;
   
   // Conteúdo
   ementa?: string;
@@ -120,7 +124,7 @@ export interface Portaria {
 }
 
 export interface CreatePortariaData {
-  numero?: string; // Se não informado, será gerado automaticamente
+  numero?: string; // Número oficial do SEI; se não informado, fica o provisório PENDENTE/AAAA
   titulo: string;
   tipo: 'portaria';
   categoria?: CategoriaPortaria;
@@ -135,6 +139,12 @@ export interface CreatePortariaData {
   unidade_id?: string;
   provimento_id?: string;
   designacao_id?: string;
+  processo_sei?: string | null;
+  doe_numero?: string;
+  doe_data?: string;
+  data_publicacao?: string;
+  data_vigencia_inicio?: string;
+  arquivo_url?: string;
 }
 
 export interface UpdatePortariaData extends Partial<CreatePortariaData> {
@@ -145,120 +155,6 @@ export interface UpdatePortariaData extends Partial<CreatePortariaData> {
   doe_data?: string;
   data_publicacao?: string;
 }
-
-// Templates de portarias
-export const PORTARIA_TEMPLATES = {
-  nomeacao_comissionado: {
-    titulo: 'Portaria de Nomeação - Cargo em Comissão',
-    ementa: 'Nomeia servidor para cargo em comissão.',
-    template: `O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,
-
-CONSIDERANDO o disposto no art. 7º, §3º, da Lei nº 2.301/2025, que estabelece que a investidura nos cargos em comissão do IDJuv dar-se-á por ato do Diretor Presidente;
-
-RESOLVE:
-
-Art. 1º NOMEAR {{NOME_SERVIDOR}}, inscrito(a) no CPF nº {{CPF}}, para exercer o cargo em comissão de {{CARGO}}, código {{SIMBOLO}}, no(a) {{UNIDADE}}, do Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv.
-
-Art. 2º O(A) nomeado(a) fará jus à remuneração correspondente ao cargo, conforme disposto no Anexo I da Lei nº 2.301, de 29 de dezembro de 2025.
-
-Art. 3º Esta Portaria entra em vigor na data de sua publicação, com efeitos a contar de {{DATA_EFEITOS}}.
-
-Boa Vista – RR, {{DATA_EXTENSO}}.
-
-MARCELO DE MAGALHÃES NUNES
-Presidente do Instituto de Desporto, Juventude e Lazer
-do Estado de Roraima`,
-  },
-  nomeacao_efetivo: {
-    titulo: 'Portaria de Nomeação - Cargo Efetivo',
-    ementa: 'Nomeia servidor aprovado em concurso público.',
-    template: `O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,
-
-RESOLVE:
-
-Art. 1º NOMEAR {{NOME_SERVIDOR}}, inscrito(a) no CPF nº {{CPF}}, aprovado(a) em concurso público, para exercer o cargo efetivo de {{CARGO}}, no(a) {{UNIDADE}}, do Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv.
-
-Art. 2º O(A) servidor(a) terá o prazo de 30 (trinta) dias para tomar posse, nos termos da legislação vigente.
-
-Art. 3º Esta Portaria entra em vigor na data de sua publicação.
-
-Boa Vista – RR, {{DATA_EXTENSO}}.
-
-MARCELO DE MAGALHÃES NUNES
-Presidente do Instituto de Desporto, Juventude e Lazer
-do Estado de Roraima`,
-  },
-  exoneracao_pedido: {
-    titulo: 'Portaria de Exoneração a Pedido',
-    ementa: 'Exonera servidor a pedido.',
-    template: `O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,
-
-RESOLVE:
-
-Art. 1º EXONERAR, a pedido, {{NOME_SERVIDOR}}, inscrito(a) no CPF nº {{CPF}}, do cargo de {{CARGO}}, no(a) {{UNIDADE}}, do Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv.
-
-Art. 2º Esta Portaria entra em vigor na data de sua publicação.
-
-Boa Vista – RR, {{DATA_EXTENSO}}.
-
-MARCELO DE MAGALHÃES NUNES
-Presidente do Instituto de Desporto, Juventude e Lazer
-do Estado de Roraima`,
-  },
-  exoneracao_oficio: {
-    titulo: 'Portaria de Exoneração de Ofício',
-    ementa: 'Exonera servidor de ofício.',
-    template: `O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,
-
-RESOLVE:
-
-Art. 1º EXONERAR, de ofício, {{NOME_SERVIDOR}}, inscrito(a) no CPF nº {{CPF}}, do cargo de {{CARGO}}, no(a) {{UNIDADE}}, do Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv.
-
-Art. 2º Esta Portaria entra em vigor na data de sua publicação.
-
-Boa Vista – RR, {{DATA_EXTENSO}}.
-
-MARCELO DE MAGALHÃES NUNES
-Presidente do Instituto de Desporto, Juventude e Lazer
-do Estado de Roraima`,
-  },
-  designacao: {
-    titulo: 'Portaria de Designação',
-    ementa: 'Designa servidor para exercício em outra unidade.',
-    template: `O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,
-
-RESOLVE:
-
-Art. 1º DESIGNAR {{NOME_SERVIDOR}}, inscrito(a) no CPF nº {{CPF}}, ocupante do cargo de {{CARGO}}, lotado(a) no(a) {{UNIDADE_ORIGEM}}, para exercer suas atividades no(a) {{UNIDADE_DESTINO}}, sem prejuízo de sua lotação original.
-
-Art. 2º A designação terá vigência de {{DATA_INICIO}} a {{DATA_FIM}}.
-
-Art. 3º Esta Portaria entra em vigor na data de sua publicação.
-
-Boa Vista – RR, {{DATA_EXTENSO}}.
-
-MARCELO DE MAGALHÃES NUNES
-Presidente do Instituto de Desporto, Juventude e Lazer
-do Estado de Roraima`,
-  },
-  dispensa: {
-    titulo: 'Portaria de Dispensa de Designação',
-    ementa: 'Dispensa servidor de designação.',
-    template: `O PRESIDENTE DO INSTITUTO DE DESPORTO, JUVENTUDE E LAZER DO ESTADO DE RORAIMA – IDJuv, no uso das atribuições legais que lhe são conferidas pela Lei nº 2.301, de 29 de dezembro de 2025, e demais normas aplicáveis,
-
-RESOLVE:
-
-Art. 1º DISPENSAR {{NOME_SERVIDOR}}, inscrito(a) no CPF nº {{CPF}}, da designação para exercício no(a) {{UNIDADE_DESTINO}}, retornando às suas atividades no(a) {{UNIDADE_ORIGEM}}.
-
-Art. 2º Esta Portaria entra em vigor na data de sua publicação.
-
-Boa Vista – RR, {{DATA_EXTENSO}}.
-
-MARCELO DE MAGALHÃES NUNES
-Presidente do Instituto de Desporto, Juventude e Lazer
-do Estado de Roraima`,
-  },
-};
 
 // Workflow de portarias
 export const WORKFLOW_TRANSITIONS: Record<StatusPortaria, StatusPortaria[]> = {

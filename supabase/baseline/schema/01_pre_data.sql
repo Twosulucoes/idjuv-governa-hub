@@ -2875,7 +2875,7 @@ BEGIN
   v_tipos := CASE NEW.categoria::text
     WHEN 'nomeacao' THEN ARRAY['nomeacao']::public.tipo_movimentacao_funcional[]
     WHEN 'exoneracao' THEN ARRAY['exoneracao']::public.tipo_movimentacao_funcional[]
-    WHEN 'pessoal' THEN ARRAY['aposentadoria', 'vacancia']::public.tipo_movimentacao_funcional[]
+    WHEN 'pessoal' THEN ARRAY['aposentadoria', 'vacancia', 'transferencia', 'remocao']::public.tipo_movimentacao_funcional[]
     WHEN 'designacao' THEN ARRAY['designacao']::public.tipo_movimentacao_funcional[]
     WHEN 'dispensa' THEN ARRAY['dispensa']::public.tipo_movimentacao_funcional[]
     WHEN 'cessao' THEN ARRAY['cessao', 'requisicao']::public.tipo_movimentacao_funcional[]
@@ -11412,13 +11412,13 @@ BEGIN
             || ' para ' || v_unid_nova || coalesce('. ' || p_observacao, ''));
 
   IF p_gerar_minuta THEN
-    v_minuta_numero := public.gerar_numero_portaria(EXTRACT(YEAR FROM p_data)::int);
+    -- o número oficial vem do ato registrado no SEI; até lá a pendência fica com número provisório e sem texto
+    v_minuta_numero := 'PENDENTE/' || EXTRACT(YEAR FROM p_data)::int;
     INSERT INTO public.documentos (tipo, categoria, status, titulo, ementa, numero, data_documento, servidores_ids,
                                    cargo_id, unidade_id)
     VALUES ('portaria', 'pessoal', 'minuta',
             CASE p_motivo WHEN 'remocao' THEN 'Remoção - ' ELSE 'Transferência - ' END || v_servidor.nome_completo,
-            CASE p_motivo WHEN 'remocao' THEN 'Remove ' ELSE 'Transfere ' END || v_servidor.nome_completo
-              || coalesce(' (' || v_cargo_nome || ')', '') || ' da ' || coalesce(v_unid_ant, '?') || ' para a ' || v_unid_nova || '.',
+            NULL,
             v_minuta_numero, p_data, ARRAY[p_servidor_id], v_cargo_id, p_unidade_id);
   END IF;
 

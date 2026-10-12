@@ -341,7 +341,7 @@ export function usePortariasParaAto() {
 }
 
 // Mutation: Lotar servidor
-// Vínculo + lotação + provimento + histórico + minuta de nomeação numa transação (rh_admitir_servidor).
+// Vínculo + lotação + provimento + histórico + pendência da portaria de nomeação numa transação (rh_admitir_servidor).
 // Antes eram cinco escritas soltas, as três últimas com `catch` mudo. Vaga do cargo e provimento duplicado
 // são conferidos pelo banco (fn_validar_provimento).
 export function useLotarServidor() {
@@ -399,7 +399,12 @@ export function useLotarServidor() {
       queryClient.invalidateQueries({ queryKey: ["vinculos-servidor", variables.servidorId] });
       queryClient.invalidateQueries({ queryKey: ["portarias"] });
       queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
-      toast.success(`Servidor lotado! Vínculo, provimento, histórico e minuta de portaria registrados. Protocolo ${data.protocolo}`);
+      toast.success(`Servidor lotado! Vínculo, provimento e histórico registrados. Protocolo ${data.protocolo}`, {
+        description: data.minuta_id
+          ? "Portaria pendente: registre o ato do SEI na Central de Portarias."
+          : undefined,
+        duration: 10000,
+      });
     },
     onError: (error: Error) => {
       toast.error(error.message || "Erro ao lotar servidor");
@@ -434,7 +439,7 @@ export function useTransferirServidor() {
 
 // Mutation: desligar servidor (exoneração, aposentadoria, falecimento…)
 // Uma transação no banco (rh_desligar_servidor): lotação, vínculos, provimento, cessões, designações, férias,
-// licenças, viagens, chefia de unidade e comissões; histórico funcional; minuta de portaria; situação e
+// licenças, viagens, chefia de unidade e comissões; histórico funcional; pendência da portaria; situação e
 // data de desligamento. O ato e o DOE informados são gravados (antes eram descartados).
 export function useExonerarServidor() {
   const queryClient = useQueryClient();
@@ -449,8 +454,11 @@ export function useExonerarServidor() {
       queryClient.invalidateQueries({ queryKey: ["historico-funcional", variaveis.servidorId] });
       queryClient.invalidateQueries({ queryKey: ["vinculos-servidor", variaveis.servidorId] });
       queryClient.invalidateQueries({ queryKey: ["portarias"] });
+      const avisos = resultado.minuta_numero
+        ? ["Portaria pendente: registre o ato do SEI na Central de Portarias", ...resultado.avisos]
+        : resultado.avisos;
       toast.success(`Servidor desligado! Protocolo ${resultado.protocolo}`, {
-        description: resultado.avisos.join(" · "),
+        description: avisos.join(" · "),
         duration: 12000,
       });
     },

@@ -261,7 +261,7 @@ export const FILTROS_PORTARIAS: FiltroRelatorio[] = [
     label: 'Status',
     tipo: 'multiselect',
     opcoes: [
-      { value: 'minuta', label: 'Minuta' },
+      { value: 'minuta', label: 'Aguardando SEI' },
       { value: 'aguardando_assinatura', label: 'Aguardando Assinatura' },
       { value: 'assinado', label: 'Assinado' },
       { value: 'aguardando_publicacao', label: 'Aguardando Publicação' },

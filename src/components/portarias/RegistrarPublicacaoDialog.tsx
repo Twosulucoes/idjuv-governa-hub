@@ -30,7 +30,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { useRegistrarPublicacao } from '@/hooks/usePortarias';
+import { useRegistrarPublicacao, NUMERO_PORTARIA_PENDENTE } from '@/hooks/usePortarias';
 import { Portaria } from '@/types/portaria';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -40,7 +40,10 @@ const formSchema = z.object({
   doe_numero: z.string().min(1, 'Número do DOE é obrigatório'),
   doe_data: z.date({ required_error: 'Data do DOE é obrigatória' }),
   data_publicacao: z.date().optional(),
-  doe_link: z.string().url('URL inválida').optional().or(z.literal('')),
+  doe_link: z.string().url('URL inválida').regex(/^https?:\/\//i, 'Use um link http(s)').optional().or(z.literal('')),
+  // obrigatório só quando a portaria está com o número provisório (verificado no submit)
+  numero: z.string().trim().optional(),
+  processo_sei: z.string().trim().max(60, 'Processo SEI muito longo').optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -68,6 +71,8 @@ export function RegistrarPublicacaoDialog({
     defaultValues: {
       doe_numero: '',
       doe_link: '',
+      numero: '',
+      processo_sei: '',
     },
   });
 
@@ -78,10 +83,12 @@ export function RegistrarPublicacaoDialog({
         doe_link: '',
         doe_data: undefined,
         data_publicacao: undefined,
+        numero: '',
+        processo_sei: portaria?.processo_sei || '',
       });
       setArquivo(null);
     }
-  }, [open, form]);
+  }, [open, form, portaria?.processo_sei]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -119,8 +126,14 @@ export function RegistrarPublicacaoDialog({
     return urlData.publicUrl;
   };
 
+  const numeroPendente = !!portaria && NUMERO_PORTARIA_PENDENTE.test(portaria.numero);
+
   const onSubmit = async (data: FormData) => {
     if (!portaria) return;
+    if (numeroPendente && (!data.numero || NUMERO_PORTARIA_PENDENTE.test(data.numero))) {
+      form.setError('numero', { message: 'Informe o número oficial da portaria (do SEI)' });
+      return;
+    }
 
     try {
       setUploading(true);
@@ -139,6 +152,8 @@ export function RegistrarPublicacaoDialog({
           : undefined,
         doe_link: data.doe_link || undefined,
         arquivo_url,
+        numero: numeroPendente ? data.numero : undefined,
+        processo_sei: data.processo_sei ?? '',
       });
 
       form.reset();
@@ -176,6 +191,39 @@ export function RegistrarPublicacaoDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {numeroPendente && (
+              <FormField
+                control={form.control}
+                name="numero"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número oficial da portaria *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Número dado pelo SEI" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      A portaria ainda está com o número provisório ({portaria?.numero}).
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <FormField
+              control={form.control}
+              name="processo_sei"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Processo SEI</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Número do processo no SEI" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}

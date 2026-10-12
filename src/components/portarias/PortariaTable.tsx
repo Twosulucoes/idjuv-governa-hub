@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Eye,
-  Download,
+  FileText,
   MoreHorizontal,
   Send,
   FileSignature,
@@ -58,7 +58,8 @@ interface PortariaTableProps {
   onView?: (portaria: Portaria) => void;
   onEdit?: (portaria: Portaria) => void;
   onDelete?: (portaria: Portaria) => void;
-  onGeneratePdf?: (portaria: Portaria) => void;
+  /** Abre o PDF anexado (assinado ou publicado); o texto da portaria é feito no SEI. */
+  onAbrirArquivo?: (portaria: Portaria) => void;
   onRegistrarPublicacao?: (portaria: Portaria) => void;
   onRegistrarAssinatura?: (portaria: Portaria) => void;
 }
@@ -69,7 +70,7 @@ export function PortariaTable({
   onView,
   onEdit,
   onDelete,
-  onGeneratePdf,
+  onAbrirArquivo,
   onRegistrarPublicacao,
   onRegistrarAssinatura,
 }: PortariaTableProps) {
@@ -219,6 +220,11 @@ export function PortariaTable({
                   </TableCell>
                   <TableCell className="font-mono text-sm font-medium">
                     {portaria.numero}
+                    {portaria.processo_sei && (
+                      <span className="block font-sans text-xs font-normal text-muted-foreground">
+                        SEI {portaria.processo_sei}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div>
@@ -297,10 +303,12 @@ export function PortariaTable({
                           <Pencil className="h-4 w-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onGeneratePdf?.(portaria)}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Gerar PDF
-                        </DropdownMenuItem>
+                        {(portaria.arquivo_assinado_url || portaria.arquivo_url) && (
+                          <DropdownMenuItem onClick={() => onAbrirArquivo?.(portaria)}>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Abrir PDF anexado
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         
                         {portaria.status === 'minuta' && (

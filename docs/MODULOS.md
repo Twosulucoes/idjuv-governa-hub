@@ -57,8 +57,8 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
   tenant (`rh.diarias`, por categoria/nível do cargo e faixa de destino: intermunicipal,
   interestadual, internacional), com "ajuste manual" justificado; tabela vazia → valor manual.
   Regras puras em `src/lib/diariasRegras.ts`, dados em `src/hooks/useViagens.ts`.
-- **Portarias**: `CentralPortariasPage`, `PendenciasPortariasPage`,
-  `AtribuicaoPortariasPage`.
+- **Portarias**: `CentralPortariasPage`, `PendenciasPortariasPage`. O texto do ato é feito no SEI; o sistema só
+  acompanha o ciclo (processo SEI, número, assinatura, DOE) e grava na ficha.
 - **Contracheques**: `MeuContrachequePage`, `ConsultaContrachequesPage`.
 - **Autoatendimento**: `MeusDadosPage` (`/rh/meus-dados`, só leitura: dados pessoais,
   contato, endereço, funcionais, bancários, vínculos e lotações do servidor logado);

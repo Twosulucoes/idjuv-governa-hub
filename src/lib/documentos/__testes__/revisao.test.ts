@@ -7,7 +7,7 @@ import type { Bloco, DocumentoModelo, MarcaImpressao } from '../tipos';
 import { PNG_1X1, emissaoTeste, marcaTeste } from './fixtures';
 import { lerPdf, mmParaPt, type PaginaLida } from './lerPdf';
 
-const gerar = (blocos: Bloco[], marca: MarcaImpressao = marcaTeste, familia: 'ato' | 'relatorio' = 'ato') => {
+const gerar = (blocos: Bloco[], marca: MarcaImpressao = marcaTeste, familia: 'ficha' | 'relatorio' = 'ficha') => {
   const modelo: DocumentoModelo<null> = { tipo: 't', familia, titulo: () => 'T', nomeArquivo: () => 't.pdf', blocos: () => blocos };
   return renderizarDocumento(modelo, null, marca, emissaoTeste).doc;
 };

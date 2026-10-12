@@ -1114,7 +1114,7 @@ export default function RelatoriosRHPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos os status</SelectItem>
-                      <SelectItem value="minuta">Minuta</SelectItem>
+                      <SelectItem value="minuta">Aguardando SEI</SelectItem>
                       <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
                       <SelectItem value="assinado">Assinado</SelectItem>
                       <SelectItem value="aguardando_publicacao">Aguardando Publicação</SelectItem>
