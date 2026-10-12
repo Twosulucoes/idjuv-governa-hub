@@ -12,6 +12,7 @@
 --   A10 matrícula gerada no banco (numérica, com trava); codigo_interno com trava; número de portaria único
 --   A2/A9/A13  rh_admitir_servidor: vínculo + lotação + provimento + histórico + minuta em uma transação
 --   A3/A9      rh_desligar_servidor: desligamento completo em uma transação
+--   Protocolo: admissão, desligamento e a rotina por data abrem protocolo próprio (migração 20261012090000)
 --   A8  rh_avancar_status_por_data: férias/licenças/viagens avançam por data (a ser agendada fora do banco)
 -- ============================================================================
 
@@ -372,6 +373,7 @@ DECLARE
   v_minuta_numero text;
   v_exige_cargo boolean := p_tipo IN ('efetivo', 'comissionado');
   v_descricao text;
+  v_protocolo text;
 BEGIN
   IF auth.uid() IS NULL OR NOT (public.has_permission_code(auth.uid(), 'rh.servidores.criar')
                                 OR public.has_permission_code(auth.uid(), 'rh.lotacoes.criar')) THEN
@@ -396,6 +398,12 @@ BEGIN
   IF p_tipo = 'cedido_entrada' AND coalesce(btrim(p_orgao_origem), '') = '' THEN
     RAISE EXCEPTION 'Informe o órgão de origem do servidor cedido';
   END IF;
+
+  -- protocolo do ato (migração 20261012090000): todas as gravações abaixo e na trilha levam este número
+  v_protocolo := public.rh_protocolo_atual('admissao',
+    'Admissão de ' || v_servidor.nome_completo || ' (' || p_tipo::text || ') em ' || v_unidade_nome
+      || ' a partir de ' || to_char(p_data_inicio, 'DD/MM/YYYY'),
+    p_servidor_id, jsonb_build_object('tipo_vinculo', p_tipo, 'cargo_id', p_cargo_id, 'unidade_id', p_unidade_id));
 
   -- uma admissão por vez: quem já tem vínculo, lotação ou provimento ativo usa os fluxos de movimentação
   IF EXISTS (SELECT 1 FROM public.lotacoes WHERE servidor_id = p_servidor_id AND ativo)
@@ -469,8 +477,8 @@ BEGIN
          unidade_atual_id = p_unidade_id
    WHERE id = p_servidor_id;
 
-  RETURN jsonb_build_object('vinculo_id', v_vinculo_id, 'lotacao_id', v_lotacao_id, 'provimento_id', v_provimento_id,
-                            'minuta_id', v_minuta_id, 'minuta_numero', v_minuta_numero);
+  RETURN jsonb_build_object('protocolo', v_protocolo, 'vinculo_id', v_vinculo_id, 'lotacao_id', v_lotacao_id,
+                            'provimento_id', v_provimento_id, 'minuta_id', v_minuta_id, 'minuta_numero', v_minuta_numero);
 END;
 $function$;
 
@@ -505,6 +513,7 @@ DECLARE
   v_n_viag int; v_n_chefe int; v_n_com int; v_viag_andamento int;
   v_minuta_numero text;
   v_avisos text[] := '{}';
+  v_protocolo text;
 BEGIN
   IF auth.uid() IS NULL OR NOT public.has_permission_code(auth.uid(), 'rh.servidores.editar') THEN
     RAISE EXCEPTION 'Sem permissão para desligar servidor' USING ERRCODE = '42501';
@@ -520,6 +529,11 @@ BEGIN
   IF v_servidor.situacao IN ('exonerado', 'aposentado', 'falecido') THEN
     RAISE EXCEPTION 'Servidor já desligado (%)', v_servidor.situacao;
   END IF;
+
+  v_protocolo := public.rh_protocolo_atual('desligamento',
+    'Desligamento de ' || v_servidor.nome_completo || ' (' || p_motivo || ') em ' || to_char(p_data, 'DD/MM/YYYY')
+      || coalesce(' — ' || nullif(btrim(p_observacao), ''), ''),
+    p_servidor_id, jsonb_build_object('motivo', p_motivo, 'ato_numero', p_ato_numero, 'ato_doe_numero', p_ato_doe_numero));
 
   v_nova := CASE p_motivo WHEN 'falecimento' THEN 'falecido' WHEN 'aposentadoria' THEN 'aposentado' ELSE 'exonerado' END;
   v_hist := CASE WHEN p_motivo = 'aposentadoria' THEN 'aposentadoria'
@@ -638,7 +652,7 @@ BEGIN
   v_avisos := array_append(v_avisos, 'Acerto financeiro (férias proporcionais, 13º, rescisão) não é calculado pelo sistema');
   v_avisos := array_append(v_avisos, 'Conferir bens patrimoniais em carga do servidor e revogar acessos fora do RH');
 
-  RETURN jsonb_build_object('situacao', v_nova, 'minuta_numero', v_minuta_numero, 'avisos', to_jsonb(v_avisos),
+  RETURN jsonb_build_object('protocolo', v_protocolo, 'situacao', v_nova, 'minuta_numero', v_minuta_numero, 'avisos', to_jsonb(v_avisos),
                             'encerrados', jsonb_build_object('lotacoes', v_n_lot, 'vinculos', v_n_vinc,
                               'provimentos', v_n_prov, 'cessoes', v_n_cess, 'designacoes', v_n_desig,
                               'ferias', v_n_fer, 'licencas', v_n_lic, 'viagens', v_n_viag,
@@ -659,7 +673,10 @@ DECLARE
   v_hoje date := public.data_local();
   v_ids uuid[];
   v_fer_ini int; v_fer_fim int; v_lic int; v_viag int;
+  v_protocolo text;
 BEGIN
+  v_protocolo := public.rh_protocolo_atual('sistema', 'Avanço automático de status por data (férias, licenças, viagens)',
+                                            NULL, jsonb_build_object('rotina', 'rh_avancar_status_por_data'));
   WITH a AS (
     UPDATE public.ferias_servidor SET status = 'em_gozo'
      WHERE status = 'programada' AND data_inicio <= v_hoje AND data_fim >= v_hoje RETURNING servidor_id)
@@ -683,7 +700,7 @@ BEGIN
   -- licença com início futuro não muda a situação hoje (a função confere as datas); recalcula quem mudou
   PERFORM public.fn_atualizar_situacao_servidor(s) FROM unnest(coalesce(v_ids, '{}')) AS s;
 
-  RETURN jsonb_build_object('data', v_hoje, 'ferias_iniciadas', v_fer_ini, 'ferias_concluidas', v_fer_fim,
+  RETURN jsonb_build_object('protocolo', v_protocolo, 'data', v_hoje, 'ferias_iniciadas', v_fer_ini, 'ferias_concluidas', v_fer_fim,
                             'licencas_encerradas', v_lic, 'viagens_em_andamento', v_viag);
 END;
 $function$;

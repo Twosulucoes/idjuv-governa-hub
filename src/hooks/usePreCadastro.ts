@@ -443,8 +443,9 @@ export function usePreCadastros() {
 
       // 5. Vínculo + lotação + provimento (ou cessão) + histórico + minuta de portaria, numa transação.
       // Se falhar, o servidor fica cadastrado e a admissão é refeita na aba de histórico do servidor.
+      let protocolo: string | undefined;
       try {
-        await admitirServidor({
+        const admissao = await admitirServidor({
           servidorId: novoServidor.id,
           tipo: TIPO_VINCULO_POR_TIPO_SERVIDOR[tipoServidor],
           cargoId: cargoId || null,
@@ -452,6 +453,7 @@ export function usePreCadastros() {
           dataInicio: dataAdmissao,
           orgaoOrigem,
         });
+        protocolo = admissao.protocolo;
       } catch (e) {
         throw new Error(
           `Servidor cadastrado (matrícula ${novoServidor.matricula}), mas a admissão não foi concluída: ` +
@@ -461,13 +463,14 @@ export function usePreCadastros() {
 
       return { 
         servidorId: novoServidor.id, 
-        matricula: novoServidor.matricula
+        matricula: novoServidor.matricula,
+        protocolo,
       };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['pre-cadastros'] });
       queryClient.invalidateQueries({ queryKey: ['servidores'] });
-      toast.success(`Servidor criado com matrícula ${data.matricula}!`);
+      toast.success(`Servidor criado com matrícula ${data.matricula}! Protocolo ${data.protocolo ?? '—'}`);
     },
     onError: (error: Error) => {
       toast.error('Erro ao converter: ' + error.message);

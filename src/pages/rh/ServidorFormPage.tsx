@@ -556,6 +556,7 @@ export default function ServidorFormPage() {
       };
 
       let servidorId: string | null = null;
+      let protocolo: string | undefined;
 
       if (isEditing && id) {
         const { error } = await supabase
@@ -579,7 +580,7 @@ export default function ServidorFormPage() {
         // O tipo do formulário é traduzido para o enum do vínculo; a validação do submit garante tipo, unidade e data.
         if (servidorId && data.tipo_servidor && data.unidade_atual_id) {
           try {
-            await admitirServidor({
+            const admissao = await admitirServidor({
               servidorId,
               tipo: TIPO_VINCULO_POR_TIPO_SERVIDOR[data.tipo_servidor],
               cargoId: data.cargo_atual_id || null,
@@ -587,15 +588,17 @@ export default function ServidorFormPage() {
               dataInicio: data.data_admissao,
               orgaoOrigem: data.orgao_origem,
             });
+            protocolo = admissao.protocolo;
           } catch (e) {
             throw new VinculoNaoCriadoError(servidorId, e instanceof Error ? e.message : String(e));
           }
         }
       }
+      return { protocolo };
     },
-    onSuccess: () => {
+    onSuccess: (resultado) => {
       queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
-      toast.success(isEditing ? "Servidor atualizado!" : "Servidor cadastrado!");
+      toast.success(isEditing ? "Servidor atualizado!" : `Servidor cadastrado! Protocolo ${resultado?.protocolo ?? "—"}`);
       navigate("/rh/servidores");
     },
     onError: (error: unknown) => {

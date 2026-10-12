@@ -61,6 +61,8 @@ export interface LinhaTrilha {
   servidor_id: string | null;
   servidor_nome: string | null;
   servidor_matricula: string | null;
+  /** Protocolo RH-AAAA-NNNNNN do ato (módulo rh): agrupa as gravações da mesma transação. */
+  protocolo?: string | null;
   origem: OrigemTrilha | null;
   role_at_time: string | null;
   description: string | null;
@@ -131,6 +133,8 @@ export interface FiltrosTrilha {
   responsavel?: string;
   /** ID do servidor responsável. */
   servidorId?: string;
+  /** Protocolo do ato (RH-AAAA-NNNNNN). */
+  protocolo?: string;
   escopo?: EscopoTrilha;
   /** Vias do fundamento (fundamento->>via), ex.: negado_sem_servidor e negado_setor. */
   /** Só as gravações sem fundamento: fundamento->>permitido = 'false' (usa o índice parcial do banco). */
@@ -143,8 +147,11 @@ export interface FiltrosTrilha {
 
 const COLUNAS_LISTA =
   "id, timestamp, sequencia, action, entity_type, entity_id, module_name, user_id, servidor_id, servidor_nome, " +
-  "servidor_matricula, origem, role_at_time, description, campos_alterados, fonte:metadata->>fonte, " +
+  "servidor_matricula, protocolo, origem, role_at_time, description, campos_alterados, fonte:metadata->>fonte, " +
   "gatilho:metadata->>trigger";
+
+/** Número de protocolo do RH: RH-AAAA-NNNNNN. */
+export const PROTOCOLO = /^RH-\d{4}-\d{6,}$/;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -192,6 +199,7 @@ function aplicarFiltros(query: ConsultaTrilha, f: FiltrosTrilha): ConsultaTrilha
   if (ehUuid(f.registroId)) q = q.eq("entity_id", f.registroId.trim());
   if (ehUuid(f.usuarioId)) q = q.eq("user_id", f.usuarioId.trim());
   if (ehUuid(f.servidorId)) q = q.eq("servidor_id", f.servidorId.trim());
+  if (f.protocolo && PROTOCOLO.test(f.protocolo.trim().toUpperCase())) q = q.eq("protocolo", f.protocolo.trim().toUpperCase());
   const resp = f.responsavel ? limparTexto(f.responsavel) : "";
   if (resp && resp !== "*") q = q.or(`servidor_nome.ilike.*${resp}*,servidor_matricula.ilike.*${resp}*`);
   // Recorte da aba: coluna gerada audit_logs.alvos (text[] com GIN, migração 20261011000300), com 's:<servidor>' e

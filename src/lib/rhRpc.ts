@@ -48,6 +48,8 @@ export interface AdmitirServidorParams extends AtoFuncional {
 }
 
 export interface AdmitirServidorResultado {
+  /** Protocolo do ato (RH-AAAA-NNNNNN): todas as gravações e a trilha levam este número. */
+  protocolo: string;
   vinculo_id: string;
   lotacao_id: string;
   provimento_id: string | null;
@@ -108,6 +110,8 @@ export interface DesligarServidorParams extends AtoFuncional {
 }
 
 export interface DesligarServidorResultado {
+  /** Protocolo do ato (RH-AAAA-NNNNNN). */
+  protocolo: string;
   situacao: "exonerado" | "aposentado" | "falecido";
   minuta_numero: string | null;
   avisos: string[];

@@ -390,7 +390,7 @@ export function useLotarServidor() {
         observacao,
       });
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["servidores-gestao"] });
       queryClient.invalidateQueries({ queryKey: ["estatisticas-lotacao"] });
       queryClient.invalidateQueries({ queryKey: ["cargos-vagos"] });
@@ -399,7 +399,7 @@ export function useLotarServidor() {
       queryClient.invalidateQueries({ queryKey: ["vinculos-servidor", variables.servidorId] });
       queryClient.invalidateQueries({ queryKey: ["portarias"] });
       queryClient.invalidateQueries({ queryKey: ["servidores-rh"] });
-      toast.success("Servidor lotado! Vínculo, provimento, histórico e minuta de portaria registrados.");
+      toast.success(`Servidor lotado! Vínculo, provimento, histórico e minuta de portaria registrados. Protocolo ${data.protocolo}`);
     },
     onError: (error: Error) => {
       toast.error(error.message || "Erro ao lotar servidor");
@@ -424,7 +424,7 @@ export function useExonerarServidor() {
       queryClient.invalidateQueries({ queryKey: ["historico-funcional", variaveis.servidorId] });
       queryClient.invalidateQueries({ queryKey: ["vinculos-servidor", variaveis.servidorId] });
       queryClient.invalidateQueries({ queryKey: ["portarias"] });
-      toast.success("Servidor desligado! Lotação encerrada e cargo liberado.", {
+      toast.success(`Servidor desligado! Protocolo ${resultado.protocolo}`, {
         description: resultado.avisos.join(" · "),
         duration: 12000,
       });
