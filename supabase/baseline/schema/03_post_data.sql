@@ -1950,6 +1950,22 @@ ALTER TABLE ONLY public.horarios_jornada
 
 
 --
+-- Name: ia_config ia_config_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ia_config
+    ADD CONSTRAINT ia_config_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ia_uso ia_uso_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ia_uso
+    ADD CONSTRAINT ia_uso_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: importacoes importacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5320,6 +5336,20 @@ CREATE INDEX idx_historico_tipo ON public.historico_funcional USING btree (tipo)
 
 
 --
+-- Name: idx_ia_uso_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ia_uso_created_at ON public.ia_uso USING btree (created_at DESC);
+
+
+--
+-- Name: idx_ia_uso_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ia_uso_user_id ON public.ia_uso USING btree (user_id);
+
+
+--
 -- Name: idx_importacoes_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8299,6 +8329,13 @@ CREATE TRIGGER trg_historico_pagamento BEFORE UPDATE ON public.fin_pagamentos FO
 --
 
 CREATE TRIGGER trg_historico_solicitacao BEFORE UPDATE ON public.fin_solicitacoes FOR EACH ROW EXECUTE FUNCTION public.fn_registrar_historico_status_financeiro();
+
+
+--
+-- Name: ia_config trg_ia_config_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_ia_config_autoria BEFORE INSERT OR UPDATE ON public.ia_config FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria_ia_config();
 
 
 --
@@ -14303,6 +14340,22 @@ ALTER TABLE ONLY public.horarios_jornada
 
 
 --
+-- Name: ia_config ia_config_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ia_config
+    ADD CONSTRAINT ia_config_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: ia_uso ia_uso_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ia_uso
+    ADD CONSTRAINT ia_uso_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: importacoes importacoes_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17731,6 +17784,46 @@ ALTER TABLE public.historico_patrimonio ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.horarios_jornada ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: ia_config; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.ia_config ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: ia_config ia_config_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ia_config_insert ON public.ia_config FOR INSERT TO authenticated WITH CHECK (( SELECT public.pode_configurar_ia() AS pode_configurar_ia));
+
+
+--
+-- Name: ia_config ia_config_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ia_config_select ON public.ia_config FOR SELECT TO authenticated USING (( SELECT public.pode_configurar_ia() AS pode_configurar_ia));
+
+
+--
+-- Name: ia_config ia_config_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ia_config_update ON public.ia_config FOR UPDATE TO authenticated USING (( SELECT public.pode_configurar_ia() AS pode_configurar_ia)) WITH CHECK (( SELECT public.pode_configurar_ia() AS pode_configurar_ia));
+
+
+--
+-- Name: ia_uso; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.ia_uso ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: ia_uso ia_uso_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ia_uso_select ON public.ia_uso FOR SELECT TO authenticated USING (( SELECT public.pode_configurar_ia() AS pode_configurar_ia));
+
 
 --
 -- Name: importacoes; Type: ROW SECURITY; Schema: public; Owner: -

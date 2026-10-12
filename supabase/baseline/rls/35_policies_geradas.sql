@@ -2315,6 +2315,12 @@ DROP POLICY IF EXISTS "rls_delete" ON public.horarios_jornada;
 CREATE POLICY "rls_delete" ON public.horarios_jornada FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
+-- ia_config  [preservar: admin]
+-- (nenhuma policy gerada)
+
+-- ia_uso  [preservar: admin]
+-- (nenhuma policy gerada)
+
 -- importacoes  [preservar: financeiro]
 -- (nenhuma policy gerada)
 

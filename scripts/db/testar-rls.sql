@@ -49,6 +49,9 @@
 --   RH (E3)          remessa CNAB e eSocial: folha fechada, número da remessa pelo banco, arquivo uma vez, cancelamento
 --                    pela RPC, evento sem repetição, recibo, bucket remessas-cnab; contracheques só com
 --                    rh.contracheques.visualizar ou financeiro.folha.processar (ou o próprio); sem DELETE em remessas/eventos
+--   IA (fase 1)      ia_config/ia_uso só com ia.configurar; segredo_id ilegível e segredo_* fora da API; trocar provedor
+--                    ou URL base apaga a chave e desliga a IA; chave no Vault (substituto mínimo na cópia); ia_config_servidor
+--                    e escrita em ia_uso só da service role; ia_disponivel = módulo compras + ia.usar + IA ligada
 --   global           anon só nas exceções; nenhuma policy acesso_total; funções-stub não existem
 --
 -- Cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é FALHA. As tabelas temporárias do teste
@@ -1144,7 +1147,7 @@ BEGIN
     SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef AND p.prorettype <> 'trigger'::regtype
       AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
-      AND NOT (p.prosrc ~* 'auth\.uid\(\)|can_access_module|is_admin_user|is_admin_atual|usuario_tem_permissao|has_permission_code|usuario_eh_admin|usuario_eh_super_admin|is_active_user|perfil_ativo_atual|pode_gerenciar_avisos|pode_configurar_envios|pode_ver_envios')
+      AND NOT (p.prosrc ~* 'auth\.uid\(\)|can_access_module|is_admin_user|is_admin_atual|usuario_tem_permissao|has_permission_code|usuario_eh_admin|usuario_eh_super_admin|is_active_user|perfil_ativo_atual|pode_gerenciar_avisos|pode_configurar_envios|pode_ver_envios|pode_configurar_ia|pode_usar_ia')
       AND p.proname <> ALL (permitidas)
   LOOP
     PERFORM pg_temp.falha('SECURITY DEFINER sem checagem de quem chama e executável por authenticated: ' || f.proname || '(' || f.args || ')');
@@ -1626,6 +1629,220 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.campanhas_inventario_unidades'::regclass AND NOT tgisinternal AND tgenabled <> 'D') THEN
     PERFORM pg_temp.falha('campanhas_inventario_unidades: falta o trigger de updated_at/updated_by');
   END IF;
+END $$;
+
+-- ---------------------------------------------------------------- IA da instituição (migração 20261012200000) (TRIGGERS LIGADOS)
+-- ia_config e ia_uso são `preservar`: só quem tem ia.configurar lê a config e o uso; segredo_id nunca legível e
+-- segredo_* nunca graváveis pela API; trocar provedor ou URL base apaga a chave e desliga a IA; ia_config_servidor e a
+-- escrita em ia_uso só para a service role; ia_disponivel exige módulo compras + ia.usar + IA ligada.
+-- O shim não tem o Vault: um substituto mínimo (mesma assinatura posicional) é criado só nesta cópia descartável.
+DO $$
+BEGIN
+  IF to_regclass('public.ia_config') IS NOT NULL AND to_regnamespace('vault') IS NULL THEN
+    CREATE SCHEMA vault;
+    CREATE TABLE vault.secrets (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text UNIQUE, secret text, description text);
+    CREATE FUNCTION vault.create_secret(new_secret text, new_name text DEFAULT NULL, new_description text DEFAULT '')
+      RETURNS uuid LANGUAGE sql AS $f$ INSERT INTO vault.secrets (name, secret, description) VALUES (new_name, new_secret, new_description) RETURNING id $f$;
+    CREATE FUNCTION vault.update_secret(secret_id uuid, new_secret text)
+      RETURNS void LANGUAGE sql AS $f$ UPDATE vault.secrets SET secret = new_secret WHERE id = secret_id $f$;
+    CREATE VIEW vault.decrypted_secrets AS SELECT id, name, secret AS decrypted_secret FROM vault.secrets;
+    -- como no Supabase: só o dono das funções (postgres) usa o Vault; a API não
+    REVOKE ALL ON SCHEMA vault FROM PUBLIC;
+    REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA vault FROM PUBLIC;
+    GRANT USAGE ON SCHEMA vault TO postgres;
+    GRANT ALL ON ALL TABLES IN SCHEMA vault TO postgres;
+    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA vault TO postgres;
+  END IF;
+END $$;
+
+DO $$
+DECLARE
+  u_cfg uuid := 'a0000000-0000-0000-0000-0000000000e1';    -- só ia.configurar (avulsa; não exige módulo)
+  u_usa uuid := 'a0000000-0000-0000-0000-0000000000e2';    -- módulo compras + ia.usar
+  u_avu uuid := 'a0000000-0000-0000-0000-0000000000e3';    -- ia.usar avulsa, SEM o módulo compras
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');
+  u_comp uuid := (SELECT uid FROM persona WHERE nome='mod_compras');
+  u_adm uuid := (SELECT uid FROM persona WHERE nome='mod_admin');
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  u_inativo uuid := (SELECT uid FROM persona WHERE nome='inativo');
+  r text; p record; seg uuid; fin text; atv boolean; dt timestamptz;
+BEGIN
+  IF to_regclass('public.ia_config') IS NULL OR to_regclass('public.ia_uso') IS NULL THEN
+    PERFORM pg_temp.falha('IA: ia_config/ia_uso não existem (migração 20261012200000 ausente)');
+    RETURN;
+  END IF;
+  INSERT INTO auth.users (id, email) VALUES (u_cfg, 'ia_cfg@teste.invalid'), (u_usa, 'ia_usa@teste.invalid'), (u_avu, 'ia_avu@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_cfg, u_usa, u_avu);
+  INSERT INTO public.user_permissions (user_id, permission) VALUES (u_cfg, 'ia.configurar'), (u_usa, 'ia.usar'), (u_avu, 'ia.usar');
+  INSERT INTO public.user_modules (user_id, module) VALUES (u_usa, 'compras');
+
+  -- catálogo
+  IF (SELECT count(*) FROM public.module_permissions_catalog
+       WHERE (permission_code, module_code) IN (('ia.usar', 'compras'), ('ia.configurar', 'admin'))) <> 2 THEN
+    PERFORM pg_temp.falha('IA: ia.usar (compras) e ia.configurar (admin) fora do catálogo de permissões');
+  END IF;
+
+  -- sem configuração: salvar a chave é recusado (precisa do provedor salvo antes)
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'SELECT public.salvar_chave_ia(''sk-teste-0000-1111'')');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('salvar_chave_ia: grava sem ia_config salva (' || r || ')'); END IF;
+  -- host sem ponto (nome de serviço Docker interno da VPS, ex.: kong: SSRF) é recusado no INSERT (e no UPDATE, abaixo)
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'INSERT INTO public.ia_config (provedor, url_base, modelo) VALUES (''compativel_openai'', ''https://kong:8000'', ''m'')');
+  IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('ia_config: INSERT aceita url_base sem ponto no host (https://kong:8000) (' || r || ')'); END IF;
+  IF pg_temp.valor_como(NULL, 'service_role', 'SELECT coalesce(public.ia_config_servidor()::text, ''nulo'')') <> 'nulo' THEN
+    PERFORM pg_temp.falha('ia_config_servidor: não devolve NULL sem configuração');
+  END IF;
+  -- IA nasce desligada; ligar sem chave viola o CHECK
+  r := pg_temp.exec_como(u_cfg, 'authenticated', 'INSERT INTO public.ia_config (provedor, modelo) VALUES (''openai'', ''modelo-teste'')');
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('ia_config: quem tem ia.configurar não salva a config (' || r || ')'); RETURN; END IF;
+  IF (SELECT ativo OR updated_by IS DISTINCT FROM u_cfg FROM public.ia_config) THEN
+    PERFORM pg_temp.falha('ia_config: nasce ligada ou sem a autoria de quem gravou');
+  END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET ativo = true');
+  IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('ia_config: liga sem chave (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'INSERT INTO public.ia_config (id) VALUES (false)');
+  IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('ia_config: aceita segunda linha (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET provedor = ''compativel_openai'', url_base = ''http://10.0.0.1/v1''');
+  IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('ia_config: aceita url_base sem https (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET provedor = ''compativel_openai'', url_base = ''https://kong:8000''');
+  IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('ia_config: UPDATE aceita url_base sem ponto no host (https://kong:8000) (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET provedor = ''compativel_openai''');
+  IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('ia_config: compatível com OpenAI sem url_base (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET url_base = ''https://exemplo.invalid/v1''');
+  IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('ia_config: url_base com provedor que não é o compatível (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET modelo = ''modelo com espaço''');
+  IF r NOT LIKE 'erro:23514%' THEN PERFORM pg_temp.falha('ia_config: aceita modelo fora do padrão (' || r || ')'); END IF;
+  INSERT INTO public.ia_uso (user_id, recurso, provedor, modelo, tokens_entrada, tokens_saida, status)
+  VALUES (u_usa, 'cpsi', 'openai', 'modelo-teste', 100, 50, 'ok'),
+         (u_usa, 'cpsi', 'openai', 'modelo-teste', 10, 5, 'erro'),
+         (u_usa, 'cpsi', 'openai', 'modelo-teste', 999, 999, 'ok');
+  UPDATE public.ia_uso SET created_at = date_trunc('month', now(), 'UTC') - interval '1 second' WHERE tokens_entrada = 999;
+
+  -- quem não tem ia.configurar: não lê config nem uso, não grava, não salva chave, não vê o resumo
+  FOR p IN SELECT * FROM (VALUES ('nenhum', u_nenhum), ('mod_compras', u_comp), ('mod_admin', u_adm), ('ia.usar', u_usa),
+                                 ('inativo', u_inativo)) AS v(nome, uid) LOOP
+    IF pg_temp.sel(p.uid, 'authenticated', 'ia_config') <> 0 THEN PERFORM pg_temp.falha('ia_config: ' || p.nome || ' lê a config'); END IF;
+    IF pg_temp.sel(p.uid, 'authenticated', 'ia_uso') <> 0 THEN PERFORM pg_temp.falha('ia_uso: ' || p.nome || ' lê o uso'); END IF;
+    IF pg_temp.upd(p.uid, 'authenticated', 'ia_config') > 0 THEN PERFORM pg_temp.falha('ia_config: ' || p.nome || ' altera a config'); END IF;
+    r := pg_temp.sql_como(p.uid, 'authenticated', 'SELECT public.salvar_chave_ia(''sk-teste-0000-2222'')');
+    IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('salvar_chave_ia: ' || p.nome || ' grava a chave (' || r || ')'); END IF;
+    r := pg_temp.sql_como(p.uid, 'authenticated', 'SELECT public.resumo_uso_ia_mes()');
+    IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('resumo_uso_ia_mes: ' || p.nome || ' vê o uso (' || r || ')'); END IF;
+  END LOOP;
+  -- anon: nada
+  IF pg_temp.sel(NULL, 'anon', 'ia_config') <> -1 OR pg_temp.sel(NULL, 'anon', 'ia_uso') <> -1 THEN PERFORM pg_temp.falha('IA: anon consegue SELECT em ia_config/ia_uso'); END IF;
+  FOREACH r IN ARRAY ARRAY['SELECT public.pode_configurar_ia()', 'SELECT public.pode_usar_ia()', 'SELECT public.ia_disponivel()',
+                           'SELECT public.salvar_chave_ia(''sk-teste-0000-3333'')', 'SELECT public.resumo_uso_ia_mes()', 'SELECT public.ia_config_servidor()'] LOOP
+    IF pg_temp.sql_como(NULL, 'anon', r) NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('IA: anon executa ' || r); END IF;
+  END LOOP;
+
+  -- quem tem ia.configurar: lê a config, nunca o segredo_id, e não grava segredo_* nem apaga
+  IF pg_temp.sel(u_cfg, 'authenticated', 'ia_config') <> 1 THEN PERFORM pg_temp.falha('ia_config: quem tem ia.configurar não lê a config'); END IF;
+  IF pg_temp.sel(u_cfg, 'authenticated', 'ia_uso') <> 3 THEN PERFORM pg_temp.falha('ia_uso: quem tem ia.configurar não lê o uso'); END IF;
+  IF pg_temp.sel(u_admin, 'authenticated', 'ia_config') <> 1 THEN PERFORM pg_temp.falha('ia_config: papel admin não lê a config'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'SELECT segredo_id FROM public.ia_config');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('ia_config: segredo_id legível pela API (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'SELECT * FROM public.ia_config');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('ia_config: SELECT * passa (inclui segredo_id) (' || r || ')'); END IF;
+  FOREACH r IN ARRAY ARRAY['segredo_id = gen_random_uuid()', 'segredo_final = ''abcd''', 'segredo_atualizado_em = now()'] LOOP
+    IF pg_temp.sql_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET ' || r) NOT LIKE 'erro:42501%' THEN
+      PERFORM pg_temp.falha('ia_config: API grava ' || r);
+    END IF;
+  END LOOP;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'DELETE FROM public.ia_config');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('ia_config: API apaga a config (' || r || ')'); END IF;
+
+  -- chave: validação de tamanho e espaços; gravada no Vault com o nome ia_chave_api, só os 4 últimos no front
+  FOREACH r IN ARRAY ARRAY['''curta''', '''  sk-teste-com-espaco''', '''sk-teste-com-espaco ''', 'repeat(''x'', 4097)', 'NULL'] LOOP
+    IF pg_temp.sql_como(u_cfg, 'authenticated', 'SELECT public.salvar_chave_ia(' || r || ')') NOT LIKE 'erro:22023%' THEN
+      PERFORM pg_temp.falha('salvar_chave_ia: aceita chave inválida ' || r);
+    END IF;
+  END LOOP;
+  r := pg_temp.exec_como(u_cfg, 'authenticated', 'SELECT public.salvar_chave_ia(''sk-teste-0000-4444'')');
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('salvar_chave_ia: quem tem ia.configurar não grava (' || r || ')'); END IF;
+  SELECT segredo_id, segredo_final INTO seg, fin FROM public.ia_config;
+  IF seg IS NULL OR fin IS DISTINCT FROM '4444'
+     OR (SELECT secret FROM vault.secrets WHERE id = seg AND name = 'ia_chave_api') IS DISTINCT FROM 'sk-teste-0000-4444' THEN
+    PERFORM pg_temp.falha('salvar_chave_ia: chave não ficou no Vault (ia_chave_api) com segredo_final = 4 últimos');
+  END IF;
+  IF pg_temp.valor_como(u_cfg, 'authenticated', 'SELECT segredo_final FROM public.ia_config') IS DISTINCT FROM '4444' THEN
+    PERFORM pg_temp.falha('ia_config: quem tem ia.configurar não lê segredo_final');
+  END IF;
+
+  -- servidor: só a service role lê a chave; a config volta sem segredo_id e com os tokens do mês (UTC)
+  r := pg_temp.sql_como(u_cfg, 'authenticated', 'SELECT public.ia_config_servidor()');
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('ia_config_servidor: authenticated executa (' || r || ')'); END IF;
+  r := pg_temp.valor_como(NULL, 'service_role', 'SELECT public.ia_config_servidor()::text');
+  IF r IS NULL OR r::jsonb ->> 'chave' IS DISTINCT FROM 'sk-teste-0000-4444' OR r::jsonb ? 'segredo_id'
+     OR (r::jsonb ->> 'tokens_mes')::bigint IS DISTINCT FROM 165 THEN
+    PERFORM pg_temp.falha('ia_config_servidor: retorno inesperado para a service role (' || coalesce(left(r, 90), 'NULL') || ')');
+  END IF;
+  r := pg_temp.valor_como(u_cfg, 'authenticated', 'SELECT public.resumo_uso_ia_mes()::text');
+  IF r IS NULL OR r LIKE 'erro:%' OR (r::jsonb ->> 'chamadas')::int <> 2 OR (r::jsonb ->> 'tokens_entrada')::int <> 110
+     OR (r::jsonb ->> 'tokens_saida')::int <> 55 THEN
+    PERFORM pg_temp.falha('resumo_uso_ia_mes: totais do mês errados (' || coalesce(r, 'NULL') || ')');
+  END IF;
+  -- ia_uso: ninguém escreve pela API; a service role grava
+  FOREACH r IN ARRAY ARRAY['INSERT INTO public.ia_uso (recurso, provedor, modelo, status) VALUES (''cpsi'', ''openai'', ''m'', ''ok'')',
+                           'UPDATE public.ia_uso SET tokens_saida = 0', 'DELETE FROM public.ia_uso', 'TRUNCATE public.ia_uso'] LOOP
+    IF pg_temp.sql_como(u_cfg, 'authenticated', r) NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('ia_uso: authenticated com ia.configurar: ' || left(r, 40)); END IF;
+    IF pg_temp.sql_como(u_admin, 'authenticated', r) NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('ia_uso: papel admin: ' || left(r, 40)); END IF;
+  END LOOP;
+  r := pg_temp.sql_como(NULL, 'service_role', 'INSERT INTO public.ia_uso (recurso, provedor, modelo, status) VALUES (''cpsi'', ''openai'', ''m'', ''ok'')');
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('ia_uso: a service role não grava (' || r || ')'); END IF;
+
+  -- disponibilidade: desligada → false para todos
+  FOR p IN SELECT * FROM (VALUES ('ia.usar', u_usa), ('admin', u_admin)) AS v(nome, uid) LOOP
+    IF pg_temp.valor_como(p.uid, 'authenticated', 'SELECT public.ia_disponivel()::text') <> 'false' THEN PERFORM pg_temp.falha('ia_disponivel: true com a IA desligada (' || p.nome || ')'); END IF;
+  END LOOP;
+  r := pg_temp.exec_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET ativo = true');
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('ia_config: não liga com provedor, modelo e chave (' || r || ')'); END IF;
+  -- ligada: só quem tem módulo compras E ia.usar (e o papel admin)
+  FOR p IN SELECT * FROM (VALUES ('ia.usar + compras', u_usa, 'true'), ('admin', u_admin, 'true'), ('ia.usar avulsa sem compras', u_avu, 'false'),
+                                 ('mod_compras sem ia.usar', u_comp, 'false'), ('ia.configurar', u_cfg, 'false'), ('nenhum', u_nenhum, 'false'),
+                                 ('inativo', u_inativo, 'false')) AS v(nome, uid, esperado) LOOP
+    r := pg_temp.valor_como(p.uid, 'authenticated', 'SELECT public.ia_disponivel()::text');
+    IF r IS DISTINCT FROM p.esperado THEN PERFORM pg_temp.falha('ia_disponivel: ' || p.nome || ' deveria ser ' || p.esperado || ' (' || coalesce(r, 'NULL') || ')'); END IF;
+  END LOOP;
+
+  -- trocar o provedor apaga o vínculo com a chave e desliga a IA (mesmo que o UPDATE peça ativo = true)
+  r := pg_temp.exec_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET provedor = ''anthropic'', ativo = true');
+  SELECT segredo_id, segredo_final, segredo_atualizado_em, ativo INTO seg, fin, dt, atv FROM public.ia_config;
+  IF r <> 'ok' OR seg IS NOT NULL OR fin IS NOT NULL OR dt IS NOT NULL OR atv THEN
+    PERFORM pg_temp.falha('ia_config: trocar o provedor não apagou a chave nem desligou a IA (' || r || ')');
+  END IF;
+  -- a chave gravada de novo reaproveita o segredo do Vault pelo nome; trocar a URL base também apaga
+  r := pg_temp.exec_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET provedor = ''compativel_openai'', url_base = ''https://ia.exemplo.invalid/v1''');
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('ia_config: não aceita provedor compatível com URL https (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_cfg, 'authenticated', 'SELECT public.salvar_chave_ia(''sk-teste-0000-5555'')');
+  IF r <> 'ok' OR (SELECT count(*) FROM vault.secrets WHERE name = 'ia_chave_api') <> 1
+     OR (SELECT segredo_final FROM public.ia_config) IS DISTINCT FROM '5555' THEN
+    PERFORM pg_temp.falha('salvar_chave_ia: não reaproveitou o segredo do Vault pelo nome (' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET ativo = true');
+  r := pg_temp.exec_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET url_base = ''https://outro.exemplo.invalid/v1''');
+  SELECT segredo_id, segredo_final, segredo_atualizado_em, ativo INTO seg, fin, dt, atv FROM public.ia_config;
+  IF r <> 'ok' OR seg IS NOT NULL OR fin IS NOT NULL OR dt IS NOT NULL OR atv THEN
+    PERFORM pg_temp.falha('ia_config: trocar a URL base não apagou a chave nem desligou a IA (' || r || ')');
+  END IF;
+  -- mudar só o modelo ou os limites mantém a chave
+  r := pg_temp.exec_como(u_cfg, 'authenticated', 'SELECT public.salvar_chave_ia(''sk-teste-0000-6666'')');
+  r := pg_temp.exec_como(u_cfg, 'authenticated', 'UPDATE public.ia_config SET modelo = ''outro-modelo'', limite_chamadas_hora = 10, teto_tokens_mes = 1000');
+  IF r <> 'ok' OR (SELECT segredo_id IS NULL FROM public.ia_config) THEN PERFORM pg_temp.falha('ia_config: mudar modelo/limites apagou a chave (' || r || ')'); END IF;
+
+  -- funções: definer com search_path fixo; trigger fora da API
+  FOR p IN SELECT pr.proname, pr.prosecdef, pr.proconfig FROM pg_proc pr WHERE pr.pronamespace = 'public'::regnamespace
+           AND pr.proname IN ('pode_configurar_ia', 'pode_usar_ia', 'ia_disponivel', 'salvar_chave_ia', 'resumo_uso_ia_mes', 'ia_config_servidor') LOOP
+    IF NOT p.prosecdef OR NOT ('search_path=public' = ANY (coalesce(p.proconfig, '{}'))) THEN
+      PERFORM pg_temp.falha(p.proname || ': deveria ser SECURITY DEFINER com search_path = public');
+    END IF;
+  END LOOP;
+  IF has_function_privilege('authenticated', 'public.fixar_autoria_ia_config()', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('fixar_autoria_ia_config: executável por authenticated');
+  END IF;
+  IF NOT has_function_privilege('service_role', 'public.ia_config_servidor()', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('ia_config_servidor: a service role não executa');
+  END IF;
+  PERFORM pg_temp.nota('IA (fase 1): catálogo, ia_config (linha única, CHECKs, colunas do segredo, troca de provedor/URL), ia_uso, chave no Vault, ia_config_servidor, resumo do mês e ia_disponivel verificados');
 END $$;
 
 -- ---------------------------------------------------------------- RH: permissões e etapas (Onda B / B2) (TRIGGERS LIGADOS)
