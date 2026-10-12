@@ -4,27 +4,30 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Save, X } from "lucide-react";
 import { useSaveParametro } from "@/hooks/useFolhaPagamento";
+import { PARAMETROS_FOLHA, definicaoParametro, normalizarTipoParametro, unidadeDoParametro } from "@/lib/parametrosFolha";
 
-const PARAMETROS_PREDEFINIDOS = [
-  { tipo: "SALARIO_MINIMO", descricao: "Salário mínimo nacional" },
-  { tipo: "TETO_INSS", descricao: "Teto de contribuição do INSS" },
-  { tipo: "DEDUCAO_DEPENDENTE_IRRF", descricao: "Dedução por dependente para IRRF" },
-  { tipo: "SALARIO_FAMILIA_COTA", descricao: "Valor da cota do salário-família" },
-  { tipo: "SALARIO_FAMILIA_LIMITE", descricao: "Limite salarial para salário-família" },
-  { tipo: "ALIQUOTA_FGTS", descricao: "Alíquota do FGTS" },
-  { tipo: "TETO_RPPS", descricao: "Teto do Regime Próprio de Previdência" },
-];
-
-const parametroSchema = z.object({
-  tipo_parametro: z.string().min(3, "Tipo é obrigatório"),
-  valor: z.coerce.number().min(0, "Valor deve ser maior ou igual a zero"),
-  descricao: z.string().optional(),
-  vigencia_inicio: z.string().min(1, "Data de início é obrigatória"),
-  vigencia_fim: z.string().optional(),
-});
+const parametroSchema = z
+  .object({
+    tipo_parametro: z.string().min(3, "Tipo é obrigatório"),
+    valor: z.coerce.number().min(0, "Valor deve ser maior ou igual a zero"),
+    descricao: z.string().optional(),
+    vigencia_inicio: z.string().min(1, "Data de início é obrigatória"),
+    vigencia_fim: z.string().optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (normalizarTipoParametro(d.tipo_parametro).length < 3) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tipo_parametro"], message: "Use letras, números e _ (mínimo 3 caracteres)" });
+    }
+    if (unidadeDoParametro(d.tipo_parametro) === "sim_nao" && d.valor !== 0 && d.valor !== 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["valor"], message: "Use 1 (remunerado) ou 0 (sem remuneração)" });
+    }
+    if (d.vigencia_fim && d.vigencia_fim < d.vigencia_inicio) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["vigencia_fim"], message: "O fim da vigência não pode ser antes do início" });
+    }
+  });
 
 type ParametroFormData = z.infer<typeof parametroSchema>;
 
@@ -61,7 +64,7 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
 
   const handleTipoChange = (novoTipo: string) => {
     form.setValue("tipo_parametro", novoTipo);
-    const predefinido = PARAMETROS_PREDEFINIDOS.find((p) => p.tipo === novoTipo);
+    const predefinido = definicaoParametro(novoTipo);
     if (predefinido && !form.getValues("descricao")) {
       form.setValue("descricao", predefinido.descricao);
     }
@@ -71,6 +74,8 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
     saveParametro.mutate(
       {
         ...data,
+        // o banco procura o nome em minúsculas: a tela já grava assim
+        tipo_parametro: normalizarTipoParametro(data.tipo_parametro),
         id: parametro?.id,
         ativo: true,
         vigencia_fim: data.vigencia_fim || null,
@@ -99,20 +104,25 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {PARAMETROS_PREDEFINIDOS.map((p) => (
-                    <SelectItem key={p.tipo} value={p.tipo}>
-                      {p.tipo}
-                    </SelectItem>
+                  {(["Gerais", "Licenças", "Afastamentos"] as const).map((grupo) => (
+                    <SelectGroup key={grupo}>
+                      <SelectLabel>{grupo}</SelectLabel>
+                      {PARAMETROS_FOLHA.filter((p) => p.grupo === grupo).map((p) => (
+                        <SelectItem key={p.tipo} value={p.tipo}>
+                          {p.tipo}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
                 </SelectContent>
               </Select>
               <FormDescription>
-                Ou digite um nome personalizado:
+                Ou digite um nome personalizado (gravado em minúsculas, com _ no lugar de espaço):
               </FormDescription>
               <Input
                 {...field}
-                placeholder="NOME_DO_PARAMETRO"
-                className="font-mono uppercase"
+                placeholder="nome_do_parametro"
+                className="font-mono"
               />
               <FormMessage />
             </FormItem>
@@ -129,11 +139,7 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
                 <Input {...field} type="number" step="0.01" min={0} />
               </FormControl>
               <FormDescription>
-                {tipoParametro.includes("SALARIO") || tipoParametro.includes("TETO") || tipoParametro.includes("DEDUCAO")
-                  ? "Valor em Reais (R$)"
-                  : tipoParametro.includes("ALIQUOTA")
-                  ? "Valor em percentual (%)"
-                  : "Valor numérico"}
+                {{ reais: "Valor em Reais (R$)", percentual: "Valor em percentual (%)", sim_nao: "1 = remunerado, 0 = sem remuneração", numero: "Valor numérico" }[unidadeDoParametro(tipoParametro)]}
               </FormDescription>
               <FormMessage />
             </FormItem>

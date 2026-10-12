@@ -8,8 +8,11 @@ import { Loader2, Plus, Edit2, Trash2 } from "lucide-react";
 import { useTabelaINSS, useTabelaIRRF, useDeleteFaixaINSS, useDeleteFaixaIRRF } from "@/hooks/useFolhaPagamento";
 import { TabelaINSSForm } from "./TabelaINSSForm";
 import { TabelaIRRFForm } from "./TabelaIRRFForm";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+/** `vigencia_*` é data pura (AAAA-MM-DD): lida como UTC, aparece um dia antes em Roraima (UTC-4). */
+const dataLocal = (v: string) => parseISO(String(v).slice(0, 10));
 
 interface FaixaINSSData {
   id: string;
@@ -162,7 +165,7 @@ export function TabelasImpostosTab() {
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           A partir de{" "}
-                          {format(new Date(faixa.vigencia_inicio), "MMM/yyyy", { locale: ptBR })}
+                          {format(dataLocal(faixa.vigencia_inicio), "MMM/yyyy", { locale: ptBR })}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -296,7 +299,7 @@ export function TabelasImpostosTab() {
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           A partir de{" "}
-                          {format(new Date(faixa.vigencia_inicio), "MMM/yyyy", { locale: ptBR })}
+                          {format(dataLocal(faixa.vigencia_inicio), "MMM/yyyy", { locale: ptBR })}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
