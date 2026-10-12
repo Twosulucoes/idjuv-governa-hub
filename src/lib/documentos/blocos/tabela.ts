@@ -69,7 +69,8 @@ export const tabela =
       }
       if (indice % 2 === 1 && !negrito) {
         usarPreenchimento(doc, NEUTROS.zebra);
-        doc.rect(ctx.esquerda, ctx.y, ctx.largura, h, 'F');
+        // começa 0,1 mm abaixo para não cobrir a régua da linha anterior
+        doc.rect(ctx.esquerda, ctx.y + 0.1, ctx.largura, h - 0.1, 'F');
       }
       escrever(celulas, negrito);
       regua(ctx.y + h, false);
