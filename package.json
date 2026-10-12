@@ -16,6 +16,7 @@
     "check:contraste": "node scripts/check-contraste.mjs",
     "check:autoria-rh": "node scripts/check-autoria-rh.mjs",
     "check:cor-crua": "node scripts/check-cor-crua.mjs --arquivos",
+    "check:jspdf": "node scripts/check-jspdf-fora-do-core.mjs --arquivos",
     "gate": "bash scripts/gate.sh",
     "prompt": "node scripts/prompt.mjs",
     "emails:gerar": "bun scripts/emails/gerar-templates-email.ts",
