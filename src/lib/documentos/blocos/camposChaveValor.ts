@@ -1,6 +1,6 @@
 import { usarTexto } from '../core/pintura';
 import { ouTraco, quebrarEmLinhas } from '../core/texto';
-import { ESPACO, FONTE, NEUTROS, alturaLinha, ptParaMm } from '../core/tokens';
+import { ALTURA_CABECALHO, ESPACO, FONTE, NEUTROS, PAGINA, alturaLinha, ptParaMm } from '../core/tokens';
 import type { Bloco } from '../tipos';
 
 export interface Campo {
@@ -19,6 +19,7 @@ export const camposChaveValor =
     const w = (ctx.largura - FOLGA_ENTRE_COLUNAS * (colunas - 1)) / colunas;
     const hRotulo = alturaLinha(FONTE.rotulo);
     const hValor = alturaLinha(FONTE.corpo);
+    const capacidadePagina = ctx.limiteInferior - (PAGINA.margemTopo + ALTURA_CABECALHO.demais);
 
     for (let i = 0; i < p.campos.length; i += colunas) {
       const linha = p.campos.slice(i, i + colunas);
@@ -26,6 +27,27 @@ export const camposChaveValor =
       doc.setFontSize(FONTE.corpo);
       const valores = linha.map((c) => quebrarEmLinhas(doc, ouTraco(c.valor), w));
       const altura = hRotulo + Math.max(...valores.map((v) => v.length)) * hValor + ESPACO.sm / 2;
+      if (altura > capacidadePagina) {
+        // Campo maior que uma página (ex.: observação enorme): empilha os campos e deixa as linhas fluírem entre páginas.
+        linha.forEach((c) => {
+          ctx.garantirEspaco(hRotulo + hValor);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(FONTE.rotulo);
+          usarTexto(doc, NEUTROS.textoSuave);
+          doc.text(quebrarEmLinhas(doc, c.rotulo, ctx.largura)[0], ctx.esquerda, ctx.y + ptParaMm(FONTE.rotulo));
+          ctx.y += hRotulo;
+          doc.setFont(ctx.fonteCorpo, 'normal');
+          doc.setFontSize(FONTE.corpo);
+          usarTexto(doc, NEUTROS.texto);
+          for (const v of quebrarEmLinhas(doc, ouTraco(c.valor), ctx.largura)) {
+            ctx.garantirEspaco(hValor);
+            doc.text(v, ctx.esquerda, ctx.y + ptParaMm(FONTE.corpo));
+            ctx.y += hValor;
+          }
+        });
+        ctx.y += ESPACO.sm / 2;
+        continue;
+      }
       ctx.garantirEspaco(altura);
 
       linha.forEach((c, k) => {

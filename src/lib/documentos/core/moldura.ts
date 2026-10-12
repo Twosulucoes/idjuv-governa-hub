@@ -17,7 +17,7 @@ const formatarData = (d: Date): string =>
   new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(d).replace(', ', ' às ');
 
 function logo(ctx: ContextoDocumento, l: LogoImpressao | undefined, aDireita: boolean, y0: number): number {
-  if (!l) return 0;
+  if (!l || !(l.largura > 0 && l.altura > 0)) return 0; // imagem sem tamanho: o documento sai sem o logo
   const w = Math.min((ALTURA_LOGO * l.largura) / l.altura, LARGURA_MAX_LOGO);
   const x = aDireita ? ctx.esquerda + ctx.largura - w : ctx.esquerda;
   ctx.doc.addImage(l.dataUrl, l.formato, x, y0, w, ALTURA_LOGO);

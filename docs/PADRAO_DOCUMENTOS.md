@@ -162,6 +162,8 @@ exige tabela/RPC com RLS (decisão e spec próprias; fora de escopo desta fase).
 - **Assinatura isolada em página (pendência obrigatória da F2):** os blocos `assinaturas` e `carimbo` são
   indivisíveis; se faltarem poucos milímetros, vão sozinhos para a página seguinte (visto na amostra do
   requerimento). Antes de migrar os Atos, criar "manter junto" (medir local/data + assinatura antes de desenhar).
-- Texto recuado quebra pela largura da 1ª linha em todas as linhas do parágrafo (ver `blocos/paragrafo.ts`).
+- Cabeçalho/rodapé: nome do órgão muito longo no cabeçalho compacto (páginas 2+) pode encostar no protocolo, e `emitidoPor` muito longo no rodapé pode encostar em "Página X de Y"; logo mais largo que 3,2:1 sai achatado (limite de 45 mm de largura com 14 mm de altura). Nenhum tenant atual passa desses limites.
+- `tabela` não valida `colunas` vazio nem `peso <= 0` (erro de programação, lança); rótulo de campo maior que a coluna é cortado na 1ª linha.
+- O logo entra no PDF em resolução total (peso do arquivo); reduzir no canvas é melhoria futura.
 - Não há QR de verificação pública (fase opcional pós-F5).
 - A comparação antes/depois (`scripts/documentos-comparar.mjs`) usa poppler: roda na VPS, não no CI.

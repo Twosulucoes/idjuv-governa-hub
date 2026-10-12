@@ -1,6 +1,6 @@
 import { usarPreenchimento, usarTexto, usarTraco } from '../core/pintura';
 import { ouTraco, paraWinAnsi, quebrarEmLinhas } from '../core/texto';
-import { ESPACO, FONTE, NEUTROS, alturaLinha, corLegivel, ptParaMm } from '../core/tokens';
+import { ALTURA_CABECALHO, ESPACO, FONTE, NEUTROS, PAGINA, alturaLinha, corLegivel, ptParaMm } from '../core/tokens';
 import type { Bloco } from '../tipos';
 
 export interface ColunaTabela {
@@ -49,10 +49,21 @@ export const tabela =
       doc.line(ctx.esquerda, y, ctx.esquerda + ctx.largura, y);
     };
 
-    const cabecalho = (): void => {
+    const topoDemais = PAGINA.margemTopo + ALTURA_CABECALHO.demais;
+    const hCabecalho = alturaDe(p.colunas.map((c, i) => quebrar(c.titulo, i, true, true)));
+    /** Linhas de texto que cabem numa página cheia, já descontado o cabeçalho da tabela. */
+    const capacidade = Math.max(1, Math.floor((ctx.limiteInferior - topoDemais - hCabecalho - 2 * PAD) / lh));
+    const celulasDe = (valores: Record<string, Celula>, negrito: boolean, vazioComoTraco: boolean): string[][] =>
+      p.colunas.map((c, i) => quebrar(valores[c.chave], i, negrito, vazioComoTraco));
+    const linhasDe = (celulas: string[][]): number => Math.max(...celulas.map((c) => c.length));
+    /** Altura que o cabeçalho precisa deixar livre para a 1ª linha (uma linha alta demais é fatiada: bastam 3 linhas). */
+    const reservaPara = (celulas: string[][]): number =>
+      linhasDe(celulas) > capacidade ? 3 * lh + 2 * PAD : alturaDe(celulas);
+
+    const cabecalho = (reserva: number = lh + 2 * PAD): void => {
       const celulas = p.colunas.map((c, i) => quebrar(c.titulo, i, true, true));
       const h = alturaDe(celulas);
-      ctx.garantirEspaco(h + lh + 2 * PAD); // o cabeçalho nunca fica sozinho no fim da página
+      ctx.garantirEspaco(h + reserva); // o cabeçalho nunca fica sozinho no fim da página
       usarPreenchimento(doc, NEUTROS.fundoCabecalhoTabela);
       doc.rect(ctx.esquerda, ctx.y, ctx.largura, h, 'F');
       escrever(celulas, true);
@@ -60,13 +71,8 @@ export const tabela =
       ctx.y += h;
     };
 
-    const linha = (valores: Record<string, Celula>, indice: number, negrito = false, vazioComoTraco = true): void => {
-      const celulas = p.colunas.map((c, i) => quebrar(valores[c.chave], i, negrito, vazioComoTraco));
+    const desenhar = (celulas: string[][], indice: number, negrito: boolean): void => {
       const h = alturaDe(celulas);
-      if (ctx.y + h > ctx.limiteInferior) {
-        ctx.novaPagina();
-        cabecalho();
-      }
       if (indice % 2 === 1 && !negrito) {
         usarPreenchimento(doc, NEUTROS.zebra);
         // começa 0,1 mm abaixo para não cobrir a régua da linha anterior
@@ -77,7 +83,36 @@ export const tabela =
       ctx.y += h;
     };
 
-    cabecalho();
+    const linha = (valores: Record<string, Celula>, indice: number, negrito = false, vazioComoTraco = true): void => {
+      let celulas = celulasDe(valores, negrito, vazioComoTraco);
+      if (linhasDe(celulas) <= capacidade) {
+        if (ctx.y + alturaDe(celulas) > ctx.limiteInferior) {
+          ctx.novaPagina();
+          cabecalho();
+        }
+        desenhar(celulas, indice, negrito);
+        return;
+      }
+      // Célula maior que uma página: fatia as linhas de texto entre páginas, repetindo o cabeçalho.
+      while (celulas.some((c) => c.length > 0)) {
+        let disponiveis = Math.floor((ctx.limiteInferior - ctx.y - 2 * PAD) / lh);
+        if (disponiveis < 2) {
+          ctx.novaPagina();
+          cabecalho();
+          disponiveis = Math.floor((ctx.limiteInferior - ctx.y - 2 * PAD) / lh);
+        }
+        const n = Math.min(disponiveis, linhasDe(celulas));
+        desenhar(celulas.map((c) => c.slice(0, n)), indice, negrito);
+        celulas = celulas.map((c) => c.slice(n));
+        if (celulas.some((c) => c.length > 0)) {
+          ctx.novaPagina();
+          cabecalho();
+        }
+      }
+    };
+
+    const primeira = p.linhas[0] ? celulasDe(p.linhas[0], false, true) : undefined;
+    cabecalho(primeira ? reservaPara(primeira) : lh + 2 * PAD);
     if (p.linhas.length === 0) {
       ctx.garantirEspaco(lh + 2 * PAD);
       doc.setFont('helvetica', 'italic');

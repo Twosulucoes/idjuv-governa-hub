@@ -12,6 +12,7 @@ export async function carregarLogo(src: string | undefined): Promise<LogoImpress
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
+        if (!img.naturalWidth || !img.naturalHeight) return reject(new Error('imagem sem tamanho intrínseco'));
         const canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
