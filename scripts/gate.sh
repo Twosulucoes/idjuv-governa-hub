@@ -9,7 +9,7 @@
 # não têm baseline (o do RH aceita exceção com motivo em scripts/autoria-rh-excecoes.txt). A "cor crua"
 # (paleta fixa do Tailwind/hex em .tsx) também compara com a baseline: só não pode subir.
 # Roda no pre-push (.githooks/pre-push) e no CI (.github/workflows/quality.yml).
-# Não há suíte de testes. Uso: bash scripts/gate.sh  (ou: npm run gate)
+# Testes automatizados só existem em src/lib/documentos (vitest). Uso: bash scripts/gate.sh  (ou: npm run gate)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -22,10 +22,11 @@ falhas=(); inicio=$(date +%s)
 ts_erros()   { npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep -c "error TS" || true; }
 lint_erros() { npx eslint . -f json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).reduce((a,f)=>a+f.errorCount,0))}catch{console.log(-1)}})'; }
 cor_crua()   { node scripts/check-cor-crua.mjs; }
+jspdf_fora() { node scripts/check-jspdf-fora-do-core.mjs; }
 lido()       { node -e "console.log(require('./$BASE').$1)"; }
 
 if [ "${1:-}" = "--update-baseline" ]; then
-  printf '{\n  "typecheck": %s,\n  "lint": %s,\n  "corCrua": %s\n}\n' "$(ts_erros)" "$(lint_erros)" "$(cor_crua)" > "$BASE"
+  printf '{\n  "typecheck": %s,\n  "lint": %s,\n  "corCrua": %s,\n  "jspdfForaDoCore": %s\n}\n' "$(ts_erros)" "$(lint_erros)" "$(cor_crua)" "$(jspdf_fora)" > "$BASE"
   echo "Baseline atualizada:"; cat "$BASE"; exit 0
 fi
 
@@ -53,6 +54,8 @@ guard "RH: autoria e trilha em toda tabela do RH" node scripts/check-autoria-rh.
 comparar "typecheck" "$(ts_erros)" typecheck
 comparar "lint" "$(lint_erros)" lint
 comparar "cor crua em .tsx" "$(cor_crua)" corCrua ocorrências
+comparar "jsPDF fora de documentos/core" "$(jspdf_fora)" jspdfForaDoCore arquivos
+guard "testes da camada de documentos" npx vitest run --reporter=dot
 
 printf "\n${AMARELO}▸ build${SEM}\n"
 if npx vite build >/tmp/gate-build.log 2>&1; then printf "${VERDE}  ✔ build${SEM}\n"

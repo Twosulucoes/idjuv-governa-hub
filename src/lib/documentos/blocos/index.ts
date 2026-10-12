@@ -1,0 +1,12 @@
+export { titulo } from './titulo';
+export { secao } from './secao';
+export { paragrafo } from './paragrafo';
+export type { PropsParagrafo } from './paragrafo';
+export { localData } from './localData';
+export { camposChaveValor } from './camposChaveValor';
+export type { Campo } from './camposChaveValor';
+export { tabela } from './tabela';
+export type { ColunaTabela, Celula } from './tabela';
+export { assinaturas } from './assinaturas';
+export type { Assinante } from './assinaturas';
+export { carimbo } from './carimbo';
