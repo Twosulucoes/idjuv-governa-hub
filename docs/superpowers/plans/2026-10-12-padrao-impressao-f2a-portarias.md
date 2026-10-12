@@ -16,6 +16,8 @@
 
 Dentro: os 5 geradores de `src/lib/pdfPortarias.ts` e a fachada `src/lib/portariaPdf.ts`; bloco `manterJunto`; campo de tenant `legal.numeracaoAtos`.
 
+Dentro também: **rodapé com o endereço do tenant em todos os documentos** (Task 2b, muda `core/moldura.ts` da F1).
+
 Fora (cada um em plano próprio, F2b/F2c): memorandos, declarações, termos, CPSI (DFD/ETP/TR), os Atos de `pdfGenerator.ts`/`pdfModelos.ts`. Fora também: **exportação Word** das portarias (`src/lib/wordPortarias.ts`) — ela duplica o texto das portarias; fica como está e será derivada dos mesmos dados numa fase própria. Os quatro geradores sem chamador (`pdfMemorandoLotacao`, `pdfTermoAutorizacao`, `pdfTermoResponsabilidade`, `pdfFederacoesModular`) **não são migrados nem apagados**.
 
 ## Global Constraints
@@ -50,6 +52,7 @@ Entradas que a spec implica e os testes do caminho feliz não exercitam; cada li
 ```
 src/lib/documentos/
   core/medir.ts                          # medirAltura(ctx, blocos)
+  core/moldura.ts  marca.ts  tipos.ts    # (modificam) endereço no rodapé
   blocos/manterJunto.ts                  # manterJunto(...blocos): Bloco
   blocos/index.ts                        # (modifica) reexporta manterJunto
   modelos/portaria/
@@ -330,6 +333,103 @@ Expected: `medir.test.ts` PASS (5 testes) e a suíte inteira verde (61 + 5).
 ```bash
 git add src/lib/documentos/core/medir.ts src/lib/documentos/blocos/manterJunto.ts src/lib/documentos/blocos/index.ts src/lib/documentos/__testes__/medir.test.ts
 git commit -m "feat(documentos): medirAltura e bloco manterJunto (assinatura nunca isolada)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 2b: Endereço da instituição no rodapé de todos os documentos
+
+**Decisão do usuário (12/10/2026):** o rodapé imprime o endereço **do perfil do tenant** (confirmado pelo comprovante de inscrição no CNPJ: Av. Brigadeiro Eduardo Gomes, 3232, Anexo IDJuv, bairro Estados, CEP 69.305-455, Boa Vista/RR). O endereço fixo dos geradores antigos (4124, Aeroporto) estava desatualizado e some com a migração.
+
+**Files:**
+- Modify: `src/lib/documentos/tipos.ts` (`MarcaImpressao`), `src/lib/documentos/marca.ts`, `src/lib/documentos/core/moldura.ts`
+- Test: `src/lib/documentos/__testes__/marca.test.ts` (acrescenta), `src/lib/documentos/__testes__/renderizar.test.ts` (acrescenta)
+
+**Interfaces:**
+- Produces: `MarcaImpressao.enderecoRodape?: string`; `enderecoDoTenant(t: TenantConfig): string` em `marca.ts` → `"Av. Brigadeiro Eduardo Gomes, 3232, Anexo IDJuv – Estados – CEP 69.305-455 – Boa Vista/RR"` (junta só o que existir; vazio se o tenant não tiver endereço).
+
+- [ ] **Step 1: Testes (falham primeiro)**
+
+Em `marca.test.ts`, acrescentar ao tenant de teste `endereco: { logradouro: 'Av. Exemplo', numero: '10', complemento: 'Anexo X', bairro: 'Centro', cep: '00.000-000', cidade: 'Cidade Exemplo', uf: 'EX' }` e:
+
+```ts
+it('endereço do rodapé: junta só o que existe, nunca "undefined"', () => {
+  expect(enderecoDoTenant(tenant)).toBe('Av. Exemplo, 10, Anexo X – Centro – CEP 00.000-000 – Cidade Exemplo/EX');
+  const parcial = { ...tenant, endereco: { cidade: 'Cidade Exemplo', uf: 'EX' } } as TenantConfig;
+  expect(enderecoDoTenant(parcial)).toBe('Cidade Exemplo/EX');
+  expect(enderecoDoTenant({ ...tenant, endereco: undefined } as TenantConfig)).toBe('');
+  expect(marcaDoTenant(tenant, { nomeSistema: 'S' }).enderecoRodape).toBe('Av. Exemplo, 10, Anexo X – Centro – CEP 00.000-000 – Cidade Exemplo/EX');
+  expect(marcaDoTenant({ ...tenant, endereco: undefined } as TenantConfig, { nomeSistema: 'S' }).enderecoRodape).toBeUndefined();
+});
+```
+Em `renderizar.test.ts`:
+
+```ts
+it('rodapé imprime o endereço da marca sem encostar no nome do sistema; sem endereço, nada é impresso', async () => {
+  const marca = { ...marcaTeste, enderecoRodape: 'Av. Exemplo, 10, Anexo X – Centro – CEP 00.000-000 – Cidade Exemplo/EX' };
+  const [com] = await lerPdf(renderizarDocumento(modelo, { n: 1 }, marca, emissaoTeste).doc);
+  const end = com.itens.find((i) => i.str.startsWith('Av. Exemplo'))!;
+  const sis = com.itens.find((i) => i.str.includes('Sistema de Teste'))!;
+  expect(end.x + end.largura).toBeLessThan(sis.x);
+  const [sem] = await lerPdf(renderizarDocumento(modelo, { n: 1 }, marcaTeste, emissaoTeste).doc);
+  expect(sem.texto).not.toContain('Av. Exemplo');
+});
+
+it('endereço muito longo é cortado antes do nome do sistema (nunca sobrepõe)', async () => {
+  const marca = { ...marcaTeste, enderecoRodape: 'Rua '.concat('muito longa '.repeat(30)) };
+  const [p1] = await lerPdf(renderizarDocumento(modelo, { n: 1 }, marca, emissaoTeste).doc);
+  const end = p1.itens.find((i) => i.str.startsWith('Rua'))!;
+  const sis = p1.itens.find((i) => i.str.includes('Sistema de Teste'))!;
+  expect(end.x + end.largura).toBeLessThan(sis.x);
+});
+```
+
+- [ ] **Step 2: Rodar e ver falhar** — `npx vitest run src/lib/documentos/__testes__/marca.test.ts src/lib/documentos/__testes__/renderizar.test.ts` → FAIL (`enderecoDoTenant` inexistente; endereço não impresso).
+
+- [ ] **Step 3: Implementar**
+
+`tipos.ts`: em `MarcaImpressao` acrescentar `enderecoRodape?: string;`.
+
+`marca.ts`:
+```ts
+export function enderecoDoTenant(t: TenantConfig): string {
+  const e = t.endereco;
+  if (!e) return '';
+  const rua = [e.logradouro, e.numero].filter(Boolean).join(', ');
+  const ruaComComplemento = [rua, e.complemento].filter(Boolean).join(', ');
+  const cidade = [e.cidade, e.uf].filter(Boolean).join('/');
+  return [ruaComComplemento, e.bairro, e.cep ? `CEP ${e.cep}` : '', cidade].filter(Boolean).join(' – ');
+}
+```
+e em `marcaDoTenant`: `enderecoRodape: enderecoDoTenant(tenant) || undefined,`.
+
+`moldura.ts` (função `rodape`): a 2ª linha do rodapé (`yBase + 8`) passa a ter o **endereço à esquerda** e o **nome do sistema alinhado à direita**:
+```ts
+const ySegunda = yBase + 8;
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(FONTE.rodape);
+const sistema = paraWinAnsi(marca.nomeSistema);
+doc.text(sistema, esquerda + largura, ySegunda, { align: 'right' });
+if (marca.enderecoRodape) {
+  const folga = 4;
+  const disponivel = largura - doc.getTextWidth(sistema) - folga;
+  const [primeira] = quebrarEmLinhas(doc, marca.enderecoRodape, disponivel);
+  doc.text(primeira, esquerda, ySegunda);
+}
+```
+(importar `quebrarEmLinhas` de `./texto`; remover a linha antiga que desenhava `marca.nomeSistema` à esquerda). Endereço maior que o espaço é cortado na primeira linha que cabe, sem sobrepor.
+
+- [ ] **Step 4: Rodar a suíte da camada e olhar o rodapé**
+
+`npx vitest run src/lib/documentos` → verde. Gerar a amostra do requerimento (`DOCUMENTOS_AMOSTRAS=…`), rasterizar e abrir o PNG: conferir o rodapé (emitido por/data e "Página X de Y" na 1ª linha; endereço e sistema na 2ª) e que as páginas seguintes mantêm o mesmo.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/lib/documentos/tipos.ts src/lib/documentos/marca.ts src/lib/documentos/core/moldura.ts src/lib/documentos/__testes__/marca.test.ts src/lib/documentos/__testes__/renderizar.test.ts
+git commit -m "feat(documentos): rodapé imprime o endereço do perfil do tenant
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
@@ -1147,7 +1247,7 @@ Push e PR: o usuário já autorizou PR em rascunho para esta frente; `GIT_CONFIG
 
 ## Decisões do usuário (levar ao relatório; não bloqueiam a execução)
 
-1. **Rodapé sem endereço.** Os geradores antigos imprimem `Av. Brigadeiro Eduardo Gomes, 4124 - Aeroporto - CEP: 69.310-005 - Boa Vista/RR` no rodapé, **mas o perfil do tenant diz outro endereço** (`…, 3232, Anexo IDJuv, bairro Estados, CEP 69.305-455`). O padrão atual não imprime endereço. Quer o endereço do tenant no rodapé (de todos os documentos), só nas portarias, ou nenhum? (Recomendo o do tenant, em todos, para sumir a divergência.)
+1. ~~Rodapé sem endereço~~ **Decidido (12/10/2026):** o rodapé de todos os documentos imprime o endereço do perfil do tenant (Task 2b). O comprovante de inscrição no CNPJ confirma o endereço do perfil (3232, Anexo IDJuv, Estados); o endereço fixo antigo (4124, Aeroporto) estava desatualizado. Observação ao usuário: o portal público diz "Sede: Parque Anauá", que não bate com o cadastro.
 2. **Layout:** as portarias passam de Helvetica à esquerda (margem esquerda 25 mm) para **Times justificado** (margens 20 mm). É a padronização pedida; o usuário valida pelo antes/depois da Task 6.
 3. **Marcador de célula vazia:** `-` (antigo) → `—` (padrão).
 4. **`numeracaoAtos`:** campo novo, opcional, no perfil do tenant (`legal.numeracaoAtos`); outros clientes preenchem o seu.
