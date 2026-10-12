@@ -173,6 +173,8 @@ GRANT EXECUTE ON FUNCTION public.pre_cadastro_publico_enviar(text) TO anon, auth
 -- governanca.cargos.gerenciar) seguem executáveis por authenticated
 REVOKE EXECUTE ON FUNCTION public.rh_provimento_vaga() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.rh_vagas_cargo_validar() FROM PUBLIC, anon, authenticated;
+-- portaria pelo SEI (migração 20261012160000): a gravação do DOE na ficha é função de trigger, fora da API
+REVOKE EXECUTE ON FUNCTION public.documentos_portaria_ficha() FROM PUBLIC, anon, authenticated;
 -- remessas e eventos do eSocial sem DELETE pela API (migração 20261011010100, E3; a RLS também não tem policy de DELETE,
 -- classe modulo com excluir=ninguem no rls/mapa.csv): a remessa é cancelada por cancelar_remessa
 REVOKE DELETE ON public.remessas_bancarias, public.eventos_esocial FROM anon, authenticated;
