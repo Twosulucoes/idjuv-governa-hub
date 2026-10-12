@@ -1,3 +1,4 @@
+import { formatarValorParametro } from "@/lib/parametrosFolha";
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,8 +9,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Edit2, Trash2, Loader2 } from "lucide-react";
 import { useParametrosFolha, useDeleteParametro } from "@/hooks/useFolhaPagamento";
 import { ParametroForm } from "./ParametroForm";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+/** `vigencia_*` é data pura (AAAA-MM-DD): lida como UTC, aparece um dia antes em Roraima (UTC-4). */
+const dataLocal = (v: string) => parseISO(String(v).slice(0, 10));
 
 interface ParametroData {
   id: string;
@@ -42,23 +46,12 @@ export function ParametrosTab() {
     setEditingParametro(null);
   };
 
-  const formatValue = (tipo: string, valor: number) => {
-    if (tipo.includes("SALARIO") || tipo.includes("TETO") || tipo.includes("DEDUCAO")) {
-      return valor.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      });
-    }
-    if (tipo.includes("ALIQUOTA") || tipo.includes("PERCENTUAL")) {
-      return `${valor}%`;
-    }
-    return valor.toString();
-  };
+  const formatValue = formatarValorParametro;
 
   const isVigente = (param: ParametroData) => {
     const hoje = new Date();
-    const inicio = new Date(param.vigencia_inicio);
-    const fim = param.vigencia_fim ? new Date(param.vigencia_fim) : null;
+    const inicio = dataLocal(param.vigencia_inicio);
+    const fim = param.vigencia_fim ? dataLocal(param.vigencia_fim) : null;
     return hoje >= inicio && (!fim || hoje <= fim);
   };
 
@@ -135,11 +128,11 @@ export function ParametrosTab() {
                         {formatValue(param.tipo_parametro, param.valor)}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {format(new Date(param.vigencia_inicio), "dd/MM/yyyy", { locale: ptBR })}
+                        {format(dataLocal(param.vigencia_inicio), "dd/MM/yyyy", { locale: ptBR })}
                         {param.vigencia_fim && (
                           <span>
                             {" → "}
-                            {format(new Date(param.vigencia_fim), "dd/MM/yyyy", { locale: ptBR })}
+                            {format(dataLocal(param.vigencia_fim), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
                         )}
                       </TableCell>

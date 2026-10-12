@@ -126,3 +126,13 @@ filtro por protocolo e prestação de contas de viagem — cada fluxo conferido 
 
 Medida disciplinar (aguarda decisão do órgão); granularidade de RLS em `lotacoes`, `provimentos`, `historico_funcional`,
 `designacoes`, `cessoes`; cálculo de aposentadoria e de acerto financeiro além da rescisão descrita.
+
+## 6. Parâmetros da folha: grafia do nome e data de vigência (migration `20261012160000`)
+
+Achados ao conferir se o RH conseguiria configurar tudo pelas telas:
+- **Nome em maiúsculas × minúsculas.** A tela de Parâmetros gravava `TETO_INSS`, `DEDUCAO_DEPENDENTE_IRRF`; o cálculo da folha e todo o resto procuram em minúsculas. O valor digitado na tela era ignorado (a ficha saía marcada "dedução de dependente não configurada"). Corrigido em três camadas: o banco normaliza o nome em todo INSERT/UPDATE (minúsculas, sem acento, `_`) e as linhas já gravadas; `get_parametro_vigente` compara sem diferença de caixa; a tela usa um catálogo único (`src/lib/parametrosFolha.ts`) e grava normalizado.
+- **Licenças pagas ou não pela tela.** O catálogo traz `licenca_remunerada_<tipo>` (11 tipos) e `afastamento_remunerado_<tipo>` (6), com descrição e validação de 1 ou 0; a lista mostra "Sim (remunerado)" / "Não (sem remuneração)".
+- **Data um dia antes.** `new Date("2026-01-01")` lê como UTC; em Roraima (UTC-4) a vigência aparecia como 31/12/2025 e a faixa de INSS/IRRF de 01/2026 como "dez/2025". Passou a ler como data local (`parseISO`).
+- Verificado em SQL (linha em maiúsculas gravada **antes** da migration; migration aplicada 2x; folha usando a dedução digitada em maiúsculas; licença marcada como remunerada pela tela sem desconto) e no navegador (desktop e 390 px).
+- As **premissas fixas do cálculo** (mês de 30 dias, 1/3 de férias etc.) continuam no código, sem tela: só mudam com programação.
+
