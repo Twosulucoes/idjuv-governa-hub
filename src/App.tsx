@@ -157,6 +157,7 @@ import GestaoPerfilPage from "./pages/admin/GestaoPerfilPage";
 // Página PerfilPermissoesPage removida - sistema simplificado
 import BackupOffsitePage from "./pages/admin/BackupOffsitePage";
 import ConfigEnviosPage from "./pages/admin/ConfigEnviosPage";
+import ConfigIAPage from "./pages/admin/ConfigIAPage";
 import ConfiguracaoClientePage from "./pages/admin/ConfiguracaoClientePage";
 import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
 import ImportacoesPage from "./pages/admin/ImportacoesPage";
@@ -568,6 +569,11 @@ const App = () => (
               <Route path="/admin/envios" element={
                 <ProtectedRoute requiredPermissions={["admin.envios", "admin.envios.configurar"]}>
                   <ConfigEnviosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/ia" element={
+                <ProtectedRoute requiredPermissions="ia.configurar">
+                  <ConfigIAPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/configuracao-cliente" element={
