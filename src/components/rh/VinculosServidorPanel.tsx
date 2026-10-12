@@ -1056,8 +1056,8 @@ function NovoVinculoWizard({
               <Alert className="bg-success/5 border-success/20">
                 <CheckCircle2 className="h-4 w-4 text-success" />
                 <AlertDescription>
-                  A <strong>Minuta de Portaria de Nomeação</strong> será gerada automaticamente
-                  ao registrar este vínculo.
+                  Ao registrar este vínculo, abre-se a <strong>pendência da Portaria de Nomeação</strong>:
+                  registre o ato do SEI (número, assinatura e DOE) na Central de Portarias.
                 </AlertDescription>
               </Alert>
             )}

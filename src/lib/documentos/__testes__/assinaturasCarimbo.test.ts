@@ -7,7 +7,7 @@ import { emissaoTeste, marcaTeste } from './fixtures';
 import { lerPdf } from './lerPdf';
 
 const gerar = (blocos: Bloco[]) => {
-  const modelo: DocumentoModelo<null> = { tipo: 't', familia: 'ato', titulo: () => 'T', nomeArquivo: () => 't.pdf', blocos: () => blocos };
+  const modelo: DocumentoModelo<null> = { tipo: 't', familia: 'ficha', titulo: () => 'T', nomeArquivo: () => 't.pdf', blocos: () => blocos };
   return renderizarDocumento(modelo, null, marcaTeste, emissaoTeste).doc;
 };
 const quase: Bloco = (ctx) => { ctx.y = ctx.limiteInferior - 10; };

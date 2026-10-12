@@ -7,7 +7,6 @@ import {
   BadgeCheck,
   MoreHorizontal,
   Eye,
-  Download,
   FileSignature,
   Pencil,
   Trash2,
@@ -40,6 +39,7 @@ import {
   Portaria,
 } from '@/types/portaria';
 import {
+  NUMERO_PORTARIA_PENDENTE,
   useEnviarParaAssinatura,
   useEnviarParaPublicacao,
 } from '@/hooks/usePortarias';
@@ -50,7 +50,8 @@ interface PortariaKanbanProps {
   onView?: (portaria: Portaria) => void;
   onEdit?: (portaria: Portaria) => void;
   onDelete?: (portaria: Portaria) => void;
-  onGeneratePdf?: (portaria: Portaria) => void;
+  /** Abre o PDF anexado (assinado ou publicado); o texto da portaria é feito no SEI. */
+  onAbrirArquivo?: (portaria: Portaria) => void;
   onRegistrarAssinatura?: (portaria: Portaria) => void;
   onRegistrarPublicacao?: (portaria: Portaria) => void;
 }
@@ -58,7 +59,7 @@ interface PortariaKanbanProps {
 const KANBAN_COLUMNS: { key: string; label: string; statuses: StatusPortaria[]; icon: React.ReactNode; colorClass: string }[] = [
   {
     key: 'elaboracao',
-    label: 'Elaboração',
+    label: 'Em andamento no SEI',
     statuses: ['minuta', 'aguardando_assinatura', 'assinado'],
     icon: <FileText className="h-4 w-4" />,
     colorClass: 'bg-muted text-muted-foreground',
@@ -81,6 +82,10 @@ const KANBAN_COLUMNS: { key: string; label: string; statuses: StatusPortaria[]; 
 
 function getAlerts(portaria: Portaria): string[] {
   const alerts: string[] = [];
+  // Número provisório: falta o número oficial do SEI
+  if (NUMERO_PORTARIA_PENDENTE.test(portaria.numero)) {
+    alerts.push('Sem nº oficial');
+  }
   // Para portarias publicadas/vigentes sem DOE, alertar para conferir
   if (
     ['publicado', 'vigente'].includes(portaria.status) &&
@@ -108,7 +113,7 @@ export function PortariaKanban({
   onView,
   onEdit,
   onDelete,
-  onGeneratePdf,
+  onAbrirArquivo,
   onRegistrarAssinatura,
   onRegistrarPublicacao,
 }: PortariaKanbanProps) {
@@ -207,10 +212,12 @@ export function PortariaKanban({
                                   <Eye className="h-4 w-4 mr-2" />
                                   Visualizar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => onGeneratePdf?.(portaria)}>
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Gerar PDF
-                                </DropdownMenuItem>
+                                {(portaria.arquivo_assinado_url || portaria.arquivo_url) && (
+                                  <DropdownMenuItem onClick={() => onAbrirArquivo?.(portaria)}>
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    Abrir PDF anexado
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => onEdit?.(portaria)}>
                                   <Pencil className="h-4 w-4 mr-2" />

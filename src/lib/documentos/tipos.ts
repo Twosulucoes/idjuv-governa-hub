@@ -1,6 +1,7 @@
 import type jsPDF from 'jspdf';
 
-export type Familia = 'ato' | 'relatorio' | 'ficha' | 'comprovante';
+/** Atos formais (portaria, memorando, termo…) não são família: são feitos no SEI. */
+export type Familia = 'relatorio' | 'ficha' | 'comprovante';
 export type Orientacao = 'retrato' | 'paisagem';
 
 export interface RGB {

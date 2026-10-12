@@ -41,11 +41,9 @@ import { NovaPortariaSimplificada } from '@/components/portarias/NovaPortariaSim
 import { RelatorioPortariasDialog } from '@/components/portarias/RelatorioPortariasDialog';
 import { VisualizarPortariaDialog } from '@/components/portarias/VisualizarPortariaDialog';
 import { CentralRelatoriosDialog } from '@/components/relatorios/CentralRelatoriosDialog';
-import { supabase } from '@/integrations/supabase/client';
 import { usePortarias, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
 import { toast } from 'sonner';
-import { buildPortariaPdfDoc, savePortariaPdf } from '@/lib/portariaPdf';
 
 export default function CentralPortariasPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
@@ -57,7 +55,6 @@ export default function CentralPortariasPage() {
   const [assinaturaDialogOpen, setAssinaturaDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [selectedPortaria, setSelectedPortaria] = useState<Portaria | null>(null);
   const [filters, setFilters] = useState<{
@@ -124,79 +121,10 @@ export default function CentralPortariasPage() {
     setAssinaturaDialogOpen(true);
   };
 
-  const handleGeneratePdf = async (portaria: Portaria) => {
-    try {
-      // Se já tiver um arquivo anexado/assinado, abre direto
-      if (portaria.arquivo_assinado_url) {
-        window.open(portaria.arquivo_assinado_url, '_blank');
-        return;
-      }
-      if (portaria.arquivo_url) {
-        window.open(portaria.arquivo_url, '_blank');
-        return;
-      }
-
-      const servidorId = portaria.servidores_ids?.[0];
-      if (!servidorId) {
-        toast.error('Esta portaria não tem servidor vinculado (servidores_ids).');
-        return;
-      }
-
-      if (!['nomeacao', 'exoneracao', 'designacao'].includes(String(portaria.categoria))) {
-        toast.error('PDF disponível apenas para Nomeação/Exoneração (por enquanto).');
-        return;
-      }
-
-      setIsGeneratingPdf(true);
-
-      const { data: servidor, error: servidorError } = await supabase
-        .from('v_servidores_situacao')
-        .select('id, nome_completo, cpf, matricula')
-        .eq('id', servidorId)
-        .maybeSingle();
-
-      if (servidorError) throw servidorError;
-      if (!servidor?.cpf || !servidor?.nome_completo) {
-        toast.error('Não foi possível obter CPF/nome do servidor para gerar o PDF.');
-        return;
-      }
-
-      const cargoNome = portaria.cargo?.nome || '';
-      const unidadeNome = portaria.unidade?.nome || '';
-      if (!cargoNome || !unidadeNome) {
-        toast.error('Portaria sem cargo/unidade vinculados para gerar o PDF.');
-        return;
-      }
-
-      const doc = buildPortariaPdfDoc({
-        portaria: {
-          numero: portaria.numero,
-          data_documento: portaria.data_documento,
-          ementa: portaria.ementa,
-          categoria: portaria.categoria,
-        },
-        servidor: {
-          nome_completo: servidor.nome_completo,
-          cpf: servidor.cpf,
-          matricula: servidor.matricula,
-        },
-        cargo: {
-          nome: cargoNome,
-          sigla: portaria.cargo?.sigla,
-        },
-        unidade: {
-          nome: unidadeNome,
-          sigla: portaria.unidade?.sigla,
-        },
-      });
-
-      savePortariaPdf(doc, { numero: portaria.numero, servidorNome: servidor.nome_completo });
-    } catch (err) {
-      console.error(err);
-      toast.error('Erro ao gerar PDF');
-    } finally {
-      setIsGeneratingPdf(false);
-    }
+  // O texto da portaria é do SEI: aqui só se abre o PDF anexado (assinado ou publicado), quando houver
+  const handleAbrirArquivo = (portaria: Portaria) => {
+    const url = portaria.arquivo_assinado_url || portaria.arquivo_url;
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const currentYear = new Date().getFullYear();
@@ -210,7 +138,7 @@ export default function CentralPortariasPage() {
           <div>
             <h1 className="text-2xl font-bold">Central de Portarias</h1>
             <p className="text-muted-foreground">
-              Cadastre e gerencie portarias de pessoal - Gabinete da Presidência
+              Acompanhe as portarias feitas no SEI: processo, número, assinatura e publicação no DOE
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -220,7 +148,7 @@ export default function CentralPortariasPage() {
             </Button>
             <Button onClick={() => setNovaPortariaOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Nova Portaria
+              Registrar Portaria
             </Button>
           </div>
         </div>
@@ -306,7 +234,7 @@ export default function CentralPortariasPage() {
             onView={handleView}
             onEdit={handleEdit}
             onDelete={handleDeleteRequest}
-            onGeneratePdf={handleGeneratePdf}
+            onAbrirArquivo={handleAbrirArquivo}
             onRegistrarAssinatura={handleRegistrarAssinatura}
             onRegistrarPublicacao={handleRegistrarPublicacao}
           />
@@ -317,7 +245,7 @@ export default function CentralPortariasPage() {
             onView={handleView}
             onEdit={handleEdit}
             onDelete={handleDeleteRequest}
-            onGeneratePdf={handleGeneratePdf}
+            onAbrirArquivo={handleAbrirArquivo}
             onRegistrarPublicacao={handleRegistrarPublicacao}
             onRegistrarAssinatura={handleRegistrarAssinatura}
           />
@@ -386,8 +314,6 @@ export default function CentralPortariasPage() {
           if (!open) setSelectedPortaria(null);
         }}
         onEditar={handleEdit}
-        onBaixarPdf={handleGeneratePdf}
-        gerandoPdf={isGeneratingPdf}
       />
 
       {/* Dialog Registrar Assinatura */}

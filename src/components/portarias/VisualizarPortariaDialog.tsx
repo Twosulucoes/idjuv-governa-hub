@@ -1,12 +1,12 @@
 /**
  * Diálogo de visualização de uma portaria (somente leitura).
  *
- * Usado pela Central de Portarias (/gabinete/portarias), que passa as ações de
- * editar e baixar PDF, e pela tela de pendências do RH
- * (/rh/portarias/pendencias), que só consulta.
+ * Usado pela Central de Portarias (/gabinete/portarias), que passa a ação de
+ * editar, e pela tela de pendências do RH (/rh/portarias/pendencias), que só
+ * consulta. O texto do ato é feito no SEI: aqui só aparecem o ciclo e o PDF anexado.
  */
 import { useMemo } from 'react';
-import { AlertTriangle, Download, Pencil } from 'lucide-react';
+import { AlertTriangle, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,9 +35,6 @@ interface VisualizarPortariaDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Quando informado, mostra o botão Editar. */
   onEditar?: (portaria: Portaria) => void;
-  /** Quando informado, mostra o botão Baixar PDF. */
-  onBaixarPdf?: (portaria: Portaria) => void;
-  gerandoPdf?: boolean;
 }
 
 export function VisualizarPortariaDialog({
@@ -45,8 +42,6 @@ export function VisualizarPortariaDialog({
   open,
   onOpenChange,
   onEditar,
-  onBaixarPdf,
-  gerandoPdf = false,
 }: VisualizarPortariaDialogProps) {
   const conteudoTexto = useMemo(() => htmlToText(portaria?.conteudo_html), [portaria?.conteudo_html]);
 
@@ -83,6 +78,9 @@ export function VisualizarPortariaDialog({
                 <p className="text-sm font-semibold">
                   {new Date(portaria.data_documento).toLocaleDateString('pt-BR')}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  {portaria.processo_sei ? `Processo SEI ${portaria.processo_sei}` : 'Processo SEI não informado'}
+                </p>
               </div>
 
               <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
@@ -92,8 +90,8 @@ export function VisualizarPortariaDialog({
                     ? new Date(portaria.data_assinatura).toLocaleDateString('pt-BR')
                     : <span className="text-muted-foreground font-normal">Não assinada</span>}
                 </p>
-                {portaria.assinante?.full_name && (
-                  <p className="text-xs text-muted-foreground">{portaria.assinante.full_name}</p>
+                {(portaria.assinante?.full_name || portaria.assinado_por) && (
+                  <p className="text-xs text-muted-foreground">{portaria.assinante?.full_name || portaria.assinado_por}</p>
                 )}
               </div>
 
@@ -108,6 +106,12 @@ export function VisualizarPortariaDialog({
                       <p className="text-xs text-muted-foreground">
                         {new Date(portaria.doe_data).toLocaleDateString('pt-BR')}
                       </p>
+                    )}
+                    {portaria.doe_link && /^https?:\/\//i.test(portaria.doe_link) && (
+                      <a href={portaria.doe_link} target="_blank" rel="noreferrer"
+                         className="text-xs text-primary underline">
+                        Abrir no Diário Oficial
+                      </a>
                     )}
                   </>
                 ) : (
@@ -226,12 +230,6 @@ export function VisualizarPortariaDialog({
             }}>
               <Pencil className="h-4 w-4 mr-2" />
               Editar
-            </Button>
-          )}
-          {portaria && onBaixarPdf && (
-            <Button onClick={() => onBaixarPdf(portaria)} disabled={gerandoPdf}>
-              <Download className="h-4 w-4 mr-2" />
-              {gerandoPdf ? 'Gerando PDF...' : 'Baixar PDF'}
             </Button>
           )}
         </DialogFooter>

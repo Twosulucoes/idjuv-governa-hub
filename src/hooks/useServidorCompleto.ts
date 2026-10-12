@@ -106,67 +106,6 @@ async function registrarHistoricoFuncional(params: {
   }
 }
 
-// ============================================================
-// HELPER: Gerar minuta de portaria na tabela documentos
-// ============================================================
-
-type CategoriaPortaria = "estruturante" | "normativa" | "pessoal" | "delegacao" | "nomeacao" | "exoneracao" | "designacao" | "dispensa" | "cessao" | "ferias" | "licenca";
-
-async function gerarMinutaPortaria(params: {
-  titulo: string;
-  ementa: string;
-  categoria: CategoriaPortaria;
-  servidores_ids: string[];
-  cargo_id?: string;
-  unidade_id?: string;
-  data_documento?: string;
-  provimento_id?: string;
-}) {
-  try {
-    const { data: userData } = await supabase.auth.getUser();
-    const dataDoc = params.data_documento || new Date().toISOString().split("T")[0];
-    const ano = new Date(dataDoc).getFullYear();
-
-    // Gerar número automático
-    let numero = `PENDENTE/${ano}`;
-    try {
-      const { data: numData } = await supabase.rpc("gerar_numero_portaria", { p_ano: ano });
-      if (numData) numero = numData as string;
-    } catch {
-      // keep default
-    }
-
-    const { data, error } = await supabase
-      .from("documentos")
-      .insert({
-        tipo: "portaria" as const,
-        categoria: params.categoria,
-        status: "minuta" as const,
-        titulo: params.titulo,
-        ementa: params.ementa,
-        numero,
-        data_documento: dataDoc,
-        servidores_ids: params.servidores_ids,
-        cargo_id: params.cargo_id || null,
-        unidade_id: params.unidade_id || null,
-        provimento_id: params.provimento_id || null,
-        created_by: userData?.user?.id,
-      })
-      .select("id, numero")
-      .single();
-
-    if (error) {
-      console.error("[Portaria] Erro ao gerar minuta:", error);
-      return null;
-    }
-    
-    return data;
-  } catch (e) {
-    console.error("[Portaria] Erro inesperado:", e);
-    return null;
-  }
-}
-
 // Mutations legadas de provimentos/lotações removidas.
 // Use useVinculoMutations de @/hooks/useVinculosServidor.
 

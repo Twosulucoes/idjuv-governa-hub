@@ -1,5 +1,8 @@
 # Padrão de impressão — F0 + F1 Implementation Plan
 
+> **Parcialmente superado:** a família Ato e o requerimento foram removidos em 12/10/2026 (atos são do SEI).
+> Estado vigente em [`docs/PADRAO_DOCUMENTOS.md`](../../PADRAO_DOCUMENTOS.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Entregar o inventário dos geradores de PDF (F0) e a camada única de impressão em `src/lib/documentos/` — núcleo, blocos, famílias, registro, `emitirDocumento`, ferramenta antes/depois, guard no gate, doc do padrão e skill `/novo-documento` (F1) — sem migrar ainda nenhum gerador existente.

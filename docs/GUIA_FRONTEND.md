@@ -91,7 +91,6 @@ de chamar `supabase` direto dentro da página.
   `src/lib/relatoriosFolhaRegras.ts` (mesmo padrão para a folha: agregação por unidade e
   rubrica, totais, `folhaPermiteDetalhe`), `src/lib/pdfRelatoriosAfastamentos.ts`,
   `src/lib/pdfRelatoriosFolha.ts` e os cards/filtros em `src/components/rh/relatorios/`.
-- **Word**: `wordPortarias.ts` (docx).
 - **Planilhas**: `exportarPlanilha.ts`, `exportarFederacoes.ts`, e `src/export/`.
 - **Fiscal/folha**: `cnabGenerator.ts` (CNAB240), `esocialGenerator.ts` +
   `esocialXmlGenerator.ts`, `folhaCalculos.ts`/`folhaCalculoService.ts` (INSS,

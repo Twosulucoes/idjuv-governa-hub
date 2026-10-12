@@ -96,7 +96,7 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
             <AlertDescription>
               <strong>Atenção:</strong> Esta ação desliga o servidor: encerra lotação, vínculos, provimento,
               cessões, designações, férias e licenças em aberto, viagens ainda não iniciadas, chefia de unidade e
-              comissões; registra no histórico funcional e gera a minuta da portaria. Bloqueia o acesso ao sistema.
+              comissões; registra no histórico funcional e abre a pendência da portaria (o ato é feito no SEI). Bloqueia o acesso ao sistema.
             </AlertDescription>
           </Alert>
 

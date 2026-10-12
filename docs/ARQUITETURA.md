@@ -139,7 +139,6 @@ relatórios), em `src/lib`:
 
 - **PDF**: `jspdf` + `pdf-lib` — ~40 geradores (`pdf*.ts`), com base em
   `pdfTemplate.ts`/`pdfLogos.ts`.
-- **Word**: `docx` — `wordPortarias.ts`.
 - **Planilhas**: `xlsx` — `src/export/`, `src/lib/exportar*.ts`.
 - **Fiscais/folha**: `cnabGenerator.ts` (remessa bancária CNAB),
   `esocialGenerator.ts`/`esocialXmlGenerator.ts` (eSocial).

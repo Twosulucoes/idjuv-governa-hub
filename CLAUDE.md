@@ -196,11 +196,13 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 ### Geração de documentos
 - **PDF novo nasce em `src/lib/documentos/`** (modelo declarativo + blocos; ver `docs/PADRAO_DOCUMENTOS.md`
-  e o skill `novo-documento-idjuv`). Os geradores antigos `src/lib/pdf*.ts` (jsPDF/pdf-lib) e
-  `src/lib/word*.ts` (docx) são migrados por fases; o gate impede `import` novo de `jspdf` fora de
+  e o skill `novo-documento-idjuv`). Os geradores antigos `src/lib/pdf*.ts` (jsPDF/pdf-lib) são migrados por fases; o gate impede `import` novo de `jspdf` fora de
   `src/lib/documentos/core/`. Há um `pdfTemplate.ts`/`pdfLogos.ts` base legado. Exportações de planilha em `src/export/`
   e `src/lib/exportar*.ts` (xlsx). Geradores fiscais: `cnabGenerator.ts`,
   `esocialGenerator.ts`, `esocialXmlGenerator.ts`.
+- **Ato formal é do SEI:** o sistema não redige portaria, memorando, termo, requerimento nem DFD/ETP/TR; só
+  acompanha o ciclo (processo SEI, número, assinatura, publicação no DOE) e registra na ficha. Relatório, ficha e
+  comprovante continuam sendo gerados pelo sistema.
 
 ### Banco de dados (Supabase)
 - Migrações em `supabase/migrations/` (nome `YYYYMMDDHHMMSS_<uuid>.sql`

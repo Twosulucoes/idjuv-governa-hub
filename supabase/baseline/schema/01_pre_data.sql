@@ -2850,6 +2850,67 @@ $$;
 
 
 --
+-- Name: documentos_portaria_ficha(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.documentos_portaria_ficha() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_tipos public.tipo_movimentacao_funcional[];
+  v_serv uuid;
+  v_hist uuid;
+  v_ref date;
+BEGIN
+  IF NEW.tipo IS DISTINCT FROM 'portaria' OR NEW.status::text NOT IN ('publicado', 'vigente') THEN
+    RETURN NULL;
+  END IF;
+  IF TG_OP = 'UPDATE' AND OLD.status::text IN ('publicado', 'vigente')
+     AND NEW.numero IS NOT DISTINCT FROM OLD.numero AND NEW.doe_numero IS NOT DISTINCT FROM OLD.doe_numero
+     AND NEW.doe_data IS NOT DISTINCT FROM OLD.doe_data AND NEW.processo_sei IS NOT DISTINCT FROM OLD.processo_sei THEN
+    RETURN NULL;
+  END IF;
+
+  v_tipos := CASE NEW.categoria::text
+    WHEN 'nomeacao' THEN ARRAY['nomeacao']::public.tipo_movimentacao_funcional[]
+    WHEN 'exoneracao' THEN ARRAY['exoneracao']::public.tipo_movimentacao_funcional[]
+    WHEN 'pessoal' THEN ARRAY['aposentadoria', 'vacancia', 'transferencia', 'remocao']::public.tipo_movimentacao_funcional[]
+    WHEN 'designacao' THEN ARRAY['designacao']::public.tipo_movimentacao_funcional[]
+    WHEN 'dispensa' THEN ARRAY['dispensa']::public.tipo_movimentacao_funcional[]
+    WHEN 'cessao' THEN ARRAY['cessao', 'requisicao']::public.tipo_movimentacao_funcional[]
+  END;
+  IF v_tipos IS NULL THEN
+    RETURN NULL;
+  END IF;
+  v_ref := coalesce(NEW.data_vigencia_inicio, NEW.data_documento);
+
+  FOREACH v_serv IN ARRAY coalesce(NEW.servidores_ids, '{}'::uuid[]) LOOP
+    -- o lançamento do mesmo tipo e cargo, ainda sem DOE, mais próximo da data do ato
+    SELECT h.id INTO v_hist
+      FROM public.historico_funcional h
+     WHERE h.servidor_id = v_serv
+       AND h.tipo = ANY (v_tipos)
+       AND (NEW.cargo_id IS NULL OR NEW.cargo_id IN (h.cargo_novo_id, h.cargo_anterior_id))
+       AND (h.diario_oficial_numero IS NULL OR h.diario_oficial_numero = NEW.doe_numero)
+     ORDER BY abs(h.data_evento - v_ref), h.created_at DESC
+     LIMIT 1;
+    IF v_hist IS NOT NULL THEN
+      UPDATE public.historico_funcional
+         SET portaria_numero = NEW.numero,
+             portaria_data = NEW.data_documento,
+             diario_oficial_numero = NEW.doe_numero,
+             diario_oficial_data = NEW.doe_data,
+             processo_sei = coalesce(NEW.processo_sei, processo_sei)
+       WHERE id = v_hist;
+    END IF;
+  END LOOP;
+  RETURN NULL;
+END;
+$$;
+
+
+--
 -- Name: documentos_portaria_validar(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2870,31 +2931,51 @@ BEGIN
     RETURN OLD;
   END IF;
 
-  IF NEW.tipo IS DISTINCT FROM 'portaria' OR NEW.status IS NOT DISTINCT FROM OLD.status THEN
+  IF NEW.tipo IS DISTINCT FROM 'portaria' THEN
+    RETURN NEW;
+  END IF;
+  NEW.processo_sei := nullif(btrim(NEW.processo_sei), '');
+
+  IF TG_OP = 'UPDATE' AND NEW.status IS NOT DISTINCT FROM OLD.status THEN
+    -- número provisório não vale para ato já assinado ou publicado
+    IF NEW.numero ~ '^PENDENTE' AND NEW.status::text IN ('assinado', 'aguardando_publicacao', 'publicado', 'vigente') THEN
+      RAISE EXCEPTION 'Portaria: informe o número oficial do ato (o número provisório % não vale para ato assinado ou publicado)',
+        NEW.numero USING ERRCODE = '23514';
+    END IF;
     RETURN NEW;
   END IF;
 
-  v_de := OLD.status::text;
   v_para := NEW.status::text;
-  v_ok := CASE v_de
-    WHEN 'rascunho' THEN v_para IN ('minuta', 'aguardando_assinatura', 'revogado')
-    WHEN 'minuta' THEN v_para IN ('aguardando_assinatura', 'revogado')
-    WHEN 'aguardando_assinatura' THEN v_para IN ('assinado', 'minuta', 'revogado')
-    WHEN 'assinado' THEN v_para IN ('aguardando_publicacao', 'revogado')
-    WHEN 'aguardando_publicacao' THEN v_para IN ('publicado', 'assinado', 'revogado')
-    WHEN 'publicado' THEN v_para IN ('vigente', 'revogado')
-    WHEN 'vigente' THEN v_para IN ('revogado')
-    ELSE false
-  END;
-  IF NOT v_ok THEN
-    RAISE EXCEPTION 'Portaria %: não passa de "%" para "%" (ordem: minuta, aguardando assinatura, assinada, aguardando publicação, publicada, vigente)',
-      NEW.numero, v_de, v_para USING ERRCODE = '23514';
+  IF TG_OP = 'UPDATE' THEN
+    v_de := OLD.status::text;
+    v_ok := CASE v_de
+      WHEN 'rascunho' THEN v_para IN ('minuta', 'aguardando_assinatura', 'revogado')
+      WHEN 'minuta' THEN v_para IN ('aguardando_assinatura', 'revogado')
+      WHEN 'aguardando_assinatura' THEN v_para IN ('assinado', 'minuta', 'revogado')
+      WHEN 'assinado' THEN v_para IN ('aguardando_publicacao', 'revogado')
+      WHEN 'aguardando_publicacao' THEN v_para IN ('publicado', 'assinado', 'revogado')
+      WHEN 'publicado' THEN v_para IN ('vigente', 'revogado')
+      WHEN 'vigente' THEN v_para IN ('revogado')
+      ELSE false
+    END;
+    IF NOT v_ok THEN
+      RAISE EXCEPTION 'Portaria %: não passa de "%" para "%" (ordem: aguardando SEI, aguardando assinatura, assinada, aguardando publicação, publicada, vigente)',
+        NEW.numero, v_de, v_para USING ERRCODE = '23514';
+    END IF;
+  ELSIF v_para = 'revogado' THEN
+    RAISE EXCEPTION 'Portaria %: não se cadastra uma portaria já revogada', NEW.numero USING ERRCODE = '23514';
   END IF;
 
+  IF NEW.numero ~ '^PENDENTE' AND v_para IN ('assinado', 'aguardando_publicacao', 'publicado', 'vigente') THEN
+    RAISE EXCEPTION 'Portaria: informe o número oficial do ato (o número provisório % não vale para ato assinado ou publicado)',
+      NEW.numero USING ERRCODE = '23514';
+  END IF;
+  -- na criação, quem assinou só é exigido na própria etapa "assinada": um ato que já chega publicado é registrado pelo DOE
   IF v_para = 'assinado' AND (NEW.assinado_por IS NULL OR btrim(NEW.assinado_por) = '' OR NEW.data_assinatura IS NULL) THEN
     RAISE EXCEPTION 'Portaria %: registre quem assinou e a data da assinatura', NEW.numero USING ERRCODE = '23514';
   END IF;
-  IF v_para = 'publicado' AND (NEW.doe_numero IS NULL OR btrim(NEW.doe_numero) = '' OR NEW.doe_data IS NULL) THEN
+  IF v_para IN ('publicado', 'vigente') AND (TG_OP = 'INSERT' OR v_para = 'publicado')
+     AND (NEW.doe_numero IS NULL OR btrim(NEW.doe_numero) = '' OR NEW.doe_data IS NULL) THEN
     RAISE EXCEPTION 'Portaria %: registre o número e a data do DOE', NEW.numero USING ERRCODE = '23514';
   END IF;
   IF v_para = 'vigente' AND NEW.data_vigencia_inicio IS NULL THEN
@@ -10382,11 +10463,12 @@ BEGIN
           p_ato_doe_numero, p_ato_doe_data, v_descricao);
 
   IF p_gerar_minuta AND p_cargo_id IS NOT NULL AND v_exige_cargo THEN
-    v_minuta_numero := public.gerar_numero_portaria(EXTRACT(YEAR FROM p_data_inicio)::int);
+    -- o número oficial vem do ato registrado no SEI; até lá a pendência fica com número provisório e sem texto
+    v_minuta_numero := 'PENDENTE/' || EXTRACT(YEAR FROM p_data_inicio)::int;
     INSERT INTO public.documentos (tipo, categoria, status, titulo, ementa, numero, data_documento, servidores_ids,
                                    cargo_id, unidade_id, provimento_id)
     VALUES ('portaria', 'nomeacao', 'minuta', 'Portaria de Nomeação - ' || v_servidor.nome_completo,
-            'Nomeia ' || v_servidor.nome_completo || ' para o cargo de ' || v_cargo_nome || ' na ' || v_unidade_nome || '.',
+            NULL,
             v_minuta_numero, p_data_inicio, ARRAY[p_servidor_id], p_cargo_id, p_unidade_id, v_provimento_id)
     RETURNING id INTO v_minuta_id;
   END IF;
@@ -10577,15 +10659,15 @@ BEGIN
             || coalesce('. ' || p_observacao, ''));
 
   IF p_gerar_minuta AND v_cargo_id IS NOT NULL AND p_motivo <> 'falecimento' THEN
-    v_minuta_numero := public.gerar_numero_portaria(EXTRACT(YEAR FROM p_data)::int);
+    -- o número oficial vem do ato registrado no SEI; até lá a pendência fica com número provisório e sem texto
+    v_minuta_numero := 'PENDENTE/' || EXTRACT(YEAR FROM p_data)::int;
     INSERT INTO public.documentos (tipo, categoria, status, titulo, ementa, numero, data_documento, servidores_ids,
                                    cargo_id, unidade_id)
     VALUES ('portaria', CASE WHEN p_motivo IN ('aposentadoria', 'vacancia') THEN 'pessoal'::categoria_portaria
                              ELSE 'exoneracao'::categoria_portaria END,
             'minuta',
             CASE WHEN p_motivo = 'aposentadoria' THEN 'Aposentadoria - ' ELSE 'Exoneração - ' END || v_servidor.nome_completo,
-            CASE WHEN p_motivo = 'aposentadoria' THEN 'Concede aposentadoria a ' ELSE 'Exonera ' END
-              || v_servidor.nome_completo || ' do cargo de ' || v_cargo_nome || '.',
+            NULL,
             v_minuta_numero, p_data, ARRAY[p_servidor_id], v_cargo_id, v_unidade_id);
   END IF;
 
@@ -11330,13 +11412,13 @@ BEGIN
             || ' para ' || v_unid_nova || coalesce('. ' || p_observacao, ''));
 
   IF p_gerar_minuta THEN
-    v_minuta_numero := public.gerar_numero_portaria(EXTRACT(YEAR FROM p_data)::int);
+    -- o número oficial vem do ato registrado no SEI; até lá a pendência fica com número provisório e sem texto
+    v_minuta_numero := 'PENDENTE/' || EXTRACT(YEAR FROM p_data)::int;
     INSERT INTO public.documentos (tipo, categoria, status, titulo, ementa, numero, data_documento, servidores_ids,
                                    cargo_id, unidade_id)
     VALUES ('portaria', 'pessoal', 'minuta',
             CASE p_motivo WHEN 'remocao' THEN 'Remoção - ' ELSE 'Transferência - ' END || v_servidor.nome_completo,
-            CASE p_motivo WHEN 'remocao' THEN 'Remove ' ELSE 'Transfere ' END || v_servidor.nome_completo
-              || coalesce(' (' || v_cargo_nome || ')', '') || ' da ' || coalesce(v_unid_ant, '?') || ' para a ' || v_unid_nova || '.',
+            NULL,
             v_minuta_numero, p_data, ARRAY[p_servidor_id], v_cargo_id, p_unidade_id);
   END IF;
 
@@ -16181,7 +16263,8 @@ CREATE TABLE public.documentos (
     responsavel_id uuid,
     created_by_servidor_id uuid,
     updated_by uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    processo_sei text
 );
 
 ALTER TABLE ONLY public.documentos FORCE ROW LEVEL SECURITY;
@@ -16199,6 +16282,13 @@ COMMENT ON COLUMN public.documentos.conteudo_unificado IS 'Estrutura JSON com pr
 --
 
 COMMENT ON COLUMN public.documentos.responsavel_id IS 'Servidor responsável pela tramitação/acompanhamento do documento';
+
+
+--
+-- Name: COLUMN documentos.processo_sei; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documentos.processo_sei IS 'Número do processo SEI onde o ato foi formalizado';
 
 
 --
@@ -18379,8 +18469,16 @@ CREATE TABLE public.historico_funcional (
     created_by_servidor_id uuid,
     updated_at timestamp with time zone,
     updated_by uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    processo_sei text
 );
+
+
+--
+-- Name: COLUMN historico_funcional.processo_sei; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.historico_funcional.processo_sei IS 'Número do processo SEI do ato que ampara o lançamento';
 
 
 --

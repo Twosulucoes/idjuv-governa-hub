@@ -199,13 +199,14 @@ async function registrarHistoricoFuncional(params: {
 }
 
 // ============================================================
-// HELPER: Gerar minuta de portaria
+// HELPER: Abrir a pendência da portaria
+// O texto e o número oficial são do SEI: aqui só nasce o acompanhamento, com número provisório (PENDENTE/AAAA)
+// e status "minuta" (rótulo "Aguardando SEI"), para a Central de Portarias registrar o ato quando sair.
 // ============================================================
 type CategoriaPortaria = "estruturante" | "normativa" | "pessoal" | "delegacao" | "nomeacao" | "exoneracao" | "designacao" | "dispensa" | "cessao" | "ferias" | "licenca";
 
-async function gerarMinutaPortaria(params: {
+async function abrirPendenciaPortaria(params: {
   titulo: string;
-  ementa: string;
   categoria: CategoriaPortaria;
   servidores_ids: string[];
   cargo_id?: string;
@@ -215,13 +216,7 @@ async function gerarMinutaPortaria(params: {
   try {
     const { data: userData } = await supabase.auth.getUser();
     const dataDoc = params.data_documento || new Date().toISOString().split("T")[0];
-    const ano = new Date(dataDoc).getFullYear();
-
-    let numero = `PENDENTE/${ano}`;
-    try {
-      const { data: numData } = await supabase.rpc("gerar_numero_portaria", { p_ano: ano });
-      if (numData) numero = numData as string;
-    } catch { /* keep default */ }
+    const numero = `PENDENTE/${new Date(dataDoc).getFullYear()}`;
 
     const { data, error } = await supabase
       .from("documentos")
@@ -230,7 +225,6 @@ async function gerarMinutaPortaria(params: {
         categoria: params.categoria,
         status: "minuta" as const,
         titulo: params.titulo,
-        ementa: params.ementa,
         numero,
         data_documento: dataDoc,
         servidores_ids: params.servidores_ids,
@@ -307,9 +301,8 @@ export function useVinculoMutations(servidorId?: string) {
       // Gerar portaria se tem cargo
       let portaria = null;
       if (data.cargo_id) {
-        portaria = await gerarMinutaPortaria({
+        portaria = await abrirPendenciaPortaria({
           titulo: `Nomeação - ${nomeServidor}`,
-          ementa: `Nomeia ${nomeServidor} para o cargo de ${cargoNome}.`,
           categoria: "nomeacao",
           servidores_ids: [data.servidor_id],
           cargo_id: data.cargo_id,
@@ -322,7 +315,7 @@ export function useVinculoMutations(servidorId?: string) {
     },
     onSuccess: (result) => {
       const msg = result.portaria
-        ? `Vínculo criado! Minuta de Portaria nº ${result.portaria.numero} gerada automaticamente.`
+        ? "Vínculo criado! Portaria pendente: registre o ato do SEI na Central de Portarias."
         : "Vínculo criado com sucesso!";
       toast.success(msg);
       invalidate();
@@ -359,7 +352,7 @@ export function useVinculoMutations(servidorId?: string) {
         .single();
 
       // Último vínculo ativo + motivo de desligamento = fim da vida funcional: o banco encerra tudo de uma vez
-      // (lotação, provimento, cessões, designações, férias, licenças…), grava histórico e minuta.
+      // (lotação, provimento, cessões, designações, férias, licenças…), grava histórico e abre a pendência da portaria.
       if (vinculoAtual && motivo && MOTIVOS_QUE_DESLIGAM.includes(motivo)) {
         const { count, error: contErr } = await supabase
           .from("vinculos_servidor")
@@ -457,9 +450,8 @@ export function useVinculoMutations(servidorId?: string) {
 
         // Gerar portaria de exoneração se tem cargo
         if (vinculoAtual.cargo_id) {
-          await gerarMinutaPortaria({
+          await abrirPendenciaPortaria({
             titulo: `Exoneração - ${nomeServidor}`,
-            ementa: `Exonera ${nomeServidor} do cargo de ${cargoNome}.`,
             categoria: "exoneracao",
             servidores_ids: [vinculoAtual.servidor_id],
             cargo_id: vinculoAtual.cargo_id,

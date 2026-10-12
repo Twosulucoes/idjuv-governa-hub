@@ -1072,6 +1072,26 @@ formato `/object/public/arbitros-docs/...`, só como referência ao caminho.
 ### Programas e documentos gerais
 `programas`, `documentos`.
 
+#### Portaria: ciclo do SEI e registro na ficha
+
+Decisão do dono (12/10/2026): o sistema **não redige** portaria nem outro ato formal; a formalização é no SEI e o
+sistema só acompanha o ciclo (processo SEI, número, assinatura, publicação no DOE) e registra na ficha. Migração
+`supabase/migrations/20261012160000_rh_portaria_ciclo_sei.sql` (idempotente; nada é apagado — `conteudo_html`,
+`conteudo_unificado` e `ementa` antigos ficam como histórico):
+
+- **Coluna `processo_sei`** (texto) em `documentos` e em `historico_funcional`.
+- **`documentos_portaria_validar`** (trigger `trg_documentos_portaria_validar`, `BEFORE INSERT OR UPDATE OR DELETE`)
+  passa a valer **também na criação**: portaria que já nasce assinada exige quem assinou e a data; nascendo publicada
+  ou vigente exige nº e data do DOE (vigente, também o início da vigência); não se cadastra portaria já revogada; o
+  número provisório `PENDENTE/AAAA` não passa de "aguardando assinatura". Portaria assinada/publicada não se apaga.
+- **`trg_documentos_portaria_ficha`** (`AFTER INSERT OR UPDATE`, função `documentos_portaria_ficha`, `SECURITY
+  DEFINER`, sem EXECUTE pela API): quando a portaria vira publicada (ou nasce publicada/vigente), grava número e data
+  da portaria, nº e data do DOE e o processo SEI no lançamento do `historico_funcional` de cada servidor do ato (mesmo
+  tipo pela categoria e mesmo cargo, ainda sem DOE, o mais próximo da data do ato), sem sobrescrever lançamento que já
+  tem outro DOE.
+- **`rh_admitir_servidor` e `rh_desligar_servidor`**: a pendência da portaria nasce em `minuta` com número provisório
+  `PENDENTE/AAAA` (fora do índice único) e **sem texto** (`ementa` nula), no lugar do número gerado pelo sistema.
+
 ### Importação de dados
 `importacoes` (migração `20261009153000_importacoes_e_qdd_fiplan.sql`): log de toda importação
 aplicada — `tipo` do importador, `modulo` dono dos dados, nome/tamanho/SHA-256 do arquivo (o arquivo

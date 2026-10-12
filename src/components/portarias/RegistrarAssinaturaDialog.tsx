@@ -15,6 +15,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import {
   Popover,
@@ -29,14 +30,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { useRegistrarAssinatura } from '@/hooks/usePortarias';
+import { useRegistrarAssinatura, NUMERO_PORTARIA_PENDENTE } from '@/hooks/usePortarias';
 import { Portaria } from '@/types/portaria';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// O número oficial é obrigatório quando a portaria ainda está com o provisório (PENDENTE/AAAA): o banco recusa
+// ato assinado sem ele. Essa exigência é aplicada no submit, porque depende da portaria aberta.
 const formSchema = z.object({
   assinado_por: z.string().min(1, 'Nome do signatário é obrigatório'),
   data_assinatura: z.date({ required_error: 'Data da assinatura é obrigatória' }),
+  numero: z.string().trim().optional(),
+  processo_sei: z.string().trim().max(60, 'Processo SEI muito longo').optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -62,6 +67,8 @@ export function RegistrarAssinaturaDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       assinado_por: '',
+      numero: '',
+      processo_sei: '',
     },
   });
 
@@ -70,10 +77,12 @@ export function RegistrarAssinaturaDialog({
       form.reset({
         assinado_por: '',
         data_assinatura: new Date(),
+        numero: '',
+        processo_sei: portaria?.processo_sei || '',
       });
       setArquivo(null);
     }
-  }, [open, form]);
+  }, [open, form, portaria?.processo_sei]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -111,8 +120,14 @@ export function RegistrarAssinaturaDialog({
     return urlData.publicUrl;
   };
 
+  const numeroPendente = !!portaria && NUMERO_PORTARIA_PENDENTE.test(portaria.numero);
+
   const onSubmit = async (data: FormData) => {
     if (!portaria) return;
+    if (numeroPendente && (!data.numero || NUMERO_PORTARIA_PENDENTE.test(data.numero))) {
+      form.setError('numero', { message: 'Informe o número oficial da portaria (do SEI)' });
+      return;
+    }
 
     try {
       setUploading(true);
@@ -127,6 +142,8 @@ export function RegistrarAssinaturaDialog({
         assinado_por: data.assinado_por,
         data_assinatura: format(data.data_assinatura, 'yyyy-MM-dd'),
         arquivo_assinado_url,
+        numero: numeroPendente ? data.numero : undefined,
+        processo_sei: data.processo_sei ?? '',
       });
 
       form.reset();
@@ -164,6 +181,39 @@ export function RegistrarAssinaturaDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {numeroPendente && (
+              <FormField
+                control={form.control}
+                name="numero"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número oficial da portaria *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Número dado pelo SEI" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      A portaria ainda está com o número provisório ({portaria?.numero}).
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <FormField
+              control={form.control}
+              name="processo_sei"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Processo SEI</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Número do processo no SEI" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="assinado_por"

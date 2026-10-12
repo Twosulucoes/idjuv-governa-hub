@@ -1,9 +1,16 @@
 # Padrão de impressão de documentos — spec
 
+> **Revisão 12/10/2026: atos formais saem do escopo (SEI).** Decisão do dono: o sistema não redige portaria,
+> memorando, termo, requerimento, DFD/ETP/TR nem outro ato formal do órgão — a formalização é no SEI, e o sistema só
+> acompanha o ciclo (processo SEI, número, assinatura, publicação no DOE) e registra na ficha. A família Ato e o
+> modelo `requerimento` foram removidos de `src/lib/documentos/` e a fase F2 foi cancelada. Relatórios, fichas e
+> comprovantes continuam no escopo. Estado vigente em [`docs/PADRAO_DOCUMENTOS.md`](../../PADRAO_DOCUMENTOS.md).
+
 - **Data:** 2026-10-12
 - **Classificação:** architectural (subsistema novo; refatora ~45 geradores chamados de 54 arquivos)
 - **Pedido:** "planejar toda estrutura de impressão, criar layout padronizado, fazer protocolos,
-  requerimento, tudo que o sistema exporta para ser impresso; usar um plugin tipo ui-ux-pro-max
+  requerimento, tudo que o sistema exporta para ser impresso; (requerimento e demais atos saíram do escopo na
+  revisão de 12/10/2026: são feitos no SEI) usar um plugin tipo ui-ux-pro-max
   para o visual; refatorar todo o sistema; documentar o padrão de criação de novos documentos."
 - **Fonte visual:** skill `ui-ux-pro-max` (estilo *Accessible & Ethical*, governo) + tokens do
   [design system](./2026-10-09-design-system-design.md). Cor de marca continua vindo do tenant.
@@ -37,7 +44,7 @@ Todo documento pertence a uma família; cada família tem um layout-base.
 
 | Família | Exemplos | Estrutura |
 |---|---|---|
-| **Ato** | portaria, memorando, declaração, termo, requerimento | cabeçalho, título, número/protocolo, corpo em texto, local e data, assinaturas |
+| ~~Ato~~ | portaria, memorando, declaração, termo, requerimento | **removida em 12/10/2026:** ato é feito no SEI; o sistema registra processo SEI, número e DOE |
 | **Relatório** | relatórios de RH, folha, unidades, federações, árbitros, pendências | cabeçalho, filtros aplicados, tabela(s) com totais, retrato ou paisagem |
 | **Ficha** | ficha cadastral, mini-currículo, ficha da unidade, ficha de federação | cabeçalho, seções de campos chave-valor, foto opcional |
 | **Comprovante** | contracheque, folha de frequência, lista de presença, certificado | cabeçalho enxuto, bloco principal, carimbo de autenticidade |
@@ -111,7 +118,7 @@ Comprovantes, linha de autenticidade.
 |---|---|---|
 | **F0** | Inventário: cada função exportada de PDF → família, tela que chama, dado de entrada | tabela em `docs/PADRAO_DOCUMENTOS.md`; nenhum gerador sem família |
 | **F1** | `core/`, `blocos/`, `familias/`, `registro`, `emitir`, ferramenta antes/depois, guard, skill, doc | 1 documento de cada família emitido pela camada nova; gate verde |
-| **F2** | Migrar **Atos** (portarias, memorandos, declarações, termos; requerimento novo se não existir) | antes/depois aprovado pelo usuário; baseline do guard cai |
+| ~~F2~~ | **Cancelada em 12/10/2026** (atos são do SEI). Geradores de ato: remover / substituir por registro do SEI; ver `docs/PADRAO_DOCUMENTOS.md` §2 | — |
 | **F3** | Migrar **Fichas** | idem |
 | **F4** | Migrar **Relatórios** (maior volume) | idem |
 | **F5** | Migrar **Comprovantes** (contracheque, frequência, lista de presença) | idem + conferência de valores com os do gerador antigo |
@@ -120,7 +127,7 @@ Remoção dos três templates antigos só depois que nenhum gerador os importe (
 
 ## 9. Fora de escopo / decisões em aberto
 
-- **Protocolo fora do RH:** hoje só o RH numera atos. Numerar requerimentos e demais documentos
+- **Protocolo fora do RH:** hoje só o RH numera seus registros (o número do ato formal vem do SEI). Numerar demais documentos
   exige tabela/RPC com RLS (skill `migracao-segura-idjuv`) — spec própria quando o usuário decidir.
 - **QR de verificação pública:** exige tabela de documentos emitidos e página pública
   (`PublicPageGuard`); fase opcional pós-F5.

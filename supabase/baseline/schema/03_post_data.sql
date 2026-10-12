@@ -8113,10 +8113,17 @@ CREATE TRIGGER trg_datas_importantes_updated_at BEFORE UPDATE ON public.datas_im
 
 
 --
+-- Name: documentos trg_documentos_portaria_ficha; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_documentos_portaria_ficha AFTER INSERT OR UPDATE ON public.documentos FOR EACH ROW EXECUTE FUNCTION public.documentos_portaria_ficha();
+
+
+--
 -- Name: documentos trg_documentos_portaria_validar; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_documentos_portaria_validar BEFORE DELETE OR UPDATE ON public.documentos FOR EACH ROW EXECUTE FUNCTION public.documentos_portaria_validar();
+CREATE TRIGGER trg_documentos_portaria_validar BEFORE INSERT OR DELETE OR UPDATE ON public.documentos FOR EACH ROW EXECUTE FUNCTION public.documentos_portaria_validar();
 
 
 --

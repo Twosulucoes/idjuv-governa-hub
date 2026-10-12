@@ -93,7 +93,7 @@ export function TransferirServidorModal({ servidor, open, onOpenChange }: Props)
           <Alert>
             <AlertDescription>
               O cargo e o provimento continuam os mesmos: muda a unidade. A lotação atual é encerrada na véspera, a nova
-              começa na data informada, e o ato fica no histórico funcional com a minuta de portaria e o protocolo.
+              começa na data informada, e o ato fica no histórico funcional com a pendência da portaria e o protocolo.
             </AlertDescription>
           </Alert>
 
