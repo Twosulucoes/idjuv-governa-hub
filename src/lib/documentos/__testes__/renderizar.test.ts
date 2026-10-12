@@ -108,4 +108,12 @@ describe('renderizarDocumento', () => {
     const sis = p1.itens.find((i) => i.str.includes('Sistema de Teste'))!;
     expect(end.x + end.largura).toBeLessThan(sis.x);
   });
+
+  it('título sai em caixa alta por padrão; com tituloComoEscrito a caixa original é preservada (ex.: sigla IDJuv)', async () => {
+    const mixto = { ...modelo, titulo: () => 'Portaria Nº 1/IDJuv/2026' };
+    const [a] = await lerPdf(renderizar({ n: 1 }, mixto).doc);
+    expect(a.texto).toContain('PORTARIA Nº 1/IDJUV/2026');
+    const [b] = await lerPdf(renderizar({ n: 1 }, { ...mixto, tituloComoEscrito: true }).doc);
+    expect(b.texto).toContain('Portaria Nº 1/IDJuv/2026');
+  });
 });

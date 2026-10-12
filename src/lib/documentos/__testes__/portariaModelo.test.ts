@@ -73,4 +73,10 @@ describe('portariaModelo', () => {
   it('data do documento inválida lança erro claro ao montar a linha de local e data', () => {
     expect(() => gerar({ ...base, local: 'Cidade de Teste', dataDocumento: '2026-13-40' })).toThrow(/Data inválida/);
   });
+
+  it('o título da portaria preserva a caixa da numeração oficial (IDJuv não vira IDJUV)', async () => {
+    const [p1] = await lerPdf(gerar({ ...base, titulo: 'PORTARIA Nº 12/IDJuv/PRESI/GAB/2026 DE 05 DE OUTUBRO DE 2026' }).doc);
+    expect(p1.texto).toContain('PORTARIA Nº 12/IDJuv/PRESI/GAB/2026 DE 05 DE OUTUBRO DE 2026');
+    expect(p1.texto).not.toContain('/IDJUV/');
+  });
 });

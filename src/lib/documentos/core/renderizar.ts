@@ -15,7 +15,7 @@ export function renderizarDocumento<D>(
   const familia = FAMILIAS[modelo.familia];
   const ctx = criarContexto({ marca, orientacao: modelo.orientacao ?? familia.orientacaoPadrao, familia: modelo.familia });
 
-  titulo({ texto: modelo.titulo(dados), subtitulo: modelo.subtitulo?.(dados) })(ctx);
+  titulo({ texto: modelo.titulo(dados), subtitulo: modelo.subtitulo?.(dados), comoEscrito: modelo.tituloComoEscrito })(ctx);
   for (const bloco of modelo.blocos(dados)) bloco(ctx);
 
   aplicarMoldura(ctx, {
