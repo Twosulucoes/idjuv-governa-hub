@@ -1631,6 +1631,32 @@ CREATE TYPE public.vinculo_funcional AS ENUM (
 
 
 --
+-- Name: afastamento_remunerado(text, text, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.afastamento_remunerado(p_tipo_afastamento text, p_tipo_licenca text, p_data date) RETURNS boolean
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_chave text;
+  v_valor numeric;
+BEGIN
+  v_chave := CASE WHEN p_tipo_afastamento = 'licenca'
+                  THEN 'licenca_remunerada_' || coalesce(p_tipo_licenca, 'outra')
+                  ELSE 'afastamento_remunerado_' || p_tipo_afastamento END;
+  SELECT valor INTO v_valor FROM public.parametros_folha
+   WHERE tipo_parametro = v_chave AND ativo IS NOT FALSE
+     AND vigencia_inicio <= p_data AND (vigencia_fim IS NULL OR vigencia_fim >= p_data)
+   ORDER BY vigencia_inicio DESC LIMIT 1;
+  IF FOUND THEN RETURN v_valor <> 0; END IF;
+  RETURN NOT (p_tipo_afastamento = 'suspensao'
+              OR (p_tipo_afastamento = 'licenca' AND p_tipo_licenca IN ('interesse_particular', 'mandato_eletivo')));
+END;
+$$;
+
+
+--
 -- Name: alcanca_modulos_alvo(public.app_module[]); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1750,53 +1776,6 @@ BEGIN
       WHERE contrato_id = COALESCE(NEW.contrato_id, OLD.contrato_id) AND status = 'aprovada')
   WHERE id = COALESCE(NEW.contrato_id, OLD.contrato_id);
   RETURN COALESCE(NEW, OLD);
-END;
-$$;
-
-
---
--- Name: atualizar_situacao_servidor(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.atualizar_situacao_servidor() RETURNS trigger
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-BEGIN
-  -- Atualizar situação baseado no afastamento/licença
-  IF TG_TABLE_NAME = 'licencas_afastamentos' THEN
-    IF NEW.status = 'ativa' THEN
-      UPDATE public.servidores 
-      SET situacao = 
-        CASE 
-          WHEN NEW.tipo_afastamento = 'cessao' THEN 'cedido'::situacao_funcional
-          WHEN NEW.tipo_afastamento = 'licenca' THEN 'licenca'::situacao_funcional
-          ELSE 'afastado'::situacao_funcional
-        END,
-        updated_at = now()
-      WHERE id = NEW.servidor_id;
-    ELSIF NEW.status = 'encerrada' THEN
-      UPDATE public.servidores 
-      SET situacao = 'ativo'::situacao_funcional,
-          updated_at = now()
-      WHERE id = NEW.servidor_id;
-    END IF;
-  -- Atualizar situação baseado nas férias
-  ELSIF TG_TABLE_NAME = 'ferias_servidor' THEN
-    IF NEW.status = 'em_gozo' THEN
-      UPDATE public.servidores 
-      SET situacao = 'ferias'::situacao_funcional,
-          updated_at = now()
-      WHERE id = NEW.servidor_id;
-    ELSIF NEW.status = 'concluida' THEN
-      UPDATE public.servidores 
-      SET situacao = 'ativo'::situacao_funcional,
-          updated_at = now()
-      WHERE id = NEW.servidor_id;
-    END IF;
-  END IF;
-  
-  RETURN NEW;
 END;
 $$;
 
@@ -2674,6 +2653,34 @@ $$;
 
 
 --
+-- Name: consumir_cota_uso(uuid, text, integer, integer, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.consumir_cota_uso(_usuario uuid, _tipo text, _quantidade integer, _limite integer, _modulo text, _descricao text) RETURNS boolean
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  usado integer;
+BEGIN
+  IF _usuario IS NULL OR _tipo IS NULL OR coalesce(_quantidade, 0) < 1 OR coalesce(_limite, 0) < 1 THEN
+    RETURN false;
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtext('cota_uso:' || _tipo), hashtext(_usuario::text));
+  SELECT coalesce(sum(coalesce((metadata ->> 'quantidade')::integer, 1)), 0) INTO usado
+    FROM public.audit_logs
+   WHERE user_id = _usuario AND entity_type = _tipo AND "timestamp" >= now() - interval '1 hour';
+  IF usado + _quantidade > _limite THEN
+    RETURN false;
+  END IF;
+  INSERT INTO public.audit_logs (action, entity_type, user_id, module_name, description, metadata)
+  VALUES ('submit', _tipo, _usuario, _modulo, _descricao, jsonb_build_object('quantidade', _quantidade));
+  RETURN true;
+END;
+$$;
+
+
+--
 -- Name: corrigir_conta_movimento(uuid, text, text, text, text, text, text, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2843,6 +2850,62 @@ $$;
 
 
 --
+-- Name: documentos_portaria_validar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.documentos_portaria_validar() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_de text;
+  v_para text;
+  v_ok boolean;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.tipo = 'portaria' AND OLD.status::text IN ('assinado', 'aguardando_publicacao', 'publicado', 'vigente', 'revogado') THEN
+      RAISE EXCEPTION 'Portaria % (%) não pode ser excluída: ato assinado ou publicado se revoga, não se apaga',
+        OLD.numero, OLD.status USING ERRCODE = '42501';
+    END IF;
+    RETURN OLD;
+  END IF;
+
+  IF NEW.tipo IS DISTINCT FROM 'portaria' OR NEW.status IS NOT DISTINCT FROM OLD.status THEN
+    RETURN NEW;
+  END IF;
+
+  v_de := OLD.status::text;
+  v_para := NEW.status::text;
+  v_ok := CASE v_de
+    WHEN 'rascunho' THEN v_para IN ('minuta', 'aguardando_assinatura', 'revogado')
+    WHEN 'minuta' THEN v_para IN ('aguardando_assinatura', 'revogado')
+    WHEN 'aguardando_assinatura' THEN v_para IN ('assinado', 'minuta', 'revogado')
+    WHEN 'assinado' THEN v_para IN ('aguardando_publicacao', 'revogado')
+    WHEN 'aguardando_publicacao' THEN v_para IN ('publicado', 'assinado', 'revogado')
+    WHEN 'publicado' THEN v_para IN ('vigente', 'revogado')
+    WHEN 'vigente' THEN v_para IN ('revogado')
+    ELSE false
+  END;
+  IF NOT v_ok THEN
+    RAISE EXCEPTION 'Portaria %: não passa de "%" para "%" (ordem: minuta, aguardando assinatura, assinada, aguardando publicação, publicada, vigente)',
+      NEW.numero, v_de, v_para USING ERRCODE = '23514';
+  END IF;
+
+  IF v_para = 'assinado' AND (NEW.assinado_por IS NULL OR btrim(NEW.assinado_por) = '' OR NEW.data_assinatura IS NULL) THEN
+    RAISE EXCEPTION 'Portaria %: registre quem assinou e a data da assinatura', NEW.numero USING ERRCODE = '23514';
+  END IF;
+  IF v_para = 'publicado' AND (NEW.doe_numero IS NULL OR btrim(NEW.doe_numero) = '' OR NEW.doe_data IS NULL) THEN
+    RAISE EXCEPTION 'Portaria %: registre o número e a data do DOE', NEW.numero USING ERRCODE = '23514';
+  END IF;
+  IF v_para = 'vigente' AND NEW.data_vigencia_inicio IS NULL THEN
+    RAISE EXCEPTION 'Portaria %: informe a data de início da vigência', NEW.numero USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: eh_meu_arquivo_frequencia(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2975,6 +3038,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Folha deve estar aberta ou reaberta para enviar à conferência');
   END IF;
   
+  PERFORM public.rh_protocolo_atual('folha', format('Envio da folha %s/%s para conferência', v_folha.competencia_mes, v_folha.competencia_ano), NULL, jsonb_build_object('folha_id', p_folha_id));
+
   UPDATE public.folhas_pagamento
   SET 
     status = 'processando',
@@ -3125,6 +3190,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Folha deve estar em conferência ou aberta para ser fechada');
   END IF;
   
+  PERFORM public.rh_protocolo_atual('folha', format('Fechamento da folha %s/%s', v_folha.competencia_mes, v_folha.competencia_ano), NULL, jsonb_build_object('folha_id', p_folha_id, 'justificativa', p_justificativa));
+
   -- Atualizar para fechada
   UPDATE public.folhas_pagamento
   SET 
@@ -3841,203 +3908,151 @@ CREATE FUNCTION public.fn_atualizar_situacao_servidor(p_servidor_id uuid) RETURN
     SET search_path TO 'public'
     AS $$
 DECLARE
-  v_nova_situacao situacao_funcional;
+  v_atual situacao_funcional;
+  v_nova situacao_funcional;
   v_tipo_servidor tipo_servidor;
-  v_cargo_id UUID;
-  v_unidade_id UUID;
+  v_cargo_id uuid;
+  v_unidade_id uuid;
   v_vinculo vinculo_funcional;
   v_lotacao RECORD;
+  v_hoje date := public.data_local();
 BEGIN
-  -- Prioridade de situação:
-  -- 1. Falecido (permanente)
-  -- 2. Exonerado/Desligado (se último provimento encerrado por exoneração)
-  -- 3. Férias em gozo
-  -- 4. Licença/Afastamento ativo
-  -- 5. Cedido (saída ativa)
-  -- 6. Ativo (se tem provimento ativo ou cessão de entrada ativa)
-  -- 7. Inativo (nenhuma das anteriores)
-  
-  -- Verificar se já está marcado como falecido
-  SELECT situacao INTO v_nova_situacao
-  FROM servidores WHERE id = p_servidor_id;
-  
-  IF v_nova_situacao = 'falecido' THEN
-    RETURN; -- Não alterar
+  -- Prioridade: falecido (permanente) > exonerado/aposentado/falecido por provimento encerrado > férias em gozo >
+  -- licença/afastamento ativo ou prorrogado > cessão de saída > provimento ativo > cessão de entrada >
+  -- vínculo ativo sem provimento > desligado preservado > inativo.
+  SELECT situacao INTO v_atual FROM public.servidores WHERE id = p_servidor_id;
+  IF NOT FOUND OR v_atual = 'falecido' THEN
+    RETURN;
   END IF;
-  
-  -- Verificar se tem provimento encerrado por exoneração/falecimento
+
+  -- Provimento encerrado por desligamento, sem nomeação posterior
   IF EXISTS (
-    SELECT 1 FROM provimentos 
-    WHERE servidor_id = p_servidor_id 
-    AND status = 'encerrado'
-    AND motivo_encerramento IN ('exoneracao_pedido', 'exoneracao_oficio', 'falecimento')
-    AND NOT EXISTS (
-      SELECT 1 FROM provimentos p2 
-      WHERE p2.servidor_id = p_servidor_id 
-      AND p2.status = 'ativo'
-      AND p2.data_nomeacao > provimentos.data_encerramento
-    )
+    SELECT 1 FROM public.provimentos pe
+     WHERE pe.servidor_id = p_servidor_id
+       AND pe.status = 'encerrado'
+       AND pe.motivo_encerramento IN ('exoneracao', 'exoneracao_pedido', 'exoneracao_oficio', 'termino_mandato',
+                                      'demissao', 'aposentadoria', 'vacancia', 'falecimento')
+       AND NOT EXISTS (
+         SELECT 1 FROM public.provimentos p2
+          WHERE p2.servidor_id = p_servidor_id AND p2.status IN ('ativo', 'suspenso')
+            AND p2.data_nomeacao > pe.data_encerramento)
   ) THEN
     SELECT CASE motivo_encerramento
-      WHEN 'falecimento' THEN 'falecido'::situacao_funcional
-      ELSE 'exonerado'::situacao_funcional
-    END INTO v_nova_situacao
-    FROM provimentos
-    WHERE servidor_id = p_servidor_id
-    AND status = 'encerrado'
-    ORDER BY data_encerramento DESC
-    LIMIT 1;
-    
-    -- Limpar cargo e unidade ao exonerar
-    UPDATE servidores 
-    SET situacao = v_nova_situacao, 
-        cargo_atual_id = NULL,
-        unidade_atual_id = NULL,
-        updated_at = now() 
-    WHERE id = p_servidor_id;
+             WHEN 'falecimento' THEN 'falecido'::situacao_funcional
+             WHEN 'aposentadoria' THEN 'aposentado'::situacao_funcional
+             ELSE 'exonerado'::situacao_funcional
+           END
+      INTO v_nova
+      FROM public.provimentos
+     WHERE servidor_id = p_servidor_id AND status = 'encerrado'
+       AND motivo_encerramento IN ('exoneracao', 'exoneracao_pedido', 'exoneracao_oficio', 'termino_mandato',
+                                   'demissao', 'aposentadoria', 'vacancia', 'falecimento')
+     ORDER BY data_encerramento DESC NULLS LAST
+     LIMIT 1;
+
+    UPDATE public.servidores
+       SET situacao = v_nova, ativo = false, cargo_atual_id = NULL, unidade_atual_id = NULL, updated_at = now()
+     WHERE id = p_servidor_id;
     RETURN;
   END IF;
-  
-  -- Verificar férias em gozo
+
+  -- Férias em gozo
   IF EXISTS (
-    SELECT 1 FROM ferias_servidor
-    WHERE servidor_id = p_servidor_id
-    AND status = 'em_gozo'
-    AND data_inicio <= CURRENT_DATE
-    AND data_fim >= CURRENT_DATE
+    SELECT 1 FROM public.ferias_servidor
+     WHERE servidor_id = p_servidor_id AND status = 'em_gozo'
+       AND data_inicio <= v_hoje AND data_fim >= v_hoje
   ) THEN
-    v_nova_situacao := 'ferias';
-    -- Manter cargo e unidade durante férias
-    UPDATE servidores SET situacao = v_nova_situacao, updated_at = now() WHERE id = p_servidor_id;
+    UPDATE public.servidores SET situacao = 'ferias', ativo = true, updated_at = now() WHERE id = p_servidor_id;
     RETURN;
   END IF;
-  
-  -- Verificar licença/afastamento ativo
+
+  -- Licença/afastamento vigente (ativa ou prorrogada)
   IF EXISTS (
-    SELECT 1 FROM licencas_afastamentos
-    WHERE servidor_id = p_servidor_id
-    AND status = 'ativa'
-    AND data_inicio <= CURRENT_DATE
-    AND (data_fim IS NULL OR data_fim >= CURRENT_DATE)
+    SELECT 1 FROM public.licencas_afastamentos
+     WHERE servidor_id = p_servidor_id AND status IN ('ativa', 'prorrogada')
+       AND data_inicio <= v_hoje AND (data_fim IS NULL OR data_fim >= v_hoje)
   ) THEN
-    SELECT CASE tipo_afastamento
-      WHEN 'licenca' THEN 'licenca'::situacao_funcional
-      ELSE 'afastado'::situacao_funcional
-    END INTO v_nova_situacao
-    FROM licencas_afastamentos
-    WHERE servidor_id = p_servidor_id AND status = 'ativa'
-    ORDER BY data_inicio DESC
-    LIMIT 1;
-    
-    -- Manter cargo e unidade durante licença/afastamento
-    UPDATE servidores SET situacao = v_nova_situacao, updated_at = now() WHERE id = p_servidor_id;
+    SELECT CASE tipo_afastamento WHEN 'licenca' THEN 'licenca'::situacao_funcional ELSE 'afastado'::situacao_funcional END
+      INTO v_nova
+      FROM public.licencas_afastamentos
+     WHERE servidor_id = p_servidor_id AND status IN ('ativa', 'prorrogada')
+       AND data_inicio <= v_hoje AND (data_fim IS NULL OR data_fim >= v_hoje)
+     ORDER BY data_inicio DESC
+     LIMIT 1;
+    UPDATE public.servidores SET situacao = v_nova, ativo = true, updated_at = now() WHERE id = p_servidor_id;
     RETURN;
   END IF;
-  
-  -- Verificar cessão de saída ativa (servidor cedido para outro órgão)
-  IF EXISTS (
-    SELECT 1 FROM cessoes
-    WHERE servidor_id = p_servidor_id
-    AND tipo = 'saida'
-    AND ativa = true
-  ) THEN
-    v_nova_situacao := 'cedido';
-    -- Manter cargo original mas pode ter unidade diferente
-    UPDATE servidores SET situacao = v_nova_situacao, updated_at = now() WHERE id = p_servidor_id;
+
+  -- Cessão de saída ativa
+  IF EXISTS (SELECT 1 FROM public.cessoes WHERE servidor_id = p_servidor_id AND tipo = 'saida' AND ativa = true) THEN
+    UPDATE public.servidores SET situacao = 'cedido', ativo = true, updated_at = now() WHERE id = p_servidor_id;
     RETURN;
   END IF;
-  
-  -- Verificar se tem provimento ativo
-  IF EXISTS (
-    SELECT 1 FROM provimentos
-    WHERE servidor_id = p_servidor_id
-    AND status = 'ativo'
-  ) THEN
-    v_nova_situacao := 'ativo';
-    
-    -- Buscar dados do provimento ativo mais recente
-    SELECT 
-      p.cargo_id,
-      p.unidade_id,
-      CASE c.categoria
-        WHEN 'comissionado' THEN 'comissionado'::vinculo_funcional
-        WHEN 'efetivo' THEN 'efetivo'::vinculo_funcional
-        ELSE 'comissionado'::vinculo_funcional
-      END,
-      CASE c.categoria
-        WHEN 'comissionado' THEN 'comissionado_idjuv'::tipo_servidor
-        WHEN 'efetivo' THEN 'efetivo_idjuv'::tipo_servidor
-        ELSE 'comissionado_idjuv'::tipo_servidor
-      END
-    INTO v_cargo_id, v_unidade_id, v_vinculo, v_tipo_servidor
-    FROM provimentos p
-    JOIN cargos c ON c.id = p.cargo_id
-    WHERE p.servidor_id = p_servidor_id AND p.status = 'ativo'
-    ORDER BY p.data_nomeacao DESC
-    LIMIT 1;
-    
-    -- Verificar se tem lotação ativa (prioridade sobre provimento para unidade)
-    SELECT * INTO v_lotacao
-    FROM lotacoes
-    WHERE servidor_id = p_servidor_id 
-    AND ativo = true
-    ORDER BY data_inicio DESC
-    LIMIT 1;
-    
+
+  -- Provimento ativo
+  IF EXISTS (SELECT 1 FROM public.provimentos WHERE servidor_id = p_servidor_id AND status = 'ativo') THEN
+    SELECT p.cargo_id, p.unidade_id,
+           CASE c.categoria WHEN 'efetivo' THEN 'efetivo'::vinculo_funcional ELSE 'comissionado'::vinculo_funcional END,
+           CASE c.categoria WHEN 'efetivo' THEN 'efetivo_idjuv'::tipo_servidor ELSE 'comissionado_idjuv'::tipo_servidor END
+      INTO v_cargo_id, v_unidade_id, v_vinculo, v_tipo_servidor
+      FROM public.provimentos p
+      JOIN public.cargos c ON c.id = p.cargo_id
+     WHERE p.servidor_id = p_servidor_id AND p.status = 'ativo'
+     ORDER BY p.data_nomeacao DESC
+     LIMIT 1;
+
+    -- a lotação ativa tem prioridade para a unidade; o cargo vem do provimento
+    SELECT * INTO v_lotacao FROM public.lotacoes
+     WHERE servidor_id = p_servidor_id AND ativo = true
+     ORDER BY data_inicio DESC LIMIT 1;
     IF v_lotacao.id IS NOT NULL THEN
-      -- Usar unidade da lotação ativa, mas manter cargo do provimento
       v_unidade_id := v_lotacao.unidade_id;
     END IF;
-    
-    UPDATE servidores 
-    SET situacao = v_nova_situacao, 
-        tipo_servidor = COALESCE(v_tipo_servidor, tipo_servidor),
-        cargo_atual_id = v_cargo_id,
-        unidade_atual_id = v_unidade_id,
-        vinculo = v_vinculo,
-        updated_at = now() 
-    WHERE id = p_servidor_id;
+
+    UPDATE public.servidores
+       SET situacao = 'ativo', ativo = true,
+           tipo_servidor = COALESCE(v_tipo_servidor, tipo_servidor),
+           cargo_atual_id = v_cargo_id, unidade_atual_id = v_unidade_id,
+           vinculo = v_vinculo, data_desligamento = NULL, updated_at = now()
+     WHERE id = p_servidor_id;
     RETURN;
   END IF;
-  
-  -- Verificar cessão de entrada ativa (servidor de outro órgão cedido ao IDJuv)
-  IF EXISTS (
-    SELECT 1 FROM cessoes
-    WHERE servidor_id = p_servidor_id
-    AND tipo = 'entrada'
-    AND ativa = true
-  ) THEN
-    v_nova_situacao := 'ativo';
-    v_tipo_servidor := 'cedido_entrada';
-    v_vinculo := 'cedido'::vinculo_funcional;
-    
-    -- Buscar unidade da cessão de entrada
+
+  -- Cessão de entrada ativa
+  IF EXISTS (SELECT 1 FROM public.cessoes WHERE servidor_id = p_servidor_id AND tipo = 'entrada' AND ativa = true) THEN
     SELECT unidade_idjuv_id INTO v_unidade_id
-    FROM cessoes
-    WHERE servidor_id = p_servidor_id
-    AND tipo = 'entrada'
-    AND ativa = true
-    ORDER BY data_inicio DESC
-    LIMIT 1;
-    
-    UPDATE servidores 
-    SET situacao = v_nova_situacao, 
-        tipo_servidor = v_tipo_servidor,
-        unidade_atual_id = v_unidade_id,
-        vinculo = v_vinculo,
-        updated_at = now() 
-    WHERE id = p_servidor_id;
+      FROM public.cessoes
+     WHERE servidor_id = p_servidor_id AND tipo = 'entrada' AND ativa = true
+     ORDER BY data_inicio DESC LIMIT 1;
+    UPDATE public.servidores
+       SET situacao = 'ativo', ativo = true, tipo_servidor = 'cedido_entrada', unidade_atual_id = v_unidade_id,
+           vinculo = 'cedido', data_desligamento = NULL, updated_at = now()
+     WHERE id = p_servidor_id;
     RETURN;
   END IF;
-  
-  -- Nenhuma condição acima: inativo ou aguardando nomeação
-  v_nova_situacao := 'inativo';
-  UPDATE servidores 
-  SET situacao = v_nova_situacao, 
-      cargo_atual_id = NULL,
-      unidade_atual_id = NULL,
-      updated_at = now() 
-  WHERE id = p_servidor_id;
+
+  -- Vínculo ativo sem provimento (temporário, estagiário, requisitado, federal…): continua ativo
+  IF EXISTS (SELECT 1 FROM public.vinculos_servidor WHERE servidor_id = p_servidor_id AND ativo = true) THEN
+    SELECT cargo_id, unidade_id INTO v_cargo_id, v_unidade_id
+      FROM public.vinculos_servidor
+     WHERE servidor_id = p_servidor_id AND ativo = true
+     ORDER BY data_inicio DESC LIMIT 1;
+    UPDATE public.servidores
+       SET situacao = 'ativo', ativo = true, cargo_atual_id = v_cargo_id, unidade_atual_id = v_unidade_id,
+           data_desligamento = NULL, updated_at = now()
+     WHERE id = p_servidor_id;
+    RETURN;
+  END IF;
+
+  -- Já desligado (exonerado/aposentado) e sem nada ativo: preserva a situação
+  IF v_atual IN ('exonerado', 'aposentado') THEN
+    UPDATE public.servidores SET ativo = false, cargo_atual_id = NULL, unidade_atual_id = NULL WHERE id = p_servidor_id;
+    RETURN;
+  END IF;
+
+  UPDATE public.servidores
+     SET situacao = 'inativo', ativo = false, cargo_atual_id = NULL, unidade_atual_id = NULL, updated_at = now()
+   WHERE id = p_servidor_id;
 END;
 $$;
 
@@ -4565,23 +4580,21 @@ CREATE FUNCTION public.fn_encerrar_provimento_comissionado_cessao() RETURNS trig
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-DECLARE v_vinculo RECORD;
 BEGIN
   IF NEW.tipo = 'saida' AND NEW.ativa = true THEN
-    SELECT * INTO v_vinculo FROM public.vinculos_funcionais 
-    WHERE servidor_id = NEW.servidor_id AND ativo = true ORDER BY data_inicio DESC LIMIT 1;
-    
-    IF v_vinculo.tipo_vinculo = 'comissionado_idjuv' THEN
-      UPDATE public.provimentos SET status = 'encerrado', data_encerramento = NEW.data_inicio,
-        motivo_encerramento = 'cessao_comissionado'
-      WHERE servidor_id = NEW.servidor_id AND status = 'ativo';
-    ELSIF v_vinculo.tipo_vinculo = 'efetivo_idjuv' THEN
+    IF EXISTS (SELECT 1 FROM public.vinculos_servidor
+                WHERE servidor_id = NEW.servidor_id AND ativo = true AND tipo = 'comissionado') THEN
+      UPDATE public.provimentos
+         SET status = 'encerrado', data_encerramento = NEW.data_inicio, motivo_encerramento = 'cessao_comissionado'
+       WHERE servidor_id = NEW.servidor_id AND status = 'ativo';
+    ELSIF EXISTS (SELECT 1 FROM public.vinculos_servidor
+                   WHERE servidor_id = NEW.servidor_id AND ativo = true AND tipo = 'efetivo') THEN
       UPDATE public.provimentos SET status = 'suspenso'
-      WHERE servidor_id = NEW.servidor_id AND status = 'ativo';
+       WHERE servidor_id = NEW.servidor_id AND status = 'ativo';
     END IF;
-    
+
     UPDATE public.lotacoes SET ativo = false, data_fim = NEW.data_inicio
-    WHERE servidor_id = NEW.servidor_id AND ativo = true;
+     WHERE servidor_id = NEW.servidor_id AND ativo = true;
   END IF;
   RETURN NEW;
 END;
@@ -5043,15 +5056,12 @@ CREATE FUNCTION public.fn_reativar_provimento_retorno_cessao() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-DECLARE v_vinculo RECORD;
 BEGIN
   IF OLD.ativa = true AND NEW.ativa = false AND NEW.data_retorno IS NOT NULL THEN
-    SELECT * INTO v_vinculo FROM public.vinculos_funcionais 
-    WHERE servidor_id = NEW.servidor_id AND ativo = true ORDER BY data_inicio DESC LIMIT 1;
-    
-    IF v_vinculo.tipo_vinculo = 'efetivo_idjuv' THEN
+    IF EXISTS (SELECT 1 FROM public.vinculos_servidor
+                WHERE servidor_id = NEW.servidor_id AND ativo = true AND tipo = 'efetivo') THEN
       UPDATE public.provimentos SET status = 'ativo'
-      WHERE servidor_id = NEW.servidor_id AND status = 'suspenso';
+       WHERE servidor_id = NEW.servidor_id AND status = 'suspenso';
     END IF;
   END IF;
   RETURN NEW;
@@ -5189,30 +5199,33 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'Cargo não encontrado'; END IF;
 
   IF NEW.status = 'ativo' THEN
-    SELECT COUNT(*) INTO v_provimento_ativo 
-    FROM public.provimentos 
-    WHERE servidor_id = NEW.servidor_id AND status = 'ativo' 
+    SELECT COUNT(*) INTO v_provimento_ativo
+    FROM public.provimentos
+    WHERE servidor_id = NEW.servidor_id AND status = 'ativo'
       AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid);
-    
+
     IF v_provimento_ativo > 0 THEN
       RAISE EXCEPTION 'Servidor já possui provimento ativo';
     END IF;
   END IF;
 
-  SELECT COUNT(*) INTO v_vagas_ocupadas 
-  FROM public.provimentos 
-  WHERE cargo_id = NEW.cargo_id AND status = 'ativo'
-    AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid);
-  
-  IF v_vagas_ocupadas >= COALESCE(v_cargo.quantidade_vagas, 1) THEN
-    RAISE EXCEPTION 'Não há vagas disponíveis para o cargo %', v_cargo.nome;
+  -- cargo com quadro de vagas: a vaga (trg_provimento_vaga) já garante o limite
+  IF NEW.vaga_id IS NULL THEN
+    SELECT COUNT(*) INTO v_vagas_ocupadas
+    FROM public.provimentos
+    WHERE cargo_id = NEW.cargo_id AND status = 'ativo'
+      AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid);
+
+    IF v_vagas_ocupadas >= COALESCE(v_cargo.quantidade_vagas, 1) THEN
+      RAISE EXCEPTION 'Não há vagas disponíveis para o cargo %', v_cargo.nome;
+    END IF;
   END IF;
 
-  SELECT * INTO v_vinculo_ativo 
-  FROM public.vinculos_funcionais 
-  WHERE servidor_id = NEW.servidor_id AND ativo = true 
+  SELECT * INTO v_vinculo_ativo
+  FROM public.vinculos_funcionais
+  WHERE servidor_id = NEW.servidor_id AND ativo = true
   ORDER BY data_inicio DESC LIMIT 1;
-  
+
   IF v_vinculo_ativo.tipo_vinculo = 'cedido_entrada' THEN
     RAISE EXCEPTION 'Servidor cedido de outro órgão não pode ter nomeação no IDJuv';
   END IF;
@@ -5372,6 +5385,39 @@ $$;
 
 
 --
+-- Name: folha_avos_13(date, date, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.folha_avos_13(p_inicio date, p_fim date, p_ano integer) RETURNS integer
+    LANGUAGE sql IMMUTABLE
+    AS $$
+  SELECT count(*)::int
+    FROM generate_series(1, 12) m
+   WHERE public.folha_dias_comerciais(p_inicio, p_fim, make_date(p_ano, m, 1),
+                                      (make_date(p_ano, m, 1) + interval '1 month - 1 day')::date) >= 15;
+$$;
+
+
+--
+-- Name: folha_dias_comerciais(date, date, date, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.folha_dias_comerciais(p_inicio date, p_fim date, p_mes_ini date, p_mes_fim date) RETURNS integer
+    LANGUAGE sql IMMUTABLE
+    AS $$
+  SELECT CASE
+    WHEN p_inicio IS NULL OR p_fim IS NULL THEN 0
+    ELSE (
+      SELECT CASE WHEN x.i > x.f THEN 0
+                  ELSE greatest(0,
+                         (CASE WHEN x.f = p_mes_fim THEN 30 ELSE least(EXTRACT(day FROM x.f)::int, 30) END)
+                         - least(EXTRACT(day FROM x.i)::int, 30) + 1) END
+        FROM (SELECT greatest(p_inicio, p_mes_ini) AS i, least(p_fim, p_mes_fim) AS f) x)
+  END;
+$$;
+
+
+--
 -- Name: folha_esta_bloqueada(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -5382,6 +5428,311 @@ CREATE FUNCTION public.folha_esta_bloqueada(p_folha_id uuid) RETURNS boolean
   SELECT status = 'fechada'
   FROM public.folhas_pagamento
   WHERE id = p_folha_id;
+$$;
+
+
+--
+-- Name: folha_item(text, text, numeric, text, numeric, numeric, text, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.folha_item(p_descricao text, p_tipo text, p_valor numeric, p_referencia text DEFAULT NULL::text, p_base numeric DEFAULT NULL::numeric, p_percentual numeric DEFAULT NULL::numeric, p_origem text DEFAULT 'automatico'::text, p_rubrica uuid DEFAULT NULL::uuid) RETURNS jsonb
+    LANGUAGE sql IMMUTABLE
+    AS $$
+  SELECT jsonb_build_object('descricao', p_descricao, 'tipo', p_tipo, 'valor', p_valor, 'referencia', p_referencia,
+                            'base', p_base, 'percentual', p_percentual, 'origem', p_origem, 'rubrica_id', p_rubrica);
+$$;
+
+
+--
+-- Name: folha_montar_ficha(uuid, uuid, text, date, date, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.folha_montar_ficha(p_servidor_id uuid, p_provimento_id uuid, p_tipo text, p_d1 date, p_d2 date, p_manuais jsonb, p_tabelas jsonb) RETURNS jsonb
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_srv record;
+  v_prv record;
+  v_venc numeric;
+  v_itens jsonb := '[]'::jsonb;
+  v_inc jsonb := '[]'::jsonb;
+  v_ano int := EXTRACT(YEAR FROM p_d2)::int;
+  v_ini date; v_fim date; v_dias int; v_ini_pago date; v_fim_pago date; v_venc_prop numeric := 0;
+  v_faltas int := 0; v_dias_lic int := 0; v_dias_ces int := 0; v_rest int;
+  v_d_falta numeric := 0; v_d_lic numeric := 0; v_d_ces numeric := 0; v_terco numeric := 0; v_abono numeric := 0;
+  v_nferias int := 0;
+  v_man jsonb; v_man_val numeric; v_man_inss boolean; v_man_irrf boolean;
+  v_man_prov_inss numeric := 0; v_man_prov_irrf numeric := 0; v_man_prov numeric := 0; v_man_desc numeric := 0;
+  v_liq_dias numeric := 0;
+  v_base_inss numeric := 0; v_inss numeric := 0; v_qdep int := 0; v_ded_unit numeric; v_ded numeric := 0;
+  v_base_irrf numeric := 0; v_irrf numeric := 0;
+  v_consig numeric := 0; v_pensao numeric := 0; v_c record; v_p record; v_base_pensao numeric; v_val numeric;
+  v_prov numeric := 0; v_desc numeric := 0; v_liq numeric;
+  v_teto numeric;
+  v_avos int; v_v13 numeric; v_adiant numeric := 0;
+  v_adm date; v_pa_ini date; v_meses int; v_resto int; v_avos_fer int; v_dias_prop numeric; v_dias_goz numeric; v_dias_ind numeric;
+  v_val_fer numeric; v_pa_completos int; v_dias_reg numeric;
+  v_tem_inss boolean := coalesce((p_tabelas ->> 'inss')::boolean, false);
+  v_tem_irrf boolean := coalesce((p_tabelas ->> 'irrf')::boolean, false);
+  v_ded_cfg numeric := nullif(p_tabelas ->> 'ded_dep', '')::numeric;
+BEGIN
+  SELECT s.data_admissao, s.banco_codigo, s.banco_conta INTO v_srv FROM public.servidores s WHERE s.id = p_servidor_id;
+  SELECT p.*, coalesce(p.data_exercicio, p.data_nomeacao) AS inicio, coalesce(c.vencimento_base, 0) AS venc
+    INTO v_prv
+    FROM public.provimentos p JOIN public.cargos c ON c.id = p.cargo_id
+   WHERE p.id = p_provimento_id;
+  v_venc := v_prv.venc;
+  v_ini := v_prv.inicio;
+  v_fim := coalesce(v_prv.data_encerramento, p_d2);
+
+  IF v_srv.banco_codigo IS NULL OR v_srv.banco_conta IS NULL THEN
+    v_inc := v_inc || jsonb_build_array('sem_dados_bancarios');
+  END IF;
+  IF NOT v_tem_inss THEN v_inc := v_inc || jsonb_build_array('tabela_inss_ausente'); END IF;
+  IF NOT v_tem_irrf THEN v_inc := v_inc || jsonb_build_array('tabela_irrf_ausente'); END IF;
+
+  -- lançamentos manuais do servidor (guardados antes de refazer as fichas)
+  FOR v_man IN SELECT e FROM jsonb_array_elements(coalesce(p_manuais, '[]'::jsonb)) e
+                WHERE (e ->> 'servidor_id')::uuid = p_servidor_id LOOP
+    v_man_val := coalesce((v_man ->> 'valor')::numeric, 0);
+    v_man_inss := true; v_man_irrf := true;
+    IF (v_man ->> 'rubrica_id') IS NOT NULL THEN
+      SELECT coalesce(r.incide_inss, true), coalesce(r.incide_irrf, true) INTO v_man_inss, v_man_irrf
+        FROM public.rubricas r WHERE r.id = (v_man ->> 'rubrica_id')::uuid;
+    END IF;
+    v_itens := v_itens || jsonb_build_array(public.folha_item(v_man ->> 'descricao', v_man ->> 'tipo', v_man_val,
+                  v_man ->> 'referencia', nullif(v_man ->> 'base_calculo', '')::numeric,
+                  nullif(v_man ->> 'percentual', '')::numeric, 'manual', nullif(v_man ->> 'rubrica_id', '')::uuid));
+    IF v_man ->> 'tipo' = 'provento' THEN
+      v_man_prov := v_man_prov + v_man_val;
+      IF v_man_inss THEN v_man_prov_inss := v_man_prov_inss + v_man_val; END IF;
+      IF v_man_irrf THEN v_man_prov_irrf := v_man_prov_irrf + v_man_val; END IF;
+    ELSE
+      v_man_desc := v_man_desc + v_man_val;
+    END IF;
+  END LOOP;
+
+  -- ===================================================================== MENSAL
+  IF p_tipo = 'mensal' THEN
+    v_dias := public.folha_dias_comerciais(v_ini, v_fim, p_d1, p_d2);
+    v_venc_prop := round(v_venc / 30 * v_dias, 2);
+    v_ini_pago := greatest(v_ini, p_d1);
+    v_fim_pago := least(v_fim, p_d2);
+    v_itens := jsonb_build_array(public.folha_item('Vencimento', 'provento', v_venc_prop, v_dias || '/30 dias', v_venc)) || v_itens;
+
+    SELECT fm.dias_falta INTO v_faltas FROM public.frequencia_mensal fm
+     WHERE fm.servidor_id = p_servidor_id AND fm.ano = v_ano AND fm.mes = EXTRACT(MONTH FROM p_d2)::int;
+    IF NOT FOUND THEN v_inc := v_inc || jsonb_build_array('sem_frequencia_do_mes'); END IF;
+    v_faltas := coalesce(v_faltas, 0);
+
+    SELECT coalesce(sum(greatest(0, least(coalesce(l.data_fim, v_fim_pago), v_fim_pago)
+                                    - greatest(l.data_inicio, v_ini_pago) + 1)), 0)::int
+      INTO v_dias_lic
+      FROM public.licencas_afastamentos l
+     WHERE l.servidor_id = p_servidor_id AND l.status IN ('ativa', 'prorrogada', 'encerrada')
+       AND NOT public.afastamento_remunerado(l.tipo_afastamento::text, l.tipo_licenca::text, p_d2);
+
+    SELECT coalesce(sum(greatest(0, least(coalesce(c.data_retorno, c.data_fim, v_fim_pago), v_fim_pago)
+                                    - greatest(c.data_inicio, v_ini_pago) + 1)), 0)::int
+      INTO v_dias_ces
+      FROM public.cessoes c
+     WHERE c.servidor_id = p_servidor_id AND c.tipo = 'saida' AND c.onus = 'destino'
+       AND c.data_inicio <= v_fim_pago AND coalesce(c.data_retorno, c.data_fim, v_fim_pago) >= v_ini_pago;
+    IF EXISTS (SELECT 1 FROM public.cessoes c WHERE c.servidor_id = p_servidor_id AND c.tipo = 'saida' AND c.onus IS NULL
+                  AND c.data_inicio <= v_fim_pago AND coalesce(c.data_retorno, c.data_fim, v_fim_pago) >= v_ini_pago) THEN
+      v_inc := v_inc || jsonb_build_array('onus_da_cessao_nao_informado');
+    END IF;
+
+    -- os dias descontados nunca passam dos dias pagos
+    v_rest := v_dias;
+    v_faltas := least(v_faltas, v_rest); v_rest := v_rest - v_faltas;
+    v_dias_lic := least(v_dias_lic, v_rest); v_rest := v_rest - v_dias_lic;
+    v_dias_ces := least(v_dias_ces, v_rest);
+    v_d_falta := round(v_venc / 30 * v_faltas, 2);
+    v_d_lic := round(v_venc / 30 * v_dias_lic, 2);
+    v_d_ces := round(v_venc / 30 * v_dias_ces, 2);
+    IF v_faltas > 0 THEN
+      v_itens := v_itens || jsonb_build_array(public.folha_item('Desconto de faltas', 'desconto', v_d_falta, v_faltas || ' dia(s)', v_venc));
+    END IF;
+    IF v_dias_lic > 0 THEN
+      v_itens := v_itens || jsonb_build_array(public.folha_item('Desconto de licença/afastamento sem remuneração', 'desconto', v_d_lic, v_dias_lic || ' dia(s)', v_venc));
+    END IF;
+    IF v_dias_ces > 0 THEN
+      v_itens := v_itens || jsonb_build_array(public.folha_item('Desconto de cessão com ônus no destino', 'desconto', v_d_ces, v_dias_ces || ' dia(s)', v_venc));
+    END IF;
+
+    -- férias iniciadas no mês: 1/3 constitucional (tributável só no IRRF) e abono pecuniário (indenizatório)
+    SELECT coalesce(sum(round(v_venc / 30 * f.dias_gozados / 3.0, 2)), 0),
+           coalesce(sum(round(v_venc / 30 * coalesce(f.dias_abono, 0) * 4.0 / 3.0, 2)), 0), count(*)
+      INTO v_terco, v_abono, v_nferias
+      FROM public.ferias_servidor f
+     WHERE f.servidor_id = p_servidor_id AND f.data_inicio BETWEEN p_d1 AND p_d2
+       AND f.status IN ('programada', 'em_gozo', 'concluida');
+    IF v_terco > 0 THEN
+      v_itens := v_itens || jsonb_build_array(public.folha_item('Adicional de 1/3 de férias', 'provento', v_terco, NULL, v_venc));
+    END IF;
+    IF v_abono > 0 THEN
+      v_itens := v_itens || jsonb_build_array(public.folha_item('Abono pecuniário de férias (com 1/3)', 'provento', v_abono, NULL, v_venc));
+    END IF;
+
+    v_liq_dias := v_venc_prop - v_d_falta - v_d_lic - v_d_ces;
+    v_base_inss := greatest(v_liq_dias + v_man_prov_inss, 0);
+    IF v_tem_inss THEN v_inss := public.calcular_inss_servidor(v_base_inss, p_d2); END IF;
+
+    v_qdep := public.count_dependentes_irrf(p_servidor_id, p_d2);
+    IF v_qdep > 0 AND v_ded_cfg IS NULL THEN
+      v_inc := v_inc || jsonb_build_array('deducao_dependente_nao_configurada');
+    END IF;
+    v_ded := v_qdep * coalesce(v_ded_cfg, 0);
+    v_base_irrf := greatest(v_liq_dias + v_terco + v_man_prov_irrf - v_inss - v_ded, 0);
+    IF v_tem_irrf THEN v_irrf := public.calcular_irrf(v_base_irrf, p_d2); END IF;
+
+    IF v_inss > 0 THEN
+      v_itens := v_itens || jsonb_build_array(public.folha_item('INSS / previdência do servidor', 'desconto', v_inss, NULL, v_base_inss));
+    END IF;
+    IF v_irrf > 0 THEN
+      v_itens := v_itens || jsonb_build_array(public.folha_item('IRRF', 'desconto', v_irrf, v_qdep || ' dependente(s)', v_base_irrf));
+    END IF;
+
+    -- consignações ativas na competência
+    FOR v_c IN SELECT * FROM public.consignacoes c
+                WHERE c.servidor_id = p_servidor_id AND coalesce(c.ativo, true) AND NOT coalesce(c.suspenso, false)
+                  AND NOT coalesce(c.quitado, false) AND c.data_inicio <= p_d2 AND (c.data_fim IS NULL OR c.data_fim >= p_d1)
+                  AND coalesce(c.parcelas_pagas, 0) < c.total_parcelas LOOP
+      v_consig := v_consig + v_c.valor_parcela;
+      v_itens := v_itens || jsonb_build_array(public.folha_item(
+        'Consignação — ' || v_c.consignataria_nome, 'desconto', v_c.valor_parcela,
+        (coalesce(v_c.parcelas_pagas, 0) + 1) || '/' || v_c.total_parcelas));
+    END LOOP;
+
+    -- pensão alimentícia (percentual é número "30" = 30%; base líquida = proventos do mês − faltas − INSS − IRRF)
+    FOR v_p IN SELECT * FROM public.pensoes_alimenticias pa
+                WHERE pa.servidor_id = p_servidor_id AND coalesce(pa.ativo, true) AND pa.data_inicio <= p_d2
+                  AND (pa.data_fim IS NULL OR pa.data_fim >= p_d1) ORDER BY pa.prioridade NULLS LAST LOOP
+      IF lower(v_p.tipo_calculo) LIKE 'perc%' THEN
+        v_base_pensao := CASE WHEN lower(coalesce(v_p.base_calculo, '')) = 'bruto'
+                              THEN v_liq_dias + v_terco + v_man_prov
+                              ELSE greatest(v_liq_dias + v_terco + v_man_prov - v_inss - v_irrf, 0) END;
+        v_val := round(v_base_pensao * coalesce(v_p.percentual, 0) / 100, 2);
+      ELSE
+        v_val := coalesce(v_p.valor_fixo, 0);
+      END IF;
+      v_pensao := v_pensao + v_val;
+      v_itens := v_itens || jsonb_build_array(public.folha_item('Pensão alimentícia — ' || v_p.beneficiario_nome, 'desconto', v_val,
+        NULL, v_base_pensao, CASE WHEN lower(v_p.tipo_calculo) LIKE 'perc%' THEN v_p.percentual END));
+    END LOOP;
+
+    v_prov := v_venc_prop + v_terco + v_abono + v_man_prov;
+    v_desc := v_d_falta + v_d_lic + v_d_ces + v_inss + v_irrf + v_consig + v_pensao + v_man_desc;
+
+  -- ================================================================== 13º SALÁRIO
+  ELSIF p_tipo IN ('13_1a_parcela', '13_2a_parcela') THEN
+    v_avos := public.folha_avos_13(v_ini, least(coalesce(v_prv.data_encerramento, make_date(v_ano, 12, 31)), make_date(v_ano, 12, 31)), v_ano);
+    v_v13 := round(v_venc / 12 * v_avos, 2);
+    IF p_tipo = '13_1a_parcela' THEN
+      v_prov := round(v_v13 * 0.5, 2);
+      v_itens := v_itens || jsonb_build_array(public.folha_item('13º salário — 1ª parcela (adiantamento)', 'provento', v_prov, v_avos || '/12 avos', v_venc));
+      v_base_inss := 0; v_base_irrf := 0;
+    ELSE
+      v_prov := v_v13;
+      v_itens := v_itens || jsonb_build_array(public.folha_item('13º salário', 'provento', v_v13, v_avos || '/12 avos', v_venc));
+      SELECT coalesce(sum(i.valor), 0) INTO v_adiant
+        FROM public.fichas_financeiras f JOIN public.itens_ficha_financeira i ON i.ficha_id = f.id
+       WHERE f.servidor_id = p_servidor_id AND f.competencia_ano = v_ano AND f.tipo_folha = '13_1a_parcela'
+         AND i.tipo = 'provento';
+      IF v_adiant = 0 AND v_avos > 0 THEN v_inc := v_inc || jsonb_build_array('primeira_parcela_do_13_nao_localizada'); END IF;
+      v_base_inss := v_v13;
+      IF v_tem_inss THEN v_inss := public.calcular_inss_servidor(v_base_inss, p_d2); END IF;
+      v_qdep := public.count_dependentes_irrf(p_servidor_id, p_d2);
+      IF v_qdep > 0 AND v_ded_cfg IS NULL THEN v_inc := v_inc || jsonb_build_array('deducao_dependente_nao_configurada'); END IF;
+      v_ded := v_qdep * coalesce(v_ded_cfg, 0);
+      v_base_irrf := greatest(v_v13 - v_inss - v_ded, 0);
+      IF v_tem_irrf THEN v_irrf := public.calcular_irrf(v_base_irrf, p_d2); END IF;
+      IF v_adiant > 0 THEN
+        v_itens := v_itens || jsonb_build_array(public.folha_item('Adiantamento do 13º (1ª parcela)', 'desconto', v_adiant));
+      END IF;
+      IF v_inss > 0 THEN
+        v_itens := v_itens || jsonb_build_array(public.folha_item('INSS sobre o 13º', 'desconto', v_inss, NULL, v_base_inss));
+      END IF;
+      IF v_irrf > 0 THEN
+        v_itens := v_itens || jsonb_build_array(public.folha_item('IRRF sobre o 13º (tributação exclusiva)', 'desconto', v_irrf, v_qdep || ' dependente(s)', v_base_irrf));
+      END IF;
+    END IF;
+    v_prov := v_prov + v_man_prov;
+    v_desc := v_adiant + v_inss + v_irrf + v_man_desc;
+    v_liq_dias := v_prov;
+
+  -- ===================================================================== RESCISÃO
+  ELSE
+    v_fim := v_prv.data_encerramento;
+    v_avos := public.folha_avos_13(v_ini, v_fim, v_ano);
+    v_v13 := round(v_venc / 12 * v_avos, 2);
+
+    -- férias proporcionais: do último aniversário de admissão até o desligamento
+    v_adm := coalesce(v_srv.data_admissao, v_ini);
+    v_pa_ini := (v_adm + ((EXTRACT(YEAR FROM v_fim) - EXTRACT(YEAR FROM v_adm))::int * interval '1 year'))::date;
+    IF v_pa_ini > v_fim THEN v_pa_ini := (v_pa_ini - interval '1 year')::date; END IF;
+    v_meses := (EXTRACT(YEAR FROM age(v_fim + 1, v_pa_ini)) * 12 + EXTRACT(MONTH FROM age(v_fim + 1, v_pa_ini)))::int;
+    v_resto := EXTRACT(DAY FROM age(v_fim + 1, v_pa_ini))::int;
+    v_avos_fer := least(v_meses + CASE WHEN v_resto >= 15 THEN 1 ELSE 0 END, 12);
+    v_dias_prop := 30 * v_avos_fer / 12.0;
+    SELECT coalesce(sum(f.dias_gozados + coalesce(f.dias_abono, 0)), 0) INTO v_dias_goz
+      FROM public.ferias_servidor f
+     WHERE f.servidor_id = p_servidor_id AND f.status <> 'cancelada'
+       AND f.periodo_aquisitivo_inicio BETWEEN v_pa_ini - 15 AND v_pa_ini + 15;
+    v_dias_ind := greatest(v_dias_prop - v_dias_goz, 0);
+    v_val_fer := round(v_venc / 30 * v_dias_ind, 2);
+
+    -- períodos aquisitivos completos anteriores sem férias registradas: apurar à parte (não paga sozinho)
+    v_pa_completos := greatest((EXTRACT(YEAR FROM age(v_pa_ini, v_adm)))::int, 0);
+    SELECT coalesce(sum(f.dias_gozados + coalesce(f.dias_abono, 0)), 0) INTO v_dias_reg
+      FROM public.ferias_servidor f
+     WHERE f.servidor_id = p_servidor_id AND f.status <> 'cancelada' AND f.periodo_aquisitivo_inicio < v_pa_ini - 15;
+    IF v_pa_completos * 30 > v_dias_reg THEN v_inc := v_inc || jsonb_build_array('ferias_vencidas_a_apurar'); END IF;
+    v_inc := v_inc || jsonb_build_array('rescisao_conferir_calculo');
+
+    IF v_val_fer > 0 THEN
+      v_itens := v_itens || jsonb_build_array(
+        public.folha_item('Férias proporcionais (indenizadas)', 'provento', v_val_fer, round(v_dias_ind, 2) || ' dia(s)', v_venc),
+        public.folha_item('Adicional de 1/3 sobre férias proporcionais', 'provento', round(v_val_fer / 3.0, 2)));
+    END IF;
+    IF v_v13 > 0 THEN
+      v_itens := v_itens || jsonb_build_array(public.folha_item('13º salário proporcional', 'provento', v_v13, v_avos || '/12 avos', v_venc));
+    END IF;
+    SELECT coalesce(sum(i.valor), 0) INTO v_adiant
+      FROM public.fichas_financeiras f JOIN public.itens_ficha_financeira i ON i.ficha_id = f.id
+     WHERE f.servidor_id = p_servidor_id AND f.competencia_ano = v_ano AND f.tipo_folha = '13_1a_parcela' AND i.tipo = 'provento';
+    v_base_inss := v_v13;
+    IF v_tem_inss THEN v_inss := public.calcular_inss_servidor(v_base_inss, p_d2); END IF;
+    v_qdep := public.count_dependentes_irrf(p_servidor_id, p_d2);
+    IF v_qdep > 0 AND v_ded_cfg IS NULL THEN v_inc := v_inc || jsonb_build_array('deducao_dependente_nao_configurada'); END IF;
+    v_ded := v_qdep * coalesce(v_ded_cfg, 0);
+    v_base_irrf := greatest(v_v13 - v_inss - v_ded, 0);
+    IF v_tem_irrf THEN v_irrf := public.calcular_irrf(v_base_irrf, p_d2); END IF;
+    IF v_adiant > 0 THEN
+      v_itens := v_itens || jsonb_build_array(public.folha_item('Adiantamento do 13º (1ª parcela)', 'desconto', v_adiant));
+    END IF;
+    IF v_inss > 0 THEN v_itens := v_itens || jsonb_build_array(public.folha_item('INSS sobre o 13º', 'desconto', v_inss, NULL, v_base_inss)); END IF;
+    IF v_irrf > 0 THEN v_itens := v_itens || jsonb_build_array(public.folha_item('IRRF sobre o 13º (tributação exclusiva)', 'desconto', v_irrf, NULL, v_base_irrf)); END IF;
+    v_prov := v_val_fer + round(v_val_fer / 3.0, 2) + v_v13 + v_man_prov;
+    v_desc := v_adiant + v_inss + v_irrf + v_man_desc;
+  END IF;
+
+  v_liq := v_prov - v_desc;
+  IF v_liq < 0 THEN v_inc := v_inc || jsonb_build_array('liquido_negativo'); END IF;
+  SELECT valor INTO v_teto FROM public.parametros_folha
+   WHERE tipo_parametro = 'teto_remuneratorio' AND vigencia_inicio <= p_d2 AND (vigencia_fim IS NULL OR vigencia_fim >= p_d2)
+   ORDER BY vigencia_inicio DESC LIMIT 1;
+  IF v_teto IS NOT NULL AND v_prov > v_teto THEN v_inc := v_inc || jsonb_build_array('acima_do_teto_remuneratorio'); END IF;
+
+  RETURN jsonb_build_object(
+    'itens', v_itens, 'inconsistencias', v_inc, 'vencimento_base', v_venc,
+    'total_proventos', round(v_prov, 2), 'total_descontos', round(v_desc, 2), 'valor_liquido', round(v_liq, 2),
+    'base_inss', round(v_base_inss, 2), 'valor_inss', round(v_inss, 2),
+    'base_irrf', round(v_base_irrf, 2), 'valor_irrf', round(v_irrf, 2),
+    'quantidade_dependentes', v_qdep, 'valor_deducao_dependentes', round(v_ded, 2));
+END;
 $$;
 
 
@@ -5486,6 +5837,28 @@ BEGIN
   RETURN NEW;
 END;
 $_$;
+
+
+--
+-- Name: frequencia_competencia_travada(uuid, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.frequencia_competencia_travada(p_servidor_id uuid, p_data date) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  -- mesma regra de lancamentoBloqueado() (src/lib/frequenciaFluxo.ts): competência consolidada, ou fechamento do
+  -- servidor consolidado pelo RH e não reaberto
+  SELECT EXISTS (
+           SELECT 1 FROM public.config_fechamento_frequencia c
+            WHERE c.ano = EXTRACT(YEAR FROM p_data)::int AND c.mes = EXTRACT(MONTH FROM p_data)::int
+              AND c.status = 'consolidado')
+      OR EXISTS (
+           SELECT 1 FROM public.frequencia_fechamento f
+            WHERE f.servidor_id = p_servidor_id
+              AND f.ano = EXTRACT(YEAR FROM p_data)::int AND f.mes = EXTRACT(MONTH FROM p_data)::int
+              AND coalesce(f.consolidado_rh, false) AND NOT coalesce(f.reaberto, false));
+$$;
 
 
 --
@@ -5792,22 +6165,17 @@ $$;
 --
 
 CREATE FUNCTION public.gerar_codigo_interno_servidor() RETURNS trigger
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
     AS $$
 DECLARE
-  max_codigo INTEGER;
-  novo_codigo VARCHAR(10);
+  v_max numeric;
 BEGIN
-  -- Buscar o maior código existente
-  SELECT COALESCE(MAX(NULLIF(regexp_replace(codigo_interno, '\D', '', 'g'), '')::INTEGER), 0)
-  INTO max_codigo
-  FROM public.servidores
-  WHERE codigo_interno IS NOT NULL;
-  
-  -- Gerar novo código com prefixo SRV- e 5 dígitos
-  novo_codigo := 'SRV-' || LPAD((max_codigo + 1)::TEXT, 5, '0');
-  
-  NEW.codigo_interno := novo_codigo;
+  PERFORM pg_advisory_xact_lock(hashtext('servidores.codigo_interno'));
+  SELECT coalesce(max(nullif(regexp_replace(codigo_interno, '\D', '', 'g'), '')::numeric), 0) INTO v_max
+    FROM public.servidores WHERE codigo_interno IS NOT NULL;
+  NEW.codigo_interno := 'SRV-' || CASE WHEN length((v_max + 1)::text) >= 5 THEN (v_max + 1)::text
+                                       ELSE lpad((v_max + 1)::text, 5, '0') END;
   RETURN NEW;
 END;
 $$;
@@ -5923,6 +6291,30 @@ DECLARE
 BEGIN
   novo_link := encode(gen_random_bytes(16), 'hex');
   RETURN novo_link;
+END;
+$$;
+
+
+--
+-- Name: gerar_matricula_servidor(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.gerar_matricula_servidor() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_max numeric;
+BEGIN
+  IF NEW.matricula IS NULL OR btrim(NEW.matricula) = '' THEN
+    PERFORM pg_advisory_xact_lock(hashtext('servidores.matricula'));
+    -- numérico: '9999' < '10000' (a ordenação por texto errava na virada)
+    SELECT coalesce(max(nullif(regexp_replace(matricula, '\D', '', 'g'), '')::numeric), 0) INTO v_max
+      FROM public.servidores;
+    -- lpad() TRUNCA texto maior que o tamanho; só completa com zeros quando faltam dígitos
+    NEW.matricula := CASE WHEN length((v_max + 1)::text) >= 4 THEN (v_max + 1)::text ELSE lpad((v_max + 1)::text, 4, '0') END;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -7329,7 +7721,7 @@ BEGIN
       THEN ARRAY['rh', 'financeiro']
     WHEN p_tabela = 'documentos' THEN ARRAY['rh', 'workflow', 'gabinete', 'governanca', 'admin']
     WHEN p_tabela IN ('historico_funcional', 'pre_cadastros', 'provimentos') THEN ARRAY['rh', 'gabinete']
-    WHEN p_tabela = 'composicao_cargos' THEN ARRAY['rh', 'governanca']
+    WHEN p_tabela IN ('composicao_cargos', 'vagas_cargo') THEN ARRAY['rh', 'governanca']
     WHEN p_tabela = 'nomeacoes_chefe_unidade' THEN ARRAY['rh', 'patrimonio']
     WHEN p_tabela IN ('adicionais_tempo_servico', 'agrupamento_unidade_vinculo', 'banco_horas', 'bancos_cnab',
                       'cargo_unidade_compatibilidade', 'cargos', 'cessoes', 'comissoes', 'comissoes_membros',
@@ -8150,6 +8542,383 @@ $$;
 
 
 --
+-- Name: portaria_nomeacao_publicada(uuid, uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.portaria_nomeacao_publicada(p_servidor_id uuid, p_provimento_id uuid, p_cargo_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.documentos d
+     WHERE d.tipo = 'portaria' AND d.categoria = 'nomeacao' AND d.status IN ('publicado', 'vigente')
+       AND (d.provimento_id = p_provimento_id
+            OR (p_servidor_id = ANY (d.servidores_ids) AND (d.cargo_id IS NULL OR d.cargo_id = p_cargo_id))));
+$$;
+
+
+--
+-- Name: pre_cadastros; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pre_cadastros (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    codigo_acesso text NOT NULL,
+    status text DEFAULT 'rascunho'::text,
+    nome_completo text NOT NULL,
+    nome_social text,
+    data_nascimento date,
+    sexo text,
+    estado_civil text,
+    nacionalidade text DEFAULT 'Brasileira'::text,
+    naturalidade_cidade text,
+    naturalidade_uf text,
+    foto_url text,
+    cpf text NOT NULL,
+    rg text,
+    rg_orgao_expedidor text,
+    rg_uf text,
+    rg_data_emissao date,
+    certidao_tipo text,
+    titulo_eleitor text,
+    titulo_zona text,
+    titulo_secao text,
+    certificado_reservista text,
+    email text NOT NULL,
+    telefone_celular text,
+    telefone_fixo text,
+    endereco_logradouro text,
+    endereco_numero text,
+    endereco_complemento text,
+    endereco_bairro text,
+    endereco_cidade text,
+    endereco_uf text,
+    endereco_cep text,
+    pis_pasep text,
+    escolaridade text,
+    formacao_academica text,
+    instituicao_ensino text,
+    ano_conclusao integer,
+    registro_conselho text,
+    conselho_numero text,
+    cnh_numero text,
+    cnh_categoria text,
+    cnh_validade date,
+    habilidades text[],
+    idiomas jsonb DEFAULT '[]'::jsonb,
+    experiencia_resumo text,
+    cursos_complementares jsonb DEFAULT '[]'::jsonb,
+    doc_rg boolean DEFAULT false,
+    doc_cpf boolean DEFAULT false,
+    doc_certidao boolean DEFAULT false,
+    doc_titulo_eleitor boolean DEFAULT false,
+    doc_certificado_reservista boolean DEFAULT false,
+    doc_comprovante_residencia boolean DEFAULT false,
+    doc_pis_pasep boolean DEFAULT false,
+    doc_diploma boolean DEFAULT false,
+    doc_historico_escolar boolean DEFAULT false,
+    doc_registro_conselho boolean DEFAULT false,
+    doc_certidao_criminal_estadual boolean DEFAULT false,
+    doc_certidao_criminal_federal boolean DEFAULT false,
+    doc_quitacao_eleitoral boolean DEFAULT false,
+    doc_certidao_improbidade boolean DEFAULT false,
+    doc_declaracao_acumulacao boolean DEFAULT false,
+    doc_declaracao_bens boolean DEFAULT false,
+    doc_termo_responsabilidade boolean DEFAULT false,
+    doc_comprovante_bancario boolean DEFAULT false,
+    banco_nome text,
+    banco_codigo text,
+    banco_agencia text,
+    banco_conta text,
+    banco_tipo_conta text,
+    dependentes jsonb DEFAULT '[]'::jsonb,
+    observacoes text,
+    ip_envio text,
+    data_envio timestamp with time zone,
+    servidor_id uuid,
+    convertido_em timestamp with time zone,
+    convertido_por uuid,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    raca_cor text,
+    pcd boolean DEFAULT false,
+    pcd_tipo text,
+    nome_mae text,
+    nome_pai text,
+    ctps_numero text,
+    ctps_serie text,
+    ctps_uf character varying(2),
+    ctps_data_emissao date,
+    titulo_cidade_votacao text,
+    titulo_uf_votacao character varying(2),
+    titulo_data_emissao date,
+    reservista_orgao text,
+    reservista_data_emissao date,
+    tipo_sanguineo text,
+    reservista_categoria text,
+    reservista_ano integer,
+    cnh_data_expedicao date,
+    cnh_primeira_habilitacao date,
+    cnh_uf text,
+    acumula_cargo boolean DEFAULT false,
+    acumulo_descricao text,
+    indicacao text,
+    telefone_emergencia text,
+    contato_emergencia_nome text,
+    contato_emergencia_parentesco text,
+    estrangeiro_data_chegada date,
+    estrangeiro_data_limite_permanencia date,
+    estrangeiro_registro_nacional text,
+    estrangeiro_ano_chegada integer,
+    molestia_grave boolean DEFAULT false,
+    ano_inicio_primeiro_emprego integer,
+    ano_fim_primeiro_emprego integer,
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_by uuid,
+    updated_by_servidor_id uuid,
+    token_acesso text,
+    token_expira_em timestamp with time zone,
+    criado_ip_hash text,
+    CONSTRAINT pre_cadastros_status_check CHECK ((status = ANY (ARRAY['rascunho'::text, 'enviado'::text, 'aprovado'::text, 'rejeitado'::text, 'convertido'::text])))
+);
+
+
+--
+-- Name: TABLE pre_cadastros; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pre_cadastros IS 'Pré-cadastros de candidatos via formulário de mini-currículo';
+
+
+--
+-- Name: COLUMN pre_cadastros.codigo_acesso; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.pre_cadastros.codigo_acesso IS 'Código único para o candidato acessar e editar seu formulário';
+
+
+--
+-- Name: COLUMN pre_cadastros.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.pre_cadastros.status IS 'Status do pré-cadastro: rascunho, enviado, aprovado, rejeitado, convertido';
+
+
+--
+-- Name: pre_cadastro_publico_buscar(text, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pre_cadastro_publico_buscar(p_token text, p_bloquear boolean DEFAULT false) RETURNS public.pre_cadastros
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_row public.pre_cadastros;
+BEGIN
+  IF p_token IS NULL OR p_token !~ '^[0-9a-f]{32}$' THEN
+    RAISE EXCEPTION 'Link inválido ou expirado' USING ERRCODE = 'PT404';
+  END IF;
+  IF p_bloquear THEN
+    SELECT * INTO v_row FROM public.pre_cadastros WHERE token_acesso = p_token AND token_expira_em > now() FOR UPDATE;
+  ELSE
+    SELECT * INTO v_row FROM public.pre_cadastros WHERE token_acesso = p_token AND token_expira_em > now();
+  END IF;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Link inválido ou expirado' USING ERRCODE = 'PT404';
+  END IF;
+  RETURN v_row;
+END;
+$_$;
+
+
+--
+-- Name: pre_cadastro_publico_colunas(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pre_cadastro_publico_colunas() RETURNS text[]
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT coalesce(array_agg(column_name::text ORDER BY ordinal_position), '{}')
+    FROM information_schema.columns
+   WHERE table_schema = 'public' AND table_name = 'pre_cadastros'
+     AND column_name <> ALL (ARRAY['id', 'codigo_acesso', 'status', 'observacoes', 'ip_envio', 'data_envio', 'servidor_id',
+                                   'convertido_em', 'convertido_por', 'created_at', 'updated_at', 'created_by',
+                                   'created_by_servidor_id', 'updated_by', 'updated_by_servidor_id', 'token_acesso',
+                                   'token_expira_em', 'criado_ip_hash']);
+$$;
+
+
+--
+-- Name: pre_cadastro_publico_criar(jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pre_cadastro_publico_criar(p_dados jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_dados jsonb := public.pre_cadastro_publico_filtrar(p_dados);
+  v_ip text := (SELECT ip::text FROM public.trilha_contexto_requisicao());
+  v_hash text := md5('pc|' || coalesce(v_ip, 'sem-ip'));
+  v_cols text;
+  v_codigo text;
+  v_token text;
+  v_tentativa int := 0;
+BEGIN
+  IF coalesce(btrim(v_dados ->> 'nome_completo'), '') = '' OR coalesce(btrim(v_dados ->> 'email'), '') NOT LIKE '%_@_%'
+     OR length(regexp_replace(coalesce(v_dados ->> 'cpf', ''), '\D', '', 'g')) <> 11 THEN
+    RAISE EXCEPTION 'Informe nome, CPF (11 dígitos) e e-mail válidos' USING ERRCODE = '22023';
+  END IF;
+  IF (SELECT count(*) FROM public.pre_cadastros WHERE criado_ip_hash = v_hash AND created_at > now() - interval '1 hour') >= 20 THEN
+    RAISE EXCEPTION 'Muitas solicitações deste endereço. Tente novamente mais tarde.' USING ERRCODE = 'PT429';
+  END IF;
+
+  SELECT string_agg(format('%I', k), ', ') INTO v_cols FROM jsonb_object_keys(v_dados) k;
+  LOOP
+    v_codigo := public.gerar_codigo_pre_cadastro();
+    BEGIN
+      EXECUTE format(
+        'INSERT INTO public.pre_cadastros (%s, codigo_acesso, status, criado_ip_hash)
+           SELECT %s, $2, ''rascunho'', $3 FROM jsonb_populate_record(NULL::public.pre_cadastros, $1)
+         RETURNING token_acesso', v_cols, v_cols)
+        INTO v_token USING v_dados, v_codigo, v_hash;
+      EXIT;
+    EXCEPTION WHEN unique_violation THEN
+      -- código sequencial disputado por dois candidatos ao mesmo tempo: tenta o próximo
+      v_tentativa := v_tentativa + 1;
+      IF v_tentativa >= 5 THEN RAISE; END IF;
+    END;
+  END LOOP;
+  RETURN jsonb_build_object('token', v_token, 'codigo', v_codigo);
+END;
+$_$;
+
+
+--
+-- Name: pre_cadastro_publico_enviar(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pre_cadastro_publico_enviar(p_token text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_row public.pre_cadastros := public.pre_cadastro_publico_buscar(p_token, true);
+  v_ip text := (SELECT ip::text FROM public.trilha_contexto_requisicao());
+BEGIN
+  IF v_row.status <> 'rascunho' THEN
+    RAISE EXCEPTION 'Este pré-cadastro já foi enviado' USING ERRCODE = 'PT409';
+  END IF;
+  IF coalesce(btrim(v_row.nome_completo), '') = '' OR coalesce(btrim(v_row.email), '') = ''
+     OR length(regexp_replace(coalesce(v_row.cpf, ''), '\D', '', 'g')) <> 11
+     OR v_row.data_nascimento IS NULL OR coalesce(btrim(v_row.telefone_celular), '') = '' THEN
+    RAISE EXCEPTION 'Preencha nome, CPF, e-mail, data de nascimento e celular antes de enviar' USING ERRCODE = '22023';
+  END IF;
+  UPDATE public.pre_cadastros SET status = 'enviado', data_envio = now(), ip_envio = v_ip, updated_at = now()
+   WHERE id = v_row.id;
+  RETURN jsonb_build_object('ok', true, 'codigo', v_row.codigo_acesso);
+END;
+$$;
+
+
+--
+-- Name: pre_cadastro_publico_filtrar(jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pre_cadastro_publico_filtrar(p_dados jsonb) RETURNS jsonb
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_cols text[] := public.pre_cadastro_publico_colunas();
+BEGIN
+  IF p_dados IS NULL OR jsonb_typeof(p_dados) <> 'object' THEN
+    RAISE EXCEPTION 'Dados inválidos' USING ERRCODE = '22023';
+  END IF;
+  IF length(p_dados::text) > 60000 THEN
+    RAISE EXCEPTION 'Dados grandes demais' USING ERRCODE = '22023';
+  END IF;
+  RETURN coalesce((SELECT jsonb_object_agg(k, v) FROM jsonb_each(p_dados) AS e(k, v) WHERE k = ANY (v_cols)), '{}'::jsonb);
+END;
+$$;
+
+
+--
+-- Name: pre_cadastro_publico_obter(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pre_cadastro_publico_obter(p_token text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_row public.pre_cadastros := public.pre_cadastro_publico_buscar(p_token);
+BEGIN
+  -- sem id, IP, autoria, servidor, token nem a anotação do RH (esta só aparece quando o pré-cadastro foi rejeitado)
+  RETURN to_jsonb(v_row)
+         - ARRAY['id', 'ip_envio', 'servidor_id', 'convertido_em', 'convertido_por', 'created_by',
+                 'created_by_servidor_id', 'updated_by', 'updated_by_servidor_id', 'token_acesso', 'criado_ip_hash',
+                 'observacoes']
+         || CASE WHEN v_row.status = 'rejeitado' THEN jsonb_build_object('motivo_rejeicao', v_row.observacoes) ELSE '{}'::jsonb END;
+END;
+$$;
+
+
+--
+-- Name: pre_cadastro_publico_salvar(text, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pre_cadastro_publico_salvar(p_token text, p_dados jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_row public.pre_cadastros := public.pre_cadastro_publico_buscar(p_token, true);
+  v_dados jsonb := public.pre_cadastro_publico_filtrar(p_dados);
+  v_set text;
+BEGIN
+  IF v_row.status <> 'rascunho' THEN
+    RAISE EXCEPTION 'Este pré-cadastro já foi enviado e não pode mais ser alterado' USING ERRCODE = 'PT409';
+  END IF;
+  IF v_dados ? 'cpf' AND length(regexp_replace(coalesce(v_dados ->> 'cpf', ''), '\D', '', 'g')) <> 11 THEN
+    RAISE EXCEPTION 'CPF deve ter 11 dígitos' USING ERRCODE = '22023';
+  END IF;
+  SELECT string_agg(format('%I = r.%I', k, k), ', ') INTO v_set FROM jsonb_object_keys(v_dados) k;
+  IF v_set IS NOT NULL THEN
+    EXECUTE format(
+      'UPDATE public.pre_cadastros p SET %s, token_expira_em = now() + interval ''30 days'', updated_at = now()
+         FROM jsonb_populate_record(NULL::public.pre_cadastros, $1) r WHERE p.id = $2', v_set)
+      USING v_dados, v_row.id;
+  END IF;
+  RETURN jsonb_build_object('ok', true);
+END;
+$_$;
+
+
+--
+-- Name: pre_cadastros_gerar_token(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pre_cadastros_gerar_token() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.token_acesso IS NULL THEN
+    -- gen_random_uuid() é nativo (sem extensão) e vem do gerador criptográfico do servidor: 122 bits de entropia
+    NEW.token_acesso := replace(gen_random_uuid()::text, '-', '');
+  END IF;
+  IF NEW.token_expira_em IS NULL THEN
+    NEW.token_expira_em := now() + interval '30 days';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: processar_folha_pagamento(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -8158,239 +8927,202 @@ CREATE FUNCTION public.processar_folha_pagamento(p_folha_id uuid) RETURNS jsonb
     SET search_path TO 'public'
     AS $$
 DECLARE
-  v_folha RECORD;
-  v_servidor RECORD;
-  v_count INTEGER := 0;
-  v_errors JSONB := '[]'::jsonb;
-  v_base_inss NUMERIC;
-  v_valor_inss NUMERIC;
-  v_base_irrf NUMERIC;
-  v_valor_irrf NUMERIC;
-  v_qtd_dependentes INTEGER;
-  v_deducao_dependentes NUMERIC;
-  v_total_descontos NUMERIC;
-  v_valor_liquido NUMERIC;
-  v_vencimento NUMERIC;
-  v_data_referencia DATE;
-  v_total_servidores_ativos INTEGER := 0;
-  v_total_com_provimento INTEGER := 0;
-  v_total_sem_vencimento INTEGER := 0;
+  v_folha record;
+  v_tipo text;
+  v_d1 date;
+  v_d2 date;
+  v_ano int;
+  v_srv record;
+  v_r jsonb;
+  v_item jsonb;
+  v_ficha_id uuid;
+  v_ordem int;
+  v_manuais jsonb;
+  v_manuais_total int;
+  v_manuais_gravados int := 0;
+  v_count int := 0;
+  v_elegiveis int := 0;
+  v_sem_venc int := 0;
+  v_errors jsonb := '[]'::jsonb;
+  v_avisos jsonb := '[]'::jsonb;
+  v_tabelas jsonb;
+  v_tem_inss boolean;
+  v_tem_irrf boolean;
+  v_ded_dep numeric;
+  v_protocolo text;
+  v_cedidos int;
+  v_inicio timestamptz := clock_timestamp();
 BEGIN
-  -- Guarda (migração 20261010070000): só quem tem a permissão de processar a folha (ou o papel admin,
-  -- via has_permission_code) executa. 42501 = insufficient_privilege, mesmo código das policies.
   IF NOT public.has_permission_code(auth.uid(), 'financeiro.folha.processar') THEN
     RAISE EXCEPTION 'Sem permissão para processar a folha' USING ERRCODE = '42501';
   END IF;
 
-  -- Buscar folha
-  SELECT * INTO v_folha FROM folhas_pagamento WHERE id = p_folha_id;
-  
+  SELECT * INTO v_folha FROM public.folhas_pagamento WHERE id = p_folha_id FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('sucesso', false, 'erro', 'Folha não encontrada', 'servidores_processados', 0);
   END IF;
-  
-  -- Verificar status - permitir previa, aberta, reaberta ou processando
   IF v_folha.status NOT IN ('aberta', 'processando', 'reaberta', 'previa') THEN
     RETURN jsonb_build_object('sucesso', false, 'erro', 'Folha não está em status que permita processamento. Status atual: ' || v_folha.status, 'servidores_processados', 0);
   END IF;
-  
-  -- Data de referência para cálculos (último dia do mês da competência)
-  v_data_referencia := (make_date(v_folha.competencia_ano, v_folha.competencia_mes, 1) + interval '1 month - 1 day')::date;
-  
-  -- Atualizar status para processando
-  UPDATE folhas_pagamento SET status = 'processando', updated_at = now() WHERE id = p_folha_id;
-  
-  -- Limpar fichas existentes desta folha (para reprocessamento)
-  DELETE FROM fichas_financeiras WHERE folha_id = p_folha_id;
-  
-  -- Contar total de servidores ativos
-  SELECT COUNT(*) INTO v_total_servidores_ativos
-  FROM servidores s
-  WHERE s.situacao = 'ativo' AND s.ativo = true;
-  
-  -- Contar servidores com provimento ativo
-  SELECT COUNT(DISTINCT s.id) INTO v_total_com_provimento
-  FROM servidores s
-  INNER JOIN provimentos p ON p.servidor_id = s.id AND p.status = 'ativo'
-  WHERE s.situacao = 'ativo' AND s.ativo = true;
-  
-  -- Buscar servidores ativos com provimento ativo (incluindo dados bancários)
-  FOR v_servidor IN
-    SELECT 
-      s.id,
-      s.nome_completo,
-      s.cpf,
-      s.matricula,
-      s.pis_pasep,
-      s.banco_codigo,
-      s.banco_nome,
-      s.banco_agencia,
-      s.banco_conta,
-      s.banco_tipo_conta,
-      p.cargo_id,
-      p.unidade_id,
-      c.nome AS cargo_nome,
-      COALESCE(c.vencimento_base, 0) AS vencimento_base,
-      eo.nome AS unidade_nome,
-      eo.sigla AS unidade_sigla
-    FROM servidores s
-    INNER JOIN provimentos p ON p.servidor_id = s.id AND p.status = 'ativo'
-    INNER JOIN cargos c ON c.id = p.cargo_id
-    LEFT JOIN estrutura_organizacional eo ON eo.id = p.unidade_id
-    WHERE s.situacao = 'ativo'
-      AND s.ativo = true
+
+  v_tipo := v_folha.tipo_folha::text;
+  IF v_tipo NOT IN ('mensal', '13_1a_parcela', '13_2a_parcela', 'rescisao') THEN
+    RETURN jsonb_build_object('sucesso', false, 'servidores_processados', 0,
+      'erro', 'Folha do tipo ' || v_tipo || ' não tem cálculo automático: lance os valores manualmente nas fichas');
+  END IF;
+
+  v_ano := v_folha.competencia_ano;
+  v_d1 := make_date(v_folha.competencia_ano, v_folha.competencia_mes, 1);
+  v_d2 := (v_d1 + interval '1 month - 1 day')::date;
+
+  v_protocolo := public.rh_protocolo_atual('folha',
+    format('Processamento da folha %s/%s (%s)', v_folha.competencia_mes, v_folha.competencia_ano, v_tipo),
+    NULL, jsonb_build_object('folha_id', p_folha_id, 'tipo_folha', v_tipo));
+
+  UPDATE public.folhas_pagamento SET status = 'processando', updated_at = now() WHERE id = p_folha_id;
+
+  -- tabelas e parâmetros necessários: existência na data de referência
+  v_tem_inss := EXISTS (SELECT 1 FROM public.tabela_inss t WHERE t.vigencia_inicio <= v_d2 AND (t.vigencia_fim IS NULL OR t.vigencia_fim >= v_d2));
+  v_tem_irrf := EXISTS (SELECT 1 FROM public.tabela_irrf t WHERE t.vigencia_inicio <= v_d2 AND (t.vigencia_fim IS NULL OR t.vigencia_fim >= v_d2));
+  SELECT valor INTO v_ded_dep FROM public.parametros_folha
+   WHERE tipo_parametro = 'deducao_dependente_irrf' AND vigencia_inicio <= v_d2 AND (vigencia_fim IS NULL OR vigencia_fim >= v_d2)
+   ORDER BY vigencia_inicio DESC LIMIT 1;
+  v_tabelas := jsonb_build_object('inss', v_tem_inss, 'irrf', v_tem_irrf, 'ded_dep', v_ded_dep);
+  IF NOT v_tem_inss THEN v_avisos := v_avisos || jsonb_build_array('Tabela de INSS/previdência sem vigência em ' || v_d2 || ': o desconto saiu zero'); END IF;
+  IF NOT v_tem_irrf THEN v_avisos := v_avisos || jsonb_build_array('Tabela de IRRF sem vigência em ' || v_d2 || ': o desconto saiu zero'); END IF;
+  IF v_ded_dep IS NULL THEN v_avisos := v_avisos || jsonb_build_array('Parâmetro deducao_dependente_irrf não configurado: dependentes não foram deduzidos'); END IF;
+
+  -- lançamentos manuais das fichas atuais: guardados e devolvidos às fichas novas
+  SELECT coalesce(jsonb_agg(jsonb_build_object(
+           'servidor_id', f.servidor_id, 'descricao', i.descricao, 'tipo', i.tipo, 'valor', i.valor,
+           'rubrica_id', i.rubrica_id, 'referencia', i.referencia, 'base_calculo', i.base_calculo,
+           'percentual', i.percentual)), '[]'::jsonb)
+    INTO v_manuais
+    FROM public.fichas_financeiras f JOIN public.itens_ficha_financeira i ON i.ficha_id = f.id
+   WHERE f.folha_id = p_folha_id AND i.origem = 'manual';
+  v_manuais_total := jsonb_array_length(v_manuais);
+
+  DELETE FROM public.fichas_financeiras WHERE folha_id = p_folha_id;
+
+  FOR v_srv IN
+    SELECT s.id, s.nome_completo, s.banco_codigo, s.banco_nome, s.banco_agencia, s.banco_conta, s.banco_tipo_conta,
+           pv.id AS provimento_id, pv.cargo_id, pv.unidade_id, c.nome AS cargo_nome,
+           coalesce(c.vencimento_base, 0) AS vencimento_base, eo.nome AS unidade_nome, eo.sigla AS unidade_sigla
+      FROM public.servidores s
+      JOIN LATERAL (
+        SELECT p.* FROM public.provimentos p
+         WHERE p.servidor_id = s.id AND p.status IN ('ativo', 'suspenso', 'encerrado')
+           AND CASE v_tipo
+                 WHEN 'mensal' THEN coalesce(p.data_exercicio, p.data_nomeacao) <= v_d2
+                                    AND (p.data_encerramento IS NULL OR p.data_encerramento >= v_d1)
+                 WHEN 'rescisao' THEN p.status = 'encerrado' AND p.data_encerramento BETWEEN v_d1 AND v_d2
+                                    AND p.motivo_encerramento IN ('exoneracao', 'exoneracao_pedido', 'exoneracao_oficio',
+                                        'termino_mandato', 'demissao', 'aposentadoria', 'vacancia', 'falecimento')
+                 ELSE coalesce(p.data_exercicio, p.data_nomeacao) <= make_date(v_ano, 12, 31)
+                      AND (p.data_encerramento IS NULL OR p.data_encerramento >= make_date(v_ano, 1, 1))
+               END
+         ORDER BY coalesce(p.data_exercicio, p.data_nomeacao) DESC LIMIT 1) pv ON true
+      JOIN public.cargos c ON c.id = pv.cargo_id
+      LEFT JOIN public.estrutura_organizacional eo ON eo.id = pv.unidade_id
+     ORDER BY s.nome_completo
   LOOP
+    v_elegiveis := v_elegiveis + 1;
     BEGIN
-      -- Vencimento base do cargo
-      v_vencimento := COALESCE(v_servidor.vencimento_base, 0);
-      
-      -- Se não tem vencimento, registrar erro e pular
-      IF v_vencimento <= 0 THEN
-        v_total_sem_vencimento := v_total_sem_vencimento + 1;
-        v_errors := v_errors || jsonb_build_object(
-          'servidor_id', v_servidor.id,
-          'nome', v_servidor.nome_completo,
-          'cargo', v_servidor.cargo_nome,
-          'erro', 'Cargo sem vencimento base definido'
-        );
+      IF v_srv.vencimento_base <= 0 THEN
+        v_sem_venc := v_sem_venc + 1;
+        v_errors := v_errors || jsonb_build_object('servidor_id', v_srv.id, 'nome', v_srv.nome_completo,
+                                                   'cargo', v_srv.cargo_nome, 'erro', 'Cargo sem vencimento base definido');
         CONTINUE;
       END IF;
-      
-      -- Calcular INSS
-      v_base_inss := v_vencimento;
-      v_valor_inss := calcular_inss_servidor(v_base_inss, v_data_referencia);
-      
-      -- Contar dependentes e calcular dedução
-      v_qtd_dependentes := count_dependentes_irrf(v_servidor.id, v_data_referencia);
-      v_deducao_dependentes := v_qtd_dependentes * COALESCE(get_parametro_vigente('deducao_dependente_irrf', v_data_referencia), 189.59);
-      
-      -- Calcular IRRF
-      v_base_irrf := v_vencimento - v_valor_inss - v_deducao_dependentes;
-      IF v_base_irrf < 0 THEN v_base_irrf := 0; END IF;
-      v_valor_irrf := calcular_irrf(v_base_irrf, v_data_referencia);
-      
-      -- Total de descontos
-      v_total_descontos := v_valor_inss + v_valor_irrf;
-      
-      -- Valor líquido
-      v_valor_liquido := v_vencimento - v_total_descontos;
-      
-      -- Inserir ficha financeira COM DADOS BANCÁRIOS
-      INSERT INTO fichas_financeiras (
-        folha_id,
-        servidor_id,
-        competencia_ano,
-        competencia_mes,
-        tipo_folha,
-        cargo_id,
-        cargo_nome,
-        cargo_vencimento,
-        unidade_id,
-        unidade_nome,
-        total_proventos,
-        total_descontos,
-        valor_liquido,
-        base_inss,
-        valor_inss,
-        base_irrf,
-        valor_irrf,
-        quantidade_dependentes,
-        valor_deducao_dependentes,
-        -- DADOS BANCÁRIOS COPIADOS DO SERVIDOR
-        banco_codigo,
-        banco_nome,
-        banco_agencia,
-        banco_conta,
-        banco_tipo_conta,
-        processado,
-        data_processamento,
-        created_at
-      ) VALUES (
-        p_folha_id,
-        v_servidor.id,
-        v_folha.competencia_ano,
-        v_folha.competencia_mes,
-        v_folha.tipo_folha,
-        v_servidor.cargo_id,
-        v_servidor.cargo_nome,
-        v_vencimento,
-        v_servidor.unidade_id,
-        COALESCE(v_servidor.unidade_sigla, '') || ' - ' || COALESCE(v_servidor.unidade_nome, ''),
-        v_vencimento,
-        v_total_descontos,
-        v_valor_liquido,
-        v_base_inss,
-        v_valor_inss,
-        v_base_irrf,
-        v_valor_irrf,
-        v_qtd_dependentes,
-        v_deducao_dependentes,
-        -- DADOS BANCÁRIOS
-        v_servidor.banco_codigo,
-        v_servidor.banco_nome,
-        v_servidor.banco_agencia,
-        v_servidor.banco_conta,
-        v_servidor.banco_tipo_conta,
-        true,
-        now(),
-        now()
-      );
-      
+
+      v_r := public.folha_montar_ficha(v_srv.id, v_srv.provimento_id, v_tipo, v_d1, v_d2, v_manuais, v_tabelas);
+      IF NOT public.portaria_nomeacao_publicada(v_srv.id, v_srv.provimento_id, v_srv.cargo_id) THEN
+        v_r := jsonb_set(v_r, '{inconsistencias}', (v_r -> 'inconsistencias') || jsonb_build_array('portaria_de_nomeacao_nao_publicada'));
+      END IF;
+
+      -- 13º sem avos (ingresso depois do ano) ou ficha sem nenhum valor: não gera ficha vazia
+      IF (v_r ->> 'total_proventos')::numeric = 0 AND (v_r ->> 'total_descontos')::numeric = 0 THEN
+        CONTINUE;
+      END IF;
+
+      INSERT INTO public.fichas_financeiras (
+        folha_id, servidor_id, competencia_ano, competencia_mes, tipo_folha, cargo_id, cargo_nome, cargo_vencimento,
+        unidade_id, unidade_nome, total_proventos, total_descontos, valor_liquido, base_inss, valor_inss, base_irrf,
+        valor_irrf, quantidade_dependentes, valor_deducao_dependentes, banco_codigo, banco_nome, banco_agencia,
+        banco_conta, banco_tipo_conta, processado, data_processamento, tem_inconsistencia, inconsistencias)
+      VALUES (
+        p_folha_id, v_srv.id, v_folha.competencia_ano, v_folha.competencia_mes, v_tipo, v_srv.cargo_id, v_srv.cargo_nome,
+        v_srv.vencimento_base, v_srv.unidade_id, COALESCE(v_srv.unidade_sigla, '') || ' - ' || COALESCE(v_srv.unidade_nome, ''),
+        (v_r ->> 'total_proventos')::numeric, (v_r ->> 'total_descontos')::numeric, (v_r ->> 'valor_liquido')::numeric,
+        (v_r ->> 'base_inss')::numeric, (v_r ->> 'valor_inss')::numeric, (v_r ->> 'base_irrf')::numeric,
+        (v_r ->> 'valor_irrf')::numeric, (v_r ->> 'quantidade_dependentes')::int, (v_r ->> 'valor_deducao_dependentes')::numeric,
+        v_srv.banco_codigo, v_srv.banco_nome, v_srv.banco_agencia, v_srv.banco_conta, v_srv.banco_tipo_conta,
+        true, now(), jsonb_array_length(v_r -> 'inconsistencias') > 0, v_r -> 'inconsistencias')
+      RETURNING id INTO v_ficha_id;
+
+      v_ordem := 0;
+      FOR v_item IN SELECT e FROM jsonb_array_elements(v_r -> 'itens') e LOOP
+        v_ordem := v_ordem + 1;
+        INSERT INTO public.itens_ficha_financeira (ficha_id, rubrica_id, descricao, tipo, valor, referencia, base_calculo,
+                                                   percentual, ordem, origem)
+        VALUES (v_ficha_id, nullif(v_item ->> 'rubrica_id', '')::uuid, v_item ->> 'descricao', v_item ->> 'tipo',
+                (v_item ->> 'valor')::numeric, v_item ->> 'referencia', nullif(v_item ->> 'base', '')::numeric,
+                nullif(v_item ->> 'percentual', '')::numeric, v_ordem, v_item ->> 'origem');
+        IF v_item ->> 'origem' = 'manual' THEN v_manuais_gravados := v_manuais_gravados + 1; END IF;
+      END LOOP;
+
       v_count := v_count + 1;
-      
     EXCEPTION WHEN OTHERS THEN
-      v_errors := v_errors || jsonb_build_object(
-        'servidor_id', v_servidor.id,
-        'nome', v_servidor.nome_completo,
-        'erro', SQLERRM
-      );
+      v_errors := v_errors || jsonb_build_object('servidor_id', v_srv.id, 'nome', v_srv.nome_completo, 'erro', SQLERRM);
     END;
   END LOOP;
-  
-  -- Atualizar totais da folha - manter status "aberta" para permitir ajustes
+
+  IF v_manuais_gravados < v_manuais_total THEN
+    v_avisos := v_avisos || jsonb_build_array(
+      (v_manuais_total - v_manuais_gravados) || ' lançamento(s) manual(is) não voltaram porque o servidor não entra mais nesta folha');
+  END IF;
+  IF v_tipo = 'mensal' THEN
+    SELECT count(DISTINCT c.servidor_id) INTO v_cedidos FROM public.cessoes c
+     WHERE c.tipo = 'entrada' AND c.ativa AND NOT EXISTS (
+       SELECT 1 FROM public.provimentos p WHERE p.servidor_id = c.servidor_id AND p.status IN ('ativo', 'suspenso'));
+    IF v_cedidos > 0 THEN
+      v_avisos := v_avisos || jsonb_build_array(v_cedidos || ' cedido(s) de outro órgão não entram na folha (ônus da origem)');
+    END IF;
+  END IF;
+
   PERFORM set_config('trilha.renovar_decisao', 'folhas_pagamento.processado_por', true);
-  UPDATE folhas_pagamento
-  SET 
-    total_bruto = COALESCE((SELECT SUM(total_proventos) FROM fichas_financeiras WHERE folha_id = p_folha_id), 0),
-    total_descontos = COALESCE((SELECT SUM(total_descontos) FROM fichas_financeiras WHERE folha_id = p_folha_id), 0),
-    total_liquido = COALESCE((SELECT SUM(valor_liquido) FROM fichas_financeiras WHERE folha_id = p_folha_id), 0),
-    total_inss_servidor = COALESCE((SELECT SUM(valor_inss) FROM fichas_financeiras WHERE folha_id = p_folha_id), 0),
-    total_irrf = COALESCE((SELECT SUM(valor_irrf) FROM fichas_financeiras WHERE folha_id = p_folha_id), 0),
-    quantidade_servidores = v_count,
-    status = 'aberta',
-    data_processamento = now(),
-    -- E1 (migração 20261011000000): quem processou, gravado pelo banco (o trigger zz_fixar_autoria confirma)
-    processado_por = auth.uid(),
-    updated_at = now()
-  WHERE id = p_folha_id;
+  UPDATE public.folhas_pagamento
+     SET total_bruto = COALESCE((SELECT SUM(total_proventos) FROM public.fichas_financeiras WHERE folha_id = p_folha_id), 0),
+         total_descontos = COALESCE((SELECT SUM(total_descontos) FROM public.fichas_financeiras WHERE folha_id = p_folha_id), 0),
+         total_liquido = COALESCE((SELECT SUM(valor_liquido) FROM public.fichas_financeiras WHERE folha_id = p_folha_id), 0),
+         total_inss_servidor = COALESCE((SELECT SUM(valor_inss) FROM public.fichas_financeiras WHERE folha_id = p_folha_id), 0),
+         total_irrf = COALESCE((SELECT SUM(valor_irrf) FROM public.fichas_financeiras WHERE folha_id = p_folha_id), 0),
+         quantidade_servidores = v_count,
+         status = 'aberta',
+         data_processamento = now(),
+         processado_por = auth.uid(),
+         tempo_processamento_ms = (EXTRACT(EPOCH FROM clock_timestamp() - v_inicio) * 1000)::int,
+         updated_at = now()
+   WHERE id = p_folha_id;
   PERFORM set_config('trilha.renovar_decisao', '', true);
-  
-  -- Retorno em formato JSONB
+
   RETURN jsonb_build_object(
     'sucesso', true,
+    'protocolo', v_protocolo,
     'servidores_processados', v_count,
-    'total_servidores_ativos', v_total_servidores_ativos,
-    'total_com_provimento', v_total_com_provimento,
-    'total_sem_vencimento', v_total_sem_vencimento,
-    'erros', v_errors
-  );
-  
+    'total_servidores_ativos', v_elegiveis,
+    'total_com_provimento', v_elegiveis,
+    'total_sem_vencimento', v_sem_venc,
+    'erros', v_errors,
+    'avisos', v_avisos);
+
 EXCEPTION
   WHEN insufficient_privilege THEN
-    -- Guarda de permissão (início do corpo): propaga o 42501. Sem esta cláusula o handler abaixo engolia
-    -- a exceção e, como SECURITY DEFINER, "revertia" a folha para 'aberta' — inclusive uma folha fechada —
-    -- a pedido de quem NÃO tem permissão.
     RAISE;
   WHEN OTHERS THEN
-  PERFORM set_config('trilha.renovar_decisao', '', true);
-  -- Em caso de erro, reverter status
-  UPDATE folhas_pagamento SET status = 'aberta', updated_at = now() WHERE id = p_folha_id;
-  
-  RETURN jsonb_build_object(
-    'sucesso', false,
-    'erro', SQLERRM,
-    'servidores_processados', v_count
-  );
+    PERFORM set_config('trilha.renovar_decisao', '', true);
+    UPDATE public.folhas_pagamento SET status = 'aberta', updated_at = now() WHERE id = p_folha_id;
+    RETURN jsonb_build_object('sucesso', false, 'erro', SQLERRM, 'servidores_processados', v_count);
 END;
 $$;
 
@@ -8527,6 +9259,8 @@ BEGIN
       format('A folha tem remessa bancária ativa (nº %s). Cancele a remessa antes de reabrir a folha.', v_remessas));
   END IF;
   
+  PERFORM public.rh_protocolo_atual('folha', format('Reabertura da folha %s/%s', v_folha.competencia_mes, v_folha.competencia_ano), NULL, jsonb_build_object('folha_id', p_folha_id, 'justificativa', p_justificativa));
+
   -- Atualizar para reaberta
   UPDATE public.folhas_pagamento
   SET 
@@ -9373,6 +10107,32 @@ $$;
 
 
 --
+-- Name: registros_ponto_travar_competencia(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registros_ponto_travar_competencia() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  -- só a API (anon/authenticated); job, Edge Function e service role seguem livres
+  IF coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated') THEN
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
+  IF TG_OP IN ('UPDATE', 'DELETE') AND public.frequencia_competencia_travada(OLD.servidor_id, OLD.data) THEN
+    RAISE EXCEPTION 'Frequência: a competência %/% de este servidor está consolidada; reabra a frequência para alterar o ponto',
+      to_char(OLD.data, 'MM'), to_char(OLD.data, 'YYYY') USING ERRCODE = '42501';
+  END IF;
+  IF TG_OP IN ('INSERT', 'UPDATE') AND public.frequencia_competencia_travada(NEW.servidor_id, NEW.data) THEN
+    RAISE EXCEPTION 'Frequência: a competência %/% de este servidor está consolidada; reabra a frequência para alterar o ponto',
+      to_char(NEW.data, 'MM'), to_char(NEW.data, 'YYYY') USING ERRCODE = '42501';
+  END IF;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+
+
+--
 -- Name: regra_lancamento_proteger_exigir(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -9520,6 +10280,348 @@ COMMENT ON FUNCTION public.responsavel_atual() IS 'Responsável pelo comando atu
 
 
 --
+-- Name: rh_admitir_servidor(uuid, public.tipo_vinculo_servidor, uuid, uuid, date, text, text, text, date, text, date, boolean, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_admitir_servidor(p_servidor_id uuid, p_tipo public.tipo_vinculo_servidor, p_cargo_id uuid, p_unidade_id uuid, p_data_inicio date, p_orgao_origem text DEFAULT NULL::text, p_ato_tipo text DEFAULT NULL::text, p_ato_numero text DEFAULT NULL::text, p_ato_data date DEFAULT NULL::date, p_ato_doe_numero text DEFAULT NULL::text, p_ato_doe_data date DEFAULT NULL::date, p_gerar_minuta boolean DEFAULT true, p_funcao_exercida text DEFAULT NULL::text, p_observacao text DEFAULT NULL::text) RETURNS jsonb
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_servidor RECORD;
+  v_cargo_nome text;
+  v_unidade_nome text;
+  v_vinculo_id uuid;
+  v_lotacao_id uuid;
+  v_provimento_id uuid;
+  v_minuta_id uuid;
+  v_minuta_numero text;
+  v_exige_cargo boolean := p_tipo IN ('efetivo', 'comissionado');
+  v_descricao text;
+  v_protocolo text;
+BEGIN
+  IF auth.uid() IS NULL OR NOT (public.has_permission_code(auth.uid(), 'rh.servidores.criar')
+                                OR public.has_permission_code(auth.uid(), 'rh.lotacoes.criar')) THEN
+    RAISE EXCEPTION 'Sem permissão para admitir/lotar servidor' USING ERRCODE = '42501';
+  END IF;
+  IF p_data_inicio IS NULL THEN RAISE EXCEPTION 'Informe a data de início'; END IF;
+
+  SELECT id, nome_completo, situacao INTO v_servidor FROM public.servidores WHERE id = p_servidor_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Servidor não encontrado'; END IF;
+  IF v_servidor.situacao = 'falecido' THEN RAISE EXCEPTION 'Servidor falecido não pode ser admitido'; END IF;
+
+  SELECT nome INTO v_unidade_nome FROM public.estrutura_organizacional WHERE id = p_unidade_id AND ativo;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Unidade não encontrada ou inativa'; END IF;
+
+  IF v_exige_cargo THEN
+    IF p_cargo_id IS NULL THEN RAISE EXCEPTION 'Selecione o cargo'; END IF;
+  END IF;
+  IF p_cargo_id IS NOT NULL THEN
+    SELECT coalesce(sigla || ' - ', '') || nome INTO v_cargo_nome FROM public.cargos WHERE id = p_cargo_id AND ativo;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Cargo não encontrado ou inativo'; END IF;
+  END IF;
+  IF p_tipo = 'cedido_entrada' AND coalesce(btrim(p_orgao_origem), '') = '' THEN
+    RAISE EXCEPTION 'Informe o órgão de origem do servidor cedido';
+  END IF;
+
+  -- protocolo do ato (migração 20261012090000): todas as gravações abaixo e na trilha levam este número
+  v_protocolo := public.rh_protocolo_atual('admissao',
+    'Admissão de ' || v_servidor.nome_completo || ' (' || p_tipo::text || ') em ' || v_unidade_nome
+      || ' a partir de ' || to_char(p_data_inicio, 'DD/MM/YYYY'),
+    p_servidor_id, jsonb_build_object('tipo_vinculo', p_tipo, 'cargo_id', p_cargo_id, 'unidade_id', p_unidade_id));
+
+  -- uma admissão por vez: quem já tem vínculo, lotação ou provimento ativo usa os fluxos de movimentação
+  IF EXISTS (SELECT 1 FROM public.lotacoes WHERE servidor_id = p_servidor_id AND ativo)
+     OR EXISTS (SELECT 1 FROM public.provimentos WHERE servidor_id = p_servidor_id AND status IN ('ativo', 'suspenso'))
+     OR EXISTS (SELECT 1 FROM public.vinculos_servidor WHERE servidor_id = p_servidor_id AND ativo) THEN
+    RAISE EXCEPTION 'Servidor já possui vínculo, lotação ou provimento ativo; encerre o atual antes de admitir de novo';
+  END IF;
+
+  INSERT INTO public.vinculos_servidor (servidor_id, tipo, origem, orgao_nome, cargo_id, unidade_id, data_inicio,
+                                        data_posse, data_exercicio, ativo,
+                                        ato_tipo, ato_numero, ato_data, ato_doe_numero, ato_doe_data)
+  VALUES (p_servidor_id, p_tipo,
+          CASE WHEN p_tipo = 'cedido_entrada' THEN 'outro_orgao'::origem_vinculo ELSE 'idjuv'::origem_vinculo END,
+          CASE WHEN p_tipo = 'cedido_entrada' THEN p_orgao_origem END,
+          p_cargo_id, p_unidade_id, p_data_inicio, p_data_inicio, p_data_inicio, true,
+          p_ato_tipo, p_ato_numero, p_ato_data, p_ato_doe_numero, p_ato_doe_data)
+  RETURNING id INTO v_vinculo_id;
+
+  INSERT INTO public.lotacoes (servidor_id, unidade_id, cargo_id, tipo_lotacao, tipo_movimentacao, data_inicio, ativo,
+                               funcao_exercida, observacao,
+                               ato_tipo, ato_numero, ato_data, ato_doe_numero, ato_doe_data)
+  VALUES (p_servidor_id, p_unidade_id, p_cargo_id, 'lotacao_interna', 'lotacao_inicial', p_data_inicio, true,
+          p_funcao_exercida, p_observacao,
+          p_ato_tipo, p_ato_numero, p_ato_data, p_ato_doe_numero, p_ato_doe_data)
+  RETURNING id INTO v_lotacao_id;
+
+  IF p_tipo = 'cedido_entrada' THEN
+    INSERT INTO public.cessoes (servidor_id, tipo, orgao_origem, unidade_idjuv_id, data_inicio, ativa,
+                                ato_tipo, ato_numero, ato_data, ato_doe_numero, ato_doe_data)
+    VALUES (p_servidor_id, 'entrada', p_orgao_origem, p_unidade_id, p_data_inicio, true,
+            p_ato_tipo, p_ato_numero, p_ato_data, p_ato_doe_numero, p_ato_doe_data);
+  ELSIF v_exige_cargo THEN
+    INSERT INTO public.provimentos (servidor_id, cargo_id, unidade_id, status, data_nomeacao, data_posse, data_exercicio)
+    VALUES (p_servidor_id, p_cargo_id, p_unidade_id, 'ativo', p_data_inicio, p_data_inicio, p_data_inicio)
+    RETURNING id INTO v_provimento_id;
+  END IF;
+
+  v_descricao := CASE WHEN p_tipo = 'cedido_entrada'
+                      THEN 'Cessão de entrada de ' || p_orgao_origem || ' para ' || v_unidade_nome
+                      ELSE 'Nomeação' || coalesce(' para ' || v_cargo_nome, '') || ' - ' || v_unidade_nome END;
+
+  INSERT INTO public.historico_funcional (servidor_id, tipo, data_evento, data_vigencia_inicio, cargo_novo_id,
+                                          unidade_nova_id, portaria_numero, portaria_data,
+                                          diario_oficial_numero, diario_oficial_data, descricao)
+  VALUES (p_servidor_id, CASE WHEN p_tipo = 'cedido_entrada' THEN 'cessao'::tipo_movimentacao_funcional
+                              ELSE 'nomeacao'::tipo_movimentacao_funcional END,
+          p_data_inicio, p_data_inicio, p_cargo_id, p_unidade_id, p_ato_numero, p_ato_data,
+          p_ato_doe_numero, p_ato_doe_data, v_descricao);
+
+  IF p_gerar_minuta AND p_cargo_id IS NOT NULL AND v_exige_cargo THEN
+    v_minuta_numero := public.gerar_numero_portaria(EXTRACT(YEAR FROM p_data_inicio)::int);
+    INSERT INTO public.documentos (tipo, categoria, status, titulo, ementa, numero, data_documento, servidores_ids,
+                                   cargo_id, unidade_id, provimento_id)
+    VALUES ('portaria', 'nomeacao', 'minuta', 'Portaria de Nomeação - ' || v_servidor.nome_completo,
+            'Nomeia ' || v_servidor.nome_completo || ' para o cargo de ' || v_cargo_nome || ' na ' || v_unidade_nome || '.',
+            v_minuta_numero, p_data_inicio, ARRAY[p_servidor_id], p_cargo_id, p_unidade_id, v_provimento_id)
+    RETURNING id INTO v_minuta_id;
+  END IF;
+
+  -- situação explícita: vale para vínculo sem provimento (temporário, estagiário…) e para reingresso; com provimento
+  -- ou cessão, os triggers refinam cargo/unidade logo em seguida
+  UPDATE public.servidores
+     SET data_admissao = coalesce(data_admissao, p_data_inicio),
+         data_posse = coalesce(data_posse, p_data_inicio),
+         data_exercicio = coalesce(data_exercicio, p_data_inicio),
+         data_desligamento = NULL,
+         ativo = true,
+         situacao = CASE WHEN situacao IN ('exonerado', 'aposentado', 'inativo') THEN 'ativo'::situacao_funcional
+                         ELSE situacao END,
+         cargo_atual_id = p_cargo_id,
+         unidade_atual_id = p_unidade_id
+   WHERE id = p_servidor_id;
+
+  RETURN jsonb_build_object('protocolo', v_protocolo, 'vinculo_id', v_vinculo_id, 'lotacao_id', v_lotacao_id,
+                            'provimento_id', v_provimento_id, 'minuta_id', v_minuta_id, 'minuta_numero', v_minuta_numero);
+END;
+$$;
+
+
+--
+-- Name: rh_avancar_status_por_data(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_avancar_status_por_data() RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_hoje date := public.data_local();
+  v_ids uuid[];
+  v_fer_ini int; v_fer_fim int; v_lic int; v_viag int;
+  v_protocolo text;
+BEGIN
+  v_protocolo := public.rh_protocolo_atual('sistema', 'Avanço automático de status por data (férias, licenças, viagens)',
+                                            NULL, jsonb_build_object('rotina', 'rh_avancar_status_por_data'));
+  WITH a AS (
+    UPDATE public.ferias_servidor SET status = 'em_gozo'
+     WHERE status = 'programada' AND data_inicio <= v_hoje AND data_fim >= v_hoje RETURNING servidor_id)
+  SELECT array_agg(DISTINCT servidor_id), count(*) INTO v_ids, v_fer_ini FROM a;
+
+  WITH a AS (
+    UPDATE public.ferias_servidor SET status = 'concluida'
+     WHERE status = 'em_gozo' AND data_fim < v_hoje RETURNING servidor_id)
+  SELECT coalesce(v_ids, '{}') || coalesce(array_agg(DISTINCT servidor_id), '{}'), count(*) INTO v_ids, v_fer_fim FROM a;
+
+  WITH a AS (
+    UPDATE public.licencas_afastamentos SET status = 'encerrada'
+     WHERE status IN ('ativa', 'prorrogada') AND data_fim IS NOT NULL AND data_fim < v_hoje RETURNING servidor_id)
+  SELECT coalesce(v_ids, '{}') || coalesce(array_agg(DISTINCT servidor_id), '{}'), count(*) INTO v_ids, v_lic FROM a;
+
+  WITH a AS (
+    UPDATE public.viagens_diarias SET status = 'em_andamento'
+     WHERE status = 'autorizada' AND data_saida <= v_hoje AND data_retorno >= v_hoje RETURNING id)
+  SELECT count(*) INTO v_viag FROM a;
+
+  -- licença com início futuro não muda a situação hoje (a função confere as datas); recalcula quem mudou
+  PERFORM public.fn_atualizar_situacao_servidor(s) FROM unnest(coalesce(v_ids, '{}')) AS s;
+
+  RETURN jsonb_build_object('protocolo', v_protocolo, 'data', v_hoje, 'ferias_iniciadas', v_fer_ini, 'ferias_concluidas', v_fer_fim,
+                            'licencas_encerradas', v_lic, 'viagens_em_andamento', v_viag);
+END;
+$$;
+
+
+--
+-- Name: rh_desligar_servidor(uuid, date, text, text, text, text, date, text, date, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_desligar_servidor(p_servidor_id uuid, p_data date, p_motivo text, p_observacao text DEFAULT NULL::text, p_ato_tipo text DEFAULT NULL::text, p_ato_numero text DEFAULT NULL::text, p_ato_data date DEFAULT NULL::date, p_ato_doe_numero text DEFAULT NULL::text, p_ato_doe_data date DEFAULT NULL::date, p_gerar_minuta boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_servidor RECORD;
+  v_prov RECORD;
+  v_unidade_id uuid;
+  v_cargo_id uuid;
+  v_cargo_nome text;
+  v_nova situacao_funcional;
+  v_hist tipo_movimentacao_funcional;
+  v_n_lot int; v_n_vinc int; v_n_prov int; v_n_cess int; v_n_desig int; v_n_fer int; v_n_lic int;
+  v_n_viag int; v_n_chefe int; v_n_com int; v_viag_andamento int;
+  v_minuta_numero text;
+  v_avisos text[] := '{}';
+  v_protocolo text;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.has_permission_code(auth.uid(), 'rh.servidores.editar') THEN
+    RAISE EXCEPTION 'Sem permissão para desligar servidor' USING ERRCODE = '42501';
+  END IF;
+  IF p_motivo NOT IN ('exoneracao', 'exoneracao_pedido', 'exoneracao_oficio', 'termino_mandato', 'demissao',
+                      'aposentadoria', 'falecimento', 'vacancia') THEN
+    RAISE EXCEPTION 'Motivo de desligamento inválido: %', p_motivo;
+  END IF;
+  IF p_data IS NULL THEN RAISE EXCEPTION 'Informe a data do desligamento'; END IF;
+
+  SELECT id, nome_completo, situacao INTO v_servidor FROM public.servidores WHERE id = p_servidor_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Servidor não encontrado'; END IF;
+  IF v_servidor.situacao IN ('exonerado', 'aposentado', 'falecido') THEN
+    RAISE EXCEPTION 'Servidor já desligado (%)', v_servidor.situacao;
+  END IF;
+
+  v_protocolo := public.rh_protocolo_atual('desligamento',
+    'Desligamento de ' || v_servidor.nome_completo || ' (' || p_motivo || ') em ' || to_char(p_data, 'DD/MM/YYYY')
+      || coalesce(' — ' || nullif(btrim(p_observacao), ''), ''),
+    p_servidor_id, jsonb_build_object('motivo', p_motivo, 'ato_numero', p_ato_numero, 'ato_doe_numero', p_ato_doe_numero));
+
+  v_nova := CASE p_motivo WHEN 'falecimento' THEN 'falecido' WHEN 'aposentadoria' THEN 'aposentado' ELSE 'exonerado' END;
+  v_hist := CASE WHEN p_motivo = 'aposentadoria' THEN 'aposentadoria'
+                 WHEN p_motivo IN ('falecimento', 'vacancia') THEN 'vacancia'
+                 ELSE 'exoneracao' END;
+
+  -- o que ele ocupava, para o histórico e a portaria
+  SELECT p.cargo_id, p.unidade_id INTO v_prov FROM public.provimentos p
+   WHERE p.servidor_id = p_servidor_id AND p.status IN ('ativo', 'suspenso')
+   ORDER BY p.data_nomeacao DESC LIMIT 1;
+  v_cargo_id := v_prov.cargo_id;
+  v_unidade_id := coalesce(v_prov.unidade_id,
+                           (SELECT unidade_id FROM public.lotacoes WHERE servidor_id = p_servidor_id AND ativo
+                             ORDER BY data_inicio DESC LIMIT 1));
+  IF v_cargo_id IS NOT NULL THEN
+    SELECT coalesce(sigla || ' - ', '') || nome INTO v_cargo_nome FROM public.cargos WHERE id = v_cargo_id;
+  END IF;
+
+  UPDATE public.lotacoes SET ativo = false, data_fim = p_data,
+         observacao = coalesce(p_observacao, 'Desligamento: ' || p_motivo)
+   WHERE servidor_id = p_servidor_id AND ativo;
+  GET DIAGNOSTICS v_n_lot = ROW_COUNT;
+
+  UPDATE public.vinculos_servidor SET ativo = false, data_fim = p_data, motivo_encerramento = p_motivo
+   WHERE servidor_id = p_servidor_id AND ativo;
+  GET DIAGNOSTICS v_n_vinc = ROW_COUNT;
+
+  UPDATE public.provimentos SET status = 'encerrado', data_encerramento = p_data, motivo_encerramento = p_motivo,
+         ato_encerramento_tipo = p_ato_tipo, ato_encerramento_numero = p_ato_numero, ato_encerramento_data = p_ato_data
+   WHERE servidor_id = p_servidor_id AND status IN ('ativo', 'suspenso');
+  GET DIAGNOSTICS v_n_prov = ROW_COUNT;
+
+  UPDATE public.cessoes SET ativa = false, data_fim = coalesce(least(data_fim, p_data), p_data)
+   WHERE servidor_id = p_servidor_id AND ativa;
+  GET DIAGNOSTICS v_n_cess = ROW_COUNT;
+
+  UPDATE public.designacoes
+     SET status = CASE WHEN status = 'pendente' THEN 'rejeitada' ELSE 'encerrada' END,
+         motivo_rejeicao = CASE WHEN status = 'pendente' THEN 'Servidor desligado em ' || p_data END,
+         data_fim = CASE WHEN status = 'aprovada' THEN coalesce(least(data_fim, p_data), p_data) ELSE data_fim END,
+         ativo = false
+   WHERE servidor_id = p_servidor_id AND status IN ('pendente', 'aprovada');
+  GET DIAGNOSTICS v_n_desig = ROW_COUNT;
+
+  UPDATE public.ferias_servidor
+     SET status = CASE WHEN status = 'em_gozo' THEN 'interrompida' ELSE 'cancelada' END,
+         observacoes = trim(both E'\n' from coalesce(observacoes, '') || E'\nDesligamento em ' || p_data)
+   WHERE servidor_id = p_servidor_id AND status IN ('programada', 'em_gozo');
+  GET DIAGNOSTICS v_n_fer = ROW_COUNT;
+
+  UPDATE public.licencas_afastamentos
+     SET status = 'encerrada', data_fim = coalesce(least(data_fim, p_data), p_data)
+   WHERE servidor_id = p_servidor_id AND status IN ('ativa', 'prorrogada');
+  GET DIAGNOSTICS v_n_lic = ROW_COUNT;
+
+  UPDATE public.viagens_diarias
+     SET status = 'cancelada',
+         observacoes = trim(both E'\n' from coalesce(observacoes, '') || E'\nCancelada: desligamento em ' || p_data)
+   WHERE servidor_id = p_servidor_id AND status IN ('solicitada', 'autorizada');
+  GET DIAGNOSTICS v_n_viag = ROW_COUNT;
+  SELECT count(*) INTO v_viag_andamento FROM public.viagens_diarias
+   WHERE servidor_id = p_servidor_id AND status = 'em_andamento';
+
+  UPDATE public.nomeacoes_chefe_unidade SET status = 'encerrado', data_fim = p_data
+   WHERE servidor_id = p_servidor_id AND status = 'ativo';
+  GET DIAGNOSTICS v_n_chefe = ROW_COUNT;
+
+  UPDATE public.comissoes_membros SET data_fim = p_data
+   WHERE servidor_id = p_servidor_id AND (data_fim IS NULL OR data_fim > p_data);
+  GET DIAGNOSTICS v_n_com = ROW_COUNT;
+
+  INSERT INTO public.historico_funcional (servidor_id, tipo, data_evento, data_vigencia_inicio, cargo_anterior_id,
+                                          unidade_anterior_id, portaria_numero, portaria_data,
+                                          diario_oficial_numero, diario_oficial_data, descricao)
+  VALUES (p_servidor_id, v_hist, p_data, p_data, v_cargo_id, v_unidade_id, p_ato_numero, p_ato_data,
+          p_ato_doe_numero, p_ato_doe_data,
+          'Desligamento (' || p_motivo || ')' || coalesce(' do cargo ' || v_cargo_nome, '')
+            || coalesce('. ' || p_observacao, ''));
+
+  IF p_gerar_minuta AND v_cargo_id IS NOT NULL AND p_motivo <> 'falecimento' THEN
+    v_minuta_numero := public.gerar_numero_portaria(EXTRACT(YEAR FROM p_data)::int);
+    INSERT INTO public.documentos (tipo, categoria, status, titulo, ementa, numero, data_documento, servidores_ids,
+                                   cargo_id, unidade_id)
+    VALUES ('portaria', CASE WHEN p_motivo IN ('aposentadoria', 'vacancia') THEN 'pessoal'::categoria_portaria
+                             ELSE 'exoneracao'::categoria_portaria END,
+            'minuta',
+            CASE WHEN p_motivo = 'aposentadoria' THEN 'Aposentadoria - ' ELSE 'Exoneração - ' END || v_servidor.nome_completo,
+            CASE WHEN p_motivo = 'aposentadoria' THEN 'Concede aposentadoria a ' ELSE 'Exonera ' END
+              || v_servidor.nome_completo || ' do cargo de ' || v_cargo_nome || '.',
+            v_minuta_numero, p_data, ARRAY[p_servidor_id], v_cargo_id, v_unidade_id);
+  END IF;
+
+  -- UPDATE barrado pela RLS não dá erro, só afeta 0 linhas. Se sobrou algo aberto, quem chamou não tem permissão
+  -- sobre alguma das tabelas: desfaz tudo (nada fica pela metade).
+  IF EXISTS (SELECT 1 FROM public.lotacoes WHERE servidor_id = p_servidor_id AND ativo)
+     OR EXISTS (SELECT 1 FROM public.vinculos_servidor WHERE servidor_id = p_servidor_id AND ativo)
+     OR EXISTS (SELECT 1 FROM public.provimentos WHERE servidor_id = p_servidor_id AND status IN ('ativo', 'suspenso'))
+     OR EXISTS (SELECT 1 FROM public.cessoes WHERE servidor_id = p_servidor_id AND ativa)
+     OR EXISTS (SELECT 1 FROM public.designacoes WHERE servidor_id = p_servidor_id AND status IN ('pendente', 'aprovada'))
+     OR EXISTS (SELECT 1 FROM public.ferias_servidor WHERE servidor_id = p_servidor_id AND status IN ('programada', 'em_gozo'))
+     OR EXISTS (SELECT 1 FROM public.licencas_afastamentos WHERE servidor_id = p_servidor_id AND status IN ('ativa', 'prorrogada'))
+     OR EXISTS (SELECT 1 FROM public.viagens_diarias WHERE servidor_id = p_servidor_id AND status IN ('solicitada', 'autorizada'))
+     OR EXISTS (SELECT 1 FROM public.nomeacoes_chefe_unidade WHERE servidor_id = p_servidor_id AND status = 'ativo') THEN
+    RAISE EXCEPTION 'Sem permissão para encerrar todos os registros do servidor (férias, licenças, viagens, designações…); nada foi gravado'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- por último: a situação explícita (vale também para vínculo sem provimento) e a data de desligamento
+  UPDATE public.servidores
+     SET situacao = v_nova, ativo = false, cargo_atual_id = NULL, unidade_atual_id = NULL, data_desligamento = p_data
+   WHERE id = p_servidor_id;
+
+  IF v_viag_andamento > 0 THEN
+    v_avisos := array_append(v_avisos, v_viag_andamento || ' viagem(ns) em andamento: concluir ou cancelar manualmente');
+  END IF;
+  v_avisos := array_append(v_avisos, 'Acerto financeiro (férias proporcionais, 13º, rescisão) não é calculado pelo sistema');
+  v_avisos := array_append(v_avisos, 'Conferir bens patrimoniais em carga do servidor e revogar acessos fora do RH');
+
+  RETURN jsonb_build_object('protocolo', v_protocolo, 'situacao', v_nova, 'minuta_numero', v_minuta_numero, 'avisos', to_jsonb(v_avisos),
+                            'encerrados', jsonb_build_object('lotacoes', v_n_lot, 'vinculos', v_n_vinc,
+                              'provimentos', v_n_prov, 'cessoes', v_n_cess, 'designacoes', v_n_desig,
+                              'ferias', v_n_fer, 'licencas', v_n_lic, 'viagens', v_n_viag,
+                              'chefias_de_unidade', v_n_chefe, 'comissoes', v_n_com));
+END;
+$$;
+
+
+--
 -- Name: rh_exige_servidor_vinculado(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -9529,6 +10631,741 @@ CREATE FUNCTION public.rh_exige_servidor_vinculado() RETURNS boolean
     AS $$
 BEGIN
   RETURN coalesce((SELECT rl.modo = 'exigir' FROM public.regra_lancamento rl WHERE rl.modulo = 'rh'), false);
+END;
+$$;
+
+
+--
+-- Name: rh_importar_quadro_vagas(jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_importar_quadro_vagas(p_linhas jsonb, p_gravar boolean DEFAULT false) RETURNS jsonb
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  c_simulacao constant text := 'rh_importar_quadro_vagas: simulação';
+  l jsonb;
+  i int := 0;
+  k int;
+  n int;
+  v_erros jsonb := '[]'::jsonb;
+  v_avisos jsonb := '[]'::jsonb;
+  v_cargos_criados int := 0;
+  v_cargos_existentes int := 0;
+  v_vagas_criadas int := 0;
+  v_vagas_existentes int := 0;
+  v_ocupantes int := 0;
+  v_cargos uuid[] := '{}';
+  v_nome text;
+  v_sigla text;
+  v_txt text;
+  v_cat public.categoria_cargo;
+  v_venc numeric;
+  v_lei_numero text;
+  v_lei_data date;
+  v_cargo_id uuid;
+  v_unidade_id uuid;
+  v_cod text;
+  v_dono uuid;
+  v_qtd int;
+  v_existentes int;
+  v_prefixo text;
+  v_seq int;
+  v_vaga uuid;
+  v_gravado boolean := false;
+  p record;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.has_permission_code(auth.uid(), 'governanca.cargos.gerenciar') THEN
+    RAISE EXCEPTION 'Sem permissão para importar o quadro de vagas' USING ERRCODE = '42501';
+  END IF;
+  IF p_linhas IS NULL OR jsonb_typeof(p_linhas) <> 'array' THEN
+    RAISE EXCEPTION 'Envie as linhas da planilha como uma lista';
+  END IF;
+  IF jsonb_array_length(p_linhas) > 2000 THEN
+    RAISE EXCEPTION 'Planilha grande demais (% linhas; máximo 2000)', jsonb_array_length(p_linhas);
+  END IF;
+
+  BEGIN
+    FOR l IN SELECT x FROM jsonb_array_elements(p_linhas) AS x LOOP
+      i := i + 1;
+      BEGIN
+        IF jsonb_typeof(l) <> 'object' THEN
+          RAISE EXCEPTION 'linha em formato inválido';
+        END IF;
+        v_nome := nullif(btrim(l ->> 'cargo'), '');
+        IF v_nome IS NULL THEN
+          RAISE EXCEPTION 'informe o nome do cargo';
+        END IF;
+        v_sigla := nullif(upper(btrim(l ->> 'sigla')), '');
+        v_lei_numero := nullif(btrim(l ->> 'lei_numero'), '');
+
+        v_txt := nullif(btrim(l ->> 'lei_data'), '');
+        v_lei_data := NULL;
+        IF v_txt ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN
+          v_lei_data := to_date(v_txt, 'DD/MM/YYYY');
+        ELSIF v_txt IS NOT NULL THEN
+          v_lei_data := v_txt::date;
+        END IF;
+
+        v_txt := nullif(btrim(l ->> 'vencimento'), '');
+        v_venc := NULL;
+        IF v_txt IS NOT NULL THEN
+          IF v_txt ~ ',' THEN
+            v_txt := replace(replace(v_txt, '.', ''), ',', '.');
+          END IF;
+          v_venc := regexp_replace(v_txt, '[^0-9.\-]', '', 'g')::numeric;
+        END IF;
+
+        -- unidade: pela sigla, depois pelo nome (só unidades ativas)
+        v_txt := nullif(btrim(l ->> 'unidade'), '');
+        v_unidade_id := NULL;
+        IF v_txt IS NOT NULL THEN
+          SELECT id INTO v_unidade_id FROM public.estrutura_organizacional
+           WHERE ativo AND upper(btrim(sigla)) = upper(v_txt) ORDER BY nome LIMIT 1;
+          IF v_unidade_id IS NULL THEN
+            SELECT id INTO v_unidade_id FROM public.estrutura_organizacional
+             WHERE ativo AND lower(btrim(nome)) = lower(v_txt) ORDER BY nome LIMIT 1;
+          END IF;
+          IF v_unidade_id IS NULL THEN
+            RAISE EXCEPTION 'unidade "%" não encontrada (use a sigla ou o nome cadastrado na estrutura)', v_txt;
+          END IF;
+        END IF;
+
+        -- cargo: o existente com o mesmo nome e símbolo é reaproveitado (nada dele é alterado)
+        SELECT id INTO v_cargo_id FROM public.cargos
+         WHERE lower(btrim(nome)) = lower(v_nome) AND coalesce(upper(btrim(sigla)), '') = coalesce(v_sigla, '')
+         ORDER BY ativo DESC NULLS LAST, created_at
+         LIMIT 1;
+        IF v_cargo_id IS NULL THEN
+          v_txt := translate(lower(btrim(coalesce(l ->> 'categoria', ''))), 'áàâãéêíóôõúç ', 'aaaaeeiooouc_');
+          v_txt := CASE v_txt WHEN 'fg' THEN 'funcao_gratificada' WHEN 'funcao' THEN 'funcao_gratificada'
+                              WHEN 'cargo_em_comissao' THEN 'comissionado' WHEN 'comissao' THEN 'comissionado'
+                              WHEN 'estagio' THEN 'estagiario' ELSE v_txt END;
+          IF v_txt = '' THEN
+            RAISE EXCEPTION 'cargo novo "%": informe a categoria (efetivo, comissionado, funcao_gratificada, temporario ou estagiario)', v_nome;
+          END IF;
+          BEGIN
+            v_cat := v_txt::public.categoria_cargo;
+          EXCEPTION WHEN invalid_text_representation THEN
+            RAISE EXCEPTION 'categoria "%" inválida (use efetivo, comissionado, funcao_gratificada, temporario ou estagiario)', l ->> 'categoria';
+          END;
+          INSERT INTO public.cargos (nome, sigla, categoria, natureza, vencimento_base, lei_criacao_numero, lei_criacao_data,
+                                     quantidade_vagas, ativo)
+          VALUES (v_nome, v_sigla, v_cat,
+                  CASE WHEN v_cat = 'efetivo' THEN 'efetivo'::public.natureza_cargo
+                       WHEN v_cat IN ('comissionado', 'funcao_gratificada') THEN 'comissionado'::public.natureza_cargo END,
+                  v_venc, v_lei_numero, v_lei_data, 0, true)
+          RETURNING id INTO v_cargo_id;
+          v_cargos_criados := v_cargos_criados + 1;
+        ELSIF NOT (v_cargo_id = ANY (v_cargos)) THEN
+          v_cargos_existentes := v_cargos_existentes + 1;
+        END IF;
+        IF NOT (v_cargo_id = ANY (v_cargos)) THEN
+          v_cargos := v_cargos || v_cargo_id;
+        END IF;
+
+        v_cod := nullif(upper(btrim(l ->> 'codigo')), '');
+        IF v_cod IS NOT NULL THEN
+          SELECT cargo_id INTO v_dono FROM public.vagas_cargo WHERE codigo = v_cod;
+          IF FOUND AND v_dono = v_cargo_id THEN
+            v_vagas_existentes := v_vagas_existentes + 1;
+          ELSIF FOUND THEN
+            RAISE EXCEPTION 'o código de vaga % já pertence a outro cargo', v_cod;
+          ELSE
+            INSERT INTO public.vagas_cargo (codigo, cargo_id, unidade_id, data_criacao, ato_criacao)
+            VALUES (v_cod, v_cargo_id, v_unidade_id, v_lei_data,
+                    CASE WHEN v_lei_numero IS NOT NULL THEN 'Lei ' || v_lei_numero END);
+            v_vagas_criadas := v_vagas_criadas + 1;
+          END IF;
+        ELSE
+          v_txt := nullif(btrim(l ->> 'quantidade'), '');
+          v_qtd := coalesce(v_txt::numeric::int, 1);
+          IF v_qtd < 1 OR v_qtd > 500 THEN
+            RAISE EXCEPTION 'quantidade de vagas inválida (%)', v_txt;
+          END IF;
+          SELECT count(*) INTO v_existentes FROM public.vagas_cargo
+           WHERE cargo_id = v_cargo_id AND unidade_id IS NOT DISTINCT FROM v_unidade_id AND data_extincao IS NULL;
+          IF v_existentes > v_qtd THEN
+            v_avisos := v_avisos || jsonb_build_object('linha', i, 'aviso',
+              format('%s já tem %s vaga(s) ativas e a planilha pede %s: nenhuma vaga foi extinta (extinção é por ato, na tela)',
+                     v_nome, v_existentes, v_qtd));
+          END IF;
+          v_vagas_existentes := v_vagas_existentes + least(v_existentes, v_qtd);
+          IF v_existentes < v_qtd THEN
+            v_prefixo := coalesce(nullif(btrim(regexp_replace(coalesce(v_sigla, ''), '[^A-Z0-9-]+', '-', 'g'), '-'), ''), 'VAGA');
+            SELECT coalesce(max(substr(codigo, length(v_prefixo) + 2)::int), 0) INTO v_seq
+              FROM public.vagas_cargo WHERE codigo ~ ('^' || v_prefixo || '\.[0-9]+$');
+            FOR k IN 1 .. (v_qtd - v_existentes) LOOP
+              v_seq := v_seq + 1;
+              INSERT INTO public.vagas_cargo (codigo, cargo_id, unidade_id, data_criacao, ato_criacao)
+              VALUES (v_prefixo || '.' || lpad(v_seq::text, 3, '0'), v_cargo_id, v_unidade_id,
+                      v_lei_data,
+                      CASE WHEN v_lei_numero IS NOT NULL THEN 'Lei ' || v_lei_numero END);
+              v_vagas_criadas := v_vagas_criadas + 1;
+            END LOOP;
+          END IF;
+        END IF;
+      EXCEPTION WHEN OTHERS THEN
+        v_erros := v_erros || jsonb_build_object('linha', i, 'erro', SQLERRM);
+      END;
+    END LOOP;
+
+    IF jsonb_array_length(v_erros) = 0 THEN
+      -- ocupantes atuais sem vaga: ligados a uma vaga livre do cargo (mesma unidade primeiro), por ordem de nomeação
+      FOR p IN
+        SELECT pr.id, pr.cargo_id, pr.unidade_id, pr.data_nomeacao, c.nome AS cargo_nome,
+               coalesce(s.nome_social, s.nome_completo) AS nome
+          FROM public.provimentos pr
+          JOIN public.cargos c ON c.id = pr.cargo_id
+          LEFT JOIN public.servidores s ON s.id = pr.servidor_id
+         WHERE pr.cargo_id = ANY (v_cargos) AND pr.vaga_id IS NULL AND pr.status IN ('ativo', 'suspenso')
+         ORDER BY pr.data_nomeacao, pr.id
+      LOOP
+        SELECT v.id INTO v_vaga FROM public.vagas_cargo v
+         WHERE v.cargo_id = p.cargo_id AND v.data_extincao IS NULL
+           AND NOT EXISTS (SELECT 1 FROM public.provimentos o
+                            WHERE o.vaga_id = v.id
+                              AND daterange(o.data_nomeacao, o.data_encerramento, '[)') && daterange(p.data_nomeacao, NULL, '[)'))
+         ORDER BY (v.unidade_id IS NOT DISTINCT FROM p.unidade_id) DESC, (v.unidade_id IS NULL) DESC, v.codigo
+         LIMIT 1;
+        IF v_vaga IS NULL THEN
+          v_avisos := v_avisos || jsonb_build_object('aviso',
+            format('%s ocupa %s além do número de vagas: ficou sem vaga até alguém sair ou uma vaga ser criada',
+                   coalesce(p.nome, 'um servidor'), p.cargo_nome));
+          CONTINUE;
+        END IF;
+        BEGIN
+          UPDATE public.provimentos SET vaga_id = v_vaga WHERE id = p.id;
+          GET DIAGNOSTICS n = ROW_COUNT;
+          v_ocupantes := v_ocupantes + n;
+        EXCEPTION WHEN OTHERS THEN
+          v_avisos := v_avisos || jsonb_build_object('aviso',
+            format('não consegui ligar %s à vaga do cargo %s: %s', coalesce(p.nome, 'um servidor'), p.cargo_nome, SQLERRM));
+        END;
+      END LOOP;
+
+      -- o número do cargo acompanha o quadro (telas antigas leem cargos.quantidade_vagas)
+      BEGIN
+        UPDATE public.cargos c
+           SET quantidade_vagas = (SELECT count(*) FROM public.vagas_cargo v
+                                    WHERE v.cargo_id = c.id AND v.data_extincao IS NULL)
+         WHERE c.id = ANY (v_cargos)
+           AND c.quantidade_vagas IS DISTINCT FROM (SELECT count(*) FROM public.vagas_cargo v
+                                                     WHERE v.cargo_id = c.id AND v.data_extincao IS NULL);
+      EXCEPTION WHEN OTHERS THEN
+        v_avisos := v_avisos || jsonb_build_object('aviso',
+          'o número de vagas no cadastro do cargo não foi atualizado: ' || SQLERRM);
+      END;
+    END IF;
+
+    IF jsonb_array_length(v_erros) > 0 OR NOT p_gravar THEN
+      RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = c_simulacao;
+    END IF;
+    v_gravado := true;
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> c_simulacao THEN
+      RAISE;
+    END IF;
+  END;
+
+  RETURN jsonb_build_object(
+    'gravado', v_gravado,
+    'linhas', i,
+    'cargos_criados', v_cargos_criados,
+    'cargos_existentes', v_cargos_existentes,
+    'vagas_criadas', v_vagas_criadas,
+    'vagas_existentes', v_vagas_existentes,
+    'ocupantes_vinculados', v_ocupantes,
+    'erros', v_erros,
+    'avisos', v_avisos);
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION rh_importar_quadro_vagas(p_linhas jsonb, p_gravar boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.rh_importar_quadro_vagas(p_linhas jsonb, p_gravar boolean) IS 'Importa a planilha de cargos e vagas (simula com gravar=false). Nunca apaga nem sobrescreve; liga os ocupantes atuais às vagas. Exige governanca.cargos.gerenciar. Migração 20261012150000.';
+
+
+--
+-- Name: rh_pendencias_nomeacao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_pendencias_nomeacao() RETURNS TABLE(servidor_id uuid, nome text, matricula text, cargo text, provimento_id uuid, data_nomeacao date, portaria_numero text, portaria_status text)
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT s.id, s.nome_completo, s.matricula, c.nome, p.id, p.data_nomeacao,
+         (SELECT d.numero FROM public.documentos d
+           WHERE d.tipo = 'portaria' AND d.categoria = 'nomeacao'
+             AND (d.provimento_id = p.id OR s.id = ANY (d.servidores_ids))
+           ORDER BY d.created_at DESC LIMIT 1),
+         (SELECT d.status::text FROM public.documentos d
+           WHERE d.tipo = 'portaria' AND d.categoria = 'nomeacao'
+             AND (d.provimento_id = p.id OR s.id = ANY (d.servidores_ids))
+           ORDER BY d.created_at DESC LIMIT 1)
+    FROM public.provimentos p
+    JOIN public.servidores s ON s.id = p.servidor_id
+    JOIN public.cargos c ON c.id = p.cargo_id
+   WHERE p.status = 'ativo'
+     AND NOT EXISTS (
+       SELECT 1 FROM public.documentos d
+        WHERE d.tipo = 'portaria' AND d.categoria = 'nomeacao' AND d.status IN ('publicado', 'vigente')
+          AND (d.provimento_id = p.id OR (s.id = ANY (d.servidores_ids) AND (d.cargo_id IS NULL OR d.cargo_id = p.cargo_id))))
+   ORDER BY p.data_nomeacao, s.nome_completo;
+$$;
+
+
+--
+-- Name: rh_protocolo_atual(text, text, uuid, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_protocolo_atual(p_tipo text DEFAULT NULL::text, p_descricao text DEFAULT NULL::text, p_servidor_alvo uuid DEFAULT NULL::uuid, p_dados jsonb DEFAULT '{}'::jsonb) RETURNS text
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_tx text := txid_current()::text;
+  v_cache text := current_setting('trilha.protocolo', true);
+  v_ano int := EXTRACT(YEAR FROM public.data_local())::int;
+  v_seq_nome text;
+  v_seq bigint;
+  v_num text;
+  v_tipo text := coalesce(p_tipo, 'alteracao');
+BEGIN
+  -- chamada direta pela API: só quem tem o módulo rh abre protocolo (dentro de trigger/RPC de ato a guarda não se aplica,
+  -- o ato já passou pela permissão e pela RLS da própria operação)
+  IF pg_trigger_depth() = 0 AND coalesce(current_setting('role', true), 'none') IN ('anon', 'authenticated')
+     AND (auth.uid() IS NULL OR NOT public.can_access_module(auth.uid(), 'rh')) THEN
+    RAISE EXCEPTION 'Sem permissão para abrir protocolo do RH' USING ERRCODE = '42501';
+  END IF;
+  IF p_dados IS NOT NULL AND (jsonb_typeof(p_dados) <> 'object' OR length(p_dados::text) > 4000) THEN
+    RAISE EXCEPTION 'Dados do protocolo devem ser um objeto JSON de até 4000 caracteres' USING ERRCODE = '22023';
+  END IF;
+
+  -- uma transação, um protocolo (a chave inclui o txid: a variável de sessão não vaza para outra transação)
+  IF v_cache IS NOT NULL AND v_cache <> '' AND split_part(v_cache, '|', 1) = v_tx THEN
+    RETURN split_part(v_cache, '|', 2);
+  END IF;
+
+  IF v_tipo NOT IN ('admissao', 'desligamento', 'cadastro', 'movimentacao', 'ferias', 'licenca', 'viagem', 'frequencia',
+                    'folha', 'portaria', 'ocorrencia', 'configuracao', 'consulta', 'sistema', 'alteracao') THEN
+    RAISE EXCEPTION 'Tipo de protocolo inválido: %', v_tipo USING ERRCODE = '22023';
+  END IF;
+
+  v_seq_nome := 'rh_protocolo_seq_' || v_ano;
+  IF to_regclass('public.' || v_seq_nome) IS NULL THEN
+    PERFORM pg_advisory_xact_lock(hashtext('rh_protocolo_seq'));
+    EXECUTE format('CREATE SEQUENCE IF NOT EXISTS public.%I', v_seq_nome);
+  END IF;
+  EXECUTE format('SELECT nextval(%L)', 'public.' || v_seq_nome) INTO v_seq;
+  v_num := 'RH-' || v_ano || '-' || CASE WHEN v_seq >= 1000000 THEN v_seq::text ELSE lpad(v_seq::text, 6, '0') END;
+
+  -- linha de abertura: o contexto (servidor responsável, papel, unidade, IP, agente, transação) é completado pelo
+  -- trigger trilha_completar_contexto, como em qualquer linha da trilha
+  INSERT INTO public.audit_logs (action, entity_type, module_name, user_id, description, metadata, protocolo)
+  VALUES ('create', 'protocolo', 'rh', auth.uid(),
+          left(coalesce(p_descricao, 'Ato do RH (' || v_tipo || ')'), 500),
+          coalesce(p_dados, '{}'::jsonb)
+            || jsonb_build_object('abertura', true, 'tipo', v_tipo, 'numero', v_num,
+                                  'servidor_id', p_servidor_alvo, 'fonte', 'protocolo'),
+          v_num);
+
+  PERFORM set_config('trilha.protocolo', v_tx || '|' || v_num, true);
+  RETURN v_num;
+END;
+$$;
+
+
+--
+-- Name: rh_protocolo_consultar(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_protocolo_consultar(p_numero text) RETURNS jsonb
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT jsonb_build_object(
+    'numero', p_numero,
+    'abertura', (SELECT jsonb_build_object(
+                          'em', a."timestamp", 'descricao', a.description, 'tipo', a.metadata ->> 'tipo',
+                          'servidor_alvo_id', a.metadata ->> 'servidor_id',
+                          'aberto_por_usuario', a.user_id, 'aberto_por_servidor', a.servidor_nome,
+                          'matricula', a.servidor_matricula, 'papel', a.role_at_time, 'origem', a.origem,
+                          'unidade_id', a.org_unit_id, 'ip', host(a.ip_address), 'transacao', a.transacao)
+                   FROM public.audit_logs a
+                  WHERE a.protocolo = p_numero AND a.entity_type = 'protocolo' LIMIT 1),
+    'registros', coalesce((SELECT jsonb_agg(jsonb_build_object(
+                          'sequencia', l.sequencia, 'em', l."timestamp", 'acao', l.action, 'entidade', l.entity_type,
+                          'registro_id', l.entity_id, 'campos_alterados', l.campos_alterados, 'descricao', l.description,
+                          'responsavel', l.servidor_nome, 'matricula', l.servidor_matricula, 'usuario', l.user_id)
+                          ORDER BY l.sequencia)
+                   FROM public.audit_logs l
+                  WHERE l.protocolo = p_numero AND l.entity_type IS DISTINCT FROM 'protocolo'), '[]'::jsonb));
+$$;
+
+
+--
+-- Name: rh_protocolos_listar(uuid, text, date, date, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_protocolos_listar(p_servidor uuid DEFAULT NULL::uuid, p_tipo text DEFAULT NULL::text, p_desde date DEFAULT NULL::date, p_ate date DEFAULT NULL::date, p_limite integer DEFAULT 100) RETURNS TABLE(numero text, em timestamp with time zone, tipo text, descricao text, servidor_alvo_id uuid, responsavel text, matricula text, origem text)
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT a.protocolo, a."timestamp", a.metadata ->> 'tipo', a.description,
+         nullif(a.metadata ->> 'servidor_id', '')::uuid, a.servidor_nome, a.servidor_matricula, a.origem
+    FROM public.audit_logs a
+   WHERE a.entity_type = 'protocolo' AND a.module_name = 'rh'
+     AND (p_servidor IS NULL OR a.metadata ->> 'servidor_id' = p_servidor::text)
+     AND (p_tipo IS NULL OR a.metadata ->> 'tipo' = p_tipo)
+     AND (p_desde IS NULL OR a."timestamp" >= p_desde::timestamptz)
+     AND (p_ate IS NULL OR a."timestamp" < (p_ate + 1)::timestamptz)
+   ORDER BY a.sequencia DESC
+   LIMIT least(greatest(coalesce(p_limite, 100), 1), 500);
+$$;
+
+
+--
+-- Name: rh_provimento_vaga(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_provimento_vaga() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_vaga record;
+  v_conf record;
+  v_cargo text;
+  v_total int;
+BEGIN
+  -- encerrado sem data: a vaga fica livre a partir de hoje (senão o período ficaria aberto para sempre)
+  IF NEW.vaga_id IS NOT NULL AND NEW.status IN ('encerrado', 'vacante') AND NEW.data_encerramento IS NULL THEN
+    NEW.data_encerramento := public.data_local();
+  END IF;
+
+  -- provimento que passa a ocupar o cargo sem vaga informada: pega a primeira vaga livre do cargo
+  IF NEW.vaga_id IS NULL AND NEW.status IN ('ativo', 'suspenso')
+     AND (TG_OP = 'INSERT' OR OLD.status NOT IN ('ativo', 'suspenso') OR NEW.cargo_id IS DISTINCT FROM OLD.cargo_id)
+     AND EXISTS (SELECT 1 FROM public.vagas_cargo WHERE cargo_id = NEW.cargo_id) THEN
+    FOR v_vaga IN
+      SELECT v.id FROM public.vagas_cargo v
+       WHERE v.cargo_id = NEW.cargo_id
+         AND v.data_extincao IS NULL
+       ORDER BY (v.unidade_id IS NOT DISTINCT FROM NEW.unidade_id) DESC, (v.unidade_id IS NULL) DESC, v.codigo
+    LOOP
+      PERFORM 1 FROM public.vagas_cargo WHERE id = v_vaga.id FOR UPDATE;
+      IF NOT EXISTS (SELECT 1 FROM public.provimentos p
+                      WHERE p.vaga_id = v_vaga.id AND p.id <> NEW.id
+                        AND daterange(p.data_nomeacao, p.data_encerramento, '[)')
+                            && daterange(NEW.data_nomeacao, NEW.data_encerramento, '[)')) THEN
+        NEW.vaga_id := v_vaga.id;
+        EXIT;
+      END IF;
+    END LOOP;
+    IF NEW.vaga_id IS NULL THEN
+      SELECT coalesce(sigla || ' - ', '') || nome INTO v_cargo FROM public.cargos WHERE id = NEW.cargo_id;
+      SELECT count(*) INTO v_total FROM public.vagas_cargo WHERE cargo_id = NEW.cargo_id AND data_extincao IS NULL;
+      RAISE EXCEPTION 'Não há vaga livre no cargo % (% vaga(s), todas ocupadas em %)',
+        v_cargo, v_total, to_char(NEW.data_nomeacao, 'DD/MM/YYYY')
+        USING ERRCODE = '23P01',
+              HINT = 'Registre a saída (exoneração) de quem ocupa a vaga, ou crie uma vaga nova por ato, antes de nomear.';
+    END IF;
+  END IF;
+
+  IF NEW.vaga_id IS NOT NULL THEN
+    SELECT * INTO v_vaga FROM public.vagas_cargo WHERE id = NEW.vaga_id FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Vaga não encontrada';
+    END IF;
+    IF v_vaga.cargo_id IS DISTINCT FROM NEW.cargo_id THEN
+      RAISE EXCEPTION 'A vaga % é de outro cargo', v_vaga.codigo;
+    END IF;
+    IF NEW.data_encerramento IS NOT NULL AND NEW.data_encerramento < NEW.data_nomeacao THEN
+      RAISE EXCEPTION 'Data de saída (%) anterior à de entrada (%)',
+        to_char(NEW.data_encerramento, 'DD/MM/YYYY'), to_char(NEW.data_nomeacao, 'DD/MM/YYYY');
+    END IF;
+    IF v_vaga.data_extincao IS NOT NULL
+       AND coalesce(NEW.data_encerramento, 'infinity'::date) > v_vaga.data_extincao THEN
+      RAISE EXCEPTION 'A vaga % foi extinta em %: ocupação não pode passar dessa data',
+        v_vaga.codigo, to_char(v_vaga.data_extincao, 'DD/MM/YYYY');
+    END IF;
+    SELECT p.data_nomeacao, p.data_encerramento, coalesce(s.nome_social, s.nome_completo) AS nome
+      INTO v_conf
+      FROM public.provimentos p
+      LEFT JOIN public.servidores s ON s.id = p.servidor_id
+     WHERE p.vaga_id = NEW.vaga_id AND p.id <> NEW.id
+       AND daterange(p.data_nomeacao, p.data_encerramento, '[)')
+           && daterange(NEW.data_nomeacao, NEW.data_encerramento, '[)')
+     ORDER BY p.data_nomeacao DESC
+     LIMIT 1;
+    IF FOUND THEN
+      RAISE EXCEPTION 'A vaga % já está ocupada por % de % até %', v_vaga.codigo, coalesce(v_conf.nome, 'outro servidor'),
+        to_char(v_conf.data_nomeacao, 'DD/MM/YYYY'),
+        coalesce(to_char(v_conf.data_encerramento, 'DD/MM/YYYY'), 'hoje (sem data de saída)')
+        USING ERRCODE = '23P01',
+              HINT = 'Uma vaga tem uma pessoa por vez: registre a saída do ocupante antes de nomear outra pessoa nela.';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: rh_tipo_protocolo(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_tipo_protocolo(p_entidade text) RETURNS text
+    LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT CASE
+    WHEN p_entidade IN ('servidores', 'pre_cadastros', 'servidor_tags', 'servidor_tag_vinculos', 'dependentes_irrf',
+                        'documentos_requerimento_servidor', 'adicionais_tempo_servico') THEN 'cadastro'
+    WHEN p_entidade IN ('lotacoes', 'provimentos', 'vinculos_servidor', 'vinculos_funcionais', 'designacoes', 'cessoes',
+                        'nomeacoes_chefe_unidade', 'memorandos_lotacao', 'historico_funcional', 'comissoes',
+                        'comissoes_membros') THEN 'movimentacao'
+    WHEN p_entidade = 'ferias_servidor' THEN 'ferias'
+    WHEN p_entidade = 'licencas_afastamentos' THEN 'licenca'
+    WHEN p_entidade = 'viagens_diarias' THEN 'viagem'
+    WHEN p_entidade IN ('registros_ponto', 'frequencia_mensal', 'frequencia_fechamento', 'frequencia_arquivos',
+                        'frequencia_pacotes', 'solicitacoes_abono', 'solicitacoes_ajuste_ponto', 'justificativas_ponto',
+                        'banco_horas', 'lancamentos_banco_horas', 'servidor_regime') THEN 'frequencia'
+    WHEN p_entidade IN ('folhas_pagamento', 'fichas_financeiras', 'itens_ficha_financeira', 'lancamentos_folha',
+                        'consignacoes', 'pensoes_alimenticias', 'exportacoes_folha', 'eventos_esocial',
+                        'remessas_bancarias', 'retornos_bancarios', 'itens_retorno_bancario',
+                        'folha_historico_status') THEN 'folha'
+    WHEN p_entidade IN ('documentos', 'portarias_servidor') THEN 'portaria'
+    WHEN p_entidade = 'ocorrencias_servidor' THEN 'ocorrencia'
+    WHEN p_entidade IN ('contracheque', 'relatorio_rh', 'exportacao_rh', 'arquivo_esocial', 'arquivo_cnab',
+                        'trilha_auditoria') THEN 'consulta'
+    WHEN p_entidade LIKE 'config\_%' OR p_entidade IN ('cargos', 'composicao_cargos', 'cargo_unidade_compatibilidade',
+                        'tipos_abono', 'rubricas', 'rubricas_historico', 'parametros_folha', 'tabela_inss', 'tabela_irrf',
+                        'feriados', 'dias_nao_uteis', 'regimes_trabalho', 'horarios_jornada', 'configuracao_jornada',
+                        'bancos_cnab', 'contas_autarquia') THEN 'configuracao'
+    ELSE 'alteracao'
+  END;
+$$;
+
+
+--
+-- Name: rh_transferir_servidor(uuid, uuid, date, text, text, text, text, date, text, date, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_transferir_servidor(p_servidor_id uuid, p_unidade_id uuid, p_data date, p_motivo text DEFAULT 'transferencia'::text, p_observacao text DEFAULT NULL::text, p_ato_tipo text DEFAULT NULL::text, p_ato_numero text DEFAULT NULL::text, p_ato_data date DEFAULT NULL::date, p_ato_doe_numero text DEFAULT NULL::text, p_ato_doe_data date DEFAULT NULL::date, p_gerar_minuta boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_servidor record;
+  v_lot record;
+  v_unid_ant text;
+  v_unid_nova text;
+  v_cargo_id uuid;
+  v_cargo_nome text;
+  v_nova_lotacao uuid;
+  v_hist tipo_movimentacao_funcional;
+  v_minuta_numero text;
+  v_protocolo text;
+  v_avisos text[] := '{}';
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.has_permission_code(auth.uid(), 'rh.lotacoes.editar') THEN
+    RAISE EXCEPTION 'Sem permissão para transferir servidor' USING ERRCODE = '42501';
+  END IF;
+  IF p_motivo NOT IN ('transferencia', 'remocao') THEN
+    RAISE EXCEPTION 'Motivo inválido: % (use transferencia ou remocao)', p_motivo;
+  END IF;
+  IF p_data IS NULL THEN RAISE EXCEPTION 'Informe a data da transferência'; END IF;
+
+  SELECT id, nome_completo, situacao INTO v_servidor FROM public.servidores WHERE id = p_servidor_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Servidor não encontrado'; END IF;
+  IF v_servidor.situacao IN ('exonerado', 'aposentado', 'falecido', 'inativo') THEN
+    RAISE EXCEPTION 'Servidor % não pode ser transferido (situação %)', v_servidor.nome_completo, v_servidor.situacao;
+  END IF;
+
+  SELECT l.* INTO v_lot FROM public.lotacoes l
+   WHERE l.servidor_id = p_servidor_id AND l.ativo ORDER BY l.data_inicio DESC LIMIT 1;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Servidor sem lotação ativa: use a lotação/admissão, não a transferência';
+  END IF;
+  IF p_data < v_lot.data_inicio THEN
+    RAISE EXCEPTION 'A data da transferência (%) é anterior ao início da lotação atual (%)', p_data, v_lot.data_inicio;
+  END IF;
+  IF v_lot.unidade_id = p_unidade_id THEN
+    RAISE EXCEPTION 'O servidor já está lotado nessa unidade';
+  END IF;
+
+  SELECT nome INTO v_unid_nova FROM public.estrutura_organizacional WHERE id = p_unidade_id AND ativo;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Unidade de destino não encontrada ou inativa'; END IF;
+  SELECT nome INTO v_unid_ant FROM public.estrutura_organizacional WHERE id = v_lot.unidade_id;
+
+  v_cargo_id := coalesce(v_lot.cargo_id,
+                         (SELECT p.cargo_id FROM public.provimentos p
+                           WHERE p.servidor_id = p_servidor_id AND p.status IN ('ativo', 'suspenso')
+                           ORDER BY p.data_nomeacao DESC LIMIT 1));
+  IF v_cargo_id IS NOT NULL THEN
+    SELECT coalesce(sigla || ' - ', '') || nome INTO v_cargo_nome FROM public.cargos WHERE id = v_cargo_id;
+    -- o cargo só pode ser lotado onde a composição do cargo permite (quando ela existe)
+    IF EXISTS (SELECT 1 FROM public.composicao_cargos cc WHERE cc.cargo_id = v_cargo_id)
+       AND NOT EXISTS (SELECT 1 FROM public.composicao_cargos cc WHERE cc.cargo_id = v_cargo_id AND cc.unidade_id = p_unidade_id) THEN
+      RAISE EXCEPTION 'O cargo % não está previsto para a unidade % (composição do cargo)', v_cargo_nome, v_unid_nova;
+    END IF;
+  END IF;
+
+  v_protocolo := public.rh_protocolo_atual('movimentacao',
+    CASE p_motivo WHEN 'remocao' THEN 'Remoção' ELSE 'Transferência' END || ' de ' || v_servidor.nome_completo
+      || ' de ' || coalesce(v_unid_ant, '?') || ' para ' || v_unid_nova || ' em ' || to_char(p_data, 'DD/MM/YYYY')
+      || coalesce(' — ' || nullif(btrim(p_observacao), ''), ''),
+    p_servidor_id, jsonb_build_object('motivo', p_motivo, 'unidade_anterior_id', v_lot.unidade_id,
+                                      'unidade_nova_id', p_unidade_id, 'ato_numero', p_ato_numero));
+
+  UPDATE public.lotacoes SET ativo = false, data_fim = p_data - 1,
+         observacao = coalesce(p_observacao, 'Transferido em ' || p_data)
+   WHERE id = v_lot.id;
+
+  INSERT INTO public.lotacoes (servidor_id, unidade_id, cargo_id, tipo_lotacao, tipo_movimentacao, data_inicio, ativo,
+                               funcao_exercida, observacao, ato_tipo, ato_numero, ato_data, ato_doe_numero, ato_doe_data)
+  VALUES (p_servidor_id, p_unidade_id, v_cargo_id, coalesce(v_lot.tipo_lotacao, 'lotacao_interna'), p_motivo, p_data, true,
+          v_lot.funcao_exercida, p_observacao, p_ato_tipo, p_ato_numero, p_ato_data, p_ato_doe_numero, p_ato_doe_data)
+  RETURNING id INTO v_nova_lotacao;
+
+  UPDATE public.provimentos SET unidade_id = p_unidade_id
+   WHERE servidor_id = p_servidor_id AND status IN ('ativo', 'suspenso');
+  UPDATE public.vinculos_servidor SET unidade_id = p_unidade_id
+   WHERE servidor_id = p_servidor_id AND ativo;
+
+  -- chefia de unidade local (nomeacoes_chefe_unidade) é de outra estrutura (unidades locais): não muda aqui
+  IF EXISTS (SELECT 1 FROM public.nomeacoes_chefe_unidade WHERE servidor_id = p_servidor_id AND status = 'ativo') THEN
+    v_avisos := array_append(v_avisos, 'O servidor tem chefia de unidade local ativa: confira se continua válida após a transferência');
+  END IF;
+
+  v_hist := CASE p_motivo WHEN 'remocao' THEN 'remocao' ELSE 'transferencia' END;
+  INSERT INTO public.historico_funcional (servidor_id, tipo, data_evento, data_vigencia_inicio, cargo_anterior_id,
+                                          cargo_novo_id, unidade_anterior_id, unidade_nova_id, portaria_numero,
+                                          portaria_data, diario_oficial_numero, diario_oficial_data, descricao)
+  VALUES (p_servidor_id, v_hist, p_data, p_data, v_cargo_id, v_cargo_id, v_lot.unidade_id, p_unidade_id, p_ato_numero,
+          p_ato_data, p_ato_doe_numero, p_ato_doe_data,
+          CASE p_motivo WHEN 'remocao' THEN 'Remoção' ELSE 'Transferência' END || ' de ' || coalesce(v_unid_ant, '?')
+            || ' para ' || v_unid_nova || coalesce('. ' || p_observacao, ''));
+
+  IF p_gerar_minuta THEN
+    v_minuta_numero := public.gerar_numero_portaria(EXTRACT(YEAR FROM p_data)::int);
+    INSERT INTO public.documentos (tipo, categoria, status, titulo, ementa, numero, data_documento, servidores_ids,
+                                   cargo_id, unidade_id)
+    VALUES ('portaria', 'pessoal', 'minuta',
+            CASE p_motivo WHEN 'remocao' THEN 'Remoção - ' ELSE 'Transferência - ' END || v_servidor.nome_completo,
+            CASE p_motivo WHEN 'remocao' THEN 'Remove ' ELSE 'Transfere ' END || v_servidor.nome_completo
+              || coalesce(' (' || v_cargo_nome || ')', '') || ' da ' || coalesce(v_unid_ant, '?') || ' para a ' || v_unid_nova || '.',
+            v_minuta_numero, p_data, ARRAY[p_servidor_id], v_cargo_id, p_unidade_id);
+  END IF;
+
+  -- UPDATE barrado pela RLS não dá erro: confere que a mudança valeu por inteiro (senão desfaz tudo)
+  IF EXISTS (SELECT 1 FROM public.lotacoes WHERE id = v_lot.id AND ativo)
+     OR EXISTS (SELECT 1 FROM public.provimentos WHERE servidor_id = p_servidor_id AND status IN ('ativo', 'suspenso')
+                  AND unidade_id IS DISTINCT FROM p_unidade_id)
+     OR EXISTS (SELECT 1 FROM public.vinculos_servidor WHERE servidor_id = p_servidor_id AND ativo
+                  AND unidade_id IS DISTINCT FROM p_unidade_id) THEN
+    RAISE EXCEPTION 'Sem permissão para atualizar todos os registros da transferência; nada foi gravado'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN jsonb_build_object('protocolo', v_protocolo, 'lotacao_id', v_nova_lotacao, 'minuta_numero', v_minuta_numero,
+                            'unidade_anterior_id', v_lot.unidade_id, 'avisos', to_jsonb(v_avisos));
+END;
+$$;
+
+
+--
+-- Name: rh_vaga_ocupante_atual(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_vaga_ocupante_atual(p_vaga_id uuid) RETURNS uuid
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  IF NOT public.is_active_user() THEN
+    RETURN NULL;
+  END IF;
+  SELECT p.id INTO v_id FROM public.provimentos p
+   WHERE p.vaga_id = p_vaga_id
+     AND (p.data_encerramento IS NULL OR p.data_encerramento > public.data_local())
+   ORDER BY p.data_nomeacao DESC
+   LIMIT 1;
+  RETURN v_id;
+END;
+$$;
+
+
+--
+-- Name: rh_vaga_situacao(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_vaga_situacao(p_vaga_id uuid) RETURNS text
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_extincao date;
+BEGIN
+  IF NOT public.is_active_user() THEN
+    RETURN NULL;
+  END IF;
+  SELECT data_extincao INTO v_extincao FROM public.vagas_cargo WHERE id = p_vaga_id;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_extincao IS NOT NULL AND v_extincao <= public.data_local() THEN
+    RETURN 'extinta';
+  END IF;
+  RETURN CASE WHEN public.rh_vaga_ocupante_atual(p_vaga_id) IS NULL THEN 'livre' ELSE 'ocupada' END;
+END;
+$$;
+
+
+--
+-- Name: rh_vagas_cargo_validar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_vagas_cargo_validar() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF EXISTS (SELECT 1 FROM public.provimentos WHERE vaga_id = OLD.id) THEN
+      RAISE EXCEPTION 'A vaga % tem histórico de ocupação e não pode ser apagada; registre a extinção', OLD.codigo;
+    END IF;
+    RETURN OLD;
+  END IF;
+  NEW.codigo := upper(btrim(NEW.codigo));
+  -- sem data de criação: hoje no fuso do órgão (data_local não é executável pela API, por isso aqui e não no DEFAULT)
+  NEW.data_criacao := coalesce(NEW.data_criacao, public.data_local());
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.cargo_id IS DISTINCT FROM OLD.cargo_id
+       AND EXISTS (SELECT 1 FROM public.provimentos WHERE vaga_id = NEW.id) THEN
+      RAISE EXCEPTION 'A vaga % já teve ocupantes e não pode mudar de cargo', NEW.codigo;
+    END IF;
+    IF NEW.codigo IS DISTINCT FROM OLD.codigo
+       AND EXISTS (SELECT 1 FROM public.provimentos WHERE vaga_id = NEW.id) THEN
+      RAISE EXCEPTION 'A vaga % já teve ocupantes e o código não pode mudar', OLD.codigo;
+    END IF;
+  END IF;
+  IF NEW.data_extincao IS NOT NULL AND EXISTS (
+       SELECT 1 FROM public.provimentos p
+        WHERE p.vaga_id = NEW.id AND coalesce(p.data_encerramento, 'infinity'::date) > NEW.data_extincao) THEN
+    RAISE EXCEPTION 'A vaga % tem ocupante depois de %: registre a saída antes de extinguir',
+      NEW.codigo, to_char(NEW.data_extincao, 'DD/MM/YYYY');
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -10018,6 +11855,32 @@ CREATE FUNCTION public.trigger_set_updated_at() RETURNS trigger
     AS $$
 BEGIN
   NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: trilha_atribuir_protocolo(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trilha_atribuir_protocolo() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  NEW.protocolo := public.rh_protocolo_atual(
+    public.rh_tipo_protocolo(NEW.entity_type),
+    CASE NEW.action::text
+      WHEN 'create' THEN 'Inclusão'
+      WHEN 'update' THEN 'Alteração'
+      WHEN 'delete' THEN 'Exclusão'
+      WHEN 'view' THEN 'Consulta'
+      WHEN 'export' THEN 'Exportação'
+      WHEN 'download' THEN 'Download/impressão'
+      ELSE initcap(NEW.action::text)
+    END || ' em ' || coalesce(NEW.entity_type, '(sem entidade)'),
+    NULL, jsonb_build_object('automatico', true));
   RETURN NEW;
 END;
 $$;
@@ -10987,23 +12850,28 @@ DECLARE
   qtd_atual INTEGER;
   qtd_max INTEGER;
 BEGIN
+  -- cargo com quadro de vagas: a vaga (trg_provimento_vaga) já garante o limite
+  IF NEW.vaga_id IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+
   -- Contar provimentos ativos para o cargo
   SELECT COUNT(*) INTO qtd_atual
   FROM public.provimentos
   WHERE cargo_id = NEW.cargo_id
     AND status = 'ativo'
     AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid);
-  
+
   -- Obter quantidade máxima de vagas
   SELECT quantidade_vagas INTO qtd_max
   FROM public.cargos
   WHERE id = NEW.cargo_id;
-  
+
   -- Validar se não excede
   IF NEW.status = 'ativo' AND qtd_atual >= COALESCE(qtd_max, 0) THEN
     RAISE EXCEPTION 'Quantidade máxima de provimentos para este cargo foi atingida (% de %)', qtd_atual, qtd_max;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -11124,6 +12992,90 @@ BEGIN
   RETURN QUERY SELECT 
     v_conflitos IS NOT NULL AND jsonb_array_length(v_conflitos) > 0,
     COALESCE(v_conflitos, '[]'::jsonb);
+END;
+$$;
+
+
+--
+-- Name: viagens_diarias_validar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.viagens_diarias_validar() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_hoje date := public.data_local();
+  v_conf text;
+BEGIN
+  IF NEW.status = 'cancelada' THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.data_retorno < NEW.data_saida THEN
+    RAISE EXCEPTION 'Viagem: a data de retorno (%) é anterior à saída (%)', NEW.data_retorno, NEW.data_saida
+      USING ERRCODE = '23514';
+  END IF;
+
+  -- conflitos: só quando a viagem nasce ou muda de período/servidor/situação
+  IF TG_OP = 'INSERT'
+     OR NEW.servidor_id IS DISTINCT FROM OLD.servidor_id
+     OR NEW.data_saida IS DISTINCT FROM OLD.data_saida
+     OR NEW.data_retorno IS DISTINCT FROM OLD.data_retorno
+     OR OLD.status = 'cancelada' THEN
+
+    SELECT 'férias de ' || to_char(f.data_inicio, 'DD/MM/YYYY') || ' a ' || to_char(f.data_fim, 'DD/MM/YYYY') INTO v_conf
+      FROM public.ferias_servidor f
+     WHERE f.servidor_id = NEW.servidor_id AND f.status IN ('programada', 'em_gozo', 'concluida')
+       AND f.data_inicio <= NEW.data_retorno AND f.data_fim >= NEW.data_saida
+     LIMIT 1;
+    IF v_conf IS NOT NULL THEN
+      RAISE EXCEPTION 'Viagem de % a % conflita com %', to_char(NEW.data_saida, 'DD/MM/YYYY'),
+        to_char(NEW.data_retorno, 'DD/MM/YYYY'), v_conf USING ERRCODE = '23P01';
+    END IF;
+
+    -- missão e serviço externo são deslocamentos a serviço, não impedem a viagem
+    SELECT 'licença/afastamento de ' || to_char(l.data_inicio, 'DD/MM/YYYY') || coalesce(' a ' || to_char(l.data_fim, 'DD/MM/YYYY'), ' (sem data final)') INTO v_conf
+      FROM public.licencas_afastamentos l
+     WHERE l.servidor_id = NEW.servidor_id AND l.status IN ('ativa', 'prorrogada', 'encerrada')
+       AND l.tipo_afastamento NOT IN ('missao', 'servico_externo')
+       AND l.data_inicio <= NEW.data_retorno AND coalesce(l.data_fim, 'infinity'::date) >= NEW.data_saida
+     LIMIT 1;
+    IF v_conf IS NOT NULL THEN
+      RAISE EXCEPTION 'Viagem de % a % conflita com %', to_char(NEW.data_saida, 'DD/MM/YYYY'),
+        to_char(NEW.data_retorno, 'DD/MM/YYYY'), v_conf USING ERRCODE = '23P01';
+    END IF;
+
+    SELECT 'outra viagem de ' || to_char(v.data_saida, 'DD/MM/YYYY') || ' a ' || to_char(v.data_retorno, 'DD/MM/YYYY') INTO v_conf
+      FROM public.viagens_diarias v
+     WHERE v.servidor_id = NEW.servidor_id AND v.id <> NEW.id AND v.status <> 'cancelada'
+       AND v.data_saida <= NEW.data_retorno AND v.data_retorno >= NEW.data_saida
+     LIMIT 1;
+    IF v_conf IS NOT NULL THEN
+      RAISE EXCEPTION 'Viagem de % a % conflita com %', to_char(NEW.data_saida, 'DD/MM/YYYY'),
+        to_char(NEW.data_retorno, 'DD/MM/YYYY'), v_conf USING ERRCODE = '23P01';
+    END IF;
+  END IF;
+
+  -- prestação de contas pendente impede viagem nova
+  IF TG_OP = 'INSERT' AND EXISTS (
+       SELECT 1 FROM public.viagens_diarias v
+        WHERE v.servidor_id = NEW.servidor_id AND v.status IN ('em_andamento', 'autorizada')
+          AND v.data_retorno < v_hoje AND NOT coalesce(v.relatorio_apresentado, false)) THEN
+    RAISE EXCEPTION 'Viagem: o servidor tem prestação de contas pendente (viagem já retornada sem relatório); regularize antes de abrir outra'
+      USING ERRCODE = '23514';
+  END IF;
+
+  -- concluir exige o relatório
+  IF NEW.status = 'concluida' AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'concluida')
+     AND (NOT coalesce(NEW.relatorio_apresentado, false) OR NEW.relatorio_data IS NULL) THEN
+    RAISE EXCEPTION 'Prestação de contas: registre o relatório da viagem (apresentado e data) antes de concluir'
+      USING ERRCODE = '23514';
+  END IF;
+  IF coalesce(NEW.relatorio_apresentado, false) AND NEW.relatorio_data IS NOT NULL AND NEW.relatorio_data < NEW.data_retorno THEN
+    RAISE EXCEPTION 'Prestação de contas: a data do relatório (%) é anterior ao retorno (%)', NEW.relatorio_data, NEW.data_retorno
+      USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -11508,6 +13460,7 @@ CASE
     ELSE NULL::text
 END, ('f:'::text || (after_data ->> 'folha_id'::text)), ('f:'::text || (before_data ->> 'folha_id'::text)), ('f:'::text || (metadata ->> 'folha_id'::text))], NULL::text)) STORED,
     fundamento jsonb,
+    protocolo text,
     CONSTRAINT audit_logs_origem_check CHECK (((origem IS NULL) OR (origem = ANY (ARRAY['usuario'::text, 'usuario_sem_vinculo'::text, 'sistema'::text, 'anonimo'::text]))))
 );
 
@@ -11561,6 +13514,13 @@ COMMENT ON COLUMN public.audit_logs.alvos IS 'Recorte da aba de histórico (gera
 --
 
 COMMENT ON COLUMN public.audit_logs.fundamento IS 'Fundamento do lançamento pela regra de setor (via, permitido, modo, módulo, unidade, lotação/designação/comissão, ato); nulo com a regra desligada';
+
+
+--
+-- Name: COLUMN audit_logs.protocolo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_logs.protocolo IS 'Protocolo RH-AAAA-NNNNNN do ato (módulo rh): agrupa as gravações da mesma transação; a linha de abertura descreve o ato';
 
 
 --
@@ -16593,8 +18553,17 @@ CREATE TABLE public.itens_ficha_financeira (
     updated_at timestamp with time zone,
     updated_by uuid,
     updated_by_servidor_id uuid,
+    origem text DEFAULT 'manual'::text NOT NULL,
+    CONSTRAINT itens_ficha_financeira_origem_check CHECK ((origem = ANY (ARRAY['automatico'::text, 'manual'::text]))),
     CONSTRAINT itens_ficha_financeira_tipo_check CHECK (((tipo)::text = ANY ((ARRAY['provento'::character varying, 'desconto'::character varying])::text[])))
 );
+
+
+--
+-- Name: COLUMN itens_ficha_financeira.origem; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.itens_ficha_financeira.origem IS 'automatico = calculado pelo processamento (refeito a cada processamento); manual = lançado pelo RH (preservado ao reprocessar)';
 
 
 --
@@ -17667,151 +19636,6 @@ ALTER TABLE ONLY public.prazos_processo FORCE ROW LEVEL SECURITY;
 
 
 --
--- Name: pre_cadastros; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.pre_cadastros (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    codigo_acesso text NOT NULL,
-    status text DEFAULT 'rascunho'::text,
-    nome_completo text NOT NULL,
-    nome_social text,
-    data_nascimento date,
-    sexo text,
-    estado_civil text,
-    nacionalidade text DEFAULT 'Brasileira'::text,
-    naturalidade_cidade text,
-    naturalidade_uf text,
-    foto_url text,
-    cpf text NOT NULL,
-    rg text,
-    rg_orgao_expedidor text,
-    rg_uf text,
-    rg_data_emissao date,
-    certidao_tipo text,
-    titulo_eleitor text,
-    titulo_zona text,
-    titulo_secao text,
-    certificado_reservista text,
-    email text NOT NULL,
-    telefone_celular text,
-    telefone_fixo text,
-    endereco_logradouro text,
-    endereco_numero text,
-    endereco_complemento text,
-    endereco_bairro text,
-    endereco_cidade text,
-    endereco_uf text,
-    endereco_cep text,
-    pis_pasep text,
-    escolaridade text,
-    formacao_academica text,
-    instituicao_ensino text,
-    ano_conclusao integer,
-    registro_conselho text,
-    conselho_numero text,
-    cnh_numero text,
-    cnh_categoria text,
-    cnh_validade date,
-    habilidades text[],
-    idiomas jsonb DEFAULT '[]'::jsonb,
-    experiencia_resumo text,
-    cursos_complementares jsonb DEFAULT '[]'::jsonb,
-    doc_rg boolean DEFAULT false,
-    doc_cpf boolean DEFAULT false,
-    doc_certidao boolean DEFAULT false,
-    doc_titulo_eleitor boolean DEFAULT false,
-    doc_certificado_reservista boolean DEFAULT false,
-    doc_comprovante_residencia boolean DEFAULT false,
-    doc_pis_pasep boolean DEFAULT false,
-    doc_diploma boolean DEFAULT false,
-    doc_historico_escolar boolean DEFAULT false,
-    doc_registro_conselho boolean DEFAULT false,
-    doc_certidao_criminal_estadual boolean DEFAULT false,
-    doc_certidao_criminal_federal boolean DEFAULT false,
-    doc_quitacao_eleitoral boolean DEFAULT false,
-    doc_certidao_improbidade boolean DEFAULT false,
-    doc_declaracao_acumulacao boolean DEFAULT false,
-    doc_declaracao_bens boolean DEFAULT false,
-    doc_termo_responsabilidade boolean DEFAULT false,
-    doc_comprovante_bancario boolean DEFAULT false,
-    banco_nome text,
-    banco_codigo text,
-    banco_agencia text,
-    banco_conta text,
-    banco_tipo_conta text,
-    dependentes jsonb DEFAULT '[]'::jsonb,
-    observacoes text,
-    ip_envio text,
-    data_envio timestamp with time zone,
-    servidor_id uuid,
-    convertido_em timestamp with time zone,
-    convertido_por uuid,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now(),
-    raca_cor text,
-    pcd boolean DEFAULT false,
-    pcd_tipo text,
-    nome_mae text,
-    nome_pai text,
-    ctps_numero text,
-    ctps_serie text,
-    ctps_uf character varying(2),
-    ctps_data_emissao date,
-    titulo_cidade_votacao text,
-    titulo_uf_votacao character varying(2),
-    titulo_data_emissao date,
-    reservista_orgao text,
-    reservista_data_emissao date,
-    tipo_sanguineo text,
-    reservista_categoria text,
-    reservista_ano integer,
-    cnh_data_expedicao date,
-    cnh_primeira_habilitacao date,
-    cnh_uf text,
-    acumula_cargo boolean DEFAULT false,
-    acumulo_descricao text,
-    indicacao text,
-    telefone_emergencia text,
-    contato_emergencia_nome text,
-    contato_emergencia_parentesco text,
-    estrangeiro_data_chegada date,
-    estrangeiro_data_limite_permanencia date,
-    estrangeiro_registro_nacional text,
-    estrangeiro_ano_chegada integer,
-    molestia_grave boolean DEFAULT false,
-    ano_inicio_primeiro_emprego integer,
-    ano_fim_primeiro_emprego integer,
-    created_by uuid,
-    created_by_servidor_id uuid,
-    updated_by uuid,
-    updated_by_servidor_id uuid,
-    CONSTRAINT pre_cadastros_status_check CHECK ((status = ANY (ARRAY['rascunho'::text, 'enviado'::text, 'aprovado'::text, 'rejeitado'::text, 'convertido'::text])))
-);
-
-
---
--- Name: TABLE pre_cadastros; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON TABLE public.pre_cadastros IS 'Pré-cadastros de candidatos via formulário de mini-currículo';
-
-
---
--- Name: COLUMN pre_cadastros.codigo_acesso; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.pre_cadastros.codigo_acesso IS 'Código único para o candidato acessar e editar seu formulário';
-
-
---
--- Name: COLUMN pre_cadastros.status; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.pre_cadastros.status IS 'Status do pré-cadastro: rascunho, enviado, aprovado, rejeitado, convertido';
-
-
---
 -- Name: processos_administrativos; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -17971,7 +19795,8 @@ CREATE TABLE public.provimentos (
     updated_at timestamp with time zone DEFAULT now(),
     updated_by uuid,
     created_by_servidor_id uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    vaga_id uuid
 );
 
 ALTER TABLE ONLY public.provimentos FORCE ROW LEVEL SECURITY;
@@ -17982,6 +19807,13 @@ ALTER TABLE ONLY public.provimentos FORCE ROW LEVEL SECURITY;
 --
 
 COMMENT ON TABLE public.provimentos IS 'Provimentos/nomeações de servidores. Portarias de nomeação devem ser gerenciadas pela Central de Portarias (tabela documentos).';
+
+
+--
+-- Name: COLUMN provimentos.vaga_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.provimentos.vaga_id IS 'Vaga ocupada (vagas_cargo). Período: data_nomeacao até data_encerramento (exclusiva); sem sobreposição na mesma vaga.';
 
 
 --
@@ -19469,6 +21301,86 @@ CREATE VIEW public.v_processos_resumo WITH (security_invoker='on') AS
 
 
 --
+-- Name: vagas_cargo; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.vagas_cargo (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    codigo text NOT NULL,
+    cargo_id uuid NOT NULL,
+    unidade_id uuid,
+    data_criacao date NOT NULL,
+    ato_criacao text,
+    data_extincao date,
+    ato_extincao text,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone DEFAULT now(),
+    updated_by uuid,
+    updated_by_servidor_id uuid,
+    CONSTRAINT vagas_cargo_codigo_check CHECK (((codigo = upper(btrim(codigo))) AND (codigo <> ''::text))),
+    CONSTRAINT vagas_cargo_extincao_check CHECK (((data_extincao IS NULL) OR (data_extincao >= data_criacao)))
+);
+
+ALTER TABLE ONLY public.vagas_cargo FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: TABLE vagas_cargo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.vagas_cargo IS 'Quadro de vagas: cada vaga de um cargo, com código único. Quem ocupa e quando: provimentos.vaga_id (sem sobreposição, trigger trg_provimento_vaga). Migração 20261012150000.';
+
+
+--
+-- Name: COLUMN vagas_cargo.codigo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.vagas_cargo.codigo IS 'Código único da vaga (maiúsculo). Gerado como <símbolo>.<nnn> pela importação quando a planilha não traz.';
+
+
+--
+-- Name: v_quadro_vagas; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_quadro_vagas WITH (security_invoker='true') AS
+ SELECT v.id,
+    v.codigo,
+    v.cargo_id,
+    c.nome AS cargo_nome,
+    c.sigla AS cargo_sigla,
+    c.categoria AS cargo_categoria,
+    v.unidade_id,
+    u.nome AS unidade_nome,
+    u.sigla AS unidade_sigla,
+    v.data_criacao,
+    v.ato_criacao,
+    v.data_extincao,
+    v.ato_extincao,
+    v.observacoes,
+    public.rh_vaga_situacao(v.id) AS situacao,
+    o.id AS provimento_id,
+    o.servidor_id AS ocupante_servidor_id,
+    COALESCE(s.nome_social, s.nome_completo) AS ocupante_nome,
+    o.data_nomeacao AS ocupante_desde,
+    o.status AS ocupante_status
+   FROM ((((public.vagas_cargo v
+     JOIN public.cargos c ON ((c.id = v.cargo_id)))
+     LEFT JOIN public.estrutura_organizacional u ON ((u.id = v.unidade_id)))
+     LEFT JOIN public.provimentos o ON ((o.id = public.rh_vaga_ocupante_atual(v.id))))
+     LEFT JOIN public.servidores s ON ((s.id = o.servidor_id)));
+
+
+--
+-- Name: VIEW v_quadro_vagas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_quadro_vagas IS 'Situação atual de cada vaga (livre, ocupada, extinta) e o ocupante (nome visível a quem lê provimentos e servidores pela RLS). Migração 20261012150000.';
+
+
+--
 -- Name: v_relatorio_patrimonio; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -19785,6 +21697,97 @@ CREATE VIEW public.v_sic_consulta_publica WITH (security_invoker='on') AS
         END AS resposta,
     (prazo_resposta - CURRENT_DATE) AS dias_restantes
    FROM public.solicitacoes_sic;
+
+
+--
+-- Name: v_vagas_historico; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_vagas_historico WITH (security_invoker='true') AS
+ SELECT v.data_criacao AS data,
+    'vaga_criada'::text AS evento,
+    v.id AS vaga_id,
+    v.codigo,
+    v.cargo_id,
+    c.nome AS cargo_nome,
+    c.sigla AS cargo_sigla,
+    v.unidade_id,
+    u.sigla AS unidade_sigla,
+    NULL::uuid AS provimento_id,
+    NULL::uuid AS servidor_id,
+    NULL::text AS servidor_nome,
+    v.ato_criacao AS detalhe,
+    v.created_at AS registrado_em
+   FROM ((public.vagas_cargo v
+     JOIN public.cargos c ON ((c.id = v.cargo_id)))
+     LEFT JOIN public.estrutura_organizacional u ON ((u.id = v.unidade_id)))
+UNION ALL
+ SELECT v.data_extincao AS data,
+    'vaga_extinta'::text AS evento,
+    v.id AS vaga_id,
+    v.codigo,
+    v.cargo_id,
+    c.nome AS cargo_nome,
+    c.sigla AS cargo_sigla,
+    v.unidade_id,
+    u.sigla AS unidade_sigla,
+    NULL::uuid AS provimento_id,
+    NULL::uuid AS servidor_id,
+    NULL::text AS servidor_nome,
+    v.ato_extincao AS detalhe,
+    v.updated_at AS registrado_em
+   FROM ((public.vagas_cargo v
+     JOIN public.cargos c ON ((c.id = v.cargo_id)))
+     LEFT JOIN public.estrutura_organizacional u ON ((u.id = v.unidade_id)))
+  WHERE (v.data_extincao IS NOT NULL)
+UNION ALL
+ SELECT p.data_nomeacao AS data,
+    'entrada'::text AS evento,
+    v.id AS vaga_id,
+    v.codigo,
+    v.cargo_id,
+    c.nome AS cargo_nome,
+    c.sigla AS cargo_sigla,
+    v.unidade_id,
+    u.sigla AS unidade_sigla,
+    p.id AS provimento_id,
+    p.servidor_id,
+    COALESCE(s.nome_social, s.nome_completo) AS servidor_nome,
+    NULL::text AS detalhe,
+    p.created_at AS registrado_em
+   FROM ((((public.provimentos p
+     JOIN public.vagas_cargo v ON ((v.id = p.vaga_id)))
+     JOIN public.cargos c ON ((c.id = v.cargo_id)))
+     LEFT JOIN public.estrutura_organizacional u ON ((u.id = v.unidade_id)))
+     LEFT JOIN public.servidores s ON ((s.id = p.servidor_id)))
+UNION ALL
+ SELECT p.data_encerramento AS data,
+    'saida'::text AS evento,
+    v.id AS vaga_id,
+    v.codigo,
+    v.cargo_id,
+    c.nome AS cargo_nome,
+    c.sigla AS cargo_sigla,
+    v.unidade_id,
+    u.sigla AS unidade_sigla,
+    p.id AS provimento_id,
+    p.servidor_id,
+    COALESCE(s.nome_social, s.nome_completo) AS servidor_nome,
+    NULLIF(concat_ws(' '::text, p.motivo_encerramento, NULLIF(concat_ws(' '::text, p.ato_encerramento_tipo, p.ato_encerramento_numero), ''::text)), ''::text) AS detalhe,
+    p.updated_at AS registrado_em
+   FROM ((((public.provimentos p
+     JOIN public.vagas_cargo v ON ((v.id = p.vaga_id)))
+     JOIN public.cargos c ON ((c.id = v.cargo_id)))
+     LEFT JOIN public.estrutura_organizacional u ON ((u.id = v.unidade_id)))
+     LEFT JOIN public.servidores s ON ((s.id = p.servidor_id)))
+  WHERE (p.data_encerramento IS NOT NULL);
+
+
+--
+-- Name: VIEW v_vagas_historico; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_vagas_historico IS 'Histórico do quadro de vagas: vaga criada/extinta (todos leem) e entrada/saída de ocupantes (RLS de provimentos). Migração 20261012150000.';
 
 
 --

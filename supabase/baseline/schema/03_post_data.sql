@@ -3062,6 +3062,14 @@ ALTER TABLE ONLY public._backup_usuario_modulos_old
 
 
 --
+-- Name: vagas_cargo vagas_cargo_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.vagas_cargo
+    ADD CONSTRAINT vagas_cargo_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: viagens_diarias viagens_diarias_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3083,6 +3091,13 @@ ALTER TABLE ONLY public.vinculos_funcionais
 
 ALTER TABLE ONLY public.vinculos_servidor
     ADD CONSTRAINT vinculos_servidor_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: documentos_portaria_numero_uk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX documentos_portaria_numero_uk ON public.documentos USING btree (numero) WHERE ((tipo = 'portaria'::public.tipo_documento) AND (numero !~ '^PENDENTE'::text));
 
 
 --
@@ -3314,6 +3329,13 @@ CREATE INDEX idx_audit_logs_fundamento_negado ON public.audit_logs USING btree (
 --
 
 CREATE INDEX idx_audit_logs_modulo_seq ON public.audit_logs USING btree (module_name, sequencia DESC);
+
+
+--
+-- Name: idx_audit_logs_protocolo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_logs_protocolo ON public.audit_logs USING btree (protocolo) WHERE (protocolo IS NOT NULL);
 
 
 --
@@ -5984,6 +6006,13 @@ CREATE INDEX idx_provimentos_status ON public.provimentos USING btree (status) W
 
 
 --
+-- Name: idx_provimentos_vaga; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_provimentos_vaga ON public.provimentos USING btree (vaga_id) WHERE (vaga_id IS NOT NULL);
+
+
+--
 -- Name: idx_raci_atribuicoes_papel; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6383,6 +6412,20 @@ CREATE INDEX idx_usuario_modulos_user_id ON public._backup_usuario_modulos_old U
 
 
 --
+-- Name: idx_vagas_cargo_cargo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_vagas_cargo_cargo ON public.vagas_cargo USING btree (cargo_id);
+
+
+--
+-- Name: idx_vagas_cargo_unidade; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_vagas_cargo_unidade ON public.vagas_cargo USING btree (unidade_id);
+
+
+--
 -- Name: idx_viagens_data; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6425,6 +6468,27 @@ CREATE UNIQUE INDEX itens_ficha_financeira_ficha_referencia_desconto_uidx ON pub
 
 
 --
+-- Name: pre_cadastros_ip_hash_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX pre_cadastros_ip_hash_idx ON public.pre_cadastros USING btree (criado_ip_hash, created_at) WHERE (criado_ip_hash IS NOT NULL);
+
+
+--
+-- Name: pre_cadastros_token_acesso_uk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX pre_cadastros_token_acesso_uk ON public.pre_cadastros USING btree (token_acesso) WHERE (token_acesso IS NOT NULL);
+
+
+--
+-- Name: provimentos_vaga_aberta_uidx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX provimentos_vaga_aberta_uidx ON public.provimentos USING btree (vaga_id) WHERE ((vaga_id IS NOT NULL) AND (data_encerramento IS NULL));
+
+
+--
 -- Name: remessas_bancarias_conta_numero_uidx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6443,6 +6507,13 @@ CREATE UNIQUE INDEX remessas_bancarias_folha_conta_ativa_uidx ON public.remessas
 --
 
 CREATE UNIQUE INDEX uq_bens_patrimoniais_numero_norm ON public.bens_patrimoniais USING btree (upper(btrim((numero_patrimonio)::text)));
+
+
+--
+-- Name: vagas_cargo_codigo_uidx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX vagas_cargo_codigo_uidx ON public.vagas_cargo USING btree (codigo);
 
 
 --
@@ -7244,6 +7315,13 @@ CREATE TRIGGER audit_user_roles AFTER INSERT OR DELETE OR UPDATE ON public.user_
 
 
 --
+-- Name: vagas_cargo audit_vagas_cargo; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_vagas_cargo AFTER INSERT OR DELETE OR UPDATE ON public.vagas_cargo FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
 -- Name: viagens_diarias audit_viagens_diarias; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -8035,6 +8113,13 @@ CREATE TRIGGER trg_datas_importantes_updated_at BEFORE UPDATE ON public.datas_im
 
 
 --
+-- Name: documentos trg_documentos_portaria_validar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_documentos_portaria_validar BEFORE DELETE OR UPDATE ON public.documentos FOR EACH ROW EXECUTE FUNCTION public.documentos_portaria_validar();
+
+
+--
 -- Name: empenhos trg_empenho_atualiza_dotacao; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -8238,10 +8323,24 @@ CREATE TRIGGER trg_movimentacao_atualiza_estoque AFTER INSERT ON public.moviment
 
 
 --
+-- Name: pre_cadastros trg_pre_cadastros_gerar_token; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pre_cadastros_gerar_token BEFORE INSERT ON public.pre_cadastros FOR EACH ROW EXECUTE FUNCTION public.pre_cadastros_gerar_token();
+
+
+--
 -- Name: provimentos trg_provimento_atualiza_situacao; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER trg_provimento_atualiza_situacao AFTER INSERT OR UPDATE ON public.provimentos FOR EACH ROW EXECUTE FUNCTION public.trigger_provimento_atualiza_situacao();
+
+
+--
+-- Name: provimentos trg_provimento_vaga; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_provimento_vaga BEFORE INSERT OR UPDATE ON public.provimentos FOR EACH ROW EXECUTE FUNCTION public.rh_provimento_vaga();
 
 
 --
@@ -8263,6 +8362,13 @@ CREATE TRIGGER trg_registrar_fase_licitacao BEFORE UPDATE OF fase_atual ON publi
 --
 
 CREATE TRIGGER trg_registrar_transicao_folha BEFORE UPDATE ON public.folhas_pagamento FOR EACH ROW EXECUTE FUNCTION public.registrar_transicao_folha();
+
+
+--
+-- Name: registros_ponto trg_registros_ponto_travar_competencia; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_registros_ponto_travar_competencia BEFORE INSERT OR DELETE OR UPDATE ON public.registros_ponto FOR EACH ROW EXECUTE FUNCTION public.registros_ponto_travar_competencia();
 
 
 --
@@ -8305,6 +8411,13 @@ CREATE TRIGGER trg_update_timestamp_config_institucional BEFORE UPDATE ON public
 --
 
 CREATE TRIGGER trg_update_timestamp_config_parametros BEFORE UPDATE ON public.config_parametros_valores FOR EACH ROW EXECUTE FUNCTION public.fn_update_timestamp_parametros();
+
+
+--
+-- Name: vagas_cargo trg_vagas_cargo_validar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_vagas_cargo_validar BEFORE INSERT OR DELETE OR UPDATE ON public.vagas_cargo FOR EACH ROW EXECUTE FUNCTION public.rh_vagas_cargo_validar();
 
 
 --
@@ -8371,17 +8484,10 @@ CREATE TRIGGER trg_verificar_saldo_empenho BEFORE INSERT ON public.fin_empenhos 
 
 
 --
--- Name: ferias_servidor trigger_atualizar_situacao_ferias; Type: TRIGGER; Schema: public; Owner: -
+-- Name: viagens_diarias trg_viagens_diarias_validar; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_atualizar_situacao_ferias AFTER INSERT OR UPDATE OF status ON public.ferias_servidor FOR EACH ROW EXECUTE FUNCTION public.atualizar_situacao_servidor();
-
-
---
--- Name: licencas_afastamentos trigger_atualizar_situacao_licenca; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trigger_atualizar_situacao_licenca AFTER INSERT OR UPDATE OF status ON public.licencas_afastamentos FOR EACH ROW EXECUTE FUNCTION public.atualizar_situacao_servidor();
+CREATE TRIGGER trg_viagens_diarias_validar BEFORE INSERT OR UPDATE ON public.viagens_diarias FOR EACH ROW EXECUTE FUNCTION public.viagens_diarias_validar();
 
 
 --
@@ -8438,6 +8544,13 @@ CREATE TRIGGER trigger_generate_codigo_instituicao BEFORE INSERT ON public.insti
 --
 
 CREATE TRIGGER trigger_gerar_codigo_interno_servidor BEFORE INSERT ON public.servidores FOR EACH ROW WHEN ((new.codigo_interno IS NULL)) EXECUTE FUNCTION public.gerar_codigo_interno_servidor();
+
+
+--
+-- Name: servidores trigger_gerar_matricula_servidor; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trigger_gerar_matricula_servidor BEFORE INSERT ON public.servidores FOR EACH ROW EXECUTE FUNCTION public.gerar_matricula_servidor();
 
 
 --
@@ -8576,6 +8689,13 @@ ALTER TABLE public.folha_historico_status ENABLE ALWAYS TRIGGER trilha_imutavel_
 CREATE TRIGGER trilha_imutavel_truncate BEFORE TRUNCATE ON public.rubricas_historico FOR EACH STATEMENT EXECUTE FUNCTION public.trilha_imutavel();
 
 ALTER TABLE public.rubricas_historico ENABLE ALWAYS TRIGGER trilha_imutavel_truncate;
+
+
+--
+-- Name: audit_logs trilha_protocolo; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_protocolo BEFORE INSERT ON public.audit_logs FOR EACH ROW WHEN ((((new.module_name)::text = 'rh'::text) AND (new.protocolo IS NULL))) EXECUTE FUNCTION public.trilha_atribuir_protocolo();
 
 
 --
@@ -9797,6 +9917,13 @@ CREATE TRIGGER zz_exigir_setor BEFORE INSERT OR DELETE OR UPDATE ON public.tipos
 
 
 --
+-- Name: vagas_cargo zz_exigir_setor; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor BEFORE INSERT OR DELETE OR UPDATE ON public.vagas_cargo FOR EACH ROW EXECUTE FUNCTION public.exigir_setor();
+
+
+--
 -- Name: viagens_diarias zz_exigir_setor; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -10347,6 +10474,13 @@ CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.ta
 --
 
 CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.tipos_abono FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: vagas_cargo zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.vagas_cargo FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
 
 
 --
@@ -10914,6 +11048,13 @@ CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.tabela_irrf FO
 --
 
 CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.tipos_abono FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: vagas_cargo zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.vagas_cargo FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
 
 
 --
@@ -15234,6 +15375,14 @@ ALTER TABLE ONLY public.provimentos
 
 
 --
+-- Name: provimentos provimentos_vaga_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.provimentos
+    ADD CONSTRAINT provimentos_vaga_id_fkey FOREIGN KEY (vaga_id) REFERENCES public.vagas_cargo(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: publicacoes_lai publicacoes_lai_contrato_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15927,6 +16076,22 @@ ALTER TABLE ONLY public._backup_usuario_modulos_old
 
 ALTER TABLE ONLY public._backup_usuario_modulos_old
     ADD CONSTRAINT usuario_modulos_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: vagas_cargo vagas_cargo_cargo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.vagas_cargo
+    ADD CONSTRAINT vagas_cargo_cargo_id_fkey FOREIGN KEY (cargo_id) REFERENCES public.cargos(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: vagas_cargo vagas_cargo_unidade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.vagas_cargo
+    ADD CONSTRAINT vagas_cargo_unidade_id_fkey FOREIGN KEY (unidade_id) REFERENCES public.estrutura_organizacional(id) ON DELETE RESTRICT;
 
 
 --
@@ -19641,6 +19806,13 @@ CREATE POLICY rls_delete ON public.user_roles FOR DELETE TO authenticated USING 
 
 
 --
+-- Name: vagas_cargo rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.vagas_cargo FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)) AND public.has_permission_code(auth.uid(), 'governanca.cargos.gerenciar'::text)));
+
+
+--
 -- Name: viagens_diarias rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21072,6 +21244,13 @@ CREATE POLICY rls_insert ON public.user_org_units FOR INSERT TO authenticated WI
 --
 
 CREATE POLICY rls_insert ON public.user_roles FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: vagas_cargo rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.vagas_cargo FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)) AND public.has_permission_code(auth.uid(), 'governanca.cargos.gerenciar'::text)));
 
 
 --
@@ -22574,6 +22753,13 @@ CREATE POLICY rls_select ON public.user_roles FOR SELECT TO authenticated USING 
 
 
 --
+-- Name: vagas_cargo rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.vagas_cargo FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
 -- Name: viagens_diarias rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -24010,6 +24196,13 @@ CREATE POLICY rls_update ON public.user_roles FOR UPDATE TO authenticated USING 
 
 
 --
+-- Name: vagas_cargo rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.vagas_cargo FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)) AND public.has_permission_code(auth.uid(), 'governanca.cargos.gerenciar'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)) AND public.has_permission_code(auth.uid(), 'governanca.cargos.gerenciar'::text)));
+
+
+--
 -- Name: viagens_diarias rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -24191,6 +24384,12 @@ ALTER TABLE public.user_permissions ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: vagas_cargo; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.vagas_cargo ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: viagens_diarias; Type: ROW SECURITY; Schema: public; Owner: -
