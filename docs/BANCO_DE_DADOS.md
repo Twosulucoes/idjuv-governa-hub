@@ -1076,7 +1076,7 @@ formato `/object/public/arbitros-docs/...`, só como referência ao caminho.
 
 Decisão do dono (12/10/2026): o sistema **não redige** portaria nem outro ato formal; a formalização é no SEI e o
 sistema só acompanha o ciclo (processo SEI, número, assinatura, publicação no DOE) e registra na ficha. Migração
-`supabase/migrations/20261012160000_rh_portaria_ciclo_sei.sql` (idempotente; nada é apagado — `conteudo_html`,
+`supabase/migrations/20261012170000_rh_portaria_ciclo_sei.sql` (idempotente; nada é apagado — `conteudo_html`,
 `conteudo_unificado` e `ementa` antigos ficam como histórico):
 
 - **Coluna `processo_sei`** (texto) em `documentos` e em `historico_funcional`.
