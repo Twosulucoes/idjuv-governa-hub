@@ -203,7 +203,7 @@ export const menuConfig: MenuSection[] = [
         id: "processos-tramitacao",
         label: "Em Tramitação",
         labelShort: "Tramitação",
-        route: "/workflow/processos?status=tramitando",
+        route: "/workflow/processos?status=em_tramitacao",
         icon: Send,
         permission: "workflow.tramitar",
         priority: 3,

@@ -4564,35 +4564,25 @@ COMMENT ON FUNCTION public.fn_calcular_nivel_parametro(p_servidor_id uuid, p_tip
 
 CREATE FUNCTION public.fn_calcular_sla_processo(p_processo_id uuid) RETURNS TABLE(dias_aberto integer, dias_ultima_movimentacao integer, status_sla text)
     LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_data_abertura DATE;
-  v_ultima_mov TIMESTAMPTZ;
-  v_dias_aberto INTEGER;
-  v_dias_mov INTEGER;
+  v_data_abertura date;
+  v_ultima_mov timestamptz;
+  v_dias_aberto integer;
+  v_dias_mov integer;
 BEGIN
-  SELECT 
-    p.data_abertura,
-    (SELECT MAX(m.created_at) FROM movimentacoes_processo m WHERE m.processo_id = p.id)
-  INTO v_data_abertura, v_ultima_mov
-  FROM processos_administrativos p
-  WHERE p.id = p_processo_id;
-  
-  v_dias_aberto := CURRENT_DATE - v_data_abertura;
-  v_dias_mov := CASE WHEN v_ultima_mov IS NOT NULL 
-    THEN (CURRENT_DATE - v_ultima_mov::DATE)
-    ELSE v_dias_aberto
-  END;
-  
-  RETURN QUERY SELECT 
-    v_dias_aberto,
-    v_dias_mov,
-    CASE 
-      WHEN v_dias_mov > 30 THEN 'critico'
-      WHEN v_dias_mov > 15 THEN 'atencao'
-      ELSE 'normal'
-    END::TEXT;
+  IF NOT coalesce(public.wf_pode_ver_processo(p_processo_id), false) THEN
+    RETURN;
+  END IF;
+  SELECT p.data_abertura, (SELECT max(m.created_at) FROM public.movimentacoes_processo m WHERE m.processo_id = p.id)
+    INTO v_data_abertura, v_ultima_mov
+    FROM public.processos_administrativos p
+   WHERE p.id = p_processo_id;
+  v_dias_aberto := current_date - v_data_abertura;
+  v_dias_mov := CASE WHEN v_ultima_mov IS NOT NULL THEN current_date - v_ultima_mov::date ELSE v_dias_aberto END;
+  RETURN QUERY SELECT v_dias_aberto, v_dias_mov,
+    CASE WHEN v_dias_mov > 30 THEN 'critico' WHEN v_dias_mov > 15 THEN 'atencao' ELSE 'normal' END::text;
 END;
 $$;
 
@@ -4618,19 +4608,12 @@ $$;
 --
 
 CREATE FUNCTION public.fn_contar_processos_por_status() RETURNS TABLE(status text, quantidade bigint)
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
+    LANGUAGE sql STABLE
+    SET search_path TO 'public', 'pg_temp'
     AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    p.status::TEXT,
-    COUNT(*)::BIGINT
-  FROM processos_administrativos p
-  WHERE public.usuario_tem_permissao(auth.uid(), 'workflow.visualizar')
-    OR public.usuario_eh_admin(auth.uid())
+  SELECT p.status::text, count(*)::bigint
+  FROM public.processos_administrativos p
   GROUP BY p.status;
-END;
 $$;
 
 
@@ -5059,48 +5042,6 @@ $$;
 
 
 --
--- Name: fn_pode_arquivar_processo(uuid); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.fn_pode_arquivar_processo(p_processo_id uuid) RETURNS boolean
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM despachos
-    WHERE processo_id = p_processo_id
-      AND tipo_despacho = 'conclusivo'
-      AND decisao = 'arquivar'
-  );
-END;
-$$;
-
-
---
--- Name: fn_proximo_numero_processo(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.fn_proximo_numero_processo(p_ano integer DEFAULT (EXTRACT(year FROM now()))::integer) RETURNS text
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $_$
-DECLARE
-  v_sequencial INTEGER;
-BEGIN
-  SELECT COALESCE(MAX(
-    CASE WHEN numero_processo ~ '^\d+$' THEN numero_processo::INTEGER ELSE 0 END
-  ), 0) + 1
-  INTO v_sequencial
-  FROM processos_administrativos
-  WHERE ano = p_ano;
-  
-  RETURN LPAD(v_sequencial::TEXT, 4, '0');
-END;
-$_$;
-
-
---
 -- Name: fn_proximo_numero_tombamento(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -5176,6 +5117,74 @@ $$;
 
 
 --
+-- Name: fn_situacao_prazo(date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_situacao_prazo(p_limite date) RETURNS text
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_fuso text := nullif(btrim(current_setting('app.fuso_horario', true)), '');
+  v_hoje date;
+BEGIN
+  -- ATENÇÃO: a regra do fuso abaixo espelha public.data_local() (app.fuso_horario, padrão America/Sao_Paulo,
+  -- fuso inválido cai no padrão). Mudou uma, mude a outra junto.
+  IF p_limite IS NULL THEN
+    RETURN 'sem_prazo';
+  END IF;
+  IF v_fuso IS NOT NULL THEN
+    BEGIN
+      v_hoje := (now() AT TIME ZONE v_fuso)::date;
+    EXCEPTION WHEN invalid_parameter_value THEN
+      v_hoje := NULL;
+    END;
+  END IF;
+  v_hoje := coalesce(v_hoje, (now() AT TIME ZONE 'America/Sao_Paulo')::date);
+  IF p_limite < v_hoje THEN
+    RETURN 'vencido';
+  ELSIF p_limite <= public.fn_somar_dias_uteis(v_hoje, 2) THEN
+    RETURN 'vence_logo';
+  END IF;
+  RETURN 'em_dia';
+END;
+$$;
+
+
+--
+-- Name: fn_somar_dias_uteis(date, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_somar_dias_uteis(p_inicio date, p_dias integer) RETURNS date
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  d date := p_inicio;
+  feitos integer := 0;
+BEGIN
+  IF p_dias < 0 OR p_dias > 3650 THEN
+    RAISE EXCEPTION 'Quantidade de dias úteis inválida: use de 0 a 3650.' USING ERRCODE = '22023';
+  END IF;
+  IF p_inicio IS NULL OR p_dias IS NULL OR p_dias = 0 THEN
+    RETURN p_inicio;
+  END IF;
+  WHILE feitos < p_dias LOOP
+    d := d + 1;
+    IF extract(isodow FROM d) < 6 AND NOT EXISTS (
+      SELECT 1 FROM public.feriados f
+      WHERE coalesce(f.ativo, true)
+        AND (f.data = d OR (coalesce(f.recorrente, false) AND to_char(f.data, 'MMDD') = to_char(d, 'MMDD')))
+    ) THEN
+      feitos := feitos + 1;
+    END IF;
+  END LOOP;
+  RETURN d;
+END;
+$$;
+
+
+--
 -- Name: fn_update_timestamp_parametros(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -5187,25 +5196,6 @@ BEGIN
     NEW.updated_at = now();
     NEW.updated_by = auth.uid();
     RETURN NEW;
-END;
-$$;
-
-
---
--- Name: fn_validar_arquivamento_processo(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.fn_validar_arquivamento_processo() RETURNS trigger
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-BEGIN
-  IF NEW.status = 'arquivado' AND OLD.status != 'arquivado' THEN
-    IF NOT public.fn_pode_arquivar_processo(NEW.id) THEN
-      RAISE EXCEPTION 'Processo não pode ser arquivado sem despacho conclusivo com decisão de arquivamento';
-    END IF;
-  END IF;
-  RETURN NEW;
 END;
 $$;
 
@@ -6467,15 +6457,23 @@ $$;
 
 CREATE FUNCTION public.gerar_numero_processo() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
+    SET search_path TO 'public', 'pg_temp'
     AS $_$
-DECLARE v_ano INTEGER; v_sequencial INTEGER;
+DECLARE
+  v_ano integer;
+  v_sequencial integer;
 BEGIN
-  v_ano := COALESCE(NEW.ano, EXTRACT(YEAR FROM NOW())::INTEGER);
-  SELECT COALESCE(MAX(CASE WHEN numero_processo ~ '^\d+$' THEN numero_processo::INTEGER ELSE 0 END), 0) + 1 INTO v_sequencial FROM public.processos_administrativos WHERE ano = v_ano;
-  NEW.numero_processo := LPAD(v_sequencial::TEXT, 5, '0'); NEW.ano := v_ano;
+  v_ano := coalesce(NEW.ano, extract(year FROM now())::integer);
+  PERFORM pg_advisory_xact_lock(hashtext('processo_numero_' || v_ano));
+  SELECT coalesce(max(CASE WHEN numero_processo ~ '^\d+$' THEN numero_processo::integer ELSE 0 END), 0) + 1
+    INTO v_sequencial
+    FROM public.processos_administrativos
+   WHERE ano = v_ano;
+  NEW.numero_processo := lpad(v_sequencial::text, 5, '0');
+  NEW.ano := v_ano;
   RETURN NEW;
-END; $_$;
+END;
+$_$;
 
 
 --
@@ -6794,7 +6792,7 @@ BEGIN
   RETURN COALESCE((
     SELECT valor
     FROM parametros_folha
-    WHERE tipo_parametro = p_tipo
+    WHERE tipo_parametro = lower(btrim(p_tipo))
       AND ativo = true
       AND vigencia_inicio <= p_data
       AND (vigencia_fim IS NULL OR vigencia_fim >= p_data)
@@ -6818,12 +6816,12 @@ DECLARE
 BEGIN
   SELECT valor INTO v_valor
   FROM parametros_folha
-  WHERE tipo_parametro = p_tipo
+  WHERE tipo_parametro = lower(btrim(p_tipo))
     AND vigencia_inicio <= p_vigencia
     AND (vigencia_fim IS NULL OR vigencia_fim >= p_vigencia)
     AND ativo = TRUE
   ORDER BY vigencia_inicio DESC LIMIT 1;
-  
+
   RETURN v_valor;
 END;
 $$;
@@ -8361,6 +8359,23 @@ $$;
 --
 
 COMMENT ON FUNCTION public.obter_remessa_bancaria(p_id uuid) IS 'Devolve a remessa de reenvio (convênio, conta pagadora, data, créditos e hash) para baixar o arquivo de novo. Exige pagamento.conciliar.';
+
+
+--
+-- Name: parametros_folha_normalizar_nome(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.parametros_folha_normalizar_nome() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  NEW.tipo_parametro := regexp_replace(lower(btrim(translate(NEW.tipo_parametro,
+      'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'))),
+      '[\s-]+', '_', 'g');
+  RETURN NEW;
+END;
+$$;
 
 
 SET default_table_access_method = heap;
@@ -13085,24 +13100,6 @@ $$;
 
 
 --
--- Name: verificar_arquivamento_processo(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.verificar_arquivamento_processo() RETURNS trigger
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-BEGIN
-  IF NEW.status = 'arquivado' AND OLD.status != 'arquivado' THEN
-    IF NOT EXISTS (SELECT 1 FROM public.despachos WHERE processo_id = NEW.id AND tipo_despacho = 'conclusivo') THEN
-      RAISE EXCEPTION 'Processo não pode ser arquivado sem despacho conclusivo';
-    END IF;
-  END IF;
-  RETURN NEW;
-END; $$;
-
-
---
 -- Name: verificar_autorizacao_presidencia_ascom(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -13241,6 +13238,739 @@ BEGIN
       USING ERRCODE = '23514';
   END IF;
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: wf_abrir_processo(text, text, text, text, text, text, public.nivel_sigilo_processo, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_abrir_processo(p_modelo_codigo text, p_assunto text, p_descricao text, p_interessado_tipo text, p_interessado_nome text, p_interessado_documento text DEFAULT NULL::text, p_sigilo public.nivel_sigilo_processo DEFAULT 'publico'::public.nivel_sigilo_processo, p_numero_sei text DEFAULT NULL::text) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_modelo public.processo_modelos;
+  v_etapa public.processo_modelo_etapas;
+  v_tipo text := coalesce(nullif(btrim(p_interessado_tipo), ''), 'interno');
+  v_servidor uuid;
+  v_origem uuid;
+  v_numero_sei text;
+  v_id uuid;
+BEGIN
+  IF NOT coalesce(public.can_access_module(auth.uid(), 'workflow'), false)
+     OR NOT coalesce(public.has_permission_code(auth.uid(), 'workflow.criar'), false) THEN
+    RAISE EXCEPTION 'Você não tem permissão para abrir processos.' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_modelo FROM public.processo_modelos WHERE codigo = btrim(p_modelo_codigo) AND ativo;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Modelo de processo "%" não encontrado ou inativo.', coalesce(p_modelo_codigo, '') USING ERRCODE = '22023';
+  END IF;
+  IF nullif(btrim(p_assunto), '') IS NULL THEN
+    RAISE EXCEPTION 'Informe o assunto do processo.' USING ERRCODE = '22023';
+  END IF;
+  IF nullif(btrim(p_interessado_nome), '') IS NULL THEN
+    RAISE EXCEPTION 'Informe o interessado do processo.' USING ERRCODE = '22023';
+  END IF;
+  IF v_tipo NOT IN ('interno', 'externo') THEN
+    RAISE EXCEPTION 'Tipo de interessado inválido: use interno ou externo.' USING ERRCODE = '22023';
+  END IF;
+  v_numero_sei := public.wf_preparar_numero_sei(p_numero_sei, NULL);
+
+  -- lotação vigente do servidor do login (lotação antes de cessão, a mais recente primeiro)
+  SELECT pr.servidor_id INTO v_servidor FROM public.profiles pr WHERE pr.id = auth.uid();
+  IF v_servidor IS NOT NULL THEN
+    SELECT l.unidade_id INTO v_origem FROM public.lotacao_vigente(v_servidor) l LIMIT 1;
+  END IF;
+
+  SELECT * INTO v_etapa FROM public.processo_modelo_etapas
+   WHERE modelo_id = v_modelo.id ORDER BY ordem LIMIT 1;
+
+  BEGIN
+    INSERT INTO public.processos_administrativos
+      (tipo_processo, assunto, descricao, interessado_tipo, interessado_nome, interessado_documento, unidade_origem_id,
+       status, sigilo, created_by, numero_sei, modelo_id, etapa_atual_ordem, unidade_atual_id, etapa_iniciada_em,
+       etapa_prazo_limite)
+    VALUES
+      (v_modelo.tipo_processo, btrim(p_assunto), nullif(btrim(p_descricao), ''), v_tipo, btrim(p_interessado_nome),
+       nullif(btrim(p_interessado_documento), ''), v_origem, 'aberto', coalesce(p_sigilo, 'publico'), auth.uid(),
+       v_numero_sei, v_modelo.id, v_etapa.ordem,
+       CASE WHEN v_etapa.id IS NOT NULL THEN public.wf_resolver_unidade(v_etapa.unidade_sigla, v_origem) END,
+       now(),
+       CASE WHEN v_etapa.prazo_dias_uteis IS NOT NULL
+            THEN public.fn_somar_dias_uteis(public.data_local(), v_etapa.prazo_dias_uteis) END)
+    RETURNING id INTO v_id;
+  EXCEPTION WHEN unique_violation THEN
+    -- corrida com outra abertura usando o mesmo número SEI
+    RAISE EXCEPTION 'O número SEI % já está em outro processo.', v_numero_sei USING ERRCODE = '22023';
+  END;
+  RETURN v_id;
+END;
+$$;
+
+
+--
+-- Name: wf_arquivar(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_arquivar(p_processo_id uuid, p_motivo text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+BEGIN
+  p := public.wf_travar_processo(p_processo_id, true);
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.arquivar') THEN
+    RAISE EXCEPTION 'Você não tem permissão para arquivar processos.' USING ERRCODE = '42501';
+  END IF;
+  IF p.status = 'arquivado' THEN
+    PERFORM public.wf_exigir_em_andamento(p.status);
+  END IF;
+  PERFORM public.wf_registrar_movimentacao(p.id, 'decisao', 'Processo arquivado.', p_motivo,
+    p.unidade_atual_id, NULL, p.etapa_atual_ordem, NULL, NULL, NULL);
+  UPDATE public.processos_administrativos
+     SET status = 'arquivado', suspenso_desde = NULL, data_encerramento = coalesce(data_encerramento, public.data_local())
+   WHERE id = p.id;
+END;
+$$;
+
+
+--
+-- Name: wf_atualizar_numero_sei(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_atualizar_numero_sei(p_processo_id uuid, p_numero_sei text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+  v_numero text;
+BEGIN
+  p := public.wf_travar_processo(p_processo_id, true);
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.tramitar') THEN
+    RAISE EXCEPTION 'Você não tem permissão para tramitar processos.' USING ERRCODE = '42501';
+  END IF;
+  PERFORM public.wf_exigir_em_andamento(p.status);
+  IF p.etapa_atual_ordem IS NOT NULL AND p.etapa_atual_ordem <> 1 THEN
+    RAISE EXCEPTION 'O número SEI só pode ser alterado na etapa 1.' USING ERRCODE = '22023';
+  END IF;
+  v_numero := public.wf_preparar_numero_sei(p_numero_sei, p.id);
+  BEGIN
+    UPDATE public.processos_administrativos SET numero_sei = v_numero WHERE id = p.id;
+  EXCEPTION WHEN unique_violation THEN
+    RAISE EXCEPTION 'O número SEI % já está em outro processo.', v_numero USING ERRCODE = '22023';
+  END;
+END;
+$$;
+
+
+--
+-- Name: wf_avancar_etapa(uuid, integer, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_avancar_etapa(p_processo_id uuid, p_etapa_esperada integer, p_observacao text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+  v_atual public.processo_modelo_etapas;
+  v_prox public.processo_modelo_etapas;
+  v_pend text[];
+  v_unidade uuid;
+  v_limite date;
+BEGIN
+  p := public.wf_travar_processo(p_processo_id, true);
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.tramitar') THEN
+    RAISE EXCEPTION 'Você não tem permissão para tramitar processos.' USING ERRCODE = '42501';
+  END IF;
+  PERFORM public.wf_exigir_em_andamento(p.status);
+  IF p.modelo_id IS NULL OR p.etapa_atual_ordem IS NULL THEN
+    RAISE EXCEPTION 'Este processo não tem etapas (foi aberto sem modelo). Use concluir ou arquivar.' USING ERRCODE = '22023';
+  END IF;
+  IF p_etapa_esperada IS DISTINCT FROM p.etapa_atual_ordem THEN
+    RAISE EXCEPTION 'O processo mudou desde a última leitura (outra pessoa o movimentou). Recarregue a página e tente de novo.'
+      USING ERRCODE = '40001';
+  END IF;
+  SELECT * INTO v_atual FROM public.processo_modelo_etapas WHERE modelo_id = p.modelo_id AND ordem = p.etapa_atual_ordem;
+  SELECT * INTO v_prox FROM public.processo_modelo_etapas
+   WHERE modelo_id = p.modelo_id AND ordem > p.etapa_atual_ordem ORDER BY ordem LIMIT 1;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Esta é a última etapa do processo: conclua o processo em vez de avançar.' USING ERRCODE = '22023';
+  END IF;
+  v_pend := public.wf_pendencias(p.id, p.modelo_id, p.etapa_atual_ordem, p.etapa_atual_ordem);
+  IF cardinality(v_pend) > 0 THEN
+    RAISE EXCEPTION 'Itens obrigatórios pendentes nesta etapa: %.', array_to_string(v_pend, '; ') USING ERRCODE = '22023';
+  END IF;
+  IF p.etapa_atual_ordem = 1 AND p.numero_sei IS NULL THEN
+    RAISE EXCEPTION 'Informe o número SEI do processo antes de sair da etapa 1.' USING ERRCODE = '22023';
+  END IF;
+
+  v_unidade := public.wf_resolver_unidade(v_prox.unidade_sigla, p.unidade_origem_id);
+  v_limite := CASE WHEN v_prox.prazo_dias_uteis IS NOT NULL
+                   THEN public.fn_somar_dias_uteis(public.data_local(), v_prox.prazo_dias_uteis) END;
+  PERFORM public.wf_registrar_movimentacao(p.id, 'encaminhamento',
+    format('Avançou da etapa %s (%s) para a etapa %s (%s).', v_atual.ordem, v_atual.nome, v_prox.ordem, v_prox.nome),
+    p_observacao, p.unidade_atual_id, v_unidade, p.etapa_atual_ordem, v_prox.ordem, v_prox.prazo_dias_uteis, v_limite);
+  UPDATE public.processos_administrativos
+     SET etapa_atual_ordem = v_prox.ordem, unidade_atual_id = v_unidade, etapa_iniciada_em = now(),
+         etapa_prazo_limite = v_limite, status = 'em_tramitacao'
+   WHERE id = p.id;
+END;
+$$;
+
+
+--
+-- Name: wf_conceder_acesso(uuid, uuid, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_conceder_acesso(p_processo_id uuid, p_usuario_id uuid, p_nivel text, p_motivo text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+  v_nivel text := lower(btrim(coalesce(p_nivel, '')));
+BEGIN
+  p := public.wf_travar_processo(p_processo_id, false);
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.admin') THEN
+    RAISE EXCEPTION 'Você não tem permissão para gerenciar credenciais de sigilo.' USING ERRCODE = '42501';
+  END IF;
+  IF v_nivel NOT IN ('leitura', 'tramitacao', 'total') THEN
+    RAISE EXCEPTION 'Nível de acesso inválido: use leitura, tramitacao ou total.' USING ERRCODE = '22023';
+  END IF;
+  -- só perfil ativo (mesma coluna de is_active_user); inexistente e bloqueado têm a mesma mensagem
+  IF p_usuario_id IS NULL OR NOT EXISTS (SELECT 1 FROM public.profiles pr WHERE pr.id = p_usuario_id AND pr.is_active IS TRUE) THEN
+    RAISE EXCEPTION 'Usuário não encontrado ou inativo.' USING ERRCODE = '22023';
+  END IF;
+  INSERT INTO public.acesso_processo_sigiloso (processo_id, usuario_id, nivel_acesso, motivo, concedido_por)
+  VALUES (p.id, p_usuario_id, v_nivel, nullif(btrim(p_motivo), ''), auth.uid())
+  ON CONFLICT (processo_id, usuario_id) DO UPDATE
+    SET nivel_acesso = EXCLUDED.nivel_acesso, motivo = EXCLUDED.motivo, concedido_por = EXCLUDED.concedido_por;
+END;
+$$;
+
+
+--
+-- Name: wf_concluir(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_concluir(p_processo_id uuid, p_motivo text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+  v_ultima integer;
+  v_pend text[];
+BEGIN
+  p := public.wf_travar_processo(p_processo_id, true);
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.concluir') THEN
+    RAISE EXCEPTION 'Você não tem permissão para concluir processos.' USING ERRCODE = '42501';
+  END IF;
+  PERFORM public.wf_exigir_em_andamento(p.status);
+  IF p.modelo_id IS NOT NULL THEN
+    SELECT max(ordem) INTO v_ultima FROM public.processo_modelo_etapas WHERE modelo_id = p.modelo_id;
+    IF v_ultima IS NOT NULL AND p.etapa_atual_ordem IS DISTINCT FROM v_ultima THEN
+      RAISE EXCEPTION 'O processo só pode ser concluído na última etapa (%); está na etapa %.', v_ultima, coalesce(p.etapa_atual_ordem::text, '-')
+        USING ERRCODE = '22023';
+    END IF;
+    v_pend := public.wf_pendencias(p.id, p.modelo_id, 1, coalesce(v_ultima, 0));
+    IF cardinality(v_pend) > 0 THEN
+      RAISE EXCEPTION 'Itens obrigatórios pendentes no checklist: %.', array_to_string(v_pend, '; ') USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  PERFORM public.wf_registrar_movimentacao(p.id, 'decisao', 'Processo concluído.', p_motivo,
+    p.unidade_atual_id, NULL, p.etapa_atual_ordem, NULL, NULL, NULL);
+  UPDATE public.processos_administrativos
+     SET status = 'concluido', data_encerramento = public.data_local()
+   WHERE id = p.id;
+END;
+$$;
+
+
+--
+-- Name: wf_devolver_etapa(uuid, integer, integer, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_devolver_etapa(p_processo_id uuid, p_etapa_esperada integer, p_para_ordem integer, p_motivo text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+  v_atual public.processo_modelo_etapas;
+  v_dest public.processo_modelo_etapas;
+  v_unidade uuid;
+  v_limite date;
+BEGIN
+  p := public.wf_travar_processo(p_processo_id, true);
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.tramitar') THEN
+    RAISE EXCEPTION 'Você não tem permissão para tramitar processos.' USING ERRCODE = '42501';
+  END IF;
+  PERFORM public.wf_exigir_em_andamento(p.status);
+  IF p.modelo_id IS NULL OR p.etapa_atual_ordem IS NULL THEN
+    RAISE EXCEPTION 'Este processo não tem etapas (foi aberto sem modelo).' USING ERRCODE = '22023';
+  END IF;
+  IF p_etapa_esperada IS DISTINCT FROM p.etapa_atual_ordem THEN
+    RAISE EXCEPTION 'O processo mudou desde a última leitura (outra pessoa o movimentou). Recarregue a página e tente de novo.'
+      USING ERRCODE = '40001';
+  END IF;
+  IF nullif(btrim(p_motivo), '') IS NULL THEN
+    RAISE EXCEPTION 'Informe o motivo da devolução.' USING ERRCODE = '22023';
+  END IF;
+  IF p_para_ordem IS NULL OR p_para_ordem >= p.etapa_atual_ordem THEN
+    RAISE EXCEPTION 'A devolução precisa ir para uma etapa anterior à atual (%).', p.etapa_atual_ordem USING ERRCODE = '22023';
+  END IF;
+  SELECT * INTO v_dest FROM public.processo_modelo_etapas WHERE modelo_id = p.modelo_id AND ordem = p_para_ordem;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'A etapa % não existe no modelo deste processo.', p_para_ordem USING ERRCODE = '22023';
+  END IF;
+  SELECT * INTO v_atual FROM public.processo_modelo_etapas WHERE modelo_id = p.modelo_id AND ordem = p.etapa_atual_ordem;
+
+  v_unidade := public.wf_resolver_unidade(v_dest.unidade_sigla, p.unidade_origem_id);
+  v_limite := CASE WHEN v_dest.prazo_dias_uteis IS NOT NULL
+                   THEN public.fn_somar_dias_uteis(public.data_local(), v_dest.prazo_dias_uteis) END;
+  PERFORM public.wf_registrar_movimentacao(p.id, 'devolucao',
+    format('Devolveu da etapa %s (%s) para a etapa %s (%s).', p.etapa_atual_ordem, coalesce(v_atual.nome, '?'), v_dest.ordem, v_dest.nome),
+    p_motivo, p.unidade_atual_id, v_unidade, p.etapa_atual_ordem, v_dest.ordem, v_dest.prazo_dias_uteis, v_limite);
+  UPDATE public.processos_administrativos
+     SET etapa_atual_ordem = v_dest.ordem, unidade_atual_id = v_unidade, etapa_iniciada_em = now(),
+         etapa_prazo_limite = v_limite, status = 'em_tramitacao'
+   WHERE id = p.id;
+END;
+$$;
+
+
+--
+-- Name: wf_exigir_em_andamento(public.status_processo_administrativo); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_exigir_em_andamento(p_status public.status_processo_administrativo) RETURNS void
+    LANGUAGE plpgsql IMMUTABLE
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  IF p_status = 'suspenso' THEN
+    RAISE EXCEPTION 'O processo está suspenso. Reative-o antes de continuar.' USING ERRCODE = '22023';
+  ELSIF p_status = 'concluido' THEN
+    RAISE EXCEPTION 'O processo está concluído e não aceita mais alterações.' USING ERRCODE = '22023';
+  ELSIF p_status = 'arquivado' THEN
+    RAISE EXCEPTION 'O processo está arquivado e não aceita mais alterações.' USING ERRCODE = '22023';
+  END IF;
+END;
+$$;
+
+
+--
+-- Name: wf_listar_credenciais(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_listar_credenciais(p_processo_id uuid) RETURNS TABLE(usuario_id uuid, usuario_nome text, nivel_acesso text, motivo text, concedido_por_nome text, created_at timestamp with time zone)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  IF p_processo_id IS NULL OR NOT coalesce(public.wf_pode_ver_processo(p_processo_id), false) THEN
+    RAISE EXCEPTION 'Processo não encontrado ou você não tem acesso a ele.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.admin') THEN
+    RAISE EXCEPTION 'Você não tem permissão para gerenciar credenciais de sigilo.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT a.usuario_id, u.full_name, a.nivel_acesso, a.motivo, c.full_name, a.created_at
+    FROM public.acesso_processo_sigiloso a
+    LEFT JOIN public.profiles u ON u.id = a.usuario_id
+    LEFT JOIN public.profiles c ON c.id = a.concedido_por
+   WHERE a.processo_id = p_processo_id
+   ORDER BY u.full_name NULLS LAST, a.created_at;
+END;
+$$;
+
+
+--
+-- Name: wf_listar_usuarios_ativos(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_listar_usuarios_ativos() RETURNS TABLE(id uuid, full_name text)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  IF NOT coalesce(public.has_permission_code(auth.uid(), 'workflow.admin'), false) THEN
+    RAISE EXCEPTION 'Você não tem permissão para gerenciar credenciais de sigilo.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT pr.id, pr.full_name
+    FROM public.profiles pr
+   WHERE pr.is_active IS TRUE
+   ORDER BY pr.full_name NULLS LAST, pr.id;
+END;
+$$;
+
+
+--
+-- Name: wf_marcar_item(uuid, text, boolean, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_marcar_item(p_processo_id uuid, p_item_codigo text, p_marcado boolean, p_observacao text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+  v_item public.processo_modelo_checklist;
+BEGIN
+  p := public.wf_travar_processo(p_processo_id, true);
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.tramitar') THEN
+    RAISE EXCEPTION 'Você não tem permissão para tramitar processos.' USING ERRCODE = '42501';
+  END IF;
+  PERFORM public.wf_exigir_em_andamento(p.status);
+  IF p.modelo_id IS NULL THEN
+    RAISE EXCEPTION 'Este processo não tem checklist (foi aberto sem modelo).' USING ERRCODE = '22023';
+  END IF;
+  SELECT * INTO v_item FROM public.processo_modelo_checklist
+   WHERE modelo_id = p.modelo_id AND codigo = btrim(p_item_codigo);
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Item "%" não existe no checklist deste processo.', coalesce(p_item_codigo, '') USING ERRCODE = '22023';
+  END IF;
+  IF v_item.etapa_ordem > coalesce(p.etapa_atual_ordem, 0) THEN
+    RAISE EXCEPTION 'O item "%" é da etapa %, que o processo ainda não alcançou.', v_item.codigo, v_item.etapa_ordem
+      USING ERRCODE = '22023';
+  END IF;
+  INSERT INTO public.processo_checklist_respostas (processo_id, item_id, marcado, marcado_por, marcado_em, observacao)
+  VALUES (p.id, v_item.id, coalesce(p_marcado, false), auth.uid(), now(), nullif(btrim(p_observacao), ''))
+  ON CONFLICT (processo_id, item_id) DO UPDATE
+    SET marcado = EXCLUDED.marcado, marcado_por = EXCLUDED.marcado_por, marcado_em = EXCLUDED.marcado_em,
+        observacao = EXCLUDED.observacao;
+END;
+$$;
+
+
+--
+-- Name: wf_pendencias(uuid, uuid, integer, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_pendencias(p_processo_id uuid, p_modelo_id uuid, p_de integer, p_ate integer) RETURNS text[]
+    LANGUAGE sql STABLE
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+  SELECT coalesce(array_agg(c.descricao ORDER BY c.etapa_ordem, c.codigo), ARRAY[]::text[])
+  FROM public.processo_modelo_checklist c
+  WHERE c.modelo_id = p_modelo_id
+    AND c.obrigatorio
+    AND c.etapa_ordem BETWEEN p_de AND p_ate
+    AND NOT EXISTS (SELECT 1 FROM public.processo_checklist_respostas r
+                     WHERE r.processo_id = p_processo_id AND r.item_id = c.id AND r.marcado);
+$$;
+
+
+--
+-- Name: wf_pode_ver_processo(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_pode_ver_processo(p_processo_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+  SELECT public.is_active_user(auth.uid()) AND EXISTS (
+    SELECT 1
+    FROM public.processos_administrativos p
+    WHERE p.id = p_processo_id
+      AND (
+        (p.sigilo = 'publico'
+          AND public.can_access_module(auth.uid(), 'workflow')
+          AND public.has_permission_code(auth.uid(), 'workflow.visualizar'))
+        OR p.created_by = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.acesso_processo_sigiloso a
+                   WHERE a.processo_id = p.id AND a.usuario_id = auth.uid())
+        OR public.has_permission_code(auth.uid(), 'workflow.admin')
+      )
+  );
+$$;
+
+
+--
+-- Name: FUNCTION wf_pode_ver_processo(p_processo_id uuid); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.wf_pode_ver_processo(p_processo_id uuid) IS 'Sigilo do workflow: público -> módulo workflow + workflow.visualizar; restrito/sigiloso -> criador, credencial em acesso_processo_sigiloso ou workflow.admin. Usada nas policies das tabelas do processo e nas RPCs.';
+
+
+--
+-- Name: wf_preparar_numero_sei(text, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_preparar_numero_sei(p_numero_sei text, p_processo_id uuid) RETURNS text
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_numero text := nullif(regexp_replace(coalesce(p_numero_sei, ''), '\s', '', 'g'), '');
+  v_outro record;
+BEGIN
+  IF v_numero IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF v_numero !~ '[0-9]' THEN
+    RAISE EXCEPTION 'Número SEI inválido: informe o número com os dígitos.' USING ERRCODE = '22023';
+  END IF;
+  SELECT o.id, o.numero_processo, o.ano INTO v_outro
+    FROM public.processos_administrativos o
+   WHERE o.numero_sei = v_numero AND o.id IS DISTINCT FROM p_processo_id;
+  IF FOUND THEN
+    IF coalesce(public.wf_pode_ver_processo(v_outro.id), false) THEN
+      RAISE EXCEPTION 'O número SEI % já está no processo %/%.', v_numero, v_outro.numero_processo, v_outro.ano
+        USING ERRCODE = '22023';
+    END IF;
+    RAISE EXCEPTION 'O número SEI % já está em outro processo.', v_numero USING ERRCODE = '22023';
+  END IF;
+  RETURN v_numero;
+END;
+$$;
+
+
+--
+-- Name: wf_reativar(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_reativar(p_processo_id uuid, p_motivo text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+  v_hoje date := public.data_local();
+  v_restantes integer := 0;
+  v_limite date;
+BEGIN
+  p := public.wf_travar_processo(p_processo_id, true);
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.concluir') THEN
+    RAISE EXCEPTION 'Você não tem permissão para reativar processos.' USING ERRCODE = '42501';
+  END IF;
+  IF p.status IN ('concluido', 'arquivado') THEN
+    PERFORM public.wf_exigir_em_andamento(p.status);
+  END IF;
+  IF p.status <> 'suspenso' THEN
+    RAISE EXCEPTION 'O processo não está suspenso.' USING ERRCODE = '22023';
+  END IF;
+  IF nullif(btrim(p_motivo), '') IS NULL THEN
+    RAISE EXCEPTION 'Informe o motivo da reativação.' USING ERRCODE = '22023';
+  END IF;
+
+  v_limite := p.etapa_prazo_limite;
+  IF p.etapa_prazo_limite IS NOT NULL AND p.suspenso_desde IS NOT NULL THEN
+    IF p.etapa_prazo_limite >= p.suspenso_desde THEN
+      -- dias úteis entre a suspensão (exclusive) e o limite (inclusive)
+      WHILE public.fn_somar_dias_uteis(p.suspenso_desde, v_restantes + 1) <= p.etapa_prazo_limite LOOP
+        v_restantes := v_restantes + 1;
+      END LOOP;
+      v_limite := public.fn_somar_dias_uteis(v_hoje, v_restantes);
+    ELSE
+      v_limite := v_hoje - (p.suspenso_desde - p.etapa_prazo_limite);
+    END IF;
+  END IF;
+
+  PERFORM public.wf_registrar_movimentacao(p.id, 'informacao', 'Processo reativado.', p_motivo,
+    p.unidade_atual_id, p.unidade_atual_id, p.etapa_atual_ordem, p.etapa_atual_ordem, NULL, v_limite);
+  UPDATE public.processos_administrativos
+     SET status = CASE WHEN EXISTS (SELECT 1 FROM public.movimentacoes_processo m
+                                     WHERE m.processo_id = p.id AND m.tipo_movimentacao IN ('encaminhamento', 'devolucao'))
+                       THEN 'em_tramitacao' ELSE 'aberto' END::public.status_processo_administrativo,
+         suspenso_desde = NULL,
+         etapa_prazo_limite = v_limite
+   WHERE id = p.id;
+END;
+$$;
+
+
+--
+-- Name: wf_recusar_etapa_em_uso(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_recusar_etapa_em_uso() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.ordem IS NOT DISTINCT FROM OLD.ordem AND NEW.modelo_id IS NOT DISTINCT FROM OLD.modelo_id THEN
+    RETURN NEW;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.processos_administrativos p
+              WHERE p.modelo_id = OLD.modelo_id AND p.etapa_atual_ordem = OLD.ordem) THEN
+    RAISE EXCEPTION 'A etapa % (%) tem processo nela: mova os processos para outra etapa antes de apagá-la ou mudar a ordem.',
+      OLD.ordem, OLD.nome USING ERRCODE = '22023';
+  END IF;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: wf_registrar_movimentacao(uuid, public.tipo_movimentacao_processo, text, text, uuid, uuid, integer, integer, integer, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_registrar_movimentacao(p_processo_id uuid, p_tipo public.tipo_movimentacao_processo, p_descricao text, p_observacoes text, p_unidade_origem uuid, p_unidade_destino uuid, p_etapa_origem integer, p_etapa_destino integer, p_prazo_dias integer, p_prazo_limite date) RETURNS void
+    LANGUAGE sql
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+  INSERT INTO public.movimentacoes_processo
+    (processo_id, numero_sequencial, tipo_movimentacao, descricao, observacoes, unidade_origem_id, unidade_destino_id,
+     servidor_origem_id, etapa_origem_ordem, etapa_destino_ordem, prazo_dias, prazo_limite, status, data_recebimento,
+     created_by)
+  VALUES
+    (p_processo_id, 0, p_tipo, p_descricao, nullif(btrim(p_observacoes), ''), p_unidade_origem, p_unidade_destino,
+     (SELECT pr.servidor_id FROM public.profiles pr WHERE pr.id = auth.uid()), p_etapa_origem, p_etapa_destino,
+     p_prazo_dias, p_prazo_limite, 'recebido', now(), auth.uid());
+$$;
+
+
+--
+-- Name: wf_resolver_unidade(text, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_resolver_unidade(p_sigla text, p_unidade_origem uuid) RETURNS uuid
+    LANGUAGE sql STABLE
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+  SELECT CASE
+    WHEN nullif(btrim(p_sigla), '') IS NULL THEN NULL
+    WHEN upper(btrim(p_sigla)) = '@ORIGEM' THEN p_unidade_origem
+    WHEN upper(btrim(p_sigla)) = '@CHEFIA' THEN
+      (SELECT e.superior_id FROM public.estrutura_organizacional e WHERE e.id = p_unidade_origem)
+    ELSE
+      (SELECT e.id FROM public.estrutura_organizacional e
+        WHERE lower(e.sigla) = lower(btrim(p_sigla))
+          AND e.ativo IS NOT FALSE
+          AND (e.data_extincao IS NULL OR e.data_extincao > public.data_local())
+        ORDER BY e.nivel, e.ordem, e.created_at, e.id
+        LIMIT 1)
+  END;
+$$;
+
+
+--
+-- Name: wf_revogar_acesso(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_revogar_acesso(p_processo_id uuid, p_usuario_id uuid) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+BEGIN
+  p := public.wf_travar_processo(p_processo_id, false);
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.admin') THEN
+    RAISE EXCEPTION 'Você não tem permissão para gerenciar credenciais de sigilo.' USING ERRCODE = '42501';
+  END IF;
+  DELETE FROM public.acesso_processo_sigiloso WHERE processo_id = p.id AND usuario_id = p_usuario_id;
+END;
+$$;
+
+
+--
+-- Name: wf_suspender(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_suspender(p_processo_id uuid, p_motivo text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+BEGIN
+  p := public.wf_travar_processo(p_processo_id, true);
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.concluir') THEN
+    RAISE EXCEPTION 'Você não tem permissão para suspender processos.' USING ERRCODE = '42501';
+  END IF;
+  PERFORM public.wf_exigir_em_andamento(p.status);
+  IF nullif(btrim(p_motivo), '') IS NULL THEN
+    RAISE EXCEPTION 'Informe o motivo da suspensão.' USING ERRCODE = '22023';
+  END IF;
+  PERFORM public.wf_registrar_movimentacao(p.id, 'informacao', 'Processo suspenso.', p_motivo,
+    p.unidade_atual_id, p.unidade_atual_id, p.etapa_atual_ordem, p.etapa_atual_ordem, NULL, NULL);
+  UPDATE public.processos_administrativos
+     SET status = 'suspenso', suspenso_desde = public.data_local()
+   WHERE id = p.id;
+END;
+$$;
+
+
+--
+-- Name: processos_administrativos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processos_administrativos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    numero_processo text NOT NULL,
+    ano integer DEFAULT EXTRACT(year FROM now()) NOT NULL,
+    tipo_processo public.tipo_processo_administrativo DEFAULT 'outro'::public.tipo_processo_administrativo NOT NULL,
+    assunto text NOT NULL,
+    descricao text,
+    interessado_tipo text DEFAULT 'interno'::text NOT NULL,
+    interessado_nome text NOT NULL,
+    interessado_documento text,
+    unidade_origem_id uuid,
+    status public.status_processo_administrativo DEFAULT 'aberto'::public.status_processo_administrativo NOT NULL,
+    sigilo public.nivel_sigilo_processo DEFAULT 'publico'::public.nivel_sigilo_processo NOT NULL,
+    data_abertura date DEFAULT CURRENT_DATE NOT NULL,
+    data_encerramento date,
+    processo_origem_id uuid,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    numero_sei text,
+    modelo_id uuid,
+    etapa_atual_ordem integer,
+    unidade_atual_id uuid,
+    etapa_iniciada_em timestamp with time zone,
+    etapa_prazo_limite date,
+    suspenso_desde date,
+    CONSTRAINT processos_administrativos_etapa_atual_ordem_check CHECK (((etapa_atual_ordem IS NULL) OR (etapa_atual_ordem >= 1))),
+    CONSTRAINT processos_administrativos_interessado_tipo_check CHECK ((interessado_tipo = ANY (ARRAY['interno'::text, 'externo'::text]))),
+    CONSTRAINT processos_administrativos_numero_sei_check CHECK (((numero_sei IS NULL) OR ((numero_sei !~ '\s'::text) AND (numero_sei ~ '[0-9]'::text))))
+);
+
+ALTER TABLE ONLY public.processos_administrativos FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: wf_travar_processo(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_travar_processo(p_processo_id uuid, p_escrita boolean) RETURNS public.processos_administrativos
+    LANGUAGE plpgsql
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  p public.processos_administrativos;
+BEGIN
+  -- mesma mensagem para "não existe" e "não pode ver"
+  IF p_processo_id IS NULL OR NOT coalesce(public.wf_pode_ver_processo(p_processo_id), false) THEN
+    RAISE EXCEPTION 'Processo não encontrado ou você não tem acesso a ele.' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO p FROM public.processos_administrativos WHERE id = p_processo_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Processo não encontrado ou você não tem acesso a ele.' USING ERRCODE = '42501';
+  END IF;
+  -- processo restrito/sigiloso visto só por credencial de leitura: não altera
+  IF p_escrita AND p.sigilo <> 'publico'
+     AND p.created_by IS DISTINCT FROM auth.uid()
+     AND NOT public.has_permission_code(auth.uid(), 'workflow.admin')
+     AND NOT EXISTS (SELECT 1 FROM public.acesso_processo_sigiloso a
+                      WHERE a.processo_id = p.id AND a.usuario_id = auth.uid()
+                        AND a.nivel_acesso IN ('tramitacao', 'total')) THEN
+    RAISE EXCEPTION 'Sua credencial neste processo é só de leitura.' USING ERRCODE = '42501';
+  END IF;
+  RETURN p;
 END;
 $$;
 
@@ -19389,7 +20119,11 @@ CREATE TABLE public.movimentacoes_processo (
     observacoes text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    created_by uuid
+    created_by uuid,
+    etapa_origem_ordem integer,
+    etapa_destino_ordem integer,
+    CONSTRAINT movimentacoes_processo_etapa_destino_ordem_check CHECK (((etapa_destino_ordem IS NULL) OR (etapa_destino_ordem >= 1))),
+    CONSTRAINT movimentacoes_processo_etapa_origem_ordem_check CHECK (((etapa_origem_ordem IS NULL) OR (etapa_origem_ordem >= 1)))
 );
 
 ALTER TABLE ONLY public.movimentacoes_processo FORCE ROW LEVEL SECURITY;
@@ -19817,33 +20551,74 @@ ALTER TABLE ONLY public.prazos_processo FORCE ROW LEVEL SECURITY;
 
 
 --
--- Name: processos_administrativos; Type: TABLE; Schema: public; Owner: -
+-- Name: processo_checklist_respostas; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.processos_administrativos (
+CREATE TABLE public.processo_checklist_respostas (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    numero_processo text NOT NULL,
-    ano integer DEFAULT EXTRACT(year FROM now()) NOT NULL,
-    tipo_processo public.tipo_processo_administrativo DEFAULT 'outro'::public.tipo_processo_administrativo NOT NULL,
-    assunto text NOT NULL,
-    descricao text,
-    interessado_tipo text DEFAULT 'interno'::text NOT NULL,
-    interessado_nome text NOT NULL,
-    interessado_documento text,
-    unidade_origem_id uuid,
-    status public.status_processo_administrativo DEFAULT 'aberto'::public.status_processo_administrativo NOT NULL,
-    sigilo public.nivel_sigilo_processo DEFAULT 'publico'::public.nivel_sigilo_processo NOT NULL,
-    data_abertura date DEFAULT CURRENT_DATE NOT NULL,
-    data_encerramento date,
-    processo_origem_id uuid,
-    observacoes text,
+    processo_id uuid NOT NULL,
+    item_id uuid NOT NULL,
+    marcado boolean DEFAULT false NOT NULL,
+    marcado_por uuid,
+    marcado_em timestamp with time zone,
+    observacao text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    created_by uuid,
-    CONSTRAINT processos_administrativos_interessado_tipo_check CHECK ((interessado_tipo = ANY (ARRAY['interno'::text, 'externo'::text])))
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
-ALTER TABLE ONLY public.processos_administrativos FORCE ROW LEVEL SECURITY;
+ALTER TABLE ONLY public.processo_checklist_respostas FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: processo_modelo_checklist; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processo_modelo_checklist (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    modelo_id uuid NOT NULL,
+    etapa_ordem integer NOT NULL,
+    codigo text NOT NULL,
+    descricao text NOT NULL,
+    obrigatorio boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT processo_modelo_checklist_etapa_ordem_check CHECK ((etapa_ordem >= 1))
+);
+
+
+--
+-- Name: processo_modelo_etapas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processo_modelo_etapas (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    modelo_id uuid NOT NULL,
+    ordem integer NOT NULL,
+    nome text NOT NULL,
+    unidade_sigla text NOT NULL,
+    responsavel_rotulo text,
+    prazo_dias_uteis integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT processo_modelo_etapas_ordem_check CHECK ((ordem >= 1)),
+    CONSTRAINT processo_modelo_etapas_prazo_dias_uteis_check CHECK (((prazo_dias_uteis IS NULL) OR (prazo_dias_uteis > 0)))
+);
+
+
+--
+-- Name: processo_modelos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processo_modelos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    codigo text NOT NULL,
+    nome text NOT NULL,
+    tipo_processo public.tipo_processo_administrativo DEFAULT 'outro'::public.tipo_processo_administrativo NOT NULL,
+    base_legal text,
+    ativo boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
 
 
 --
@@ -21443,6 +22218,68 @@ CREATE VIEW public.v_patrimonio_por_unidade WITH (security_invoker='on') AS
    FROM (public.unidades_locais ul
      LEFT JOIN public.bens_patrimoniais bp ON ((bp.unidade_local_id = ul.id)))
   GROUP BY ul.id, ul.codigo_unidade, ul.nome_unidade, ul.municipio, ul.tipo_unidade, ul.status;
+
+
+--
+-- Name: v_processos_acompanhamento; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_processos_acompanhamento WITH (security_invoker='true') AS
+ SELECT p.id,
+    p.numero_processo,
+    p.ano,
+    p.tipo_processo,
+    p.assunto,
+    p.descricao,
+    p.interessado_tipo,
+    p.interessado_nome,
+    p.interessado_documento,
+    p.unidade_origem_id,
+    p.status,
+    p.sigilo,
+    p.data_abertura,
+    p.data_encerramento,
+    p.processo_origem_id,
+    p.observacoes,
+    p.created_at,
+    p.updated_at,
+    p.created_by,
+    p.numero_sei,
+    p.modelo_id,
+    p.etapa_atual_ordem,
+    p.unidade_atual_id,
+    p.etapa_iniciada_em,
+    p.etapa_prazo_limite,
+    p.suspenso_desde,
+    ((p.numero_processo || '/'::text) || p.ano) AS numero_formatado,
+    m.codigo AS modelo_codigo,
+    m.nome AS modelo_nome,
+    e.nome AS etapa_nome,
+    (( SELECT count(*) AS count
+           FROM public.processo_modelo_etapas et
+          WHERE (et.modelo_id = p.modelo_id)))::integer AS etapa_total,
+    COALESCE(u.sigla, e.unidade_sigla) AS unidade_sigla,
+    u.nome AS unidade_nome,
+        CASE
+            WHEN (p.status = ANY (ARRAY['aberto'::public.status_processo_administrativo, 'em_tramitacao'::public.status_processo_administrativo])) THEN public.fn_situacao_prazo(p.etapa_prazo_limite)
+            ELSE 'sem_prazo'::text
+        END AS situacao_prazo,
+    (( SELECT count(*) AS count
+           FROM public.processo_modelo_checklist c
+          WHERE ((c.modelo_id = p.modelo_id) AND c.obrigatorio AND (c.etapa_ordem <= COALESCE(p.etapa_atual_ordem, 0)) AND (NOT (EXISTS ( SELECT 1
+                   FROM public.processo_checklist_respostas r
+                  WHERE ((r.processo_id = p.id) AND (r.item_id = c.id) AND r.marcado)))))))::integer AS pendencias_obrigatorias
+   FROM (((public.processos_administrativos p
+     LEFT JOIN public.processo_modelos m ON ((m.id = p.modelo_id)))
+     LEFT JOIN public.processo_modelo_etapas e ON (((e.modelo_id = p.modelo_id) AND (e.ordem = p.etapa_atual_ordem))))
+     LEFT JOIN public.estrutura_organizacional u ON ((u.id = p.unidade_atual_id)));
+
+
+--
+-- Name: VIEW v_processos_acompanhamento; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_processos_acompanhamento IS 'Acompanhamento de processos do SEI: processo + modelo + etapa atual + unidade + semáforo do prazo + pendências do checklist. security_invoker (sigilo pela RLS).';
 
 
 --

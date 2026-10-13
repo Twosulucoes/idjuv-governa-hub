@@ -24,7 +24,8 @@ DB="${PG_DB:-idjuv_validacao}"
 SAIDA=supabase/baseline/schema
 
 # Tabelas cujas linhas (vindas das migrações) são catálogo/parâmetro (audit_colunas_sensiveis: máscara LGPD da
-# trilha, migração 20261011000000; regra_lancamento: modo da regra de setor por módulo, migração 20261011020000).
+# trilha, migração 20261011000000; regra_lancamento: modo da regra de setor por módulo, migração 20261011020000;
+# processo_modelos, processo_modelo_etapas e processo_modelo_checklist: modelos de fluxo do workflow, migração 20261013100000).
 # NÃO entram: servidores e
 # vinculos_servidor (74 nomes de pessoas, CPF placeholder — migração 20260110184920), audit_logs, portal_diretoria,
 # contatos_eventos_esportivos, debitos_tecnicos e config_paginas_historico (conteúdo operacional).
@@ -33,7 +34,8 @@ SEMENTES=(
   config_menu_publico config_paginas_publicas dias_nao_uteis fin_fontes_recurso
   fin_naturezas_despesa fin_parametros fin_plano_contas form_field_config
   modelos_mensagem_reuniao module_access_scopes module_permissions_catalog module_settings
-  parametros_folha prazos_lai regra_lancamento role_permissions
+  parametros_folha prazos_lai processo_modelo_checklist processo_modelo_etapas processo_modelos regra_lancamento
+  role_permissions
 )
 
 mkdir -p "$SAIDA"

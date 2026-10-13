@@ -1,137 +1,189 @@
 /**
- * Página principal de gestão de processos administrativos (SEI-like)
+ * Lista de processos do SEI acompanhados no sistema (view v_processos_acompanhamento).
+ * Abas "Na minha unidade" / "Todos"; filtros por tipo (modelo), etapa, unidade, situação e prazo. A situação aceita
+ * `ativos` (aberto ou em tramitação), que é o padrão da aba "Na minha unidade" e o que o painel do módulo conta.
  * Padrões do design system: PageHeader, KpiCard, DataTable, StatusBadge.
  */
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DataTable,
+  EmptyState,
   KpiCard,
   PageHeader,
   StatusBadge,
   type ColunaTabela,
-  type TomStatus,
 } from '@/components/design-system';
-import {
-  Plus, Search, FileText, Clock, CheckCircle2,
-  FolderOpen, ChevronRight
-} from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { useProcessos } from '@/hooks/useWorkflow';
+import { Plus, Search, FileText, AlertTriangle, CheckCircle2, Clock, ChevronRight, FolderOpen, UserX } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useIdentidade } from '@/core/tenant';
+import {
+  useModeloProcesso,
+  useModelosProcesso,
+  useProcessosAcompanhamento,
+  useUnidadesParaFiltro,
+  type FiltroStatusProcesso,
+} from '@/hooks/useAcompanhamentoProcessos';
+import { rotuloSituacaoPrazo, TOM_STATUS_PROCESSO, tomStatusDoSemaforo } from '@/lib/workflow/semaforoPrazo';
+import { AvisoLimiteLinhas } from '@/components/workflow/AvisoLimiteLinhas';
 import { NovoProcessoDialog } from '@/components/workflow/NovoProcessoDialog';
 import {
-  TIPO_PROCESSO_LABELS,
   STATUS_PROCESSO_LABELS,
-  type ProcessoAdministrativo,
-  type TipoProcesso,
+  type ProcessoAcompanhamento,
+  type SituacaoPrazo,
   type StatusProcesso,
-  type NivelSigilo,
 } from '@/types/workflow';
 
-// Situação do processo → selo (texto + tom; nunca só cor)
-const STATUS_PROCESSO_SELO: Record<StatusProcesso, { label: string; tom: TomStatus }> = {
-  aberto: { label: 'Aberto', tom: 'andamento' },
-  em_tramitacao: { label: 'Em tramitação', tom: 'pendente' },
-  suspenso: { label: 'Suspenso', tom: 'neutro' },
-  concluido: { label: 'Concluído', tom: 'sucesso' },
-  arquivado: { label: 'Arquivado', tom: 'neutro' },
-};
+const SITUACOES: SituacaoPrazo[] = ['em_dia', 'vence_logo', 'vencido', 'sem_prazo'];
+const STATUS: StatusProcesso[] = ['aberto', 'em_tramitacao', 'suspenso', 'concluido', 'arquivado'];
+const ATIVOS = 'ativos';
+const TODOS = 'todos';
 
-const SIGILO_SELO: Record<NivelSigilo, { label: string; tom: TomStatus }> = {
-  publico: { label: 'Público', tom: 'sucesso' },
-  restrito: { label: 'Restrito', tom: 'pendente' },
-  sigiloso: { label: 'Sigiloso', tom: 'erro' },
-};
+/** Situação da URL (`?status=`): uma das situações ou `ativos`; outra coisa é ignorada. */
+const statusValido = (v: string | null): v is FiltroStatusProcesso =>
+  v === ATIVOS || STATUS.includes(v as StatusProcesso);
 
-const seloStatus = (s: StatusProcesso | null | undefined) =>
-  (s && STATUS_PROCESSO_SELO[s]) ?? { label: s ?? 'Sem situação', tom: 'neutro' as TomStatus };
-const seloSigilo = (s: NivelSigilo | null | undefined) =>
-  (s && SIGILO_SELO[s]) ?? { label: s ?? 'Sem sigilo', tom: 'neutro' as TomStatus };
-
-const numeroDoProcesso = (p: ProcessoAdministrativo) => `${p.numero_processo}/${p.ano}`;
+const numeroInterno = (p: ProcessoAcompanhamento) => p.numero_formatado || `${p.numero_processo}/${p.ano}`;
 
 export default function GestaoProcessosPage() {
   const navigate = useNavigate();
   const { sigla } = useIdentidade();
+  const { hasPermission } = useAuth();
+  const [params, setParams] = useSearchParams();
+
+  const [aba, setAba] = useState<'minha_unidade' | 'todos'>(params.get('meus') === 'true' ? 'minha_unidade' : 'todos');
   const [busca, setBusca] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<StatusProcesso | 'todos'>('todos');
-  const [filtroTipo, setFiltroTipo] = useState<TipoProcesso | 'todos'>('todos');
+  const [filtroTipo, setFiltroTipo] = useState(params.get('tipo') ?? TODOS);
+  const [filtroEtapa, setFiltroEtapa] = useState(params.get('etapa') ?? TODOS);
+  const [filtroUnidade, setFiltroUnidade] = useState(params.get('unidade') ?? TODOS);
+  const [filtroPrazo, setFiltroPrazo] = useState(
+    SITUACOES.includes(params.get('prazo') as SituacaoPrazo) ? (params.get('prazo') as string) : TODOS,
+  );
+  // sem situação na URL, a aba "Na minha unidade" abre nos ativos
+  const [filtroStatus, setFiltroStatus] = useState<string>(() => {
+    const status = params.get('status');
+    if (statusValido(status)) return status;
+    return params.get('meus') === 'true' ? ATIVOS : TODOS;
+  });
+  const podeCriar = hasPermission('workflow.criar');
   const [novoDialogOpen, setNovoDialogOpen] = useState(false);
 
-  const { data: processos, isLoading, isError, refetch } = useProcessos({
-    status: filtroStatus !== 'todos' ? filtroStatus : undefined,
-    tipo: filtroTipo !== 'todos' ? filtroTipo : undefined,
+  // Navegação dentro da rota (menu, painel): reaplica o que veio na URL; `acao=novo` abre o diálogo uma vez e sai da URL
+  useEffect(() => {
+    if (params.has('meus')) setAba(params.get('meus') === 'true' ? 'minha_unidade' : 'todos');
+    if (params.has('tipo')) setFiltroTipo(params.get('tipo') ?? TODOS);
+    if (params.has('etapa')) setFiltroEtapa(params.get('etapa') ?? TODOS);
+    if (params.has('unidade')) setFiltroUnidade(params.get('unidade') ?? TODOS);
+    const prazo = params.get('prazo');
+    if (prazo) setFiltroPrazo(SITUACOES.includes(prazo as SituacaoPrazo) ? prazo : TODOS);
+    const status = params.get('status');
+    if (status) setFiltroStatus(statusValido(status) ? status : TODOS);
+    else if (params.get('meus') === 'true') setFiltroStatus(ATIVOS);
+    if (params.get('acao') === 'novo') {
+      if (podeCriar) setNovoDialogOpen(true);
+      const resto = new URLSearchParams(params);
+      resto.delete('acao');
+      setParams(resto, { replace: true });
+    }
+  }, [params, setParams, podeCriar]);
+
+  const { data: modelos } = useModelosProcesso();
+  const { data: modeloEscolhido } = useModeloProcesso(filtroTipo === TODOS ? '' : filtroTipo);
+  const { data: unidades } = useUnidadesParaFiltro();
+
+  const { data: processos, isLoading, isError, refetch, semLotacao } = useProcessosAcompanhamento({
+    escopo: aba,
+    modeloCodigo: filtroTipo !== TODOS ? filtroTipo : undefined,
+    etapa: filtroTipo !== TODOS && Number.isFinite(Number(filtroEtapa)) && Number(filtroEtapa) > 0 ? Number(filtroEtapa) : undefined,
+    unidadeId: filtroUnidade !== TODOS ? filtroUnidade : undefined,
+    status: filtroStatus !== TODOS ? (filtroStatus as FiltroStatusProcesso) : undefined,
+    situacaoPrazo: filtroPrazo !== TODOS ? (filtroPrazo as SituacaoPrazo) : undefined,
     busca: busca || undefined,
   });
 
-  // Contadores
-  const totalAbertos = processos?.filter(p => p.status === 'aberto').length || 0;
-  const totalTramitando = processos?.filter(p => p.status === 'em_tramitacao').length || 0;
-  const totalConcluidos = processos?.filter(p => p.status === 'concluido').length || 0;
+  const lista = processos ?? [];
+  const totalVencidos = lista.filter((p) => p.situacao_prazo === 'vencido').length;
+  const totalVenceLogo = lista.filter((p) => p.situacao_prazo === 'vence_logo').length;
+  const totalConcluidos = lista.filter((p) => p.status === 'concluido').length;
 
-  const abrirProcesso = (p: ProcessoAdministrativo) => navigate(`/workflow/processos/${p.id}`);
+  const abrirProcesso = (p: ProcessoAcompanhamento) => navigate(`/workflow/processos/${p.id}`);
 
-  const colunas: ColunaTabela<ProcessoAdministrativo>[] = [
+  const mudarTipo = (v: string) => {
+    setFiltroTipo(v);
+    setFiltroEtapa(TODOS); // a etapa só existe dentro de um modelo
+  };
+
+  const colunas: ColunaTabela<ProcessoAcompanhamento>[] = [
     {
       id: 'numero',
-      cabecalho: 'Número',
-      celula: (p) => <span className="font-mono font-medium">{numeroDoProcesso(p)}</span>,
-      ordenarPor: (p) => numeroDoProcesso(p),
+      cabecalho: 'Nº interno',
+      celula: (p) => <span className="font-mono font-medium">{numeroInterno(p)}</span>,
+      ordenarPor: (p) => numeroInterno(p),
       className: 'w-[120px]',
     },
     {
-      id: 'assunto',
-      cabecalho: 'Assunto',
-      celula: (p) => <span className="block max-w-[200px] truncate">{p.assunto}</span>,
-      ordenarPor: (p) => p.assunto,
-      mobile: 'titulo',
+      id: 'sei',
+      cabecalho: 'Nº SEI',
+      celula: (p) =>
+        p.numero_sei ? (
+          <span className="font-mono">{p.numero_sei}</span>
+        ) : (
+          <span className="text-muted-foreground">Não informado</span>
+        ),
+      ordenarPor: (p) => p.numero_sei ?? '',
     },
     {
       id: 'tipo',
       cabecalho: 'Tipo',
-      celula: (p) => <Badge variant="outline">{TIPO_PROCESSO_LABELS[p.tipo_processo] ?? p.tipo_processo}</Badge>,
-      ordenarPor: (p) => TIPO_PROCESSO_LABELS[p.tipo_processo] ?? p.tipo_processo,
+      celula: (p) => <Badge variant="outline">{p.modelo_nome ?? 'Sem modelo'}</Badge>,
+      ordenarPor: (p) => p.modelo_nome ?? '',
     },
     {
-      id: 'interessado',
-      cabecalho: 'Interessado',
-      celula: (p) => <span className="block max-w-[150px] truncate">{p.interessado_nome}</span>,
-      ordenarPor: (p) => p.interessado_nome,
+      id: 'assunto',
+      cabecalho: 'Assunto',
+      celula: (p) => <span className="block max-w-[220px] truncate">{p.assunto}</span>,
+      ordenarPor: (p) => p.assunto,
+      mobile: 'titulo',
+    },
+    {
+      id: 'etapa',
+      cabecalho: 'Etapa',
+      celula: (p) =>
+        p.etapa_atual_ordem ? (
+          <span>{p.etapa_atual_ordem}/{p.etapa_total}. {p.etapa_nome}</span>
+        ) : (
+          <span className="text-muted-foreground">Sem trilha</span>
+        ),
+      ordenarPor: (p) => p.etapa_atual_ordem ?? 0,
+    },
+    {
+      id: 'unidade',
+      cabecalho: 'Unidade',
+      celula: (p) => <span>{p.unidade_sigla ?? p.unidade_nome ?? '-'}</span>,
+      ordenarPor: (p) => p.unidade_sigla ?? p.unidade_nome ?? '',
     },
     {
       id: 'status',
       cabecalho: 'Situação',
-      celula: (p) => {
-        const selo = seloStatus(p.status);
-        return <StatusBadge tom={selo.tom}>{selo.label}</StatusBadge>;
-      },
-      ordenarPor: (p) => seloStatus(p.status).label,
-    },
-    {
-      id: 'sigilo',
-      cabecalho: 'Sigilo',
-      celula: (p) => {
-        const selo = seloSigilo(p.sigilo);
-        return <StatusBadge tom={selo.tom}>{selo.label}</StatusBadge>;
-      },
-      ordenarPor: (p) => seloSigilo(p.sigilo).label,
-    },
-    {
-      id: 'abertura',
-      cabecalho: 'Abertura',
       celula: (p) => (
-        <span className="text-muted-foreground">
-          {format(new Date(p.data_abertura), 'dd/MM/yyyy', { locale: ptBR })}
-        </span>
+        <StatusBadge tom={TOM_STATUS_PROCESSO[p.status] ?? 'neutro'}>{STATUS_PROCESSO_LABELS[p.status] ?? p.status}</StatusBadge>
       ),
-      ordenarPor: (p) => new Date(p.data_abertura),
+      ordenarPor: (p) => STATUS_PROCESSO_LABELS[p.status] ?? p.status,
+    },
+    {
+      id: 'prazo',
+      cabecalho: 'Prazo',
+      celula: (p) => {
+        const prazo = rotuloSituacaoPrazo(p.situacao_prazo);
+        return <StatusBadge tom={tomStatusDoSemaforo(prazo.tom)}>{prazo.texto}</StatusBadge>;
+      },
+      ordenarPor: (p) => rotuloSituacaoPrazo(p.situacao_prazo).texto,
     },
   ];
 
@@ -141,27 +193,44 @@ export default function GestaoProcessosPage() {
         <PageHeader
           migalhas={[{ rotulo: 'Processos', href: '/workflow' }, { rotulo: 'Gestão de processos' }]}
           titulo="Processos administrativos"
-          descricao={`Tramitação oficial de processos do ${sigla}`}
+          descricao={`Acompanhamento dos processos do SEI no ${sigla}`}
           acoes={
-            <Button onClick={() => setNovoDialogOpen(true)}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Novo processo
-            </Button>
+            podeCriar ? (
+              <Button onClick={() => setNovoDialogOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Novo processo
+              </Button>
+            ) : undefined
           }
         />
 
-        {/* Cards de resumo */}
+        <Tabs
+          value={aba}
+          onValueChange={(v) => {
+            const nova = v as 'minha_unidade' | 'todos';
+            setAba(nova);
+            // a aba "Na minha unidade" começa nos ativos (se a pessoa já escolheu uma situação, ela fica)
+            if (nova === 'minha_unidade' && filtroStatus === TODOS) setFiltroStatus(ATIVOS);
+          }}
+        >
+          <TabsList>
+            <TabsTrigger value="minha_unidade">Na minha unidade</TabsTrigger>
+            <TabsTrigger value="todos">Todos</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Cards de resumo (sobre a lista carregada) */}
         <section aria-labelledby="processos-resumo">
           <h2 id="processos-resumo" className="sr-only">Resumo</h2>
           <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <li>
-              <KpiCard rotulo="Total de processos" valor={processos?.length || 0} icone={FileText} carregando={isLoading} className="h-full" />
+              <KpiCard rotulo="Processos" valor={lista.length} icone={FileText} carregando={isLoading} className="h-full" />
             </li>
             <li>
-              <KpiCard rotulo="Abertos" valor={totalAbertos} icone={FolderOpen} carregando={isLoading} className="h-full" />
+              <KpiCard rotulo="Vencidos" valor={totalVencidos} icone={AlertTriangle} carregando={isLoading} className="h-full" />
             </li>
             <li>
-              <KpiCard rotulo="Em tramitação" valor={totalTramitando} icone={Clock} carregando={isLoading} className="h-full" />
+              <KpiCard rotulo="Vencem em breve" valor={totalVenceLogo} icone={Clock} carregando={isLoading} className="h-full" />
             </li>
             <li>
               <KpiCard rotulo="Concluídos" valor={totalConcluidos} icone={CheckCircle2} carregando={isLoading} className="h-full" />
@@ -169,10 +238,20 @@ export default function GestaoProcessosPage() {
           </ul>
         </section>
 
+        <AvisoLimiteLinhas total={lista.length} complemento="Os resumos acima consideram só essas linhas." />
+
+        {semLotacao ? (
+          <EmptyState
+            icone={UserX}
+            titulo="Sem unidade para mostrar"
+            descricao="Seu usuário não tem lotação ativa; peça ao RH. Enquanto isso, use a aba Todos."
+          />
+        ) : (
+          <>
         {/* Tabela de processos (busca e filtros vão ao servidor pelo hook) */}
         <DataTable
           rotulo="Processos administrativos"
-          dados={processos ?? []}
+          dados={lista}
           colunas={colunas}
           chaveLinha={(p) => p.id}
           carregando={isLoading}
@@ -184,32 +263,66 @@ export default function GestaoProcessosPage() {
               <div className="relative w-full sm:w-72">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                 <Input
-                  placeholder="Buscar por assunto, interessado ou número..."
+                  placeholder="Buscar por assunto, interessado, nº interno ou SEI..."
                   aria-label="Buscar processos"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   className="pl-10"
                 />
               </div>
-              <Select value={filtroStatus} onValueChange={(v) => setFiltroStatus(v as StatusProcesso | 'todos')}>
-                <SelectTrigger className="w-full sm:w-[180px]" aria-label="Situação">
-                  <SelectValue placeholder="Situação" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todas as situações</SelectItem>
-                  {Object.entries(STATUS_PROCESSO_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{STATUS_PROCESSO_SELO[key as StatusProcesso]?.label ?? label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as TipoProcesso | 'todos')}>
+              <Select value={filtroTipo} onValueChange={mudarTipo}>
                 <SelectTrigger className="w-full sm:w-[180px]" aria-label="Tipo">
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos os tipos</SelectItem>
-                  {Object.entries(TIPO_PROCESSO_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  <SelectItem value={TODOS}>Todos os tipos</SelectItem>
+                  {(modelos ?? []).map((m) => (
+                    <SelectItem key={m.codigo} value={m.codigo}>{m.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filtroEtapa} onValueChange={setFiltroEtapa} disabled={filtroTipo === TODOS}>
+                <SelectTrigger className="w-full sm:w-[200px]" aria-label="Etapa">
+                  <SelectValue placeholder={filtroTipo === TODOS ? 'Etapa (escolha o tipo)' : 'Etapa'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todas as etapas</SelectItem>
+                  {(modeloEscolhido?.etapas ?? []).map((e) => (
+                    <SelectItem key={e.ordem} value={String(e.ordem)}>{e.ordem}. {e.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filtroUnidade} onValueChange={setFiltroUnidade}>
+                <SelectTrigger className="w-full sm:w-[180px]" aria-label="Unidade">
+                  <SelectValue placeholder="Unidade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todas as unidades</SelectItem>
+                  {(unidades ?? []).map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.sigla ?? u.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                <SelectTrigger className="w-full sm:w-[170px]" aria-label="Situação">
+                  <SelectValue placeholder="Situação" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todas as situações</SelectItem>
+                  <SelectItem value={ATIVOS}>Ativos (aberto ou em tramitação)</SelectItem>
+                  {STATUS.map((st) => (
+                    <SelectItem key={st} value={st}>{STATUS_PROCESSO_LABELS[st]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filtroPrazo} onValueChange={setFiltroPrazo}>
+                <SelectTrigger className="w-full sm:w-[170px]" aria-label="Prazo">
+                  <SelectValue placeholder="Prazo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todos os prazos</SelectItem>
+                  {SITUACOES.map((s) => (
+                    <SelectItem key={s} value={s}>{rotuloSituacaoPrazo(s).texto}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -224,7 +337,7 @@ export default function GestaoProcessosPage() {
             <Button
               variant="ghost"
               size="icon"
-              aria-label={`Abrir processo ${numeroDoProcesso(p)}`}
+              aria-label={`Abrir processo ${numeroInterno(p)}`}
               onClick={(e) => {
                 e.stopPropagation();
                 abrirProcesso(p);
@@ -234,12 +347,11 @@ export default function GestaoProcessosPage() {
             </Button>
           )}
         />
+          </>
+        )}
       </div>
 
-      <NovoProcessoDialog 
-        open={novoDialogOpen} 
-        onOpenChange={setNovoDialogOpen}
-      />
+      {podeCriar && <NovoProcessoDialog open={novoDialogOpen} onOpenChange={setNovoDialogOpen} />}
     </ModuleLayout>
   );
 }

@@ -8,7 +8,7 @@ export { useComprasDashboardStats } from './useComprasDashboardStats';
 export { useContratosDashboardStats } from './useContratosDashboardStats';
 export { usePatrimonioDashboardStats } from './usePatrimonioDashboardStats';
 export { useGovernancaDashboardStats } from './useGovernancaDashboardStats';
-export { useWorkflowDashboardStats } from './useWorkflowDashboardStats';
+export { useWorkflowDashboardStats, type GrupoContagem } from './useWorkflowDashboardStats';
 export { useComunicacaoDashboardStats } from './useComunicacaoDashboardStats';
 export { useIntegridadeDashboardStats } from './useIntegridadeDashboardStats';
 export { useTransparenciaDashboardStats } from './useTransparenciaDashboardStats';

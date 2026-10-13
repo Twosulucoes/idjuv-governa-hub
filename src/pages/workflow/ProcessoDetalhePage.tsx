@@ -1,39 +1,45 @@
 /**
- * Página de detalhes do processo administrativo
+ * Detalhe do processo acompanhado: etapas, checklist, ações e abas (linha do tempo, despachos, documentos, credenciais).
+ * Só leitura nas tabelas; toda escrita vai pelas RPCs wf_* (hooks de useAcompanhamentoProcessos).
  */
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, PageHeader, StatusBadge, type TomStatus } from '@/components/design-system';
 import {
-  ArrowLeft, FileText, Clock, Send, MessageSquare,
-  Paperclip, AlertTriangle, CheckCircle, User, FolderOpen
+  AlertTriangle, ArrowLeft, FileText, Clock, MessageSquare, Paperclip, User, FolderOpen, KeyRound, Pencil, RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { 
-  useProcesso, 
-  useMovimentacoes, 
-  useDespachos, 
-  useDocumentosProcesso,
-  usePrazosProcesso 
-} from '@/hooks/useWorkflow';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMovimentacoes, useDespachos, useDocumentosProcesso } from '@/hooks/useWorkflow';
+import {
+  useAtualizarNumeroSei,
+  useChecklistProcesso,
+  useModeloProcesso,
+  useProcessoAcompanhamento,
+} from '@/hooks/useAcompanhamentoProcessos';
+import { rotuloSituacaoPrazo, tomStatusDoSemaforo } from '@/lib/workflow/semaforoPrazo';
 import {
   TIPO_PROCESSO_LABELS,
   TIPO_MOVIMENTACAO_LABELS,
   TIPO_DESPACHO_LABELS,
   DECISAO_LABELS,
   type NivelSigilo,
+  type ProcessoAcompanhamento,
   type StatusMovimentacao,
   type StatusProcesso,
 } from '@/types/workflow';
-import { NovoDespachoDialog } from '@/components/workflow/NovoDespachoDialog';
-import { NovaMovimentacaoDialog } from '@/components/workflow/NovaMovimentacaoDialog';
+import { TrilhaEtapas } from '@/components/workflow/TrilhaEtapas';
+import { ChecklistEtapa } from '@/components/workflow/ChecklistEtapa';
+import { AcoesProcesso } from '@/components/workflow/AcoesProcesso';
+import { CredenciaisSigiloTab } from '@/components/workflow/CredenciaisSigiloTab';
 
 type Selo = { label: string; tom: TomStatus };
 
@@ -69,18 +75,73 @@ const MIGALHAS_BASE = [
   { rotulo: 'Gestão de processos', href: '/workflow/processos' },
 ];
 
+/** Nº SEI do cabeçalho; editável só com workflow.tramitar, em andamento e na etapa 1 (ou sem modelo). */
+function NumeroSei({ processo, editavel }: { processo: ProcessoAcompanhamento; editavel: boolean }) {
+  const atualizar = useAtualizarNumeroSei();
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState('');
+
+  if (editando) {
+    return (
+      <form
+        className="flex items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          atualizar.mutate(
+            { processoId: processo.id, numeroSei: valor.trim() || null },
+            { onSuccess: () => setEditando(false) },
+          );
+        }}
+      >
+        <Input
+          aria-label="Número SEI"
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          className="h-8 w-56"
+          autoFocus
+        />
+        <Button type="submit" size="sm" disabled={atualizar.isPending}>Salvar</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => setEditando(false)} disabled={atualizar.isPending}>
+          Cancelar
+        </Button>
+      </form>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-2">
+      <span className="font-medium">{processo.numero_sei || 'Não informado'}</span>
+      {editavel && (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => { setValor(processo.numero_sei ?? ''); setEditando(true); }}
+          aria-label="Editar número SEI"
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
+    </span>
+  );
+}
+
 export default function ProcessoDetalhePage() {
   const { id } = useParams<{ id: string }>();
-  const [despachoDialogOpen, setDespachoDialogOpen] = useState(false);
-  const [movimentacaoDialogOpen, setMovimentacaoDialogOpen] = useState(false);
+  const { hasPermission } = useAuth();
 
-  const { data: processo, isLoading: loadingProcesso } = useProcesso(id);
+  const {
+    data: processo,
+    isLoading: loadingProcesso,
+    isError: erroProcesso,
+    refetch: recarregarProcesso,
+    isFetching: recarregandoProcesso,
+  } = useProcessoAcompanhamento(id ?? '');
+  const { data: modelo, isLoading: loadingModelo, isError: erroModelo } = useModeloProcesso(processo?.modelo_codigo ?? '');
+  const { data: respostas } = useChecklistProcesso(id ?? '');
   const { data: movimentacoes, isLoading: loadingMovimentacoes } = useMovimentacoes(id);
   const { data: despachos } = useDespachos(id);
   const { data: documentos } = useDocumentosProcesso(id);
-  const { data: prazos } = usePrazosProcesso(id);
-
-  const prazosVencidos = prazos?.filter(p => !p.cumprido && new Date(p.data_limite) < new Date()).length || 0;
 
   if (loadingProcesso) {
     return (
@@ -89,6 +150,28 @@ export default function ProcessoDetalhePage() {
           <PageHeader migalhas={[...MIGALHAS_BASE, { rotulo: 'Processo' }]} titulo="Carregando processo…" />
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-60 w-full" />
+        </div>
+      </ModuleLayout>
+    );
+  }
+
+  // falha na consulta (rede, servidor) não é "não encontrado": mostra o erro e deixa tentar de novo
+  if (erroProcesso) {
+    return (
+      <ModuleLayout module="workflow">
+        <div className="space-y-6">
+          <PageHeader migalhas={[...MIGALHAS_BASE, { rotulo: 'Processo' }]} titulo="Processo" />
+          <EmptyState
+            icone={AlertTriangle}
+            titulo="Não foi possível carregar o processo"
+            descricao="Verifique a conexão e tente de novo."
+            acao={
+              <Button variant="outline" onClick={() => recarregarProcesso()} disabled={recarregandoProcesso}>
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                Tentar de novo
+              </Button>
+            }
+          />
         </div>
       </ModuleLayout>
     );
@@ -117,9 +200,16 @@ export default function ProcessoDetalhePage() {
     );
   }
 
-  const numeroProcesso = `${processo.numero_processo}/${processo.ano}`;
+  const numeroProcesso = processo.numero_formatado || `${processo.numero_processo}/${processo.ano}`;
   const seloStatus = selo(STATUS_PROCESSO_SELO, processo.status, 'Sem situação');
   const seloSigilo = selo(SIGILO_SELO, processo.sigilo, 'Sem sigilo');
+  const andamento = processo.status === 'aberto' || processo.status === 'em_tramitacao';
+  const temModelo = !!processo.modelo_id && processo.etapa_atual_ordem != null;
+  const prazo = rotuloSituacaoPrazo(processo.situacao_prazo);
+  const podeEditarSei =
+    andamento && hasPermission('workflow.tramitar') && (!temModelo || processo.etapa_atual_ordem === 1);
+  const podeMarcar = andamento && hasPermission('workflow.tramitar');
+  const podeVerCredenciais = hasPermission('workflow.admin');
 
   return (
     <ModuleLayout module="workflow">
@@ -132,18 +222,9 @@ export default function ProcessoDetalhePage() {
             <>
               <StatusBadge tom={seloStatus.tom}>{seloStatus.label}</StatusBadge>
               <StatusBadge tom={seloSigilo.tom}>{seloSigilo.label}</StatusBadge>
-            </>
-          }
-          acoes={
-            <>
-              <Button variant="outline" onClick={() => setMovimentacaoDialogOpen(true)}>
-                <Send className="h-4 w-4" aria-hidden="true" />
-                Tramitar
-              </Button>
-              <Button onClick={() => setDespachoDialogOpen(true)}>
-                <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                Despachar
-              </Button>
+              {andamento && temModelo && processo.situacao_prazo !== 'sem_prazo' && (
+                <StatusBadge tom={tomStatusDoSemaforo(prazo.tom)}>{prazo.texto}</StatusBadge>
+              )}
             </>
           }
         />
@@ -153,8 +234,31 @@ export default function ProcessoDetalhePage() {
           <Card>
             <CardContent className="p-4">
               <dl className="space-y-1">
-                <dt className="text-body text-muted-foreground">Tipo</dt>
-                <dd className="font-medium">{TIPO_PROCESSO_LABELS[processo.tipo_processo] ?? processo.tipo_processo}</dd>
+                <dt className="text-body text-muted-foreground">Nº SEI</dt>
+                <dd><NumeroSei processo={processo} editavel={podeEditarSei} /></dd>
+              </dl>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <dl className="space-y-1">
+                <dt className="text-body text-muted-foreground">Etapa atual</dt>
+                <dd>
+                  <span className="block font-medium">
+                    {temModelo ? `${processo.etapa_atual_ordem} de ${processo.etapa_total}` : 'Sem modelo de fluxo'}
+                  </span>
+                  {temModelo && (
+                    <span className="block text-caption text-muted-foreground">{processo.etapa_nome}</span>
+                  )}
+                </dd>
+              </dl>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <dl className="space-y-1">
+                <dt className="text-body text-muted-foreground">Unidade</dt>
+                <dd className="font-medium">{processo.unidade_sigla || processo.unidade_nome || 'Não definida'}</dd>
               </dl>
             </CardContent>
           </Card>
@@ -164,35 +268,43 @@ export default function ProcessoDetalhePage() {
                 <dt className="text-body text-muted-foreground">Interessado</dt>
                 <dd>
                   <span className="block font-medium truncate">{processo.interessado_nome}</span>
-                  <span className="block text-caption text-muted-foreground capitalize">{processo.interessado_tipo}</span>
+                  <span className="block text-caption text-muted-foreground capitalize">
+                    {TIPO_PROCESSO_LABELS[processo.tipo_processo] ?? processo.tipo_processo} • {processo.interessado_tipo} • aberto em{' '}
+                    {format(new Date(processo.data_abertura), 'dd/MM/yyyy', { locale: ptBR })}
+                  </span>
                 </dd>
               </dl>
             </CardContent>
           </Card>
+        </div>
+
+        <AcoesProcesso processo={processo} etapas={modelo?.etapas ?? []} />
+
+        <div className="grid gap-4 lg:grid-cols-2">
           <Card>
-            <CardContent className="p-4">
-              <dl className="space-y-1">
-                <dt className="text-body text-muted-foreground">Abertura</dt>
-                <dd className="font-medium">
-                  {format(new Date(processo.data_abertura), 'dd/MM/yyyy', { locale: ptBR })}
-                </dd>
-              </dl>
+            <CardHeader>
+              <h2 className="text-h3 text-foreground">Etapas</h2>
+            </CardHeader>
+            <CardContent>
+              <TrilhaEtapas modelo={modelo} processo={processo} carregando={loadingModelo} erro={erroModelo} />
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
-              <dl className="space-y-1">
-                <dt className="text-body text-muted-foreground">Prazos</dt>
-                <dd>
-                  {prazosVencidos > 0 ? (
-                    <StatusBadge tom="erro">{prazosVencidos} vencido(s)</StatusBadge>
-                  ) : (
-                    <StatusBadge tom="sucesso">Em dia</StatusBadge>
-                  )}
-                </dd>
-              </dl>
-            </CardContent>
-          </Card>
+          {temModelo && modelo && (
+            <Card>
+              <CardHeader>
+                <h2 className="text-h3 text-foreground">Checklist</h2>
+              </CardHeader>
+              <CardContent>
+                <ChecklistEtapa
+                  processoId={processo.id}
+                  itens={modelo.checklist}
+                  respostas={respostas ?? []}
+                  etapaAtual={processo.etapa_atual_ordem ?? 0}
+                  podeMarcar={podeMarcar}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Tabs */}
@@ -210,10 +322,12 @@ export default function ProcessoDetalhePage() {
               <Paperclip className="h-4 w-4" aria-hidden="true" />
               Documentos ({documentos?.length || 0})
             </TabsTrigger>
-            <TabsTrigger value="prazos" className="gap-2">
-              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-              Prazos ({prazos?.length || 0})
-            </TabsTrigger>
+            {podeVerCredenciais && (
+              <TabsTrigger value="credenciais" className="gap-2">
+                <KeyRound className="h-4 w-4" aria-hidden="true" />
+                Credenciais
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Timeline */}
@@ -244,13 +358,18 @@ export default function ProcessoDetalhePage() {
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium">#{mov.numero_sequencial}</span>
                                   <Badge variant="outline">
-                                    {TIPO_MOVIMENTACAO_LABELS[mov.tipo_movimentacao]}
+                                    {TIPO_MOVIMENTACAO_LABELS[mov.tipo_movimentacao] ?? mov.tipo_movimentacao}
                                   </Badge>
                                   <StatusBadge tom={selo(STATUS_MOVIMENTACAO_SELO, mov.status, 'Sem situação').tom}>
                                     {selo(STATUS_MOVIMENTACAO_SELO, mov.status, 'Sem situação').label}
                                   </StatusBadge>
                                 </div>
                                 <p className="mt-1 text-sm">{mov.descricao}</p>
+                                {mov.etapa_destino_ordem != null && mov.etapa_destino_ordem !== mov.etapa_origem_ordem && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Etapa {mov.etapa_origem_ordem ?? '-'} → etapa {mov.etapa_destino_ordem}
+                                  </p>
+                                )}
                                 {mov.unidade_destino && (
                                   <p className="text-xs text-muted-foreground mt-1">
                                     Destino: {mov.unidade_destino.sigla || mov.unidade_destino.nome}
@@ -363,69 +482,21 @@ export default function ProcessoDetalhePage() {
             </Card>
           </TabsContent>
 
-          {/* Prazos */}
-          <TabsContent value="prazos">
-            <Card>
-              <CardHeader>
-                <h2 className="text-h3 text-foreground">Controle de prazos</h2>
-              </CardHeader>
-              <CardContent>
-                {prazos?.length === 0 ? (
-                  <EmptyState icone={AlertTriangle} titulo="Nenhum prazo registrado" />
-                ) : (
-                  <div className="space-y-2">
-                    {prazos?.map((prazo) => {
-                      const vencido = !prazo.cumprido && new Date(prazo.data_limite) < new Date();
-                      return (
-                        <div 
-                          key={prazo.id} 
-                          className={`flex items-center gap-3 p-3 rounded-lg border ${
-                            prazo.cumprido ? 'bg-success/10 border-success/30' : 
-                            vencido ? 'bg-destructive/10 border-destructive/30' : ''
-                          }`}
-                        >
-                          {prazo.cumprido ? (
-                            <CheckCircle className="h-5 w-5 text-success" aria-hidden="true" />
-                          ) : vencido ? (
-                            <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
-                          ) : (
-                            <Clock className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-                          )}
-                          <div className="flex-1">
-                            <p className="font-medium">{prazo.descricao}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Limite: {format(new Date(prazo.data_limite), 'dd/MM/yyyy', { locale: ptBR })}
-                              {prazo.base_legal && ` • ${prazo.base_legal}`}
-                            </p>
-                          </div>
-                          {vencido && <StatusBadge tom="erro">Vencido</StatusBadge>}
-                          {prazo.cumprido && (
-                            <StatusBadge tom="sucesso">
-                              Cumprido em {format(new Date(prazo.data_cumprimento!), 'dd/MM/yyyy', { locale: ptBR })}
-                            </StatusBadge>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {podeVerCredenciais && (
+            <TabsContent value="credenciais">
+              <Card>
+                <CardHeader>
+                  <h2 className="text-h3 text-foreground">Credenciais de acesso</h2>
+                </CardHeader>
+                <CardContent>
+                  <CredenciaisSigiloTab processoId={processo.id} sigilo={processo.sigilo} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
-      <NovoDespachoDialog
-        open={despachoDialogOpen}
-        onOpenChange={setDespachoDialogOpen}
-        processoId={id!}
-      />
-
-      <NovaMovimentacaoDialog
-        open={movimentacaoDialogOpen}
-        onOpenChange={setMovimentacaoDialogOpen}
-        processoId={id!}
-      />
     </ModuleLayout>
   );
 }

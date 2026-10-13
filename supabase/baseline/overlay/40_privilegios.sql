@@ -235,3 +235,51 @@ BEGIN
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', f.assinatura);
   END LOOP;
 END $$;
+
+-- ---- workflow ----
+-- modelos de fluxo do workflow (migração 20261013100000): anon sem nada nas três tabelas; fn_somar_dias_uteis só
+-- para authenticated
+REVOKE ALL ON public.processo_modelos, public.processo_modelo_etapas, public.processo_modelo_checklist FROM anon;
+REVOKE EXECUTE ON FUNCTION public.fn_somar_dias_uteis(date, integer) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.fn_somar_dias_uteis(date, integer) TO authenticated;
+-- sigilo do workflow (migração 20261013100100): anon sem nada nas respostas do checklist; wf_pode_ver_processo é
+-- chamada pelas policies das tabelas do processo, então authenticated executa; a função do trigger que recusa apagar
+-- etapa em uso ninguém executa pela API
+REVOKE ALL ON public.processo_checklist_respostas FROM anon;
+REVOKE TRUNCATE, TRIGGER, REFERENCES ON public.processo_checklist_respostas FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.wf_pode_ver_processo(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.wf_pode_ver_processo(uuid) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.wf_recusar_etapa_em_uso() FROM PUBLIC, anon, authenticated, service_role;
+-- RPCs do acompanhamento (migração 20261013100200): as internas (resolver unidade, travar processo, pendências,
+-- número SEI, movimentação) ninguém executa pela API; as RPCs e o semáforo só authenticated; a view só SELECT para
+-- authenticated
+REVOKE EXECUTE ON FUNCTION public.wf_resolver_unidade(text, uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.wf_travar_processo(uuid, boolean) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.wf_exigir_em_andamento(public.status_processo_administrativo) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.wf_pendencias(uuid, uuid, integer, integer) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.wf_preparar_numero_sei(text, uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.wf_registrar_movimentacao(uuid, public.tipo_movimentacao_processo, text, text, uuid, uuid, integer, integer, integer, date) FROM PUBLIC, anon, authenticated, service_role;
+DO $$
+DECLARE f text;
+BEGIN
+  FOREACH f IN ARRAY ARRAY[
+    'public.wf_abrir_processo(text, text, text, text, text, text, public.nivel_sigilo_processo, text)',
+    'public.wf_marcar_item(uuid, text, boolean, text)',
+    'public.wf_avancar_etapa(uuid, integer, text)',
+    'public.wf_devolver_etapa(uuid, integer, integer, text)',
+    'public.wf_suspender(uuid, text)',
+    'public.wf_reativar(uuid, text)',
+    'public.wf_concluir(uuid, text)',
+    'public.wf_arquivar(uuid, text)',
+    'public.wf_atualizar_numero_sei(uuid, text)',
+    'public.wf_conceder_acesso(uuid, uuid, text, text)',
+    'public.wf_revogar_acesso(uuid, uuid)',
+    'public.wf_listar_credenciais(uuid)',
+    'public.wf_listar_usuarios_ativos()',
+    'public.fn_situacao_prazo(date)'] LOOP
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon, service_role', f);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f);
+  END LOOP;
+END $$;
+REVOKE ALL ON public.v_processos_acompanhamento FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.v_processos_acompanhamento TO authenticated;

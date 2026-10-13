@@ -959,7 +959,104 @@ histórico de migrações; o baseline já as remove); a correção no banco ao v
 ### Processos administrativos (workflow)
 `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`,
 `despachos`, `encaminhamentos`, `pareceres_tecnicos`, `prazos_processo`,
-`acesso_processo_sigiloso`, `acoes`.
+`acesso_processo_sigiloso`, `acoes`, `processo_modelos`, `processo_modelo_etapas`,
+`processo_modelo_checklist`, `processo_checklist_respostas`.
+
+#### Acompanhamento de processos do SEI
+
+Migrações `20261013100000_wf_modelos_fluxo.sql`, `20261013100100_wf_processo_sigilo.sql`,
+`20261013100200_wf_rpcs.sql` e `20261013100300_wf_permissoes_catalogo.sql` (catálogo de `workflow.concluir`,
+`workflow.arquivar` e `workflow.admin`) (PR #102; spec
+[2026-10-13-tramitacao-acompanhamento-sei-design](./superpowers/specs/2026-10-13-tramitacao-acompanhamento-sei-design.md)).
+O sistema acompanha o processo que corre no SEI: etapa, unidade, prazo e checklist. Despacho, documento e assinatura
+ficam no SEI. `processos_administrativos` virou o "processo acompanhado" e `movimentacoes_processo` registra cada
+passagem de etapa.
+
+- **Modelos**: `processo_modelos` (`codigo` único, `nome`, `tipo_processo`, `base_legal`, `ativo`),
+  `processo_modelo_etapas` (`ordem` única por modelo, `nome`, `unidade_sigla`, `responsavel_rotulo`,
+  `prazo_dias_uteis`, nulo = sem prazo) e `processo_modelo_checklist` (`etapa_ordem`, `codigo` único por modelo,
+  `descricao`, `obrigatorio`). `unidade_sigla` é uma sigla de `estrutura_organizacional` ou `@ORIGEM` (unidade de quem
+  abriu o processo) / `@CHEFIA` (unidade superior à de origem). RLS (classe `permissao` do mapa): o módulo `workflow`
+  lê; escrever exige o módulo **e** `workflow.admin`. Carga inicial por migração de 7 modelos: `compras`, `diarias`,
+  `convenios`, `almoxarifado`, `pagamentos`, `patrimonio_tombamento` e `patrimonio_baixa`, com etapas, unidade,
+  rótulo, prazo (5 dias úteis, sem prazo em Fiscalização, Execução e Viagem) e checklist. Prazos, `base_legal` de
+  compras e pagamentos e as etapas e itens marcados "(proposta)" na spec aguardam confirmação do órgão. Não há
+  trigger de `updated_at` nas três tabelas. **Etapa em uso**: o trigger `wf_recusar_etapa_em_uso` (`BEFORE DELETE OR
+  UPDATE OF ordem, modelo_id` em `processo_modelo_etapas`; função `SECURITY DEFINER` fora da API) recusa com `22023`
+  apagar a etapa ou mudar a ordem ou o modelo dela enquanto algum processo (de qualquer situação) estiver nela
+  (`modelo_id` e `etapa_atual_ordem` iguais); vale também na cascata de `processo_modelos`. Mudar nome, unidade ou
+  prazo continua livre.
+- **Colunas novas em `processos_administrativos`**: `numero_sei` (único quando preenchido, sem espaço e com algum
+  dígito), `modelo_id`, `etapa_atual_ordem`, `unidade_atual_id`, `etapa_iniciada_em`, `etapa_prazo_limite` e
+  `suspenso_desde` (data em que a suspensão parou o relógio do prazo). **Em `movimentacoes_processo`**:
+  `etapa_origem_ordem` e `etapa_destino_ordem`. Processo antigo, sem modelo, continua visível, sem trilha nem
+  checklist.
+- **`processo_checklist_respostas`**: uma linha por (processo, item), com `marcado`, `marcado_por`, `marcado_em` e
+  `observacao`; RLS forçada. Só `wf_marcar_item` grava.
+- **Dias úteis e prazo**: `fn_somar_dias_uteis(data, n)` (`STABLE`, `INVOKER`) soma `n` dias úteis sem contar o dia
+  de início, pulando sábado, domingo e `feriados` (os recorrentes valem em todo ano). `n` nulo ou 0 devolve a data;
+  negativo ou acima de 3650 recusa com `22023`. `fn_situacao_prazo(date)`
+  devolve `sem_prazo`, `vencido`, `vence_logo` (vence em até 2 dias úteis, inclusive hoje) ou `em_dia`, com "hoje" no
+  fuso do órgão (`app.fuso_horario`, padrão `America/Sao_Paulo`; a regra espelha `data_local()`, que
+  `authenticated` não executa). Ambas executáveis por `authenticated`.
+- **Sigilo**: `wf_pode_ver_processo(uuid)` (`SECURITY DEFINER`, `STABLE`, exige usuário ativo). Vê o processo quem:
+  (1) tem o módulo `workflow` **e** `workflow.visualizar`, quando o processo é público; (2) abriu o processo
+  (`created_by`); (3) tem credencial em `acesso_processo_sigiloso`; ou (4) tem `workflow.admin` (o papel admin passa
+  por `has_permission_code`). Processo inexistente dá `false`.
+- **Policies** de `processos_administrativos`, `movimentacoes_processo`, `despachos`, `documentos_processo`,
+  `prazos_processo` e `processo_checklist_respostas`: só `wf_select` (por `wf_pode_ver_processo`) e `wf_delete` (só
+  `workflow.admin`). Não há policy de INSERT nem de UPDATE para `authenticated`: **a escrita é só pelas RPCs `wf_*`**.
+  A migração apaga as policies antigas (`rls_*`, `acesso_total_*`, `proc_*`, FASE 6) e qualquer outra que encontrar
+  nessas tabelas, com `RAISE NOTICE`, porque policies são permissivas (OR) e uma sobra abriria o sigilo. A classe das
+  seis tabelas no `supabase/baseline/rls/mapa.csv` é `preservar`.
+- **RPCs `wf_*`** (`SECURITY DEFINER`, `search_path` fixo, `EXECUTE` só para `authenticated`). As que recebem um
+  processo seguem a mesma ordem: sigilo, trava da linha (`FOR UPDATE`, que serializa as movimentações do processo) e
+  só então a permissão da ação. Quem não vê o processo recebe `42501` com a **mesma mensagem** de processo
+  inexistente. Em processo restrito ou sigiloso, quem só tem credencial `leitura` recebe `42501` ("Sua credencial
+  neste processo é só de leitura") em qualquer RPC que altere. Códigos de erro: `42501` (permissão ou sigilo), `22023`
+  (regra de negócio, mensagem em português) e `40001` (a etapa mudou desde a leitura: recarregue).
+
+  | RPC | Permissão | O que faz e o que recusa |
+  |---|---|---|
+  | `wf_abrir_processo(modelo, assunto, descricao, interessado_tipo, interessado_nome, interessado_documento, sigilo, numero_sei)` | módulo `workflow` **e** `workflow.criar` | Abre na etapa 1 do modelo, com unidade de origem = lotação vigente do servidor do login, unidade atual e prazo. Retorna o id. `42501` sem o módulo ou sem a permissão (a permissão avulsa sem o módulo não abre); `22023` para modelo inexistente ou inativo, assunto ou interessado vazio, tipo de interessado fora de `interno`/`externo`, número SEI sem dígito ou já usado |
+  | `wf_marcar_item(processo, item_codigo, marcado, observacao)` | `workflow.tramitar` | Marca ou desmarca item do checklist da etapa atual ou de anterior; grava quem e quando. `22023` para processo suspenso, concluído ou arquivado, sem modelo, item inexistente ou de etapa ainda não alcançada |
+  | `wf_avancar_etapa(processo, etapa_esperada, observacao)` | `workflow.tramitar` | Avança para a próxima etapa: grava movimentação `encaminhamento`, nova etapa, unidade, prazo, situação `em_tramitacao`. `40001` se `etapa_esperada` difere da atual; `22023` para processo fora de andamento, sem modelo, última etapa (conclua), item obrigatório pendente (lista as descrições dos itens, separadas por `;`, como no checklist da tela) ou sem número SEI ao sair da etapa 1 |
+  | `wf_devolver_etapa(processo, etapa_esperada, para_ordem, motivo)` | `workflow.tramitar` | Volta a uma etapa anterior (movimentação `devolucao`). `40001` como acima; `22023` sem motivo, destino que não é anterior à atual ou inexistente |
+  | `wf_suspender(processo, motivo)` | `workflow.concluir` | Status `suspenso` e `suspenso_desde` = hoje; o prazo para. `22023` sem motivo ou fora de andamento |
+  | `wf_reativar(processo, motivo)` | `workflow.concluir` | Soma, a partir de hoje, os dias úteis que faltavam na suspensão (prazo já vencido continua vencido pelos mesmos dias corridos). Volta a `em_tramitacao` se já houve encaminhamento ou devolução, senão a `aberto`. `22023` se não está suspenso ou sem motivo |
+  | `wf_concluir(processo, motivo)` | `workflow.concluir` | Com modelo, só na última etapa e com todo item obrigatório marcado; sem modelo, direto. Grava `data_encerramento`. `22023` fora desses casos (a recusa por pendência lista as descrições dos itens) |
+  | `wf_arquivar(processo, motivo)` | `workflow.arquivar` | Aceita processo em andamento, suspenso ou concluído; recusa o já arquivado (`22023`). Não exige despacho |
+  | `wf_atualizar_numero_sei(processo, numero_sei)` | `workflow.tramitar` | Corrige o número enquanto o processo está na etapa 1 (ou sem modelo); vazio apaga. `22023` fora da etapa 1, fora de andamento ou número inválido ou repetido |
+  | `wf_conceder_acesso(processo, usuario, nivel, motivo)` | `workflow.admin` | Concede ou troca o nível (`leitura`, `tramitacao`, `total`) em `acesso_processo_sigiloso`. Vale em processo de qualquer situação. `22023` para nível inválido ou usuário inexistente ou inativo |
+  | `wf_revogar_acesso(processo, usuario)` | `workflow.admin` | Retira a credencial; sem erro se não havia. Vale em qualquer situação do processo |
+  | `wf_listar_credenciais(processo)` | `workflow.admin` | Lista usuário, nível, motivo, quem concedeu e data (só `profiles.full_name`: sem e-mail nem CPF); `STABLE`, sem trava. Existe porque a RLS de `acesso_processo_sigiloso` só deixa o papel admin ler e a migração não a mudou. Sigilo primeiro (`42501` com a mensagem de processo inexistente), depois a permissão |
+  | `wf_listar_usuarios_ativos()` | `workflow.admin` | Lista `id` e `full_name` dos perfis ativos (`profiles.is_active`, o mesmo critério de `wf_conceder_acesso`), por nome, para escolher quem recebe a credencial; sem e-mail nem CPF. `STABLE`, sem processo. `42501` sem a permissão |
+
+  O número SEI é normalizado (espaços removidos; vazio vira `NULL`); a mensagem de número repetido traz o número interno
+  do outro processo só para quem pode vê-lo. Sem lotação vigente (`lotacao_vigente`), `wf_abrir_processo` abre o
+  processo sem unidade de origem: as etapas `@ORIGEM` e `@CHEFIA` ficam sem unidade resolvida.
+- **Funções internas** (sem `EXECUTE` para `authenticated`, `anon` nem `service_role`; só as RPCs, como dono, as
+  chamam): `wf_resolver_unidade(sigla, origem)` (unidade ativa e não extinta com a mesma sigla, sem diferenciar
+  maiúsculas; sigla sem correspondência dá `NULL`, e a etapa avança assim mesmo), `wf_travar_processo`,
+  `wf_exigir_em_andamento`, `wf_pendencias`, `wf_preparar_numero_sei` e `wf_registrar_movimentacao`.
+- **View `v_processos_acompanhamento`** (`security_invoker`, só `SELECT` para `authenticated`): `p.*` mais
+  `numero_formatado`, `modelo_codigo`, `modelo_nome`, `etapa_nome`, `etapa_total`, `unidade_sigla` (a da unidade
+  resolvida ou, sem ela, a da etapa), `unidade_nome`, `situacao_prazo` (semáforo só para processo `aberto` ou
+  `em_tramitacao`; os demais são `sem_prazo`) e `pendencias_obrigatorias`. A RLS das tabelas de origem vale, então o
+  sigilo esconde o processo inteiro. Foi criada com `DROP VIEW` + `CREATE VIEW` (o `p.*` é expandido na criação) e os
+  privilégios são refeitos na migração.
+- **Removido**: os triggers duplicados `tr_audit_processos`, `tr_audit_movimentacoes`, `tr_audit_despachos` (ficam os
+  `audit_*`) e `tr_updated_at_*` das cinco tabelas (fica `handle_updated_at`); os triggers
+  `tr_verificar_arquivamento` e `tr_validar_arquivamento`, com as funções `verificar_arquivamento_processo` e
+  `fn_validar_arquivamento_processo` (exigiam despacho conclusivo para arquivar; agora é `wf_arquivar` com
+  `workflow.arquivar`); `fn_proximo_numero_processo(integer)` (4 dígitos, sem uso) e `fn_pode_arquivar_processo(uuid)`.
+  O número interno (`00001/ano`) segue vindo do trigger `gerar_numero_processo`, que agora toma um
+  `pg_advisory_xact_lock` por ano antes do `MAX+1`.
+- **Funções antigas ajustadas**: `fn_contar_processos_por_status()` passou a `SECURITY INVOKER`, e a RLS decide o que
+  entra na contagem (antes, `DEFINER`, contava os sigilosos); `fn_calcular_sla_processo(uuid)` continua `DEFINER`, mas
+  devolve nenhuma linha para processo que o usuário não vê ou que não existe.
+- **Tipos**: as tabelas, a view e as RPCs novas ainda não estão em `src/integrations/supabase/types.ts` (gerado);
+  `useAcompanhamentoProcessos` as acessa por um alias sem tipos. Regenerar os tipos depois do merge.
 
 ### Governança e compliance
 `estrutura_organizacional`, `cargos`, `composicao_cargos`, `vagas_cargo`,
@@ -1174,8 +1271,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   vira aviso, não extinção. Depois liga os provimentos ativos sem vaga a vagas livres do cargo (quem sobra vira aviso de
   excesso) e atualiza `cargos.quantidade_vagas` com o número de vagas ativas. `rh_vaga_situacao(uuid)` e
   `rh_vaga_ocupante_atual(uuid)` são executáveis por `authenticated` (seção "Quadro de vagas").
-- **Processos / workflow**: `fn_calcular_sla_processo`,
-  `fn_contar_processos_por_status`, `fn_pode_arquivar_processo`.
+- **Processos / workflow**: `fn_calcular_sla_processo`, `fn_contar_processos_por_status`, `fn_somar_dias_uteis`,
+  `fn_situacao_prazo`, `wf_pode_ver_processo` e as RPCs `wf_*` (seção "Acompanhamento de processos do SEI").
+  `fn_pode_arquivar_processo` foi removida.
 - **Patrimônio / unidades**: `gerar_numero_tombamento`, `patrimonio_buscar_bem_por_codigo`,
   `patrimonio_decidir_movimentacao`, `patrimonio_decidir_baixa`, `gerar_protocolo_cedencia`,
   `gerar_relatorio_responsavel`, `get_hierarquia_unidade`,

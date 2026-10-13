@@ -4,14 +4,14 @@
  * (PageHeader, KpiCard). Ver docs/GUIA_FRONTEND.md (Design System).
  */
 
-import { FileText, Clock, CheckCircle, FilePlus, Search, ArrowRight, AlertCircle } from "lucide-react";
+import { FileText, Clock, AlertTriangle, FilePlus, Search, AlertCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { useWorkflowDashboardStats } from "@/hooks/dashboard";
-import { useAuth } from "@/contexts/AuthContext";
+import { useWorkflowDashboardStats, type GrupoContagem } from "@/hooks/dashboard";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { KpiCard, PageHeader } from "@/components/design-system";
 import { Link } from "react-router-dom";
 
@@ -24,25 +24,66 @@ interface Indicador {
   href?: string;
 }
 
+function ListaContagem({
+  titulo,
+  grupos,
+  carregando,
+  href,
+}: {
+  titulo: string;
+  grupos: GrupoContagem[] | undefined;
+  carregando: boolean;
+  href: (g: GrupoContagem) => string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="text-h2 text-foreground">{titulo}</h2>
+      </CardHeader>
+      <CardContent>
+        {carregando ? (
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ) : !grupos || grupos.length === 0 ? (
+          <p className="text-body text-muted-foreground">Nenhum processo em andamento.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {grupos.map((g) => (
+              <li key={`${g.modeloCodigo}-${g.etapa ?? ""}`}>
+                <Link
+                  to={href(g)}
+                  className="flex items-center justify-between gap-3 rounded-md py-2 text-body hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="truncate">{g.rotulo}</span>
+                  <span className="font-medium tabular-nums">{numero.format(g.total)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function WorkflowDashboardPage() {
-  const { user } = useAuth();
-  const { data: stats, isLoading, isError, refetch } = useWorkflowDashboardStats(user?.id);
+  const { data: stats, isLoading, isError, refetch, semLotacao } = useWorkflowDashboardStats();
 
   // Sem dado (erro) mostra "—" em vez de um zero que parece real
   const valor = (n: number | undefined) => (stats ? numero.format(n || 0) : "—");
 
   const indicadores: Indicador[] = [
-    { rotulo: "Processos ativos", valor: valor(stats?.processosAtivos), icone: FileText, href: "/workflow/processos" },
-    { rotulo: "Pendentes comigo", valor: valor(stats?.pendentesComigo), icone: Clock, href: "/workflow/processos?meus=true" },
-    { rotulo: "Tramitados hoje", valor: valor(stats?.tramitadosHoje), icone: ArrowRight },
-    { rotulo: "Concluídos no mês", valor: valor(stats?.concluidosMes), icone: CheckCircle },
+    { rotulo: "Processos ativos", valor: valor(stats?.ativos), icone: FileText, href: "/workflow/processos?status=ativos" },
+    { rotulo: "Na minha unidade", valor: valor(stats?.naMinhaUnidade), icone: Clock, href: "/workflow/processos?meus=true&status=ativos" },
+    { rotulo: "Vencidos", valor: valor(stats?.vencidos), icone: AlertTriangle, href: "/workflow/processos?prazo=vencido" },
   ];
 
   const quickActions = [
     { label: "Novo processo", description: "Iniciar processo", href: "/workflow/processos?acao=novo", icon: FilePlus },
-    { label: "Meus processos", description: "Processos pendentes", href: "/workflow/processos?meus=true", icon: Clock },
+    { label: "Na minha unidade", description: "Processos com a minha unidade", href: "/workflow/processos?meus=true&status=ativos", icon: Clock },
     { label: "Consultar", description: "Buscar processo", href: "/workflow/processos", icon: Search },
-    { label: "Tramitar", description: "Encaminhar processo", href: "/workflow/processos", icon: ArrowRight },
   ];
 
   return (
@@ -68,7 +109,7 @@ export default function WorkflowDashboardPage() {
         {/* Indicadores: os que têm tela própria levam a ela */}
         <section aria-labelledby="workflow-indicadores">
           <h2 id="workflow-indicadores" className="sr-only">Indicadores</h2>
-          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-3">
             {indicadores.map((ind) => {
               const card = (
                 <KpiCard
@@ -97,6 +138,44 @@ export default function WorkflowDashboardPage() {
           </ul>
         </section>
 
+        {semLotacao && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription>
+              Seu usuário não tem lotação ativa; peça ao RH. Sem lotação, "Na minha unidade" fica zerado.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {stats?.agrupamentoParcial && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription>
+              Há muitos processos em andamento: "Por tipo" e "Por etapa" consideram só os primeiros 1.000. Os totais acima são completos.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Por tipo e por etapa (processos aberto/em tramitação) */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ListaContagem
+            titulo="Por tipo"
+            carregando={isLoading}
+            grupos={stats?.porTipo}
+            href={(g) =>
+              g.modeloCodigo
+                ? `/workflow/processos?tipo=${encodeURIComponent(g.modeloCodigo)}&status=ativos`
+                : "/workflow/processos?status=ativos"
+            }
+          />
+          <ListaContagem
+            titulo="Por etapa"
+            carregando={isLoading}
+            grupos={stats?.porEtapa}
+            href={(g) => `/workflow/processos?tipo=${encodeURIComponent(g.modeloCodigo)}&etapa=${g.etapa}&status=ativos`}
+          />
+        </div>
+
         {/* Ações rápidas */}
         <Card>
           <CardHeader>
@@ -104,7 +183,7 @@ export default function WorkflowDashboardPage() {
             <CardDescription>Acesse as principais funcionalidades</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {quickActions.map((action) => {
                 const Icon = action.icon;
                 return (

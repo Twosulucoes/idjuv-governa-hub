@@ -1340,20 +1340,11 @@ DROP POLICY IF EXISTS "rls_delete" ON public.designacoes;
 CREATE POLICY "rls_delete" ON public.designacoes FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
--- despachos  [modulo: workflow]
-DROP POLICY IF EXISTS "rls_select" ON public.despachos;
-CREATE POLICY "rls_select" ON public.despachos FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')));
-DROP POLICY IF EXISTS "rls_insert" ON public.despachos;
-CREATE POLICY "rls_insert" ON public.despachos FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')));
-DROP POLICY IF EXISTS "rls_update" ON public.despachos;
-CREATE POLICY "rls_update" ON public.despachos FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')));
+-- despachos  [preservar: workflow]
 DROP POLICY IF EXISTS "rls_delete" ON public.despachos;
-CREATE POLICY "rls_delete" ON public.despachos FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')));
+DROP POLICY IF EXISTS "rls_insert" ON public.despachos;
+DROP POLICY IF EXISTS "rls_select" ON public.despachos;
+DROP POLICY IF EXISTS "rls_update" ON public.despachos;
 
 -- dias_nao_uteis  [catalogo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.dias_nao_uteis;
@@ -1415,20 +1406,11 @@ DROP POLICY IF EXISTS "rls_delete" ON public.documentos_preparatorios_licitacao;
 CREATE POLICY "rls_delete" ON public.documentos_preparatorios_licitacao FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
 
--- documentos_processo  [modulo: workflow]
-DROP POLICY IF EXISTS "rls_select" ON public.documentos_processo;
-CREATE POLICY "rls_select" ON public.documentos_processo FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')));
-DROP POLICY IF EXISTS "rls_insert" ON public.documentos_processo;
-CREATE POLICY "rls_insert" ON public.documentos_processo FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')));
-DROP POLICY IF EXISTS "rls_update" ON public.documentos_processo;
-CREATE POLICY "rls_update" ON public.documentos_processo FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')));
+-- documentos_processo  [preservar: workflow]
 DROP POLICY IF EXISTS "rls_delete" ON public.documentos_processo;
-CREATE POLICY "rls_delete" ON public.documentos_processo FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')));
+DROP POLICY IF EXISTS "rls_insert" ON public.documentos_processo;
+DROP POLICY IF EXISTS "rls_select" ON public.documentos_processo;
+DROP POLICY IF EXISTS "rls_update" ON public.documentos_processo;
 
 -- documentos_requerimento_servidor  [permissao: rh]
 DROP POLICY IF EXISTS "Authenticated users can view" ON public.documentos_requerimento_servidor;
@@ -2775,20 +2757,11 @@ DROP POLICY IF EXISTS "rls_delete" ON public.movimentacoes_patrimonio;
 CREATE POLICY "rls_delete" ON public.movimentacoes_patrimonio FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
 
--- movimentacoes_processo  [modulo: workflow]
-DROP POLICY IF EXISTS "rls_select" ON public.movimentacoes_processo;
-CREATE POLICY "rls_select" ON public.movimentacoes_processo FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')));
-DROP POLICY IF EXISTS "rls_insert" ON public.movimentacoes_processo;
-CREATE POLICY "rls_insert" ON public.movimentacoes_processo FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')));
-DROP POLICY IF EXISTS "rls_update" ON public.movimentacoes_processo;
-CREATE POLICY "rls_update" ON public.movimentacoes_processo FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')));
+-- movimentacoes_processo  [preservar: workflow]
 DROP POLICY IF EXISTS "rls_delete" ON public.movimentacoes_processo;
-CREATE POLICY "rls_delete" ON public.movimentacoes_processo FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')));
+DROP POLICY IF EXISTS "rls_insert" ON public.movimentacoes_processo;
+DROP POLICY IF EXISTS "rls_select" ON public.movimentacoes_processo;
+DROP POLICY IF EXISTS "rls_update" ON public.movimentacoes_processo;
 
 -- nomeacoes_chefe_unidade  [modulo: rh | patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.nomeacoes_chefe_unidade;
@@ -3004,20 +2977,11 @@ DROP POLICY IF EXISTS "rls_delete" ON public.prazos_lai;
 CREATE POLICY "rls_delete" ON public.prazos_lai FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'transparencia')));
 
--- prazos_processo  [modulo: workflow]
-DROP POLICY IF EXISTS "rls_select" ON public.prazos_processo;
-CREATE POLICY "rls_select" ON public.prazos_processo FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')));
-DROP POLICY IF EXISTS "rls_insert" ON public.prazos_processo;
-CREATE POLICY "rls_insert" ON public.prazos_processo FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')));
-DROP POLICY IF EXISTS "rls_update" ON public.prazos_processo;
-CREATE POLICY "rls_update" ON public.prazos_processo FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')));
+-- prazos_processo  [preservar: workflow]
 DROP POLICY IF EXISTS "rls_delete" ON public.prazos_processo;
-CREATE POLICY "rls_delete" ON public.prazos_processo FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow')));
+DROP POLICY IF EXISTS "rls_insert" ON public.prazos_processo;
+DROP POLICY IF EXISTS "rls_select" ON public.prazos_processo;
+DROP POLICY IF EXISTS "rls_update" ON public.prazos_processo;
 
 -- pre_cadastros  [modulo: rh | gabinete]
 DROP POLICY IF EXISTS "rls_select" ON public.pre_cadastros;
@@ -3034,20 +2998,59 @@ DROP POLICY IF EXISTS "rls_delete" ON public.pre_cadastros;
 CREATE POLICY "rls_delete" ON public.pre_cadastros FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'gabinete')));
 
--- processos_administrativos  [modulo: workflow | admin]
-DROP POLICY IF EXISTS "rls_select" ON public.processos_administrativos;
-CREATE POLICY "rls_select" ON public.processos_administrativos FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow') OR public.can_access_module(auth.uid(), 'admin')));
-DROP POLICY IF EXISTS "rls_insert" ON public.processos_administrativos;
-CREATE POLICY "rls_insert" ON public.processos_administrativos FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow') OR public.can_access_module(auth.uid(), 'admin')));
-DROP POLICY IF EXISTS "rls_update" ON public.processos_administrativos;
-CREATE POLICY "rls_update" ON public.processos_administrativos FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow') OR public.can_access_module(auth.uid(), 'admin')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow') OR public.can_access_module(auth.uid(), 'admin')));
+-- processo_checklist_respostas  [preservar: workflow]
+-- (nenhuma policy gerada)
+
+-- processo_modelo_checklist  [permissao: workflow]
+DROP POLICY IF EXISTS "rls_select" ON public.processo_modelo_checklist;
+CREATE POLICY "rls_select" ON public.processo_modelo_checklist FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')));
+DROP POLICY IF EXISTS "rls_insert" ON public.processo_modelo_checklist;
+CREATE POLICY "rls_insert" ON public.processo_modelo_checklist FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_update" ON public.processo_modelo_checklist;
+CREATE POLICY "rls_update" ON public.processo_modelo_checklist FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_delete" ON public.processo_modelo_checklist;
+CREATE POLICY "rls_delete" ON public.processo_modelo_checklist FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+
+-- processo_modelo_etapas  [permissao: workflow]
+DROP POLICY IF EXISTS "rls_select" ON public.processo_modelo_etapas;
+CREATE POLICY "rls_select" ON public.processo_modelo_etapas FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')));
+DROP POLICY IF EXISTS "rls_insert" ON public.processo_modelo_etapas;
+CREATE POLICY "rls_insert" ON public.processo_modelo_etapas FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_update" ON public.processo_modelo_etapas;
+CREATE POLICY "rls_update" ON public.processo_modelo_etapas FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_delete" ON public.processo_modelo_etapas;
+CREATE POLICY "rls_delete" ON public.processo_modelo_etapas FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+
+-- processo_modelos  [permissao: workflow]
+DROP POLICY IF EXISTS "rls_select" ON public.processo_modelos;
+CREATE POLICY "rls_select" ON public.processo_modelos FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')));
+DROP POLICY IF EXISTS "rls_insert" ON public.processo_modelos;
+CREATE POLICY "rls_insert" ON public.processo_modelos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_update" ON public.processo_modelos;
+CREATE POLICY "rls_update" ON public.processo_modelos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_delete" ON public.processo_modelos;
+CREATE POLICY "rls_delete" ON public.processo_modelos FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+
+-- processos_administrativos  [preservar: workflow]
 DROP POLICY IF EXISTS "rls_delete" ON public.processos_administrativos;
-CREATE POLICY "rls_delete" ON public.processos_administrativos FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'workflow') OR public.can_access_module(auth.uid(), 'admin')));
+DROP POLICY IF EXISTS "rls_insert" ON public.processos_administrativos;
+DROP POLICY IF EXISTS "rls_select" ON public.processos_administrativos;
+DROP POLICY IF EXISTS "rls_update" ON public.processos_administrativos;
 
 -- processos_licitatorios  [modulo: compras | contratos]
 DROP POLICY IF EXISTS "comp_module_delete" ON public.processos_licitatorios;
