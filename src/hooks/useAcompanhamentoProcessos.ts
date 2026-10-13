@@ -19,6 +19,7 @@ import type {
   ProcessoAcompanhamento,
   RespostaChecklist,
   SituacaoPrazo,
+  StatusProcesso,
 } from '@/types/workflow';
 
 // Único ponto de cast do arquivo (ver cabeçalho).
@@ -27,12 +28,16 @@ const db = supabase as any;
 
 const CHAVE = 'wf-acompanhamento';
 
+/** Máximo de linhas por consulta (limite padrão do PostgREST); a tela avisa quando é atingido. */
+export const LIMITE_LINHAS = 1000;
+
 export interface FiltrosAcompanhamento {
   escopo: 'minha_unidade' | 'todos';
   modeloCodigo?: string;
   etapa?: number;
   unidadeId?: string;
   situacaoPrazo?: SituacaoPrazo;
+  status?: StatusProcesso;
   busca?: string;
 }
 
@@ -145,13 +150,14 @@ export function useProcessosAcompanhamento(filtros: FiltrosAcompanhamento) {
       if (filtros.etapa) q = q.eq('etapa_atual_ordem', filtros.etapa);
       if (filtros.unidadeId) q = q.eq('unidade_atual_id', filtros.unidadeId);
       if (filtros.situacaoPrazo) q = q.eq('situacao_prazo', filtros.situacaoPrazo);
+      if (filtros.status) q = q.eq('status', filtros.status);
       const termo = filtros.busca ? escaparBusca(filtros.busca) : '';
       if (termo) {
         q = q.or(
           `assunto.ilike.%${termo}%,interessado_nome.ilike.%${termo}%,numero_sei.ilike.%${termo}%,numero_processo.ilike.%${termo}%`,
         );
       }
-      const { data, error } = await q;
+      const { data, error } = await q.range(0, LIMITE_LINHAS - 1);
       if (error) throw error;
       return (data ?? []) as ProcessoAcompanhamento[];
     },

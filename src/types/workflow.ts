@@ -14,33 +14,8 @@ export type StatusMovimentacao = 'pendente' | 'recebido' | 'respondido' | 'venci
 export type TipoDespacho = 'simples' | 'decisorio' | 'conclusivo';
 export type DecisaoDespacho = 'deferido' | 'indeferido' | 'parcialmente_deferido' | 'encaminhar' | 'arquivar' | 'suspender' | 'informar';
 export type TipoDocumentoProcesso = 'oficio' | 'nota_tecnica' | 'parecer' | 'despacho' | 'anexo' | 'requerimento' | 'declaracao' | 'certidao' | 'outro';
-export type ReferenciaPrazo = 'legal' | 'interno' | 'judicial' | 'contratual' | 'regulamentar';
 
 // Interfaces principais
-export interface ProcessoAdministrativo {
-  id: string;
-  numero_processo: string;
-  ano: number;
-  tipo_processo: TipoProcesso;
-  assunto: string;
-  descricao?: string;
-  interessado_tipo: 'interno' | 'externo';
-  interessado_nome: string;
-  interessado_documento?: string;
-  unidade_origem_id?: string;
-  status: StatusProcesso;
-  sigilo: NivelSigilo;
-  data_abertura: string;
-  data_encerramento?: string;
-  processo_origem_id?: string;
-  observacoes?: string;
-  created_at: string;
-  updated_at: string;
-  created_by?: string;
-  // Joins
-  unidade_origem?: { id: string; nome: string; sigla?: string };
-}
-
 export interface MovimentacaoProcesso {
   id: string;
   processo_id: string;
@@ -106,26 +81,6 @@ export interface DocumentoProcesso {
   created_by?: string;
 }
 
-export interface PrazoProcesso {
-  id: string;
-  processo_id: string;
-  referencia: ReferenciaPrazo;
-  descricao: string;
-  base_legal?: string;
-  prazo_dias: number;
-  data_inicio: string;
-  data_limite: string;
-  cumprido: boolean;
-  data_cumprimento?: string;
-  responsavel_id?: string;
-  observacoes?: string;
-  created_at: string;
-  updated_at: string;
-  created_by?: string;
-  // Joins
-  responsavel?: { id: string; nome_completo: string };
-}
-
 // Labels para UI
 export const TIPO_PROCESSO_LABELS: Record<TipoProcesso, string> = {
   compra: 'Compra',
@@ -149,24 +104,10 @@ export const STATUS_PROCESSO_LABELS: Record<StatusProcesso, string> = {
   arquivado: 'Arquivado',
 };
 
-export const STATUS_PROCESSO_COLORS: Record<StatusProcesso, string> = {
-  aberto: 'bg-blue-100 text-blue-800',
-  em_tramitacao: 'bg-yellow-100 text-yellow-800',
-  suspenso: 'bg-orange-100 text-orange-800',
-  concluido: 'bg-green-100 text-green-800',
-  arquivado: 'bg-gray-100 text-gray-800',
-};
-
 export const SIGILO_LABELS: Record<NivelSigilo, string> = {
   publico: 'Público',
   restrito: 'Restrito',
   sigiloso: 'Sigiloso',
-};
-
-export const SIGILO_COLORS: Record<NivelSigilo, string> = {
-  publico: 'bg-green-100 text-green-800',
-  restrito: 'bg-yellow-100 text-yellow-800',
-  sigiloso: 'bg-red-100 text-red-800',
 };
 
 export const TIPO_MOVIMENTACAO_LABELS: Record<TipoMovimentacao, string> = {
@@ -177,22 +118,6 @@ export const TIPO_MOVIMENTACAO_LABELS: Record<TipoMovimentacao, string> = {
   informacao: 'Informação',
   ciencia: 'Ciência',
   devolucao: 'Devolução',
-};
-
-export const STATUS_MOVIMENTACAO_LABELS: Record<StatusMovimentacao, string> = {
-  pendente: 'Pendente',
-  recebido: 'Recebido',
-  respondido: 'Respondido',
-  vencido: 'Vencido',
-  cancelado: 'Cancelado',
-};
-
-export const STATUS_MOVIMENTACAO_COLORS: Record<StatusMovimentacao, string> = {
-  pendente: 'bg-yellow-100 text-yellow-800',
-  recebido: 'bg-blue-100 text-blue-800',
-  respondido: 'bg-green-100 text-green-800',
-  vencido: 'bg-red-100 text-red-800',
-  cancelado: 'bg-gray-100 text-gray-800',
 };
 
 export const TIPO_DESPACHO_LABELS: Record<TipoDespacho, string> = {
@@ -209,18 +134,6 @@ export const DECISAO_LABELS: Record<DecisaoDespacho, string> = {
   arquivar: 'Arquivar',
   suspender: 'Suspender',
   informar: 'Tomar Ciência',
-};
-
-export const TIPO_DOCUMENTO_LABELS: Record<TipoDocumentoProcesso, string> = {
-  oficio: 'Ofício',
-  nota_tecnica: 'Nota Técnica',
-  parecer: 'Parecer',
-  despacho: 'Despacho',
-  anexo: 'Anexo',
-  requerimento: 'Requerimento',
-  declaracao: 'Declaração',
-  certidao: 'Certidão',
-  outro: 'Outro',
 };
 
 // ========================

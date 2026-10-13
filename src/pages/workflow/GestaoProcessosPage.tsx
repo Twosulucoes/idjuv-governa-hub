@@ -3,11 +3,12 @@
  * Abas "Na minha unidade" / "Todos"; filtros por tipo (modelo), etapa, unidade e prazo.
  * Padrões do design system: PageHeader, KpiCard, DataTable, StatusBadge.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,11 +19,13 @@ import {
   PageHeader,
   StatusBadge,
   type ColunaTabela,
+  type TomStatus,
 } from '@/components/design-system';
-import { Plus, Search, FileText, AlertTriangle, CheckCircle2, FolderOpen, ChevronRight, UserX } from 'lucide-react';
+import { Plus, Search, FileText, AlertTriangle, CheckCircle2, Clock, ChevronRight, FolderOpen, UserX, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIdentidade } from '@/core/tenant';
 import {
+  LIMITE_LINHAS,
   useModeloProcesso,
   useModelosProcesso,
   useProcessosAcompanhamento,
@@ -30,10 +33,24 @@ import {
 } from '@/hooks/useAcompanhamentoProcessos';
 import { rotuloSituacaoPrazo, tomStatusDoSemaforo } from '@/lib/workflow/semaforoPrazo';
 import { NovoProcessoDialog } from '@/components/workflow/NovoProcessoDialog';
-import type { ProcessoAcompanhamento, SituacaoPrazo } from '@/types/workflow';
+import {
+  STATUS_PROCESSO_LABELS,
+  type ProcessoAcompanhamento,
+  type SituacaoPrazo,
+  type StatusProcesso,
+} from '@/types/workflow';
 
 const SITUACOES: SituacaoPrazo[] = ['em_dia', 'vence_logo', 'vencido', 'sem_prazo'];
+const STATUS: StatusProcesso[] = ['aberto', 'em_tramitacao', 'suspenso', 'concluido', 'arquivado'];
 const TODOS = 'todos';
+
+const TOM_STATUS: Record<StatusProcesso, TomStatus> = {
+  aberto: 'andamento',
+  em_tramitacao: 'pendente',
+  suspenso: 'neutro',
+  concluido: 'sucesso',
+  arquivado: 'neutro',
+};
 
 const numeroInterno = (p: ProcessoAcompanhamento) => p.numero_formatado || `${p.numero_processo}/${p.ano}`;
 
@@ -41,7 +58,7 @@ export default function GestaoProcessosPage() {
   const navigate = useNavigate();
   const { sigla } = useIdentidade();
   const { hasPermission } = useAuth();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
 
   const [aba, setAba] = useState<'minha_unidade' | 'todos'>(params.get('meus') === 'true' ? 'minha_unidade' : 'todos');
   const [busca, setBusca] = useState('');
@@ -51,8 +68,29 @@ export default function GestaoProcessosPage() {
   const [filtroPrazo, setFiltroPrazo] = useState(
     SITUACOES.includes(params.get('prazo') as SituacaoPrazo) ? (params.get('prazo') as string) : TODOS,
   );
+  const [filtroStatus, setFiltroStatus] = useState(
+    STATUS.includes(params.get('status') as StatusProcesso) ? (params.get('status') as string) : TODOS,
+  );
   const podeCriar = hasPermission('workflow.criar');
-  const [novoDialogOpen, setNovoDialogOpen] = useState(podeCriar && params.get('acao') === 'novo');
+  const [novoDialogOpen, setNovoDialogOpen] = useState(false);
+
+  // Navegação dentro da rota (menu, painel): reaplica o que veio na URL; `acao=novo` abre o diálogo uma vez e sai da URL
+  useEffect(() => {
+    if (params.has('meus')) setAba(params.get('meus') === 'true' ? 'minha_unidade' : 'todos');
+    if (params.has('tipo')) setFiltroTipo(params.get('tipo') ?? TODOS);
+    if (params.has('etapa')) setFiltroEtapa(params.get('etapa') ?? TODOS);
+    if (params.has('unidade')) setFiltroUnidade(params.get('unidade') ?? TODOS);
+    const prazo = params.get('prazo');
+    if (prazo) setFiltroPrazo(SITUACOES.includes(prazo as SituacaoPrazo) ? prazo : TODOS);
+    const status = params.get('status');
+    if (status) setFiltroStatus(STATUS.includes(status as StatusProcesso) ? status : TODOS);
+    if (params.get('acao') === 'novo') {
+      if (podeCriar) setNovoDialogOpen(true);
+      const resto = new URLSearchParams(params);
+      resto.delete('acao');
+      setParams(resto, { replace: true });
+    }
+  }, [params, setParams, podeCriar]);
 
   const { data: modelos } = useModelosProcesso();
   const { data: modeloEscolhido } = useModeloProcesso(filtroTipo === TODOS ? '' : filtroTipo);
@@ -61,8 +99,9 @@ export default function GestaoProcessosPage() {
   const { data: processos, isLoading, isError, refetch, semLotacao } = useProcessosAcompanhamento({
     escopo: aba,
     modeloCodigo: filtroTipo !== TODOS ? filtroTipo : undefined,
-    etapa: filtroTipo !== TODOS && filtroEtapa !== TODOS ? Number(filtroEtapa) : undefined,
+    etapa: filtroTipo !== TODOS && Number.isFinite(Number(filtroEtapa)) && Number(filtroEtapa) > 0 ? Number(filtroEtapa) : undefined,
     unidadeId: filtroUnidade !== TODOS ? filtroUnidade : undefined,
+    status: filtroStatus !== TODOS ? (filtroStatus as StatusProcesso) : undefined,
     situacaoPrazo: filtroPrazo !== TODOS ? (filtroPrazo as SituacaoPrazo) : undefined,
     busca: busca || undefined,
   });
@@ -129,6 +168,14 @@ export default function GestaoProcessosPage() {
       ordenarPor: (p) => p.unidade_sigla ?? p.unidade_nome ?? '',
     },
     {
+      id: 'status',
+      cabecalho: 'Situação',
+      celula: (p) => (
+        <StatusBadge tom={TOM_STATUS[p.status] ?? 'neutro'}>{STATUS_PROCESSO_LABELS[p.status] ?? p.status}</StatusBadge>
+      ),
+      ordenarPor: (p) => STATUS_PROCESSO_LABELS[p.status] ?? p.status,
+    },
+    {
       id: 'prazo',
       cabecalho: 'Prazo',
       celula: (p) => {
@@ -174,13 +221,22 @@ export default function GestaoProcessosPage() {
               <KpiCard rotulo="Vencidos" valor={totalVencidos} icone={AlertTriangle} carregando={isLoading} className="h-full" />
             </li>
             <li>
-              <KpiCard rotulo="Vencem em breve" valor={totalVenceLogo} icone={FolderOpen} carregando={isLoading} className="h-full" />
+              <KpiCard rotulo="Vencem em breve" valor={totalVenceLogo} icone={Clock} carregando={isLoading} className="h-full" />
             </li>
             <li>
               <KpiCard rotulo="Concluídos" valor={totalConcluidos} icone={CheckCircle2} carregando={isLoading} className="h-full" />
             </li>
           </ul>
         </section>
+
+        {lista.length >= LIMITE_LINHAS && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription>
+              Mostrando os primeiros {LIMITE_LINHAS.toLocaleString('pt-BR')} processos; refine a busca ou os filtros. Os resumos acima consideram só essas linhas.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {semLotacao ? (
           <EmptyState
@@ -242,6 +298,17 @@ export default function GestaoProcessosPage() {
                   <SelectItem value={TODOS}>Todas as unidades</SelectItem>
                   {(unidades ?? []).map((u) => (
                     <SelectItem key={u.id} value={u.id}>{u.sigla ?? u.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                <SelectTrigger className="w-full sm:w-[170px]" aria-label="Situação">
+                  <SelectValue placeholder="Situação" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todas as situações</SelectItem>
+                  {STATUS.map((st) => (
+                    <SelectItem key={st} value={st}>{STATUS_PROCESSO_LABELS[st]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -7,12 +7,11 @@
 import { FileText, Clock, AlertTriangle, FilePlus, Search, AlertCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { useWorkflowDashboardStats } from "@/hooks/dashboard";
+import { useWorkflowDashboardStats, type GrupoContagem } from "@/hooks/dashboard";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { GrupoContagem } from "@/hooks/dashboard/useWorkflowDashboardStats";
 import { KpiCard, PageHeader } from "@/components/design-system";
 import { Link } from "react-router-dom";
 
@@ -144,6 +143,15 @@ export default function WorkflowDashboardPage() {
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Seu usuário não tem lotação ativa; peça ao RH. Sem lotação, "Na minha unidade" fica zerado.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {stats?.agrupamentoParcial && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription>
+              Há muitos processos em andamento: "Por tipo" e "Por etapa" consideram só os primeiros 1.000. Os totais acima são completos.
             </AlertDescription>
           </Alert>
         )}

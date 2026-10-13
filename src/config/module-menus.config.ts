@@ -208,7 +208,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     items: [
       { id: "processos", label: "Processos", icon: Workflow, route: "/workflow/processos" },
       { id: "novo", label: "Novo Processo", icon: FileText, route: "/workflow/processos?acao=novo" },
-      { id: "tramitacao", label: "Em Tramitação", icon: Send, route: "/workflow/processos?status=tramitando" },
+      { id: "tramitacao", label: "Em Tramitação", icon: Send, route: "/workflow/processos?status=em_tramitacao" },
       { id: "arquivados", label: "Arquivados", icon: Archive, route: "/workflow/processos?status=arquivado" },
     ],
   },

@@ -5,7 +5,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useUnidadeDoUsuario } from "@/hooks/useAcompanhamentoProcessos";
+import { LIMITE_LINHAS, useUnidadeDoUsuario } from "@/hooks/useAcompanhamentoProcessos";
 
 export interface GrupoContagem {
   /** Chave para a lista filtrada (código do modelo) */
@@ -20,6 +20,8 @@ export interface WorkflowStats {
   naMinhaUnidade: number;
   vencidos: number;
   ativos: number;
+  /** Os agrupamentos por tipo/etapa foram calculados sobre as primeiras linhas (limite atingido) */
+  agrupamentoParcial: boolean;
   porTipo: GrupoContagem[];
   porEtapa: GrupoContagem[];
 }
@@ -29,21 +31,32 @@ interface LinhaPainel {
   modelo_nome: string | null;
   etapa_atual_ordem: number | null;
   etapa_nome: string | null;
-  unidade_atual_id: string | null;
-  situacao_prazo: string;
 }
 
+const STATUS_ATIVOS = ["aberto", "em_tramitacao"];
 const SEM_MODELO = "Sem modelo";
 
 async function buscarStats(unidadeId: string | null): Promise<WorkflowStats> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any; // a view nova ainda não está em types.ts (gerado)
-  const { data, error } = await db
-    .from("v_processos_acompanhamento")
-    .select("modelo_codigo, modelo_nome, etapa_atual_ordem, etapa_nome, unidade_atual_id, situacao_prazo")
-    .in("status", ["aberto", "em_tramitacao"]);
-  if (error) throw error;
-  const linhas = (data ?? []) as LinhaPainel[];
+  const ativos = () => db.from("v_processos_acompanhamento").select("id", { count: "exact", head: true }).in("status", STATUS_ATIVOS);
+  const contar = async (q: PromiseLike<{ count: number | null; error: unknown }>) => {
+    const { count, error } = await q;
+    if (error) throw error;
+    return count ?? 0;
+  };
+  const [total, naMinhaUnidade, vencidos, lista] = await Promise.all([
+    contar(ativos()),
+    unidadeId ? contar(ativos().eq("unidade_atual_id", unidadeId)) : Promise.resolve(0),
+    contar(ativos().eq("situacao_prazo", "vencido")),
+    db
+      .from("v_processos_acompanhamento")
+      .select("modelo_codigo, modelo_nome, etapa_atual_ordem, etapa_nome")
+      .in("status", STATUS_ATIVOS)
+      .range(0, LIMITE_LINHAS - 1),
+  ]);
+  if (lista.error) throw lista.error;
+  const linhas = (lista.data ?? []) as LinhaPainel[];
 
   const porTipo = new Map<string, GrupoContagem>();
   const porEtapa = new Map<string, GrupoContagem>();
@@ -70,9 +83,10 @@ async function buscarStats(unidadeId: string | null): Promise<WorkflowStats> {
     [...m.values()].sort((a, b) => b.total - a.total || a.rotulo.localeCompare(b.rotulo, "pt-BR"));
 
   return {
-    ativos: linhas.length,
-    naMinhaUnidade: unidadeId ? linhas.filter((l) => l.unidade_atual_id === unidadeId).length : 0,
-    vencidos: linhas.filter((l) => l.situacao_prazo === "vencido").length,
+    ativos: total,
+    naMinhaUnidade,
+    vencidos,
+    agrupamentoParcial: linhas.length >= LIMITE_LINHAS,
     porTipo: ordenar(porTipo),
     porEtapa: ordenar(porEtapa).slice(0, 10),
   };
