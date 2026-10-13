@@ -8,7 +8,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,19 +18,18 @@ import {
   PageHeader,
   StatusBadge,
   type ColunaTabela,
-  type TomStatus,
 } from '@/components/design-system';
-import { Plus, Search, FileText, AlertTriangle, CheckCircle2, Clock, ChevronRight, FolderOpen, UserX, AlertCircle } from 'lucide-react';
+import { Plus, Search, FileText, AlertTriangle, CheckCircle2, Clock, ChevronRight, FolderOpen, UserX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIdentidade } from '@/core/tenant';
 import {
-  LIMITE_LINHAS,
   useModeloProcesso,
   useModelosProcesso,
   useProcessosAcompanhamento,
   useUnidadesParaFiltro,
 } from '@/hooks/useAcompanhamentoProcessos';
-import { rotuloSituacaoPrazo, tomStatusDoSemaforo } from '@/lib/workflow/semaforoPrazo';
+import { rotuloSituacaoPrazo, TOM_STATUS_PROCESSO, tomStatusDoSemaforo } from '@/lib/workflow/semaforoPrazo';
+import { AvisoLimiteLinhas } from '@/components/workflow/AvisoLimiteLinhas';
 import { NovoProcessoDialog } from '@/components/workflow/NovoProcessoDialog';
 import {
   STATUS_PROCESSO_LABELS,
@@ -43,14 +41,6 @@ import {
 const SITUACOES: SituacaoPrazo[] = ['em_dia', 'vence_logo', 'vencido', 'sem_prazo'];
 const STATUS: StatusProcesso[] = ['aberto', 'em_tramitacao', 'suspenso', 'concluido', 'arquivado'];
 const TODOS = 'todos';
-
-const TOM_STATUS: Record<StatusProcesso, TomStatus> = {
-  aberto: 'andamento',
-  em_tramitacao: 'pendente',
-  suspenso: 'neutro',
-  concluido: 'sucesso',
-  arquivado: 'neutro',
-};
 
 const numeroInterno = (p: ProcessoAcompanhamento) => p.numero_formatado || `${p.numero_processo}/${p.ano}`;
 
@@ -171,7 +161,7 @@ export default function GestaoProcessosPage() {
       id: 'status',
       cabecalho: 'Situação',
       celula: (p) => (
-        <StatusBadge tom={TOM_STATUS[p.status] ?? 'neutro'}>{STATUS_PROCESSO_LABELS[p.status] ?? p.status}</StatusBadge>
+        <StatusBadge tom={TOM_STATUS_PROCESSO[p.status] ?? 'neutro'}>{STATUS_PROCESSO_LABELS[p.status] ?? p.status}</StatusBadge>
       ),
       ordenarPor: (p) => STATUS_PROCESSO_LABELS[p.status] ?? p.status,
     },
@@ -229,14 +219,7 @@ export default function GestaoProcessosPage() {
           </ul>
         </section>
 
-        {lista.length >= LIMITE_LINHAS && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" aria-hidden="true" />
-            <AlertDescription>
-              Mostrando os primeiros {LIMITE_LINHAS.toLocaleString('pt-BR')} processos; refine a busca ou os filtros. Os resumos acima consideram só essas linhas.
-            </AlertDescription>
-          </Alert>
-        )}
+        <AvisoLimiteLinhas total={lista.length} complemento="Os resumos acima consideram só essas linhas." />
 
         {semLotacao ? (
           <EmptyState

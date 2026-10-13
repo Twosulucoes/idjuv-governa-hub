@@ -35,7 +35,7 @@ export default function PatrimonioProcessoPage() {
               <div className="flex flex-wrap gap-4">
                 <Badge variant="outline" className="text-info border-info">
                   <Clock className="w-3 h-3 mr-1" aria-hidden="true" />
-                  Inventário: anual
+                  Bens permanentes: tombamento e baixa
                 </Badge>
                 <Badge variant="outline" className="text-primary border-primary">
                   <Users className="w-3 h-3 mr-1" aria-hidden="true" />

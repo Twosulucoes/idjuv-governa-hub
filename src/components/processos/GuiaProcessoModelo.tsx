@@ -4,30 +4,18 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowRight, FolderOpen } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowRight, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DataTable, EmptyState, StatusBadge, type ColunaTabela, type TomStatus } from '@/components/design-system';
+import { DataTable, EmptyState, StatusBadge, type ColunaTabela } from '@/components/design-system';
+import { AvisoLimiteLinhas } from '@/components/workflow/AvisoLimiteLinhas';
 import { NovoProcessoDialog } from '@/components/workflow/NovoProcessoDialog';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  LIMITE_LINHAS,
-  useModeloProcesso,
-  useProcessosAcompanhamento,
-} from '@/hooks/useAcompanhamentoProcessos';
-import { rotuloSituacaoPrazo, tomStatusDoSemaforo } from '@/lib/workflow/semaforoPrazo';
-import { STATUS_PROCESSO_LABELS, type ProcessoAcompanhamento, type StatusProcesso } from '@/types/workflow';
-
-const TOM_STATUS: Record<StatusProcesso, TomStatus> = {
-  aberto: 'andamento',
-  em_tramitacao: 'pendente',
-  suspenso: 'neutro',
-  concluido: 'sucesso',
-  arquivado: 'neutro',
-};
+import { useModeloProcesso, useProcessosAcompanhamento } from '@/hooks/useAcompanhamentoProcessos';
+import { rotuloSituacaoPrazo, TOM_STATUS_PROCESSO, tomStatusDoSemaforo } from '@/lib/workflow/semaforoPrazo';
+import { STATUS_PROCESSO_LABELS, type ProcessoAcompanhamento } from '@/types/workflow';
 
 const colunas: ColunaTabela<ProcessoAcompanhamento>[] = [
   {
@@ -67,7 +55,7 @@ const colunas: ColunaTabela<ProcessoAcompanhamento>[] = [
     id: 'status',
     cabecalho: 'Situação',
     celula: (p) => (
-      <StatusBadge tom={TOM_STATUS[p.status] ?? 'neutro'}>{STATUS_PROCESSO_LABELS[p.status] ?? p.status}</StatusBadge>
+      <StatusBadge tom={TOM_STATUS_PROCESSO[p.status] ?? 'neutro'}>{STATUS_PROCESSO_LABELS[p.status] ?? p.status}</StatusBadge>
     ),
     ordenarPor: (p) => STATUS_PROCESSO_LABELS[p.status] ?? p.status,
   },
@@ -82,19 +70,44 @@ const colunas: ColunaTabela<ProcessoAcompanhamento>[] = [
   },
 ];
 
+function ListaProcessos({ modeloCodigo }: { modeloCodigo: string }) {
+  const navigate = useNavigate();
+  const processos = useProcessosAcompanhamento({ escopo: 'todos', modeloCodigo });
+  const lista = processos.data ?? [];
+  return (
+    <>
+      <AvisoLimiteLinhas total={lista.length} />
+      <DataTable
+        rotulo="Processos deste tipo"
+        dados={lista}
+        colunas={colunas}
+        chaveLinha={(p) => p.id}
+        carregando={processos.isLoading}
+        erro={processos.isError ? 'Não foi possível carregar os processos.' : null}
+        aoTentarNovamente={() => processos.refetch()}
+        aoClicarLinha={(p) => navigate(`/workflow/processos/${p.id}`)}
+        busca={{ placeholder: 'Buscar por assunto, interessado, nº interno ou SEI' }}
+        vazio={{
+          icone: FolderOpen,
+          titulo: 'Nenhum processo deste tipo',
+          descricao: 'Os processos iniciados aparecem aqui.',
+        }}
+      />
+    </>
+  );
+}
+
 interface GuiaProcessoModeloProps {
   /** Código do modelo (compras, diarias, convenios, almoxarifado, pagamentos, patrimonio_tombamento, patrimonio_baixa) */
   modeloCodigo: string;
 }
 
 export function GuiaProcessoModelo({ modeloCodigo }: GuiaProcessoModeloProps) {
-  const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const [dialogAberto, setDialogAberto] = useState(false);
   const modelo = useModeloProcesso(modeloCodigo);
-  const processos = useProcessosAcompanhamento({ escopo: 'todos', modeloCodigo });
   const podeCriar = hasPermission('workflow.criar');
-  const lista = processos.data ?? [];
+  const podeVer = hasPermission('workflow.visualizar');
 
   return (
     <div className="space-y-6">
@@ -193,30 +206,13 @@ export function GuiaProcessoModelo({ modeloCodigo }: GuiaProcessoModeloProps) {
         </TabsContent>
 
         <TabsContent value="processos" className="space-y-4">
-          {lista.length >= LIMITE_LINHAS && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" aria-hidden="true" />
-              <AlertDescription>
-                Mostrando os primeiros {LIMITE_LINHAS.toLocaleString('pt-BR')} processos; use a busca para refinar.
-              </AlertDescription>
-            </Alert>
+          {podeVer ? (
+            <ListaProcessos modeloCodigo={modeloCodigo} />
+          ) : (
+            <p className="text-body text-muted-foreground">
+              Peça acesso ao módulo Processos para acompanhar os processos
+            </p>
           )}
-          <DataTable
-            rotulo="Processos deste tipo"
-            dados={lista}
-            colunas={colunas}
-            chaveLinha={(p) => p.id}
-            carregando={processos.isLoading}
-            erro={processos.isError ? 'Não foi possível carregar os processos.' : null}
-            aoTentarNovamente={() => processos.refetch()}
-            aoClicarLinha={(p) => navigate(`/workflow/processos/${p.id}`)}
-            busca={{ placeholder: 'Buscar por assunto, interessado, nº interno ou SEI' }}
-            vazio={{
-              icone: FolderOpen,
-              titulo: 'Nenhum processo deste tipo',
-              descricao: 'Os processos iniciados aparecem aqui.',
-            }}
-          />
         </TabsContent>
       </Tabs>
 

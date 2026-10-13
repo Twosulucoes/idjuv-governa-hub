@@ -1,4 +1,5 @@
-import type { SituacaoPrazo } from '@/types/workflow';
+import type { TomStatus } from '@/components/design-system';
+import type { SituacaoPrazo, StatusProcesso } from '@/types/workflow';
 
 export type TomSemaforo = 'sucesso' | 'alerta' | 'perigo' | 'neutro';
 
@@ -19,3 +20,12 @@ export function tomStatusDoSemaforo(tom: TomSemaforo): 'sucesso' | 'pendente' | 
   return { sucesso: 'sucesso', alerta: 'pendente', perigo: 'erro', neutro: 'neutro' }[tom] as
     'sucesso' | 'pendente' | 'erro' | 'neutro';
 }
+
+/** Tom do StatusBadge para a situação do processo (aberto, em tramitação...). */
+export const TOM_STATUS_PROCESSO: Record<StatusProcesso, TomStatus> = {
+  aberto: 'andamento',
+  em_tramitacao: 'pendente',
+  suspenso: 'neutro',
+  concluido: 'sucesso',
+  arquivado: 'neutro',
+};
