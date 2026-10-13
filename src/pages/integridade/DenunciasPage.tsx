@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { MODO_SITE } from "@/core/modo-app";
 import {
   AlertTriangle, ArrowLeft, Send, Shield, Lock, Eye, EyeOff,
   FileText, CheckCircle2, Info
@@ -114,7 +115,10 @@ export default function DenunciasPage() {
           <nav aria-label="Trilha de navegação" className="flex items-center gap-3 text-sm mb-4 opacity-90">
             <Link to="/" className="inline-flex min-h-11 items-center hover:underline">Início</Link>
             <span aria-hidden="true">/</span>
-            <Link to="/integridade" className="inline-flex min-h-11 items-center hover:underline">Integridade</Link>
+            {/* No build `site` não existe a página /integridade: o item vira texto. */}
+            {MODO_SITE
+              ? <span className="inline-flex min-h-11 items-center">Integridade</span>
+              : <Link to="/integridade" className="inline-flex min-h-11 items-center hover:underline">Integridade</Link>}
             <span aria-hidden="true">/</span>
             <span aria-current="page">Canal de denúncias</span>
           </nav>
@@ -329,7 +333,7 @@ export default function DenunciasPage() {
                   {/* Botões */}
                   <div className="flex gap-4 justify-end">
                     <Button asChild variant="outline">
-                      <Link to="/integridade">
+                      <Link to={MODO_SITE ? "/" : "/integridade"}>
                         <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
                         Cancelar
                       </Link>
