@@ -219,3 +219,96 @@ export const TIPO_DOCUMENTO_LABELS: Record<TipoDocumentoProcesso, string> = {
   certidao: 'Certidão',
   outro: 'Outro',
 };
+
+// ========================
+// ACOMPANHAMENTO DE PROCESSOS DO SEI (modelos, checklist, view da lista)
+// Os tipos abaixo seguem as migrações 20261013100000..100200 (types.ts gerado ainda não os conhece).
+// ========================
+
+export type SituacaoPrazo = 'em_dia' | 'vence_logo' | 'vencido' | 'sem_prazo';
+export type NivelAcessoSigiloso = 'leitura' | 'tramitacao' | 'total';
+
+export interface ModeloProcesso {
+  id: string;
+  codigo: string;
+  nome: string;
+  tipo_processo: TipoProcesso;
+  base_legal: string | null;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EtapaModelo {
+  id: string;
+  modelo_id: string;
+  ordem: number;
+  nome: string;
+  /** Sigla da unidade, ou @ORIGEM / @CHEFIA */
+  unidade_sigla: string;
+  responsavel_rotulo: string | null;
+  /** Nulo = etapa sem prazo */
+  prazo_dias_uteis: number | null;
+}
+
+export interface ItemChecklistModelo {
+  id: string;
+  modelo_id: string;
+  etapa_ordem: number;
+  codigo: string;
+  descricao: string;
+  obrigatorio: boolean;
+}
+
+export interface RespostaChecklist {
+  id: string;
+  processo_id: string;
+  item_id: string;
+  marcado: boolean;
+  marcado_por: string | null;
+  marcado_em: string | null;
+  observacao: string | null;
+}
+
+/** Modelo com etapas e checklist (resultado de useModeloProcesso). */
+export interface ModeloProcessoCompleto extends ModeloProcesso {
+  etapas: EtapaModelo[];
+  checklist: ItemChecklistModelo[];
+}
+
+/** Linha da view v_processos_acompanhamento. */
+export interface ProcessoAcompanhamento {
+  id: string;
+  numero_processo: string;
+  ano: number;
+  numero_formatado: string;
+  numero_sei: string | null;
+  tipo_processo: TipoProcesso;
+  assunto: string;
+  descricao: string | null;
+  interessado_tipo: 'interno' | 'externo';
+  interessado_nome: string;
+  interessado_documento: string | null;
+  unidade_origem_id: string | null;
+  status: StatusProcesso;
+  sigilo: NivelSigilo;
+  data_abertura: string;
+  data_encerramento: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  modelo_id: string | null;
+  modelo_codigo: string | null;
+  modelo_nome: string | null;
+  etapa_atual_ordem: number | null;
+  etapa_nome: string | null;
+  etapa_total: number;
+  unidade_atual_id: string | null;
+  unidade_sigla: string | null;
+  unidade_nome: string | null;
+  etapa_iniciada_em: string | null;
+  etapa_prazo_limite: string | null;
+  suspenso_desde: string | null;
+  situacao_prazo: SituacaoPrazo;
+  pendencias_obrigatorias: number;
+}
