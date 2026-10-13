@@ -165,7 +165,8 @@ O workflow `.github/workflows/deploy-front.yml` roda a cada merge na `main` (e m
    (data/cargos.json e data/cargos.csv, que publicavam a indicação dos ocupantes); ao retirar outro
    arquivo sensível de `public/`, acrescente-o a essa lista.
 4. Se `VPS_APP_DIR` existir, copia o mesmo build para a pasta do `app.idjuv.online` (sistema interno; por ora cópia completa do site, com `noindex` no nginx). Sem a variável o passo é ignorado.
-5. Confere que `FRONT_URL` serve o build novo e que data/cargos.json não está mais no ar.
+5. Se `VPS_SITE_DIR` existir, faz também o **build `site`** (`npm run build:site` → `dist-site/`: só as páginas do site institucional, sem PWA e sem o sistema interno; `scripts/check-bundle-site.mjs` reprova vazamento) e publica na pasta do site. Endereços do sistema e do site vêm de `VITE_APP_URL` e `VITE_SITE_URL`, nunca do código.
+6. Confere que `FRONT_URL` serve o build novo e que data/cargos.json não está mais no ar.
 
 Configuração em Settings → Secrets and variables → Actions:
 
@@ -176,6 +177,7 @@ Configuração em Settings → Secrets and variables → Actions:
 | Segredo | `VPS_DEPLOY_KEY` | chave privada desse usuário (gere uma só para o CI) |
 | Variável | `VPS_FRONT_DIR` | pasta que o nginx serve (ex.: `/var/www/idjuv`) |
 | Variável | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`, `VITE_TENANT_SLUG` | os mesmos do `.env` de produção (valores públicos; a chave é a anon) |
+| Variável (opcional) | `VPS_SITE_DIR`, `VITE_APP_URL`, `VITE_SITE_URL` | pasta do build `site` (`/var/www/idjuv-site`) e os endereços do sistema (`https://app.idjuv.online`) e do site (`https://idjuv.online`) |
 | Variável (opcional) | `VPS_APP_DIR` | pasta que o nginx do `app.idjuv.online` serve (`/var/www/idjuv-app`, dono do usuário de deploy) |
 | Variável (opcional) | `FRONT_URL`, `DIAS_ASSETS_ANTIGOS` | padrão `https://idjuv.online` e `14` |
 
