@@ -16,7 +16,8 @@
 --   3. wf_pode_ver_processo(processo): a regra de sigilo
 --   4. policies das seis tabelas do processo: SELECT por wf_pode_ver_processo, DELETE só workflow.admin, sem
 --      INSERT/UPDATE para authenticated (classe preservar do supabase/baseline/rls/mapa.csv)
---   5. limpeza: triggers duplicados, triggers de arquivamento (exigiam despacho conclusivo, regra do SEI interno),
+--   5. limpeza: triggers duplicados, triggers de arquivamento (exigiam despacho conclusivo, regra do SEI interno) e
+--      fn_pode_arquivar_processo; fn_calcular_sla_processo e fn_contar_processos_por_status respeitam o sigilo;
 --      fn_proximo_numero_processo (4 dígitos, sem uso); número interno com trava por ano
 --   6. privilégios (mesmas linhas no supabase/baseline/overlay/40_privilegios.sql)
 -- ============================================================================
@@ -68,6 +69,8 @@ CREATE TABLE IF NOT EXISTS public.processo_checklist_respostas (
 CREATE INDEX IF NOT EXISTS idx_processo_checklist_respostas_item ON public.processo_checklist_respostas (item_id);
 
 ALTER TABLE public.processo_checklist_respostas ENABLE ROW LEVEL SECURITY;
+-- FORCE como as outras tabelas do workflow (o dono também passa pela RLS; as RPCs DEFINER usam o BYPASSRLS do postgres)
+ALTER TABLE public.processo_checklist_respostas FORCE ROW LEVEL SECURITY;
 
 DROP TRIGGER IF EXISTS handle_updated_at ON public.processo_checklist_respostas;
 CREATE TRIGGER handle_updated_at BEFORE UPDATE ON public.processo_checklist_respostas
@@ -206,13 +209,59 @@ DROP TRIGGER IF EXISTS tr_updated_at_despachos ON public.despachos;
 DROP TRIGGER IF EXISTS tr_updated_at_documentos_processo ON public.documentos_processo;
 DROP TRIGGER IF EXISTS tr_updated_at_prazos_processo ON public.prazos_processo;
 -- Arquivar exigia despacho conclusivo (regra do SEI interno); agora é a RPC wf_arquivar com workflow.arquivar.
--- As duas funções de trigger só serviam a estes triggers e saem junto (fn_pode_arquivar_processo fica).
+-- As duas funções de trigger só serviam a estes triggers e saem junto (fn_pode_arquivar_processo sai logo abaixo).
 DROP TRIGGER IF EXISTS tr_verificar_arquivamento ON public.processos_administrativos;
 DROP TRIGGER IF EXISTS tr_validar_arquivamento ON public.processos_administrativos;
 DROP FUNCTION IF EXISTS public.verificar_arquivamento_processo();
 DROP FUNCTION IF EXISTS public.fn_validar_arquivamento_processo();
 -- Segundo gerador de número (4 dígitos), sem uso no código; o número vem do trigger tr_gerar_numero_processo
 DROP FUNCTION IF EXISTS public.fn_proximo_numero_processo(integer);
+-- fn_pode_arquivar_processo só servia ao trigger de arquivamento e, DEFINER, respondia sobre o despacho de qualquer
+-- processo (inclusive sigiloso) a quem a chamasse; sem uso no front
+DROP FUNCTION IF EXISTS public.fn_pode_arquivar_processo(uuid);
+
+-- Funções antigas de leitura do workflow passam a respeitar o sigilo.
+-- fn_calcular_sla_processo (DEFINER): processo que o usuário não vê (ou inexistente) devolve nenhuma linha, sem erro
+-- próprio (não revela se o id existe).
+CREATE OR REPLACE FUNCTION public.fn_calcular_sla_processo(p_processo_id uuid)
+RETURNS TABLE(dias_aberto integer, dias_ultima_movimentacao integer, status_sla text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_data_abertura date;
+  v_ultima_mov timestamptz;
+  v_dias_aberto integer;
+  v_dias_mov integer;
+BEGIN
+  IF NOT coalesce(public.wf_pode_ver_processo(p_processo_id), false) THEN
+    RETURN;
+  END IF;
+  SELECT p.data_abertura, (SELECT max(m.created_at) FROM public.movimentacoes_processo m WHERE m.processo_id = p.id)
+    INTO v_data_abertura, v_ultima_mov
+    FROM public.processos_administrativos p
+   WHERE p.id = p_processo_id;
+  v_dias_aberto := current_date - v_data_abertura;
+  v_dias_mov := CASE WHEN v_ultima_mov IS NOT NULL THEN current_date - v_ultima_mov::date ELSE v_dias_aberto END;
+  RETURN QUERY SELECT v_dias_aberto, v_dias_mov,
+    CASE WHEN v_dias_mov > 30 THEN 'critico' WHEN v_dias_mov > 15 THEN 'atencao' ELSE 'normal' END::text;
+END;
+$$;
+
+-- fn_contar_processos_por_status: vira INVOKER e a RLS de processos_administrativos (wf_pode_ver_processo) decide o
+-- que entra na contagem; antes, DEFINER, contava também os sigilosos para quem tinha workflow.visualizar
+CREATE OR REPLACE FUNCTION public.fn_contar_processos_por_status()
+RETURNS TABLE(status text, quantidade bigint)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+  SELECT p.status::text, count(*)::bigint
+  FROM public.processos_administrativos p
+  GROUP BY p.status;
+$$;
 
 -- Número interno (00001/ano): a trava por ano serializa as aberturas simultâneas antes do MAX+1 (sem ela, duas
 -- aberturas no mesmo instante liam o mesmo MAX e uma caía no UNIQUE (numero_processo, ano)). DEFINER: precisa ver

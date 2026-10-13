@@ -1121,7 +1121,7 @@ BEGIN
     'fn_gerar_numero_financeiro','gerar_numero_portaria','gerar_numero_tombamento',
     'gerar_protocolo_cedencia','gerar_protocolo_memorando_lotacao','get_proximo_numero_remessa',
     -- estrutura organizacional e processos (sem dado pessoal sensível)
-    'fn_calcular_sla_processo','fn_pode_arquivar_processo','folha_esta_bloqueada','get_chefe_unidade_atual',
+    'folha_esta_bloqueada','get_chefe_unidade_atual',
     'get_hierarquia_unidade','get_subordinados_unidade','user_has_unit_access','can_approve','can_view_indicacao',
     -- ajudantes de RLS/RBAC: as policies os chamam como o usuário, então precisam de EXECUTE (consultam
     -- permissões de terceiros pelo UUID; risco aceito e registrado em supabase/baseline/README.md)
@@ -1144,7 +1144,7 @@ BEGIN
     SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef AND p.prorettype <> 'trigger'::regtype
       AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
-      AND NOT (p.prosrc ~* 'auth\.uid\(\)|can_access_module|is_admin_user|is_admin_atual|usuario_tem_permissao|has_permission_code|usuario_eh_admin|usuario_eh_super_admin|is_active_user|perfil_ativo_atual|pode_gerenciar_avisos|pode_configurar_envios|pode_ver_envios')
+      AND NOT (p.prosrc ~* 'auth\.uid\(\)|can_access_module|is_admin_user|is_admin_atual|usuario_tem_permissao|has_permission_code|usuario_eh_admin|usuario_eh_super_admin|is_active_user|perfil_ativo_atual|pode_gerenciar_avisos|pode_configurar_envios|pode_ver_envios|wf_pode_ver_processo')
       AND p.proname <> ALL (permitidas)
   LOOP
     PERFORM pg_temp.falha('SECURITY DEFINER sem checagem de quem chama e executável por authenticated: ' || f.proname || '(' || f.args || ')');
@@ -4994,6 +4994,7 @@ DECLARE
   u_cred uuid := 'a0000000-0000-0000-0000-0000000000e4';   -- módulo workflow + workflow.visualizar; credencial no sigiloso
   u_wfa uuid := 'a0000000-0000-0000-0000-0000000000e5';    -- módulo workflow + workflow.admin
   u_avu uuid := 'a0000000-0000-0000-0000-0000000000e6';    -- workflow.visualizar avulsa, sem o módulo
+  u_csm uuid := 'a0000000-0000-0000-0000-0000000000e7';    -- credencial no sigiloso, SEM o módulo workflow
   u_admin uuid := (SELECT uid FROM persona WHERE nome = 'admin');
   u_nenhum uuid := (SELECT uid FROM persona WHERE nome = 'nenhum');
   u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_workflow');   -- módulo sem workflow.visualizar
@@ -5003,8 +5004,9 @@ DECLARE
 BEGIN
   SET LOCAL session_replication_role = origin;
   INSERT INTO auth.users (id, email) VALUES (u_vis, 'wf_vis@teste.invalid'), (u_tram, 'wf_tram@teste.invalid'),
-    (u_cri, 'wf_cri@teste.invalid'), (u_cred, 'wf_cred@teste.invalid'), (u_wfa, 'wf_adm@teste.invalid'), (u_avu, 'wf_avu@teste.invalid');
-  UPDATE public.profiles SET is_active = true WHERE id IN (u_vis, u_tram, u_cri, u_cred, u_wfa, u_avu);
+    (u_cri, 'wf_cri@teste.invalid'), (u_cred, 'wf_cred@teste.invalid'), (u_wfa, 'wf_adm@teste.invalid'), (u_avu, 'wf_avu@teste.invalid'),
+    (u_csm, 'wf_csm@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_vis, u_tram, u_cri, u_cred, u_wfa, u_avu, u_csm);
   INSERT INTO public.user_modules (user_id, module, permissions) VALUES
     (u_vis, 'workflow', '{workflow.visualizar}'), (u_tram, 'workflow', '{workflow.visualizar,workflow.tramitar}'),
     (u_cri, 'workflow', '{workflow.visualizar}'), (u_cred, 'workflow', '{workflow.visualizar}'), (u_wfa, 'workflow', '{workflow.admin}');
@@ -5017,7 +5019,7 @@ BEGIN
     VALUES ('wf teste sigiloso', 'Interessado teste', 'sigiloso', u_cri) RETURNING id INTO p_sig;
   INSERT INTO public.processos_administrativos (assunto, interessado_nome, sigilo, created_by)
     VALUES ('wf teste restrito', 'Interessado teste', 'restrito', u_cri) RETURNING id INTO p_res;
-  INSERT INTO public.acesso_processo_sigiloso (processo_id, usuario_id) VALUES (p_sig, u_cred);
+  INSERT INTO public.acesso_processo_sigiloso (processo_id, usuario_id) VALUES (p_sig, u_cred), (p_sig, u_csm);
   FOREACH mov IN ARRAY ARRAY[p_pub, p_sig, p_res] LOOP
     INSERT INTO public.movimentacoes_processo (processo_id, descricao) VALUES (mov, 'wf teste');
     INSERT INTO public.despachos (processo_id, texto_despacho) VALUES (mov, 'wf teste');
@@ -5040,6 +5042,7 @@ BEGIN
       (u_vis,    p_sig, 0, 'visualizar sem credencial lê o sigiloso'),
       (u_vis,    p_res, 0, 'visualizar sem credencial lê o restrito'),
       (u_tram,   p_sig, 0, 'tramitar sem credencial lê o sigiloso'),
+      (u_tram,   p_res, 0, 'tramitar sem credencial lê o restrito'),
       (u_nenhum, p_pub, 0, 'sem módulo lê o público'),
       (u_mod,    p_pub, 0, 'módulo workflow sem workflow.visualizar lê o público'),
       (u_avu,    p_pub, 0, 'workflow.visualizar avulsa sem o módulo lê o público'),
@@ -5049,7 +5052,12 @@ BEGIN
       (u_cred,   p_res, 0, 'credencial de outro processo lê o restrito'),
       (u_wfa,    p_sig, 1, 'workflow.admin lê o sigiloso'),
       (u_wfa,    p_res, 1, 'workflow.admin lê o restrito'),
-      (u_admin,  p_sig, 1, 'papel admin lê o sigiloso')
+      (u_admin,  p_sig, 1, 'papel admin lê o sigiloso'),
+      (u_admin,  p_pub, 1, 'papel admin lê o público'),
+      (u_admin,  p_res, 1, 'papel admin lê o restrito'),
+      -- a credencial vale sem o módulo (só perfil ativo): quem a concede (workflow.admin) decide o acesso
+      (u_csm,    p_sig, 1, 'credencial sem o módulo workflow lê o sigiloso'),
+      (u_csm,    p_pub, 0, 'credencial sem o módulo workflow lê o público alheio')
     ) AS v(quem, proc, esperado, caso) LOOP
     FOREACH t IN ARRAY tabs LOOP
       q := format('SELECT count(*)::text FROM public.%I WHERE %I = %L', t, CASE t WHEN 'processos_administrativos' THEN 'id' ELSE 'processo_id' END, x.proc);
@@ -5141,6 +5149,33 @@ BEGIN
     IF r IS DISTINCT FROM 'false' THEN PERFORM pg_temp.falha('wf sigilo: wf_pode_ver_processo de processo inexistente = ' || r); END IF;
   END IF;
 
+  -- funções antigas de leitura respeitam o sigilo; fn_pode_arquivar_processo saiu
+  IF to_regprocedure('public.fn_pode_arquivar_processo(uuid)') IS NOT NULL THEN
+    PERFORM pg_temp.falha('wf limpeza: fn_pode_arquivar_processo ainda existe');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT count(*)::text FROM public.fn_calcular_sla_processo(%L)', p_sig));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('wf sigilo: fn_calcular_sla_processo devolve o sigiloso a quem não o vê (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT count(*)::text FROM public.fn_calcular_sla_processo(%L)', p_pub));
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('wf sigilo: fn_calcular_sla_processo não devolve o público a quem o vê (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_cred, 'authenticated', format('SELECT count(*)::text FROM public.fn_calcular_sla_processo(%L)', p_sig));
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('wf sigilo: fn_calcular_sla_processo não devolve o sigiloso à credencial (' || r || ')'); END IF;
+  -- a contagem de u_vis é a dos processos que ele vê (sem p_sig e p_res) e fica 2 abaixo da do admin
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+         'SELECT (SELECT coalesce(sum(quantidade), 0) FROM public.fn_contar_processos_por_status())::text || ''|'' || (SELECT count(*) FROM public.processos_administrativos)::text');
+  IF split_part(r, '|', 1) IS DISTINCT FROM split_part(r, '|', 2) THEN
+    PERFORM pg_temp.falha('wf sigilo: fn_contar_processos_por_status conta o que visualizar não vê (' || r || ')');
+  END IF;
+  n := (pg_temp.valor_desfeito_como(u_admin, 'authenticated', 'SELECT coalesce(sum(quantidade), 0)::text FROM public.fn_contar_processos_por_status()'))::int
+       - split_part(r, '|', 1)::int;
+  IF n <> 2 THEN PERFORM pg_temp.falha('wf sigilo: contagem do admin menos a de visualizar devia ser 2 (sigiloso e restrito) e foi ' || n); END IF;
+  IF (SELECT prosecdef FROM pg_proc WHERE oid = 'public.fn_contar_processos_por_status()'::regprocedure) THEN
+    PERFORM pg_temp.falha('wf sigilo: fn_contar_processos_por_status ainda é SECURITY DEFINER');
+  END IF;
+  -- FORCE RLS na tabela nova, como nas outras do workflow
+  IF NOT coalesce((SELECT relforcerowsecurity FROM pg_class WHERE oid = to_regclass('public.processo_checklist_respostas')), false) THEN
+    PERFORM pg_temp.falha('wf sigilo: processo_checklist_respostas sem FORCE ROW LEVEL SECURITY');
+  END IF;
+
   -- numero_sei: único quando preenchido, sem espaços
   BEGIN
     EXECUTE 'UPDATE public.processos_administrativos SET numero_sei = $1 WHERE id = $2' USING '0000.000001/2026-01', p_pub;
@@ -5168,7 +5203,7 @@ BEGIN
           ('movimentacoes_processo', 'etapa_destino_ordem'));
   IF n <> 7 THEN PERFORM pg_temp.falha('wf colunas: ' || n || ' de 7 colunas novas existem'); END IF;
 
-  PERFORM pg_temp.nota('Workflow (sigilo e limpeza): leitura por wf_pode_ver_processo nas seis tabelas (público, restrito, sigiloso, criador, credencial, workflow.admin, admin), escrita direta negada, exclusão só workflow.admin, triggers únicos, numeração com trava e numero_sei único verificados');
+  PERFORM pg_temp.nota('Workflow (sigilo e limpeza): leitura por wf_pode_ver_processo nas seis tabelas (público, restrito, sigiloso, criador, credencial com e sem módulo, workflow.admin, admin), SLA e contagem por status com sigilo, escrita direta negada, exclusão só workflow.admin, triggers únicos, numeração com trava e numero_sei único verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

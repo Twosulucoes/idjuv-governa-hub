@@ -220,17 +220,6 @@ GRANT UPDATE (
 
 -- ---- funções que ESCREVEM e não são chamadas por usuário logado ----
 -- fn_atualizar_situacao_servidor só é chamada por triggers SECURITY DEFINER. processar_folha_pagamento
--- modelos de fluxo do workflow (migração 20261013100000): anon sem nada nas três tabelas; fn_somar_dias_uteis só
--- para authenticated
-REVOKE ALL ON public.processo_modelos, public.processo_modelo_etapas, public.processo_modelo_checklist FROM anon;
-REVOKE EXECUTE ON FUNCTION public.fn_somar_dias_uteis(date, integer) FROM PUBLIC, anon, service_role;
-GRANT EXECUTE ON FUNCTION public.fn_somar_dias_uteis(date, integer) TO authenticated;
--- sigilo do workflow (migração 20261013100100): anon sem nada nas respostas do checklist; wf_pode_ver_processo é
--- chamada pelas policies das tabelas do processo, então authenticated executa
-REVOKE ALL ON public.processo_checklist_respostas FROM anon;
-REVOKE TRUNCATE, TRIGGER, REFERENCES ON public.processo_checklist_respostas FROM authenticated;
-REVOKE EXECUTE ON FUNCTION public.wf_pode_ver_processo(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.wf_pode_ver_processo(uuid) TO authenticated;
 -- saiu desta lista na migração 20261010070000: ganhou guarda has_permission_code('financeiro.folha.processar')
 -- no corpo e EXECUTE para authenticated (o front chama a RPC no botão Processar).
 DO $$
@@ -246,3 +235,16 @@ BEGIN
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', f.assinatura);
   END LOOP;
 END $$;
+
+-- ---- workflow ----
+-- modelos de fluxo do workflow (migração 20261013100000): anon sem nada nas três tabelas; fn_somar_dias_uteis só
+-- para authenticated
+REVOKE ALL ON public.processo_modelos, public.processo_modelo_etapas, public.processo_modelo_checklist FROM anon;
+REVOKE EXECUTE ON FUNCTION public.fn_somar_dias_uteis(date, integer) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.fn_somar_dias_uteis(date, integer) TO authenticated;
+-- sigilo do workflow (migração 20261013100100): anon sem nada nas respostas do checklist; wf_pode_ver_processo é
+-- chamada pelas policies das tabelas do processo, então authenticated executa
+REVOKE ALL ON public.processo_checklist_respostas FROM anon;
+REVOKE TRUNCATE, TRIGGER, REFERENCES ON public.processo_checklist_respostas FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.wf_pode_ver_processo(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.wf_pode_ver_processo(uuid) TO authenticated;
