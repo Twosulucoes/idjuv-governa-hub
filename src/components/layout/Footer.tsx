@@ -6,6 +6,8 @@ import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 import { SystemCredits } from "./SystemCredits";
 
 import { useTenant } from '@/core/tenant';
+import { LinkSistema } from "./LinkSistema";
+import { MODO_SITE, rotaFicaNoSite } from "@/core/modo-app";
 import { LogoEntidadeSuperior } from '@/components/ui/Logo';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
@@ -69,7 +71,7 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                     { label: "Editais", href: "/editais" },
                     { label: "Base Legal", href: "/base-legal" },
                     { label: "Links Úteis", href: "/links-uteis" },
-                  ].map((link) => (
+                  ].filter((link) => !MODO_SITE || rotaFicaNoSite(link.href)).map((link) => (
                     <li key={link.href}>
                       <Link 
                         to={link.href} 
@@ -116,12 +118,12 @@ export const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLEle
                 <p className="text-base text-primary-foreground/90 dark:text-muted-foreground mb-4">
                   Acesso exclusivo para servidores do {sigla} com login institucional.
                 </p>
-                <Link
+                <LinkSistema
                   to="/auth"
                   className="inline-flex min-h-11 items-center px-5 py-2.5 bg-secondary text-secondary-foreground rounded-lg font-medium text-sm hover:bg-secondary/90 transition-colors shadow-sm"
                 >
                   Acessar o sistema
-                </Link>
+                </LinkSistema>
               </div>
             </div>
 

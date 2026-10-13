@@ -25,3 +25,34 @@ export function urlDoSistema(caminho: string, base: string = import.meta.env.VIT
   const c = caminho.startsWith('/') ? caminho : `/${caminho}`;
   return base ? `${base.replace(/\/+$/, '')}${c}` : c;
 }
+
+interface ItemMenu {
+  href: string;
+  title: string;
+  items?: { title: string; href: string }[];
+}
+
+/**
+ * Menu do build `site`: tira o que o site não serve e não repete destino. Pai que não existe no site mas
+ * tem filho que existe vira item simples (ex.: "Integridade" → "Canal de Denúncias"). Não altera a entrada.
+ */
+export function filtrarMenuParaSite<T extends ItemMenu>(menu: readonly T[]): T[] {
+  const vistos = new Set<string>();
+  const saida: T[] = [];
+  for (const item of menu) {
+    const filhos = (item.items ?? []).filter((f) => rotaFicaNoSite(f.href) && !vistos.has(f.href));
+    if (rotaFicaNoSite(item.href)) {
+      if (vistos.has(item.href)) continue;
+      vistos.add(item.href);
+      filhos.forEach((f) => vistos.add(f.href));
+      saida.push(item.items ? { ...item, items: filhos } : item);
+    } else if (filhos.length === 1) {
+      vistos.add(filhos[0].href);
+      saida.push({ ...item, title: filhos[0].title, href: filhos[0].href, items: undefined });
+    } else if (filhos.length > 1) {
+      filhos.forEach((f) => vistos.add(f.href));
+      saida.push({ ...item, href: filhos[0].href, items: filhos });
+    }
+  }
+  return saida;
+}
