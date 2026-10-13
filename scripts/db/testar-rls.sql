@@ -5206,6 +5206,436 @@ BEGIN
   PERFORM pg_temp.nota('Workflow (sigilo e limpeza): leitura por wf_pode_ver_processo nas seis tabelas (público, restrito, sigiloso, criador, credencial com e sem módulo, workflow.admin, admin), SLA e contagem por status com sigilo, escrita direta negada, exclusão só workflow.admin, triggers únicos, numeração com trava e numero_sei único verificados');
 END $$;
 
+-- Migração 20261013100200_wf_rpcs.sql (mesma spec, seções "Banco" e "Erros e casos de borda"): as RPCs são o único
+-- caminho de escrita do acompanhamento e a view v_processos_acompanhamento é a lista.
+--   * wf_abrir_processo: workflow.criar; etapa 1, número interno, unidade de origem = lotação vigente (nula sem lotação);
+--   * wf_marcar_item / wf_avancar_etapa / wf_devolver_etapa / wf_atualizar_numero_sei: workflow.tramitar; checklist
+--     obrigatório da etapa, número SEI para sair da etapa 1, etapa esperada (40001), devolução com motivo para trás,
+--     movimentação com etapa de origem e destino, prazo em dias úteis, unidade resolvida pela sigla;
+--   * wf_suspender / wf_reativar / wf_concluir (workflow.concluir), wf_arquivar (workflow.arquivar): suspensão para o
+--     relógio, conclusão só na última etapa com checklist completo (sem modelo conclui direto);
+--   * sigilo: quem não vê o processo recebe 42501 com a mesma mensagem de processo inexistente em TODAS as RPCs;
+--     credencial de leitura não altera; wf_conceder_acesso/wf_revogar_acesso só workflow.admin;
+--   * fn_situacao_prazo (semáforo) e a view (security_invoker) com as colunas que o front consome.
+-- Personas próprias (uids fixos ...e8 a ...ed), além de visualizar (...e1), tramitar (...e2) e workflow.admin (...e5)
+-- do bloco anterior. TRIGGERS LIGADOS.
+CREATE FUNCTION pg_temp.wf_confere(r text, esperado text, caso text) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  IF r IS NULL OR r NOT LIKE esperado || '%' THEN
+    PERFORM pg_temp.falha(format('wf rpc: %s (esperado %s, veio %s)', caso, esperado, coalesce(r, 'nulo')));
+  END IF;
+END $$;
+-- id devolvido por valor_como (ou NULL se veio erro)
+CREATE FUNCTION pg_temp.wf_uuid(r text) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE WHEN r ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN r::uuid END
+$$;
+
+DO $$
+DECLARE
+  u_vis uuid := 'a0000000-0000-0000-0000-0000000000e1';    -- módulo workflow + workflow.visualizar
+  u_wfa uuid := 'a0000000-0000-0000-0000-0000000000e5';    -- módulo workflow + workflow.admin
+  u_op uuid := 'a0000000-0000-0000-0000-0000000000e8';     -- visualizar, criar, tramitar; lotado no setor WFORIG
+  u_sl uuid := 'a0000000-0000-0000-0000-0000000000e9';     -- visualizar, criar; sem lotação
+  u_conc uuid := 'a0000000-0000-0000-0000-0000000000ea';   -- visualizar, concluir
+  u_arq uuid := 'a0000000-0000-0000-0000-0000000000eb';    -- visualizar, arquivar
+  u_tudo uuid := 'a0000000-0000-0000-0000-0000000000ec';   -- todas as permissões menos admin; sem credencial
+  u_ct uuid := 'a0000000-0000-0000-0000-0000000000ed';     -- visualizar, tramitar; recebe credencial no sigiloso
+  un_chefe uuid := 'c1000000-0000-0000-0000-0000000000e1';
+  un_orig uuid := 'c1000000-0000-0000-0000-0000000000e2';
+  un_nupat uuid := 'c1000000-0000-0000-0000-0000000000e3';
+  un_inativa uuid := 'c1000000-0000-0000-0000-0000000000e4';
+  srv uuid := 'b1000000-0000-0000-0000-0000000000e8';
+  hoje date := public.data_local();
+  tem_rpc boolean := to_regprocedure('public.wf_abrir_processo(text, text, text, text, text, text, public.nivel_sigilo_processo, text)') IS NOT NULL;
+  fantasma uuid := gen_random_uuid();
+  p1 uuid; p2 uuid; p_s uuid; p_old uuid; j jsonb; r text; r2 text; n int; x record; q text; esperado text; num text;
+  abrir text := 'SELECT public.wf_abrir_processo(%L, %L, NULL, ''interno'', %L, NULL, %L, %L)::text';
+BEGIN
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_op, 'wf_op@teste.invalid'), (u_sl, 'wf_sl@teste.invalid'),
+    (u_conc, 'wf_conc@teste.invalid'), (u_arq, 'wf_arq@teste.invalid'), (u_tudo, 'wf_tudo@teste.invalid'), (u_ct, 'wf_ct@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_op, u_sl, u_conc, u_arq, u_tudo, u_ct);
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_op, 'workflow', '{workflow.visualizar,workflow.criar,workflow.tramitar}'),
+    (u_sl, 'workflow', '{workflow.visualizar,workflow.criar}'),
+    (u_conc, 'workflow', '{workflow.visualizar,workflow.concluir}'),
+    (u_arq, 'workflow', '{workflow.visualizar,workflow.arquivar}'),
+    (u_tudo, 'workflow', '{workflow.visualizar,workflow.criar,workflow.tramitar,workflow.concluir,workflow.arquivar}'),
+    (u_ct, 'workflow', '{workflow.visualizar,workflow.tramitar}');
+
+  -- unidades: chefia > setor de origem; núcleo de patrimônio (sigla NUPAT, o modelo diz NuPat); uma inativa
+  INSERT INTO public.estrutura_organizacional (id, nome, sigla, tipo, superior_id, ativo) VALUES
+    (un_chefe, 'Diretoria teste wf', 'WFCHEFE', 'diretoria', NULL, true),
+    (un_orig, 'Setor teste wf', 'WFORIG', 'setor', un_chefe, true),
+    (un_nupat, 'Núcleo de patrimônio teste wf', 'NUPAT', 'nucleo', NULL, true),
+    (un_inativa, 'Unidade inativa teste wf', 'WFINATIVA', 'setor', NULL, false);
+  -- servidor e lotação de u_op (modo réplica: sem os triggers de setor/autoria do RH)
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.servidores (id, nome_completo, cpf) VALUES (srv, 'Servidor teste wf', '00000000e8');
+  INSERT INTO public.lotacoes (servidor_id, unidade_id, data_inicio, ativo) VALUES (srv, un_orig, hoje - 30, true);
+  UPDATE public.profiles SET servidor_id = srv WHERE id = u_op;
+  SET LOCAL session_replication_role = origin;
+
+  -- ===== resolução da unidade (função interna)
+  IF to_regprocedure('public.wf_resolver_unidade(text, uuid)') IS NULL THEN
+    PERFORM pg_temp.falha('wf rpc: wf_resolver_unidade(text, uuid) não existe');
+  ELSE
+    FOR x IN SELECT * FROM (VALUES ('@ORIGEM', un_orig, un_orig), ('@CHEFIA', un_orig, un_chefe), ('nupat', NULL::uuid, un_nupat),
+                                   ('NuPat', un_orig, un_nupat), ('WFINATIVA', NULL, NULL), ('SIGLA-INEXISTENTE', un_orig, NULL),
+                                   ('@ORIGEM', NULL, NULL), ('@CHEFIA', NULL, NULL), ('@CHEFIA', un_chefe, NULL)) AS v(sigla, origem, esperado) LOOP
+      EXECUTE 'SELECT public.wf_resolver_unidade($1, $2)::text' INTO r USING x.sigla, x.origem;
+      IF r IS DISTINCT FROM x.esperado::text THEN
+        PERFORM pg_temp.falha(format('wf rpc: wf_resolver_unidade(%s, %s) = %s (esperado %s)', x.sigla, coalesce(x.origem::text, 'nulo'), coalesce(r, 'nulo'), coalesce(x.esperado::text, 'nulo')));
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- ===== abrir
+  r := pg_temp.sql_como(u_vis, 'authenticated', format(abrir, 'patrimonio_tombamento', 'wf rpc', 'Interessado', 'publico', NULL));
+  PERFORM pg_temp.wf_confere(r, 'erro:42501', 'sem workflow.criar abre processo');
+  r := pg_temp.sql_como(u_op, 'authenticated', format(abrir, 'modelo_que_nao_existe', 'wf rpc', 'Interessado', 'publico', NULL));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'abre processo com modelo inexistente');
+  r := pg_temp.sql_como(u_op, 'authenticated', format(abrir, 'patrimonio_tombamento', '   ', 'Interessado', 'publico', NULL));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'abre processo sem assunto');
+  r := pg_temp.sql_como(u_op, 'authenticated', format(abrir, 'patrimonio_tombamento', 'wf rpc', 'Interessado', 'publico', 'sem-digito'));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'abre processo com número SEI sem dígitos');
+
+  r := pg_temp.valor_como(u_op, 'authenticated', format(abrir, 'patrimonio_tombamento', 'wf rpc tombamento', 'Setor teste', 'publico', NULL));
+  p1 := pg_temp.wf_uuid(r);
+  IF p1 IS NULL THEN PERFORM pg_temp.falha('wf rpc: workflow.criar não abre processo (' || coalesce(r, 'nulo') || ')'); END IF;
+  SELECT to_jsonb(p) INTO j FROM public.processos_administrativos p WHERE id = p1;
+  esperado := concat_ws('|', '1', 'aberto', un_orig, un_orig, public.fn_somar_dias_uteis(hoje, 5), u_op,
+                        (SELECT tipo_processo FROM public.processo_modelos WHERE codigo = 'patrimonio_tombamento'),
+                        (SELECT id FROM public.processo_modelos WHERE codigo = 'patrimonio_tombamento'), 'sim');
+  r := concat_ws('|', j->>'etapa_atual_ordem', j->>'status', j->>'unidade_origem_id', j->>'unidade_atual_id', j->>'etapa_prazo_limite',
+                 j->>'created_by', j->>'tipo_processo', j->>'modelo_id', CASE WHEN j->>'numero_processo' ~ '^[0-9]{5}$' THEN 'sim' END);
+  IF r IS DISTINCT FROM esperado THEN
+    PERFORM pg_temp.falha(format('wf rpc: processo aberto fora do esperado (etapa|status|origem|unidade|prazo|criador|tipo|modelo|número): %s (esperado %s)', r, esperado));
+  END IF;
+  num := (j->>'numero_processo') || '/' || (j->>'ano');
+
+  -- sem lotação vigente: abre com unidade de origem nula; @ORIGEM fica só com a sigla
+  r := pg_temp.valor_como(u_sl, 'authenticated', format(abrir, 'patrimonio_tombamento', 'wf rpc sem lotação', 'Interessado', 'publico', NULL));
+  p2 := pg_temp.wf_uuid(r);
+  IF p2 IS NULL THEN PERFORM pg_temp.falha('wf rpc: usuário sem lotação não abre processo (' || coalesce(r, 'nulo') || ')'); END IF;
+  SELECT to_jsonb(p) INTO j FROM public.processos_administrativos p WHERE id = p2;
+  IF j IS NULL OR j->>'unidade_origem_id' IS NOT NULL OR j->>'unidade_atual_id' IS NOT NULL OR j->>'etapa_atual_ordem' IS DISTINCT FROM '1' THEN
+    PERFORM pg_temp.falha('wf rpc: sem lotação, unidade de origem/atual deviam ser nulas e etapa 1: ' || coalesce(j::text, 'nulo'));
+  END IF;
+
+  -- ===== checklist
+  r := pg_temp.sql_como(u_vis, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''nota'', true, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:42501', 'sem workflow.tramitar marca item');
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''plaqueta'', true, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'marca item de etapa futura');
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''item_inexistente'', true, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'marca item que não existe no modelo');
+
+  -- avançar com obrigatório pendente: 22023 com os códigos
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_avancar_etapa(%L, 1, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'avança com item obrigatório pendente');
+  IF r NOT LIKE '%nota%' OR r NOT LIKE '%termo%' THEN
+    PERFORM pg_temp.falha('wf rpc: a recusa por pendência devia listar nota e termo: ' || coalesce(r, 'nulo'));
+  END IF;
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_op, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''nota'', true, ''conferida'')', p1)), 'ok', 'marca nota');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_op, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''termo'', true, NULL)', p1)), 'ok', 'marca termo');
+  IF to_regclass('public.processo_checklist_respostas') IS NOT NULL THEN
+    SELECT count(*) INTO n FROM public.processo_checklist_respostas WHERE processo_id = p1 AND marcado AND marcado_por = u_op AND marcado_em IS NOT NULL;
+    IF n <> 2 THEN PERFORM pg_temp.falha('wf rpc: esperava 2 respostas marcadas por quem marcou, há ' || n); END IF;
+  END IF;
+
+  -- sem número SEI não sai da etapa 1
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_avancar_etapa(%L, 1, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'sai da etapa 1 sem número SEI');
+  IF r NOT LIKE '%SEI%' THEN PERFORM pg_temp.falha('wf rpc: a recusa devia falar do número SEI: ' || coalesce(r, 'nulo')); END IF;
+
+  -- número SEI: tramitar, normalizado sem espaços; repetido recusa com o número interno do outro processo
+  r := pg_temp.sql_como(u_vis, 'authenticated', format('SELECT public.wf_atualizar_numero_sei(%L, ''0001.000099/2026-11'')', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:42501', 'sem workflow.tramitar altera número SEI');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_op, 'authenticated', format('SELECT public.wf_atualizar_numero_sei(%L, '' 0001.000099/2026-11 '')', p1)), 'ok', 'altera número SEI na etapa 1');
+  IF (SELECT numero_sei FROM public.processos_administrativos WHERE id = p1) IS DISTINCT FROM '0001.000099/2026-11' THEN
+    PERFORM pg_temp.falha('wf rpc: número SEI não foi gravado normalizado');
+  END IF;
+  r := pg_temp.sql_como(u_sl, 'authenticated', format(abrir, 'patrimonio_tombamento', 'wf rpc SEI repetido', 'Interessado', 'publico', '0001.000099/2026-11'));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'abre processo com número SEI repetido');
+  IF r NOT LIKE '%' || coalesce(num, '?') || '%' THEN
+    PERFORM pg_temp.falha('wf rpc: recusa de SEI repetido devia citar o processo ' || coalesce(num, '?') || ' (que o usuário vê): ' || coalesce(r, 'nulo'));
+  END IF;
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_atualizar_numero_sei(%L, ''0001.000099/2026-11'')', p2));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'outro processo recebe o mesmo número SEI');
+
+  -- etapa esperada diferente: 40001
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_avancar_etapa(%L, 2, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:40001', 'avança com etapa esperada diferente da atual');
+
+  -- avança: etapa 2, NuPat resolvida, prazo em dias úteis, movimentação 1 -> 2
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_op, 'authenticated', format('SELECT public.wf_avancar_etapa(%L, 1, ''segue para tombamento'')', p1)), 'ok', 'avança da etapa 1');
+  SELECT to_jsonb(p) INTO j FROM public.processos_administrativos p WHERE id = p1;
+  esperado := concat_ws('|', '2', 'em_tramitacao', un_nupat, public.fn_somar_dias_uteis(hoje, 5));
+  r := concat_ws('|', j->>'etapa_atual_ordem', j->>'status', j->>'unidade_atual_id', j->>'etapa_prazo_limite');
+  IF r IS DISTINCT FROM esperado THEN PERFORM pg_temp.falha(format('wf rpc: depois de avançar (etapa|status|unidade|prazo) = %s (esperado %s)', r, esperado)); END IF;
+  SELECT to_jsonb(m) INTO j FROM public.movimentacoes_processo m WHERE processo_id = p1 ORDER BY numero_sequencial DESC LIMIT 1;
+  esperado := concat_ws('|', '1', 'encaminhamento', '1', '2', un_orig, un_nupat, u_op, 'recebido', 'segue para tombamento');
+  r := concat_ws('|', j->>'numero_sequencial', j->>'tipo_movimentacao', j->>'etapa_origem_ordem', j->>'etapa_destino_ordem',
+                 j->>'unidade_origem_id', j->>'unidade_destino_id', j->>'created_by', j->>'status', j->>'observacoes');
+  IF r IS DISTINCT FROM esperado THEN PERFORM pg_temp.falha(format('wf rpc: movimentação do avanço = %s (esperado %s)', r, esperado)); END IF;
+  -- a segunda aba (que ainda via a etapa 1) recebe 40001
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_avancar_etapa(%L, 1, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:40001', 'segunda aba avança o processo que já mudou');
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_atualizar_numero_sei(%L, ''0001.000100/2026-11'')', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'altera número SEI fora da etapa 1');
+
+  -- devolver
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_devolver_etapa(%L, 2, 1, ''   '')', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'devolve sem motivo');
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_devolver_etapa(%L, 2, 2, ''motivo'')', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'devolve para a própria etapa');
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_devolver_etapa(%L, 2, 3, ''motivo'')', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'devolve para etapa posterior');
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_devolver_etapa(%L, 1, 1, ''motivo'')', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:40001', 'devolve com etapa esperada diferente da atual');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_op, 'authenticated', format('SELECT public.wf_devolver_etapa(%L, 2, 1, ''Faltou a nota'')', p1)), 'ok', 'devolve para a etapa 1');
+  SELECT to_jsonb(m) INTO j FROM public.movimentacoes_processo m WHERE processo_id = p1 ORDER BY numero_sequencial DESC LIMIT 1;
+  r := concat_ws('|', j->>'numero_sequencial', j->>'tipo_movimentacao', j->>'etapa_origem_ordem', j->>'etapa_destino_ordem', j->>'unidade_destino_id', j->>'observacoes',
+                 (SELECT etapa_atual_ordem FROM public.processos_administrativos WHERE id = p1));
+  esperado := concat_ws('|', '2', 'devolucao', '2', '1', un_orig, 'Faltou a nota', '1');
+  IF r IS DISTINCT FROM esperado THEN PERFORM pg_temp.falha(format('wf rpc: devolução = %s (esperado %s)', r, esperado)); END IF;
+
+  -- até a última etapa: avançar ali recusa e orienta a concluir
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_op, 'authenticated', format('SELECT public.wf_avancar_etapa(%L, 1, NULL)', p1)), 'ok', 'avança de novo da etapa 1');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_op, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''plaqueta'', true, NULL)', p1)), 'ok', 'marca plaqueta');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_op, 'authenticated', format('SELECT public.wf_avancar_etapa(%L, 2, NULL)', p1)), 'ok', 'avança para a última etapa');
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_avancar_etapa(%L, 3, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'avança além da última etapa');
+  IF r NOT LIKE '%conclua%' THEN PERFORM pg_temp.falha('wf rpc: recusa na última etapa devia orientar a concluir: ' || coalesce(r, 'nulo')); END IF;
+  IF (SELECT unidade_atual_id FROM public.processos_administrativos WHERE id = p1) IS DISTINCT FROM un_orig THEN
+    PERFORM pg_temp.falha('wf rpc: etapa 3 (@ORIGEM) devia voltar à unidade de origem');
+  END IF;
+  SELECT count(*) INTO n FROM public.movimentacoes_processo WHERE processo_id = p1;
+  IF n <> 4 OR (SELECT string_agg(numero_sequencial::text, ',' ORDER BY numero_sequencial) FROM public.movimentacoes_processo WHERE processo_id = p1) IS DISTINCT FROM '1,2,3,4' THEN
+    PERFORM pg_temp.falha('wf rpc: movimentações de p1 deviam ser 1,2,3,4 e são ' || coalesce((SELECT string_agg(numero_sequencial::text, ',' ORDER BY numero_sequencial) FROM public.movimentacoes_processo WHERE processo_id = p1), 'nenhuma'));
+  END IF;
+
+  -- ===== view
+  IF to_regclass('public.v_processos_acompanhamento') IS NULL THEN
+    PERFORM pg_temp.falha('wf rpc: view v_processos_acompanhamento não existe');
+  ELSE
+    r := pg_temp.valor_desfeito_como(u_op, 'authenticated', format(
+      'SELECT concat_ws(''|'', numero_formatado, modelo_codigo, etapa_nome, etapa_total, unidade_sigla, unidade_nome, situacao_prazo, pendencias_obrigatorias, numero_sei) FROM public.v_processos_acompanhamento WHERE id = %L', p1));
+    esperado := concat_ws('|', num, 'patrimonio_tombamento',
+                          (SELECT e.nome FROM public.processo_modelo_etapas e JOIN public.processo_modelos m ON m.id = e.modelo_id WHERE m.codigo = 'patrimonio_tombamento' AND e.ordem = 3),
+                          '3', 'WFORIG', 'Setor teste wf', 'em_dia', '1', '0001.000099/2026-11');
+    IF r IS DISTINCT FROM esperado THEN PERFORM pg_temp.falha(format('wf view: p1 = %s (esperado %s)', r, esperado)); END IF;
+    r := pg_temp.valor_desfeito_como(u_sl, 'authenticated', format(
+      'SELECT concat_ws(''|'', unidade_sigla, coalesce(unidade_nome, ''-''), etapa_total, pendencias_obrigatorias) FROM public.v_processos_acompanhamento WHERE id = %L', p2));
+    IF r IS DISTINCT FROM '@ORIGEM|-|3|2' THEN PERFORM pg_temp.falha('wf view: processo sem lotação devia mostrar a sigla @ORIGEM e 2 pendências: ' || coalesce(r, 'nulo')); END IF;
+    IF NOT has_table_privilege('authenticated', 'public.v_processos_acompanhamento', 'SELECT')
+       OR has_table_privilege('authenticated', 'public.v_processos_acompanhamento', 'INSERT')
+       OR has_table_privilege('authenticated', 'public.v_processos_acompanhamento', 'UPDATE')
+       OR has_table_privilege('authenticated', 'public.v_processos_acompanhamento', 'DELETE') THEN
+      PERFORM pg_temp.falha('wf view: authenticated devia ter só SELECT em v_processos_acompanhamento');
+    END IF;
+  END IF;
+
+  -- ===== concluir e arquivar
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_concluir(%L, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:42501', 'sem workflow.concluir conclui');
+  r := pg_temp.sql_como(u_conc, 'authenticated', format('SELECT public.wf_concluir(%L, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'conclui com item obrigatório pendente');
+  IF r NOT LIKE '%responsavel%' THEN PERFORM pg_temp.falha('wf rpc: recusa de conclusão devia listar responsavel: ' || coalesce(r, 'nulo')); END IF;
+  r := pg_temp.sql_como(u_conc, 'authenticated', format('SELECT public.wf_concluir(%L, NULL)', p2));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'conclui fora da última etapa');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_op, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''responsavel'', true, NULL)', p1)), 'ok', 'marca responsavel');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_conc, 'authenticated', format('SELECT public.wf_concluir(%L, ''Bem tombado'')', p1)), 'ok', 'conclui na última etapa');
+  SELECT to_jsonb(p) INTO j FROM public.processos_administrativos p WHERE id = p1;
+  IF concat_ws('|', j->>'status', j->>'data_encerramento') IS DISTINCT FROM concat_ws('|', 'concluido', hoje) THEN
+    PERFORM pg_temp.falha('wf rpc: conclusão devia gravar status concluido e data de encerramento: ' || coalesce(j->>'status', 'nulo'));
+  END IF;
+  -- concluído não aceita etapa, checklist, suspensão nem nova conclusão
+  FOR x IN SELECT * FROM (VALUES
+      (u_op, 'SELECT public.wf_avancar_etapa(%L, 3, NULL)', 'avança processo concluído'),
+      (u_op, 'SELECT public.wf_marcar_item(%L, ''nota'', false, NULL)', 'marca item de processo concluído'),
+      (u_op, 'SELECT public.wf_devolver_etapa(%L, 3, 1, ''x'')', 'devolve processo concluído'),
+      (u_conc, 'SELECT public.wf_suspender(%L, ''x'')', 'suspende processo concluído'),
+      (u_conc, 'SELECT public.wf_concluir(%L, NULL)', 'conclui processo concluído')) AS v(quem, tmpl, caso) LOOP
+    PERFORM pg_temp.wf_confere(pg_temp.sql_como(x.quem, 'authenticated', format(x.tmpl, p1)), 'erro:22023', x.caso);
+  END LOOP;
+  r := pg_temp.sql_como(u_conc, 'authenticated', format('SELECT public.wf_arquivar(%L, NULL)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:42501', 'sem workflow.arquivar arquiva');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_arq, 'authenticated', format('SELECT public.wf_arquivar(%L, ''Fim'')', p1)), 'ok', 'arquiva processo concluído');
+  IF (SELECT status::text FROM public.processos_administrativos WHERE id = p1) IS DISTINCT FROM 'arquivado' THEN
+    PERFORM pg_temp.falha('wf rpc: arquivamento não gravou o status arquivado');
+  END IF;
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_arq, 'authenticated', format('SELECT public.wf_arquivar(%L, NULL)', p1)), 'erro:22023', 'arquiva processo já arquivado');
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_conc, 'authenticated', format('SELECT public.wf_reativar(%L, ''x'')', p1)), 'erro:22023', 'reativa processo arquivado');
+
+  -- ===== suspender e reativar (p2, etapa 1 com prazo de 5 dias úteis)
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_suspender(%L, ''x'')', p2));
+  PERFORM pg_temp.wf_confere(r, 'erro:42501', 'sem workflow.concluir suspende');
+  r := pg_temp.sql_como(u_conc, 'authenticated', format('SELECT public.wf_suspender(%L, '' '')', p2));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'suspende sem motivo');
+  r := pg_temp.sql_como(u_conc, 'authenticated', format('SELECT public.wf_reativar(%L, ''x'')', p2));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'reativa processo que não está suspenso');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_conc, 'authenticated', format('SELECT public.wf_suspender(%L, ''Aguardando documento'')', p2)), 'ok', 'suspende');
+  SELECT to_jsonb(p) INTO j FROM public.processos_administrativos p WHERE id = p2;
+  IF concat_ws('|', j->>'status', j->>'suspenso_desde') IS DISTINCT FROM concat_ws('|', 'suspenso', hoje) THEN
+    PERFORM pg_temp.falha('wf rpc: suspensão devia gravar status suspenso e suspenso_desde = hoje: ' || coalesce(j::text, 'nulo'));
+  END IF;
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_avancar_etapa(%L, 1, NULL)', p2)), 'erro:22023', 'avança processo suspenso');
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''nota'', true, NULL)', p2)), 'erro:22023', 'marca item de processo suspenso');
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_reativar(%L, ''x'')', p2)), 'erro:42501', 'sem workflow.concluir reativa');
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_conc, 'authenticated', format('SELECT public.wf_reativar(%L, '''')', p2)), 'erro:22023', 'reativa sem motivo');
+  -- suspenso há 10 dias com 3 dias úteis restantes: reativar dá hoje + 3 dias úteis
+  IF j ? 'suspenso_desde' THEN
+    EXECUTE 'UPDATE public.processos_administrativos SET suspenso_desde = $1, etapa_prazo_limite = public.fn_somar_dias_uteis($1, 3) WHERE id = $2'
+      USING hoje - 10, p2;
+  END IF;
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_conc, 'authenticated', format('SELECT public.wf_reativar(%L, ''Documento chegou'')', p2)), 'ok', 'reativa');
+  SELECT to_jsonb(p) INTO j FROM public.processos_administrativos p WHERE id = p2;
+  esperado := concat_ws('|', 'aberto', public.fn_somar_dias_uteis(hoje, 3), 'nulo');
+  r := concat_ws('|', j->>'status', j->>'etapa_prazo_limite', coalesce(j->>'suspenso_desde', 'nulo'));
+  IF r IS DISTINCT FROM esperado THEN PERFORM pg_temp.falha(format('wf rpc: reativação (status|prazo|suspenso_desde) = %s (esperado %s)', r, esperado)); END IF;
+  -- já vencido ao suspender (2 dias corridos de atraso): continua vencido pelos mesmos dias
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_conc, 'authenticated', format('SELECT public.wf_suspender(%L, ''De novo'')', p2)), 'ok', 'suspende de novo');
+  IF j ? 'suspenso_desde' THEN
+    EXECUTE 'UPDATE public.processos_administrativos SET suspenso_desde = $1, etapa_prazo_limite = $1 - 2 WHERE id = $2' USING hoje - 10, p2;
+  END IF;
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_conc, 'authenticated', format('SELECT public.wf_reativar(%L, ''Voltou'')', p2)), 'ok', 'reativa o vencido');
+  IF (SELECT etapa_prazo_limite FROM public.processos_administrativos WHERE id = p2) IS DISTINCT FROM hoje - 2 THEN
+    PERFORM pg_temp.falha('wf rpc: reativar processo já vencido devia manter o atraso (hoje - 2)');
+  END IF;
+  IF to_regclass('public.v_processos_acompanhamento') IS NOT NULL THEN
+    r := pg_temp.valor_desfeito_como(u_sl, 'authenticated', format('SELECT situacao_prazo FROM public.v_processos_acompanhamento WHERE id = %L', p2));
+    IF r IS DISTINCT FROM 'vencido' THEN PERFORM pg_temp.falha('wf view: processo com prazo vencido há 2 dias devia estar vencido: ' || coalesce(r, 'nulo')); END IF;
+  END IF;
+
+  -- ===== processo antigo, sem modelo: sem etapa nem checklist; conclui e arquiva
+  INSERT INTO public.processos_administrativos (assunto, interessado_nome, sigilo, created_by)
+    VALUES ('wf rpc processo antigo', 'Interessado teste', 'publico', u_vis) RETURNING id INTO p_old;
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_avancar_etapa(%L, NULL, NULL)', p_old)), 'erro:22023', 'avança processo sem modelo');
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''nota'', true, NULL)', p_old)), 'erro:22023', 'marca item em processo sem modelo');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_conc, 'authenticated', format('SELECT public.wf_concluir(%L, ''Encerrado'')', p_old)), 'ok', 'conclui processo sem modelo');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_arq, 'authenticated', format('SELECT public.wf_arquivar(%L, NULL)', p_old)), 'ok', 'arquiva processo sem modelo');
+  IF (SELECT status::text FROM public.processos_administrativos WHERE id = p_old) IS DISTINCT FROM 'arquivado' THEN
+    PERFORM pg_temp.falha('wf rpc: processo sem modelo devia terminar arquivado');
+  END IF;
+
+  -- ===== sigilo: quem não vê recebe 42501 com a mesma mensagem de processo inexistente, em todas as RPCs
+  r := pg_temp.valor_como(u_op, 'authenticated', format(abrir, 'compras', 'wf rpc sigiloso', 'Interessado', 'sigiloso', NULL));
+  p_s := pg_temp.wf_uuid(r);
+  IF p_s IS NULL THEN PERFORM pg_temp.falha('wf rpc: não abre processo sigiloso (' || coalesce(r, 'nulo') || ')'); END IF;
+  FOREACH q IN ARRAY ARRAY[
+      'SELECT public.wf_marcar_item(%L, ''demanda'', true, NULL)',
+      'SELECT public.wf_avancar_etapa(%L, 1, NULL)',
+      'SELECT public.wf_devolver_etapa(%L, 1, 1, ''x'')',
+      'SELECT public.wf_suspender(%L, ''x'')',
+      'SELECT public.wf_reativar(%L, ''x'')',
+      'SELECT public.wf_concluir(%L, ''x'')',
+      'SELECT public.wf_arquivar(%L, ''x'')',
+      'SELECT public.wf_atualizar_numero_sei(%L, ''123'')',
+      'SELECT public.wf_conceder_acesso(%L, ''a0000000-0000-0000-0000-0000000000ec'', ''total'', ''x'')',
+      'SELECT public.wf_revogar_acesso(%L, ''a0000000-0000-0000-0000-0000000000ec'')'] LOOP
+    r := pg_temp.sql_como(u_tudo, 'authenticated', format(q, p_s));
+    r2 := pg_temp.sql_como(u_tudo, 'authenticated', format(q, fantasma));
+    PERFORM pg_temp.wf_confere(r, 'erro:42501', 'sem credencial no sigiloso: ' || split_part(q, '(', 1));
+    IF r IS DISTINCT FROM r2 THEN
+      PERFORM pg_temp.falha(format('wf rpc: %s distingue sigiloso (%s) de inexistente (%s)', split_part(q, '(', 1), r, r2));
+    END IF;
+  END LOOP;
+  IF to_regclass('public.v_processos_acompanhamento') IS NOT NULL THEN
+    FOR x IN SELECT * FROM (VALUES (u_tudo, '0', 'sem credencial'), (u_vis, '0', 'visualizar sem credencial'),
+                                   (u_op, '1', 'criador'), (u_wfa, '1', 'workflow.admin')) AS v(quem, esperado, caso) LOOP
+      r := pg_temp.valor_desfeito_como(x.quem, 'authenticated', format('SELECT count(*)::text FROM public.v_processos_acompanhamento WHERE id = %L', p_s));
+      IF r IS DISTINCT FROM x.esperado THEN PERFORM pg_temp.falha(format('wf view: %s vê %s linha(s) do sigiloso (esperado %s)', x.caso, r, x.esperado)); END IF;
+    END LOOP;
+  END IF;
+  -- o criador altera o próprio sigiloso
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''demanda'', true, NULL)', p_s)), 'ok', 'criador marca item no próprio sigiloso');
+
+  -- ===== credenciais: só workflow.admin; leitura não altera; tramitação altera; revogar tira o acesso
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''leitura'', NULL)', p_s, u_ct)), 'erro:42501', 'criador sem workflow.admin concede credencial');
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_wfa, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''superpoder'', NULL)', p_s, u_ct)), 'erro:22023', 'concede nível inválido');
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_wfa, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''leitura'', NULL)', p_s, fantasma)), 'erro:22023', 'concede a usuário inexistente');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_wfa, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''leitura'', ''Analisa o caso'')', p_s, u_ct)), 'ok', 'workflow.admin concede leitura');
+  IF to_regclass('public.v_processos_acompanhamento') IS NOT NULL
+     AND pg_temp.valor_desfeito_como(u_ct, 'authenticated', format('SELECT count(*)::text FROM public.v_processos_acompanhamento WHERE id = %L', p_s)) IS DISTINCT FROM '1' THEN
+    PERFORM pg_temp.falha('wf view: credencial de leitura não vê o sigiloso');
+  END IF;
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_ct, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''justificativa'', true, NULL)', p_s)), 'erro:42501', 'credencial de leitura marca item');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_wfa, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''tramitacao'', NULL)', p_s, u_ct)), 'ok', 'workflow.admin troca para tramitação');
+  IF (SELECT nivel_acesso || '|' || concedido_por FROM public.acesso_processo_sigiloso WHERE processo_id = p_s AND usuario_id = u_ct) IS DISTINCT FROM 'tramitacao|' || u_wfa THEN
+    PERFORM pg_temp.falha('wf rpc: credencial devia ficar tramitacao, concedida por workflow.admin');
+  END IF;
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_ct, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''justificativa'', true, NULL)', p_s)), 'ok', 'credencial de tramitação marca item');
+  PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_wfa, 'authenticated', format('SELECT public.wf_revogar_acesso(%L, %L)', p_s, u_ct)), 'ok', 'workflow.admin revoga');
+  PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_ct, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''justificativa'', true, NULL)', p_s)), 'erro:42501', 'credencial revogada marca item');
+  IF EXISTS (SELECT 1 FROM public.acesso_processo_sigiloso WHERE processo_id = p_s AND usuario_id = u_ct) THEN
+    PERFORM pg_temp.falha('wf rpc: revogar não apagou a credencial');
+  END IF;
+
+  -- ===== semáforo
+  IF to_regprocedure('public.fn_situacao_prazo(date)') IS NULL THEN
+    PERFORM pg_temp.falha('wf rpc: fn_situacao_prazo(date) não existe');
+  ELSE
+    FOR x IN SELECT * FROM (VALUES (NULL::date, 'sem_prazo'), (hoje - 1, 'vencido'), (public.fn_somar_dias_uteis(hoje, 1), 'vence_logo'),
+                                   (public.fn_somar_dias_uteis(hoje, 2), 'vence_logo'), (public.fn_somar_dias_uteis(hoje, 3), 'em_dia'),
+                                   (public.fn_somar_dias_uteis(hoje, 5), 'em_dia')) AS v(limite, esperado) LOOP
+      r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT public.fn_situacao_prazo(%L::date)', x.limite));
+      IF r IS DISTINCT FROM x.esperado THEN
+        PERFORM pg_temp.falha(format('wf rpc: fn_situacao_prazo(%s) = %s (esperado %s)', coalesce(x.limite::text, 'nulo'), r, x.esperado));
+      END IF;
+    END LOOP;
+    IF (SELECT provolatile FROM pg_proc WHERE oid = 'public.fn_situacao_prazo(date)'::regprocedure) <> 's' THEN
+      PERFORM pg_temp.falha('wf rpc: fn_situacao_prazo devia ser STABLE');
+    END IF;
+  END IF;
+
+  -- ===== estrutura: RPCs DEFINER com search_path fixo, travam o processo, só authenticated; internas fora da API
+  FOREACH q IN ARRAY ARRAY[
+      'public.wf_abrir_processo(text, text, text, text, text, text, public.nivel_sigilo_processo, text)',
+      'public.wf_marcar_item(uuid, text, boolean, text)', 'public.wf_avancar_etapa(uuid, integer, text)',
+      'public.wf_devolver_etapa(uuid, integer, integer, text)', 'public.wf_suspender(uuid, text)', 'public.wf_reativar(uuid, text)',
+      'public.wf_concluir(uuid, text)', 'public.wf_arquivar(uuid, text)', 'public.wf_atualizar_numero_sei(uuid, text)',
+      'public.wf_conceder_acesso(uuid, uuid, text, text)', 'public.wf_revogar_acesso(uuid, uuid)', 'public.fn_situacao_prazo(date)'] LOOP
+    IF to_regprocedure(q) IS NULL THEN
+      PERFORM pg_temp.falha('wf rpc: ' || q || ' não existe');
+      CONTINUE;
+    END IF;
+    IF has_function_privilege('anon', q, 'EXECUTE') OR NOT has_function_privilege('authenticated', q, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('wf rpc: ' || q || ' devia ser executável só por authenticated');
+    END IF;
+    IF NOT coalesce((SELECT proconfig::text ~ 'search_path' FROM pg_proc WHERE oid = to_regprocedure(q)), false) THEN
+      PERFORM pg_temp.falha('wf rpc: ' || q || ' sem search_path fixo');
+    END IF;
+    IF q LIKE 'public.wf_%' THEN
+      IF NOT (SELECT prosecdef FROM pg_proc WHERE oid = to_regprocedure(q)) THEN
+        PERFORM pg_temp.falha('wf rpc: ' || q || ' devia ser SECURITY DEFINER');
+      END IF;
+      IF q NOT LIKE 'public.wf_abrir_processo%' AND (SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure(q)) !~ 'wf_travar_processo' THEN
+        PERFORM pg_temp.falha('wf rpc: ' || q || ' não trava o processo por wf_travar_processo');
+      END IF;
+    END IF;
+  END LOOP;
+  IF to_regprocedure('public.wf_travar_processo(uuid, boolean)') IS NOT NULL
+     AND (SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure('public.wf_travar_processo(uuid, boolean)')) !~* 'FOR UPDATE' THEN
+    PERFORM pg_temp.falha('wf rpc: wf_travar_processo não faz SELECT ... FOR UPDATE');
+  END IF;
+  FOREACH q IN ARRAY ARRAY['public.wf_resolver_unidade(text, uuid)', 'public.wf_travar_processo(uuid, boolean)',
+      'public.wf_exigir_em_andamento(public.status_processo_administrativo)', 'public.wf_pendencias(uuid, uuid, integer, integer)',
+      'public.wf_preparar_numero_sei(text, uuid)',
+      'public.wf_registrar_movimentacao(uuid, public.tipo_movimentacao_processo, text, text, uuid, uuid, integer, integer, integer, date)'] LOOP
+    IF to_regprocedure(q) IS NULL THEN
+      PERFORM pg_temp.falha('wf rpc: função interna ' || q || ' não existe');
+    ELSIF has_function_privilege('authenticated', q, 'EXECUTE') OR has_function_privilege('anon', q, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('wf rpc: função interna ' || q || ' executável pela API');
+    ELSIF (SELECT prosecdef FROM pg_proc WHERE oid = to_regprocedure(q)) THEN
+      PERFORM pg_temp.falha('wf rpc: função interna ' || q || ' não devia ser SECURITY DEFINER');
+    END IF;
+  END LOOP;
+
+  PERFORM pg_temp.nota('Workflow (RPCs e view): abertura com lotação e sem lotação, checklist por etapa, avanço com pendência/sem SEI/etapa mudada (40001), devolução, última etapa, conclusão e arquivamento (com e sem modelo), suspensão e reativação com recálculo do prazo, sigilo igual a inexistente em todas as RPCs, credenciais de leitura e tramitação, semáforo e colunas da view verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off
