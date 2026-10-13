@@ -586,8 +586,9 @@ BEGIN
   IF v_nivel NOT IN ('leitura', 'tramitacao', 'total') THEN
     RAISE EXCEPTION 'Nível de acesso inválido: use leitura, tramitacao ou total.' USING ERRCODE = '22023';
   END IF;
-  IF p_usuario_id IS NULL OR NOT EXISTS (SELECT 1 FROM public.profiles pr WHERE pr.id = p_usuario_id) THEN
-    RAISE EXCEPTION 'Usuário não encontrado.' USING ERRCODE = '22023';
+  -- só perfil ativo (mesma coluna de is_active_user); inexistente e bloqueado têm a mesma mensagem
+  IF p_usuario_id IS NULL OR NOT EXISTS (SELECT 1 FROM public.profiles pr WHERE pr.id = p_usuario_id AND pr.is_active IS TRUE) THEN
+    RAISE EXCEPTION 'Usuário não encontrado ou inativo.' USING ERRCODE = '22023';
   END IF;
   INSERT INTO public.acesso_processo_sigiloso (processo_id, usuario_id, nivel_acesso, motivo, concedido_por)
   VALUES (p.id, p_usuario_id, v_nivel, nullif(btrim(p_motivo), ''), auth.uid())
@@ -629,6 +630,8 @@ DECLARE
   v_fuso text := nullif(btrim(current_setting('app.fuso_horario', true)), '');
   v_hoje date;
 BEGIN
+  -- ATENÇÃO: a regra do fuso abaixo espelha public.data_local() (app.fuso_horario, padrão America/Sao_Paulo,
+  -- fuso inválido cai no padrão). Mudou uma, mude a outra junto.
   IF p_limite IS NULL THEN
     RETURN 'sem_prazo';
   END IF;
@@ -653,7 +656,10 @@ $$;
 -- esconde o processo inteiro). Semáforo só para processo em andamento (suspenso, concluído e arquivado: sem_prazo).
 -- unidade_sigla: a da unidade resolvida ou, sem ela, a sigla da etapa (ex.: @ORIGEM sem lotação, sigla fora do
 -- cadastro). pendencias_obrigatorias: itens obrigatórios não marcados até a etapa atual.
-CREATE OR REPLACE VIEW public.v_processos_acompanhamento
+-- DROP + CREATE (e não CREATE OR REPLACE): p.* é expandido na criação, e o REPLACE falharia ao reaplicar a definição
+-- depois de uma coluna nova em processos_administrativos. Os privilégios são refeitos logo abaixo.
+DROP VIEW IF EXISTS public.v_processos_acompanhamento;
+CREATE VIEW public.v_processos_acompanhamento
 WITH (security_invoker = true) AS
 SELECT
   p.*,
@@ -677,6 +683,9 @@ LEFT JOIN public.estrutura_organizacional u ON u.id = p.unidade_atual_id;
 
 COMMENT ON VIEW public.v_processos_acompanhamento IS
   'Acompanhamento de processos do SEI: processo + modelo + etapa atual + unidade + semáforo do prazo + pendências do checklist. security_invoker (sigilo pela RLS).';
+-- só leitura, só authenticated (o DROP levou os privilégios; refeitos aqui)
+REVOKE ALL ON public.v_processos_acompanhamento FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.v_processos_acompanhamento TO authenticated;
 
 -- ----------------------------------------------------------------------------
 -- 5. Privilégios (mesmas linhas no supabase/baseline/overlay/40_privilegios.sql)
@@ -709,6 +718,4 @@ BEGIN
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f);
   END LOOP;
 END $$;
--- view: só leitura, só authenticated
-REVOKE ALL ON public.v_processos_acompanhamento FROM PUBLIC, anon, authenticated;
-GRANT SELECT ON public.v_processos_acompanhamento TO authenticated;
+-- view: privilégios logo depois do CREATE VIEW (bloco 4)

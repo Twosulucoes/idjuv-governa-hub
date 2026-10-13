@@ -5556,6 +5556,13 @@ BEGIN
   PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_op, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''leitura'', NULL)', p_s, u_ct)), 'erro:42501', 'criador sem workflow.admin concede credencial');
   PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_wfa, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''superpoder'', NULL)', p_s, u_ct)), 'erro:22023', 'concede nível inválido');
   PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_wfa, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''leitura'', NULL)', p_s, fantasma)), 'erro:22023', 'concede a usuário inexistente');
+  -- perfil bloqueado não recebe credencial (mesma mensagem do inexistente)
+  UPDATE public.profiles SET is_active = false WHERE id = u_ct;
+  r := pg_temp.sql_como(u_wfa, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''leitura'', NULL)', p_s, u_ct));
+  PERFORM pg_temp.wf_confere(r, 'erro:22023', 'concede a usuário inativo');
+  r2 := pg_temp.sql_como(u_wfa, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''leitura'', NULL)', p_s, fantasma));
+  IF r IS DISTINCT FROM r2 THEN PERFORM pg_temp.falha(format('wf rpc: concessão distingue usuário inativo (%s) de inexistente (%s)', r, r2)); END IF;
+  UPDATE public.profiles SET is_active = true WHERE id = u_ct;
   PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_wfa, 'authenticated', format('SELECT public.wf_conceder_acesso(%L, %L, ''leitura'', ''Analisa o caso'')', p_s, u_ct)), 'ok', 'workflow.admin concede leitura');
   IF to_regclass('public.v_processos_acompanhamento') IS NOT NULL
      AND pg_temp.valor_desfeito_como(u_ct, 'authenticated', format('SELECT count(*)::text FROM public.v_processos_acompanhamento WHERE id = %L', p_s)) IS DISTINCT FROM '1' THEN
