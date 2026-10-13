@@ -955,6 +955,40 @@ com `action_type` `consultar`, para que nenhuma carga por tipo a conceda ao pape
 admin: a RLS de `dados_oficiais` (classe `publico_admin`) só deixa o admin escrever, e a tela só habilita
 o formulário para ele. Leitura de `dados_oficiais` é pública (anon). Ver `docs/CONFIGURACAO_CLIENTE.md`.
 
+### Workflow: acompanhamento de processos do SEI
+
+Migrações `20261013100000` a `20261013100200` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#acompanhamento-de-processos-do-sei)).
+As seis permissões `workflow.*` agora são cobradas **no banco**, por `has_permission_code`; esconder botão é só UX.
+No catálogo do baseline constam `workflow.visualizar`, `workflow.criar` e `workflow.tramitar`; `workflow.concluir`,
+`workflow.arquivar` e `workflow.admin` não constam nos dados do catálogo e se concedem em `user_permissions`. O papel
+`admin` passa por cima de todas.
+
+| Ação | Permissão | Onde é cobrada |
+|---|---|---|
+| Ver processo público e abrir `/workflow/processos` | módulo `workflow` **e** `workflow.visualizar` | `wf_pode_ver_processo` (RLS de SELECT) e `ProtectedRoute` |
+| Abrir processo | `workflow.criar` | `wf_abrir_processo` |
+| Marcar item do checklist, avançar, devolver, corrigir número SEI | `workflow.tramitar` | `wf_marcar_item`, `wf_avancar_etapa`, `wf_devolver_etapa`, `wf_atualizar_numero_sei` |
+| Suspender, reativar, concluir | `workflow.concluir` | `wf_suspender`, `wf_reativar`, `wf_concluir` |
+| Arquivar | `workflow.arquivar` | `wf_arquivar` |
+| Conceder, revogar e listar credenciais; apagar linhas do processo; escrever nos modelos de fluxo | `workflow.admin` | `wf_conceder_acesso`, `wf_revogar_acesso`, `wf_listar_credenciais`; policies `wf_delete`; policies de `processo_modelos*` (junto com o módulo `workflow`) |
+
+- **Escrita só por RPC.** `processos_administrativos`, `movimentacoes_processo`, `despachos`, `documentos_processo`,
+  `prazos_processo` e `processo_checklist_respostas` não têm policy de INSERT nem de UPDATE para `authenticated`.
+- **Sigilo.** Processo `restrito` ou `sigiloso` só é visto por quem o abriu, por quem tem credencial em
+  `acesso_processo_sigiloso` e por quem tem `workflow.admin` (mesmo sem o módulo `workflow`). Processo público exige o
+  módulo **e** `workflow.visualizar`: a permissão avulsa sem o módulo não basta. Quem não vê o processo recebe, nas
+  RPCs, a mesma mensagem de processo inexistente (`42501`).
+- **Níveis de credencial** (`acesso_processo_sigiloso.nivel_acesso`): `leitura`, `tramitacao` e `total`. Em processo
+  restrito ou sigiloso, `leitura` **não altera nada**: as RPCs de escrita respondem `42501`. `tramitacao` e `total`
+  alteram, mas a permissão da ação continua valendo (a credencial não substitui `workflow.tramitar`, por exemplo).
+  Conceder e revogar funcionam em processo de qualquer situação e só para usuário ativo.
+- **Telas `/processos/*`** (compras, diárias, convênios, almoxarifado, pagamentos, patrimônio): ver a página exige
+  `processos.<tipo>.visualizar` (`ROUTE_PERMISSIONS`); "Iniciar processo" exige `workflow.criar`; a aba "Processos"
+  (lista dos processos do tipo) exige `workflow.visualizar`. Sem as permissões, a tela mostra o aviso para pedir
+  acesso em vez do botão ou da lista. `/processos/veiculos` só exige `processos.veiculos.visualizar` e mostra "ainda
+  não implantado".
+- **Aba Credenciais** do detalhe do processo aparece só com `workflow.admin`.
+
 ## Enforcement de rota (`ProtectedRoute`)
 
 O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso

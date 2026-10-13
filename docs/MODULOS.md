@@ -108,9 +108,40 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
 
 ## Processos / Workflow (`workflow`)
 
-Tramitação de processos administrativos (estilo SEI). `src/pages/workflow/`:
-`GestaoProcessosPage`, `ProcessoDetalhePage` (despachos, encaminhamentos,
-pareceres, prazos/SLA, documentos, sigilo).
+Acompanhamento dos processos que correm no SEI (decisão de 13/10/2026; o sistema não é um SEI interno): etapa,
+unidade, prazo e checklist de cada processo. Despacho, documento, assinatura e publicação continuam no SEI. Spec:
+[`2026-10-13-tramitacao-acompanhamento-sei-design`](./superpowers/specs/2026-10-13-tramitacao-acompanhamento-sei-design.md);
+banco e RPCs em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#acompanhamento-de-processos-do-sei); permissões em
+[RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#workflow-acompanhamento-de-processos-do-sei). Dados e ações em
+`src/hooks/useAcompanhamentoProcessos.ts` (tabelas e view por `supabase as any` até os tipos serem regenerados; toda
+escrita é por RPC `wf_*`).
+
+- **Painel `/workflow`** (`src/pages/modulos/WorkflowDashboardPage`, dados de `useWorkflowDashboardStats`): processos
+  ativos, na minha unidade, vencidos, e contagem por tipo e por etapa, com links para a lista filtrada. Os agrupamentos
+  leem até 1000 linhas e avisam quando o limite é atingido.
+- **Lista `/workflow/processos`** (`GestaoProcessosPage`): abas "Na minha unidade" (unidade da lotação ativa do usuário
+  em `lotacoes.ativo`; sem lotação, aviso para pedir ao RH) e "Todos"; colunas Nº interno, Nº SEI, tipo, assunto,
+  etapa, unidade, situação e prazo (semáforo: em dia, vence logo, vencido, sem prazo); filtros por tipo, etapa,
+  unidade, situação e prazo; busca por assunto, interessado, número interno ou SEI. Lê `?meus=`, `?tipo=`, `?etapa=`,
+  `?unidade=`, `?prazo=`, `?status=` e `?acao=novo`. Limite de 1000 linhas com aviso. "Novo processo" (`NovoProcessoDialog`)
+  exige `workflow.criar`.
+- **Detalhe `/workflow/processos/:id`** (`ProcessoDetalhePage`): cabeçalho com situação, sigilo e prazo; Nº SEI
+  (editável com `workflow.tramitar`, em andamento e na etapa 1); trilha das etapas (`TrilhaEtapas`) com unidade e
+  prazo; checklist (`ChecklistEtapa`) marcado com `workflow.tramitar`; ações (`AcoesProcesso`) Avançar, Devolver,
+  Suspender, Reativar, Concluir e Arquivar conforme permissão e situação; abas Linha do tempo, Despachos e Documentos
+  (só leitura: mostram o que já existe, sem botão de despachar ou anexar) e Credenciais (`CredenciaisSigiloTab`, só
+  `workflow.admin`: conceder, trocar nível e revogar). Processo antigo, sem modelo, aparece sem trilha nem checklist e só
+  pode ser concluído ou arquivado.
+- **Guias `/processos/*`** (`src/components/processos/GuiaProcessoModelo`, usado por Compras, Diárias, Convênios,
+  Almoxarifado, Pagamentos e Patrimônio): etapas (unidade e prazo) e checklist lidos do modelo no banco, botão
+  "Iniciar processo" (exige `workflow.criar`) e aba "Processos" com os processos reais do tipo (exige
+  `workflow.visualizar`). Patrimônio tem duas abas, Tombamento e Baixa; Distribuição e Inventário saíram do guia, por
+  não terem fluxo nem checklist próprio.
+- **Veículos `/processos/veiculos`**: sem dados; mostra "Controle de frota ainda não implantado".
+- **Etapas, prazos e checklist** vêm da carga inicial das migrações; os marcados "(proposta)" na spec aguardam
+  confirmação do órgão. Não há tela de edição de modelo.
+- **Unidades**: a etapa aponta para a unidade pela sigla em `estrutura_organizacional`; sigla sem cadastro deixa a
+  unidade nula e a tela mostra a sigla. Ver Backlog em [ROADMAP.md](./planejamento/ROADMAP.md).
 
 ## Compras (`compras`) e Contratos (`contratos`)
 

@@ -42,8 +42,9 @@ assinatura e publicação continuam no SEI (decisão de 12/10/2026).
    na abertura, porque o processo pode nascer antes de existir no SEI (ex.: Termo de Demanda), e **obrigatório para
    sair da etapa 1**. O número interno (`00001/2026`) continua como identificador do sistema. Sem validação de
    formato além de "tem dígitos" até o órgão confirmar o padrão do SEI-RR.
-3. **Etapa aponta para a unidade pela sigla.** O modelo guarda `unidade_sigla` (ex.: `DIRAF`, `CI`, `PRESI`, `CPL`,
-   `NuPat`) e o banco resolve para `estrutura_organizacional.id` na hora de avançar. Duas siglas especiais:
+3. **Etapa aponta para a unidade pela sigla.** O modelo guarda `unidade_sigla` (ex.: `DIRAF`, `CI`, `PRES`, `CPL`,
+   `NuPat`; `PRES` é a sigla da Presidência no cadastro de unidades do banco, e `PRESI` só aparece na numeração das
+   portarias, D13) e o banco resolve para `estrutura_organizacional.id` na hora de avançar. Duas siglas especiais:
    `@ORIGEM` (unidade de quem abriu: "Servidor", "Unidade Demandante", "Unidade Solicitante") e `@CHEFIA`
    (unidade superior à de origem: "Chefia Imediata"). Se a sigla não existir no cadastro, a etapa avança assim mesmo,
    com `unidade_atual_id` nulo e a sigla visível; a caixa "na minha unidade" depende do cadastro de unidades e de
@@ -125,13 +126,13 @@ Prazos em dias úteis são proposta para todos, ajustáveis depois pela tabela.
 
 | Modelo | Etapas (unidade) | Checklist → etapa |
 |---|---|---|
-| Compras e Contratos | 1 Termo de Demanda (@ORIGEM) · 2 Análise Orçamentária (DIRAF) · 3 Parecer Controle Interno (CI) · 4 Autorização (PRESI) · 5 Processo Licitatório (CPL) · 6 Contratação (DIRAF) · 7 Fiscalização (@ORIGEM, "Fiscal de Contrato") · 8 Pagamento (DIRAF) | demanda, justificativa, tr, pesquisa → 1; orcamento → 2; ci, parecer (opcional) → 3; autorizacao → 4 |
-| Diárias e Viagens | 1 Solicitação (@ORIGEM) · 2 Aprovação Chefia (@CHEFIA) · 3 Ordem de Missão (DIRAF) · 4 Autorização (PRESI) · 5 Empenho/Pagamento (DIRAF) · 6 Viagem (@ORIGEM) · 7 Relatório (@ORIGEM, 5 dias úteis) · 8 Prestação de Contas (DIRAF) | solicitacao, justificativa, programacao → 1; aprovacao → 2; ordem → 3; autorizacao → 4 |
-| Convênios e Parcerias | 1 Proposta/Plano de Trabalho (@ORIGEM) · 2 Análise Jurídica (ASJUR) · 3 Aprovação Técnica (@ORIGEM) · 4 Celebração (PRESI) · 5 Execução (@ORIGEM) · 6 Prestação de Contas (DIRAF) | (proposta) plano de trabalho → 1; parecer jurídico → 2; publicação no DOE → 4 |
+| Compras e Contratos | 1 Termo de Demanda (@ORIGEM) · 2 Análise Orçamentária (DIRAF) · 3 Parecer Controle Interno (CI) · 4 Autorização (PRES) · 5 Processo Licitatório (CPL) · 6 Contratação (DIRAF) · 7 Fiscalização (@ORIGEM, "Fiscal de Contrato") · 8 Pagamento (DIRAF) | demanda, justificativa, tr, pesquisa → 1; orcamento → 2; ci, parecer (opcional) → 3; autorizacao → 4 |
+| Diárias e Viagens | 1 Solicitação (@ORIGEM) · 2 Aprovação Chefia (@CHEFIA) · 3 Ordem de Missão (DIRAF) · 4 Autorização (PRES) · 5 Empenho/Pagamento (DIRAF) · 6 Viagem (@ORIGEM) · 7 Relatório (@ORIGEM, 5 dias úteis) · 8 Prestação de Contas (DIRAF) | solicitacao, justificativa, programacao → 1; aprovacao → 2; ordem → 3; autorizacao → 4 |
+| Convênios e Parcerias | 1 Proposta/Plano de Trabalho (@ORIGEM) · 2 Análise Jurídica (ASJUR) · 3 Aprovação Técnica (@ORIGEM) · 4 Celebração (PRES) · 5 Execução (@ORIGEM) · 6 Prestação de Contas (DIRAF) | (proposta) plano de trabalho → 1; parecer jurídico → 2; publicação no DOE → 4 |
 | Almoxarifado | 1 Requisição (@ORIGEM) · 2 Aprovação Chefia (@CHEFIA) · 3 Verificação Estoque · 4 Separação · 5 Entrega · 6 Baixa no Sistema (NuAlm, proposta de sigla) | requisicao, justificativa → 1; aprovacao → 2; verificacao → 3 |
-| Pagamentos | 1 Recebimento da Demanda (DIRAF) · 2 Conferência Documental (DIRAF) · 3 Empenho (DIRAF) · 4 Liquidação (DIRAF) · 5 Ordenação (PRESI) · 6 Pagamento (DIRAF) | (proposta) nota fiscal e atesto → 2; nota de empenho → 3 |
+| Pagamentos | 1 Recebimento da Demanda (DIRAF) · 2 Conferência Documental (DIRAF) · 3 Empenho (DIRAF) · 4 Liquidação (DIRAF) · 5 Ordenação (PRES) · 6 Pagamento (DIRAF) | (proposta) nota fiscal e atesto → 2; nota de empenho → 3 |
 | Patrimônio — Tombamento | (proposta) 1 Recebimento (@ORIGEM) · 2 Tombamento (NuPat) · 3 Termo de Responsabilidade (@ORIGEM) | nota, termo → 1; plaqueta, foto (opcional) → 2; responsavel → 3 |
-| Patrimônio — Baixa | (proposta) 1 Laudo (NuPat) · 2 Parecer Controle Interno (CI) · 3 Autorização (PRESI) · 4 Destinação (NuPat) | laudo → 1; parecer → 2; autorizacao → 3; destino → 4 |
+| Patrimônio — Baixa | (proposta) 1 Laudo (NuPat) · 2 Parecer Controle Interno (CI) · 3 Autorização (PRES) · 4 Destinação (NuPat) | laudo → 1; parecer → 2; autorizacao → 3; destino → 4 |
 
 As siglas finais seguem a Lei 2.301/2025 (ver `01_ESTRUTURA_INSTITUCIONAL.md`); onde a página usa sigla diferente
 da Lei, vale a da Lei e a divergência fica registrada na migração.
@@ -175,3 +176,20 @@ da Lei, vale a da Lei e a divergência fica registrada na migração.
 - Controle de frota (Veículos), Distribuição e Inventário de patrimônio como processos.
 - Editor de modelos na tela (a carga é por migração; ajuste por SQL/RPC admin).
 - Cadastro das unidades da Lei 2.301/2025.
+
+## Decisões durante a implementação
+
+- **PRES no lugar de PRESI.** A Presidência usa a sigla `PRES` no cadastro de unidades do banco; `PRESI` só aparece na
+  numeração das portarias (D13). Seed e Premissa 3 usam `PRES`.
+- **`suspenso_desde`.** Coluna nova (data) em `processos_administrativos`. A suspensão guarda a data; a reativação
+  recalcula `etapa_prazo_limite` somando, a partir de hoje, os dias úteis que faltavam. Prazo já vencido ao suspender
+  continua vencido pelos mesmos dias corridos.
+- **Arquivar aceita processo concluído** (além de aberto, em tramitação e suspenso); só o já arquivado é recusado.
+- **Conceder e revogar credencial** funcionam em processo de qualquer situação, e a concessão só vale para usuário
+  ativo.
+- **`wf_listar_credenciais`** (RPC, `workflow.admin`) lê as credenciais para a aba Credenciais, em vez de mudar a RLS
+  existente de `acesso_processo_sigiloso` (que só deixa o papel admin ler).
+- **Limite de 1000 linhas.** Lista, guia por tipo e agrupamentos do painel leem até 1000 linhas (padrão do PostgREST)
+  e mostram aviso quando o limite é atingido; os contadores do painel usam `count` exato.
+- **"Na minha unidade" usa `lotacoes.ativo`**, a lotação ativa mais recente do servidor ligado ao perfil. Não cobre
+  cessão (`lotacao_vigente` não é executável por `authenticated`).
