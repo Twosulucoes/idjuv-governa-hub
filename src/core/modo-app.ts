@@ -56,3 +56,19 @@ export function filtrarMenuParaSite<T extends ItemMenu>(menu: readonly T[]): T[]
   }
   return saida;
 }
+
+/**
+ * A página está sendo aberta pelo endereço do sistema (VITE_APP_URL)? Nesse host a raiz `/` vai direto para
+ * o sistema em vez da home pública. Sem URL configurada (ou inválida) devolve false: nunca redireciona.
+ */
+export function ehHostDoApp(
+  hostAtual: string,
+  urlDoApp: string | undefined = import.meta.env.VITE_APP_URL,
+): boolean {
+  if (!urlDoApp) return false;
+  try {
+    return new URL(urlDoApp).hostname.toLowerCase() === hostAtual.toLowerCase();
+  } catch {
+    return false;
+  }
+}

@@ -177,7 +177,7 @@ Configuração em Settings → Secrets and variables → Actions:
 | Segredo | `VPS_DEPLOY_KEY` | chave privada desse usuário (gere uma só para o CI) |
 | Variável | `VPS_FRONT_DIR` | pasta que o nginx serve (ex.: `/var/www/idjuv`) |
 | Variável | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`, `VITE_TENANT_SLUG` | os mesmos do `.env` de produção (valores públicos; a chave é a anon) |
-| Variável (opcional) | `VPS_SITE_DIR`, `VITE_APP_URL`, `VITE_SITE_URL` | pasta do build `site` (`/var/www/idjuv-site`) e os endereços do sistema (`https://app.idjuv.online`) e do site (`https://idjuv.online`) |
+| Variável (opcional) | `VPS_SITE_DIR`, `VITE_APP_URL`, `VITE_SITE_URL` | pasta do build `site` (`/var/www/idjuv-site`) e os endereços do sistema (`https://app.idjuv.online`) e do site (`https://idjuv.online`). `VITE_APP_URL` também vale no build do sistema: aberto por esse host, `/` vai direto para `/sistema` (logado) ou `/auth`, em vez da home pública; sem a variável nada redireciona |
 | Variável (opcional) | `VPS_APP_DIR` | pasta que o nginx do `app.idjuv.online` serve (`/var/www/idjuv-app`, dono do usuário de deploy) |
 | Variável (opcional) | `FRONT_URL`, `DIAS_ASSETS_ANTIGOS` | padrão `https://idjuv.online` e `14` |
 

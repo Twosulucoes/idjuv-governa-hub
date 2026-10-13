@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { TenantProvider } from "@/core/tenant";
+import { ehHostDoApp } from "@/core/modo-app";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PublicPageGuard } from "@/components/public/PublicPageGuard";
 
@@ -285,10 +286,15 @@ const App = () => (
               {/* ROTAS PÚBLICAS - Sem autenticação */}
               {/* Com PublicPageGuard para verificar status de manutenção */}
               {/* ============================================ */}
+              {/* No endereço do app (VITE_APP_URL) a raiz vai direto ao sistema: /sistema abre logado ou cai em /auth. */}
               <Route path="/" element={
-                <PublicPageGuard rota="/">
-                  <HomeSimplesPage />
-                </PublicPageGuard>
+                ehHostDoApp(window.location.hostname)
+                  ? <Navigate to="/sistema" replace />
+                  : (
+                    <PublicPageGuard rota="/">
+                      <HomeSimplesPage />
+                    </PublicPageGuard>
+                  )
               } />
 
               {/* Páginas públicas no ar: Editais, Base Legal e Links Úteis */}
