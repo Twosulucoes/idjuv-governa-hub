@@ -164,7 +164,8 @@ O workflow `.github/workflows/deploy-front.yml` roda a cada merge na `main` (e m
    apagá-lo. Por isso o workflow apaga explicitamente os retirados por vazamento
    (data/cargos.json e data/cargos.csv, que publicavam a indicação dos ocupantes); ao retirar outro
    arquivo sensível de `public/`, acrescente-o a essa lista.
-4. Confere que `FRONT_URL` serve o build novo e que data/cargos.json não está mais no ar.
+4. Se `VPS_APP_DIR` existir, copia o mesmo build para a pasta do `app.idjuv.online` (sistema interno; por ora cópia completa do site, com `noindex` no nginx). Sem a variável o passo é ignorado.
+5. Confere que `FRONT_URL` serve o build novo e que data/cargos.json não está mais no ar.
 
 Configuração em Settings → Secrets and variables → Actions:
 
@@ -175,6 +176,7 @@ Configuração em Settings → Secrets and variables → Actions:
 | Segredo | `VPS_DEPLOY_KEY` | chave privada desse usuário (gere uma só para o CI) |
 | Variável | `VPS_FRONT_DIR` | pasta que o nginx serve (ex.: `/var/www/idjuv`) |
 | Variável | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`, `VITE_TENANT_SLUG` | os mesmos do `.env` de produção (valores públicos; a chave é a anon) |
+| Variável (opcional) | `VPS_APP_DIR` | pasta que o nginx do `app.idjuv.online` serve (`/var/www/idjuv-app`, dono do usuário de deploy) |
 | Variável (opcional) | `FRONT_URL`, `DIAS_ASSETS_ANTIGOS` | padrão `https://idjuv.online` e `14` |
 
 Sem a configuração o job só avisa e não publica. O nginx precisa do fallback de SPA
