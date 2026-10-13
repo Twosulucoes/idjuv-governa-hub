@@ -161,6 +161,9 @@ export function useProcessosAcompanhamento(filtros: FiltrosAcompanhamento) {
     ...consulta,
     data: semLotacao ? ([] as ProcessoAcompanhamento[]) : consulta.data,
     isLoading: consulta.isLoading || (precisaUnidade && unidade.isLoading),
+    // falha ao descobrir a unidade desliga a consulta da lista: sem isto o erro sumiria e a tela ficaria vazia
+    isError: consulta.isError || (precisaUnidade && unidade.isError),
+    error: consulta.error ?? (precisaUnidade ? unidade.error : null),
     semLotacao,
   };
 }
@@ -186,6 +189,71 @@ export function useChecklistProcesso(id: string) {
       const { data, error } = await db.from('processo_checklist_respostas').select('*').eq('processo_id', id);
       if (error) throw error;
       return (data ?? []) as RespostaChecklist[];
+    },
+  });
+}
+
+export interface CredencialSigilo {
+  id: string;
+  processo_id: string;
+  usuario_id: string;
+  nivel_acesso: NivelAcessoSigiloso;
+  motivo: string | null;
+  concedido_por: string | null;
+  created_at: string;
+  /** Nome/e-mail do usuário (preenchido em segunda consulta a profiles) */
+  usuario_nome: string | null;
+  usuario_email: string | null;
+}
+
+/** Credenciais do processo sigiloso (a RLS da tabela libera a leitura só para administradores). */
+export function useCredenciaisProcesso(id: string, habilitado: boolean) {
+  return useQuery({
+    queryKey: [CHAVE, 'credenciais', id],
+    enabled: !!id && habilitado,
+    queryFn: async (): Promise<CredencialSigilo[]> => {
+      const { data, error } = await db
+        .from('acesso_processo_sigiloso')
+        .select('*')
+        .eq('processo_id', id)
+        .order('created_at');
+      if (error) throw error;
+      const linhas = (data ?? []) as Omit<CredencialSigilo, 'usuario_nome' | 'usuario_email'>[];
+      if (linhas.length === 0) return [];
+      const { data: perfis, error: e2 } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', linhas.map((l) => l.usuario_id));
+      if (e2) throw e2;
+      const porId = new Map((perfis ?? []).map((p) => [p.id, p]));
+      return linhas.map((l) => ({
+        ...l,
+        usuario_nome: porId.get(l.usuario_id)?.full_name ?? null,
+        usuario_email: porId.get(l.usuario_id)?.email ?? null,
+      }));
+    },
+  });
+}
+
+export interface UsuarioAtivo {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
+/** Usuários ativos para escolher quem recebe a credencial. */
+export function useUsuariosAtivos(habilitado: boolean) {
+  return useQuery({
+    queryKey: [CHAVE, 'usuarios-ativos'],
+    enabled: habilitado,
+    queryFn: async (): Promise<UsuarioAtivo[]> => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('is_active', true)
+        .order('full_name');
+      if (error) throw error;
+      return data ?? [];
     },
   });
 }

@@ -13,3 +13,9 @@ const ROTULOS: Record<SituacaoPrazo, { texto: string; tom: TomSemaforo }> = {
 export function rotuloSituacaoPrazo(s: SituacaoPrazo): { texto: string; tom: TomSemaforo } {
   return ROTULOS[s] ?? ROTULOS.sem_prazo;
 }
+
+/** Tom do semáforo -> tom do StatusBadge do design system (sucesso/pendente/erro/neutro). */
+export function tomStatusDoSemaforo(tom: TomSemaforo): 'sucesso' | 'pendente' | 'erro' | 'neutro' {
+  return { sucesso: 'sucesso', alerta: 'pendente', perigo: 'erro', neutro: 'neutro' }[tom] as
+    'sucesso' | 'pendente' | 'erro' | 'neutro';
+}

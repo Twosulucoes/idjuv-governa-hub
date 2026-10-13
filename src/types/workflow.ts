@@ -53,6 +53,9 @@ export interface MovimentacaoProcesso {
   servidor_destino_id?: string;
   prazo_dias?: number;
   prazo_limite?: string;
+  /** Etapa do modelo de/para (movimentações feitas pelas RPCs wf_*; nulas nas antigas) */
+  etapa_origem_ordem?: number | null;
+  etapa_destino_ordem?: number | null;
   status: StatusMovimentacao;
   data_recebimento?: string;
   data_resposta?: string;
