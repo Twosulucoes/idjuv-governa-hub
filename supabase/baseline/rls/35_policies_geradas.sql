@@ -3034,6 +3034,51 @@ DROP POLICY IF EXISTS "rls_delete" ON public.pre_cadastros;
 CREATE POLICY "rls_delete" ON public.pre_cadastros FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'gabinete')));
 
+-- processo_modelo_checklist  [permissao: workflow]
+DROP POLICY IF EXISTS "rls_select" ON public.processo_modelo_checklist;
+CREATE POLICY "rls_select" ON public.processo_modelo_checklist FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')));
+DROP POLICY IF EXISTS "rls_insert" ON public.processo_modelo_checklist;
+CREATE POLICY "rls_insert" ON public.processo_modelo_checklist FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_update" ON public.processo_modelo_checklist;
+CREATE POLICY "rls_update" ON public.processo_modelo_checklist FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_delete" ON public.processo_modelo_checklist;
+CREATE POLICY "rls_delete" ON public.processo_modelo_checklist FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+
+-- processo_modelo_etapas  [permissao: workflow]
+DROP POLICY IF EXISTS "rls_select" ON public.processo_modelo_etapas;
+CREATE POLICY "rls_select" ON public.processo_modelo_etapas FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')));
+DROP POLICY IF EXISTS "rls_insert" ON public.processo_modelo_etapas;
+CREATE POLICY "rls_insert" ON public.processo_modelo_etapas FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_update" ON public.processo_modelo_etapas;
+CREATE POLICY "rls_update" ON public.processo_modelo_etapas FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_delete" ON public.processo_modelo_etapas;
+CREATE POLICY "rls_delete" ON public.processo_modelo_etapas FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+
+-- processo_modelos  [permissao: workflow]
+DROP POLICY IF EXISTS "rls_select" ON public.processo_modelos;
+CREATE POLICY "rls_select" ON public.processo_modelos FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')));
+DROP POLICY IF EXISTS "rls_insert" ON public.processo_modelos;
+CREATE POLICY "rls_insert" ON public.processo_modelos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_update" ON public.processo_modelos;
+CREATE POLICY "rls_update" ON public.processo_modelos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+DROP POLICY IF EXISTS "rls_delete" ON public.processo_modelos;
+CREATE POLICY "rls_delete" ON public.processo_modelos FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+
 -- processos_administrativos  [modulo: workflow | admin]
 DROP POLICY IF EXISTS "rls_select" ON public.processos_administrativos;
 CREATE POLICY "rls_select" ON public.processos_administrativos FOR SELECT TO authenticated

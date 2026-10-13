@@ -4881,6 +4881,91 @@ BEGIN
   PERFORM pg_temp.nota('Lançamento por setor (fase 1): catálogo, data_local, cobertura, privilégios, comissões, modos (desligado, registrar, exigir, o mais restritivo), exigir só por migração, lotação, cessão, autoconcessão, ciclo, designação, autoatendimento, chefia, sistema, sem login, admin sem servidor, cascatas, cache, trilha, log_audit, registrar_evento e as duas RPCs verificados');
 END $$;
 
+-- ---------------------------------------------------------------- Workflow: acompanhamento do SEI (TRIGGERS LIGADOS)
+-- Migração 20261013100000_wf_modelos_fluxo.sql (spec docs/superpowers/specs/2026-10-13-tramitacao-acompanhamento-sei-design.md):
+--   * fn_somar_dias_uteis pula sábado, domingo e feriados (sexta + 1 = segunda; 24/12 + 2 com 25/12 feriado = 29/12);
+--   * a carga inicial traz os 7 modelos com as etapas e os itens de checklist da spec (compras 8 etapas e 8 itens,
+--     patrimonio_baixa 4 etapas, etapa 2 de diarias na chefia do solicitante);
+--   * as três tabelas de modelo seguem a classe permissao (workflow lê, escrita só com workflow.admin) no teste genérico;
+--     fn_somar_dias_uteis não é executável por anon.
+-- (as tarefas seguintes do plano acrescentam casos neste mesmo bloco)
+DO $$
+DECLARE
+  d date; n int; fid uuid;
+  -- as linhas do teste genérico (classe permissao) também ficam nas tabelas: a conferência olha só os 7 modelos da carga
+  modelos text[] := ARRAY['compras', 'diarias', 'convenios', 'almoxarifado', 'pagamentos', 'patrimonio_tombamento', 'patrimonio_baixa'];
+BEGIN
+  SET LOCAL session_replication_role = origin;
+
+  -- dias úteis: fim de semana
+  d := public.fn_somar_dias_uteis(DATE '2026-10-16', 1);  -- sexta
+  IF d IS DISTINCT FROM DATE '2026-10-19' THEN
+    PERFORM pg_temp.falha('wf: fn_somar_dias_uteis(sexta 16/10, 1) devia dar 19/10 e deu ' || coalesce(d::text, 'nulo'));
+  END IF;
+  -- zero dia útil não anda; começar no sábado conta a partir da segunda
+  d := public.fn_somar_dias_uteis(DATE '2026-10-16', 0);
+  IF d IS DISTINCT FROM DATE '2026-10-16' THEN
+    PERFORM pg_temp.falha('wf: fn_somar_dias_uteis(data, 0) devia devolver a própria data e deu ' || coalesce(d::text, 'nulo'));
+  END IF;
+  d := public.fn_somar_dias_uteis(DATE '2026-10-17', 1);  -- sábado
+  IF d IS DISTINCT FROM DATE '2026-10-19' THEN
+    PERFORM pg_temp.falha('wf: fn_somar_dias_uteis(sábado 17/10, 1) devia dar 19/10 e deu ' || coalesce(d::text, 'nulo'));
+  END IF;
+
+  -- dias úteis: feriado (25/12/2026 é sexta)
+  INSERT INTO public.feriados (data, nome, tipo, recorrente, ativo)
+    VALUES (DATE '2026-12-25', 'Natal (teste do workflow)', 'nacional', false, true) RETURNING id INTO fid;
+  d := public.fn_somar_dias_uteis(DATE '2026-12-24', 2);  -- quinta; 25 feriado, 26/27 fim de semana, 28 e 29
+  IF d IS DISTINCT FROM DATE '2026-12-29' THEN
+    PERFORM pg_temp.falha('wf: fn_somar_dias_uteis(24/12, 2) com 25/12 feriado devia dar 29/12 e deu ' || coalesce(d::text, 'nulo'));
+  END IF;
+  DELETE FROM public.feriados WHERE id = fid;
+  d := public.fn_somar_dias_uteis(DATE '2026-12-24', 2);
+  IF d IS DISTINCT FROM DATE '2026-12-28' THEN
+    PERFORM pg_temp.falha('wf: fn_somar_dias_uteis(24/12, 2) sem feriado devia dar 28/12 e deu ' || coalesce(d::text, 'nulo'));
+  END IF;
+
+  -- carga inicial
+  SELECT count(*) INTO n FROM public.processo_modelos WHERE codigo = ANY(modelos);
+  IF n <> 7 THEN PERFORM pg_temp.falha('wf: a carga devia ter os 7 modelos e tem ' || n); END IF;
+
+  SELECT count(*) INTO n FROM public.processo_modelo_etapas e JOIN public.processo_modelos m ON m.id = e.modelo_id WHERE m.codigo = 'compras';
+  IF n <> 8 THEN PERFORM pg_temp.falha('wf: compras devia ter 8 etapas e tem ' || n); END IF;
+  SELECT count(*) INTO n FROM public.processo_modelo_checklist c JOIN public.processo_modelos m ON m.id = c.modelo_id WHERE m.codigo = 'compras';
+  IF n <> 8 THEN PERFORM pg_temp.falha('wf: compras devia ter 8 itens de checklist e tem ' || n); END IF;
+  SELECT count(*) INTO n FROM public.processo_modelo_etapas e JOIN public.processo_modelos m ON m.id = e.modelo_id WHERE m.codigo = 'patrimonio_baixa';
+  IF n <> 4 THEN PERFORM pg_temp.falha('wf: patrimonio_baixa devia ter 4 etapas e tem ' || n); END IF;
+
+  SELECT count(*) INTO n FROM public.processo_modelo_etapas e JOIN public.processo_modelos m ON m.id = e.modelo_id
+    WHERE m.codigo = 'diarias' AND e.ordem = 2 AND e.unidade_sigla = '@CHEFIA';
+  IF n <> 1 THEN PERFORM pg_temp.falha('wf: a etapa 2 de diarias devia ter unidade_sigla @CHEFIA'); END IF;
+
+  -- etapas por modelo (spec), sem prazo só em Fiscalização, Viagem e Execução
+  SELECT count(*) INTO n FROM (
+    SELECT m.codigo, count(*) q FROM public.processo_modelo_etapas e JOIN public.processo_modelos m ON m.id = e.modelo_id GROUP BY m.codigo
+  ) t WHERE (codigo, q) IN (('compras', 8), ('diarias', 8), ('convenios', 6), ('almoxarifado', 6), ('pagamentos', 6),
+                            ('patrimonio_tombamento', 3), ('patrimonio_baixa', 4));
+  IF n <> 7 THEN PERFORM pg_temp.falha('wf: quantidade de etapas por modelo diferente da spec (' || n || ' de 7 conferem)'); END IF;
+  SELECT count(*) INTO n FROM public.processo_modelo_etapas e JOIN public.processo_modelos m ON m.id = e.modelo_id
+    WHERE m.codigo = ANY(modelos) AND e.prazo_dias_uteis IS NULL;
+  IF n <> 3 THEN PERFORM pg_temp.falha('wf: só Fiscalização, Viagem e Execução ficam sem prazo; etapas sem prazo: ' || n); END IF;
+
+  -- todo item de checklist aponta para uma etapa que existe no modelo
+  SELECT count(*) INTO n FROM public.processo_modelo_checklist c JOIN public.processo_modelos m ON m.id = c.modelo_id
+    WHERE m.codigo = ANY(modelos) AND NOT EXISTS (SELECT 1 FROM public.processo_modelo_etapas e WHERE e.modelo_id = c.modelo_id AND e.ordem = c.etapa_ordem);
+  IF n <> 0 THEN PERFORM pg_temp.falha('wf: ' || n || ' item(ns) de checklist apontam para etapa inexistente'); END IF;
+
+  -- anon não executa a função de dias úteis; authenticated executa
+  IF has_function_privilege('anon', 'public.fn_somar_dias_uteis(date, integer)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('wf: anon não podia executar fn_somar_dias_uteis');
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.fn_somar_dias_uteis(date, integer)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('wf: authenticated devia executar fn_somar_dias_uteis');
+  END IF;
+
+  PERFORM pg_temp.nota('Workflow (modelos de fluxo): dias úteis (fim de semana e feriado), carga inicial dos 7 modelos, etapas, prazos, checklist e execução da função verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off
