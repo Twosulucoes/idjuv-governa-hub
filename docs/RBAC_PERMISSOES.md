@@ -957,11 +957,11 @@ o formulário para ele. Leitura de `dados_oficiais` é pública (anon). Ver `doc
 
 ### Workflow: acompanhamento de processos do SEI
 
-Migrações `20261013100000` a `20261013100200` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#acompanhamento-de-processos-do-sei)).
+Migrações `20261013100000` a `20261013100300` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#acompanhamento-de-processos-do-sei)).
 As seis permissões `workflow.*` agora são cobradas **no banco**, por `has_permission_code`; esconder botão é só UX.
-No catálogo do baseline constam `workflow.visualizar`, `workflow.criar` e `workflow.tramitar`; `workflow.concluir`,
-`workflow.arquivar` e `workflow.admin` não constam nos dados do catálogo e se concedem em `user_permissions`. O papel
-`admin` passa por cima de todas.
+Os papéis padrão dão `workflow.visualizar`, `workflow.criar` e `workflow.tramitar`. `workflow.concluir`,
+`workflow.arquivar` e `workflow.admin` entram no catálogo pela migração `20261013100300`, mas nenhum papel as recebe
+por padrão: concedem-se por usuário (`user_permissions`). O papel `admin` passa por cima de todas.
 
 | Ação | Permissão | Onde é cobrada |
 |---|---|---|

@@ -964,8 +964,9 @@ histórico de migrações; o baseline já as remove); a correção no banco ao v
 
 #### Acompanhamento de processos do SEI
 
-Migrações `20261013100000_wf_modelos_fluxo.sql`, `20261013100100_wf_processo_sigilo.sql` e
-`20261013100200_wf_rpcs.sql` (PR #102; spec
+Migrações `20261013100000_wf_modelos_fluxo.sql`, `20261013100100_wf_processo_sigilo.sql`,
+`20261013100200_wf_rpcs.sql` e `20261013100300_wf_permissoes_catalogo.sql` (catálogo de `workflow.concluir`,
+`workflow.arquivar` e `workflow.admin`) (PR #102; spec
 [2026-10-13-tramitacao-acompanhamento-sei-design](./superpowers/specs/2026-10-13-tramitacao-acompanhamento-sei-design.md)).
 O sistema acompanha o processo que corre no SEI: etapa, unidade, prazo e checklist. Despacho, documento e assinatura
 ficam no SEI. `processos_administrativos` virou o "processo acompanhado" e `movimentacoes_processo` registra cada
