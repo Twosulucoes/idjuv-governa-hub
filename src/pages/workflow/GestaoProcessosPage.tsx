@@ -1,6 +1,7 @@
 /**
  * Lista de processos do SEI acompanhados no sistema (view v_processos_acompanhamento).
- * Abas "Na minha unidade" / "Todos"; filtros por tipo (modelo), etapa, unidade e prazo.
+ * Abas "Na minha unidade" / "Todos"; filtros por tipo (modelo), etapa, unidade, situação e prazo. A situação aceita
+ * `ativos` (aberto ou em tramitação), que é o padrão da aba "Na minha unidade" e o que o painel do módulo conta.
  * Padrões do design system: PageHeader, KpiCard, DataTable, StatusBadge.
  */
 import { useEffect, useState } from 'react';
@@ -27,6 +28,7 @@ import {
   useModelosProcesso,
   useProcessosAcompanhamento,
   useUnidadesParaFiltro,
+  type FiltroStatusProcesso,
 } from '@/hooks/useAcompanhamentoProcessos';
 import { rotuloSituacaoPrazo, TOM_STATUS_PROCESSO, tomStatusDoSemaforo } from '@/lib/workflow/semaforoPrazo';
 import { AvisoLimiteLinhas } from '@/components/workflow/AvisoLimiteLinhas';
@@ -40,7 +42,12 @@ import {
 
 const SITUACOES: SituacaoPrazo[] = ['em_dia', 'vence_logo', 'vencido', 'sem_prazo'];
 const STATUS: StatusProcesso[] = ['aberto', 'em_tramitacao', 'suspenso', 'concluido', 'arquivado'];
+const ATIVOS = 'ativos';
 const TODOS = 'todos';
+
+/** Situação da URL (`?status=`): uma das situações ou `ativos`; outra coisa é ignorada. */
+const statusValido = (v: string | null): v is FiltroStatusProcesso =>
+  v === ATIVOS || STATUS.includes(v as StatusProcesso);
 
 const numeroInterno = (p: ProcessoAcompanhamento) => p.numero_formatado || `${p.numero_processo}/${p.ano}`;
 
@@ -58,9 +65,12 @@ export default function GestaoProcessosPage() {
   const [filtroPrazo, setFiltroPrazo] = useState(
     SITUACOES.includes(params.get('prazo') as SituacaoPrazo) ? (params.get('prazo') as string) : TODOS,
   );
-  const [filtroStatus, setFiltroStatus] = useState(
-    STATUS.includes(params.get('status') as StatusProcesso) ? (params.get('status') as string) : TODOS,
-  );
+  // sem situação na URL, a aba "Na minha unidade" abre nos ativos
+  const [filtroStatus, setFiltroStatus] = useState<string>(() => {
+    const status = params.get('status');
+    if (statusValido(status)) return status;
+    return params.get('meus') === 'true' ? ATIVOS : TODOS;
+  });
   const podeCriar = hasPermission('workflow.criar');
   const [novoDialogOpen, setNovoDialogOpen] = useState(false);
 
@@ -73,7 +83,8 @@ export default function GestaoProcessosPage() {
     const prazo = params.get('prazo');
     if (prazo) setFiltroPrazo(SITUACOES.includes(prazo as SituacaoPrazo) ? prazo : TODOS);
     const status = params.get('status');
-    if (status) setFiltroStatus(STATUS.includes(status as StatusProcesso) ? status : TODOS);
+    if (status) setFiltroStatus(statusValido(status) ? status : TODOS);
+    else if (params.get('meus') === 'true') setFiltroStatus(ATIVOS);
     if (params.get('acao') === 'novo') {
       if (podeCriar) setNovoDialogOpen(true);
       const resto = new URLSearchParams(params);
@@ -91,7 +102,7 @@ export default function GestaoProcessosPage() {
     modeloCodigo: filtroTipo !== TODOS ? filtroTipo : undefined,
     etapa: filtroTipo !== TODOS && Number.isFinite(Number(filtroEtapa)) && Number(filtroEtapa) > 0 ? Number(filtroEtapa) : undefined,
     unidadeId: filtroUnidade !== TODOS ? filtroUnidade : undefined,
-    status: filtroStatus !== TODOS ? (filtroStatus as StatusProcesso) : undefined,
+    status: filtroStatus !== TODOS ? (filtroStatus as FiltroStatusProcesso) : undefined,
     situacaoPrazo: filtroPrazo !== TODOS ? (filtroPrazo as SituacaoPrazo) : undefined,
     busca: busca || undefined,
   });
@@ -193,7 +204,15 @@ export default function GestaoProcessosPage() {
           }
         />
 
-        <Tabs value={aba} onValueChange={(v) => setAba(v as 'minha_unidade' | 'todos')}>
+        <Tabs
+          value={aba}
+          onValueChange={(v) => {
+            const nova = v as 'minha_unidade' | 'todos';
+            setAba(nova);
+            // a aba "Na minha unidade" começa nos ativos (se a pessoa já escolheu uma situação, ela fica)
+            if (nova === 'minha_unidade' && filtroStatus === TODOS) setFiltroStatus(ATIVOS);
+          }}
+        >
           <TabsList>
             <TabsTrigger value="minha_unidade">Na minha unidade</TabsTrigger>
             <TabsTrigger value="todos">Todos</TabsTrigger>
@@ -290,6 +309,7 @@ export default function GestaoProcessosPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={TODOS}>Todas as situações</SelectItem>
+                  <SelectItem value={ATIVOS}>Ativos (aberto ou em tramitação)</SelectItem>
                   {STATUS.map((st) => (
                     <SelectItem key={st} value={st}>{STATUS_PROCESSO_LABELS[st]}</SelectItem>
                   ))}

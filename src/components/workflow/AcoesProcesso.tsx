@@ -64,7 +64,8 @@ export function AcoesProcesso({ processo, etapas }: AcoesProcessoProps) {
   const mostrarReativar = processo.status === 'suspenso' && podeConcluir;
   // sem modelo (processo antigo) pode concluir em qualquer momento; com modelo, só na última etapa
   const mostrarConcluir = emAndamento && podeConcluir && (!temModelo || ultima);
-  const mostrarArquivar = podeArquivar && (emAndamento || processo.status === 'concluido');
+  // a RPC aceita qualquer situação menos arquivado (em andamento, suspenso ou concluído)
+  const mostrarArquivar = podeArquivar && processo.status !== 'arquivado';
 
   // se outra pessoa moveu o processo (40001 -> o hook refaz a consulta), a etapa muda: o diálogo aberto fica defasado
   const etapaAoAbrir = useRef(etapa);

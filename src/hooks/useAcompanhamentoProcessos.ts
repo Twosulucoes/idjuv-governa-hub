@@ -27,9 +27,17 @@ import type {
 const db = supabase as any;
 
 const CHAVE = 'wf-acompanhamento';
+/** Chave do painel do módulo (useWorkflowDashboardStats); as mutações a invalidam junto com o acompanhamento. */
+export const CHAVE_PAINEL_WORKFLOW = 'workflow-dashboard-stats';
 
 /** Máximo de linhas por consulta (limite padrão do PostgREST); a tela avisa quando é atingido. */
 export const LIMITE_LINHAS = 1000;
+
+/** Situações "em andamento" (o relógio do prazo corre): o filtro `ativos` da lista e os totais do painel. */
+export const STATUS_ATIVOS: StatusProcesso[] = ['aberto', 'em_tramitacao'];
+
+/** Filtro de situação da lista: uma situação ou `ativos` (aberto ou em tramitação). */
+export type FiltroStatusProcesso = StatusProcesso | 'ativos';
 
 export interface FiltrosAcompanhamento {
   escopo: 'minha_unidade' | 'todos';
@@ -37,7 +45,7 @@ export interface FiltrosAcompanhamento {
   etapa?: number;
   unidadeId?: string;
   situacaoPrazo?: SituacaoPrazo;
-  status?: StatusProcesso;
+  status?: FiltroStatusProcesso;
   busca?: string;
 }
 
@@ -46,11 +54,20 @@ export function escaparBusca(termo: string): string {
   return termo.replace(/[,()%*"\\]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-/** Mensagem para o usuário a partir do erro de uma RPC (42501/22023 trazem texto em português do banco). */
+/** Códigos cujo texto vem das RPCs wf_* em português, pronto para o usuário (42501 permissão/sigilo, 22023 regra). */
+const CODIGOS_COM_TEXTO_DO_BANCO = new Set(['42501', '22023', 'P0001']);
+
+/**
+ * Mensagem para o usuário a partir do erro de uma RPC. Só repassa o texto do banco nos códigos que as RPCs escrevem
+ * em português; qualquer outro erro (rede, PostgREST, Postgres) vira mensagem genérica, sem detalhe técnico.
+ */
 export function mensagemErroProcesso(erro: unknown): string {
   const e = erro as { code?: string; message?: string } | null;
   if (e?.code === '40001') return 'O processo foi alterado por outra pessoa; recarregue a página e tente de novo.';
-  return e?.message || 'Não foi possível concluir a operação.';
+  // 42501 de RLS ("row-level security") é texto técnico em inglês: cai no genérico
+  const recusaRls = e?.code === '42501' && /row-level security/i.test(e?.message ?? '');
+  if (e?.message && e.code && CODIGOS_COM_TEXTO_DO_BANCO.has(e.code) && !recusaRls) return e.message;
+  return 'Não foi possível concluir a operação. Tente de novo; se continuar, avise o suporte.';
 }
 
 // ========================
@@ -72,10 +89,11 @@ export function useModelosProcesso() {
   });
 }
 
-export function useModeloProcesso(codigo: string) {
+/** `habilitado` falso não consulta (ex.: sem o módulo workflow a RLS esconde o modelo e viria "não cadastrado"). */
+export function useModeloProcesso(codigo: string, habilitado = true) {
   return useQuery({
     queryKey: [CHAVE, 'modelo', codigo],
-    enabled: !!codigo,
+    enabled: !!codigo && habilitado,
     queryFn: async (): Promise<ModeloProcessoCompleto | null> => {
       const { data: modelo, error } = await db
         .from('processo_modelos')
@@ -150,11 +168,12 @@ export function useProcessosAcompanhamento(filtros: FiltrosAcompanhamento) {
       if (filtros.etapa) q = q.eq('etapa_atual_ordem', filtros.etapa);
       if (filtros.unidadeId) q = q.eq('unidade_atual_id', filtros.unidadeId);
       if (filtros.situacaoPrazo) q = q.eq('situacao_prazo', filtros.situacaoPrazo);
-      if (filtros.status) q = q.eq('status', filtros.status);
+      if (filtros.status === 'ativos') q = q.in('status', STATUS_ATIVOS);
+      else if (filtros.status) q = q.eq('status', filtros.status);
       const termo = filtros.busca ? escaparBusca(filtros.busca) : '';
       if (termo) {
         q = q.or(
-          `assunto.ilike.%${termo}%,interessado_nome.ilike.%${termo}%,numero_sei.ilike.%${termo}%,numero_processo.ilike.%${termo}%`,
+          `assunto.ilike.%${termo}%,interessado_nome.ilike.%${termo}%,numero_sei.ilike.%${termo}%,numero_processo.ilike.%${termo}%,numero_formatado.ilike.%${termo}%`,
         );
       }
       const { data, error } = await q.range(0, LIMITE_LINHAS - 1);
@@ -249,19 +268,15 @@ export interface UsuarioAtivo {
   full_name: string | null;
 }
 
-/** Usuários ativos para escolher quem recebe a credencial (só id e nome). */
+/** Usuários ativos para escolher quem recebe a credencial, pela RPC wf_listar_usuarios_ativos (exige workflow.admin; só id e nome). */
 export function useUsuariosAtivos(habilitado: boolean) {
   return useQuery({
     queryKey: [CHAVE, 'usuarios-ativos'],
     enabled: habilitado,
     queryFn: async (): Promise<UsuarioAtivo[]> => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('is_active', true)
-        .order('full_name');
+      const { data, error } = await db.rpc('wf_listar_usuarios_ativos');
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as UsuarioAtivo[];
     },
   });
 }
@@ -286,6 +301,8 @@ function criarMutacaoRpc<V, R = void>(
       },
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: [CHAVE] });
+        // o painel do módulo (useWorkflowDashboardStats) conta a mesma view com chave própria
+        qc.invalidateQueries({ queryKey: [CHAVE_PAINEL_WORKFLOW] });
         if (sucesso) toast.success(sucesso);
       },
       onError: (erro) => {

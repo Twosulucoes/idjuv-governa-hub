@@ -12,7 +12,8 @@
 -- Blocos:
 --   1. colunas novas de processos_administrativos (numero_sei, modelo, etapa atual, unidade atual, prazo) e de
 --      movimentacoes_processo (etapa de origem e de destino)
---   2. tabela processo_checklist_respostas (respostas do checklist do modelo, por processo)
+--   2. tabela processo_checklist_respostas (respostas do checklist do modelo, por processo) e a trava das etapas de
+--      modelo em uso (wf_recusar_etapa_em_uso: não apaga nem renumera etapa onde há processo)
 --   3. wf_pode_ver_processo(processo): a regra de sigilo
 --   4. policies das seis tabelas do processo: SELECT por wf_pode_ver_processo, DELETE só workflow.admin, sem
 --      INSERT/UPDATE para authenticated (classe preservar do supabase/baseline/rls/mapa.csv)
@@ -75,6 +76,37 @@ ALTER TABLE public.processo_checklist_respostas FORCE ROW LEVEL SECURITY;
 DROP TRIGGER IF EXISTS handle_updated_at ON public.processo_checklist_respostas;
 CREATE TRIGGER handle_updated_at BEFORE UPDATE ON public.processo_checklist_respostas
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- Etapa de modelo em uso: apagar a etapa (ou mudar a ordem/o modelo dela) deixaria o processo que está nela apontando
+-- para uma etapa que não existe (a trilha, o checklist e o avanço se perdem). Recusa com 22023 enquanto houver
+-- processo (de qualquer situação) com (modelo_id, etapa_atual_ordem) iguais aos da etapa. Vale também na cascata de
+-- processo_modelos. DEFINER: a conferência precisa ver os processos sigilosos que a RLS esconderia de quem edita o
+-- modelo; a mensagem não diz quantos nem quais. Ninguém executa pela API (trigger não precisa de EXECUTE).
+CREATE OR REPLACE FUNCTION public.wf_recusar_etapa_em_uso()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.ordem IS NOT DISTINCT FROM OLD.ordem AND NEW.modelo_id IS NOT DISTINCT FROM OLD.modelo_id THEN
+    RETURN NEW;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.processos_administrativos p
+              WHERE p.modelo_id = OLD.modelo_id AND p.etapa_atual_ordem = OLD.ordem) THEN
+    RAISE EXCEPTION 'A etapa % (%) tem processo nela: mova os processos para outra etapa antes de apagá-la ou mudar a ordem.',
+      OLD.ordem, OLD.nome USING ERRCODE = '22023';
+  END IF;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS wf_recusar_etapa_em_uso ON public.processo_modelo_etapas;
+CREATE TRIGGER wf_recusar_etapa_em_uso BEFORE DELETE OR UPDATE OF ordem, modelo_id ON public.processo_modelo_etapas
+  FOR EACH ROW EXECUTE FUNCTION public.wf_recusar_etapa_em_uso();
 
 -- ----------------------------------------------------------------------------
 -- 3. Regra de sigilo
@@ -295,3 +327,4 @@ REVOKE ALL ON public.processo_checklist_respostas FROM anon;
 REVOKE TRUNCATE, TRIGGER, REFERENCES ON public.processo_checklist_respostas FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.wf_pode_ver_processo(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.wf_pode_ver_processo(uuid) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.wf_recusar_etapa_em_uso() FROM PUBLIC, anon, authenticated, service_role;

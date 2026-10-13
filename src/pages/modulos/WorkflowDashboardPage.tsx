@@ -75,14 +75,14 @@ export default function WorkflowDashboardPage() {
   const valor = (n: number | undefined) => (stats ? numero.format(n || 0) : "—");
 
   const indicadores: Indicador[] = [
-    { rotulo: "Processos ativos", valor: valor(stats?.ativos), icone: FileText, href: "/workflow/processos" },
-    { rotulo: "Na minha unidade", valor: valor(stats?.naMinhaUnidade), icone: Clock, href: "/workflow/processos?meus=true" },
+    { rotulo: "Processos ativos", valor: valor(stats?.ativos), icone: FileText, href: "/workflow/processos?status=ativos" },
+    { rotulo: "Na minha unidade", valor: valor(stats?.naMinhaUnidade), icone: Clock, href: "/workflow/processos?meus=true&status=ativos" },
     { rotulo: "Vencidos", valor: valor(stats?.vencidos), icone: AlertTriangle, href: "/workflow/processos?prazo=vencido" },
   ];
 
   const quickActions = [
     { label: "Novo processo", description: "Iniciar processo", href: "/workflow/processos?acao=novo", icon: FilePlus },
-    { label: "Na minha unidade", description: "Processos com a minha unidade", href: "/workflow/processos?meus=true", icon: Clock },
+    { label: "Na minha unidade", description: "Processos com a minha unidade", href: "/workflow/processos?meus=true&status=ativos", icon: Clock },
     { label: "Consultar", description: "Buscar processo", href: "/workflow/processos", icon: Search },
   ];
 
@@ -162,13 +162,17 @@ export default function WorkflowDashboardPage() {
             titulo="Por tipo"
             carregando={isLoading}
             grupos={stats?.porTipo}
-            href={(g) => (g.modeloCodigo ? `/workflow/processos?tipo=${encodeURIComponent(g.modeloCodigo)}` : "/workflow/processos")}
+            href={(g) =>
+              g.modeloCodigo
+                ? `/workflow/processos?tipo=${encodeURIComponent(g.modeloCodigo)}&status=ativos`
+                : "/workflow/processos?status=ativos"
+            }
           />
           <ListaContagem
             titulo="Por etapa"
             carregando={isLoading}
             grupos={stats?.porEtapa}
-            href={(g) => `/workflow/processos?tipo=${encodeURIComponent(g.modeloCodigo)}&etapa=${g.etapa}`}
+            href={(g) => `/workflow/processos?tipo=${encodeURIComponent(g.modeloCodigo)}&etapa=${g.etapa}&status=ativos`}
           />
         </div>
 

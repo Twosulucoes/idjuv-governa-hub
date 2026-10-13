@@ -25,7 +25,8 @@
 --   2. funções internas (sem EXECUTE pela API): wf_resolver_unidade, wf_travar_processo, wf_exigir_em_andamento,
 --      wf_pendencias, wf_preparar_numero_sei, wf_registrar_movimentacao
 --   3. RPCs: wf_abrir_processo, wf_marcar_item, wf_avancar_etapa, wf_devolver_etapa, wf_suspender, wf_reativar,
---      wf_concluir, wf_arquivar, wf_atualizar_numero_sei, wf_conceder_acesso, wf_revogar_acesso, wf_listar_credenciais
+--      wf_concluir, wf_arquivar, wf_atualizar_numero_sei, wf_conceder_acesso, wf_revogar_acesso, wf_listar_credenciais,
+--      wf_listar_usuarios_ativos
 --   4. fn_situacao_prazo e a view v_processos_acompanhamento (security_invoker)
 --   5. privilégios (mesmas linhas no supabase/baseline/overlay/40_privilegios.sql)
 -- ============================================================================
@@ -114,14 +115,15 @@ BEGIN
 END;
 $$;
 
--- Códigos dos itens obrigatórios ainda não marcados nas etapas p_de..p_ate do modelo do processo.
+-- Descrições dos itens obrigatórios ainda não marcados nas etapas p_de..p_ate do modelo do processo (a mensagem de
+-- recusa mostra a mesma lista que o checklist da tela, na mesma ordem).
 CREATE OR REPLACE FUNCTION public.wf_pendencias(p_processo_id uuid, p_modelo_id uuid, p_de integer, p_ate integer)
 RETURNS text[]
 LANGUAGE sql
 STABLE
 SET search_path = public, pg_temp
 AS $$
-  SELECT coalesce(array_agg(c.codigo ORDER BY c.etapa_ordem, c.codigo), ARRAY[]::text[])
+  SELECT coalesce(array_agg(c.descricao ORDER BY c.etapa_ordem, c.codigo), ARRAY[]::text[])
   FROM public.processo_modelo_checklist c
   WHERE c.modelo_id = p_modelo_id
     AND c.obrigatorio
@@ -187,7 +189,8 @@ $$;
 -- 3. RPCs
 -- ----------------------------------------------------------------------------
 
--- Abre um processo acompanhado na etapa 1 do modelo. Unidade de origem = lotação vigente do servidor do login
+-- Abre um processo acompanhado na etapa 1 do modelo. Exige o módulo workflow E workflow.criar (a permissão avulsa sem
+-- o módulo não abre: sem o módulo a pessoa nem veria o processo público que abriu). Unidade de origem = lotação vigente do servidor do login
 -- (nula se não houver: as etapas @ORIGEM/@CHEFIA ficam só com a sigla). Número interno pelo trigger.
 CREATE OR REPLACE FUNCTION public.wf_abrir_processo(
   p_modelo_codigo text, p_assunto text, p_descricao text, p_interessado_tipo text, p_interessado_nome text,
@@ -207,7 +210,8 @@ DECLARE
   v_numero_sei text;
   v_id uuid;
 BEGIN
-  IF NOT public.has_permission_code(auth.uid(), 'workflow.criar') THEN
+  IF NOT coalesce(public.can_access_module(auth.uid(), 'workflow'), false)
+     OR NOT coalesce(public.has_permission_code(auth.uid(), 'workflow.criar'), false) THEN
     RAISE EXCEPTION 'Você não tem permissão para abrir processos.' USING ERRCODE = '42501';
   END IF;
   SELECT * INTO v_modelo FROM public.processo_modelos WHERE codigo = btrim(p_modelo_codigo) AND ativo;
@@ -294,7 +298,7 @@ END;
 $$;
 
 -- Avança para a próxima etapa do modelo. Recusa: etapa mudou (40001); última etapa (conclua); sem número SEI ao sair
--- da etapa 1; item obrigatório da etapa atual pendente (lista os códigos).
+-- da etapa 1; item obrigatório da etapa atual pendente (lista as descrições).
 CREATE OR REPLACE FUNCTION public.wf_avancar_etapa(p_processo_id uuid, p_etapa_esperada integer, p_observacao text DEFAULT NULL)
 RETURNS void
 LANGUAGE plpgsql
@@ -329,7 +333,7 @@ BEGIN
   END IF;
   v_pend := public.wf_pendencias(p.id, p.modelo_id, p.etapa_atual_ordem, p.etapa_atual_ordem);
   IF cardinality(v_pend) > 0 THEN
-    RAISE EXCEPTION 'Itens obrigatórios pendentes nesta etapa: %.', array_to_string(v_pend, ', ') USING ERRCODE = '22023';
+    RAISE EXCEPTION 'Itens obrigatórios pendentes nesta etapa: %.', array_to_string(v_pend, '; ') USING ERRCODE = '22023';
   END IF;
   IF p.etapa_atual_ordem = 1 AND p.numero_sei IS NULL THEN
     RAISE EXCEPTION 'Informe o número SEI do processo antes de sair da etapa 1.' USING ERRCODE = '22023';
@@ -504,7 +508,7 @@ BEGIN
     END IF;
     v_pend := public.wf_pendencias(p.id, p.modelo_id, 1, coalesce(v_ultima, 0));
     IF cardinality(v_pend) > 0 THEN
-      RAISE EXCEPTION 'Itens obrigatórios pendentes no checklist: %.', array_to_string(v_pend, ', ') USING ERRCODE = '22023';
+      RAISE EXCEPTION 'Itens obrigatórios pendentes no checklist: %.', array_to_string(v_pend, '; ') USING ERRCODE = '22023';
     END IF;
   END IF;
   PERFORM public.wf_registrar_movimentacao(p.id, 'decisao', 'Processo concluído.', p_motivo,
@@ -642,6 +646,28 @@ BEGIN
 END;
 $$;
 
+-- Usuários ativos para escolher quem recebe a credencial (aba Credenciais). Só workflow.admin; só id e nome (sem
+-- e-mail nem CPF); "ativo" é o mesmo de wf_conceder_acesso (profiles.is_active). DEFINER para servir a quem tem
+-- workflow.admin sem mudar a RLS existente de profiles.
+CREATE OR REPLACE FUNCTION public.wf_listar_usuarios_ativos()
+RETURNS TABLE(id uuid, full_name text)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF NOT coalesce(public.has_permission_code(auth.uid(), 'workflow.admin'), false) THEN
+    RAISE EXCEPTION 'Você não tem permissão para gerenciar credenciais de sigilo.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT pr.id, pr.full_name
+    FROM public.profiles pr
+   WHERE pr.is_active IS TRUE
+   ORDER BY pr.full_name NULLS LAST, pr.id;
+END;
+$$;
+
 -- ----------------------------------------------------------------------------
 -- 4. Semáforo do prazo e view da lista
 -- ----------------------------------------------------------------------------
@@ -741,6 +767,7 @@ BEGIN
     'public.wf_conceder_acesso(uuid, uuid, text, text)',
     'public.wf_revogar_acesso(uuid, uuid)',
     'public.wf_listar_credenciais(uuid)',
+    'public.wf_listar_usuarios_ativos()',
     'public.fn_situacao_prazo(date)'] LOOP
     EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon, service_role', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f);

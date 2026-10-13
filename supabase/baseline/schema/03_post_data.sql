@@ -9428,6 +9428,13 @@ CREATE TRIGGER update_viagens_updated_at BEFORE UPDATE ON public.viagens_diarias
 
 
 --
+-- Name: processo_modelo_etapas wf_recusar_etapa_em_uso; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER wf_recusar_etapa_em_uso BEFORE DELETE OR UPDATE OF ordem, modelo_id ON public.processo_modelo_etapas FOR EACH ROW EXECUTE FUNCTION public.wf_recusar_etapa_em_uso();
+
+
+--
 -- Name: adicionais_tempo_servico zz_exigir_setor; Type: TRIGGER; Schema: public; Owner: -
 --
 

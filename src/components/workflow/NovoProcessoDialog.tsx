@@ -1,9 +1,11 @@
 /**
- * Dialog para abrir processo (acompanhamento do SEI). Grava pela RPC wf_abrir_processo e abre o detalhe.
+ * Dialog para abrir processo (acompanhamento do SEI). Grava pela RPC wf_abrir_processo e abre o detalhe (só para
+ * quem tem workflow.visualizar; sem ela, fecha com o aviso de sucesso, porque o detalhe recusaria a leitura).
  * `modeloCodigo` fixa o modelo (usado pelas telas de cada assunto) e esconde o seletor.
  */
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -57,6 +59,7 @@ interface NovoProcessoDialogProps {
 
 export function NovoProcessoDialog({ open, onOpenChange, modeloCodigo }: NovoProcessoDialogProps) {
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
   const abrirProcesso = useAbrirProcesso();
   const { data: modelos, isLoading: carregandoModelos, isError: erroModelos } = useModelosProcesso();
 
@@ -92,7 +95,7 @@ export function NovoProcessoDialog({ open, onOpenChange, modeloCodigo }: NovoPro
       });
       form.reset();
       onOpenChange(false);
-      navigate(`/workflow/processos/${id}`);
+      if (hasPermission('workflow.visualizar')) navigate(`/workflow/processos/${id}`);
     } catch {
       // o toast com a mensagem do servidor já foi mostrado pelo hook; o diálogo fica aberto
     }

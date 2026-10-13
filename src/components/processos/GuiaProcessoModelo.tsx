@@ -1,6 +1,7 @@
 /**
  * Guia de um tipo de processo, lido do modelo cadastrado no banco: etapas, checklist e os processos em andamento.
- * "Iniciar processo" abre o diálogo de novo processo já fixado no modelo (exige workflow.criar).
+ * "Iniciar processo" abre o diálogo de novo processo já fixado no modelo (exige o módulo workflow e workflow.criar).
+ * Sem o módulo workflow a RLS esconde o modelo: a tela pede acesso em vez de dizer que o modelo não existe.
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -103,11 +104,13 @@ interface GuiaProcessoModeloProps {
 }
 
 export function GuiaProcessoModelo({ modeloCodigo }: GuiaProcessoModeloProps) {
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasModule } = useAuth();
   const [dialogAberto, setDialogAberto] = useState(false);
-  const modelo = useModeloProcesso(modeloCodigo);
-  const podeCriar = hasPermission('workflow.criar');
-  const podeVer = hasPermission('workflow.visualizar');
+  // o módulo é o "onde" (RLS dos modelos e da lista); a permissão, o "o quê" (mesma regra das RPCs e do sigilo)
+  const temModulo = hasModule('workflow');
+  const modelo = useModeloProcesso(modeloCodigo, temModulo);
+  const podeCriar = temModulo && hasPermission('workflow.criar');
+  const podeVer = temModulo && hasPermission('workflow.visualizar');
 
   return (
     <div className="space-y-6">
@@ -130,11 +133,18 @@ export function GuiaProcessoModelo({ modeloCodigo }: GuiaProcessoModeloProps) {
         </TabsList>
 
         <TabsContent value="guia" className="space-y-6">
-          {modelo.isLoading && <Skeleton className="h-48 w-full" aria-busy="true" />}
-          {modelo.isError && (
+          {!temModulo && (
+            <EmptyState
+              icone={FolderOpen}
+              titulo="Peça acesso ao módulo Processos para ver o fluxo"
+              descricao="As etapas e o checklist deste tipo de processo ficam no módulo Processos."
+            />
+          )}
+          {temModulo && modelo.isLoading && <Skeleton className="h-48 w-full" aria-busy="true" />}
+          {temModulo && modelo.isError && (
             <p className="text-body text-destructive" role="alert">Não foi possível carregar o modelo do processo.</p>
           )}
-          {!modelo.isLoading && !modelo.isError && !modelo.data && (
+          {temModulo && !modelo.isLoading && !modelo.isError && !modelo.data && (
             <EmptyState icone={FolderOpen} titulo="Modelo não cadastrado" descricao="Este tipo de processo ainda não tem modelo de fluxo." />
           )}
           {modelo.data && (

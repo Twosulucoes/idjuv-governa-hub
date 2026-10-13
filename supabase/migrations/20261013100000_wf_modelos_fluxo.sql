@@ -116,8 +116,9 @@ CREATE POLICY "rls_delete" ON public.processo_modelos FOR DELETE TO authenticate
 -- 2. Dias úteis
 -- ----------------------------------------------------------------------------
 -- Soma p_dias dias úteis a p_inicio: o dia de início não conta, sábado, domingo e feriados (feriados.data; os
--- recorrentes valem em todo ano, pelo mês e dia) não contam. p_dias <= 0 devolve p_inicio. INVOKER: feriados é
--- lido por qualquer usuário ativo.
+-- recorrentes valem em todo ano, pelo mês e dia) não contam. p_dias nulo ou 0 devolve p_inicio; negativo ou acima
+-- de 3650 (dez anos de dias úteis, limite para o laço não rodar sem fim a pedido de quem chama) recusa com 22023.
+-- INVOKER: feriados é lido por qualquer usuário ativo.
 CREATE OR REPLACE FUNCTION public.fn_somar_dias_uteis(p_inicio date, p_dias integer)
 RETURNS date
 LANGUAGE plpgsql
@@ -128,7 +129,10 @@ DECLARE
   d date := p_inicio;
   feitos integer := 0;
 BEGIN
-  IF p_inicio IS NULL OR p_dias IS NULL OR p_dias <= 0 THEN
+  IF p_dias < 0 OR p_dias > 3650 THEN
+    RAISE EXCEPTION 'Quantidade de dias úteis inválida: use de 0 a 3650.' USING ERRCODE = '22023';
+  END IF;
+  IF p_inicio IS NULL OR p_dias IS NULL OR p_dias = 0 THEN
     RETURN p_inicio;
   END IF;
   WHILE feitos < p_dias LOOP

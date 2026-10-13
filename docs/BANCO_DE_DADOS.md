@@ -981,7 +981,11 @@ passagem de etapa.
   `convenios`, `almoxarifado`, `pagamentos`, `patrimonio_tombamento` e `patrimonio_baixa`, com etapas, unidade,
   rótulo, prazo (5 dias úteis, sem prazo em Fiscalização, Execução e Viagem) e checklist. Prazos, `base_legal` de
   compras e pagamentos e as etapas e itens marcados "(proposta)" na spec aguardam confirmação do órgão. Não há
-  trigger de `updated_at` nas três tabelas.
+  trigger de `updated_at` nas três tabelas. **Etapa em uso**: o trigger `wf_recusar_etapa_em_uso` (`BEFORE DELETE OR
+  UPDATE OF ordem, modelo_id` em `processo_modelo_etapas`; função `SECURITY DEFINER` fora da API) recusa com `22023`
+  apagar a etapa ou mudar a ordem ou o modelo dela enquanto algum processo (de qualquer situação) estiver nela
+  (`modelo_id` e `etapa_atual_ordem` iguais); vale também na cascata de `processo_modelos`. Mudar nome, unidade ou
+  prazo continua livre.
 - **Colunas novas em `processos_administrativos`**: `numero_sei` (único quando preenchido, sem espaço e com algum
   dígito), `modelo_id`, `etapa_atual_ordem`, `unidade_atual_id`, `etapa_iniciada_em`, `etapa_prazo_limite` e
   `suspenso_desde` (data em que a suspensão parou o relógio do prazo). **Em `movimentacoes_processo`**:
@@ -990,7 +994,8 @@ passagem de etapa.
 - **`processo_checklist_respostas`**: uma linha por (processo, item), com `marcado`, `marcado_por`, `marcado_em` e
   `observacao`; RLS forçada. Só `wf_marcar_item` grava.
 - **Dias úteis e prazo**: `fn_somar_dias_uteis(data, n)` (`STABLE`, `INVOKER`) soma `n` dias úteis sem contar o dia
-  de início, pulando sábado, domingo e `feriados` (os recorrentes valem em todo ano). `fn_situacao_prazo(date)`
+  de início, pulando sábado, domingo e `feriados` (os recorrentes valem em todo ano). `n` nulo ou 0 devolve a data;
+  negativo ou acima de 3650 recusa com `22023`. `fn_situacao_prazo(date)`
   devolve `sem_prazo`, `vencido`, `vence_logo` (vence em até 2 dias úteis, inclusive hoje) ou `em_dia`, com "hoje" no
   fuso do órgão (`app.fuso_horario`, padrão `America/Sao_Paulo`; a regra espelha `data_local()`, que
   `authenticated` não executa). Ambas executáveis por `authenticated`.
@@ -1013,18 +1018,19 @@ passagem de etapa.
 
   | RPC | Permissão | O que faz e o que recusa |
   |---|---|---|
-  | `wf_abrir_processo(modelo, assunto, descricao, interessado_tipo, interessado_nome, interessado_documento, sigilo, numero_sei)` | `workflow.criar` | Abre na etapa 1 do modelo, com unidade de origem = lotação vigente do servidor do login, unidade atual e prazo. Retorna o id. `42501` sem permissão; `22023` para modelo inexistente ou inativo, assunto ou interessado vazio, tipo de interessado fora de `interno`/`externo`, número SEI sem dígito ou já usado |
+  | `wf_abrir_processo(modelo, assunto, descricao, interessado_tipo, interessado_nome, interessado_documento, sigilo, numero_sei)` | módulo `workflow` **e** `workflow.criar` | Abre na etapa 1 do modelo, com unidade de origem = lotação vigente do servidor do login, unidade atual e prazo. Retorna o id. `42501` sem o módulo ou sem a permissão (a permissão avulsa sem o módulo não abre); `22023` para modelo inexistente ou inativo, assunto ou interessado vazio, tipo de interessado fora de `interno`/`externo`, número SEI sem dígito ou já usado |
   | `wf_marcar_item(processo, item_codigo, marcado, observacao)` | `workflow.tramitar` | Marca ou desmarca item do checklist da etapa atual ou de anterior; grava quem e quando. `22023` para processo suspenso, concluído ou arquivado, sem modelo, item inexistente ou de etapa ainda não alcançada |
-  | `wf_avancar_etapa(processo, etapa_esperada, observacao)` | `workflow.tramitar` | Avança para a próxima etapa: grava movimentação `encaminhamento`, nova etapa, unidade, prazo, situação `em_tramitacao`. `40001` se `etapa_esperada` difere da atual; `22023` para processo fora de andamento, sem modelo, última etapa (conclua), item obrigatório pendente (lista os códigos) ou sem número SEI ao sair da etapa 1 |
+  | `wf_avancar_etapa(processo, etapa_esperada, observacao)` | `workflow.tramitar` | Avança para a próxima etapa: grava movimentação `encaminhamento`, nova etapa, unidade, prazo, situação `em_tramitacao`. `40001` se `etapa_esperada` difere da atual; `22023` para processo fora de andamento, sem modelo, última etapa (conclua), item obrigatório pendente (lista as descrições dos itens, separadas por `;`, como no checklist da tela) ou sem número SEI ao sair da etapa 1 |
   | `wf_devolver_etapa(processo, etapa_esperada, para_ordem, motivo)` | `workflow.tramitar` | Volta a uma etapa anterior (movimentação `devolucao`). `40001` como acima; `22023` sem motivo, destino que não é anterior à atual ou inexistente |
   | `wf_suspender(processo, motivo)` | `workflow.concluir` | Status `suspenso` e `suspenso_desde` = hoje; o prazo para. `22023` sem motivo ou fora de andamento |
   | `wf_reativar(processo, motivo)` | `workflow.concluir` | Soma, a partir de hoje, os dias úteis que faltavam na suspensão (prazo já vencido continua vencido pelos mesmos dias corridos). Volta a `em_tramitacao` se já houve encaminhamento ou devolução, senão a `aberto`. `22023` se não está suspenso ou sem motivo |
-  | `wf_concluir(processo, motivo)` | `workflow.concluir` | Com modelo, só na última etapa e com todo item obrigatório marcado; sem modelo, direto. Grava `data_encerramento`. `22023` fora desses casos |
+  | `wf_concluir(processo, motivo)` | `workflow.concluir` | Com modelo, só na última etapa e com todo item obrigatório marcado; sem modelo, direto. Grava `data_encerramento`. `22023` fora desses casos (a recusa por pendência lista as descrições dos itens) |
   | `wf_arquivar(processo, motivo)` | `workflow.arquivar` | Aceita processo em andamento, suspenso ou concluído; recusa o já arquivado (`22023`). Não exige despacho |
   | `wf_atualizar_numero_sei(processo, numero_sei)` | `workflow.tramitar` | Corrige o número enquanto o processo está na etapa 1 (ou sem modelo); vazio apaga. `22023` fora da etapa 1, fora de andamento ou número inválido ou repetido |
   | `wf_conceder_acesso(processo, usuario, nivel, motivo)` | `workflow.admin` | Concede ou troca o nível (`leitura`, `tramitacao`, `total`) em `acesso_processo_sigiloso`. Vale em processo de qualquer situação. `22023` para nível inválido ou usuário inexistente ou inativo |
   | `wf_revogar_acesso(processo, usuario)` | `workflow.admin` | Retira a credencial; sem erro se não havia. Vale em qualquer situação do processo |
   | `wf_listar_credenciais(processo)` | `workflow.admin` | Lista usuário, nível, motivo, quem concedeu e data (só `profiles.full_name`: sem e-mail nem CPF); `STABLE`, sem trava. Existe porque a RLS de `acesso_processo_sigiloso` só deixa o papel admin ler e a migração não a mudou. Sigilo primeiro (`42501` com a mensagem de processo inexistente), depois a permissão |
+  | `wf_listar_usuarios_ativos()` | `workflow.admin` | Lista `id` e `full_name` dos perfis ativos (`profiles.is_active`, o mesmo critério de `wf_conceder_acesso`), por nome, para escolher quem recebe a credencial; sem e-mail nem CPF. `STABLE`, sem processo. `42501` sem a permissão |
 
   O número SEI é normalizado (espaços removidos; vazio vira `NULL`); a mensagem de número repetido traz o número interno
   do outro processo só para quem pode vê-lo. Sem lotação vigente (`lotacao_vigente`), `wf_abrir_processo` abre o

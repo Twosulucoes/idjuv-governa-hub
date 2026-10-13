@@ -5,7 +5,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { LIMITE_LINHAS, useUnidadeDoUsuario } from "@/hooks/useAcompanhamentoProcessos";
+import { CHAVE_PAINEL_WORKFLOW, LIMITE_LINHAS, STATUS_ATIVOS, useUnidadeDoUsuario } from "@/hooks/useAcompanhamentoProcessos";
 
 export interface GrupoContagem {
   /** Chave para a lista filtrada (código do modelo) */
@@ -33,7 +33,6 @@ interface LinhaPainel {
   etapa_nome: string | null;
 }
 
-const STATUS_ATIVOS = ["aberto", "em_tramitacao"];
 const SEM_MODELO = "Sem modelo";
 
 async function buscarStats(unidadeId: string | null): Promise<WorkflowStats> {
@@ -95,7 +94,8 @@ async function buscarStats(unidadeId: string | null): Promise<WorkflowStats> {
 export function useWorkflowDashboardStats() {
   const unidade = useUnidadeDoUsuario();
   const query = useQuery({
-    queryKey: ["workflow-dashboard-stats", unidade.data ?? null],
+    // as mutações do acompanhamento (criarMutacaoRpc) invalidam esta chave
+    queryKey: [CHAVE_PAINEL_WORKFLOW, unidade.data ?? null],
     enabled: !unidade.isLoading,
     queryFn: () => buscarStats(unidade.data ?? null),
     staleTime: 1000 * 60 * 5,

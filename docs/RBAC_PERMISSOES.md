@@ -966,11 +966,11 @@ por padrão: concedem-se por usuário (`user_permissions`). O papel `admin` pass
 | Ação | Permissão | Onde é cobrada |
 |---|---|---|
 | Ver processo público e abrir `/workflow/processos` | módulo `workflow` **e** `workflow.visualizar` | `wf_pode_ver_processo` (RLS de SELECT) e `ProtectedRoute` |
-| Abrir processo | `workflow.criar` | `wf_abrir_processo` |
+| Abrir processo | módulo `workflow` **e** `workflow.criar` (a permissão avulsa sem o módulo não abre) | `wf_abrir_processo` |
 | Marcar item do checklist, avançar, devolver, corrigir número SEI | `workflow.tramitar` | `wf_marcar_item`, `wf_avancar_etapa`, `wf_devolver_etapa`, `wf_atualizar_numero_sei` |
 | Suspender, reativar, concluir | `workflow.concluir` | `wf_suspender`, `wf_reativar`, `wf_concluir` |
 | Arquivar | `workflow.arquivar` | `wf_arquivar` |
-| Conceder, revogar e listar credenciais; apagar linhas do processo; escrever nos modelos de fluxo | `workflow.admin` | `wf_conceder_acesso`, `wf_revogar_acesso`, `wf_listar_credenciais`; policies `wf_delete`; policies de `processo_modelos*` (junto com o módulo `workflow`) |
+| Conceder, revogar e listar credenciais (e listar os usuários ativos que podem recebê-las); apagar linhas do processo; escrever nos modelos de fluxo | `workflow.admin` | `wf_conceder_acesso`, `wf_revogar_acesso`, `wf_listar_credenciais`, `wf_listar_usuarios_ativos`; policies `wf_delete`; policies de `processo_modelos*` (junto com o módulo `workflow`) |
 
 - **Escrita só por RPC.** `processos_administrativos`, `movimentacoes_processo`, `despachos`, `documentos_processo`,
   `prazos_processo` e `processo_checklist_respostas` não têm policy de INSERT nem de UPDATE para `authenticated`.
@@ -983,11 +983,15 @@ por padrão: concedem-se por usuário (`user_permissions`). O papel `admin` pass
   alteram, mas a permissão da ação continua valendo (a credencial não substitui `workflow.tramitar`, por exemplo).
   Conceder e revogar funcionam em processo de qualquer situação e só para usuário ativo.
 - **Telas `/processos/*`** (compras, diárias, convênios, almoxarifado, pagamentos, patrimônio): ver a página exige
-  `processos.<tipo>.visualizar` (`ROUTE_PERMISSIONS`); "Iniciar processo" exige `workflow.criar`; a aba "Processos"
-  (lista dos processos do tipo) exige `workflow.visualizar`. Sem as permissões, a tela mostra o aviso para pedir
-  acesso em vez do botão ou da lista. `/processos/veiculos` só exige `processos.veiculos.visualizar` e mostra "ainda
-  não implantado".
-- **Aba Credenciais** do detalhe do processo aparece só com `workflow.admin`.
+  `processos.<tipo>.visualizar` (`ROUTE_PERMISSIONS`); o fluxo (etapas e checklist), "Iniciar processo" e a aba
+  "Processos" exigem o módulo `workflow` (a RLS dos modelos) e, respectivamente, `workflow.criar` e
+  `workflow.visualizar`. Sem o módulo, a tela pede acesso ("Peça acesso ao módulo Processos para ver o fluxo") em vez
+  de dizer que o modelo não existe; sem a permissão, mostra o aviso no lugar do botão ou da lista.
+  `/processos/veiculos` só exige `processos.veiculos.visualizar` e mostra "ainda não implantado".
+- **Aba Credenciais** do detalhe do processo aparece só com `workflow.admin`; a escolha do usuário lê
+  `wf_listar_usuarios_ativos` (só id e nome).
+- **Modelos de fluxo**: além da RLS (módulo **e** `workflow.admin` para escrever), o trigger `wf_recusar_etapa_em_uso`
+  recusa (`22023`) apagar ou renumerar etapa onde há processo, para qualquer papel.
 
 ## Enforcement de rota (`ProtectedRoute`)
 

@@ -5163,7 +5163,10 @@ DECLARE
   d date := p_inicio;
   feitos integer := 0;
 BEGIN
-  IF p_inicio IS NULL OR p_dias IS NULL OR p_dias <= 0 THEN
+  IF p_dias < 0 OR p_dias > 3650 THEN
+    RAISE EXCEPTION 'Quantidade de dias úteis inválida: use de 0 a 3650.' USING ERRCODE = '22023';
+  END IF;
+  IF p_inicio IS NULL OR p_dias IS NULL OR p_dias = 0 THEN
     RETURN p_inicio;
   END IF;
   WHILE feitos < p_dias LOOP
@@ -13256,7 +13259,8 @@ DECLARE
   v_numero_sei text;
   v_id uuid;
 BEGIN
-  IF NOT public.has_permission_code(auth.uid(), 'workflow.criar') THEN
+  IF NOT coalesce(public.can_access_module(auth.uid(), 'workflow'), false)
+     OR NOT coalesce(public.has_permission_code(auth.uid(), 'workflow.criar'), false) THEN
     RAISE EXCEPTION 'Você não tem permissão para abrir processos.' USING ERRCODE = '42501';
   END IF;
   SELECT * INTO v_modelo FROM public.processo_modelos WHERE codigo = btrim(p_modelo_codigo) AND ativo;
@@ -13399,7 +13403,7 @@ BEGIN
   END IF;
   v_pend := public.wf_pendencias(p.id, p.modelo_id, p.etapa_atual_ordem, p.etapa_atual_ordem);
   IF cardinality(v_pend) > 0 THEN
-    RAISE EXCEPTION 'Itens obrigatórios pendentes nesta etapa: %.', array_to_string(v_pend, ', ') USING ERRCODE = '22023';
+    RAISE EXCEPTION 'Itens obrigatórios pendentes nesta etapa: %.', array_to_string(v_pend, '; ') USING ERRCODE = '22023';
   END IF;
   IF p.etapa_atual_ordem = 1 AND p.numero_sei IS NULL THEN
     RAISE EXCEPTION 'Informe o número SEI do processo antes de sair da etapa 1.' USING ERRCODE = '22023';
@@ -13476,7 +13480,7 @@ BEGIN
     END IF;
     v_pend := public.wf_pendencias(p.id, p.modelo_id, 1, coalesce(v_ultima, 0));
     IF cardinality(v_pend) > 0 THEN
-      RAISE EXCEPTION 'Itens obrigatórios pendentes no checklist: %.', array_to_string(v_pend, ', ') USING ERRCODE = '22023';
+      RAISE EXCEPTION 'Itens obrigatórios pendentes no checklist: %.', array_to_string(v_pend, '; ') USING ERRCODE = '22023';
     END IF;
   END IF;
   PERFORM public.wf_registrar_movimentacao(p.id, 'decisao', 'Processo concluído.', p_motivo,
@@ -13588,6 +13592,27 @@ $$;
 
 
 --
+-- Name: wf_listar_usuarios_ativos(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_listar_usuarios_ativos() RETURNS TABLE(id uuid, full_name text)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  IF NOT coalesce(public.has_permission_code(auth.uid(), 'workflow.admin'), false) THEN
+    RAISE EXCEPTION 'Você não tem permissão para gerenciar credenciais de sigilo.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT pr.id, pr.full_name
+    FROM public.profiles pr
+   WHERE pr.is_active IS TRUE
+   ORDER BY pr.full_name NULLS LAST, pr.id;
+END;
+$$;
+
+
+--
 -- Name: wf_marcar_item(uuid, text, boolean, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -13633,7 +13658,7 @@ CREATE FUNCTION public.wf_pendencias(p_processo_id uuid, p_modelo_id uuid, p_de 
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
-  SELECT coalesce(array_agg(c.codigo ORDER BY c.etapa_ordem, c.codigo), ARRAY[]::text[])
+  SELECT coalesce(array_agg(c.descricao ORDER BY c.etapa_ordem, c.codigo), ARRAY[]::text[])
   FROM public.processo_modelo_checklist c
   WHERE c.modelo_id = p_modelo_id
     AND c.obrigatorio
@@ -13758,6 +13783,31 @@ BEGIN
          suspenso_desde = NULL,
          etapa_prazo_limite = v_limite
    WHERE id = p.id;
+END;
+$$;
+
+
+--
+-- Name: wf_recusar_etapa_em_uso(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_recusar_etapa_em_uso() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.ordem IS NOT DISTINCT FROM OLD.ordem AND NEW.modelo_id IS NOT DISTINCT FROM OLD.modelo_id THEN
+    RETURN NEW;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.processos_administrativos p
+              WHERE p.modelo_id = OLD.modelo_id AND p.etapa_atual_ordem = OLD.ordem) THEN
+    RAISE EXCEPTION 'A etapa % (%) tem processo nela: mova os processos para outra etapa antes de apagá-la ou mudar a ordem.',
+      OLD.ordem, OLD.nome USING ERRCODE = '22023';
+  END IF;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 

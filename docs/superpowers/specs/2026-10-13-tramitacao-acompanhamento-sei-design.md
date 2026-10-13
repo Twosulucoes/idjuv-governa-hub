@@ -189,6 +189,12 @@ da Lei, vale a da Lei e a divergência fica registrada na migração.
   ativo.
 - **`wf_listar_credenciais`** (RPC, `workflow.admin`) lê as credenciais para a aba Credenciais, em vez de mudar a RLS
   existente de `acesso_processo_sigiloso` (que só deixa o papel admin ler).
+- **`wf_listar_usuarios_ativos`** (RPC, `workflow.admin`, só id e nome dos perfis ativos) alimenta a escolha do usuário
+  na aba Credenciais, em vez de ler `profiles` direto do front.
+- **Abrir processo exige o módulo `workflow`** além de `workflow.criar` (`wf_abrir_processo`): a permissão avulsa sem o
+  módulo não abre, como no sigilo do processo público.
+- **Filtro `ativos`** (aberto ou em tramitação) na lista, aceito em `?status=ativos`: é o que o painel do módulo conta,
+  é usado nos links do painel e é o padrão da aba "Na minha unidade".
 - **Limite de 1000 linhas.** Lista, guia por tipo e agrupamentos do painel leem até 1000 linhas (padrão do PostgREST)
   e mostram aviso quando o limite é atingido; os contadores do painel usam `count` exato.
 - **"Na minha unidade" usa `lotacoes.ativo`**, a lotação ativa mais recente do servidor ligado ao perfil. Não cobre

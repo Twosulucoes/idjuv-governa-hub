@@ -243,11 +243,13 @@ REVOKE ALL ON public.processo_modelos, public.processo_modelo_etapas, public.pro
 REVOKE EXECUTE ON FUNCTION public.fn_somar_dias_uteis(date, integer) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.fn_somar_dias_uteis(date, integer) TO authenticated;
 -- sigilo do workflow (migração 20261013100100): anon sem nada nas respostas do checklist; wf_pode_ver_processo é
--- chamada pelas policies das tabelas do processo, então authenticated executa
+-- chamada pelas policies das tabelas do processo, então authenticated executa; a função do trigger que recusa apagar
+-- etapa em uso ninguém executa pela API
 REVOKE ALL ON public.processo_checklist_respostas FROM anon;
 REVOKE TRUNCATE, TRIGGER, REFERENCES ON public.processo_checklist_respostas FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.wf_pode_ver_processo(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.wf_pode_ver_processo(uuid) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.wf_recusar_etapa_em_uso() FROM PUBLIC, anon, authenticated, service_role;
 -- RPCs do acompanhamento (migração 20261013100200): as internas (resolver unidade, travar processo, pendências,
 -- número SEI, movimentação) ninguém executa pela API; as RPCs e o semáforo só authenticated; a view só SELECT para
 -- authenticated
@@ -273,6 +275,7 @@ BEGIN
     'public.wf_conceder_acesso(uuid, uuid, text, text)',
     'public.wf_revogar_acesso(uuid, uuid)',
     'public.wf_listar_credenciais(uuid)',
+    'public.wf_listar_usuarios_ativos()',
     'public.fn_situacao_prazo(date)'] LOOP
     EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon, service_role', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f);

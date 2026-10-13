@@ -49,7 +49,9 @@ export function CredenciaisSigiloTab({ processoId, sigilo }: CredenciaisSigiloTa
     <div className="space-y-6">
       {sigilo === 'publico' && (
         <p className="text-body text-muted-foreground">
-          Este processo é público: a credencial só tem efeito se o sigilo for alterado para restrito ou sigiloso.
+          Este processo é público: quem tem o módulo Processos com a permissão de visualizar já o vê. A credencial
+          serve para dar leitura a quem não tem essa permissão; para movimentar o processo, a pessoa continua
+          precisando da permissão de cada ação.
         </p>
       )}
 

@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, PageHeader, StatusBadge, type TomStatus } from '@/components/design-system';
 import {
-  ArrowLeft, FileText, Clock, MessageSquare, Paperclip, User, FolderOpen, KeyRound, Pencil,
+  AlertTriangle, ArrowLeft, FileText, Clock, MessageSquare, Paperclip, User, FolderOpen, KeyRound, Pencil, RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -130,7 +130,13 @@ export default function ProcessoDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const { hasPermission } = useAuth();
 
-  const { data: processo, isLoading: loadingProcesso } = useProcessoAcompanhamento(id ?? '');
+  const {
+    data: processo,
+    isLoading: loadingProcesso,
+    isError: erroProcesso,
+    refetch: recarregarProcesso,
+    isFetching: recarregandoProcesso,
+  } = useProcessoAcompanhamento(id ?? '');
   const { data: modelo, isLoading: loadingModelo, isError: erroModelo } = useModeloProcesso(processo?.modelo_codigo ?? '');
   const { data: respostas } = useChecklistProcesso(id ?? '');
   const { data: movimentacoes, isLoading: loadingMovimentacoes } = useMovimentacoes(id);
@@ -144,6 +150,28 @@ export default function ProcessoDetalhePage() {
           <PageHeader migalhas={[...MIGALHAS_BASE, { rotulo: 'Processo' }]} titulo="Carregando processo…" />
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-60 w-full" />
+        </div>
+      </ModuleLayout>
+    );
+  }
+
+  // falha na consulta (rede, servidor) não é "não encontrado": mostra o erro e deixa tentar de novo
+  if (erroProcesso) {
+    return (
+      <ModuleLayout module="workflow">
+        <div className="space-y-6">
+          <PageHeader migalhas={[...MIGALHAS_BASE, { rotulo: 'Processo' }]} titulo="Processo" />
+          <EmptyState
+            icone={AlertTriangle}
+            titulo="Não foi possível carregar o processo"
+            descricao="Verifique a conexão e tente de novo."
+            acao={
+              <Button variant="outline" onClick={() => recarregarProcesso()} disabled={recarregandoProcesso}>
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                Tentar de novo
+              </Button>
+            }
+          />
         </div>
       </ModuleLayout>
     );
