@@ -4,6 +4,10 @@
 import { useState } from 'react';
 import { KeyRound, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -59,7 +63,7 @@ export function CredenciaisSigiloTab({ processoId, sigilo }: CredenciaisSigiloTa
             <SelectContent>
               {(usuarios.data ?? []).map((u) => (
                 <SelectItem key={u.id} value={u.id}>
-                  {u.full_name || u.email || u.id}
+                  {u.full_name || 'Usuário sem nome'}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -97,24 +101,42 @@ export function CredenciaisSigiloTab({ processoId, sigilo }: CredenciaisSigiloTa
       ) : (
         <ul className="space-y-2">
           {credenciais.data!.map((c) => (
-            <li key={c.id} className="flex items-center gap-3 rounded-lg border p-3">
+            <li key={c.usuario_id} className="flex items-center gap-3 rounded-lg border p-3">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{c.usuario_nome || c.usuario_email || c.usuario_id}</p>
+                <p className="truncate font-medium">{c.usuario_nome || 'Usuário sem nome'}</p>
                 <p className="text-caption text-muted-foreground">
                   {NIVEIS[c.nivel_acesso] ?? c.nivel_acesso}
+                  {c.concedido_por_nome ? ` • concedido por ${c.concedido_por_nome}` : ''}
                   {c.motivo ? ` • ${c.motivo}` : ''}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={revogar.isPending}
-                onClick={() => revogar.mutate({ processoId, usuarioId: c.usuario_id })}
-                aria-label={`Revogar acesso de ${c.usuario_nome || c.usuario_email || 'usuário'}`}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                Revogar
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={revogar.isPending}
+                    aria-label={`Revogar acesso de ${c.usuario_nome || 'usuário'}`}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    Revogar
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Revogar acesso?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {c.usuario_nome || 'O usuário'} perderá o acesso a este processo.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => revogar.mutate({ processoId, usuarioId: c.usuario_id })}>
+                      Revogar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </li>
           ))}
         </ul>

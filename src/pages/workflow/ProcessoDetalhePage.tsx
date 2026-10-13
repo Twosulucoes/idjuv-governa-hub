@@ -131,7 +131,7 @@ export default function ProcessoDetalhePage() {
   const { hasPermission } = useAuth();
 
   const { data: processo, isLoading: loadingProcesso } = useProcessoAcompanhamento(id ?? '');
-  const { data: modelo } = useModeloProcesso(processo?.modelo_codigo ?? '');
+  const { data: modelo, isLoading: loadingModelo, isError: erroModelo } = useModeloProcesso(processo?.modelo_codigo ?? '');
   const { data: respostas } = useChecklistProcesso(id ?? '');
   const { data: movimentacoes, isLoading: loadingMovimentacoes } = useMovimentacoes(id);
   const { data: despachos } = useDespachos(id);
@@ -258,7 +258,7 @@ export default function ProcessoDetalhePage() {
               <h2 className="text-h3 text-foreground">Etapas</h2>
             </CardHeader>
             <CardContent>
-              <TrilhaEtapas modelo={modelo} processo={processo} />
+              <TrilhaEtapas modelo={modelo} processo={processo} carregando={loadingModelo} erro={erroModelo} />
             </CardContent>
           </Card>
           {temModelo && modelo && (
@@ -337,7 +337,7 @@ export default function ProcessoDetalhePage() {
                                   </StatusBadge>
                                 </div>
                                 <p className="mt-1 text-sm">{mov.descricao}</p>
-                                {mov.etapa_destino_ordem != null && (
+                                {mov.etapa_destino_ordem != null && mov.etapa_destino_ordem !== mov.etapa_origem_ordem && (
                                   <p className="text-xs text-muted-foreground mt-1">
                                     Etapa {mov.etapa_origem_ordem ?? '-'} → etapa {mov.etapa_destino_ordem}
                                   </p>

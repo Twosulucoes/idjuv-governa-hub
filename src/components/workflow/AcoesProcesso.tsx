@@ -2,7 +2,7 @@
  * Ações do processo (avançar, devolver, suspender, reativar, concluir, arquivar), por permissão e situação.
  * Toda escrita vai pelas RPCs wf_*; o banco repete as regras (RLS/RPC são a fronteira real, aqui é só UX).
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Archive, CheckCheck, CornerUpLeft, ArrowRight, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -59,12 +59,19 @@ export function AcoesProcesso({ processo, etapas }: AcoesProcessoProps) {
 
   const mostrarAvancar = emAndamento && podeTramitar && temModelo && !ultima;
   const mostrarDevolver = emAndamento && podeTramitar && temModelo && etapa > 1;
+  const etapasCarregadas = etapas.length > 0;
   const mostrarSuspender = emAndamento && podeConcluir;
   const mostrarReativar = processo.status === 'suspenso' && podeConcluir;
   // sem modelo (processo antigo) pode concluir em qualquer momento; com modelo, só na última etapa
   const mostrarConcluir = emAndamento && podeConcluir && (!temModelo || ultima);
   const mostrarArquivar = podeArquivar && (emAndamento || processo.status === 'concluido');
 
+  // se outra pessoa moveu o processo (40001 -> o hook refaz a consulta), a etapa muda: o diálogo aberto fica defasado
+  const etapaAoAbrir = useRef(etapa);
+  useEffect(() => {
+    if (acao && etapaAoAbrir.current !== etapa) fechar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etapa]);
   const nenhuma =
     !mostrarAvancar && !mostrarDevolver && !mostrarSuspender && !mostrarReativar && !mostrarConcluir && !mostrarArquivar;
   if (nenhuma) return null;
@@ -75,17 +82,25 @@ export function AcoesProcesso({ processo, etapas }: AcoesProcessoProps) {
   function abrir(a: Acao) {
     setTexto('');
     setParaOrdem(a === 'devolver' && anteriores.length > 0 ? String(anteriores[anteriores.length - 1].ordem) : '');
+    etapaAoAbrir.current = etapa;
     setAcao(a);
   }
 
   function fechar() {
     setAcao(null);
+    setParaOrdem('');
   }
 
   function confirmar() {
     if (!acao) return;
     const motivo = texto.trim();
-    const aoTerminar = { onSuccess: fechar };
+    // 40001: o processo mudou; o hook já refaz a consulta, e o diálogo fecha para não agir sobre dado velho
+    const aoTerminar = {
+      onSuccess: fechar,
+      onError: (e: unknown) => {
+        if ((e as { code?: string })?.code === '40001') fechar();
+      },
+    };
     const processoId = processo.id;
     switch (acao) {
       case 'avancar':
@@ -129,7 +144,7 @@ export function AcoesProcesso({ processo, etapas }: AcoesProcessoProps) {
           </Button>
         )}
         {mostrarDevolver && (
-          <Button variant="outline" onClick={() => abrir('devolver')}>
+          <Button variant="outline" onClick={() => abrir('devolver')} disabled={!etapasCarregadas}>
             <CornerUpLeft className="h-4 w-4" aria-hidden="true" />
             Devolver
           </Button>

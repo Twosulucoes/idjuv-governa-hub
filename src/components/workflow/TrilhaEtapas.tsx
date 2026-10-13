@@ -1,6 +1,7 @@
 /**
  * Trilha das etapas do modelo de fluxo: feita, atual e a fazer, com unidade e prazo.
  */
+import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle2, Circle, CircleDot } from 'lucide-react';
 import { StatusBadge } from '@/components/design-system';
 import { cn } from '@/lib/utils';
@@ -11,10 +12,19 @@ interface TrilhaEtapasProps {
   /** Modelo do processo; nulo/indefinido = processo antigo, sem modelo de fluxo */
   modelo: ModeloProcessoCompleto | null | undefined;
   processo: ProcessoAcompanhamento;
+  carregando?: boolean;
+  erro?: boolean;
 }
 
-export function TrilhaEtapas({ modelo, processo }: TrilhaEtapasProps) {
-  if (!processo.modelo_id || !modelo) {
+export function TrilhaEtapas({ modelo, processo, carregando, erro }: TrilhaEtapasProps) {
+  if (!processo.modelo_id) {
+    return <p className="text-body text-muted-foreground">Processo sem modelo de fluxo.</p>;
+  }
+  if (carregando) return <Skeleton className="h-40 w-full" aria-busy="true" />;
+  if (erro) {
+    return <p className="text-body text-destructive" role="alert">Não foi possível carregar as etapas do modelo.</p>;
+  }
+  if (!modelo) {
     return <p className="text-body text-muted-foreground">Processo sem modelo de fluxo.</p>;
   }
 

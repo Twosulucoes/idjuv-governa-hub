@@ -194,43 +194,23 @@ export function useChecklistProcesso(id: string) {
 }
 
 export interface CredencialSigilo {
-  id: string;
-  processo_id: string;
   usuario_id: string;
+  usuario_nome: string | null;
   nivel_acesso: NivelAcessoSigiloso;
   motivo: string | null;
-  concedido_por: string | null;
+  concedido_por_nome: string | null;
   created_at: string;
-  /** Nome/e-mail do usuário (preenchido em segunda consulta a profiles) */
-  usuario_nome: string | null;
-  usuario_email: string | null;
 }
 
-/** Credenciais do processo sigiloso (a RLS da tabela libera a leitura só para administradores). */
+/** Credenciais do processo sigiloso, pela RPC wf_listar_credenciais (exige workflow.admin; sem e-mail nem CPF). */
 export function useCredenciaisProcesso(id: string, habilitado: boolean) {
   return useQuery({
     queryKey: [CHAVE, 'credenciais', id],
     enabled: !!id && habilitado,
     queryFn: async (): Promise<CredencialSigilo[]> => {
-      const { data, error } = await db
-        .from('acesso_processo_sigiloso')
-        .select('*')
-        .eq('processo_id', id)
-        .order('created_at');
+      const { data, error } = await db.rpc('wf_listar_credenciais', { p_processo_id: id });
       if (error) throw error;
-      const linhas = (data ?? []) as Omit<CredencialSigilo, 'usuario_nome' | 'usuario_email'>[];
-      if (linhas.length === 0) return [];
-      const { data: perfis, error: e2 } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .in('id', linhas.map((l) => l.usuario_id));
-      if (e2) throw e2;
-      const porId = new Map((perfis ?? []).map((p) => [p.id, p]));
-      return linhas.map((l) => ({
-        ...l,
-        usuario_nome: porId.get(l.usuario_id)?.full_name ?? null,
-        usuario_email: porId.get(l.usuario_id)?.email ?? null,
-      }));
+      return (data ?? []) as CredencialSigilo[];
     },
   });
 }
@@ -238,10 +218,9 @@ export function useCredenciaisProcesso(id: string, habilitado: boolean) {
 export interface UsuarioAtivo {
   id: string;
   full_name: string | null;
-  email: string | null;
 }
 
-/** Usuários ativos para escolher quem recebe a credencial. */
+/** Usuários ativos para escolher quem recebe a credencial (só id e nome). */
 export function useUsuariosAtivos(habilitado: boolean) {
   return useQuery({
     queryKey: [CHAVE, 'usuarios-ativos'],
@@ -249,7 +228,7 @@ export function useUsuariosAtivos(habilitado: boolean) {
     queryFn: async (): Promise<UsuarioAtivo[]> => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, full_name')
         .eq('is_active', true)
         .order('full_name');
       if (error) throw error;
