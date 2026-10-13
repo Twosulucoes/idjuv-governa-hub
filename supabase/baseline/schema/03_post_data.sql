@@ -2462,6 +2462,70 @@ ALTER TABLE ONLY public.pre_cadastros
 
 
 --
+-- Name: processo_checklist_respostas processo_checklist_respostas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_checklist_respostas
+    ADD CONSTRAINT processo_checklist_respostas_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: processo_checklist_respostas processo_checklist_respostas_processo_item_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_checklist_respostas
+    ADD CONSTRAINT processo_checklist_respostas_processo_item_key UNIQUE (processo_id, item_id);
+
+
+--
+-- Name: processo_modelo_checklist processo_modelo_checklist_modelo_id_codigo_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_modelo_checklist
+    ADD CONSTRAINT processo_modelo_checklist_modelo_id_codigo_key UNIQUE (modelo_id, codigo);
+
+
+--
+-- Name: processo_modelo_checklist processo_modelo_checklist_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_modelo_checklist
+    ADD CONSTRAINT processo_modelo_checklist_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: processo_modelo_etapas processo_modelo_etapas_modelo_id_ordem_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_modelo_etapas
+    ADD CONSTRAINT processo_modelo_etapas_modelo_id_ordem_key UNIQUE (modelo_id, ordem);
+
+
+--
+-- Name: processo_modelo_etapas processo_modelo_etapas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_modelo_etapas
+    ADD CONSTRAINT processo_modelo_etapas_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: processo_modelos processo_modelos_codigo_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_modelos
+    ADD CONSTRAINT processo_modelos_codigo_key UNIQUE (codigo);
+
+
+--
+-- Name: processo_modelos processo_modelos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_modelos
+    ADD CONSTRAINT processo_modelos_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: processos_administrativos processos_administrativos_numero_ano_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5866,10 +5930,24 @@ CREATE INDEX idx_pre_cadastros_status ON public.pre_cadastros USING btree (statu
 
 
 --
+-- Name: idx_processo_checklist_respostas_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_checklist_respostas_item ON public.processo_checklist_respostas USING btree (item_id);
+
+
+--
 -- Name: idx_processos_admin_data; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_processos_admin_data ON public.processos_administrativos USING btree (data_abertura);
+
+
+--
+-- Name: idx_processos_admin_modelo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processos_admin_modelo ON public.processos_administrativos USING btree (modelo_id);
 
 
 --
@@ -5898,6 +5976,13 @@ CREATE INDEX idx_processos_admin_tipo ON public.processos_administrativos USING 
 --
 
 CREATE INDEX idx_processos_admin_unidade ON public.processos_administrativos USING btree (unidade_origem_id);
+
+
+--
+-- Name: idx_processos_admin_unidade_atual; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processos_admin_unidade_atual ON public.processos_administrativos USING btree (unidade_atual_id);
 
 
 --
@@ -6479,6 +6564,13 @@ CREATE INDEX pre_cadastros_ip_hash_idx ON public.pre_cadastros USING btree (cria
 --
 
 CREATE UNIQUE INDEX pre_cadastros_token_acesso_uk ON public.pre_cadastros USING btree (token_acesso) WHERE (token_acesso IS NOT NULL);
+
+
+--
+-- Name: processos_administrativos_numero_sei_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX processos_administrativos_numero_sei_key ON public.processos_administrativos USING btree (numero_sei) WHERE (numero_sei IS NOT NULL);
 
 
 --
@@ -7427,6 +7519,13 @@ CREATE TRIGGER handle_updated_at BEFORE UPDATE ON public.prazos_processo FOR EAC
 
 
 --
+-- Name: processo_checklist_respostas handle_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER handle_updated_at BEFORE UPDATE ON public.processo_checklist_respostas FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+
+--
 -- Name: processos_administrativos handle_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -7588,31 +7687,10 @@ CREATE TRIGGER set_vinculos_servidor_updated_at BEFORE UPDATE ON public.vinculos
 
 
 --
--- Name: despachos tr_audit_despachos; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER tr_audit_despachos AFTER INSERT OR DELETE OR UPDATE ON public.despachos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
-
-
---
 -- Name: gestores_escolares tr_audit_gestores_escolares; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER tr_audit_gestores_escolares AFTER INSERT OR UPDATE ON public.gestores_escolares FOR EACH ROW EXECUTE FUNCTION public.fn_audit_gestores_escolares();
-
-
---
--- Name: movimentacoes_processo tr_audit_movimentacoes; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER tr_audit_movimentacoes AFTER INSERT OR DELETE OR UPDATE ON public.movimentacoes_processo FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
-
-
---
--- Name: processos_administrativos tr_audit_processos; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER tr_audit_processos AFTER INSERT OR DELETE OR UPDATE ON public.processos_administrativos FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
 
 
 --
@@ -7732,55 +7810,6 @@ CREATE TRIGGER tr_recursos_lai_updated BEFORE UPDATE ON public.recursos_lai FOR 
 --
 
 CREATE TRIGGER tr_set_reuniao_created_by BEFORE INSERT ON public.reunioes FOR EACH ROW EXECUTE FUNCTION public.set_reuniao_created_by();
-
-
---
--- Name: despachos tr_updated_at_despachos; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER tr_updated_at_despachos BEFORE UPDATE ON public.despachos FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
-
---
--- Name: documentos_processo tr_updated_at_documentos_processo; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER tr_updated_at_documentos_processo BEFORE UPDATE ON public.documentos_processo FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
-
---
--- Name: movimentacoes_processo tr_updated_at_movimentacoes; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER tr_updated_at_movimentacoes BEFORE UPDATE ON public.movimentacoes_processo FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
-
---
--- Name: prazos_processo tr_updated_at_prazos_processo; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER tr_updated_at_prazos_processo BEFORE UPDATE ON public.prazos_processo FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
-
---
--- Name: processos_administrativos tr_updated_at_processos; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER tr_updated_at_processos BEFORE UPDATE ON public.processos_administrativos FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
-
---
--- Name: processos_administrativos tr_validar_arquivamento; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER tr_validar_arquivamento BEFORE UPDATE ON public.processos_administrativos FOR EACH ROW EXECUTE FUNCTION public.fn_validar_arquivamento_processo();
-
-
---
--- Name: processos_administrativos tr_verificar_arquivamento; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER tr_verificar_arquivamento BEFORE UPDATE ON public.processos_administrativos FOR EACH ROW EXECUTE FUNCTION public.verificar_arquivamento_processo();
 
 
 --
@@ -8327,6 +8356,13 @@ CREATE TRIGGER trg_licenca_atualiza_situacao AFTER INSERT OR UPDATE ON public.li
 --
 
 CREATE TRIGGER trg_movimentacao_atualiza_estoque AFTER INSERT ON public.movimentacoes_estoque FOR EACH ROW EXECUTE FUNCTION public.fn_atualizar_estoque();
+
+
+--
+-- Name: parametros_folha trg_parametros_folha_normalizar_nome; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_parametros_folha_normalizar_nome BEFORE INSERT OR UPDATE OF tipo_parametro ON public.parametros_folha FOR EACH ROW EXECUTE FUNCTION public.parametros_folha_normalizar_nome();
 
 
 --
@@ -15254,6 +15290,46 @@ ALTER TABLE ONLY public.pre_cadastros
 
 
 --
+-- Name: processo_checklist_respostas processo_checklist_respostas_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_checklist_respostas
+    ADD CONSTRAINT processo_checklist_respostas_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.processo_modelo_checklist(id);
+
+
+--
+-- Name: processo_checklist_respostas processo_checklist_respostas_marcado_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_checklist_respostas
+    ADD CONSTRAINT processo_checklist_respostas_marcado_por_fkey FOREIGN KEY (marcado_por) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: processo_checklist_respostas processo_checklist_respostas_processo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_checklist_respostas
+    ADD CONSTRAINT processo_checklist_respostas_processo_id_fkey FOREIGN KEY (processo_id) REFERENCES public.processos_administrativos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: processo_modelo_checklist processo_modelo_checklist_modelo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_modelo_checklist
+    ADD CONSTRAINT processo_modelo_checklist_modelo_id_fkey FOREIGN KEY (modelo_id) REFERENCES public.processo_modelos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: processo_modelo_etapas processo_modelo_etapas_modelo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_modelo_etapas
+    ADD CONSTRAINT processo_modelo_etapas_modelo_id_fkey FOREIGN KEY (modelo_id) REFERENCES public.processo_modelos(id) ON DELETE CASCADE;
+
+
+--
 -- Name: processos_administrativos processos_administrativos_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15262,11 +15338,27 @@ ALTER TABLE ONLY public.processos_administrativos
 
 
 --
+-- Name: processos_administrativos processos_administrativos_modelo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processos_administrativos
+    ADD CONSTRAINT processos_administrativos_modelo_id_fkey FOREIGN KEY (modelo_id) REFERENCES public.processo_modelos(id);
+
+
+--
 -- Name: processos_administrativos processos_administrativos_processo_origem_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.processos_administrativos
     ADD CONSTRAINT processos_administrativos_processo_origem_id_fkey FOREIGN KEY (processo_origem_id) REFERENCES public.processos_administrativos(id);
+
+
+--
+-- Name: processos_administrativos processos_administrativos_unidade_atual_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processos_administrativos
+    ADD CONSTRAINT processos_administrativos_unidade_atual_id_fkey FOREIGN KEY (unidade_atual_id) REFERENCES public.estrutura_organizacional(id);
 
 
 --
@@ -18253,6 +18345,30 @@ ALTER TABLE public.prazos_processo ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pre_cadastros ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: processo_checklist_respostas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.processo_checklist_respostas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_modelo_checklist; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.processo_modelo_checklist ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_modelo_etapas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.processo_modelo_etapas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_modelos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.processo_modelos ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: processos_administrativos; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -18920,13 +19036,6 @@ CREATE POLICY rls_delete ON public.designacoes FOR DELETE TO authenticated USING
 
 
 --
--- Name: despachos rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.despachos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: dias_nao_uteis rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18952,13 +19061,6 @@ CREATE POLICY rls_delete ON public.documentos_cedencia FOR DELETE TO authenticat
 --
 
 CREATE POLICY rls_delete ON public.documentos_preparatorios_licitacao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: documentos_processo rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.documentos_processo FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
 
 
 --
@@ -19484,13 +19586,6 @@ CREATE POLICY rls_delete ON public.movimentacoes_estoque FOR DELETE TO authentic
 
 
 --
--- Name: movimentacoes_processo rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.movimentacoes_processo FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: nomeacoes_chefe_unidade rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19582,13 +19677,6 @@ CREATE POLICY rls_delete ON public.prazos_lai FOR DELETE TO authenticated USING 
 
 
 --
--- Name: prazos_processo rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.prazos_processo FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: pre_cadastros rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19596,10 +19684,24 @@ CREATE POLICY rls_delete ON public.pre_cadastros FOR DELETE TO authenticated USI
 
 
 --
--- Name: processos_administrativos rls_delete; Type: POLICY; Schema: public; Owner: -
+-- Name: processo_modelo_checklist rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.processos_administrativos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+CREATE POLICY rls_delete ON public.processo_modelo_checklist FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
+
+
+--
+-- Name: processo_modelo_etapas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.processo_modelo_etapas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
+
+
+--
+-- Name: processo_modelos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.processo_modelos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
 
 
 --
@@ -20338,13 +20440,6 @@ CREATE POLICY rls_insert ON public.designacoes FOR INSERT TO authenticated WITH 
 
 
 --
--- Name: despachos rls_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_insert ON public.despachos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: dias_nao_uteis rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20370,13 +20465,6 @@ CREATE POLICY rls_insert ON public.documentos_cedencia FOR INSERT TO authenticat
 --
 
 CREATE POLICY rls_insert ON public.documentos_preparatorios_licitacao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: documentos_processo rls_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_insert ON public.documentos_processo FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
 
 
 --
@@ -20911,13 +20999,6 @@ CREATE POLICY rls_insert ON public.movimentacoes_estoque FOR INSERT TO authentic
 
 
 --
--- Name: movimentacoes_processo rls_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_insert ON public.movimentacoes_processo FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: nomeacoes_chefe_unidade rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21009,13 +21090,6 @@ CREATE POLICY rls_insert ON public.prazos_lai FOR INSERT TO authenticated WITH C
 
 
 --
--- Name: prazos_processo rls_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_insert ON public.prazos_processo FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: pre_cadastros rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21023,10 +21097,24 @@ CREATE POLICY rls_insert ON public.pre_cadastros FOR INSERT TO authenticated WIT
 
 
 --
--- Name: processos_administrativos rls_insert; Type: POLICY; Schema: public; Owner: -
+-- Name: processo_modelo_checklist rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.processos_administrativos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+CREATE POLICY rls_insert ON public.processo_modelo_checklist FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
+
+
+--
+-- Name: processo_modelo_etapas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.processo_modelo_etapas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
+
+
+--
+-- Name: processo_modelos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.processo_modelos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
 
 
 --
@@ -21786,13 +21874,6 @@ CREATE POLICY rls_select ON public.designacoes FOR SELECT TO authenticated USING
 
 
 --
--- Name: despachos rls_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_select ON public.despachos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: dias_nao_uteis rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21818,13 +21899,6 @@ CREATE POLICY rls_select ON public.documentos_cedencia FOR SELECT TO authenticat
 --
 
 CREATE POLICY rls_select ON public.documentos_preparatorios_licitacao FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: documentos_processo rls_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_select ON public.documentos_processo FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
 
 
 --
@@ -22410,13 +22484,6 @@ CREATE POLICY rls_select ON public.movimentacoes_estoque FOR SELECT TO authentic
 
 
 --
--- Name: movimentacoes_processo rls_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_select ON public.movimentacoes_processo FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: nomeacoes_chefe_unidade rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22508,13 +22575,6 @@ CREATE POLICY rls_select ON public.prazos_lai FOR SELECT TO authenticated USING 
 
 
 --
--- Name: prazos_processo rls_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_select ON public.prazos_processo FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: pre_cadastros rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22522,10 +22582,24 @@ CREATE POLICY rls_select ON public.pre_cadastros FOR SELECT TO authenticated USI
 
 
 --
--- Name: processos_administrativos rls_select; Type: POLICY; Schema: public; Owner: -
+-- Name: processo_modelo_checklist rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.processos_administrativos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+CREATE POLICY rls_select ON public.processo_modelo_checklist FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: processo_modelo_etapas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.processo_modelo_etapas FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: processo_modelos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.processo_modelos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
 
 
 --
@@ -23285,13 +23359,6 @@ CREATE POLICY rls_update ON public.designacoes FOR UPDATE TO authenticated USING
 
 
 --
--- Name: despachos rls_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_update ON public.despachos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: dias_nao_uteis rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -23317,13 +23384,6 @@ CREATE POLICY rls_update ON public.documentos_cedencia FOR UPDATE TO authenticat
 --
 
 CREATE POLICY rls_update ON public.documentos_preparatorios_licitacao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: documentos_processo rls_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_update ON public.documentos_processo FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
 
 
 --
@@ -23860,13 +23920,6 @@ CREATE POLICY rls_update ON public.movimentacoes_estoque FOR UPDATE TO authentic
 
 
 --
--- Name: movimentacoes_processo rls_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_update ON public.movimentacoes_processo FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: nomeacoes_chefe_unidade rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -23958,13 +24011,6 @@ CREATE POLICY rls_update ON public.prazos_lai FOR UPDATE TO authenticated USING 
 
 
 --
--- Name: prazos_processo rls_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_update ON public.prazos_processo FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'workflow'::text));
-
-
---
 -- Name: pre_cadastros rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -23972,10 +24018,24 @@ CREATE POLICY rls_update ON public.pre_cadastros FOR UPDATE TO authenticated USI
 
 
 --
--- Name: processos_administrativos rls_update; Type: POLICY; Schema: public; Owner: -
+-- Name: processo_modelo_checklist rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.processos_administrativos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+CREATE POLICY rls_update ON public.processo_modelo_checklist FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
+
+
+--
+-- Name: processo_modelo_etapas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.processo_modelo_etapas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
+
+
+--
+-- Name: processo_modelos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.processo_modelos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
 
 
 --
@@ -24415,6 +24475,90 @@ ALTER TABLE public.vinculos_funcionais ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.vinculos_servidor ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: despachos wf_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_delete ON public.despachos FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'workflow.admin'::text));
+
+
+--
+-- Name: documentos_processo wf_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_delete ON public.documentos_processo FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'workflow.admin'::text));
+
+
+--
+-- Name: movimentacoes_processo wf_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_delete ON public.movimentacoes_processo FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'workflow.admin'::text));
+
+
+--
+-- Name: prazos_processo wf_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_delete ON public.prazos_processo FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'workflow.admin'::text));
+
+
+--
+-- Name: processo_checklist_respostas wf_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_delete ON public.processo_checklist_respostas FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'workflow.admin'::text));
+
+
+--
+-- Name: processos_administrativos wf_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_delete ON public.processos_administrativos FOR DELETE TO authenticated USING (public.has_permission_code(auth.uid(), 'workflow.admin'::text));
+
+
+--
+-- Name: despachos wf_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_select ON public.despachos FOR SELECT TO authenticated USING (public.wf_pode_ver_processo(processo_id));
+
+
+--
+-- Name: documentos_processo wf_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_select ON public.documentos_processo FOR SELECT TO authenticated USING (public.wf_pode_ver_processo(processo_id));
+
+
+--
+-- Name: movimentacoes_processo wf_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_select ON public.movimentacoes_processo FOR SELECT TO authenticated USING (public.wf_pode_ver_processo(processo_id));
+
+
+--
+-- Name: prazos_processo wf_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_select ON public.prazos_processo FOR SELECT TO authenticated USING (public.wf_pode_ver_processo(processo_id));
+
+
+--
+-- Name: processo_checklist_respostas wf_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_select ON public.processo_checklist_respostas FOR SELECT TO authenticated USING (public.wf_pode_ver_processo(processo_id));
+
+
+--
+-- Name: processos_administrativos wf_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wf_select ON public.processos_administrativos FOR SELECT TO authenticated USING (public.wf_pode_ver_processo(id));
+
 
 --
 -- PostgreSQL database dump complete
