@@ -1,7 +1,9 @@
 /**
- * Dialog para criar novo processo administrativo
+ * Dialog para abrir processo (acompanhamento do SEI). Grava pela RPC wf_abrir_processo e abre o detalhe.
+ * `modeloCodigo` fixa o modelo (usado pelas telas de cada assunto) e esconde o seletor.
  */
-import { useState } from 'react';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -30,18 +32,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { useCriarProcesso } from '@/hooks/useWorkflow';
-import { TIPO_PROCESSO_LABELS, SIGILO_LABELS } from '@/types/workflow';
+import { useAbrirProcesso, useModelosProcesso } from '@/hooks/useAcompanhamentoProcessos';
+import { SIGILO_LABELS } from '@/types/workflow';
 
 const formSchema = z.object({
-  tipo_processo: z.string().min(1, 'Selecione o tipo'),
+  modelo_codigo: z.string().min(1, 'Selecione o modelo'),
+  numero_sei: z.string().max(50, 'Máximo 50 caracteres').optional(),
   assunto: z.string().min(3, 'Mínimo 3 caracteres').max(200, 'Máximo 200 caracteres'),
   descricao: z.string().optional(),
   interessado_tipo: z.enum(['interno', 'externo']),
   interessado_nome: z.string().min(2, 'Mínimo 2 caracteres'),
   interessado_documento: z.string().optional(),
   sigilo: z.enum(['publico', 'restrito', 'sigiloso']),
-  observacoes: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -49,73 +51,107 @@ type FormData = z.infer<typeof formSchema>;
 interface NovoProcessoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Fixa o modelo do processo e esconde o seletor */
+  modeloCodigo?: string;
 }
 
-export function NovoProcessoDialog({ open, onOpenChange }: NovoProcessoDialogProps) {
-  const criarProcesso = useCriarProcesso();
+export function NovoProcessoDialog({ open, onOpenChange, modeloCodigo }: NovoProcessoDialogProps) {
+  const navigate = useNavigate();
+  const abrirProcesso = useAbrirProcesso();
+  const { data: modelos, isLoading: carregandoModelos, isError: erroModelos } = useModelosProcesso();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      tipo_processo: '',
+      modelo_codigo: modeloCodigo ?? '',
+      numero_sei: '',
       assunto: '',
       descricao: '',
       interessado_tipo: 'interno',
       interessado_nome: '',
       interessado_documento: '',
       sigilo: 'publico',
-      observacoes: '',
     },
   });
 
+  useEffect(() => {
+    if (modeloCodigo) form.setValue('modelo_codigo', modeloCodigo);
+  }, [modeloCodigo, form]);
+
   const onSubmit = async (data: FormData) => {
-    await criarProcesso.mutateAsync({
-      tipo_processo: data.tipo_processo as any,
-      assunto: data.assunto,
-      descricao: data.descricao || undefined,
-      interessado_tipo: data.interessado_tipo,
-      interessado_nome: data.interessado_nome,
-      interessado_documento: data.interessado_documento || undefined,
-      sigilo: data.sigilo,
-      observacoes: data.observacoes || undefined,
-    });
-    form.reset();
-    onOpenChange(false);
+    try {
+      const id = await abrirProcesso.mutateAsync({
+        modeloCodigo: data.modelo_codigo,
+        assunto: data.assunto,
+        descricao: data.descricao || undefined,
+        interessadoTipo: data.interessado_tipo,
+        interessadoNome: data.interessado_nome,
+        interessadoDocumento: data.interessado_documento || undefined,
+        sigilo: data.sigilo,
+        numeroSei: data.numero_sei?.trim() || undefined,
+      });
+      form.reset();
+      onOpenChange(false);
+      navigate(`/workflow/processos/${id}`);
+    } catch {
+      // o toast com a mensagem do servidor já foi mostrado pelo hook; o diálogo fica aberto
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Processo Administrativo</DialogTitle>
+          <DialogTitle>Novo processo</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
+              {!modeloCodigo && (
+                <FormField
+                  control={form.control}
+                  name="modelo_codigo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Modelo *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={carregandoModelos ? 'Carregando...' : 'Selecione...'} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(modelos ?? []).map((m) => (
+                            <SelectItem key={m.codigo} value={m.codigo}>{m.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {erroModelos && (
+                        <p className="text-caption text-destructive">Não foi possível carregar os modelos.</p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <FormField
                 control={form.control}
-                name="tipo_processo"
+                name="numero_sei"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Processo *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.entries(TIPO_PROCESSO_LABELS).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Nº do processo no SEI</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Opcional" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="sigilo"
@@ -224,31 +260,13 @@ export function NovoProcessoDialog({ open, onOpenChange }: NovoProcessoDialogPro
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="observacoes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observações</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Observações internas..."
-                      className="min-h-[60px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={criarProcesso.isPending}>
-                {criarProcesso.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Criar Processo
+              <Button type="submit" disabled={abrirProcesso.isPending}>
+                {abrirProcesso.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Abrir processo
               </Button>
             </div>
           </form>

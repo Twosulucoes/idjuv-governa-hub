@@ -99,7 +99,7 @@ export function useModeloProcesso(codigo: string) {
 // ========================
 
 /** Unidade da lotação ativa do usuário logado (profiles.servidor_id -> lotacoes). Nulo = sem lotação. */
-function useUnidadeDoUsuario() {
+export function useUnidadeDoUsuario() {
   const { user } = useAuth();
   return useQuery({
     queryKey: [CHAVE, 'minha-unidade', user?.id],
@@ -166,6 +166,29 @@ export function useProcessosAcompanhamento(filtros: FiltrosAcompanhamento) {
     error: consulta.error ?? (precisaUnidade ? unidade.error : null),
     semLotacao,
   };
+}
+
+export interface UnidadeFiltro {
+  id: string;
+  nome: string;
+  sigla: string | null;
+}
+
+/** Unidades ativas para o filtro da lista (só id, nome e sigla). */
+export function useUnidadesParaFiltro() {
+  return useQuery({
+    queryKey: [CHAVE, 'unidades-filtro'],
+    staleTime: 1000 * 60 * 10,
+    queryFn: async (): Promise<UnidadeFiltro[]> => {
+      const { data, error } = await supabase
+        .from('estrutura_organizacional')
+        .select('id, nome, sigla')
+        .eq('ativo', true)
+        .order('nome');
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 }
 
 export function useProcessoAcompanhamento(id: string) {
