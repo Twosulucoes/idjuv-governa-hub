@@ -152,9 +152,9 @@ $$;
 -- "(proposta)" e o órgão confirma depois; os prazos (5 dias úteis, sem prazo em Fiscalização, Execução e Viagem)
 -- também são proposta, ajustáveis pela tabela.
 -- Siglas (Lei 2.301/2025; a Lei não fixa sigla para a Presidência e as assessorias):
---   PRESI    a página dizia "Presidência"; PRESI é a sigla dos atos (Portaria 001/2026) e a da spec. O cadastro de
---            unidades pode ter PRES (VinculosServidorPanel): a divergência só afeta a resolução da unidade_atual_id
---            e se corrige no cadastro de unidades, não aqui
+--   PRES     a página dizia "Presidência"; PRES é a sigla da Presidência no banco (VinculosServidorPanel) e nenhuma
+--            norma a fixa (D13 em 01_ESTRUTURA_INSTITUCIONAL.md; a numeração da Portaria 001/2026 usa PRESI/GAB, que não
+--            serve de sigla de unidade)
 --   CI, CPL, ASJUR  siglas usadas no cadastro de unidades (a Lei cria Controle Interno, Comissão de Contratação e
 --            Assessoria Jurídica sem sigla; a página dizia CI e CPL)
 --   DIRAF    as páginas dizem DIRAF; pela Lei a execução é da DiCOF (orçamento, empenho, liquidação, pagamento) e da
@@ -164,6 +164,7 @@ $$;
 --            "Almoxarifado"
 --   @ORIGEM  a página dizia Unidade Demandante, Unidade Solicitante, Servidor ou Fiscal de Contrato (unidade de quem
 --            abriu o processo); @CHEFIA: "Chefia Imediata"
+-- base_legal de compras (Lei nº 14.133/2021) e pagamentos (Lei nº 4.320/1964): (proposta), não consta da spec; o órgão confirma
 INSERT INTO public.processo_modelos (codigo, nome, tipo_processo, base_legal) VALUES
   ('compras', 'Compras e Contratos', 'compra', 'Lei nº 14.133/2021'),
   ('diarias', 'Diárias e Viagens', 'diaria', NULL),
@@ -180,7 +181,7 @@ FROM (VALUES
   ('compras', 1, 'Termo de Demanda', '@ORIGEM', 'Unidade Demandante', 5),
   ('compras', 2, 'Análise Orçamentária', 'DIRAF', 'DIRAF', 5),
   ('compras', 3, 'Parecer Controle Interno', 'CI', 'Controle Interno', 5),
-  ('compras', 4, 'Autorização', 'PRESI', 'Presidência', 5),
+  ('compras', 4, 'Autorização', 'PRES', 'Presidência', 5),
   ('compras', 5, 'Processo Licitatório', 'CPL', 'Comissão de Contratação', 5),
   ('compras', 6, 'Contratação', 'DIRAF', 'DIRAF', 5),
   ('compras', 7, 'Fiscalização', '@ORIGEM', 'Fiscal de Contrato', NULL),
@@ -188,7 +189,7 @@ FROM (VALUES
   ('diarias', 1, 'Solicitação', '@ORIGEM', 'Servidor', 5),
   ('diarias', 2, 'Aprovação Chefia', '@CHEFIA', 'Chefia Imediata', 5),
   ('diarias', 3, 'Ordem de Missão', 'DIRAF', 'DIRAF', 5),
-  ('diarias', 4, 'Autorização', 'PRESI', 'Presidência', 5),
+  ('diarias', 4, 'Autorização', 'PRES', 'Presidência', 5),
   ('diarias', 5, 'Empenho/Pagamento', 'DIRAF', 'DIRAF', 5),
   ('diarias', 6, 'Viagem', '@ORIGEM', 'Servidor', NULL),
   ('diarias', 7, 'Relatório', '@ORIGEM', 'Servidor', 5),
@@ -196,7 +197,7 @@ FROM (VALUES
   ('convenios', 1, 'Proposta/Plano de Trabalho', '@ORIGEM', 'Unidade Proponente', 5),
   ('convenios', 2, 'Análise Jurídica', 'ASJUR', 'Assessoria Jurídica', 5),
   ('convenios', 3, 'Aprovação Técnica', '@ORIGEM', 'Unidade Proponente', 5),
-  ('convenios', 4, 'Celebração', 'PRESI', 'Presidência', 5),
+  ('convenios', 4, 'Celebração', 'PRES', 'Presidência', 5),
   ('convenios', 5, 'Execução', '@ORIGEM', 'Unidade Proponente', NULL),
   ('convenios', 6, 'Prestação de Contas', 'DIRAF', 'DIRAF', 5),
   ('almoxarifado', 1, 'Requisição', '@ORIGEM', 'Unidade Solicitante', 5),
@@ -209,14 +210,14 @@ FROM (VALUES
   ('pagamentos', 2, 'Conferência Documental', 'DIRAF', 'DIRAF', 5),
   ('pagamentos', 3, 'Empenho', 'DIRAF', 'DIRAF', 5),
   ('pagamentos', 4, 'Liquidação', 'DIRAF', 'DIRAF', 5),
-  ('pagamentos', 5, 'Ordenação', 'PRESI', 'Presidência (ordenador de despesas)', 5),
+  ('pagamentos', 5, 'Ordenação', 'PRES', 'Presidência (ordenador de despesas)', 5),
   ('pagamentos', 6, 'Pagamento', 'DIRAF', 'DIRAF', 5),
   ('patrimonio_tombamento', 1, 'Recebimento', '@ORIGEM', 'Unidade Recebedora', 5),
   ('patrimonio_tombamento', 2, 'Tombamento', 'NuPat', 'Patrimônio', 5),
   ('patrimonio_tombamento', 3, 'Termo de Responsabilidade', '@ORIGEM', 'Responsável pelo bem', 5),
   ('patrimonio_baixa', 1, 'Laudo', 'NuPat', 'Patrimônio', 5),
   ('patrimonio_baixa', 2, 'Parecer Controle Interno', 'CI', 'Controle Interno', 5),
-  ('patrimonio_baixa', 3, 'Autorização', 'PRESI', 'Presidência', 5),
+  ('patrimonio_baixa', 3, 'Autorização', 'PRES', 'Presidência', 5),
   ('patrimonio_baixa', 4, 'Destinação', 'NuPat', 'Patrimônio', 5)
 ) AS v(modelo, ordem, nome, unidade_sigla, rotulo, prazo)
 JOIN public.processo_modelos m ON m.codigo = v.modelo

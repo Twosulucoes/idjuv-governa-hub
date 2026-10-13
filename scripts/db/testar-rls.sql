@@ -4912,6 +4912,16 @@ BEGIN
     PERFORM pg_temp.falha('wf: fn_somar_dias_uteis(sábado 17/10, 1) devia dar 19/10 e deu ' || coalesce(d::text, 'nulo'));
   END IF;
 
+  -- p_dias nulo ou negativo não anda: devolve a própria data
+  d := public.fn_somar_dias_uteis(DATE '2026-10-16', NULL);
+  IF d IS DISTINCT FROM DATE '2026-10-16' THEN
+    PERFORM pg_temp.falha('wf: fn_somar_dias_uteis(data, NULL) devia devolver a própria data e deu ' || coalesce(d::text, 'nulo'));
+  END IF;
+  d := public.fn_somar_dias_uteis(DATE '2026-10-16', -3);
+  IF d IS DISTINCT FROM DATE '2026-10-16' THEN
+    PERFORM pg_temp.falha('wf: fn_somar_dias_uteis(data, -3) devia devolver a própria data e deu ' || coalesce(d::text, 'nulo'));
+  END IF;
+
   -- dias úteis: feriado (25/12/2026 é sexta)
   INSERT INTO public.feriados (data, nome, tipo, recorrente, ativo)
     VALUES (DATE '2026-12-25', 'Natal (teste do workflow)', 'nacional', false, true) RETURNING id INTO fid;
