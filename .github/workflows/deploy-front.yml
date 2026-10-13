@@ -15,6 +15,7 @@ name: Deploy do front (VPS)
 #             VPS_DEPLOY_USER e VPS_DEPLOY_KEY (usuário só para o deploy, dono apenas da pasta do site).
 #   Variáveis: VPS_FRONT_DIR (pasta que o nginx serve, ex.: /var/www/idjuv),
 #              opcional VPS_APP_DIR (pasta do app.idjuv.online, ex.: /var/www/idjuv-app; recebe a mesma cópia do build),
+#              opcionais VPS_SITE_DIR, VITE_APP_URL, VITE_SITE_URL (build `site`: institucional enxuto, ver docs/DESENVOLVIMENTO.md),
 #              VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, VITE_SUPABASE_PROJECT_ID, VITE_TENANT_SLUG
 #              (valores públicos do front; a chave é a anon, protegida por RLS),
 #              opcionais FRONT_URL (padrão https://idjuv.online, para a conferência final)
@@ -44,6 +45,9 @@ jobs:
       VPS_DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
       VPS_FRONT_DIR: ${{ vars.VPS_FRONT_DIR }}
       VPS_APP_DIR: ${{ vars.VPS_APP_DIR }}
+      VPS_SITE_DIR: ${{ vars.VPS_SITE_DIR }}
+      VITE_APP_URL: ${{ vars.VITE_APP_URL }}
+      VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       VITE_SUPABASE_PROJECT_ID: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
@@ -150,6 +154,28 @@ jobs:
             dist/index.html dist/sw.js dist/registerSW.js dist/manifest.webmanifest "$destino"
           $RSH "${VPS_DEPLOY_USER}@${VPS_SSH_HOST}" \
             "find '${VPS_APP_DIR%/}/assets' -type f -mtime +${DIAS_ASSETS_ANTIGOS} -delete"
+
+      # Site institucional enxuto (build `site`, sem o sistema interno). Roda DEPOIS do site e do app e só se
+      # VPS_SITE_DIR existir. Por ora vai para um host de teste; a troca de idjuv.online é decisão à parte.
+      - name: Build do site institucional (VITE_APP_MODE=site)
+        if: steps.config.outputs.ok == 'true' && env.VPS_SITE_DIR != ''
+        run: |
+          npm run build:site
+          node scripts/check-bundle-site.mjs dist-site
+          host=$(printf '%s' "$VITE_SUPABASE_URL" | sed -E 's#^https?://([^/]+).*#\1#')
+          grep -rqF "$host" dist-site/assets || { echo "::error::build do site não contém $host"; exit 1; }
+          test -s dist-site/index.html
+
+      - name: Publicar o site institucional
+        if: steps.config.outputs.ok == 'true' && env.VPS_SITE_DIR != ''
+        run: |
+          destino="${VPS_DEPLOY_USER}@${VPS_SSH_HOST}:${VPS_SITE_DIR%/}/"
+          rsync -rlz --chmod=D755,F644 -e "$RSH" \
+            --exclude=/index.html --exclude=/sw.js \
+            dist-site/ "$destino"
+          rsync -rlz --chmod=F644 -e "$RSH" dist-site/index.html dist-site/sw.js "$destino"
+          $RSH "${VPS_DEPLOY_USER}@${VPS_SSH_HOST}" \
+            "find '${VPS_SITE_DIR%/}/assets' -type f -mtime +${DIAS_ASSETS_ANTIGOS} -delete"
 
       - name: Conferir o site no ar
         if: steps.config.outputs.ok == 'true'

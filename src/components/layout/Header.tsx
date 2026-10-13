@@ -18,6 +18,8 @@ import { UserMenu } from "@/components/auth/UserMenu";
 import { useConfigMenuPublico } from "@/hooks/useConfigMenuPublico";
 
 import { useTenant } from '@/core/tenant';
+import { MODO_SITE, filtrarMenuParaSite } from "@/core/modo-app";
+import { LinkSistema } from "./LinkSistema";
 import { LogoEntidadeSuperior } from '@/components/ui/Logo';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
@@ -109,12 +111,17 @@ const menuItems = [
   },
 ];
 
+// No build `site` o menu só tem o que o site serve (ver src/core/modo-app.ts).
+const menuBase = MODO_SITE ? filtrarMenuParaSite(menuItems) : menuItems;
+
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const location = useLocation();
   const { resolvedTheme, setTheme } = useTheme();
-  const { isAuthenticated, signOut, user } = useAuth();
+  const { isAuthenticated: sessaoAtiva, signOut, user } = useAuth();
+  // O site não mostra estado de login: uma sessão antiga guardada neste domínio não pode virar botão "Sistema".
+  const isAuthenticated = !MODO_SITE && sessaoAtiva;
   const { entidadeSuperior } = useTenant();
   const { data: configMenu, isLoading: menuLoading, isError: menuError } = useConfigMenuPublico();
 
@@ -122,8 +129,8 @@ export function Header() {
   // ainda não tem configuração cadastrada.
   const menuItemsVisiveis =
     menuLoading || menuError || !configMenu
-      ? menuItems
-      : menuItems.filter((item) => {
+      ? menuBase
+      : menuBase.filter((item) => {
           const config = configMenu.find((c) => c.chave === item.chave);
           return config ? config.visivel : true;
         });
@@ -191,12 +198,12 @@ export function Header() {
             </Button>
             
             {/* Link para Área Restrita + UserMenu se logado */}
-            <Link 
+            <LinkSistema 
               to={isAuthenticated ? "/sistema" : "/auth"} 
               className="inline-flex min-h-11 items-center text-sm font-medium px-4 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
             >
               {isAuthenticated ? "Sistema" : "Área Restrita"}
-            </Link>
+            </LinkSistema>
             {isAuthenticated && <UserMenu showRoleBadge={false} />}
           </div>
         </div>
@@ -365,13 +372,13 @@ export function Header() {
                   </Button>
                 </>
               ) : (
-                <Link 
+                <LinkSistema 
                   to="/auth"
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center justify-center w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg font-medium touch-target"
                 >
                   Área Restrita
-                </Link>
+                </LinkSistema>
               )}
             </div>
           </div>

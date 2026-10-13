@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FileText, Building2, MapPin, Phone, Mail, Clock } from "lucide-react";
 import { Logo, LogoEntidadeSuperior } from "@/components/ui/Logo";
 import { useTenant } from '@/core/tenant';
+import { LinkSistema } from "@/components/layout/LinkSistema";
 
 export default function HomeSimplesPage() {
   const { identidade, contato, endereco } = useTenant();
@@ -51,10 +52,10 @@ export default function HomeSimplesPage() {
                   className="text-base px-8 bg-transparent border-primary-foreground/30 hover:bg-primary-foreground/10"
                   asChild
                 >
-                  <Link to="/auth">
+                  <LinkSistema to="/auth">
                     <Building2 className="mr-2 h-5 w-5" aria-hidden="true" />
                     Área administrativa
-                  </Link>
+                  </LinkSistema>
                 </Button>
               </div>
             </div>

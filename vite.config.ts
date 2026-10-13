@@ -95,13 +95,51 @@ function tenantHtml(meta: TenantMetadata): Plugin {
   };
 }
 
+/**
+ * Build `site`: entrada própria, sem PWA e com `sw.js` de limpeza. O site não é PWA, mas quem já visitou o domínio tem o service worker do app completo
+ * (com o app antigo em cache). Este `sw.js` é buscado pelo navegador na próxima visita, se instala no lugar
+ * do antigo, apaga os caches e se desregistra. Sem ele, o visitante antigo continuaria vendo o app.
+ */
+function modoSite(): Plugin {
+  const codigo = [
+    "self.addEventListener('install', () => self.skipWaiting());",
+    "self.addEventListener('activate', (e) => e.waitUntil((async () => {",
+    "  for (const k of await caches.keys()) await caches.delete(k);",
+    "  await self.registration.unregister();",
+    "  for (const c of await self.clients.matchAll({ type: 'window' })) c.navigate(c.url);",
+    "})()));",
+    "",
+  ].join("\n");
+  return {
+    name: "modo-site",
+    apply: "build",
+    // Sem PWA não há manifest.webmanifest: tirar o <link> para não apontar para um arquivo que não existe.
+    // A entrada do site é outra (src/main-site.tsx): o main.tsx do sistema não muda.
+    // `pre`: tem de rodar antes de o Vite resolver o <script> de entrada.
+    transformIndexHtml: {
+      order: "pre",
+      handler: (html) =>
+        html
+          .replace(/[ \t]*<link rel="manifest"[^>]*>\r?\n?/, "")
+          .replace('src="/src/main.tsx"', 'src="/src/main-site.tsx"'),
+    },
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "sw.js", source: codigo });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const meta = resolverMetadata(env.VITE_TENANT_SLUG);
 
   sincronizarIcones(meta);
 
+  // Build `site` (`vite build --mode site`): institucional, sem PWA, saída separada (ver src/core/modo-app.ts).
+  const ehSite = mode === "site";
+
   return {
+    build: { outDir: ehSite ? "dist-site" : "dist" },
     server: {
       host: "::",
       port: 8080,
@@ -109,7 +147,8 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tenantHtml(meta),
-      VitePWA({
+      ehSite && modoSite(),
+      !ehSite && VitePWA({
         registerType: "autoUpdate",
         includeAssets: ["favicon.png", "favicon.ico", "apple-touch-icon.png"],
         manifest: {

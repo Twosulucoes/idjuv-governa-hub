@@ -61,6 +61,11 @@ printf "\n${AMARELO}▸ build${SEM}\n"
 if npx vite build >/tmp/gate-build.log 2>&1; then printf "${VERDE}  ✔ build${SEM}\n"
 else tail -30 /tmp/gate-build.log; printf "${VERMELHO}  ✘ build${SEM}\n"; falhas+=("build"); fi
 
+# Build do site institucional (VITE_APP_MODE=site → dist-site/): não pode conter o sistema interno.
+printf "\n${AMARELO}▸ build do site${SEM}\n"
+if VITE_APP_MODE=site npx vite build --mode site >/tmp/gate-build-site.log 2>&1 && node scripts/check-bundle-site.mjs dist-site; then printf "${VERDE}  ✔ build do site${SEM}\n"
+else tail -30 /tmp/gate-build-site.log; printf "${VERMELHO}  ✘ build do site${SEM}\n"; falhas+=("build do site"); fi
+
 printf "\n────────────────────────────────────────\n"
 duracao=$(( $(date +%s) - inicio ))
 if [ ${#falhas[@]} -eq 0 ]; then printf "${VERDE}Gate verde em %ss.${SEM}\n" "$duracao"; exit 0; fi

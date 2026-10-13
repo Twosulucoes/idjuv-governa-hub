@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:site": "VITE_APP_MODE=site vite build --mode site",
+    "check:bundle-site": "node scripts/check-bundle-site.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
