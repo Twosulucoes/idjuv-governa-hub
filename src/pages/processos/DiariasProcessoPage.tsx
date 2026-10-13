@@ -1,51 +1,15 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
-import { 
-  ArrowLeft, ArrowRight, CheckCircle2, Circle, 
-  FileText, AlertTriangle, Download, Users, Clock, ClipboardList
-} from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileText, Users, Clock, ClipboardList } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { PageHeader, StatusBadge } from "@/components/design-system";
+import { PageHeader } from "@/components/design-system";
 import { useIdentidade } from "@/core/tenant";
-
-const fluxoEtapas = [
-  { id: 1, nome: "Solicitação", responsavel: "Servidor" },
-  { id: 2, nome: "Aprovação Chefia", responsavel: "Chefia Imediata" },
-  { id: 3, nome: "Ordem de Missão", responsavel: "DIRAF" },
-  { id: 4, nome: "Autorização", responsavel: "Presidência" },
-  { id: 5, nome: "Empenho/Pagamento", responsavel: "DIRAF" },
-  { id: 6, nome: "Viagem", responsavel: "Servidor" },
-  { id: 7, nome: "Relatório", responsavel: "Servidor" },
-  { id: 8, nome: "Prestação de Contas", responsavel: "DIRAF" },
-];
-
-const checklistItems = [
-  { id: "solicitacao", label: "Formulário de solicitação de diária preenchido", obrigatorio: true },
-  { id: "justificativa", label: "Justificativa da missão (interesse público)", obrigatorio: true },
-  { id: "programacao", label: "Programação da viagem com cronograma", obrigatorio: true },
-  { id: "aprovacao", label: "Aprovação da chefia imediata", obrigatorio: true },
-  { id: "ordem", label: "Ordem de Missão emitida", obrigatorio: true },
-  { id: "autorizacao", label: "Autorização da Presidência", obrigatorio: true },
-];
+import { GuiaProcessoModelo } from "@/components/processos/GuiaProcessoModelo";
 
 export default function DiariasProcessoPage() {
   const { sigla } = useIdentidade();
-  const [checkedItems, setCheckedItems] = useState<string[]>([]);
-
-  const toggleItem = (id: string) => {
-    setCheckedItems(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
-
-  const obrigatoriosCount = checklistItems.filter(i => i.obrigatorio).length;
-  const obrigatoriosChecked = checklistItems.filter(i => i.obrigatorio && checkedItems.includes(i.id)).length;
-  const canProceed = obrigatoriosChecked === obrigatoriosCount;
-
   return (
     <ModuleLayout module="compras">
       <div className="space-y-6">
@@ -127,108 +91,26 @@ export default function DiariasProcessoPage() {
             </CardContent>
           </Card>
 
-          {/* Fluxograma */}
-          <h2 className="text-h2 text-foreground pt-2">Fluxograma do processo</h2>
-          <div className="bg-muted/30 rounded-xl p-6">
-            <ol className="flex flex-wrap justify-center gap-4">
-              {fluxoEtapas.map((etapa, index) => (
-                <li key={etapa.id} className="flex items-center">
-                  <div className="fluxo-etapa min-w-[120px]">
-                    <div className="text-caption text-muted-foreground mb-1">Etapa {etapa.id}</div>
-                    <div className="font-medium text-sm">{etapa.nome}</div>
-                    <div className="text-caption text-primary mt-1">{etapa.responsavel}</div>
-                  </div>
-                  {index < fluxoEtapas.length - 1 && (
-                    <ArrowRight className="w-6 h-6 text-muted-foreground mx-2 hidden lg:block" aria-hidden="true" />
-                  )}
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          {/* Checklist */}
-          <h2 className="text-h2 text-foreground pt-2">Checklist obrigatório</h2>
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <CardTitle>Documentação necessária</CardTitle>
-                  <CardDescription>
-                    Marque os itens conforme forem providenciados
-                  </CardDescription>
-                </div>
-                <StatusBadge tom={canProceed ? "sucesso" : "pendente"}>
-                  {obrigatoriosChecked}/{obrigatoriosCount} obrigatórios
-                </StatusBadge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {checklistItems.map((item) => (
-                  <div 
-                    key={item.id}
-                    className={`checklist-item ${checkedItems.includes(item.id) ? 'checked' : ''}`}
-                  >
-                    <Checkbox
-                      id={item.id}
-                      checked={checkedItems.includes(item.id)}
-                      onCheckedChange={() => toggleItem(item.id)}
-                    />
-                    <label 
-                      htmlFor={item.id} 
-                      className="flex-1 text-sm cursor-pointer"
-                    >
-                      {item.label}
-                      {item.obrigatorio && (
-                        <span className="text-destructive ml-1">*</span>
-                      )}
-                    </label>
-                    {checkedItems.includes(item.id) ? (
-                      <CheckCircle2 className="w-5 h-5 text-success" aria-hidden="true" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-muted-foreground/30" aria-hidden="true" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Alerta */}
-          {!canProceed && (
-            <div className="alerta-conformidade" role="note">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" aria-hidden="true" />
-                <div>
-                  <h3 className="font-semibold">Atenção</h3>
-                  <p className="text-sm text-muted-foreground">
-                    A solicitação deve ser feita com antecedência mínima de 5 dias úteis. 
-                    Pedidos fora do prazo só serão autorizados em casos excepcionais.
-                  </p>
-                </div>
+          <div className="alerta-conformidade" role="note">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <h3 className="font-semibold">Atenção</h3>
+                <p className="text-sm text-muted-foreground">
+                  A solicitação deve ser feita com antecedência mínima de 5 dias úteis. Pedidos fora do prazo só serão autorizados em casos excepcionais.
+                </p>
               </div>
             </div>
-          )}
-
-          {/* Ações */}
-          <div className="flex flex-wrap gap-4 justify-between items-center">
-            <Button asChild variant="outline">
-              <Link to="/processos">
-                <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
-                Voltar
-              </Link>
-            </Button>
-            <div className="flex gap-4">
-              <Button variant="outline">
-                <Download className="w-4 h-4 mr-2" aria-hidden="true" />
-                Baixar modelos
-              </Button>
-              <Button disabled={!canProceed}>
-                Iniciar processo
-                <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />
-              </Button>
-            </div>
           </div>
+
+          <GuiaProcessoModelo modeloCodigo="diarias" />
+
+          <Button asChild variant="outline">
+            <Link to="/processos">
+              <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
+              Voltar
+            </Link>
+          </Button>
         </div>
       </div>
     </ModuleLayout>

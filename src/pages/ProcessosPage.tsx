@@ -24,7 +24,7 @@ const processosItems = [
   },
   {
     title: "Patrimônio",
-    description: "Tombamento, distribuição, inventário e baixa de bens patrimoniais",
+    description: "Tombamento e baixa de bens patrimoniais",
     icon: Building2,
     href: "/processos/patrimonio",
     baseLegal: "IN TCE-RR",
@@ -48,11 +48,11 @@ const processosItems = [
   },
   {
     title: "Veículos",
-    description: "Controle de uso, tráfego e manutenção de veículos oficiais",
+    description: "Controle de frota (ainda não implantado)",
     icon: Car,
     href: "/processos/veiculos",
     baseLegal: "IN Interna",
-    status: "ativo",
+    status: "em_breve",
   },
   {
     title: "Pagamentos",
@@ -97,9 +97,9 @@ export default function ProcessosPage() {
             <div className="bg-warning/10 border-l-4 border-warning rounded-r-lg p-6 mb-8">
               <h2 className="font-semibold text-lg mb-2">Orientação Importante</h2>
               <p className="text-muted-foreground leading-relaxed">
-                Todos os processos administrativos do IDJUV seguem fluxos padronizados com 
-                checklist obrigatório, garantindo conformidade com normas do TCE-RR. Cada 
-                processo gera documentação rastreável e auditável.
+                Cada tipo de processo tem etapas e checklist padronizados. Aqui você consulta o
+                fluxo e acompanha os processos que tramitam no SEI; o ato formal (portaria,
+                termo, requerimento) continua sendo elaborado e assinado no SEI.
               </p>
             </div>
 
@@ -116,9 +116,13 @@ export default function ProcessosPage() {
                         <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
                           <item.icon className="w-6 h-6 text-secondary" />
                         </div>
-                        <Badge variant="outline" className="text-success border-success">
-                          Ativo
-                        </Badge>
+                        {item.status === "ativo" ? (
+                          <Badge variant="outline" className="text-success border-success">
+                            Ativo
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Em breve</Badge>
+                        )}
                       </div>
                       <CardTitle className="text-lg group-hover:text-secondary transition-colors mt-3">
                         {item.title}
