@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ROTAS_DO_SITE, rotaFicaNoSite, urlDoSistema, filtrarMenuParaSite } from './modo-app';
+import { ROTAS_DO_SITE, rotaFicaNoSite, urlDoSistema, filtrarMenuParaSite, ehHostDoApp } from './modo-app';
 
 describe('rotaFicaNoSite', () => {
   it('aceita as rotas do site e seus filhos', () => {
@@ -72,5 +72,26 @@ describe('filtrarMenuParaSite', () => {
   it('não altera o menu original', () => {
     expect(menu).toHaveLength(7);
     expect(menu[3].items).toHaveLength(2);
+  });
+});
+
+describe('ehHostDoApp', () => {
+  it('reconhece o host do app, com ou sem barra e caminho na URL configurada', () => {
+    expect(ehHostDoApp('app.idjuv.online', 'https://app.idjuv.online')).toBe(true);
+    expect(ehHostDoApp('app.idjuv.online', 'https://app.idjuv.online/')).toBe(true);
+    expect(ehHostDoApp('app.idjuv.online', 'https://app.idjuv.online/sistema')).toBe(true);
+  });
+  it('ignora maiúsculas no host', () => {
+    expect(ehHostDoApp('APP.idjuv.online', 'https://app.idjuv.online')).toBe(true);
+  });
+  it('o site e outros hosts não são o app', () => {
+    expect(ehHostDoApp('idjuv.online', 'https://app.idjuv.online')).toBe(false);
+    expect(ehHostDoApp('www.idjuv.online', 'https://app.idjuv.online')).toBe(false);
+    expect(ehHostDoApp('idjuv-site.169.58.144.179.sslip.io', 'https://app.idjuv.online')).toBe(false);
+  });
+  it('sem URL do app configurada (ou inválida) nunca redireciona', () => {
+    expect(ehHostDoApp('app.idjuv.online', '')).toBe(false);
+    expect(ehHostDoApp('app.idjuv.online', undefined)).toBe(false);
+    expect(ehHostDoApp('app.idjuv.online', 'isto-nao-e-url')).toBe(false);
   });
 });
