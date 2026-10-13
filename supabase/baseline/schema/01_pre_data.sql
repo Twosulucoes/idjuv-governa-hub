@@ -13562,6 +13562,32 @@ $$;
 
 
 --
+-- Name: wf_listar_credenciais(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.wf_listar_credenciais(p_processo_id uuid) RETURNS TABLE(usuario_id uuid, usuario_nome text, nivel_acesso text, motivo text, concedido_por_nome text, created_at timestamp with time zone)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  IF p_processo_id IS NULL OR NOT coalesce(public.wf_pode_ver_processo(p_processo_id), false) THEN
+    RAISE EXCEPTION 'Processo não encontrado ou você não tem acesso a ele.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.admin') THEN
+    RAISE EXCEPTION 'Você não tem permissão para gerenciar credenciais de sigilo.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT a.usuario_id, u.full_name, a.nivel_acesso, a.motivo, c.full_name, a.created_at
+    FROM public.acesso_processo_sigiloso a
+    LEFT JOIN public.profiles u ON u.id = a.usuario_id
+    LEFT JOIN public.profiles c ON c.id = a.concedido_por
+   WHERE a.processo_id = p_processo_id
+   ORDER BY u.full_name NULLS LAST, a.created_at;
+END;
+$$;
+
+
+--
 -- Name: wf_marcar_item(uuid, text, boolean, text); Type: FUNCTION; Schema: public; Owner: -
 --
 

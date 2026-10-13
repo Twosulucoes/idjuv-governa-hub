@@ -272,6 +272,7 @@ BEGIN
     'public.wf_atualizar_numero_sei(uuid, text)',
     'public.wf_conceder_acesso(uuid, uuid, text, text)',
     'public.wf_revogar_acesso(uuid, uuid)',
+    'public.wf_listar_credenciais(uuid)',
     'public.fn_situacao_prazo(date)'] LOOP
     EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon, service_role', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f);

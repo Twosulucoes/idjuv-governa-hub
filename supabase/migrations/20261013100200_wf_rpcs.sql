@@ -25,7 +25,7 @@
 --   2. funções internas (sem EXECUTE pela API): wf_resolver_unidade, wf_travar_processo, wf_exigir_em_andamento,
 --      wf_pendencias, wf_preparar_numero_sei, wf_registrar_movimentacao
 --   3. RPCs: wf_abrir_processo, wf_marcar_item, wf_avancar_etapa, wf_devolver_etapa, wf_suspender, wf_reativar,
---      wf_concluir, wf_arquivar, wf_atualizar_numero_sei, wf_conceder_acesso, wf_revogar_acesso
+--      wf_concluir, wf_arquivar, wf_atualizar_numero_sei, wf_conceder_acesso, wf_revogar_acesso, wf_listar_credenciais
 --   4. fn_situacao_prazo e a view v_processos_acompanhamento (security_invoker)
 --   5. privilégios (mesmas linhas no supabase/baseline/overlay/40_privilegios.sql)
 -- ============================================================================
@@ -615,6 +615,33 @@ BEGIN
 END;
 $$;
 
+-- Lista as credenciais de sigilo do processo (aba Credenciais). A RLS de acesso_processo_sigiloso só deixa o papel
+-- admin ler; esta leitura serve a quem tem workflow.admin. Sigilo primeiro (mesma mensagem de processo inexistente),
+-- depois a permissão. Sem trava (só leitura). Nomes só de profiles.full_name: sem e-mail nem CPF.
+CREATE OR REPLACE FUNCTION public.wf_listar_credenciais(p_processo_id uuid)
+RETURNS TABLE(usuario_id uuid, usuario_nome text, nivel_acesso text, motivo text, concedido_por_nome text, created_at timestamptz)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF p_processo_id IS NULL OR NOT coalesce(public.wf_pode_ver_processo(p_processo_id), false) THEN
+    RAISE EXCEPTION 'Processo não encontrado ou você não tem acesso a ele.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT public.has_permission_code(auth.uid(), 'workflow.admin') THEN
+    RAISE EXCEPTION 'Você não tem permissão para gerenciar credenciais de sigilo.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT a.usuario_id, u.full_name, a.nivel_acesso, a.motivo, c.full_name, a.created_at
+    FROM public.acesso_processo_sigiloso a
+    LEFT JOIN public.profiles u ON u.id = a.usuario_id
+    LEFT JOIN public.profiles c ON c.id = a.concedido_por
+   WHERE a.processo_id = p_processo_id
+   ORDER BY u.full_name NULLS LAST, a.created_at;
+END;
+$$;
+
 -- ----------------------------------------------------------------------------
 -- 4. Semáforo do prazo e view da lista
 -- ----------------------------------------------------------------------------
@@ -713,6 +740,7 @@ BEGIN
     'public.wf_atualizar_numero_sei(uuid, text)',
     'public.wf_conceder_acesso(uuid, uuid, text, text)',
     'public.wf_revogar_acesso(uuid, uuid)',
+    'public.wf_listar_credenciais(uuid)',
     'public.fn_situacao_prazo(date)'] LOOP
     EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon, service_role', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f);

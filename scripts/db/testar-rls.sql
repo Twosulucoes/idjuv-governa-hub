@@ -5240,6 +5240,7 @@ DECLARE
   u_arq uuid := 'a0000000-0000-0000-0000-0000000000eb';    -- visualizar, arquivar
   u_tudo uuid := 'a0000000-0000-0000-0000-0000000000ec';   -- todas as permissões menos admin; sem credencial
   u_ct uuid := 'a0000000-0000-0000-0000-0000000000ed';     -- visualizar, tramitar; recebe credencial no sigiloso
+  u_admin_papel uuid := (SELECT uid FROM persona WHERE nome = 'admin');   -- papel admin
   un_chefe uuid := 'c1000000-0000-0000-0000-0000000000e1';
   un_orig uuid := 'c1000000-0000-0000-0000-0000000000e2';
   un_nupat uuid := 'c1000000-0000-0000-0000-0000000000e3';
@@ -5574,6 +5575,25 @@ BEGIN
     PERFORM pg_temp.falha('wf rpc: credencial devia ficar tramitacao, concedida por workflow.admin');
   END IF;
   PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_ct, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''justificativa'', true, NULL)', p_s)), 'ok', 'credencial de tramitação marca item');
+  -- leitura das credenciais (aba Credenciais): workflow.admin lista, com nomes do perfil; sem admin, 42501; quem não vê
+  -- o sigiloso recebe a mesma mensagem de processo inexistente
+  UPDATE public.profiles SET full_name = 'Credenciado teste wf' WHERE id = u_ct;
+  UPDATE public.profiles SET full_name = 'Admin workflow teste wf' WHERE id = u_wfa;
+  r := pg_temp.valor_desfeito_como(u_wfa, 'authenticated', format(
+    'SELECT string_agg(concat_ws(''|'', usuario_id, usuario_nome, nivel_acesso, motivo, concedido_por_nome, (created_at IS NOT NULL)::text), '';'') FROM public.wf_listar_credenciais(%L)', p_s));
+  -- a troca para tramitação gravou motivo nulo (o upsert substitui o motivo), que concat_ws omite
+  esperado := concat_ws('|', u_ct, 'Credenciado teste wf', 'tramitacao', 'Admin workflow teste wf', 'true');
+  IF r IS DISTINCT FROM esperado THEN PERFORM pg_temp.falha(format('wf rpc: wf_listar_credenciais por workflow.admin = %s (esperado %s)', r, esperado)); END IF;
+  r := pg_temp.valor_desfeito_como(u_admin_papel, 'authenticated', format('SELECT count(*)::text FROM public.wf_listar_credenciais(%L)', p_s));
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('wf rpc: papel admin não lista as credenciais: ' || coalesce(r, 'nulo')); END IF;
+  r := pg_temp.sql_como(u_op, 'authenticated', format('SELECT * FROM public.wf_listar_credenciais(%L)', p_s));
+  PERFORM pg_temp.wf_confere(r, 'erro:42501', 'criador sem workflow.admin lista credenciais');
+  r := pg_temp.sql_como(u_vis, 'authenticated', format('SELECT * FROM public.wf_listar_credenciais(%L)', p1));
+  PERFORM pg_temp.wf_confere(r, 'erro:42501', 'visualizar lista credenciais');
+  r := pg_temp.sql_como(u_tudo, 'authenticated', format('SELECT * FROM public.wf_listar_credenciais(%L)', p_s));
+  r2 := pg_temp.sql_como(u_tudo, 'authenticated', format('SELECT * FROM public.wf_listar_credenciais(%L)', fantasma));
+  PERFORM pg_temp.wf_confere(r, 'erro:42501', 'sem acesso ao sigiloso lista credenciais');
+  IF r IS DISTINCT FROM r2 THEN PERFORM pg_temp.falha(format('wf rpc: wf_listar_credenciais distingue sigiloso (%s) de inexistente (%s)', r, r2)); END IF;
   PERFORM pg_temp.wf_confere(pg_temp.exec_como(u_wfa, 'authenticated', format('SELECT public.wf_revogar_acesso(%L, %L)', p_s, u_ct)), 'ok', 'workflow.admin revoga');
   PERFORM pg_temp.wf_confere(pg_temp.sql_como(u_ct, 'authenticated', format('SELECT public.wf_marcar_item(%L, ''justificativa'', true, NULL)', p_s)), 'erro:42501', 'credencial revogada marca item');
   IF EXISTS (SELECT 1 FROM public.acesso_processo_sigiloso WHERE processo_id = p_s AND usuario_id = u_ct) THEN
@@ -5603,7 +5623,8 @@ BEGIN
       'public.wf_marcar_item(uuid, text, boolean, text)', 'public.wf_avancar_etapa(uuid, integer, text)',
       'public.wf_devolver_etapa(uuid, integer, integer, text)', 'public.wf_suspender(uuid, text)', 'public.wf_reativar(uuid, text)',
       'public.wf_concluir(uuid, text)', 'public.wf_arquivar(uuid, text)', 'public.wf_atualizar_numero_sei(uuid, text)',
-      'public.wf_conceder_acesso(uuid, uuid, text, text)', 'public.wf_revogar_acesso(uuid, uuid)', 'public.fn_situacao_prazo(date)'] LOOP
+      'public.wf_conceder_acesso(uuid, uuid, text, text)', 'public.wf_revogar_acesso(uuid, uuid)', 'public.wf_listar_credenciais(uuid)',
+      'public.fn_situacao_prazo(date)'] LOOP
     IF to_regprocedure(q) IS NULL THEN
       PERFORM pg_temp.falha('wf rpc: ' || q || ' não existe');
       CONTINUE;
@@ -5618,7 +5639,12 @@ BEGIN
       IF NOT (SELECT prosecdef FROM pg_proc WHERE oid = to_regprocedure(q)) THEN
         PERFORM pg_temp.falha('wf rpc: ' || q || ' devia ser SECURITY DEFINER');
       END IF;
-      IF q NOT LIKE 'public.wf_abrir_processo%' AND (SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure(q)) !~ 'wf_travar_processo' THEN
+      -- a listagem de credenciais só lê: sem trava, mas com o sigilo antes de tudo e STABLE
+      IF q LIKE 'public.wf_listar_credenciais%' THEN
+        IF (SELECT prosrc !~ 'wf_pode_ver_processo' OR provolatile <> 's' FROM pg_proc WHERE oid = to_regprocedure(q)) THEN
+          PERFORM pg_temp.falha('wf rpc: ' || q || ' devia ser STABLE e checar wf_pode_ver_processo');
+        END IF;
+      ELSIF q NOT LIKE 'public.wf_abrir_processo%' AND (SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure(q)) !~ 'wf_travar_processo' THEN
         PERFORM pg_temp.falha('wf rpc: ' || q || ' não trava o processo por wf_travar_processo');
       END IF;
     END IF;
