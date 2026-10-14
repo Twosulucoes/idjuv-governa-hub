@@ -37,6 +37,11 @@ UPDATE/DELETE, storage, identidade, RPCs e triggers). O script **apaga e recria*
 nova) no PATH. Para comparar também com o replay das migrações, rode antes `scripts/db/validar-migracoes.sh` e
 informe `PG_REPLAY=<banco do replay>` (`EXIGIR_REPLAY=1` reprova se ele faltar).
 
+Para saber em que o banco de **produção** difere das migrações e do baseline, use a fotografia da estrutura:
+`bash scripts/db/fotografia-banco.sh` (local, com `FOTO_PROD_URL` opcional) ou o workflow manual
+**Fotografia do banco**, que lê a produção pelo túnel SSH em modo só leitura. Ver
+[DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md#fotografia-do-banco-de-produção-ci-manual).
+
 ## 3. Subir o Supabase self-hosted
 
 Siga o guia oficial de self-hosting com Docker da Supabase. Antes de expor à internet:

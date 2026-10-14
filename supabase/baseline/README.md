@@ -131,6 +131,11 @@ bash scripts/db/validar-migracoes.sh                       # replay das migraç�
 PG_REPLAY=idjuv_validacao bash scripts/db/validar-baseline.sh   # EXIGIR_REPLAY=1 reprova se o passo 5 for pulado
 ```
 
+`scripts/db/fotografia-banco.sh` faz uma comparação mais ampla e legível (relatório em markdown) entre o replay,
+o baseline e, com `FOTO_PROD_URL`, o banco de produção: diz quais correções do baseline ainda não viraram migração
+e o que a produção tem de diferente das migrações. Na produção roda pelo workflow manual **Fotografia do banco**
+(`docs/DESENVOLVIMENTO.md`).
+
 `validar-baseline.sh` recria um banco vazio com o shim do Supabase (`scripts/db/shim-supabase.sql`),
 aplica o baseline, confirma que uma segunda aplicação é recusada e que só as 24 tabelas de catálogo têm linhas, roda
 `scripts/db/testar-rls.sh` e, com `PG_REPLAY`, compara schema, privilégios e storage com o replay das

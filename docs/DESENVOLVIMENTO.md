@@ -84,6 +84,32 @@ O workflow `.github/workflows/migracoes-banco.yml` leva `supabase/migrations/` a
   [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#integridade-da-remessa-cnab-e-do-esocial--onda-e3-banco)).
 - Depois do merge, regenere `src/integrations/supabase/types.ts` contra o banco de produção.
 
+### Fotografia do banco de produção (CI, manual)
+
+O workflow `.github/workflows/fotografia-banco.yml` responde "a produção é o que as migrações dizem?". Só roda
+à mão e só na `main`: Actions → **Fotografia do banco** → Run workflow. Usa o mesmo túnel e os mesmos segredos da
+tabela acima, mais `FOTO_ARTEFATO_SENHA` (senha do arquivo cifrado, ver abaixo); sem eles o job falha.
+
+- Monta num Postgres descartável do runner o replay das migrações e o baseline, tira a fotografia da
+  **estrutura** de cada um e da produção (`scripts/db/fotografia-schema.sql`: tabelas e RLS, colunas,
+  constraints, índices, views, funções com `SECURITY DEFINER`/`search_path`/corpo, `EXECUTE` e privilégios de
+  `anon`/`authenticated`, triggers, policies, enums, extensões e buckets) e compara com
+  `scripts/db/comparar-fotografias.mjs`.
+- **Só leitura na produção:** cada consulta é uma transação única aberta com `set transaction read only` e tempo
+  limite. Lê o catálogo, `storage.buckets` (id e público) e as versões de `supabase_migrations.schema_migrations`;
+  nenhum dado de tabela. A garantia é o código revisado na `main` (o papel usado é o `postgres`), por isso o job
+  recusa outras branches. Falta um papel só leitura próprio para isso (pendência do P01 no ROADMAP).
+- **O repositório é público**, e o relatório aponta as falhas reais da produção. Por isso o resumo do job mostra
+  só contagens, e o relatório completo sai no artefato `fotografia-banco` como `.7z` cifrado (AES-256, nomes
+  cifrados), guardado por 3 dias. Abra com o 7-Zip e a senha de `FOTO_ARTEFATO_SENHA` (crie o segredo com uma
+  senha forte e guarde-a no cofre de senhas do time).
+- O relatório traz produção × migrações (cada diferença marcada se bate com o baseline, ou seja, correção que só
+  existe no baseline), o histórico de migrações (aplicadas × arquivos do repositório) e baseline × migrações.
+  Se uma migração falhar no replay, a fotografia sai mesmo assim, com aviso e o `replay-resumo.tsv`.
+- Localmente: `bash scripts/db/fotografia-banco.sh` (pré-requisitos de `validar-migracoes.sh`; apaga e recria
+  os bancos `idjuv_foto_replay` e `idjuv_foto_baseline`). Com `FOTO_PROD_URL=<url sem senha>` e
+  `FOTO_PROD_SENHA` compara também com esse banco.
+
 ## Como adicionar uma feature (receita)
 
 1. **Tipos** — `src/types/<dominio>.ts`.

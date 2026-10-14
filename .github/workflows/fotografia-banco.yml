@@ -1,0 +1,119 @@
+name: Fotografia do banco
+
+# Compara a ESTRUTURA do banco de produção (Supabase self-hosted da VPS) com o que as migrações e o
+# baseline produzem. Responde "a produção é o que as migrações dizem?" e, para cada diferença, se a
+# produção bate com o baseline (correção que só existe no baseline) ou com nenhum dos dois (ajuste à mão).
+#
+# Só leitura na produção: o script roda numa única transação aberta com `set transaction read only`
+# (vale também atrás de pooler em modo transação) e lê apenas o catálogo do Postgres
+# (scripts/db/fotografia-schema.sql) e a lista de versões de supabase_migrations.schema_migrations.
+# Nenhum dado de tabela é lido. O replay e o baseline são montados num Postgres descartável do runner.
+# A garantia é o código revisado na `main`: por isso o job só roda na `main`.
+#
+# O repositório é PÚBLICO: o resultado aponta as falhas reais da produção, então nada dele vai em claro
+# para o GitHub. O resumo do job só traz contagens; o relatório e as fotografias saem num .7z cifrado
+# (AES-256, nomes cifrados) com a senha do segredo FOTO_ARTEFATO_SENHA, guardado por 3 dias.
+#
+# Manual de propósito (Actions → "Fotografia do banco" → Run workflow, na `main`).
+# Mesmo túnel e segredos de migracoes-banco.yml (VPS_SSH_*, SUPABASE_DB_SENHA) + FOTO_ARTEFATO_SENHA;
+# sem eles o job falha. Os segredos só entram nos passos que precisam deles.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fotografia-banco
+  cancel-in-progress: false
+
+jobs:
+  fotografia:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      FOTO_SAIDA: /tmp/fotografia-banco
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Segredos configurados?
+        env:
+          TEM_SSH: ${{ secrets.VPS_SSH_HOST != '' && secrets.VPS_SSH_USER != '' && secrets.VPS_SSH_KEY != '' && secrets.VPS_SSH_KNOWN_HOSTS != '' }}
+          TEM_BANCO: ${{ secrets.SUPABASE_DB_SENHA != '' }}
+          TEM_CIFRA: ${{ secrets.FOTO_ARTEFATO_SENHA != '' }}
+        run: |
+          if [ "$TEM_SSH" != true ] || [ "$TEM_BANCO" != true ] || [ "$TEM_CIFRA" != true ]; then
+            echo "::error::Faltam segredos (VPS_SSH_* / SUPABASE_DB_SENHA / FOTO_ARTEFATO_SENHA). Ver docs/DESENVOLVIMENTO.md."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Postgres descartável para o replay e o baseline (superusuário supabase_admin, como pede o shim).
+      - name: Postgres local
+        run: |
+          docker run -d --name pg -p 127.0.0.1:54329:5432 \
+            -e POSTGRES_USER=supabase_admin -e POSTGRES_HOST_AUTH_METHOD=trust \
+            postgres:17 -c max_locks_per_transaction=1024
+          for i in $(seq 1 30); do pg_isready -h 127.0.0.1 -p 54329 -q && break; sleep 2; done
+          pg_isready -h 127.0.0.1 -p 54329
+
+      - name: Túnel SSH até a VPS
+        env:
+          VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          DB_DESTINO_NA_VPS: ${{ vars.DB_DESTINO_NA_VPS || '127.0.0.1:5432' }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_vps && chmod 600 ~/.ssh/id_vps
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_vps -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes \
+            -o ServerAliveInterval=30 -f -N -L "127.0.0.1:54322:${DB_DESTINO_NA_VPS}" \
+            "${VPS_SSH_USER}@${VPS_SSH_HOST}"
+          rm -f ~/.ssh/id_vps
+
+      # Senha só por PGPASSWORD neste passo (fora da linha de comando e do GITHUB_ENV).
+      - name: Fotografar e comparar
+        env:
+          FOTO_PROD_URL: postgresql://postgres@127.0.0.1:54322/postgres
+          FOTO_PROD_SENHA: ${{ secrets.SUPABASE_DB_SENHA }}
+        run: bash scripts/db/fotografia-banco.sh
+
+      - name: Cifrar o resultado
+        if: always()
+        env:
+          FOTO_ARTEFATO_SENHA: ${{ secrets.FOTO_ARTEFATO_SENHA }}
+        run: |
+          cd "$FOTO_SAIDA" 2>/dev/null || exit 0
+          command -v 7z >/dev/null || sudo apt-get install -y -qq p7zip-full >/dev/null
+          arquivos=$(ls relatorio.md *.tsv historico-producao.txt replay.txt 2>/dev/null || true)
+          [ -n "$arquivos" ] || exit 0
+          # -mhe=on cifra também os nomes; a senha vai por stdin (-p sem valor) para não aparecer em ps.
+          printf '%s\n%s\n' "$FOTO_ARTEFATO_SENHA" "$FOTO_ARTEFATO_SENHA" \
+            | 7z a -t7z -mhe=on -p /tmp/fotografia-banco.7z $arquivos >/dev/null
+          ls -l /tmp/fotografia-banco.7z
+
+      # Só contagens: nenhuma chave nem valor do catálogo da produção em claro.
+      - name: Resumo
+        if: always()
+        run: |
+          [ -f "$FOTO_SAIDA/contagens.md" ] && cat "$FOTO_SAIDA/contagens.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "Relatório completo no artefato cifrado \`fotografia-banco\` (abrir com 7-Zip e a senha de FOTO_ARTEFATO_SENHA)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fotografia-banco
+          path: /tmp/fotografia-banco.7z
+          retention-days: 3
+          if-no-files-found: ignore
