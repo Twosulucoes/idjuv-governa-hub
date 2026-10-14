@@ -44,6 +44,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCreatePortaria, useUpdatePortaria, usePortaria, NUMERO_PORTARIA_PENDENTE } from '@/hooks/usePortarias';
 import { CategoriaPortaria, Portaria, StatusPortaria } from '@/types/portaria';
 import { SelecionarServidoresTable } from './SelecionarServidoresTable';
+import { abrirArquivoPortaria } from '@/lib/portarias/arquivoPortaria';
 
 interface NovaPortariaSimplificadaProps {
   open: boolean;
@@ -205,11 +206,8 @@ export function NovaPortariaSimplificada({
         throw new Error(uploadError.message || 'Falha no upload');
       }
 
-      const { data: urlData } = supabase.storage
-        .from('documentos')
-        .getPublicUrl(fileName);
-
-      setArquivoUrl(urlData.publicUrl);
+      // Bucket privado: grava o caminho; a leitura usa URL assinada (abrirArquivoPortaria)
+      setArquivoUrl(fileName);
       setArquivoNome(file.name);
       toast.success('Arquivo anexado!');
     } catch (err: any) {
@@ -421,7 +419,12 @@ export function NovaPortariaSimplificada({
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      onClick={() => window.open(arquivoUrl, '_blank')}
+                      type="button"
+                      onClick={() =>
+                        abrirArquivoPortaria(arquivoUrl).catch((erro: unknown) => {
+                          toast.error(erro instanceof Error ? erro.message : 'Não foi possível abrir o arquivo.');
+                        })
+                      }
                     >
                       Visualizar
                     </Button>

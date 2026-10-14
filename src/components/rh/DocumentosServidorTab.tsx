@@ -43,7 +43,8 @@ import {
   generateDeclaracaoAcumulacaoModelo,
   generateDeclaracaoBensModelo,
 } from "@/lib/pdfModelos";
-import { abrirArquivoPrivado, abrirUrlExterna } from "@/lib/storageArquivos";
+import { abrirArquivoPrivado } from "@/lib/storageArquivos";
+import { abrirArquivoPortaria } from "@/lib/portarias/arquivoPortaria";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 // Extensões aceitas no upload do documento assinado (lista fechada; o caminho no bucket leva a extensão)
@@ -291,18 +292,17 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
                         size="icon"
                         className="h-8 w-8"
                         onClick={() => {
-                          try {
-                            registrarSemBloquear({
-                              acao: "view",
-                              entidade: "documentos",
-                              entidadeId: doc.id,
-                              descricao: "Documento expedido aberto na ficha do servidor",
-                              metadados: { servidor_id: servidorId },
-                            });
-                            abrirUrlExterna(doc.arquivo_assinado_url || doc.arquivo_url);
-                          } catch (err) {
-                            toast.error((err as Error).message);
-                          }
+                          registrarSemBloquear({
+                            acao: "view",
+                            entidade: "documentos",
+                            entidadeId: doc.id,
+                            descricao: "Documento expedido aberto na ficha do servidor",
+                            metadados: { servidor_id: servidorId },
+                          });
+                          // Bucket privado `documentos`: caminho (ou URL pública antiga) abre por URL assinada
+                          abrirArquivoPortaria(doc.arquivo_assinado_url || doc.arquivo_url).catch((err: Error) =>
+                            toast.error(err.message),
+                          );
                         }}
                       >
                         <Eye className="h-4 w-4" />
