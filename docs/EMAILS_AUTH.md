@@ -74,8 +74,9 @@ O Studio self-hosted não tem editor de templates; o GoTrue lê cada template de
 definida em `GOTRUE_MAILER_TEMPLATES_*`. O caminho sugerido usa o próprio Storage:
 
 0. **Confira o `SITE_URL`** no `.env` do Supabase: `SITE_URL=https://idjuv.online`.
-1. **Bucket público `emails`** — no Studio (`bd.idjuv.online`) → Storage → *New bucket* `emails`,
-   marcado como público. Envie os seis `.html` de `tenants/idjuv/emails/`. Os templates não
+1. **Bucket público `emails`**: criado pelas migrações (`20261014120000_convergencia_baseline.sql`) e pelo
+   baseline (`overlay/50_storage.sql`); antes era criado à mão no Studio. No Studio (`bd.idjuv.online`) →
+   Storage → `emails`, envie os seis `.html` de `tenants/idjuv/emails/`. Os templates não
    contêm dado pessoal: os dados do destinatário só entram na hora do envio.
 2. **Override do compose** — copie `tenants/idjuv/emails/docker-compose.emails.yml` para a pasta
    do `docker-compose.yml` do Supabase na VPS e suba o `auth` com ele:

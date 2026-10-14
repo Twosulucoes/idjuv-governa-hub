@@ -15,10 +15,12 @@ que se ativa sozinho e assume o `servidor_id` de outro (`profiles`), injeção d
 CPF a quem não tinha módulo, servidor que se autoaprovava, administrador bloqueado que seguia
 administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrever o histórico.
 
-> Provavelmente esses defeitos existem também no banco **atual**, se ele é o que as migrações produzem
-> (não foi verificado: o banco ao vivo nunca foi inspecionado). Os overlays `10`, `12`, `18`, `20` e `40`
-> são idempotentes e podem ser avaliados para aplicação nele; isso não foi feito nem testado aqui
-> (invariante 8 do `AGENTS.md`).
+> **Produção e histórico (14/10/2026).** A Fotografia do banco (`scripts/db/fotografia-banco.sh`, workflow manual)
+> mostrou que a produção foi montada por este baseline: as correções acima valem lá. As migrações ficavam para trás;
+> a `20261014120000_convergencia_baseline.sql` copia os overlays e as policies geradas para o histórico (no-op num
+> banco do baseline: o `pg_dump` de public, storage e auth fica idêntico), e desde então replay e baseline têm a mesma estrutura.
+> **Ao mudar um overlay ou o `mapa.csv`, crie também uma migração com a mesma mudança**; a seção "baseline ×
+> migrações" do relatório da fotografia deve continuar sem diferença.
 >
 > Exceção já levada ao histórico: `profiles`, `user_roles` e `user_modules`. No estado das migrações,
 > as `acesso_total_*` dessas tabelas deixavam qualquer logado se dar o papel `admin` (provado num replay).
@@ -139,7 +141,8 @@ e o que a produção tem de diferente das migrações. Na produção roda pelo w
 `validar-baseline.sh` recria um banco vazio com o shim do Supabase (`scripts/db/shim-supabase.sql`),
 aplica o baseline, confirma que uma segunda aplicação é recusada e que só as 24 tabelas de catálogo têm linhas, roda
 `scripts/db/testar-rls.sh` e, com `PG_REPLAY`, compara schema, privilégios e storage com o replay das
-migrações + overlays. O teste de RLS cobre, com personas reais (`SET ROLE` + claims do JWT):
+migrações, sem reaplicar os overlays (desde a `20261014120000` o replay já os traz; overlay ou `mapa.csv` mudado sem
+migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` + claims do JWT):
 
 - por tabela: `SELECT`, `INSERT`, `UPDATE` e `DELETE` para admin, admin bloqueado, sem módulo, inativo,
   servidores (ativo e bloqueado), cada módulo do mapa e um módulo alheio; `anon` conforme a coluna `anon`;

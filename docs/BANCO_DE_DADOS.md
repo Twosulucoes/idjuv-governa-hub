@@ -13,7 +13,14 @@ tipos TypeScript de todo o schema são gerados em
 Para criar um banco **novo e vazio** use `supabase/baseline/` (guia: [NOVO_BANCO.md](./NOVO_BANCO.md);
 conteúdo e manutenção: [`supabase/baseline/README.md`](../supabase/baseline/README.md)). Ele não substitui
 as migrações: é um schema consolidado, gerado do replay delas, mais uma camada de correções. O que
-muda em relação ao estado das migrações:
+muda em relação ao estado das migrações antigas:
+
+> **Desde 14/10/2026 as migrações produzem o mesmo banco que o baseline e a produção.** A Fotografia do banco
+> mostrou que a produção foi montada pelo baseline; a migração `20261014120000_convergencia_baseline.sql` copia
+> para o histórico os overlays e as policies geradas (no-op na produção: num banco do baseline, o `pg_dump` de public, storage e auth fica idêntico).
+> Desde então, **toda mudança num overlay ou no `mapa.csv` precisa também de migração nova** com a mesma mudança;
+> `PG_REPLAY=<replay> bash scripts/db/validar-baseline.sh` reprova a divergência (passo 5), e a seção "baseline ×
+> migrações" de `bash scripts/db/fotografia-banco.sh` deve vir sem diferença.
 
 - **RLS por módulo, falha fechada.** As policies `acesso_total_*` (qualquer usuário logado) saem; cada
   tabela recebe policies de `can_access_module` conforme `supabase/baseline/rls/mapa.csv` (fonte da

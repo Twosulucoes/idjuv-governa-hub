@@ -148,7 +148,8 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - Decisões em aberto (sigilo de processos, granularidade do módulo `rh`, permissões `admin.*` do papel
   `user`, oráculos de permissão, limite de taxa): [`supabase/baseline/README.md`](../supabase/baseline/README.md),
   seção “Pendências e decisões em aberto”.
-- O baseline cria **10 buckets** (`overlay/50_storage.sql`, apurado em 2026-10-09). Buckets públicos
+- O baseline cria **12 buckets** (`overlay/50_storage.sql`; `emails`, público, com os templates do Auth, entrou em
+  14/10/2026 porque na produção tinha sido criado à mão). Buckets públicos
   ainda entregam o arquivo a quem tem a URL; fechar exige bucket privado + URL assinada no front. O
   `inventario-evidencias` (fotos da vistoria de inventário) já nasce privado e o front lê por URL assinada.
   Os buckets do RH `frequencias` e `documentos-requerimento` e o `documentos` também são privados; desde a B3
