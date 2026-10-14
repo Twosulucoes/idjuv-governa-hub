@@ -44,17 +44,23 @@ quê (ex.: push de um WIP para uma branch que ninguém mais usa).
 ⚠️ O hook local é rede de segurança, **não substituto** do CI: ele se pula, e
 não roda no ambiente limpo de um runner.
 
-## O que o `docs-guard` faz (e quando será ativado)
+## O que o `docs-guard` faz
 
-`.github/workflows/docs-guard.yml` existe no repositório, mas o gatilho
-automático (`pull_request`) está **comentado de propósito** — hoje ele só
-roda via `workflow_dispatch` manual. A lógica, quando ativada: se a PR muda
-`src/**` ou `supabase/**` (exceto arquivos de teste) sem tocar em nenhuma doc
-(`docs/**` ou qualquer `*.md`) e sem declarar o escape no corpo da PR, o
-check falha. Ver [`docs/GOVERNANCA_DOCUMENTACAO.md`](./docs/GOVERNANCA_DOCUMENTACAO.md)
-§6 para o estado exato de cada mecanismo e o motivo de a ativação ainda não
-ter acontecido — é uma decisão do time (rodar o processo manualmente por um
-tempo antes de virar bloqueio automático), não uma limitação técnica.
+`.github/workflows/docs-guard.yml` roda em **toda Pull Request** desde 14/10/2026.
+Ele cobra, para cada tipo de mudança, o documento dono do assunto (matriz em
+[`docs/GOVERNANCA_DOCUMENTACAO.md`](./docs/GOVERNANCA_DOCUMENTACAO.md) §3): migração
+cobra `docs/BANCO_DE_DADOS.md`, Edge Function cobra `docs/EDGE_FUNCTIONS.md`, rota ou
+menu cobra `docs/ARQUITETURA.md`, mudança no gate cobra este `CONTRIBUTING.md`, e assim por diante. Toda
+mudança em `src/**` ou `supabase/**` cobra também `docs/planejamento/ROADMAP.md`.
+Arquivos de teste não contam. A regra mora em `scripts/check-docs-matriz.mjs`
+(testada no gate); confira antes de abrir a PR (conta também o que ainda não foi commitado):
+
+```bash
+node scripts/check-docs-matriz.mjs --base origin/main
+```
+
+Se de fato nenhuma doc se aplica, declare no corpo da PR, em linha própria e sem
+indentação: `docs: não se aplica — <motivo real>`. Editar a descrição redispara o check.
 
 `.github/workflows/quality.yml` (guard de `.env` rastreado + o mesmo
 `scripts/gate.sh`) esse sim já roda automaticamente em toda Pull Request.
@@ -62,7 +68,9 @@ tempo antes de virar bloqueio automático), não uma limitação técnica.
 ## Checklist antes de abrir PR
 
 - [ ] `bash scripts/gate.sh` (`npm run gate`) verde — inclui `check:docs`,
-      `check:migrations`, typecheck/lint sem piora vs. baseline e build
+      `check:migrations`, testes, typecheck/lint sem piora vs. baseline e build
+- [ ] `node scripts/check-docs-matriz.mjs --base origin/main` sem pendência
+      (é o que o `docs-guard` cobra na PR)
 - [ ] Consultei a matriz de [`docs/GOVERNANCA_DOCUMENTACAO.md`](./docs/GOVERNANCA_DOCUMENTACAO.md)
       §3 e atualizei as docs exigidas — ou declarei o escape:
       `docs: não se aplica — <motivo real>` no corpo da PR

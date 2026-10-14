@@ -7,7 +7,7 @@ importa este arquivo (`@AGENTS.md`). Contexto completo: [`CLAUDE.md`](./CLAUDE.m
 
 - **Projeto:** IDJUV Governa Hub — ERP/governança para órgão público (React 18 + Vite + TypeScript + Supabase).
 - **Idioma:** português (domínio, comentários, UI). Não traduza nomes existentes.
-- **Verificação:** testes automatizados só em `src/lib/documentos` (vitest, rodam no gate). Use `bash scripts/gate.sh` (`npm run gate`): guards de migrações, de links de docs, de RLS do baseline e de contraste AA dos tokens + typecheck + lint + cor crua em `.tsx` + build; typecheck, lint e cor crua falham só se piorarem vs. `scripts/gate-baseline.json`. Roda no `pre-push` (`.githooks/`, ativado por `npm install`) e no CI (`.github/workflows/quality.yml`). Detalhes em [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+- **Verificação:** testes automatizados em `src/lib/documentos`, `src/lib/workflow` e `scripts/` (vitest, rodam no gate). Use `bash scripts/gate.sh` (`npm run gate`): guards de migrações, de links de docs, de RLS do baseline e de contraste AA dos tokens + typecheck + lint + cor crua em `.tsx` + build; typecheck, lint e cor crua falham só se piorarem vs. `scripts/gate-baseline.json`. Roda no `pre-push` (`.githooks/`, ativado por `npm install`) e no CI (`.github/workflows/quality.yml`). Detalhes em [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 - **Alias:** `@` → `src/`. Todas as rotas em `src/App.tsx`.
 - **Instalar deps:** `bun install` ou `npm install --no-package-lock` (o `package-lock.json` está fora de sincronia; `npm ci` falha).
 
@@ -42,7 +42,7 @@ brainstorming → [gate de aprovação] → writing-plans → subagent-driven-de
 - Interativo: pare para o "sim" explícito após desenho/spec/plano. Autônomo: registre premissas e siga; pare só por risco.
 - Bug isolado: `systematic-debugging`. Specs em `docs/superpowers/specs/`, planos em `docs/superpowers/plans/`.
 - **Ler não é verificar:** rode o comando antes de afirmar. Sem evidência fresca, sem "pronto".
-- Documentação: matriz em [`docs/GOVERNANCA_DOCUMENTACAO.md`](./docs/GOVERNANCA_DOCUMENTACAO.md) (§6 diz o que é cobrado automaticamente hoje e o que é só convenção).
+- **Documentação é obrigatória em toda PR:** matriz em [`docs/GOVERNANCA_DOCUMENTACAO.md`](./docs/GOVERNANCA_DOCUMENTACAO.md) §3. O `docs-guard` (CI) reprova a PR que muda código sem a doc dona do assunto e, em `src/**`/`supabase/**`, sem `docs/planejamento/ROADMAP.md`. Confira com `node scripts/check-docs-matriz.mjs --base origin/main` antes de abrir a PR; escape só com motivo real (`docs: não se aplica — <motivo>`).
 - Commits: descritivos, em português. O repo **não** adota Conventional Commits obrigatório nem versionamento automático (SemVer/Release Please).
 - Roadmap vivo: [`docs/planejamento/ROADMAP.md`](./docs/planejamento/ROADMAP.md).
 
@@ -79,6 +79,6 @@ invariantes — subagente não herda o contexto da sessão. Nunca finja delegaç
 
 1. RLS/policies na migração? RBAC na rota e no banco?
 2. `bash scripts/gate.sh` verde (resultado lido, não presumido)?
-3. Docs da matriz atualizadas (ou `docs: não se aplica — <motivo>`)?
+3. Docs da matriz e `ROADMAP.md` atualizados na mesma PR (`node scripts/check-docs-matriz.mjs --base origin/main` sem pendência) ou `docs: não se aplica — <motivo>`?
 4. Nada não implementado foi documentado como existente?
 5. Revisores (`revisor-codigo-idjuv`, e `revisor-seguranca-idjuv` se tocou segurança) sem bloqueantes?

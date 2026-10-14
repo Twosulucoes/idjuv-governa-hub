@@ -1,10 +1,9 @@
 # Governança de Documentação — IDJUV Governa Hub
 
 > **Regra única**: trabalho que muda comportamento real do sistema sem atualizar
-> a documentação exigida pela matriz abaixo é **trabalho incompleto**. Isso é
-> cobrado localmente pelo gate de pre-push (`npm run gate`) e, quando o time
-> ativar o gatilho automático, também em CI (job `docs-guard`) — ver §6 para o
-> estado real de cada mecanismo hoje.
+> a documentação exigida pela matriz abaixo é **trabalho incompleto**. Desde
+> 14/10/2026 isso é cobrado em CI, em toda PR, pelo job `docs-guard` — ver §6
+> para o estado real de cada mecanismo.
 >
 > Este documento é a **fonte normativa** do processo documental. O `AGENTS.md`
 > e o `CONTRIBUTING.md` apontam para cá.
@@ -15,14 +14,14 @@
 
 - Documentação que diverge do código é pior do que documentação ausente:
   induz decisão errada com confiança.
-- Este repositório tem ~248 migrações, ~241 páginas e 17 módulos — sem um
+- Este repositório tem centenas de migrações e páginas e 17 módulos — sem um
   dono claro por assunto e um gatilho por tipo de mudança, a doc apodrece em
   silêncio (é exatamente o que `docs/AUDITORIA_USUARIOS.md` e
   `docs/INVENTARIO_HARDCODE.md` registram como achados de uma auditoria
   pontual, não como processo contínuo).
 - A solução não é "escrever mais doc" — é ter **um dono por assunto** (mapa
-  canônico), **um gatilho por tipo de mudança** (matriz) e, quando ativado,
-  **um cobrador automático** (CI).
+  canônico), **um gatilho por tipo de mudança** (matriz) e **um cobrador
+  automático** (CI).
 
 ## 2. Mapa canônico — quem responde pelo quê
 
@@ -60,7 +59,14 @@ datado de uma decisão, não fonte canônica.
 ## 3. Matriz obrigatória — tipo de mudança → documento
 
 Ao abrir uma PR, localize **cada** linha aplicável. A doc da coluna
-"Obrigatória" deve mudar **na mesma PR**.
+"Obrigatória" deve mudar **na mesma PR**. Desde 14/10/2026 o `docs-guard` cobra
+a coluna "Obrigatória" em toda PR (ver §6), pelos caminhos definidos em
+`scripts/check-docs-matriz.mjs` (quando há dois documentos com "+", os dois);
+"Conferir também" fica para a revisão. Mudança no gate (`scripts/gate.sh`, `scripts/check-*`,
+`vitest.config.ts`, `.githooks/`) cobra `CONTRIBUTING.md`;
+toda mudança em `src/**` ou `supabase/**` cobra também `docs/planejamento/ROADMAP.md`.
+Linhas sem caminho de arquivo que as identifique (ex.: "regra para agentes" fora de
+`.claude/agents/`) continuam valendo, cobradas em revisão.
 
 | Sua mudança envolve… | Doc obrigatória | Conferir também |
 |---|---|---|
@@ -92,7 +98,7 @@ Uma mudança está completa quando:
 
 1. O código passa em `bash scripts/gate.sh` (`npm run gate`): guards de
    migrações e de links de docs, typecheck e lint sem piora vs. a baseline, e
-   build. Não há suíte de testes automatizados configurada neste projeto hoje.
+   build, e os testes vitest de `src/` e `scripts/`.
 2. **Toda linha aplicável da matriz do §3 foi atendida** na mesma PR.
 3. O que foi escrito descreve o que **existe no código agora** — não intenção
    futura.
@@ -109,8 +115,8 @@ declare no **corpo da Pull Request**, em linha própria e sem indentação:
 docs: não se aplica — <motivo real e específico>
 ```
 
-- Quando o gatilho automático do `docs-guard` estiver ativo (ver §6), ele
-  detecta a linha e libera a PR; editar a descrição da PR redispara o check.
+- O `docs-guard` (ver §6) detecta a linha e libera a PR; editar a descrição
+  da PR redispara o check.
 - O motivo fica **auditável para sempre** no histórico da PR.
 - Motivo genérico ("não precisa") em PR que muda comportamento é razão para
   **reprovar em review** — o escape existe para exceções verdadeiras, não
@@ -118,8 +124,8 @@ docs: não se aplica — <motivo real e específico>
 
 ## 6. Como o enforcement funciona (estado real, não aspiracional)
 
-Este repositório nunca teve CI. Ao introduzir o gate, fomos deliberadamente
-conservadores — nem tudo está ativo por padrão ainda:
+Estado de cada mecanismo hoje (o `docs-guard` passou a rodar em toda PR em
+14/10/2026):
 
 | Mecanismo | O que cobra | Onde | Estado |
 |---|---|---|---|
@@ -129,14 +135,13 @@ conservadores — nem tudo está ativo por padrão ainda:
 | **`check:autoria-rh`** | Tabela do RH (linha com `rh` em `supabase/baseline/rls/mapa.csv`) sem os triggers da onda E1 no schema do baseline: `zz_fixar_autoria` (`BEFORE INSERT OR UPDATE`, `fixar_autoria`) e `audit_<tabela>` (`AFTER INSERT OR UPDATE OR DELETE`, `fn_audit_trigger('rh')`), e o `zz_exigir_setor` da regra de setor (`BEFORE INSERT OR UPDATE OR DELETE`, `exigir_setor()`, migração `20261011020000`) com o `zz_exigir_setor_fim` (`AFTER INSERT OR UPDATE OR DELETE` por comando, `exigir_setor_fim()`), sem `WHEN` e sem `DISABLE TRIGGER`; na classe `trilha`, `trilha_imutavel` e `trilha_imutavel_truncate` com `ENABLE ALWAYS`. Exceção só com motivo em `scripts/autoria-rh-excecoes.txt` (hoje nenhuma) | `scripts/check-autoria-rh.mjs` | Existe e roda local e em CI (dentro do gate) |
 | **`npm run gate`** | Os guards acima + `typecheck` + `lint` + `build`. Typecheck e lint comparam com `scripts/gate-baseline.json` e falham **só se a dívida piorar** (o repo tem erros históricos); os guards falham em qualquer ocorrência | `scripts/gate.sh` | Existe; roda automaticamente no `pre-push` (`.githooks/pre-push`, ativado por `npm install` via o script `prepare`) — pulável com `git push --no-verify`. Ao reduzir a dívida: `bash scripts/gate.sh --update-baseline` |
 | **`quality.yml`** (CI) | Guard de `.env` rastreado + `scripts/gate.sh` (os mesmos checks do gate local) em toda PR | `.github/workflows/quality.yml` | **Ativo** (gatilho `pull_request`) — primeira vez que este repositório tem CI |
-| **`docs-guard`** (CI) | PR que muda `src/**`/`supabase/**` sem tocar `docs/**`/`*.md` e sem escape declarado → falha | `.github/workflows/docs-guard.yml` | **Existe mas desativado por padrão** — só `workflow_dispatch`. O gatilho `pull_request`/`pull_request_target` está comentado no arquivo, com uma nota explicando como ativar. Decisão do time, não técnica: ativar exige que a matriz do §3 já esteja sendo seguida na prática antes de virar bloqueio automático |
+| **`docs-guard`** (CI) | PR que muda código sem a doc dona do assunto (matriz do §3, por caminho) e, em `src/**`/`supabase/**`, sem `docs/planejamento/ROADMAP.md`, e sem escape declarado → falha | `.github/workflows/docs-guard.yml` + `scripts/check-docs-matriz.mjs` (testes em `scripts/check-docs-matriz.test.mjs`, no gate) | **Ativo em toda PR** desde 14/10/2026 (decisão do dono). O script roda da `main`, não da branch da PR. Para **bloquear o merge**, o check `docs-guard` precisa estar marcado como obrigatório na proteção da `main` (GitHub → Settings → Branches); sem isso ele só fica vermelho. Local: `node scripts/check-docs-matriz.mjs --base origin/main` |
 | **E-mails do Auth em dia** | `tenants/<slug>/emails/` defasado em relação ao gerador, aos tokens ou ao perfil do tenant | `bun scripts/emails/gerar-templates-email.ts --check` | **Só convenção:** roda local; fora do gate e do CI porque depende de bun |
 | **Template de PR** | Checklist da matriz na abertura de toda PR | `.github/pull_request_template.md` | Ativo (todo PR usa o template por padrão) |
 
-**Não afirme, em nenhuma doc ou PR, que "toda PR passa pelo docs-guard"** —
-isso só será verdade depois que o time descomentar o gatilho em
-`.github/workflows/docs-guard.yml` e (se quiser bloqueio de merge) adicionar
-o check aos required status checks da branch protection de `main`.
+**O `docs-guard` roda em toda PR**, mas só **impede o merge** se o check estiver
+nos required status checks da proteção da `main`. Não afirme que ele bloqueia
+merge sem conferir essa configuração no GitHub.
 
 ## 7. O que NUNCA fazer
 
