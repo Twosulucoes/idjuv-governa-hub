@@ -46,7 +46,9 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
   ('patrimonio-docs',           'patrimonio-docs',           false, 10485760, NULL),
   ('patrimonio-fotos',          'patrimonio-fotos',          true,  NULL,     NULL),
   ('remessas-cnab',             'remessas-cnab',             false, 10485760, ARRAY['text/plain','application/octet-stream']),
-  ('transparencia-publicacoes', 'transparencia-publicacoes', true,  10485760, ARRAY['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+  ('transparencia-publicacoes', 'transparencia-publicacoes', true,  10485760, ARRAY['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
+  -- templates dos e-mails do Supabase Auth: o GoTrue os busca por HTTP, sem login (docs/EMAILS_AUTH.md)
+  ('emails',                    'emails',                    true,  NULL,     NULL)
 ON CONFLICT (id) DO UPDATE
   SET public = EXCLUDED.public,
       file_size_limit = EXCLUDED.file_size_limit,

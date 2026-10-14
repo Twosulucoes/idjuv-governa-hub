@@ -285,6 +285,7 @@ ALTER FUNCTION public.desmarcar_escola_cadastrada() SECURITY DEFINER;
 --     Desde a E2 (20261011000300, mesmo texto) as duas gravam module_name 'rh' (antes 'folha').
 --     Desde a E3 (20261011010000, mesmo texto) reabrir_folha trava a folha, recusa folha com remessa ativa e tira da
 --     vigência os eventos do eSocial rascunho da folha.
+--     Desde o protocolo do RH (20261012110000, mesmo texto) as duas registram protocolo (`rh_protocolo_atual`).
 CREATE OR REPLACE FUNCTION public.fechar_folha(p_folha_id uuid, p_justificativa text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -323,6 +324,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Folha deve estar em conferência ou aberta para ser fechada');
   END IF;
   
+  PERFORM public.rh_protocolo_atual('folha', format('Fechamento da folha %s/%s', v_folha.competencia_mes, v_folha.competencia_ano), NULL, jsonb_build_object('folha_id', p_folha_id, 'justificativa', p_justificativa));
+
   -- Atualizar para fechada
   UPDATE public.folhas_pagamento
   SET 
@@ -395,6 +398,8 @@ BEGIN
       format('A folha tem remessa bancária ativa (nº %s). Cancele a remessa antes de reabrir a folha.', v_remessas));
   END IF;
   
+  PERFORM public.rh_protocolo_atual('folha', format('Reabertura da folha %s/%s', v_folha.competencia_mes, v_folha.competencia_ano), NULL, jsonb_build_object('folha_id', p_folha_id, 'justificativa', p_justificativa));
+
   -- Atualizar para reaberta
   UPDATE public.folhas_pagamento
   SET 

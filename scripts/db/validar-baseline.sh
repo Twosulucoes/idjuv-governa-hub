@@ -7,10 +7,10 @@
 #   2. confirma que uma segunda aplicação é recusada (guarda "só banco vazio")
 #   3. confirma que não há dado pessoal/operacional (servidores, perfis, auditoria vazios)
 #   4. roda scripts/db/testar-rls.sh (RLS, UPDATE/DELETE, storage, identidade, RPCs, triggers)
-#   5. (opcional) compara o schema com o replay das migrações + overlays: informe PG_REPLAY, o banco
-#      que scripts/db/validar-migracoes.sh deixou pronto. O script copia esse banco, aplica nele os
-#      overlays e a RLS (os mesmos arquivos do aplicar.sh) e compara schema, privilégios e storage (policies,
-#      buckets e triggers de storage.objects).
+#   5. (opcional) compara o schema com o replay das migrações: informe PG_REPLAY, o banco que
+#      scripts/db/validar-migracoes.sh deixou pronto. O script copia esse banco e compara schema, privilégios e
+#      storage (policies, buckets e triggers de storage.objects). Desde a 20261014120000 o replay já tem os
+#      overlays: overlay ou mapa.csv mudado sem migração correspondente reprova aqui.
 #
 # Mesmos pré-requisitos de validar-migracoes.sh (superusuário que NÃO se chama `postgres`).
 # Variáveis: PGHOST (127.0.0.1) PGPORT (54329) PG_SUPERUSER (supabase_admin)
@@ -97,56 +97,50 @@ grep -E "^ (FALHA|nota) " "$TMP/rls.txt" | grep -E "FALHA|UPDATE/DELETE|storage:
 if [[ $rc -eq 0 ]] && grep -q "RLS: 0 falha" "$TMP/rls.txt"; then ok "RLS: 0 falha(s)"
 else erro "teste de RLS reprovou (rc=$rc; saída completa abaixo)"; tail -25 "$TMP/rls.txt"; fi
 
-echo "== 5. schema igual ao do replay + overlays"
+echo "== 5. schema igual ao do replay das migrações"
 if [[ -z "$REPLAY" ]]; then
   if [[ "${EXIGIR_REPLAY:-}" == "1" ]]; then erro "PG_REPLAY não informado (EXIGIR_REPLAY=1)"
   else echo "  PULADO: defina PG_REPLAY=<banco deixado por validar-migracoes.sh> para comparar com o replay"; fi
-# Marca do replay: a tabela morta _backup_usuario_modulos_old (criada pelas migrações; o overlay/30 a apaga). Antes era
-# "tem policy acesso_total_*", mas desde a onda 1 (20261010200000) e a B3 (20261010210000) o replay não tem mais nenhuma.
-elif [[ "$(psql_s -d postgres -At -c "select 1 from pg_database where datname = '$REPLAY'" 2>/dev/null)" == "1" && "$(psql_s -d "$REPLAY" -At -c "select to_regclass('public._backup_usuario_modulos_old') is not null" 2>/dev/null)" != "t" ]]; then
-  erro "PG_REPLAY=$REPLAY não parece o replay das migrações (não tem a tabela _backup_usuario_modulos_old; já recebeu o baseline ou o overlay/30?)"
+# Desde a 20261014120000_convergencia_baseline o replay já traz os overlays (antes, a tabela morta
+# _backup_usuario_modulos_old servia de marca do replay e os overlays eram reaplicados sobre ele).
 elif ! psql_s -d postgres -At -c "select 1 from pg_database where datname = '$REPLAY'" | grep -q 1; then
   erro "PG_REPLAY=$REPLAY não existe"
 else
   psql_s -d postgres -c "drop database if exists \"$REF\" with (force);" -c "create database \"$REF\" template \"$REPLAY\";" >/dev/null 2>&1 \
     || { erro "não consegui copiar $REPLAY (há conexões abertas nele?)"; REF=""; }
   if [[ -n "$REF" ]]; then
-    # mesmos arquivos de overlay e RLS do aplicar.sh (fonte única da ordem), sem os do schema/
-    mapfile -t extras < <(sed -n '/^ARQUIVOS=(/,/^)/p' supabase/baseline/aplicar.sh | grep -oE '^[[:space:]]*(overlay|rls)/[^[:space:]]+\.sql' | tr -d ' ')
-    args=(); for f in "${extras[@]}"; do args+=(-f "supabase/baseline/$f"); done
-    if PGUSER=postgres PGDATABASE="$REF" psql -X -q -v ON_ERROR_STOP=1 --single-transaction "${args[@]}" >"$TMP/ref.txt" 2>&1; then
-      # O replay guarda os CHECKs como foram digitados; dump->restore os reescreve para uma forma equivalente
-      # (`ANY ((ARRAY[..])::text[])` vira `ANY (ARRAY[(..)::text, ..])`): as linhas de CHECK são reduzidas
-      # à forma sem parênteses nem casts antes de comparar.
-      dump() {  # dump <banco> <arquivo>
-        pg_dump -U "$SUPER" -d "$1" --schema=public --schema-only --no-owner --no-tablespaces -f "$TMP/bruto.sql" 2>"$TMP/dump.err" \
-          && [[ -s "$TMP/bruto.sql" ]] || return 1
-        grep -v -E '^(\\restrict|\\unrestrict|-- Dumped)' "$TMP/bruto.sql" \
-          | perl -pe 'if (/CONSTRAINT \S+ CHECK/) { s/[()]//g; s/::character varying//g; s/::text\[\]//g; s/::text//g; s/\s+/ /g }' >"$2"
-      }
-      if dump "$REF" "$TMP/ref.sql" && dump "$DB" "$TMP/novo.sql"; then
-        if diff "$TMP/ref.sql" "$TMP/novo.sql" >"$TMP/schema.diff"; then ok "schema public e privilégios de tabela/função idênticos ($(wc -l <"$TMP/novo.sql") linhas)"
-        else erro "schema difere do replay + overlays ($(grep -cE '^[<>]' "$TMP/schema.diff") linhas); primeiras:"; grep -E '^[<>]' "$TMP/schema.diff" | head -8 | cut -c1-160 | sed 's/^/        /'; fi
-      else
-        erro "pg_dump falhou ($(head -c 200 "$TMP/dump.err")); o pg_dump precisa ser da versão do servidor ou mais novo"
-      fi
-      q="select policyname||'|'||cmd||'|'||coalesce(roles::text,'')||'|'||coalesce(qual,'')||'|'||coalesce(with_check,'') from pg_policies where schemaname='storage' and tablename='objects' order by 1"
-      b="select id||'|'||public||'|'||coalesce(file_size_limit::text,'')||'|'||coalesce(allowed_mime_types::text,'') from storage.buckets order by 1"
-      p="select p.oid::regprocedure||'|'||array_to_string(coalesce(p.proacl,'{}'),',') from pg_proc p where pronamespace='public'::regnamespace order by 1"
-      # triggers de storage.objects (o dump só leva o schema public; os do Storage vêm do overlay/50 e da migração E2)
-      tg="select tgname||'|'||tgenabled::text||'|'||pg_get_triggerdef(oid) from pg_trigger where tgrelid='storage.objects'::regclass and not tgisinternal order by 1"
-      comparar_consulta() {  # comparar_consulta <rótulo> <sql>: roda nos dois bancos, exige saída não vazia e igual
-        if psql_s -d "$REF" -At -c "$2" >"$TMP/c_ref.txt" 2>/dev/null && psql_s -d "$DB" -At -c "$2" >"$TMP/c_novo.txt" 2>/dev/null && [[ -s "$TMP/c_ref.txt" ]]; then
-          if diff -q "$TMP/c_ref.txt" "$TMP/c_novo.txt" >/dev/null; then ok "$1 idênticos"; else erro "$1 diferem do replay + overlays"; fi
-        else erro "$1: a consulta falhou ou veio vazia"; fi
-      }
-      comparar_consulta "policies de storage" "$q"
-      comparar_consulta "buckets" "$b"
-      comparar_consulta "ACL de funções" "$p"
-      comparar_consulta "triggers de storage.objects" "$tg"
+    # Desde a 20261014120000_convergencia_baseline o replay já traz os overlays e as policies geradas: a cópia
+    # é comparada como está, SEM reaplicar os overlays. Assim um overlay (ou o mapa.csv) mudado sem migração
+    # correspondente aparece como diferença em vez de passar escondido.
+    # O replay guarda os CHECKs como foram digitados; dump->restore os reescreve para uma forma equivalente
+    # (`ANY ((ARRAY[..])::text[])` vira `ANY (ARRAY[(..)::text, ..])`): as linhas de CHECK são reduzidas
+    # à forma sem parênteses nem casts antes de comparar.
+    dump() {  # dump <banco> <arquivo>
+      pg_dump -U "$SUPER" -d "$1" --schema=public --schema-only --no-owner --no-tablespaces -f "$TMP/bruto.sql" 2>"$TMP/dump.err" \
+        && [[ -s "$TMP/bruto.sql" ]] || return 1
+      grep -v -E '^(\\restrict|\\unrestrict|-- Dumped)' "$TMP/bruto.sql" \
+        | perl -pe 'if (/CONSTRAINT \S+ CHECK/) { s/[()]//g; s/::character varying//g; s/::text\[\]//g; s/::text//g; s/\s+/ /g }' >"$2"
+    }
+    if dump "$REF" "$TMP/ref.sql" && dump "$DB" "$TMP/novo.sql"; then
+      if diff "$TMP/ref.sql" "$TMP/novo.sql" >"$TMP/schema.diff"; then ok "schema public e privilégios de tabela/função idênticos ($(wc -l <"$TMP/novo.sql") linhas)"
+      else erro "schema difere do replay das migrações (overlay ou mapa.csv mudou sem migração?) ($(grep -cE '^[<>]' "$TMP/schema.diff") linhas); primeiras:"; grep -E '^[<>]' "$TMP/schema.diff" | head -8 | cut -c1-160 | sed 's/^/        /'; fi
     else
-      cat "$TMP/ref.txt"; erro "não consegui aplicar overlays/RLS sobre a cópia do replay"
+      erro "pg_dump falhou ($(head -c 200 "$TMP/dump.err")); o pg_dump precisa ser da versão do servidor ou mais novo"
     fi
+    q="select policyname||'|'||cmd||'|'||coalesce(roles::text,'')||'|'||coalesce(qual,'')||'|'||coalesce(with_check,'') from pg_policies where schemaname='storage' and tablename='objects' order by 1"
+    b="select id||'|'||public||'|'||coalesce(file_size_limit::text,'')||'|'||coalesce(allowed_mime_types::text,'') from storage.buckets order by 1"
+    p="select p.oid::regprocedure||'|'||array_to_string(coalesce(p.proacl,'{}'),',') from pg_proc p where pronamespace='public'::regnamespace order by 1"
+    # triggers de storage.objects (o dump só leva o schema public; os do Storage vêm do overlay/50 e da migração E2)
+    tg="select tgname||'|'||tgenabled::text||'|'||pg_get_triggerdef(oid) from pg_trigger where tgrelid='storage.objects'::regclass and not tgisinternal order by 1"
+    comparar_consulta() {  # comparar_consulta <rótulo> <sql>: roda nos dois bancos, exige saída não vazia e igual
+      if psql_s -d "$REF" -At -c "$2" >"$TMP/c_ref.txt" 2>/dev/null && psql_s -d "$DB" -At -c "$2" >"$TMP/c_novo.txt" 2>/dev/null && [[ -s "$TMP/c_ref.txt" ]]; then
+        if diff -q "$TMP/c_ref.txt" "$TMP/c_novo.txt" >/dev/null; then ok "$1 idênticos"; else erro "$1 diferem do replay das migrações"; fi
+      else erro "$1: a consulta falhou ou veio vazia"; fi
+    }
+    comparar_consulta "policies de storage" "$q"
+    comparar_consulta "buckets" "$b"
+    comparar_consulta "ACL de funções" "$p"
+    comparar_consulta "triggers de storage.objects" "$tg"
     psql_s -d postgres -c "drop database if exists \"$REF\" with (force);" >/dev/null 2>&1
   fi
 fi
