@@ -9,7 +9,7 @@
 # não têm baseline (o do RH aceita exceção com motivo em scripts/autoria-rh-excecoes.txt). A "cor crua"
 # (paleta fixa do Tailwind/hex em .tsx) também compara com a baseline: só não pode subir.
 # Roda no pre-push (.githooks/pre-push) e no CI (.github/workflows/quality.yml).
-# Testes automatizados só existem em src/lib/documentos (vitest). Uso: bash scripts/gate.sh  (ou: npm run gate)
+# Testes automatizados (vitest) em src/ e scripts/. Uso: bash scripts/gate.sh  (ou: npm run gate)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -55,7 +55,7 @@ comparar "typecheck" "$(ts_erros)" typecheck
 comparar "lint" "$(lint_erros)" lint
 comparar "cor crua em .tsx" "$(cor_crua)" corCrua ocorrências
 comparar "jsPDF fora de documentos/core" "$(jspdf_fora)" jspdfForaDoCore arquivos
-guard "testes da camada de documentos" npx vitest run --reporter=dot
+guard "testes (vitest: src/ e scripts/)" npx vitest run --reporter=dot
 
 printf "\n${AMARELO}▸ build${SEM}\n"
 if npx vite build >/tmp/gate-build.log 2>&1; then printf "${VERDE}  ✔ build${SEM}\n"

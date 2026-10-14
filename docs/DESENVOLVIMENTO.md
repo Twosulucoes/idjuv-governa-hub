@@ -26,15 +26,17 @@ VITE_SUPABASE_PROJECT_ID=...
 
 ```bash
 bun run dev          # servidor de desenvolvimento
-bun run build        # build de produção (faz checagem de tipos do TS)
+bun run build        # build de produção (não checa tipos; o typecheck está no gate)
 bun run build:dev    # build em modo development
 bun run lint         # ESLint
 bun run preview      # serve o build localmente
 ```
 
-> **Não há testes automatizados** no momento. A verificação padrão é
-> `bun run lint` + `bun run build`. Quando possível, rode `bun run dev` e valide
-> o fluxo no navegador com diferentes perfis.
+> **Verificação:** `bash scripts/gate.sh` (guards, testes vitest de `src/` e
+> `scripts/`, typecheck, lint e build). Antes da PR, confira a documentação que a
+> matriz exige com `node scripts/check-docs-matriz.mjs --base origin/main` (é o
+> que o `docs-guard` cobra em toda PR, ver `CONTRIBUTING.md`). Quando possível,
+> rode `bun run dev` e valide o fluxo no navegador com diferentes perfis.
 
 ## Banco de dados
 

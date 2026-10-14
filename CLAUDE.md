@@ -67,7 +67,7 @@ bun run lint         # ESLint
 bun run preview      # preview do build
 ```
 
-> Não há suíte de testes (exceto `src/lib/documentos`, com vitest, dentro do gate). Verificação: **`bash scripts/gate.sh`** (`npm run gate`:
+> Testes vitest em `src/` e `scripts/` (dentro do gate). **Documentação obrigatória:** o `docs-guard` reprova a PR sem a doc da matriz e sem o ROADMAP (`node scripts/check-docs-matriz.mjs --base origin/main`; ver `AGENTS.md`). Verificação: **`bash scripts/gate.sh`** (`npm run gate`:
 > guards de migrações/docs/RLS do baseline/contraste AA dos tokens + typecheck + lint + cor crua + build;
 > typecheck, lint e cor crua comparam com `scripts/gate-baseline.json` e falham só se a dívida piorar). Roda no `pre-push`
 > e no CI (`.github/workflows/quality.yml`) — ver `CONTRIBUTING.md`.
@@ -255,8 +255,9 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 3. **Diffs focados:** evite reformatações massivas/sem necessidade que gerem
    conflito entre branches; mantenha alterações focadas.
 4. **`App.tsx` é grande:** mudanças de rota ficam todas lá. Cuidado com merges.
-5. **Sem testes automatizados:** valide com `lint` + `build` e, quando possível,
-   rode o app (`bun run dev`) para conferir o comportamento.
+5. **Poucos testes automatizados** (vitest em `src/lib/documentos`, `src/lib/workflow`
+   e `scripts/`): valide com `bash scripts/gate.sh` e, quando possível, rode o app
+   (`bun run dev`) para conferir o comportamento.
 6. **Nada de dados de cliente em `public/`** — esse diretório é servido sem
    autenticação e em caminho previsível. Dumps de schema vão para
    `supabase/disaster-recovery/`; documentos institucionais, para
