@@ -3,24 +3,26 @@ name: Deploy do front (VPS)
 # Publica o front (build do Vite) no nginx da VPS a cada merge na main. A VPS é a única produção:
 # a Vercel foi desligada para não haver um segundo site com versão ou banco diferentes.
 #
-# Ordem com o banco: se o merge trouxe migração, este job espera o workflow "Migrações do banco" do
-# mesmo commit terminar com sucesso antes de publicar (o front novo não chega antes do schema).
+# Ordem: o job `esperar` exige o "Quality Gates" (gate.sh) verde no mesmo commit e, se o merge trouxe migração,
+# o workflow "Migrações do banco" do mesmo commit terminado com sucesso (inclui a aprovação no ambiente "producao";
+# o front novo não chega antes do schema). Só então o job `deploy` publica.
 #
 # Troca sem quebrar quem está com o sistema aberto: primeiro sobem os arquivos com hash (assets/,
 # workbox), depois index.html/sw.js/manifest, que apontam para eles. Assets antigos ficam por
 # DIAS_ASSETS_ANTIGOS dias (padrão 14) e depois são apagados.
 #
-# Configuração (Settings → Secrets and variables → Actions):
-#   Segredos: VPS_SSH_HOST e VPS_SSH_KNOWN_HOSTS (os mesmos das migrações),
+# Configuração:
+#   Segredos SÓ no ambiente "deploy-front" (Settings → Environments; aceita apenas a branch main, sem aprovação):
+#             VPS_SSH_HOST e VPS_SSH_KNOWN_HOSTS (os mesmos das migrações),
 #             VPS_DEPLOY_USER e VPS_DEPLOY_KEY (usuário só para o deploy, dono apenas da pasta do site).
-#   Variáveis: VPS_FRONT_DIR (pasta que o nginx serve, ex.: /var/www/idjuv),
+#   Variáveis (do repositório, públicas): VPS_FRONT_DIR (pasta que o nginx serve, ex.: /var/www/idjuv),
 #              opcional VPS_APP_DIR (pasta do app.idjuv.online, ex.: /var/www/idjuv-app; recebe a mesma cópia do build),
 #              opcionais VPS_SITE_DIR, VITE_APP_URL, VITE_SITE_URL (build `site`: institucional enxuto, ver docs/DESENVOLVIMENTO.md),
 #              VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, VITE_SUPABASE_PROJECT_ID, VITE_TENANT_SLUG
 #              (valores públicos do front; a chave é a anon, protegida por RLS),
 #              opcionais FRONT_URL (padrão https://idjuv.online, para a conferência final)
 #              e DIAS_ASSETS_ANTIGOS.
-# Sem a configuração o job avisa e não falha. Guia: docs/DESENVOLVIMENTO.md (Deploy do front).
+# Sem a configuração o job FALHA (o merge não chegou ao ar). Guia: docs/DESENVOLVIMENTO.md (Deploy do front).
 on:
   push:
     branches: [main]
@@ -33,11 +35,46 @@ concurrency:
 
 permissions:
   contents: read
-  actions: read
 
 jobs:
-  deploy:
+  esperar:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # o atalho --ultimo-da-main confere ancestralidade
+          persist-credentials: false
+
+      - name: Esperar o gate (Quality Gates) deste commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci/esperar-workflow.sh quality.yml "$GITHUB_SHA" 60
+
+      # Inclui o tempo até a aprovação no ambiente "producao" (aprovação depois de 5h30: rode este workflow à mão).
+      # Commit sem migração: vale a aplicação mais recente na main, de um commit anterior a este (se uma migração
+      # anterior foi recusada ou falhou, o front não sobe sem o schema de que depende).
+      - name: Esperar as migrações
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q '^supabase/migrations/'; then
+            bash scripts/ci/esperar-workflow.sh migracoes-banco.yml "$GITHUB_SHA" 330
+          else
+            bash scripts/ci/esperar-workflow.sh migracoes-banco.yml "$GITHUB_SHA" 330 --ultimo-da-main
+          fi
+
+  deploy:
+    needs: esperar
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Segredos do deploy: o ambiente "deploy-front" só aceita a branch main.
+    environment: deploy-front
     env:
       VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
       VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
@@ -59,10 +96,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          persist-credentials: false
 
       - name: Configuração presente?
-        id: config
         run: |
           faltam=""
           for v in VPS_SSH_HOST VPS_SSH_KNOWN_HOSTS VPS_DEPLOY_USER VPS_DEPLOY_KEY VPS_FRONT_DIR \
@@ -70,42 +106,18 @@ jobs:
             [ -z "${!v}" ] && faltam="$faltam $v"
           done
           if [ -n "$faltam" ]; then
-            echo "::warning::Deploy do front NÃO feito: falta configurar$faltam. Ver docs/DESENVOLVIMENTO.md."
+            echo "::error::Deploy do front NÃO feito: falta configurar$faltam (segredos no ambiente \"deploy-front\"). Ver docs/DESENVOLVIMENTO.md."
             echo "### Front não publicado: falta configurar$faltam" >> "$GITHUB_STEP_SUMMARY"
-            echo "ok=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ok=true" >> "$GITHUB_OUTPUT"
+            exit 1
           fi
-
-      - name: Esperar as migrações deste commit
-        if: steps.config.outputs.ok == 'true' && github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if ! git diff --name-only HEAD~1 HEAD | grep -q '^supabase/migrations/'; then
-            echo "Commit sem migração: segue."; exit 0
-          fi
-          echo "Commit traz migração: esperando o workflow de migrações do mesmo commit."
-          for i in $(seq 1 60); do
-            estado=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow migracoes-banco.yml \
-              --commit "$GITHUB_SHA" --json status,conclusion --jq '.[0] | "\(.status) \(.conclusion)"' || true)
-            case "$estado" in
-              "completed success") echo "Migrações aplicadas."; exit 0 ;;
-              completed*) echo "::error::Migrações deste commit falharam ($estado): front NÃO publicado."; exit 1 ;;
-            esac
-            sleep 20
-          done
-          echo "::error::Migrações não terminaram em 20 minutos: front NÃO publicado."; exit 1
 
       - name: Setup Node
-        if: steps.config.outputs.ok == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       # `npm ci` falha: o package-lock.json está fora de sincronia (ver AGENTS.md).
       - name: Build
-        if: steps.config.outputs.ok == 'true'
         run: |
           npm install --no-package-lock --no-audit --no-fund
           npm run build
@@ -115,7 +127,6 @@ jobs:
           test -s dist/index.html
 
       - name: Chave SSH
-        if: steps.config.outputs.ok == 'true'
         run: |
           install -d -m 700 ~/.ssh
           printf '%s\n' "$VPS_DEPLOY_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
@@ -123,7 +134,6 @@ jobs:
           echo "RSH=ssh -i $HOME/.ssh/id_deploy -o StrictHostKeyChecking=yes -o BatchMode=yes" >> "$GITHUB_ENV"
 
       - name: Publicar
-        if: steps.config.outputs.ok == 'true'
         run: |
           destino="${VPS_DEPLOY_USER}@${VPS_SSH_HOST}:${VPS_FRONT_DIR%/}/"
           # 1) tudo menos os pontos de entrada (assets com hash convivem com os antigos)
@@ -144,7 +154,7 @@ jobs:
       # Cópia completa do mesmo build para app.idjuv.online (sistema interno). Roda DEPOIS do site e só
       # se VPS_APP_DIR existir: sem a variável o passo é ignorado e o deploy do site não muda.
       - name: Publicar a cópia do app (app.idjuv.online)
-        if: steps.config.outputs.ok == 'true' && env.VPS_APP_DIR != ''
+        if: env.VPS_APP_DIR != ''
         run: |
           destino="${VPS_DEPLOY_USER}@${VPS_SSH_HOST}:${VPS_APP_DIR%/}/"
           rsync -rlz --chmod=D755,F644 -e "$RSH" \
@@ -158,7 +168,7 @@ jobs:
       # Site institucional enxuto (build `site`, sem o sistema interno). Roda DEPOIS do site e do app e só se
       # VPS_SITE_DIR existir. Por ora vai para um host de teste; a troca de idjuv.online é decisão à parte.
       - name: Build do site institucional (VITE_APP_MODE=site)
-        if: steps.config.outputs.ok == 'true' && env.VPS_SITE_DIR != ''
+        if: env.VPS_SITE_DIR != ''
         run: |
           npm run build:site
           node scripts/check-bundle-site.mjs dist-site
@@ -167,7 +177,7 @@ jobs:
           test -s dist-site/index.html
 
       - name: Publicar o site institucional
-        if: steps.config.outputs.ok == 'true' && env.VPS_SITE_DIR != ''
+        if: env.VPS_SITE_DIR != ''
         run: |
           destino="${VPS_DEPLOY_USER}@${VPS_SSH_HOST}:${VPS_SITE_DIR%/}/"
           rsync -rlz --chmod=D755,F644 -e "$RSH" \
@@ -178,7 +188,6 @@ jobs:
             "find '${VPS_SITE_DIR%/}/assets' -type f -mtime +${DIAS_ASSETS_ANTIGOS} -delete"
 
       - name: Conferir o site no ar
-        if: steps.config.outputs.ok == 'true'
         run: |
           entrada=$(grep -oE '/assets/index-[^"]+\.js' dist/index.html | head -1)
           # o quadro antigo (com a indicação dos ocupantes) não pode continuar no ar; com o fallback de SPA

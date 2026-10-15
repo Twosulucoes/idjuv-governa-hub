@@ -21,7 +21,7 @@ importa este arquivo (`@AGENTS.md`). Contexto completo: [`CLAUDE.md`](./CLAUDE.m
 6. **Nada de dados de cliente em `public/`** (servido sem autenticação).
 7. **Diffs focados:** evite reformatação em massa e mudanças em `App.tsx` além do necessário.
 8. **Não crie PR** sem pedido explícito. Nunca merge automático. **Migração vai para produção pelo CI, não à mão:**
-   o workflow `.github/workflows/migracoes-banco.yml` simula no PR e aplica no merge na `main`
+   o workflow `.github/workflows/migracoes-banco.yml` lista no PR (sem segredo) e aplica no merge na `main`, com aprovação no ambiente `producao`
    (banco: Supabase self-hosted da VPS, acessado por túnel SSH; o Postgres não fica exposto). Agente não aplica migração direto
    em banco remoto; toda migração do PR deve ser segura para rodar sozinha no merge.
    O **front** também: `.github/workflows/deploy-front.yml` publica no nginx da VPS a cada merge, depois das

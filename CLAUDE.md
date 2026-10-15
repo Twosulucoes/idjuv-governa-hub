@@ -240,7 +240,7 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
   produção: a Vercel foi desligada (não há prévia por PR; teste local com `bun run dev`).
 - Backend: Supabase self-hosted na VPS do órgão. Edge Functions são deployadas no Supabase.
 - **Migrações:** aplicadas automaticamente pelo CI (`.github/workflows/migracoes-banco.yml`):
-  simulação no PR, aplicação no merge na `main`. Detalhes em `docs/DESENVOLVIMENTO.md`.
+  listagem no PR (sem segredo), aplicação no merge na `main` depois do teste do banco e da aprovação no ambiente `producao`. Detalhes em `docs/DESENVOLVIMENTO.md`.
 
 ---
 

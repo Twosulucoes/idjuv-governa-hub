@@ -54,16 +54,18 @@ bun run preview      # serve o build localmente
 ### Aplicação automática das migrações (CI)
 
 O workflow `.github/workflows/migracoes-banco.yml` leva `supabase/migrations/` ao banco de produção
-(Supabase self-hosted da VPS) sem passo manual:
+(Supabase self-hosted da VPS), com aprovação do dono (P05):
 
 | Quando | O que faz |
 |---|---|
-| PR que muda `supabase/migrations/` | `supabase db push --dry-run`: lista no resumo do job o que vai rodar; o banco não muda |
-| Merge na `main` | `supabase db push`: aplica as pendentes |
-| Manual (`workflow_dispatch` na `main`) | aplica as pendentes (útil depois de configurar o segredo) |
+| PR que muda `supabase/migrations/` | sem segredo e sem tocar a produção: confere versões duplicadas e lista no resumo as migrações que o PR traz (avisa se altera ou remove uma já existente). O replay do zero e o teste de RLS são do workflow **Banco do zero e RLS** |
+| Merge na `main` | espera o **Banco do zero e RLS** passar no mesmo commit, pede aprovação no ambiente `producao` e, aprovado, simula (`--dry-run`), confere a trava e aplica (`supabase db push`) |
+| Manual (`workflow_dispatch` na `main`) | o mesmo do merge; o **Banco do zero e RLS** precisa ter passado no mesmo commit (se o último commit não mexeu no banco, rode antes o **Banco do zero e RLS** à mão na `main`) |
 
+- A CLI do Supabase tem versão fixa (`SUPABASE_CLI_VERSAO` no workflow, instalada do npm); atualize de propósito.
 - **O Postgres da VPS não é exposto na internet.** O job abre um túnel SSH até a VPS e fala com o banco
-  por ele (mesma premissa do backup). Segredos em Settings → Secrets and variables → Actions:
+  por ele (mesma premissa do backup). Segredos **só no ambiente `producao`** (ver
+  [Ambientes protegidos](#ambientes-protegidos-do-github-segredos-de-produção)), nunca no nível do repositório:
 
   | Segredo | Conteúdo |
   |---|---|
@@ -74,7 +76,7 @@ O workflow `.github/workflows/migracoes-banco.yml` leva `supabase/migrations/` a
   | `SUPABASE_DB_SENHA` | senha do papel `postgres` |
 
   Variável opcional `DB_DESTINO_NA_VPS` (padrão `127.0.0.1:5432`): onde o Postgres escuta, visto de
-  dentro da VPS. Sem os segredos o job só avisa (não falha) e nada é aplicado.
+  dentro da VPS. Sem os segredos o job **falha** (o merge trouxe migração e ela não foi aplicada).
 - **Trava:** se houver mais pendentes que `LIMITE_MIGRACOES` (variável do repositório, padrão 10), o job
   falha sem aplicar nada. Isso pega o caso de o banco não reconhecer o histórico (tabela
   `supabase_migrations.schema_migrations` vazia ou divergente), em que o push tentaria rodar centenas de
@@ -117,8 +119,9 @@ testadas são as mesmas.
 ### Fotografia do banco de produção (CI, manual)
 
 O workflow `.github/workflows/fotografia-banco.yml` responde "a produção é o que as migrações dizem?". Só roda
-à mão e só na `main`: Actions → **Fotografia do banco** → Run workflow. Usa o mesmo túnel e os mesmos segredos da
-tabela acima, mais `FOTO_ARTEFATO_SENHA` (senha do arquivo cifrado, ver abaixo); sem eles o job falha.
+à mão e só na `main`: Actions → **Fotografia do banco** → Run workflow (e aprovar no ambiente `producao`). Usa o
+mesmo túnel e os mesmos segredos da tabela acima, mais `FOTO_ARTEFATO_SENHA` (senha do arquivo cifrado, ver abaixo),
+todos no ambiente `producao`; sem eles o job falha.
 
 - Monta num Postgres descartável do runner o replay das migrações e o baseline, tira a fotografia da
   **estrutura** de cada um e da produção (`scripts/db/fotografia-schema.sql`: tabelas e RLS, colunas,
@@ -207,13 +210,46 @@ A **VPS é a única produção** (`idjuv.online`): nginx servindo o front e Supa
 (`bd.idjuv.online`). A Vercel foi desligada em 2026-10-09 para não existir um segundo site com outra
 versão ou outro banco. Não há prévia por PR: teste local com `bun run dev`.
 
+### Ambientes protegidos do GitHub (segredos de produção)
+
+O repositório é público e qualquer PR pode alterar um workflow. Segredo guardado no nível do repositório
+(Settings → Secrets and variables → Actions → Repository secrets) fica ao alcance de um PR de branch do próprio
+repositório. Por isso, desde o P05, todo segredo de produção mora num **ambiente** (Settings → Environments), que só
+libera os segredos para jobs da branch `main`:
+
+| Ambiente | Regras | Segredos | Usado por |
+|---|---|---|---|
+| `producao` | *Required reviewers*: o dono; *Deployment branches*: só `main`; marcar *Prevent self-review* só se houver outro aprovador | `VPS_SSH_HOST`, `VPS_SSH_USER`, `VPS_SSH_KEY`, `VPS_SSH_KNOWN_HOSTS`, `SUPABASE_DB_SENHA`, `FOTO_ARTEFATO_SENHA` | Migrações do banco (aplicar), Fotografia do banco |
+| `deploy-front` | *Deployment branches*: só `main` (sem aprovação: o front sobe a cada merge) | `VPS_SSH_HOST`, `VPS_SSH_KNOWN_HOSTS`, `VPS_DEPLOY_USER`, `VPS_DEPLOY_KEY` | Deploy do front |
+| `backup` | *Deployment branches*: só `main` (sem aprovação: o teste é agendado) | `BACKUP_RCLONE_CONF`, `BACKUP_RCLONE_REMOTE`, `BACKUP_AGE_KEY` | Teste de restauração do backup ([BACKUP.md](./BACKUP.md)) |
+
+Passo a passo (uma vez, por quem administra o repositório):
+
+1. Settings → Environments → **New environment** → nome exato da tabela.
+2. Em *Deployment branches and tags*, escolher **Selected branches and tags** e adicionar a regra `main`.
+3. Só no `producao`: marcar **Required reviewers** e adicionar o aprovador.
+4. Em *Environment secrets*, recriar cada segredo da tabela com o mesmo nome e valor (o GitHub não mostra o valor
+   antigo; use o que está no cofre de senhas, ou gere uma chave nova e troque na VPS).
+5. Depois que os três ambientes estiverem prontos, apagar os mesmos segredos em **Repository secrets** (e conferir que
+   não há segredos da organização com os mesmos nomes). Enquanto existirem lá, continuam ao alcance de PRs.
+6. Recomendado: Settings → Actions → General → *Fork pull request workflows from outside collaborators* →
+   **Require approval for all outside collaborators**.
+
+Um job que cita um ambiente inexistente faz o GitHub criá-lo **sem regra nenhuma**: crie os ambientes antes do
+primeiro merge que precise deles, ou confira as regras logo depois. Variáveis (`vars.*`) continuam no nível do
+repositório: são públicas por natureza.
+
 ### Deploy do front (CI)
 
 O workflow `.github/workflows/deploy-front.yml` roda a cada merge na `main` (e manualmente por
 `workflow_dispatch`):
 
-1. Se o commit traz migração, espera o workflow de migrações do mesmo commit terminar com sucesso
-   (o front novo nunca chega antes do schema). Se as migrações falham, o front não é publicado.
+1. Job `esperar` (sem segredo): exige o **Quality Gates** (`scripts/gate.sh`) verde no mesmo commit e, se o
+   commit traz migração, o workflow de migrações do mesmo commit terminado com sucesso, aprovação incluída (o front
+   novo nunca chega antes do schema). Commit sem migração exige a execução mais recente das migrações na `main`
+   com sucesso (de um commit anterior a este): migração recusada ou com falha segura também os merges seguintes, até
+   alguém rodar as migrações de novo. Espera até 5h30; se a aprovação vier depois disso, rode **Deploy do front** à mão.
+   Execuções de PR nunca contam nessa espera (nem de fork com branch chamada `main`).
 2. Faz o build com as variáveis do repositório e confere que o bundle aponta para `VITE_SUPABASE_URL`.
 3. Copia por `rsync` para a pasta do nginx: primeiro os arquivos com hash (`assets/`), depois
    os pontos de entrada (index, service worker do PWA e manifest). Quem está com o sistema aberto
@@ -226,20 +262,22 @@ O workflow `.github/workflows/deploy-front.yml` roda a cada merge na `main` (e m
 5. Se `VPS_SITE_DIR` existir, faz também o **build `site`** (`npm run build:site` → `dist-site/`: só as páginas do site institucional, sem PWA e sem o sistema interno; `scripts/check-bundle-site.mjs` reprova vazamento) e publica na pasta do site. Endereços do sistema e do site vêm de `VITE_APP_URL` e `VITE_SITE_URL`, nunca do código.
 6. Confere que `FRONT_URL` serve o build novo e que data/cargos.json não está mais no ar.
 
-Configuração em Settings → Secrets and variables → Actions:
+Configuração: segredos **só no ambiente `deploy-front`** (ver
+[Ambientes protegidos](#ambientes-protegidos-do-github-segredos-de-produção)); variáveis em Settings → Secrets and
+variables → Actions → Variables (valores públicos):
 
 | Tipo | Nome | Conteúdo |
 |---|---|---|
-| Segredo | `VPS_SSH_HOST`, `VPS_SSH_KNOWN_HOSTS` | os mesmos das migrações |
-| Segredo | `VPS_DEPLOY_USER` | usuário só para o deploy, dono apenas da pasta do site (sem sudo) |
-| Segredo | `VPS_DEPLOY_KEY` | chave privada desse usuário (gere uma só para o CI) |
+| Segredo (ambiente `deploy-front`) | `VPS_SSH_HOST`, `VPS_SSH_KNOWN_HOSTS` | os mesmos das migrações |
+| Segredo (ambiente `deploy-front`) | `VPS_DEPLOY_USER` | usuário só para o deploy, dono apenas da pasta do site (sem sudo) |
+| Segredo (ambiente `deploy-front`) | `VPS_DEPLOY_KEY` | chave privada desse usuário (gere uma só para o CI) |
 | Variável | `VPS_FRONT_DIR` | pasta que o nginx serve (ex.: `/var/www/idjuv`) |
 | Variável | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`, `VITE_TENANT_SLUG` | os mesmos do `.env` de produção (valores públicos; a chave é a anon) |
 | Variável (opcional) | `VPS_SITE_DIR`, `VITE_APP_URL`, `VITE_SITE_URL` | pasta do build `site` (`/var/www/idjuv-site`) e os endereços do sistema (`https://app.idjuv.online`) e do site (`https://idjuv.online`). `VITE_APP_URL` também vale no build do sistema: aberto por esse host, `/` vai direto para `/sistema` (logado) ou `/auth`, em vez da home pública; sem a variável nada redireciona |
 | Variável (opcional) | `VPS_APP_DIR` | pasta que o nginx do `app.idjuv.online` serve (`/var/www/idjuv-app`, dono do usuário de deploy) |
 | Variável (opcional) | `FRONT_URL`, `DIAS_ASSETS_ANTIGOS` | padrão `https://idjuv.online` e `14` |
 
-Sem a configuração o job só avisa e não publica. O nginx precisa do fallback de SPA
+Sem a configuração o job **falha** e não publica. O nginx precisa do fallback de SPA
 (`try_files $uri $uri/ /index.html;`); recomenda-se `Cache-Control: no-cache` no index e no
 service worker e cache longo em `/assets/`.
 
