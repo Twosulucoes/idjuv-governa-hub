@@ -1,14 +1,14 @@
 /**
  * HELPERS DE PLANILHA (XLSX, XLS, CSV) PARA IMPORTADORES
  *
- * Extraídos da importação do quadro de vagas (ImportarQuadroVagasDialog) para servir a qualquer
- * importador da Central de Importações:
+ * Mesma lógica da importação do quadro de vagas (ImportarQuadroVagasDialog, que ainda tem a sua cópia),
+ * aqui para servir a qualquer importador da Central de Importações:
  *
  *   - lerPrimeiraAba      lê a primeira aba e devolve as linhas com o número da linha no Excel
  *   - normalizarCabecalho "Nº DOE" → "n_doe" (sem acento, minúsculo, separadores viram _)
- *   - mapearColunas       cabeçalhos da planilha → chaves do importador, por sinônimos
+ *   - campoDoCabecalho / mapearColunas  cabeçalhos da planilha → chaves do importador, por sinônimos
  *   - paraTexto / paraDataIso  conversão de célula sem deslocar o fuso
- *   - baixarModeloPlanilha     gera o .xlsx de modelo para o usuário preencher
+ *   - montarModeloPlanilha / baixarModeloPlanilha  gera o .xlsx de modelo para o usuário preencher
  *
  * A leitura é `raw`: o CSV chega como texto (sem o palpite americano de número e data) e, no XLSX,
  * data vem como o número de série do Excel, que `paraDataIso` converte sem passar pelo fuso local.
@@ -84,6 +84,15 @@ export function paraTexto(valor: unknown): string {
 }
 
 /**
+ * Chave do importador para um cabeçalho (via `normalizarCabecalho`). Só olha as chaves próprias do mapa:
+ * cabeçalho "constructor" ou "__proto__" não casa com o que vem do protótipo de Object.
+ */
+export function campoDoCabecalho<C extends string>(cabecalho: string, sinonimos: Record<string, C>): C | undefined {
+  const chave = normalizarCabecalho(cabecalho);
+  return Object.prototype.hasOwnProperty.call(sinonimos, chave) ? sinonimos[chave] : undefined;
+}
+
+/**
  * Agrupa os valores da linha pelas chaves do importador. `sinonimos` usa cabeçalhos já normalizados
  * (ver `normalizarCabecalho`). Cabeçalho desconhecido fica de fora (veja `cabecalhosIgnorados`).
  */
@@ -93,7 +102,7 @@ export function mapearColunas<C extends string>(
 ): Partial<Record<C, unknown>> {
   const saida: Partial<Record<C, unknown>> = {};
   for (const [cabecalho, valor] of Object.entries(valores)) {
-    const chave = sinonimos[normalizarCabecalho(cabecalho)];
+    const chave = campoDoCabecalho(cabecalho, sinonimos);
     if (!chave) continue;
     // Duas colunas para o mesmo campo: vale a primeira preenchida
     if (saida[chave] === undefined || saida[chave] === "") saida[chave] = valor;
@@ -103,7 +112,7 @@ export function mapearColunas<C extends string>(
 
 /** Cabeçalhos que não correspondem a nenhuma coluna conhecida (para avisar o usuário). */
 export function cabecalhosIgnorados(cabecalhos: string[], sinonimos: Record<string, string>): string[] {
-  return cabecalhos.filter((c) => c.trim() && !c.startsWith("__EMPTY") && !sinonimos[normalizarCabecalho(c)]);
+  return cabecalhos.filter((c) => c.trim() && !c.startsWith("__EMPTY") && !campoDoCabecalho(c, sinonimos));
 }
 
 /** Linha sem nenhum valor preenchido (linhas em branco no fim da planilha são comuns). */
@@ -149,14 +158,43 @@ export async function lerPrimeiraAba(arquivo: Blob): Promise<PlanilhaLida> {
 
 export interface AbaModelo {
   nome: string;
-  linhas: Record<string, string | number>[];
+  /** Linhas da aba; a primeira é o cabeçalho */
+  linhas: (string | number)[][];
+  /**
+   * Cabeçalhos (da primeira linha) cujas colunas saem formatadas como texto ("@") até `linhasTexto`, para o
+   * Excel não transformar "3/2026" em data nem tirar o zero à esquerda de uma matrícula.
+   */
+  colunasTexto?: string[];
+  /** Quantas linhas de dados recebem o formato de texto (padrão: 500) */
+  linhasTexto?: number;
+}
+
+/** Monta a pasta do modelo (sem baixar); a primeira aba é a que o importador lê. */
+export function montarModeloPlanilha(abas: AbaModelo[]): XLSX.WorkBook {
+  const pasta = XLSX.utils.book_new();
+  for (const aba of abas) {
+    const folha = XLSX.utils.aoa_to_sheet(aba.linhas);
+    const cabecalho = (aba.linhas[0] ?? []).map(String);
+    const colunas = (aba.colunasTexto ?? []).map((c) => cabecalho.indexOf(c)).filter((i) => i >= 0);
+    if (colunas.length > 0) {
+      const ultima = Math.max(aba.linhas.length - 1, aba.linhasTexto ?? 500);
+      for (const c of colunas) {
+        for (let r = 1; r <= ultima; r++) {
+          const endereco = XLSX.utils.encode_cell({ r, c });
+          const atual = folha[endereco] as XLSX.CellObject | undefined;
+          folha[endereco] = { t: "s", v: atual?.v == null ? "" : String(atual.v), z: "@" };
+        }
+      }
+      const area = XLSX.utils.decode_range(folha["!ref"] ?? "A1");
+      area.e.r = Math.max(area.e.r, ultima);
+      folha["!ref"] = XLSX.utils.encode_range(area);
+    }
+    XLSX.utils.book_append_sheet(pasta, folha, aba.nome);
+  }
+  return pasta;
 }
 
 /** Gera e baixa um .xlsx de modelo; a primeira aba é a que o importador lê. */
 export function baixarModeloPlanilha(nomeArquivo: string, abas: AbaModelo[]): void {
-  const pasta = XLSX.utils.book_new();
-  for (const aba of abas) {
-    XLSX.utils.book_append_sheet(pasta, XLSX.utils.json_to_sheet(aba.linhas), aba.nome);
-  }
-  XLSX.writeFile(pasta, nomeArquivo);
+  XLSX.writeFile(montarModeloPlanilha(abas), nomeArquivo);
 }

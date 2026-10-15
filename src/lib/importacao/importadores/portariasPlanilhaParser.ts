@@ -9,6 +9,7 @@
 import type { CategoriaPortaria, StatusPortaria } from "@/types/portaria";
 import {
   cabecalhosIgnorados,
+  campoDoCabecalho,
   linhaVazia,
   mapearColunas,
   normalizarCabecalho,
@@ -29,6 +30,8 @@ export interface LinhaPortariaContrato {
   ementa: string | null;
   processo_sei: string | null;
   status: StatusImportavel | null;
+  /** true quando a coluna Situação veio preenchida; false quando o parser aplicou o padrão */
+  status_informado: boolean;
   assinado_por: string | null;
   data_assinatura: string | null;
   doe_numero: string | null;
@@ -213,7 +216,7 @@ export function interpretarPortariasPlanilha(
   const problemas: ProblemaLeitura[] = [];
   const linhas: LinhaPortariaPlanilha[] = [];
 
-  const campos = new Set(cabecalhos.map((c) => SINONIMOS_PORTARIAS[normalizarCabecalho(c)]).filter(Boolean));
+  const campos = new Set(cabecalhos.map((c) => campoDoCabecalho(c, SINONIMOS_PORTARIAS)).filter(Boolean));
   const faltando = (["numero", "data_documento", "categoria"] as const).filter((c) => !campos.has(c));
   if (faltando.length > 0) {
     problemas.push({
@@ -320,7 +323,7 @@ export function interpretarPortariasPlanilha(
       if (chave.startsWith("revogad")) {
         erro("portaria revogada não se importa; registre a revogação na tela da portaria.");
       } else {
-        status = STATUS_POR_TEXTO[chave] ?? null;
+        status = Object.prototype.hasOwnProperty.call(STATUS_POR_TEXTO, chave) ? STATUS_POR_TEXTO[chave] : null;
         if (!status) {
           erro(
             `situação "${situacaoTexto}" desconhecida. Use: ${Object.values(ROTULO_STATUS_IMPORTAVEL).join(", ")}.`,
@@ -369,6 +372,7 @@ export function interpretarPortariasPlanilha(
       ementa,
       processo_sei: processoSei,
       status,
+      status_informado: situacaoTexto !== "",
       assinado_por: assinadoPor,
       data_assinatura: dataAssinatura,
       doe_numero: doeNumero,

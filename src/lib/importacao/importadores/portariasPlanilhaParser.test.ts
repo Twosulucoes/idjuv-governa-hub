@@ -79,6 +79,7 @@ describe("interpretarPortariasPlanilha", () => {
       ementa: null,
       processo_sei: null,
       status: "publicado",
+      status_informado: false,
       assinado_por: null,
       data_assinatura: null,
       doe_numero: "1234",
@@ -89,6 +90,31 @@ describe("interpretarPortariasPlanilha", () => {
       observacoes: null,
     });
     expect(r.linhas[0].linhaPlanilha).toBe(2);
+  });
+
+  it("status_informado diz se a Situação veio na planilha ou foi o padrão", () => {
+    const r = ler(base, { ...base, numero: "2/2026", situacao: "Publicada" });
+    expect(erros(r)).toEqual([]);
+    expect(r.linhas.map((l) => [l.status, l.status_informado])).toEqual([
+      ["publicado", false],
+      ["publicado", true],
+    ]);
+    expect(paraContrato(r.linhas[1]).status_informado).toBe(true);
+  });
+
+  it("não confunde cabeçalho com propriedade herdada de Object", () => {
+    const cabecalhos = [...CABECALHOS, "constructor", "__proto__", "toString"];
+    const valores: Record<string, unknown> = { constructor: "x", toString: "y" };
+    for (const [campo, cabecalho] of Object.entries(CABECALHOS_MODELO)) {
+      valores[cabecalho] = (base as Record<string, unknown>)[campo] ?? "";
+    }
+    Object.defineProperty(valores, "__proto__", { value: "z", enumerable: true });
+    const r = interpretarPortariasPlanilha(cabecalhos, [{ numeroLinha: 2, valores }], { hoje: HOJE });
+    expect(erros(r)).toEqual([]);
+    expect(avisos(r)).toEqual([expect.stringMatching(/não reconhecidas.*constructor, __proto__, toString/)]);
+    expect(r.linhas[0]).toMatchObject({ numero: "001/2026", categoria: "nomeacao" });
+    // Situação "constructor" não vira status herdado
+    expect(erros(ler({ ...base, situacao: "constructor" }))[0]).toMatch(/situação "constructor" desconhecida/);
   });
 
   it("recusa PENDENTE", () => {
