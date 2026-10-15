@@ -47,7 +47,7 @@ Classificação: bounded (importador novo na Central de Importações, uma RPC e
 RPC `public.importar_portarias_planilha(p_linhas jsonb, p_arquivo jsonb, p_simular boolean DEFAULT true) RETURNS jsonb`,
 `SECURITY DEFINER`, `search_path` fixo, mesmo padrão de `importar_qdd_fiplan` (migração `20261009153000`):
 `auth.uid()` + `perfil_ativo_atual()` + `can_access_module(uid,'gabinete')` + `has_permission_code(uid,'gabinete.portarias.importar')`,
-senão 42501; 1 a 2000 linhas; `pg_advisory_xact_lock`. Cada linha roda num bloco com savepoint fazendo o INSERT/UPDATE
+senão 42501; 1 a 2000 linhas; `pg_try_advisory_xact_lock` (com outra em andamento, erro `55P03` na hora). Cada linha roda num bloco com savepoint fazendo o INSERT/UPDATE
 real (triggers `documentos_portaria_validar`, índice único, regra de setor), desfeito na simulação; o erro vira erro da
 linha. Aplicação com erro em qualquer linha aborta tudo. Log em `importacoes` (tipo `portarias_planilha`, módulo
 `gabinete`). Retorno = `ResultadoBanco` + `erros[{indice,mensagem}]` e `avisos` por linha. Grants: `REVOKE ALL FROM PUBLIC, anon`;
@@ -70,10 +70,16 @@ Cada item de `p_linhas` (já normalizado pelo front; datas `AAAA-MM-DD`; campos 
 
 ```json
 { "indice": 0, "numero": "001/2026", "data_documento": "2026-01-10", "categoria": "nomeacao",
-  "ementa": null, "processo_sei": null, "status": "publicado", "assinado_por": null, "data_assinatura": null,
+  "ementa": null, "processo_sei": null, "status": "publicado", "status_informado": true,
+  "assinado_por": null, "data_assinatura": null,
   "doe_numero": "1234", "doe_data": "2026-01-12", "data_vigencia_inicio": null, "data_vigencia_fim": null,
   "matriculas": ["12345"], "observacoes": null }
 ```
+
+`status_informado` (boolean): `true` quando a coluna Situação veio preenchida na planilha; `false` quando o front
+preencheu `status` por padrão (publicado com DOE, senão aguardando assinatura). Só com `true` a RPC avisa que a
+situação da planilha difere da do sistema. Ausente ou `null`: a RPC trata como `status` preenchido (o front deve
+enviar sempre).
 
 `p_arquivo`: `{ "nome", "sha256", "tamanho" }` (validado só na aplicação). Retorno:
 

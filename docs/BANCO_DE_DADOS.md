@@ -1221,9 +1221,12 @@ RETURNS jsonb`. Nenhuma RLS existente muda.
 - **Segurança:** `SECURITY DEFINER`, `search_path = public`. Exige `auth.uid()`, perfil ativo, `can_access_module(uid,
   'gabinete')` e `has_permission_code(uid, 'gabinete.portarias.importar')`; senão `42501`. `REVOKE ALL` de `PUBLIC` e
   `anon`; `EXECUTE` só para `authenticated`. De 1 a 2000 linhas (`22023`); na aplicação, `p_arquivo` precisa de nome,
-  `sha256` (64 hex) e tamanho. `pg_advisory_xact_lock` impede duas importações de portarias ao mesmo tempo.
+  `sha256` (64 hex) e tamanho. `pg_try_advisory_xact_lock` impede duas importações de portarias ao mesmo tempo sem
+  esperar: com outra em andamento a chamada falha na hora com `55P03` ("Já há uma importação de portarias em andamento;
+  tente de novo em instantes").
 - **Linha (contrato):** `indice`, `numero`, `data_documento`, `categoria`, `ementa`, `processo_sei`, `status`,
-  `assinado_por`, `data_assinatura`, `doe_numero`, `doe_data`, `data_vigencia_inicio`, `data_vigencia_fim`,
+  `status_informado` (boolean: `false` quando o front preencheu a situação por padrão; ausente vale "status
+  preenchido"), `assinado_por`, `data_assinatura`, `doe_numero`, `doe_data`, `data_vigencia_inicio`, `data_vigencia_fim`,
   `matriculas[]`, `observacoes`; datas `AAAA-MM-DD`, vazio = `null`. O servidor é identificado **só pela matrícula**
   (CPF não entra, não é lido nem devolvido).
 - **Simulação por savepoint:** a RPC faz o INSERT/UPDATE real de cada linha, cada uma num bloco com `EXCEPTION`
@@ -1237,18 +1240,26 @@ RETURNS jsonb`. Nenhuma RLS existente muda.
   data DOE não anterior à da portaria; situação aceita `aguardando_assinatura`, `assinado`, `publicado`, `vigente`
   (vazia: `publicado` se houver DOE, senão `aguardando_assinatura`; `revogado` recusada); assinada exige quem
   assinou e a data; publicada/vigente exige DOE; vigente exige início da vigência; fim não anterior ao início;
-  matrícula inexistente é erro; até 500 matrículas por portaria.
+  matrícula inexistente é erro; matrícula repetida no cadastro de servidores é erro ("ambígua no cadastro"), nunca
+  escolhe um servidor qualquer; até 500 matrículas por portaria.
 - **Regras de inclusão e atualização:** número que não existe → `inserir` (título = ementa ou "Portaria nº X";
   `data_publicacao` = data do DOE). Número que existe (também se gravado fora do padrão, como `1/2026`) → só
   **preenche o que está vazio** (processo SEI, ementa, DOE quando a portaria já está publicada/vigente, vigência) e
   **soma servidores novos**; nunca muda categoria, status nem data, nunca remove servidor, nunca apaga. Divergência
   de situação, categoria, data ou DOE vira **aviso**, não alteração (o ciclo se avança na tela da portaria); portaria
-  revogada no sistema não é alterada. Sem o que preencher: `sem_alteracao`. Pendência `PENDENTE/AAAA` do mesmo
+  revogada no sistema não é alterada. O aviso de situação divergente só sai quando a linha trouxe a
+  situação da planilha (`status_informado`), não quando ela foi preenchida por padrão. Sem o que preencher: `sem_alteracao`. Pendência `PENDENTE/AAAA` do mesmo
   servidor e categoria não é alterada: a simulação só avisa. Também são avisos: servidor inativo, portaria de
   pessoal sem matrícula e observações preenchidas (não colocar dado pessoal).
+- **LGPD (dado do RH):** a situação funcional do servidor (exonerado, aposentado, falecido...) só aparece no aviso
+  para quem tem `can_access_module(uid, 'rh')`; sem o módulo rh o aviso é "Servidor da matrícula X não está ativo".
+  Pelo mesmo motivo, sem o módulo rh, `mudancas.servidores_ids` de uma portaria existente não mostra a matrícula dos
+  servidores já vinculados que não vieram na planilha: aparecem contados ("N servidor(es) já vinculados").
 - **Retorno:** `{ simulacao, importacao_id, totais {inserir, atualizar, sem_alteracao}, linhas [{indice, acao,
   mudancas {campo: [antes, depois]}, avisos}], erros [{indice, mensagem}] }`; servidores aparecem por matrícula em
-  `mudancas`, nunca por UUID.
+  `mudancas`, nunca por UUID. Erro de linha traz a mensagem do Postgres só para as classes esperadas (`22xxx`,
+  `23xxx`, `P0001`, `RHS01` da regra de setor, `42501`); qualquer outro SQLSTATE vira "Erro inesperado ao gravar a
+  linha (código X)".
 - **Log:** só a aplicação sem erro grava em `importacoes` (`tipo = 'portarias_planilha'`, `modulo = 'gabinete'`),
   com `detalhes` contendo índice, número, ação, `documento_id` e nomes dos campos alterados (sem valores pessoais).
 

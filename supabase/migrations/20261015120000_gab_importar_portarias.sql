@@ -21,7 +21,14 @@
 -- importacoes.
 --
 -- LGPD: o servidor é identificado só pela matrícula; CPF não entra, não é lido nem devolvido. O log
--- (importacoes.detalhes) guarda só índice, número da portaria, ação e nomes dos campos alterados.
+-- (importacoes.detalhes) guarda só índice, número da portaria, ação e nomes dos campos alterados. Dado do RH
+-- só para quem tem o módulo rh: sem ele, o aviso de servidor inativo não diz a situação funcional (exonerado,
+-- aposentado...) e as mudanças de servidores de uma portaria existente não convertem em matrícula os
+-- servidores já vinculados que não vieram na planilha (aparece só "N servidor(es) já vinculados").
+--
+-- Erros: o erro de uma linha devolve a mensagem do Postgres só para as classes esperadas (22xxx dado inválido,
+-- 23xxx restrição, P0001 RAISE simples, RHS01 regra de setor, 42501 permissão); qualquer outro SQLSTATE vira
+-- "Erro inesperado ao gravar a linha (código X)", sem expor o texto interno.
 -- ============================================================================
 
 
@@ -39,8 +46,10 @@ ON CONFLICT (permission_code) DO NOTHING;
 -- 2. importar_portarias_planilha
 -- ----------------------------------------------------------------------------
 -- p_linhas: array de objetos {indice, numero, data_documento, categoria, ementa, processo_sei, status,
---   assinado_por, data_assinatura, doe_numero, doe_data, data_vigencia_inicio, data_vigencia_fim,
---   matriculas[], observacoes} (datas AAAA-MM-DD; vazio = null).
+--   status_informado, assinado_por, data_assinatura, doe_numero, doe_data, data_vigencia_inicio,
+--   data_vigencia_fim, matriculas[], observacoes} (datas AAAA-MM-DD; vazio = null). status_informado (boolean):
+--   false quando o front preencheu a situação por padrão (coluna vazia na planilha); só com true a RPC avisa
+--   que a situação da planilha difere da do sistema. Ausente/null: vale "status preenchido".
 -- p_arquivo: {nome, sha256, tamanho} (conferido só na aplicação).
 -- Retorno: {simulacao, importacao_id, totais {inserir, atualizar, sem_alteracao},
 --   linhas [{indice, acao, mudancas {campo: [antes, depois]}, avisos []}], erros [{indice, mensagem}]}.
@@ -61,6 +70,10 @@ DECLARE
     "assinado": "Assinada", "aguardando_publicacao": "Aguardando publicação", "publicado": "Publicada",
     "vigente": "Vigente", "revogado": "Revogada"}';
   v_uid uuid := auth.uid();
+  v_rh boolean;                         -- pode ver dado funcional do servidor (módulo rh)
+  v_status_inf boolean;
+  v_n integer;
+  v_ocultos integer;
   v_linha jsonb;
   v_pos integer := -1;
   v_ind integer;
@@ -117,8 +130,13 @@ BEGIN
     RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
   END IF;
 
-  -- Uma importação de portarias de cada vez (a chave é o número, que não tem exercício próprio).
-  PERFORM pg_advisory_xact_lock(hashtext('importar_portarias_planilha'), 0);
+  v_rh := COALESCE(public.can_access_module(v_uid, 'rh'), false);
+
+  -- Uma importação de portarias de cada vez (a chave é o número, que não tem exercício próprio). Não espera:
+  -- com outra em andamento recusa na hora, em vez de prender a conexão até a outra terminar.
+  IF NOT pg_try_advisory_xact_lock(hashtext('importar_portarias_planilha'), 0) THEN
+    RAISE EXCEPTION 'Já há uma importação de portarias em andamento; tente de novo em instantes.' USING ERRCODE = '55P03';
+  END IF;
 
   -- Portarias gravadas com o número fora do padrão (ex.: 1/2026, 01/2026): reconhecidas pelo número normalizado.
   SELECT COALESCE(jsonb_object_agg(n.norm, n.id), '{}'::jsonb) INTO v_legado
@@ -235,6 +253,15 @@ BEGIN
 
         -- Situação: vazia = publicado com DOE, senão aguardando assinatura; revogada recusada
         v_status := NULLIF(btrim(COALESCE(v_linha->>'status', '')), '');
+        -- status_informado: o front preenche a situação por padrão; só a situação vinda da planilha gera aviso
+        IF jsonb_typeof(v_linha->'status_informado') = 'boolean' THEN
+          v_status_inf := (v_linha->>'status_informado')::boolean;
+        ELSIF jsonb_typeof(v_linha->'status_informado') IS NULL OR jsonb_typeof(v_linha->'status_informado') = 'null' THEN
+          v_status_inf := v_status IS NOT NULL;
+        ELSE
+          v_erros_linha := v_erros_linha || '"status_informado" em formato inválido.'::text;
+          v_status_inf := false;
+        END IF;
         IF v_status IS NULL THEN
           v_status := CASE WHEN v_doe_num IS NOT NULL AND v_doe_data IS NOT NULL THEN 'publicado' ELSE 'aguardando_assinatura' END;
         ELSIF v_status = 'revogado' THEN
@@ -277,14 +304,21 @@ BEGIN
           END IF;
         END IF;
         FOREACH v_mat IN ARRAY v_mats LOOP
-          SELECT s.id, s.ativo, s.situacao::text AS situacao INTO v_serv
-            FROM public.servidores s WHERE s.matricula = v_mat;
-          IF NOT FOUND THEN
+          -- conta antes: matrícula repetida no cadastro não escolhe um servidor qualquer
+          SELECT count(*) INTO v_n FROM public.servidores s WHERE s.matricula = v_mat;
+          IF v_n = 0 THEN
             v_erros_linha := v_erros_linha || format('Matrícula %s não encontrada.', v_mat);
+          ELSIF v_n > 1 THEN
+            v_erros_linha := v_erros_linha || format('Matrícula %s ambígua no cadastro (mais de um servidor); corrija no RH antes de importar.', v_mat);
           ELSE
+            SELECT s.id, s.ativo, s.situacao::text AS situacao INTO STRICT v_serv
+              FROM public.servidores s WHERE s.matricula = v_mat;
             v_serv_ids := v_serv_ids || v_serv.id;
             IF v_serv.ativo IS FALSE OR v_serv.situacao IN ('exonerado', 'aposentado', 'falecido', 'inativo') THEN
-              v_avisos := v_avisos || format('Matrícula %s: servidor não está ativo (situação: %s).', v_mat, v_serv.situacao);
+              -- a situação funcional é dado do RH: só com o módulo rh
+              v_avisos := v_avisos || CASE WHEN v_rh
+                THEN format('Matrícula %s: servidor não está ativo (situação: %s).', v_mat, v_serv.situacao)
+                ELSE format('Servidor da matrícula %s não está ativo.', v_mat) END;
             END IF;
           END IF;
         END LOOP;
@@ -392,7 +426,7 @@ BEGIN
               v_upd := v_upd || jsonb_build_object('servidores_ids', to_jsonb(COALESCE(v_doc.servidores_ids, '{}') || v_novos));
             END IF;
 
-            IF v_status IS DISTINCT FROM v_doc.status::text THEN
+            IF v_status_inf AND v_status IS DISTINCT FROM v_doc.status::text THEN
               v_avisos := v_avisos || format('Situação no sistema: %s; na planilha: %s. A importação não muda a situação: avance na tela da portaria.',
                                              COALESCE(c_rotulo->>v_doc.status::text, v_doc.status::text),
                                              COALESCE(c_rotulo->>v_status, v_status));
@@ -413,13 +447,19 @@ BEGIN
             END IF;
           END IF;
 
-          -- mudanças para exibição: servidores por matrícula (nunca UUID nem CPF)
+          -- mudanças para exibição: servidores por matrícula (nunca UUID nem CPF). Sem o módulo rh, os já
+          -- vinculados que não vieram na planilha aparecem só contados ("N servidor(es) já vinculados").
           SELECT COALESCE(jsonb_object_agg(k, jsonb_build_array(to_jsonb(v_doc) -> k, v_upd -> k)), '{}'::jsonb)
             INTO v_mudancas FROM jsonb_object_keys(v_upd) AS k WHERE k <> 'servidores_ids';
           IF v_upd ? 'servidores_ids' THEN
-            SELECT COALESCE(array_agg(s.matricula ORDER BY x.o), '{}') INTO v_mats_antes
+            SELECT COALESCE(array_agg(s.matricula ORDER BY x.o) FILTER (WHERE v_rh OR x.id = ANY (v_serv_ids)), '{}'),
+                   count(*) FILTER (WHERE NOT (v_rh OR x.id = ANY (v_serv_ids)))
+              INTO v_mats_antes, v_ocultos
               FROM unnest(COALESCE(v_doc.servidores_ids, '{}')) WITH ORDINALITY AS x(id, o)
               JOIN public.servidores s ON s.id = x.id;
+            IF v_ocultos > 0 THEN
+              v_mats_antes := ARRAY[format('%s servidor(es) já vinculados', v_ocultos)] || v_mats_antes;
+            END IF;
             v_mudancas := v_mudancas || jsonb_build_object('servidores_ids', jsonb_build_array(
               to_jsonb(v_mats_antes),
               to_jsonb(v_mats_antes || ARRAY(SELECT s.matricula FROM unnest(v_novos) WITH ORDINALITY AS x(id, o)
@@ -462,9 +502,11 @@ BEGIN
                          THEN (SELECT jsonb_agg(k ORDER BY k) FROM jsonb_object_keys(v_mudancas) AS k) END));
       EXCEPTION
         WHEN OTHERS THEN
+          -- texto do Postgres só para as classes esperadas; o resto não expõe detalhe interno
           v_erros := v_erros || jsonb_build_object('indice', v_ind, 'mensagem',
             CASE WHEN SQLSTATE = '23505' THEN format('Já existe portaria com o número %s.', COALESCE(v_num, '?'))
-                 ELSE SQLERRM END);
+                 WHEN left(SQLSTATE, 2) IN ('22', '23') OR SQLSTATE IN ('P0001', 'RHS01', '42501') THEN SQLERRM
+                 ELSE format('Erro inesperado ao gravar a linha (código %s).', SQLSTATE) END);
       END;
     END LOOP;
 

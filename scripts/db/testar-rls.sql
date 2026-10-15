@@ -5793,7 +5793,11 @@ END $$;
 --   * portaria gravada fora do padrão (7/2025) casa com 007/2025: só preenche o vazio e SOMA servidor (nunca remove),
 --     não muda a situação (aviso "avance na tela da portaria");
 --   * tudo ou nada: matrícula inexistente, número repetido no arquivo, PENDENTE e erro de trigger (regra de setor em
---     modo exigir, login sem servidor) viram erro da linha e nada é gravado.
+--     modo exigir, login sem servidor) viram erro da linha e nada é gravado;
+--   * LGPD: sem o módulo rh o aviso de inativo não diz a situação (exonerado) e as mudanças de servidores não mostram a
+--     matrícula de quem já estava vinculado e não veio na planilha ("N servidor(es) já vinculados"); com rh, mostram;
+--   * matrícula repetida no cadastro (sem a UNIQUE, desfeito no fim) é erro "ambígua", não pega um servidor qualquer;
+--   * status_informado = false (situação preenchida por padrão no front) não gera o aviso de situação divergente.
 -- Banco anterior à migração: o bloco reprova sem abortar.
 CREATE FUNCTION pg_temp.pi_chamar(p_uid uuid, p_linhas jsonb, p_simular boolean) RETURNS jsonb
 LANGUAGE plpgsql AS $$
@@ -5820,6 +5824,7 @@ DECLARE
   u_imp uuid := 'a0000000-0000-0000-0000-0000000006a1';   -- módulo gabinete + gabinete.portarias.importar
   u_gab uuid := 'a0000000-0000-0000-0000-0000000006a2';   -- módulo gabinete sem a permissão
   u_rhp uuid := 'a0000000-0000-0000-0000-0000000006a3';   -- a permissão no módulo rh, sem o módulo gabinete
+  u_imr uuid := 'a0000000-0000-0000-0000-0000000006a4';   -- como u_imp e também com o módulo rh
   s1 uuid := 'b2000000-0000-0000-0000-0000000000f1';      -- PI-001, ativo
   s2 uuid := 'b2000000-0000-0000-0000-0000000000f2';      -- PI-002, ativo, com pendência PENDENTE de nomeação
   s3 uuid := 'b2000000-0000-0000-0000-0000000000f3';      -- PI-003, exonerado
@@ -5835,10 +5840,13 @@ BEGIN
     RETURN;
   END IF;
   SET LOCAL session_replication_role = origin;
-  INSERT INTO auth.users (id, email) VALUES (u_imp, 'pi_imp@teste.invalid'), (u_gab, 'pi_gab@teste.invalid'), (u_rhp, 'pi_rhp@teste.invalid');
-  UPDATE public.profiles SET is_active = true WHERE id IN (u_imp, u_gab, u_rhp);
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'pi_imp@teste.invalid'), (u_gab, 'pi_gab@teste.invalid'), (u_rhp, 'pi_rhp@teste.invalid'),
+    (u_imr, 'pi_imr@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_imp, u_gab, u_rhp, u_imr);
   INSERT INTO public.user_modules (user_id, module, permissions) VALUES
     (u_imp, 'gabinete', '{gabinete.portarias.visualizar,gabinete.portarias.importar}'),
+    (u_imr, 'gabinete', '{gabinete.portarias.visualizar,gabinete.portarias.importar}'),
+    (u_imr, 'rh', '{rh.servidores.visualizar}'),
     (u_gab, 'gabinete', '{gabinete.portarias.visualizar,gabinete.portarias.criar,gabinete.portarias.editar}'),
     (u_rhp, 'rh', '{gabinete.portarias.importar}');
   -- regra de setor num estado conhecido (registrar não bloqueia); restaurada no fim
@@ -5894,9 +5902,19 @@ BEGIN
     PERFORM pg_temp.falha('gabinete importação: a simulação gravou');
   END IF;
   r := (SELECT x2 -> 'avisos' FROM jsonb_array_elements(j -> 'linhas') x2 WHERE (x2 ->> 'indice')::int = 2)::text;
-  IF coalesce(r, '') !~ 'PI-003: servidor não está ativo' OR r !~ 'pendência PENDENTE/2026' OR r ~ 'PI-001' THEN
+  IF coalesce(r, '') !~ 'Servidor da matrícula PI-003 não está ativo' OR r !~ 'pendência PENDENTE/2026' OR r ~ 'PI-001' THEN
     PERFORM pg_temp.falha('gabinete importação: avisos de inativo/pendência ausentes na linha 2: ' || coalesce(r, 'nada'));
   END IF;
+  IF j::text ~* 'exonerad' THEN
+    PERFORM pg_temp.falha('gabinete importação: usuário sem o módulo rh recebeu a situação funcional do servidor: ' || coalesce(r, 'nada'));
+  END IF;
+  -- com o módulo rh, o aviso diz a situação
+  j := pg_temp.pi_chamar(u_imr, linhas, true);
+  r := (SELECT x2 -> 'avisos' FROM jsonb_array_elements(j -> 'linhas') x2 WHERE (x2 ->> 'indice')::int = 2)::text;
+  IF coalesce(r, '') !~ 'PI-003: servidor não está ativo \(situação: exonerado\)' THEN
+    PERFORM pg_temp.falha('gabinete importação: com o módulo rh o aviso de inativo não traz a situação: ' || left(coalesce(j::text, 'nada'), 300));
+  END IF;
+  j := pg_temp.pi_chamar(u_imp, linhas, true);
   r := (SELECT x2 -> 'avisos' FROM jsonb_array_elements(j -> 'linhas') x2 WHERE (x2 ->> 'indice')::int = 1)::text;
   IF coalesce(r, '') !~ 'não coloque CPF' THEN PERFORM pg_temp.falha('gabinete importação: aviso das observações ausente: ' || coalesce(r, 'nada')); END IF;
   IF j::text ~ '\d{3}\.\d{3}\.' OR j::text ~ 'b2000000-' THEN PERFORM pg_temp.falha('gabinete importação: o retorno traz CPF ou UUID de servidor'); END IF;
@@ -5946,10 +5964,21 @@ BEGIN
   linhas := jsonb_build_array(pg_temp.pi_linha(jsonb_build_object('numero', '007/2025', 'categoria', 'nomeacao',
     'data_documento', to_char(current_date - 300, 'YYYY-MM-DD'), 'status', 'publicado', 'doe_numero', 'PI-DOE-7',
     'doe_data', to_char(current_date - 290, 'YYYY-MM-DD'), 'processo_sei', 'PI-SEI-0007', 'matriculas', '["PI-002"]'::jsonb)));
+  -- com o módulo rh (simulação), a matrícula de quem já estava vinculado aparece
+  j := pg_temp.pi_chamar(u_imr, linhas, true);
+  IF j -> 'linhas' -> 0 -> 'mudancas' -> 'servidores_ids' IS DISTINCT FROM '[["PI-001"], ["PI-001", "PI-002"]]'::jsonb THEN
+    PERFORM pg_temp.falha('gabinete importação: com o módulo rh as mudanças de servidores não trazem as matrículas: ' || left(j::text, 400));
+  END IF;
+  -- situação preenchida por padrão no front (status_informado = false): sem aviso de situação divergente
+  j := pg_temp.pi_chamar(u_imp, jsonb_build_array(linhas -> 0 || '{"status_informado": false}'::jsonb), true);
+  IF j ? 'falhou' OR (j -> 'linhas' -> 0 -> 'avisos')::text ~ 'Situação no sistema' THEN
+    PERFORM pg_temp.falha('gabinete importação: status_informado = false ainda avisa da situação divergente: ' || left(j::text, 400));
+  END IF;
   j := pg_temp.pi_chamar(u_imp, linhas, false);
   IF j ? 'falhou' OR j -> 'totais' <> '{"inserir": 0, "atualizar": 1, "sem_alteracao": 0}'::jsonb OR jsonb_array_length(j -> 'erros') <> 0
      OR j -> 'linhas' -> 0 -> 'mudancas' -> 'processo_sei' <> '[null, "PI-SEI-0007"]'::jsonb
-     OR j -> 'linhas' -> 0 -> 'mudancas' -> 'servidores_ids' <> '[["PI-001"], ["PI-001", "PI-002"]]'::jsonb
+     OR j -> 'linhas' -> 0 -> 'mudancas' -> 'servidores_ids' <> '[["1 servidor(es) já vinculados"], ["1 servidor(es) já vinculados", "PI-002"]]'::jsonb
+     OR j::text ~ 'PI-001'
      OR (j -> 'linhas' -> 0 -> 'avisos')::text !~ 'avance na tela da portaria' THEN
     PERFORM pg_temp.falha('gabinete importação: atualização da 7/2025 devolveu ' || left(j::text, 400));
   END IF;
@@ -5980,6 +6009,27 @@ BEGIN
   END IF;
   IF EXISTS (SELECT 1 FROM public.documentos WHERE numero IN ('904/2026', '905/2026')) OR (SELECT count(*) FROM public.importacoes) <> n_imp THEN
     PERFORM pg_temp.falha('gabinete importação: com erro numa linha a aplicação gravou as outras (tudo ou nada)');
+  END IF;
+
+  -- ===== matrícula repetida no cadastro: erro "ambígua" (sem a UNIQUE só dentro deste bloco, desfeito no fim)
+  BEGIN
+    ALTER TABLE public.servidores DROP CONSTRAINT servidores_matricula_key;
+    SET LOCAL session_replication_role = replica;
+    INSERT INTO public.servidores (id, nome_completo, cpf, matricula, situacao, ativo) VALUES
+      ('b2000000-0000-0000-0000-0000000000f4', 'PI Servidor 4', '000.000.6f4-04', 'PI-001', 'ativo', true);
+    SET LOCAL session_replication_role = origin;
+    j := pg_temp.pi_chamar(u_imp, jsonb_build_array(pg_temp.pi_linha(jsonb_build_object('numero', '908/2026',
+      'categoria', 'nomeacao', 'matriculas', '["PI-001"]'::jsonb))), true);
+    RAISE EXCEPTION USING ERRCODE = 'P0098', MESSAGE = 'desfazer';
+  EXCEPTION WHEN SQLSTATE 'P0098' THEN NULL;
+  END;
+  SET LOCAL session_replication_role = origin;
+  IF j ? 'falhou' OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements(j -> 'erros') e WHERE e ->> 'mensagem' ~ 'PI-001 ambígua no cadastro')
+     OR jsonb_array_length(j -> 'linhas') <> 0 THEN
+    PERFORM pg_temp.falha('gabinete importação: matrícula repetida no cadastro não virou erro "ambígua": ' || left(j::text, 300));
+  END IF;
+  IF to_regclass('public.servidores') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'servidores_matricula_key') THEN
+    PERFORM pg_temp.falha('gabinete importação: o teste de matrícula ambígua não restaurou a UNIQUE de servidores.matricula');
   END IF;
 
   -- ===== número repetido no arquivo e PENDENTE
@@ -6017,7 +6067,7 @@ BEGIN
   PERFORM pg_temp.ls_sistema();
   UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
 
-  PERFORM pg_temp.nota('Gabinete (importação de portarias): permissão, simulação sem gravar, aplicação e log, reaplicação sem alteração, casamento do número antigo, soma de servidor, tudo ou nada (matrícula, repetido, PENDENTE, regra de setor) verificados');
+  PERFORM pg_temp.nota('Gabinete (importação de portarias): permissão, simulação sem gravar, aplicação e log, reaplicação sem alteração, casamento do número antigo, soma de servidor, tudo ou nada (matrícula, repetido, PENDENTE, regra de setor), situação do servidor e matrículas antigas só com rh, matrícula ambígua e status_informado verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo
