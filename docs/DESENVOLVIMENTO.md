@@ -47,6 +47,8 @@ bun run preview      # serve o build localmente
   (pré-requisitos de `scripts/db/validar-migracoes.sh`), não de um banco remoto; `npm run check:tipos` só
   confere. Commite o arquivo no mesmo PR da migração. Esse arquivo é **gerado** — não editar à mão. Detalhes em
   [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+- No mesmo PR, regenere o schema do baseline e classifique tabela nova em `supabase/baseline/rls/mapa.csv`: o CI
+  **Banco do zero e RLS** (abaixo) reprova sem isso.
 - Edge Functions: ver [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md).
 
 ### Aplicação automática das migrações (CI)
@@ -92,6 +94,25 @@ O workflow `.github/workflows/tipos-banco.yml` (**Tipos do banco**) roda em PR q
 `supabase/migrations/`, `src/integrations/supabase/types.ts` ou os scripts do replay/gerador (e no push na
 `main`): sobe um Postgres descartável, roda `bash scripts/db/gerar-tipos.sh --checar` e falha se o `types.ts`
 commitado difere do que as migrações geram. Não usa segredo.
+
+### Banco do zero e RLS (CI)
+
+O workflow `.github/workflows/banco-rls.yml` (**Banco do zero e RLS**, P04) roda em PR que muda
+`supabase/migrations/`, `supabase/baseline/` ou os scripts do replay/teste de RLS (e no push na `main`). Num
+Postgres descartável do runner, sem segredo e sem falar com a produção:
+
+1. faz o replay de todas as migrações do zero (`scripts/db/validar-migracoes.sh`) e reprova se algum arquivo falhar;
+2. roda `scripts/db/validar-baseline.sh` com `PG_REPLAY` e `EXIGIR_REPLAY=1`: aplica o baseline num banco vazio,
+   roda o teste de RLS por persona (`scripts/db/testar-rls.sql`) e exige schema, privilégios e storage idênticos
+   ao replay.
+
+Na prática, uma migração nova só fica verde se, no mesmo PR, o schema do baseline for regenerado
+(`scripts/db/gerar-baseline.sh`) e toda tabela nova estiver classificada em `supabase/baseline/rls/mapa.csv`
+(tabela fora do mapa reprova no teste de RLS). Passo a passo local em
+[supabase/baseline/README.md](../supabase/baseline/README.md#verificação); leva menos de um minuto num Postgres local.
+O teste de RLS roda no banco do baseline, não no do replay: o replay traz os 74 servidores da migração
+`20260110184920` e o teste parte de tabelas vazias. Como o passo 5 exige os dois schemas idênticos, as policies
+testadas são as mesmas.
 
 ### Fotografia do banco de produção (CI, manual)
 

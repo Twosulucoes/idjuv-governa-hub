@@ -1,0 +1,103 @@
+name: Banco do zero e RLS
+
+# Todo PR que mexe no banco sobe o banco do zero num Postgres descartável do runner e testa a RLS:
+#   1. replay de TODAS as migrações (scripts/db/validar-migracoes.sh): reprova se algum arquivo falhar;
+#   2. scripts/db/validar-baseline.sh com o replay: aplica supabase/baseline/ num banco vazio, roda o teste
+#      de RLS por persona (scripts/db/testar-rls.sql) e exige schema, privilégios e storage idênticos ao
+#      replay. Assim migração nova sem baseline regenerado, tabela nova fora de rls/mapa.csv ou policy que
+#      deixa uma persona ver/alterar o que não devia ficam vermelhas aqui.
+# Não usa segredo nem fala com a produção. Como corrigir cada falha: supabase/baseline/README.md.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/baseline/**"
+      - "scripts/db/validar-migracoes.sh"
+      - "scripts/db/validar-baseline.sh"
+      - "scripts/db/testar-rls.sh"
+      - "scripts/db/testar-rls.sql"
+      - "scripts/db/shim-supabase.sql"
+      - "scripts/db/gerar-rls.mjs"
+      - ".github/workflows/banco-rls.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/baseline/**"
+      - "scripts/db/validar-migracoes.sh"
+      - "scripts/db/validar-baseline.sh"
+      - "scripts/db/testar-rls.sh"
+      - "scripts/db/testar-rls.sql"
+      - "scripts/db/shim-supabase.sql"
+      - "scripts/db/gerar-rls.mjs"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  banco:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SAIDA: /tmp/validar-migracoes
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Postgres descartável (superusuário supabase_admin, como pede o shim).
+      - name: Postgres local
+        run: |
+          docker run -d --name pg -p 127.0.0.1:54329:5432 \
+            -e POSTGRES_USER=supabase_admin -e POSTGRES_HOST_AUTH_METHOD=trust \
+            postgres:17 -c max_locks_per_transaction=1024
+          for i in $(seq 1 30); do pg_isready -h 127.0.0.1 -p 54329 -q && break; sleep 2; done
+          pg_isready -h 127.0.0.1 -p 54329
+
+      # validar-baseline.sh compara com pg_dump, que precisa ser da versão do servidor (17) ou mais novo.
+      - name: pg_dump 17
+        run: |
+          maior=$(pg_dump --version 2>/dev/null | grep -oE '[0-9]+' | head -1 || true)
+          if [ "${maior:-0}" -lt 17 ]; then
+            sudo apt-get install -y -qq postgresql-common >/dev/null
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+            sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+            echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: Replay das migrações do zero
+        run: |
+          pg_dump --version
+          PG_DB=idjuv_replay bash scripts/db/validar-migracoes.sh 2>&1 | tee /tmp/replay.txt
+          exit "${PIPESTATUS[0]}"
+
+      - name: Baseline, teste de RLS e comparação com o replay
+        run: |
+          PG_DB=idjuv_baseline PG_REPLAY=idjuv_replay EXIGIR_REPLAY=1 \
+            bash scripts/db/validar-baseline.sh 2>&1 | tee /tmp/baseline.txt
+          exit "${PIPESTATUS[0]}"
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "### Banco do zero e RLS"
+            [ -f /tmp/replay.txt ] && echo "- Replay: $(grep -m1 '^aplicados:' /tmp/replay.txt | cut -d'(' -f1)"
+            [ -f /tmp/baseline.txt ] && echo "- Baseline: $(tail -1 /tmp/baseline.txt)"
+            if [ -f /tmp/baseline.txt ] && grep -q 'FALHA' /tmp/baseline.txt; then
+              echo; echo '```'; grep -E 'FALHA|^        ' /tmp/baseline.txt | head -40; echo '```'
+              echo "Como corrigir: supabase/baseline/README.md (seções Verificação e Regenerar o schema)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -133,6 +133,12 @@ bash scripts/db/validar-migracoes.sh                       # replay das migraç�
 PG_REPLAY=idjuv_validacao bash scripts/db/validar-baseline.sh   # EXIGIR_REPLAY=1 reprova se o passo 5 for pulado
 ```
 
+Os dois comandos rodam no CI em todo PR que muda `supabase/migrations/`, `supabase/baseline/` ou estes scripts
+(workflow **Banco do zero e RLS**, `.github/workflows/banco-rls.yml`, com `EXIGIR_REPLAY=1`). Migração nova sem
+o schema regenerado (seção "Regenerar o schema") reprova no passo 5; tabela nova fora do `rls/mapa.csv` reprova no
+teste de RLS ("tabela fora de rls/mapa.csv (decida o módulo dono)"). Se o catálogo não mudou, dá para descartar a
+regeneração de `schema/02_dados_catalogo.sql` (`git checkout` do arquivo): o passo 5 compara só a estrutura.
+
 `scripts/db/fotografia-banco.sh` faz uma comparação mais ampla e legível (relatório em markdown) entre o replay,
 o baseline e, com `FOTO_PROD_URL`, o banco de produção: diz quais correções do baseline ainda não viraram migração
 e o que a produção tem de diferente das migrações. Na produção roda pelo workflow manual **Fotografia do banco**
