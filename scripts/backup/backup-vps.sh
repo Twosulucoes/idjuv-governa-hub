@@ -10,7 +10,7 @@
 # Gera, por execução, em <remoto>/diario/<AAAA-MM-DD>/:
 #   banco.dump.age      pg_dump -Fc do banco `postgres` (public, auth, storage, ...)
 #   papeis.sql.age      pg_dumpall --roles-only (papéis e grants globais, sem senhas)
-#   storage.tar.gz.age  diretório de arquivos do Storage
+#   storage.tar.gz.age  diretório de arquivos do Storage (obrigatório desde o P07a)
 #   manifesto.tsv       contagem de linhas por tabela (sem dado pessoal) — usado no teste de restauração
 # Aos domingos copia também para semanal/ e no dia 1 para mensal/. Retenção por idade (BACKUP_RETER_*).
 #
@@ -25,7 +25,7 @@ ENV_FILE="${BACKUP_ENV:-/etc/idjuv-backup.env}"
 CONTAINER="${BACKUP_DB_CONTAINER:-supabase-db}"
 DB_USER="${BACKUP_DB_USER:-supabase_admin}"
 DB_NAME="${BACKUP_DB_NAME:-postgres}"
-STORAGE_DIR="${BACKUP_STORAGE_DIR:-}"
+STORAGE_DIR="${BACKUP_STORAGE_DIR:?defina BACKUP_STORAGE_DIR (pasta dos arquivos do Storage no host)}"
 RECIPIENT="${BACKUP_AGE_RECIPIENT:?defina BACKUP_AGE_RECIPIENT (chave pública age, começa com age1...)}"
 REMOTO="${BACKUP_RCLONE_REMOTE:?defina BACKUP_RCLONE_REMOTE (ex.: r2:idjuv-backups)}"
 WORKDIR="${BACKUP_WORKDIR:-/var/backups/idjuv}"
@@ -75,13 +75,15 @@ log "papéis globais"
 docker exec "$CONTAINER" pg_dumpall -U "$DB_USER" --roles-only --no-role-passwords \
   | age -r "$RECIPIENT" -o "$DESTINO/papeis.sql.age"
 
-if [[ -n "$STORAGE_DIR" ]]; then
-  [[ -d "$STORAGE_DIR" ]] || { log "BACKUP_STORAGE_DIR não existe: $STORAGE_DIR"; false; }
-  log "arquivos do Storage ($STORAGE_DIR)"
-  tar -C "$STORAGE_DIR" -czf - . | age -r "$RECIPIENT" -o "$DESTINO/storage.tar.gz.age"
-else
-  log "BACKUP_STORAGE_DIR vazio: arquivos do Storage NÃO entram neste backup"
-fi
+# Storage é obrigatório: sem os arquivos, anexos, fotos e documentos não voltam. Cada linha de storage.objects
+# tem pelo menos um arquivo na pasta; menos arquivos que objetos = pasta errada (ou Storage em outro backend).
+[[ -d "$STORAGE_DIR" ]] || { log "BACKUP_STORAGE_DIR não existe: $STORAGE_DIR"; false; }
+objetos=$(awk -F'\t' '$1 == "storage.objects" {print $2}' "$DESTINO/manifesto.tsv")
+arquivos=$(find "$STORAGE_DIR" -type f | wc -l)
+(( arquivos >= ${objetos:-0} )) \
+  || { log "Storage com $arquivos arquivo(s) para ${objetos:-0} objeto(s) no banco: confira BACKUP_STORAGE_DIR"; false; }
+log "arquivos do Storage ($STORAGE_DIR: $arquivos arquivos, ${objetos:-0} objetos)"
+tar -C "$STORAGE_DIR" -czf - . | age -r "$RECIPIENT" -o "$DESTINO/storage.tar.gz.age"
 
 log "enviando para $REMOTO/diario/$DIA"
 rclone copy "$DESTINO" "$REMOTO/diario/$DIA"

@@ -221,7 +221,7 @@ libera os segredos para jobs da branch `main`:
 |---|---|---|---|
 | `producao` | *Required reviewers*: o dono; *Deployment branches*: só `main`; marcar *Prevent self-review* só se houver outro aprovador | `VPS_SSH_HOST`, `VPS_SSH_USER`, `VPS_SSH_KEY`, `VPS_SSH_KNOWN_HOSTS`, `SUPABASE_DB_SENHA`, `FOTO_ARTEFATO_SENHA`, `VPS_FUNCOES_USER`, `VPS_FUNCOES_KEY` | Migrações do banco (aplicar), Fotografia do banco, Deploy das Edge Functions |
 | `deploy-front` | *Deployment branches*: só `main` (sem aprovação: o front sobe a cada merge) | `VPS_SSH_HOST`, `VPS_SSH_KNOWN_HOSTS`, `VPS_DEPLOY_USER`, `VPS_DEPLOY_KEY` | Deploy do front |
-| `backup` | *Deployment branches*: só `main` (sem aprovação: o teste é agendado) | `BACKUP_RCLONE_CONF`, `BACKUP_RCLONE_REMOTE`, `BACKUP_AGE_KEY` | Teste de restauração do backup ([BACKUP.md](./BACKUP.md)) |
+| `backup` | *Deployment branches*: só `main` (sem aprovação: o teste é agendado) | `BACKUP_RCLONE_CONF`, `BACKUP_RCLONE_REMOTE`, `BACKUP_AGE_KEY` | Teste de restauração do backup e Vigia do backup ([BACKUP.md](./BACKUP.md)) |
 
 Passo a passo (uma vez, por quem administra o repositório):
 
