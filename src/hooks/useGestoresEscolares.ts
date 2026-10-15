@@ -54,7 +54,7 @@ export function useGestoresEscolares() {
     const cpfLimpo = cpf.replace(/\D/g, '');
     
     // RPC pública: devolve só id, nome, status e nome da escola (no banco novo a leitura anônima da tabela é fechada).
-    const { data, error } = await supabase.rpc('consultar_gestor_por_cpf' as never, { p_cpf: cpfLimpo } as never);
+    const { data, error } = await supabase.rpc('consultar_gestor_por_cpf', { p_cpf: cpfLimpo });
 
     if (!error) return (data as unknown as GestorEscolar | null) ?? null;
     if (!rpcAusente(error)) throw error;
@@ -81,7 +81,7 @@ export function useGestoresEscolares() {
 
       // RPC pública (SECURITY DEFINER): `anon` só tem INSERT/EXECUTE, sem SELECT; o status inicial é do banco
       // e o trigger de gestores_escolares já marca a escola como cadastrada.
-      const { data, error } = await supabase.rpc('registrar_gestor_publico' as never, {
+      const { data, error } = await supabase.rpc('registrar_gestor_publico', {
         p_escola_id: dados.escola_id,
         p_nome: dados.nome.toUpperCase().trim(),
         p_cpf: cpfLimpo,
@@ -90,7 +90,7 @@ export function useGestoresEscolares() {
         p_email: dados.email.toLowerCase().trim(),
         p_celular: celularLimpo,
         p_endereco: dados.endereco?.trim() || null,
-      } as never);
+      });
 
       if (!error) return data as unknown as GestorEscolar;
       if (!rpcAusente(error)) throw error;

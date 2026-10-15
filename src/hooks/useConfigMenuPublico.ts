@@ -21,7 +21,7 @@ export function useConfigMenuPublico() {
     queryKey: ["config-menu-publico"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("config_menu_publico" as any)
+        .from("config_menu_publico")
         .select("*")
         .order("ordem", { ascending: true });
 
@@ -38,7 +38,7 @@ export function useToggleMenuVisivel() {
   return useMutation({
     mutationFn: async ({ id, visivel }: { id: string; visivel: boolean }) => {
       const { data, error } = await supabase
-        .from("config_menu_publico" as any)
+        .from("config_menu_publico")
         .update({ visivel, updated_at: new Date().toISOString() })
         .eq("id", id)
         .select()

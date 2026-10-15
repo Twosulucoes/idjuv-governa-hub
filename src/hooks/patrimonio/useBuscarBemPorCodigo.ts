@@ -20,10 +20,9 @@ export type BemEncontrado = Tables<"bens_patrimoniais">;
 export async function buscarBemPorCodigo(codigo: string): Promise<BemEncontrado | null> {
   const valor = codigo.trim();
   if (!valor) return null;
-  // RPC ainda não está no types.ts gerado: cast no padrão do repo.
   const { data, error } = await supabase.rpc(
-    "patrimonio_buscar_bem_por_codigo" as never,
-    { p_codigo: valor } as never,
+    "patrimonio_buscar_bem_por_codigo",
+    { p_codigo: valor },
   );
   if (error) throw error;
   const lista = (data ?? []) as unknown as BemEncontrado[];

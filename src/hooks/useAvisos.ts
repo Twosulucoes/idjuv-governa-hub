@@ -6,17 +6,15 @@
  *
  * Quem vê o quê é decidido pela RLS (público-alvo por módulo, validade, ativo); o filtro
  * de vigência abaixo só existe porque o gestor recebe também rascunhos e expirados.
- * As tabelas ainda não estão nos tipos gerados, por isso o cliente `db` sem tipos.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { Aviso, AvisoComLeitura, AvisoInput, PrioridadeAviso } from "@/types/avisos";
 
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 
 const PESO_PRIORIDADE: Record<PrioridadeAviso, number> = { urgente: 0, alta: 1, normal: 2, baixa: 3 };
 

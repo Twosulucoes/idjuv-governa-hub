@@ -44,7 +44,7 @@ export default function GaleriasPublicasPage() {
     queryKey: ["galerias-publicas"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("cms_galerias" as any)
+        .from("cms_galerias")
         .select("*")
         .eq("status", "publicado")
         .order("data_publicacao", { ascending: false });

@@ -103,7 +103,7 @@ export default function ConsultaProtocoloAscomPage() {
 
     try {
       // Buscar demanda pelo número
-      const { data: demandaData, error: demandaError } = await (supabase as any)
+      const { data: demandaData, error: demandaError } = await supabase
         .from('demandas_ascom')
         .select(`
           *,
@@ -118,36 +118,37 @@ export default function ConsultaProtocoloAscomPage() {
         return;
       }
 
-      setDemanda(demandaData as DemandaAscom);
+      // historico_status é Json no banco e um array estruturado no tipo local
+      setDemanda(demandaData as unknown as DemandaAscom);
 
       // Buscar anexos (apenas de solicitação)
-      const { data: anexosData } = await (supabase as any)
+      const { data: anexosData } = await supabase
         .from('demandas_ascom_anexos')
         .select('*')
         .eq('demanda_id', demandaData.id)
         .eq('tipo_anexo', 'solicitacao')
         .order('created_at', { ascending: false });
 
-      setAnexos(anexosData || []);
+      setAnexos((anexosData || []) as AnexoDemandaAscom[]);
 
       // Buscar entregáveis
-      const { data: entregaveisData } = await (supabase as any)
+      const { data: entregaveisData } = await supabase
         .from('demandas_ascom_entregaveis')
         .select('*')
         .eq('demanda_id', demandaData.id)
         .order('created_at', { ascending: false });
 
-      setEntregaveis(entregaveisData || []);
+      setEntregaveis((entregaveisData || []) as EntregavelDemandaAscom[]);
 
       // Buscar comentários visíveis ao solicitante
-      const { data: comentariosData } = await (supabase as any)
+      const { data: comentariosData } = await supabase
         .from('demandas_ascom_comentarios')
         .select('*')
         .eq('demanda_id', demandaData.id)
         .eq('visivel_solicitante', true)
         .order('created_at', { ascending: true });
 
-      setComentarios(comentariosData || []);
+      setComentarios((comentariosData || []) as ComentarioDemandaAscom[]);
 
     } catch (error: any) {
       console.error('Erro na busca:', error);

@@ -6,7 +6,9 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { 
+  CategoriaDemandasAscom,
   DemandaAscom, 
   StatusDemandaAscom, 
   AnexoDemandaAscom,
@@ -16,7 +18,7 @@ import {
 
 interface FiltrosDemandas {
   status?: StatusDemandaAscom | StatusDemandaAscom[];
-  categoria?: string;
+  categoria?: CategoriaDemandasAscom;
   unidade_id?: string;
   servidor_id?: string;
   data_inicio?: string;
@@ -34,7 +36,7 @@ export function useDemandasAscom() {
   const fetchDemandas = useCallback(async (filtros?: FiltrosDemandas) => {
     setLoading(true);
     try {
-      let query = (supabase as any)
+      let query = supabase
         .from('demandas_ascom')
         .select(`
           *,
@@ -83,7 +85,8 @@ export function useDemandasAscom() {
 
       if (error) throw error;
 
-      setDemandas(data as DemandaAscom[]);
+      // historico_status é Json no banco e um array estruturado no tipo local
+      setDemandas(data as unknown as DemandaAscom[]);
     } catch (error: any) {
       console.error('Erro ao buscar demandas:', error);
       toast.error('Erro ao carregar demandas');
@@ -96,7 +99,7 @@ export function useDemandasAscom() {
   const fetchDemandaPorId = useCallback(async (id: string) => {
     setLoading(true);
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom')
         .select(`
           *,
@@ -109,8 +112,8 @@ export function useDemandasAscom() {
 
       if (error) throw error;
 
-      setDemandaAtual(data as DemandaAscom);
-      return data as DemandaAscom;
+      setDemandaAtual(data as unknown as DemandaAscom);
+      return data as unknown as DemandaAscom;
     } catch (error: any) {
       console.error('Erro ao buscar demanda:', error);
       toast.error('Erro ao carregar demanda');
@@ -135,16 +138,17 @@ export function useDemandasAscom() {
       if (sanitized.contato_email) sanitized.contato_email = sanitized.contato_email.trim() || undefined;
       if (sanitized.local_evento) sanitized.local_evento = sanitized.local_evento.trim() || undefined;
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom')
-        .insert({ ...sanitized, created_by: user?.id })
+        // Cast pontual: o tipo local (Partial, com historico_status estruturado) não bate com o Insert gerado
+        .insert({ ...sanitized, created_by: user?.id } as unknown as TablesInsert<'demandas_ascom'>)
         .select()
         .single();
 
       if (error) throw error;
 
       toast.success('Demanda criada com sucesso!');
-      return data as DemandaAscom;
+      return data as unknown as DemandaAscom;
     } catch (error: any) {
       console.error('Erro ao criar demanda:', error);
       toast.error('Erro ao criar demanda');
@@ -160,9 +164,10 @@ export function useDemandasAscom() {
       if (sanitized.descricao_detalhada) sanitized.descricao_detalhada = sanitized.descricao_detalhada.trim();
       if (sanitized.nome_responsavel) sanitized.nome_responsavel = sanitized.nome_responsavel.trim();
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom')
-        .update({ ...sanitized, updated_by: user?.id, updated_at: new Date().toISOString() })
+        // Cast pontual: o tipo local (com historico_status estruturado) não bate com o Update gerado
+        .update({ ...sanitized, updated_by: user?.id, updated_at: new Date().toISOString() } as unknown as TablesUpdate<'demandas_ascom'>)
         .eq('id', id)
         .select()
         .single();
@@ -170,7 +175,7 @@ export function useDemandasAscom() {
       if (error) throw error;
 
       toast.success('Demanda atualizada com sucesso!');
-      return data as DemandaAscom;
+      return data as unknown as DemandaAscom;
     } catch (error: any) {
       console.error('Erro ao atualizar demanda:', error);
       toast.error('Erro ao atualizar demanda');
@@ -190,7 +195,7 @@ export function useDemandasAscom() {
       if (novoStatus === 'em_execucao') updateData.data_inicio_execucao = new Date().toISOString();
       if (novoStatus === 'concluida') updateData.data_conclusao = new Date().toISOString();
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom')
         .update(updateData)
         .eq('id', id)
@@ -200,7 +205,7 @@ export function useDemandasAscom() {
       if (error) throw error;
 
       toast.success(`Status alterado para "${novoStatus}"`);
-      return data as DemandaAscom;
+      return data as unknown as DemandaAscom;
     } catch (error: any) {
       console.error('Erro ao alterar status:', error);
       toast.error('Erro ao alterar status');
@@ -213,7 +218,7 @@ export function useDemandasAscom() {
     try {
       const novoStatus = autorizado ? 'aprovada' : 'indeferida';
       
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom')
         .update({ status: novoStatus, data_autorizacao_presidencia: new Date().toISOString() })
         .eq('id', id)
@@ -223,7 +228,7 @@ export function useDemandasAscom() {
       if (error) throw error;
 
       toast.success(autorizado ? 'Demanda autorizada!' : 'Demanda não autorizada');
-      return data as DemandaAscom;
+      return data as unknown as DemandaAscom;
     } catch (error: any) {
       console.error('Erro ao autorizar:', error);
       toast.error('Erro ao processar autorização');
@@ -234,7 +239,7 @@ export function useDemandasAscom() {
   // ANEXOS
   const fetchAnexos = useCallback(async (demandaId: string) => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom_anexos')
         .select('*')
         .eq('demanda_id', demandaId)
@@ -257,7 +262,7 @@ export function useDemandasAscom() {
 
       const { data: urlData } = supabase.storage.from('ascom-demandas').getPublicUrl(fileName);
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom_anexos')
         .insert({
           demanda_id: demandaId,
@@ -289,7 +294,7 @@ export function useDemandasAscom() {
       const filePath = urlParts.slice(-2).join('/');
       await supabase.storage.from('ascom-demandas').remove([filePath]);
 
-      const { error } = await (supabase as any).from('demandas_ascom_anexos').delete().eq('id', anexo.id);
+      const { error } = await supabase.from('demandas_ascom_anexos').delete().eq('id', anexo.id);
 
       if (error) throw error;
 
@@ -305,7 +310,7 @@ export function useDemandasAscom() {
   // ENTREGÁVEIS
   const fetchEntregaveis = useCallback(async (demandaId: string) => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom_entregaveis')
         .select('*')
         .eq('demanda_id', demandaId)
@@ -321,9 +326,10 @@ export function useDemandasAscom() {
 
   const adicionarEntregavel = useCallback(async (demandaId: string, dados: Partial<EntregavelDemandaAscom>) => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom_entregaveis')
-        .insert({ ...dados, demanda_id: demandaId, created_by: user?.id })
+        // Cast pontual: o tipo local é Partial (descricao opcional) e metricas é Json no banco
+        .insert({ ...dados, demanda_id: demandaId, created_by: user?.id } as unknown as TablesInsert<'demandas_ascom_entregaveis'>)
         .select()
         .single();
 
@@ -341,7 +347,7 @@ export function useDemandasAscom() {
   // COMENTÁRIOS
   const fetchComentarios = useCallback(async (demandaId: string) => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom_comentarios')
         .select('*')
         .eq('demanda_id', demandaId)
@@ -360,7 +366,7 @@ export function useDemandasAscom() {
       const conteudoLimpo = conteudo.trim();
       if (!conteudoLimpo) return null;
       
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('demandas_ascom_comentarios')
         .insert({ demanda_id: demandaId, tipo, conteudo: conteudoLimpo, visivel_solicitante: visivelSolicitante, created_by: user?.id })
         .select()

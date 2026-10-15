@@ -4,7 +4,6 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface RegistroImportacao {
@@ -25,8 +24,7 @@ export interface RegistroImportacao {
   autor?: { full_name: string | null } | null;
 }
 
-// `importacoes` ainda não está em types.ts (gerado): consulta sem tipagem do client.
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 const tabela = () => db.from("importacoes");
 
 export function useHistoricoImportacoes(tipo?: string) {

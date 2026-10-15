@@ -13,14 +13,12 @@
  * A RLS e as RPCs são a fronteira; a tela só escolhe o que pedir. Recusa da regra no modo exigir: SQLSTATE RHS01, com a
  * mensagem do banco (`descreverErroBanco` em folhaFichaRegras.ts e `mensagemErroBanco` em useArquivosFolha.ts). Este hook
  * não importa useArquivosFolha: o aviso de fundamento entra no layout de todo o RH e não deve carregar o gerador de CNAB.
- *
- * As tabelas e RPCs novas ainda não estão em types.ts (gerado, não editar): consulta sem tipagem do client.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { buscarTrilhaParaExportar, type FiltrosTrilha, type LinhaTrilha } from "@/hooks/useTrilhaAuditoria";
 import { descreverErroBanco } from "@/lib/folhaFichaRegras";
@@ -33,9 +31,7 @@ import {
   type SetorModulo,
 } from "@/types/lancamentoSetor";
 
-// Cast local mínimo: setores_modulo, regra_lancamento e as RPCs da regra de setor não estão em types.ts (gerado);
-// este client sem tipagem só é usado neste hook.
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 
 const CHAVE_FUNDAMENTOS = ["fundamentos-lancamento"] as const;
 const CHAVE_REGRAS = ["regra-lancamento"] as const;
@@ -95,7 +91,7 @@ export function useRegrasLancamento() {
 export function useSalvarModoRegra() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ modulo, modo }: { modulo: string; modo: Exclude<ModoRegraLancamento, "exigir"> }) => {
+    mutationFn: async ({ modulo, modo }: { modulo: Enums<"app_module">; modo: Exclude<ModoRegraLancamento, "exigir"> }) => {
       const { error } = await db.from("regra_lancamento").upsert({ modulo, modo }, { onConflict: "modulo" });
       if (error) throw error;
     },
@@ -135,7 +131,7 @@ export function useAdicionarSetorModulo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (dados: {
-      modulo: string;
+      modulo: Enums<"app_module">;
       unidade_id: string;
       inclui_subordinadas: boolean;
       existente?: SetorModulo | null;

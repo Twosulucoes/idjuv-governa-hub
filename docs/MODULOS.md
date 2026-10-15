@@ -113,7 +113,7 @@ unidade, prazo e checklist de cada processo. Despacho, documento, assinatura e p
 [`2026-10-13-tramitacao-acompanhamento-sei-design`](./superpowers/specs/2026-10-13-tramitacao-acompanhamento-sei-design.md);
 banco e RPCs em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#acompanhamento-de-processos-do-sei); permissões em
 [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#workflow-acompanhamento-de-processos-do-sei). Dados e ações em
-`src/hooks/useAcompanhamentoProcessos.ts` (tabelas e view por `supabase as any` até os tipos serem regenerados; toda
+`src/hooks/useAcompanhamentoProcessos.ts` (tabelas e view tipadas por `types.ts`; toda
 escrita é por RPC `wf_*`).
 
 - **Painel `/workflow`** (`src/pages/modulos/WorkflowDashboardPage`, dados de `useWorkflowDashboardStats`): processos

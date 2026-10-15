@@ -64,7 +64,7 @@ export default function GaleriaPage() {
     queryKey: ["galeria", slug],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("cms_galerias" as any)
+        .from("cms_galerias")
         .select("*")
         .eq("slug", slug)
         .eq("status", "publicado")
@@ -83,7 +83,7 @@ export default function GaleriaPage() {
       if (!galeria?.id) return [];
       
       const { data, error } = await supabase
-        .from("cms_galeria_fotos" as any)
+        .from("cms_galeria_fotos")
         .select("*")
         .eq("galeria_id", galeria.id)
         .order("ordem", { ascending: true });

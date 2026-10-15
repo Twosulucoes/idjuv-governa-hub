@@ -35,6 +35,11 @@ use token semântico (ver `docs/GUIA_FRONTEND.md`, Design System). Os cinco guar
 `tenants/*`, e autoria e trilha em toda tabela do RH — `scripts/check-autoria-rh.mjs`, com
 exceções só com motivo em `scripts/autoria-rh-excecoes.txt`) e o build falham em qualquer ocorrência. Ao
 reduzir a dívida: `bash scripts/gate.sh --update-baseline` e commite a baseline.
+Desde o P03 (tipos do banco gerados das migrações) a baseline do typecheck é 4.
+
+Migração nova exige o `src/integrations/supabase/types.ts` regenerado no mesmo PR:
+`bash scripts/db/gerar-tipos.sh` (Postgres local, ver `docs/BANCO_DE_DADOS.md`). O CI **Tipos do banco**
+(`.github/workflows/tipos-banco.yml`) reprova o PR se o arquivo estiver defasado.
 
 Para pular conscientemente: `git push --no-verify`. **Isso é desaconselhado**
 — o hook existe justamente para pegar erro de tipo, lint ou build antes de

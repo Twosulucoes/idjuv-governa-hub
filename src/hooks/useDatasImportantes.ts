@@ -6,18 +6,16 @@
  * - RPC aniversariantes_do_mes (só nome e dia dos servidores ativos)
  *
  * Cada fonte que falhar é ignorada: o calendário mostra o que conseguiu carregar.
- * datas_importantes e a RPC ainda não estão nos tipos gerados, por isso o cliente `db` sem tipos.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { addMonths, eachMonthOfInterval, format, startOfMonth } from "date-fns";
 import type { DataImportante, DataImportanteInput, EventoDataImportante } from "@/types/avisos";
 
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 
 const FMT = "yyyy-MM-dd";
 

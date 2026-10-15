@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import type { 
   Portaria, 
@@ -11,8 +11,7 @@ import type {
 } from '@/types/portaria';
 
 // O texto da portaria é feito no SEI; aqui só se acompanha o ciclo (processo SEI, número, assinatura, DOE).
-// processo_sei é coluna nova (20261012160000) ainda fora de types.ts: as consultas que a usam vão sem tipo do banco.
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 
 /** Número provisório da portaria enquanto o número oficial do SEI não sai (o banco não deixa passar de "aguardando assinatura"). */
 export const NUMERO_PORTARIA_PENDENTE = /^PENDENTE/i;
@@ -278,7 +277,7 @@ export function useRegistrarAssinatura() {
       numero?: string;
       processo_sei?: string;
     }) => {
-      const updateData: Record<string, unknown> = {
+      const updateData: TablesUpdate<'documentos'> = {
         status: 'assinado',
         assinado_por,
         data_assinatura,
@@ -368,7 +367,7 @@ export function useRegistrarPublicacao() {
       numero?: string;
       processo_sei?: string;
     }) => {
-      const updateData: Record<string, unknown> = { 
+      const updateData: TablesUpdate<'documentos'> = { 
         status: 'publicado',
         doe_numero,
         doe_data,

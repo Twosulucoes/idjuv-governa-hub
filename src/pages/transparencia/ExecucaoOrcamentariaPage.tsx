@@ -38,7 +38,7 @@ export default function ExecucaoOrcamentariaPage() {
     queryKey: ['transparencia-execucao'],
     queryFn: async () => {
       // RPC pública: o banco já devolve só os totais por exercício (a tabela de dotações é fechada ao portal)
-      const { data, error } = await supabase.rpc('transparencia_execucao_orcamentaria' as never);
+      const { data, error } = await supabase.rpc('transparencia_execucao_orcamentaria');
       if (error) throw error;
       return (data as unknown as ExecucaoPorExercicio[] | null) ?? [];
     }

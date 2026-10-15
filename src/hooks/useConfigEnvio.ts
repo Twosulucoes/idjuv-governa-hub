@@ -7,12 +7,11 @@
  * - useEnviosLog(): últimos disparos
  *
  * Quem pode ver/editar é decidido pela RLS (admin.envios / admin.envios.configurar).
- * As tabelas ainda não estão nos tipos gerados, por isso o cliente `db` sem tipos.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import {
   COLUNAS_CONFIG_ENVIO,
@@ -22,7 +21,7 @@ import {
   type EnvioLog,
 } from "@/types/envios";
 
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 
 const CHAVE_CONFIG = ["config-envio"] as const;
 const CHAVE_LOG = ["envios-log"] as const;
@@ -45,11 +44,13 @@ export function useSalvarConfigEnvio() {
 
   return useMutation({
     mutationFn: async ({ canal, dados }: { canal: CanalEnvio; dados: ConfigEnvioInput }) => {
+      // Cast pontual: wa_templates é Json no banco e um Record estruturado no tipo local.
+      const linha = dados as TablesUpdate<"config_envio">;
       // Sem upsert: `canal` não tem GRANT de UPDATE (a chave não muda).
-      const { data, error } = await db.from("config_envio").update(dados).eq("canal", canal).select("canal");
+      const { data, error } = await db.from("config_envio").update(linha).eq("canal", canal).select("canal");
       if (error) throw error;
       if (!data || data.length === 0) {
-        const { error: insertError } = await db.from("config_envio").insert({ canal, ...dados });
+        const { error: insertError } = await db.from("config_envio").insert({ canal, ...linha });
         if (insertError) throw insertError;
       }
     },

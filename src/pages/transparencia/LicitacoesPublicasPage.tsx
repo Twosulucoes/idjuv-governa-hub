@@ -65,10 +65,10 @@ export default function LicitacoesPublicasPage() {
   const { data: licitacoes, isLoading, isError, refetch } = useQuery({
     queryKey: ['transparencia-licitacoes', filtroAno, filtroModalidade],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('transparencia_licitacoes' as never, {
+      const { data, error } = await supabase.rpc('transparencia_licitacoes', {
         p_ano: filtroAno !== "todos" ? parseInt(filtroAno) : null,
         p_modalidade: filtroModalidade !== "todos" ? filtroModalidade : null,
-      } as never);
+      });
 
       if (error) throw error;
 

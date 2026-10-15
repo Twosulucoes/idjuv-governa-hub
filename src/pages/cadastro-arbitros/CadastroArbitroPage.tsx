@@ -125,9 +125,9 @@ export default function CadastroArbitroPage() {
       
       // Verificar duplicata de CPF. A RPC devolve só se existe: o visitante anônimo não lê
       // mais nome nem protocolo de quem já se cadastrou.
-      const { data: cpfJaCadastrado, error: erroCpf } = await supabase.rpc('arbitro_cpf_cadastrado' as never, {
+      const { data: cpfJaCadastrado, error: erroCpf } = await supabase.rpc('arbitro_cpf_cadastrado', {
         p_cpf: cpfLimpo,
-      } as never);
+      });
 
       if (erroCpf) {
         // Não bloqueia o envio (comportamento anterior), mas deixa rastro de que a checagem falhou.
@@ -179,7 +179,7 @@ export default function CadastroArbitroPage() {
       };
 
       const { error } = await supabase
-        .from('cadastro_arbitros' as any)
+        .from('cadastro_arbitros')
         .insert(insertPayload);
 
       if (error) {
@@ -199,7 +199,7 @@ export default function CadastroArbitroPage() {
         }));
 
         const { error: modError } = await supabase
-          .from('cadastro_arbitros_modalidades' as any)
+          .from('cadastro_arbitros_modalidades')
           .insert(modalidadesInsert);
 
         if (modError) {
@@ -208,9 +208,9 @@ export default function CadastroArbitroPage() {
         }
       }
 
-      const { data: protocoloGerado, error: erroProtocolo } = await supabase.rpc('obter_protocolo_arbitro' as never, {
+      const { data: protocoloGerado, error: erroProtocolo } = await supabase.rpc('obter_protocolo_arbitro', {
         p_id: novoId,
-      } as never);
+      });
 
       if (erroProtocolo) {
         console.warn('[CadastroArbitro] Não foi possível obter o protocolo:', erroProtocolo.message);
