@@ -5080,6 +5080,31 @@ BEGIN
   r := pg_temp.valor_desfeito_como(u_cri, 'authenticated', format('SELECT count(*)::text FROM public.processos_administrativos WHERE id = %L', p_sig));
   IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('wf sigilo: criador com perfil bloqueado lê o sigiloso (' || r || ')'); END IF;
   UPDATE public.profiles SET is_active = true WHERE id = u_cri;
+
+  -- trilha (audit_log_licitacoes, migração 20261015100000): a cópia das linhas do processo segue o sigilo dele.
+  -- O módulo compras sozinho não lê a trilha do sigiloso (nem a do público: a tabela de origem também não mostra);
+  -- o criador com compras lê; o papel admin lê. Os triggers de auditoria gravaram ao inserir as linhas acima.
+  INSERT INTO public.user_modules (user_id, module) VALUES (u_cri, 'compras');
+  FOR x IN SELECT * FROM (VALUES
+      ((SELECT uid FROM persona WHERE nome = 'mod_compras'), p_sig, false, 'módulo compras lê a trilha do sigiloso'),
+      ((SELECT uid FROM persona WHERE nome = 'mod_compras'), p_pub, false, 'módulo compras sem workflow lê a trilha do público'),
+      (u_nenhum, p_sig, false, 'sem módulo lê a trilha do sigiloso'),
+      (u_cri,    p_sig, true,  'criador com compras lê a trilha do sigiloso'),
+      (u_admin,  p_sig, true,  'papel admin lê a trilha do sigiloso')
+    ) AS v(quem, proc, ve, caso) LOOP
+    q := format($q$SELECT count(*)::text FROM public.audit_log_licitacoes
+                 WHERE CASE WHEN tabela_origem = 'processos_administrativos' THEN registro_id::text
+                            WHEN tabela_origem IN ('despachos', 'documentos_processo', 'movimentacoes_processo', 'prazos_processo')
+                              THEN coalesce(dados_novos, dados_anteriores) ->> 'processo_id' END = %L$q$, x.proc);
+    r := pg_temp.valor_desfeito_como(x.quem, 'authenticated', q);
+    IF x.ve AND (r IS NULL OR r::int < 5) THEN
+      PERFORM pg_temp.falha(format('wf trilha: %s: %s linha(s) (esperado ao menos 5, uma por tabela)', x.caso, r));
+    ELSIF NOT x.ve AND r IS DISTINCT FROM '0' THEN
+      PERFORM pg_temp.falha(format('wf trilha: %s: %s linha(s) (esperado 0)', x.caso, r));
+    END IF;
+  END LOOP;
+  DELETE FROM public.user_modules WHERE user_id = u_cri AND module = 'compras';
+
   -- anon: sem privilégio na tabela nova
   IF to_regclass('public.processo_checklist_respostas') IS NOT NULL AND pg_temp.sel(NULL, 'anon', 'processo_checklist_respostas') <> -1 THEN
     PERFORM pg_temp.falha('wf sigilo: anon tem SELECT em processo_checklist_respostas');

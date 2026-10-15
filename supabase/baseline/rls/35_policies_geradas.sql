@@ -194,7 +194,7 @@ CREATE POLICY "rls_delete" ON public.audit_colunas_sensiveis FOR DELETE TO authe
 -- audit_log_licitacoes  [trilha: compras | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.audit_log_licitacoes;
 CREATE POLICY "rls_select" ON public.audit_log_licitacoes FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
+  USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')) AND (tabela_origem NOT IN ('processos_administrativos', 'despachos', 'documentos_processo', 'movimentacoes_processo', 'prazos_processo') OR public.is_admin_user(auth.uid()) OR public.wf_pode_ver_processo(CASE WHEN tabela_origem = 'processos_administrativos' THEN registro_id ELSE (coalesce(dados_novos, dados_anteriores) ->> 'processo_id')::uuid END)));
 
 -- audit_logs  [admin_leitura]
 DROP POLICY IF EXISTS "admin_only_select" ON public.audit_logs;
