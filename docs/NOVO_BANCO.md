@@ -159,6 +159,8 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - O schema do baseline foi regenerado em 2026-10-12 com as migrações até `20261012150000` (RH de 12/10 e quadro de
   vagas, tabela `vagas_cargo` na classe `catalogo`; 252 tabelas no mapa) e aprovado por `validar-baseline.sh` com
   `PG_REPLAY` ([detalhe](../supabase/baseline/README.md#verificação)).
+- A trilha `audit_log_licitacoes` segue o sigilo do processo do workflow (classe `trilha` com `extra=sigilo_workflow`
+  no mapa, migração `20261015100000`; [detalhe](../supabase/baseline/README.md)).
 - `fotos_vistoria_inventario` é da classe `preservar` do mapa de RLS: as policies vêm da migração
   `20261009160000` pelo replay, não do gerador ([detalhe](../supabase/baseline/README.md)).
 - A migração `20260110184920` e o histórico git contêm 74 nomes de servidores (CPF placeholder); o baseline não

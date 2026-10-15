@@ -1016,6 +1016,12 @@ passagem de etapa.
   A migração apaga as policies antigas (`rls_*`, `acesso_total_*`, `proc_*`, FASE 6) e qualquer outra que encontrar
   nessas tabelas, com `RAISE NOTICE`, porque policies são permissivas (OR) e uma sobra abriria o sigilo. A classe das
   seis tabelas no `supabase/baseline/rls/mapa.csv` é `preservar`.
+- **Trilha do processo**: `fn_audit_log_licitacoes` copia para `audit_log_licitacoes` a linha inteira de
+  `processos_administrativos`, `despachos`, `documentos_processo`, `movimentacoes_processo` e `prazos_processo`. Desde a
+  migração `20261015100000_audit_trilha_sigilo.sql`, a leitura dessa trilha exige, além do módulo `compras` ou `contratos`,
+  `wf_pode_ver_processo` do processo de origem (ou o papel admin, que lê também a trilha de processo apagado); antes, quem
+  tinha um desses módulos lia pela API o conteúdo de processo restrito/sigiloso. As linhas das outras tabelas auditadas não
+  mudam. No mapa de RLS: classe `trilha` com `extra=sigilo_workflow`.
 - **RPCs `wf_*`** (`SECURITY DEFINER`, `search_path` fixo, `EXECUTE` só para `authenticated`). As que recebem um
   processo seguem a mesma ordem: sigilo, trava da linha (`FOR UPDATE`, que serializa as movimentações do processo) e
   só então a permissão da ação. Quem não vê o processo recebe `42501` com a **mesma mensagem** de processo

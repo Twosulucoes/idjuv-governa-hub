@@ -73,6 +73,8 @@
  *                    lê as suas linhas, admin lê todas; escrita só do papel admin.
  *   trilha           trilha de auditoria/histórico: SELECT por módulo; NINGUÉM escreve por API (os registros
  *                    nascem em triggers SECURITY DEFINER e na service role).
+ *                    extra opcional `sigilo_workflow` (só em audit_log_licitacoes): a linha copiada de uma tabela do
+ *                    processo do workflow exige também wf_pode_ver_processo ou o papel admin (migração 20261015100000).
  *   admin            só o papel admin (is_admin_user(auth.uid())).
  *   admin_leitura    SELECT só do papel admin; ninguém escreve por API (ex.: audit_logs).
  *   publico_admin    SELECT para anon e authenticated (configuração do portal público); escrita só do papel admin.
@@ -356,9 +358,19 @@ for (const r of dados) {
       politica("rls_delete", "DELETE", A, null);
       break;
     }
-    case "trilha":
-      politica("rls_select", "SELECT", M, null);
+    case "trilha": {
+      if (extra !== "" && extra !== "sigilo_workflow") { erros.push(`${t}: trilha só aceita extra=sigilo_workflow`); break; }
+      // sigilo_workflow: a trilha copia a linha de origem (dados_anteriores/dados_novos); a linha de processo do
+      // workflow só aparece para quem vê o processo (wf_pode_ver_processo) ou para o papel admin.
+      const S = extra === "sigilo_workflow"
+        ? ` AND (tabela_origem NOT IN ('processos_administrativos', 'despachos', 'documentos_processo', 'movimentacoes_processo', 'prazos_processo')` +
+          ` OR public.is_admin_user(auth.uid())` +
+          ` OR public.wf_pode_ver_processo(CASE WHEN tabela_origem = 'processos_administrativos' THEN registro_id` +
+          ` ELSE (coalesce(dados_novos, dados_anteriores) ->> 'processo_id')::uuid END))`
+        : "";
+      politica("rls_select", "SELECT", M + S, null);
       break;
+    }
     case "admin_leitura":
       politica("rls_select", "SELECT", "public.is_admin_user(auth.uid())", null);
       break;
