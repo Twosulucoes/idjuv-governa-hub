@@ -1,0 +1,7 @@
+# Agendamento do backup do Supabase self-hosted (scripts/backup/backup-vps.sh). Guia: docs/BACKUP.md.
+# Instalar na VPS (como root):  install -m 644 scripts/backup/idjuv-backup.cron /etc/cron.d/idjuv-backup
+# O cron usa o fuso da VPS (confira com `date`); com America/Boa_Vista, 03:30 locais = 07:30 UTC.
+# O "Vigia do backup" (.github/workflows/backup-vigia.yml) confere todo dia às 08:00 locais que o backup chegou.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+30 3 * * * root /usr/local/bin/idjuv-backup >> /var/log/idjuv-backup.log 2>&1
