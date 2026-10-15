@@ -1,12 +1,13 @@
 /**
  * Acompanhamento de processos do SEI: modelos, lista, checklist e ações (RPCs wf_*).
  *
- * As tabelas/view/RPCs novas ainda não estão em src/integrations/supabase/types.ts (gerado), então o acesso passa
- * por `db`, um alias sem tipos usado SÓ neste arquivo. Os formatos de retorno vêm de @/types/workflow.
+ * O acesso passa por `db` (o cliente tipado por src/integrations/supabase/types.ts). Os formatos de retorno vêm
+ * de @/types/workflow.
  * Toda escrita é por RPC (as tabelas do processo não têm policy de INSERT/UPDATE); o sigilo vale pela RLS.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type {
@@ -22,9 +23,10 @@ import type {
   StatusProcesso,
 } from '@/types/workflow';
 
-// Único ponto de cast do arquivo (ver cabeçalho).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
+
+/** Nome de uma RPC do schema public (as ações chamam RPCs wf_*). */
+type NomeRpc = keyof Database['public']['Functions'];
 
 const CHAVE = 'wf-acompanhamento';
 /** Chave do painel do módulo (useWorkflowDashboardStats); as mutações a invalidam junto com o acompanhamento. */
@@ -286,9 +288,9 @@ export function useUsuariosAtivos(habilitado: boolean) {
 // ========================
 
 /** Fábrica de mutação: chama a RPC, invalida o acompanhamento e mostra a mensagem do servidor em caso de erro. */
-function criarMutacaoRpc<V, R = void>(
-  rpc: string,
-  parametros: (v: V) => Record<string, unknown>,
+function criarMutacaoRpc<V, R = void, N extends NomeRpc = NomeRpc>(
+  rpc: N,
+  parametros: (v: V) => Database['public']['Functions'][N]['Args'],
   sucesso?: string,
 ) {
   return function useMutacaoRpc() {

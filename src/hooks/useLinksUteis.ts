@@ -26,7 +26,7 @@ export function useLinksUteis() {
     queryKey: ["links-uteis"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("links_uteis" as any)
+        .from("links_uteis")
         .select("*")
         .order("ordem", { ascending: true })
         .order("created_at", { ascending: true });
@@ -44,7 +44,7 @@ export function useLinksUteis() {
   const createLink = useMutation({
     mutationFn: async (input: Partial<LinkUtil>) => {
       const { data, error } = await supabase
-        .from("links_uteis" as any)
+        .from("links_uteis")
         .insert({
           titulo: input.titulo || "Novo link",
           url: input.url || "",
@@ -70,7 +70,7 @@ export function useLinksUteis() {
   const updateLink = useMutation({
     mutationFn: async ({ id, ...input }: Partial<LinkUtil> & { id: string }) => {
       const { data, error } = await supabase
-        .from("links_uteis" as any)
+        .from("links_uteis")
         .update({ ...input, updated_at: new Date().toISOString() })
         .eq("id", id)
         .select()
@@ -91,7 +91,7 @@ export function useLinksUteis() {
   const deleteLink = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("links_uteis" as any)
+        .from("links_uteis")
         .delete()
         .eq("id", id);
 
@@ -109,7 +109,7 @@ export function useLinksUteis() {
   const toggleAtivo = useMutation({
     mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
       const { data, error } = await supabase
-        .from("links_uteis" as any)
+        .from("links_uteis")
         .update({ ativo, updated_at: new Date().toISOString() })
         .eq("id", id)
         .select()
@@ -136,7 +136,7 @@ export function useLinksUteisPublicos() {
     queryKey: ["links-uteis-publicos"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("links_uteis" as any)
+        .from("links_uteis")
         .select("id, titulo, url, descricao, ordem")
         .eq("ativo", true)
         .order("ordem", { ascending: true })

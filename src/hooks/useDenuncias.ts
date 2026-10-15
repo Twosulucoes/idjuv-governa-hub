@@ -1,7 +1,4 @@
 // Hook do Canal de Denúncias (módulo integridade).
-// Ver nota de tipagem em @/types/integridade — a tabela `denuncias` e a RPC
-// `registrar_denuncia_publica` ainda não estão em
-// src/integrations/supabase/types.ts (gerado), daí os `as any` pontuais aqui.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +14,7 @@ const QUERY_KEY = ["denuncias"] as const;
 export function useRegistrarDenuncia() {
   return useMutation({
     mutationFn: async (input: RegistrarDenunciaInput): Promise<string> => {
-      const { data, error } = await supabase.rpc("registrar_denuncia_publica" as never, {
+      const { data, error } = await supabase.rpc("registrar_denuncia_publica", {
         p_anonima: input.anonima,
         p_tipo: input.tipo,
         p_envolvidos: input.envolvidos,
@@ -29,7 +26,7 @@ export function useRegistrarDenuncia() {
         p_email: input.email || null,
         p_telefone: input.telefone || null,
         p_cargo: input.cargo || null,
-      } as never);
+      });
 
       if (error) throw error;
       return data as unknown as string;
@@ -42,7 +39,7 @@ export function useDenuncias() {
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: async (): Promise<Denuncia[]> => {
-      const { data, error } = await (supabase.from("denuncias" as any) as any)
+      const { data, error } = await supabase.from("denuncias")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -61,7 +58,7 @@ export function useAtualizarDenuncia() {
     mutationFn: async ({ id, status, parecer, responsavel }: AtualizarDenunciaInput) => {
       const { data: userData } = await supabase.auth.getUser();
 
-      const { error } = await (supabase.from("denuncias" as any) as any)
+      const { error } = await supabase.from("denuncias")
         .update({
           status,
           parecer: parecer ?? null,

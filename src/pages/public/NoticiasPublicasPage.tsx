@@ -58,7 +58,7 @@ export default function NoticiasPublicasPage() {
     queryKey: ["noticias-publicas", categoria, pagina],
     queryFn: async () => {
       let query = supabase
-        .from("cms_conteudos" as any)
+        .from("cms_conteudos")
         .select("*")
         .eq("status", "publicado")
         .eq("tipo", "noticia")

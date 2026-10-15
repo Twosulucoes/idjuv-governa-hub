@@ -36,8 +36,7 @@ interface LinhaPainel {
 const SEM_MODELO = "Sem modelo";
 
 async function buscarStats(unidadeId: string | null): Promise<WorkflowStats> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any; // a view nova ainda não está em types.ts (gerado)
+  const db = supabase;
   const ativos = () => db.from("v_processos_acompanhamento").select("id", { count: "exact", head: true }).in("status", STATUS_ATIVOS);
   const contar = async (q: PromiseLike<{ count: number | null; error: unknown }>) => {
     const { count, error } = await q;

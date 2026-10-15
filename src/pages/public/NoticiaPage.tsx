@@ -56,7 +56,7 @@ export default function NoticiaPage() {
     queryKey: ["noticia", slug],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("cms_conteudos" as any)
+        .from("cms_conteudos")
         .select("*")
         .eq("slug", slug)
         .eq("status", "publicado")
@@ -75,7 +75,7 @@ export default function NoticiaPage() {
       if (!noticia?.categoria) return [];
       
       const { data, error } = await supabase
-        .from("cms_conteudos" as any)
+        .from("cms_conteudos")
         .select("id, titulo, slug, imagem_destaque_url, data_publicacao")
         .eq("status", "publicado")
         .eq("tipo", "noticia")

@@ -66,7 +66,7 @@ export function useCalendarioComunicacao({ mes, ano }: UseCalendarioComunicacaoO
   const { data: demandas = [], isLoading: loadingDemandas } = useQuery({
     queryKey: ["calendario-demandas", mes, ano],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("demandas_ascom")
         .select("id, titulo, prazo_entrega, status, prioridade, categoria")
         .gte("prazo_entrega", inicioMesStr)

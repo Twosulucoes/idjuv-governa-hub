@@ -60,7 +60,7 @@ export function useTransparenciaPublicacoes() {
     queryKey: ["transparencia-publicacoes"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("publicacoes_lai" as any)
+        .from("publicacoes_lai")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -72,7 +72,7 @@ export function useTransparenciaPublicacoes() {
   const createPublicacao = useMutation({
     mutationFn: async (input: Partial<PublicacaoOficial>) => {
       const { data, error } = await supabase
-        .from("publicacoes_lai" as any)
+        .from("publicacoes_lai")
         .insert({
           categoria: input.categoria || "Edital",
           subcategoria: input.subcategoria || null,
@@ -103,7 +103,7 @@ export function useTransparenciaPublicacoes() {
   const updatePublicacao = useMutation({
     mutationFn: async ({ id, ...input }: Partial<PublicacaoOficial> & { id: string }) => {
       const { data, error } = await supabase
-        .from("publicacoes_lai" as any)
+        .from("publicacoes_lai")
         .update({
           ...input,
           updated_at: new Date().toISOString(),
@@ -135,7 +135,7 @@ export function useTransparenciaPublicacoes() {
       }
 
       const { error } = await supabase
-        .from("publicacoes_lai" as any)
+        .from("publicacoes_lai")
         .delete()
         .eq("id", publicacao.id);
 
@@ -154,7 +154,7 @@ export function useTransparenciaPublicacoes() {
   const publicarPublicacao = useMutation({
     mutationFn: async (id: string) => {
       const { data, error } = await supabase
-        .from("publicacoes_lai" as any)
+        .from("publicacoes_lai")
         .update({
           publicado: true,
           data_publicacao: new Date().toISOString(),
@@ -180,7 +180,7 @@ export function useTransparenciaPublicacoes() {
   const despublicarPublicacao = useMutation({
     mutationFn: async (id: string) => {
       const { data, error } = await supabase
-        .from("publicacoes_lai" as any)
+        .from("publicacoes_lai")
         .update({
           publicado: false,
           data_publicacao: null,
@@ -221,7 +221,7 @@ export function useTransparenciaPublicacoesPublicas() {
     queryKey: ["transparencia-publicacoes-publicas"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("publicacoes_lai" as any)
+        .from("publicacoes_lai")
         .select("id, categoria, subcategoria, titulo, descricao, arquivo_url, arquivo_nome, data_publicacao, destaque, ordem_exibicao")
         .eq("publicado", true)
         .order("destaque", { ascending: false })

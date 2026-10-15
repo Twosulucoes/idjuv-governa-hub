@@ -13,16 +13,13 @@
  *  - índice único (folha, evento, servidor) em `eventos_esocial`, fora os com status 'erro'/'rejeitado': gerar de
  *    novo não duplica (conflito 23505).
  * Os eventos do eSocial são rascunho: nada é transmitido por este sistema (onda G).
- *
- * As colunas novas (`arquivo_path`, `arquivo_sha256`) e a RPC `cancelar_remessa` ainda não estão em types.ts (gerado,
- * não editar): essas chamadas usam o client sem tipagem `db`, como em useTrilhaAuditoria.ts.
  */
 
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { getTenantSnapshotOuNulo } from "@/core/tenant";
 import { BANCOS } from "@/types/rh";
 import { calcularSha256 } from "@/lib/filaFotosOffline";
@@ -41,8 +38,7 @@ import {
 import { downloadXml } from "@/lib/esocialXmlGenerator";
 import { MSG_FALHA_REGISTRO, registrarEvento, useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
-// Cast local mínimo: colunas e RPC novas da E3 fora de types.ts (gerado); este client sem tipagem só é usado aqui.
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 
 export const BUCKET_REMESSAS_CNAB = "remessas-cnab";
 
@@ -314,7 +310,8 @@ export function useGerarRemessaCNAB() {
           quantidade_registros: quantidade,
           valor_total: valorTotal,
           status: "gerada",
-        })
+          // numero_remessa é NOT NULL sem default no tipo gerado, mas quem preenche é o trigger do banco
+        } as TablesInsert<"remessas_bancarias">)
         .select("id, numero_remessa, valor_total, quantidade_registros")
         .single();
       if (erroInsert || !criada) return { ok: false, mensagem: mensagemErroBanco(erroInsert) };

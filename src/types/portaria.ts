@@ -133,7 +133,7 @@ export interface CreatePortariaData {
   ementa?: string;
   conteudo_html?: string;
   observacoes?: string;
-  servidor_id?: string;
+  // Sem servidor_id: a tabela documentos não tem a coluna; os servidores vão em servidores_ids
   servidores_ids?: string[];
   cargo_id?: string;
   unidade_id?: string;

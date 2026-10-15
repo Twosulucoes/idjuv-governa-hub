@@ -416,8 +416,7 @@ export function useUnidadesLocaisPatrimonio() {
   return useQuery<UnidadeLocalSimples[]>({
     queryKey: ['unidades-locais-patrimonio'],
     queryFn: async (): Promise<UnidadeLocalSimples[]> => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (supabase as any)
+      const response = await supabase
         .from('unidades_locais')
         .select('id, nome_unidade, codigo_unidade, municipio, tipo_unidade')
         .eq('status', 'ativa')

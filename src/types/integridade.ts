@@ -1,11 +1,8 @@
 // Tipos do Canal de Denúncias (módulo integridade).
 //
 // A tabela `denuncias` e a RPC `registrar_denuncia_publica` foram criadas em
-// supabase/migrations/20260924120000_e7a1c9b4-2f3d-4a1e-9c5b-6d8f0a1b2c3d.sql
-// e ainda não constam em src/integrations/supabase/types.ts (gerado) porque
-// esta sessão não teve acesso ao projeto Supabase real do IDJUV para rodar a
-// introspecção. Os hooks em @/hooks/useDenuncias tipam manualmente por isso —
-// regenerar types.ts via MCP assim que o projeto certo estiver conectado.
+// supabase/migrations/20260924120000_e7a1c9b4-2f3d-4a1e-9c5b-6d8f0a1b2c3d.sql.
+// Os tipos abaixo são os do domínio usados pelas telas.
 
 export type StatusDenuncia =
   | "pendente"

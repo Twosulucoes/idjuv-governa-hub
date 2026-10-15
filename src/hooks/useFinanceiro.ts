@@ -4,7 +4,6 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuditLog } from '@/hooks/useAuditLog';
@@ -739,15 +738,12 @@ export interface UltimaImportacao {
   created_at: string;
 }
 
-// `importacoes` ainda não está em types.ts (gerado): consulta sem tipagem do client.
-const dbSemTipos = supabase as unknown as SupabaseClient;
-
 /** Última importação do QDD do FIPLAN no exercício (null se nunca importado). */
 export function useUltimaImportacaoQdd(exercicio: number) {
   return useQuery({
     queryKey: ['importacoes', 'qdd_fiplan', 'ultima', exercicio],
     queryFn: async () => {
-      const { data, error } = await dbSemTipos
+      const { data, error } = await supabase
         .from('importacoes')
         .select('arquivo_nome, created_at')
         .eq('tipo', 'qdd_fiplan')

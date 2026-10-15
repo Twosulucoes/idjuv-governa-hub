@@ -179,7 +179,7 @@ export default function CadastroArbitroPage() {
       };
 
       const { error } = await supabase
-        .from('cadastro_arbitros' as any)
+        .from('cadastro_arbitros')
         .insert(insertPayload);
 
       if (error) {
@@ -199,7 +199,7 @@ export default function CadastroArbitroPage() {
         }));
 
         const { error: modError } = await supabase
-          .from('cadastro_arbitros_modalidades' as any)
+          .from('cadastro_arbitros_modalidades')
           .insert(modalidadesInsert);
 
         if (modError) {

@@ -20,20 +20,16 @@
  * pede `fundamento->>permitido = 'false'` (o predicado do índice parcial idx_audit_logs_fundamento_negado) e só então
  * `via` e `em_cascata` entram no select (as consultas sem o filtro não dependem da coluna); `semCascata` tira as
  * gravações disparadas por outra (`fundamento->>em_cascata = 'true'`), que não são checadas; `acoes` limita as ações.
- *
- * As colunas novas e a RPC ainda não estão em types.ts (gerado): consulta sem tipagem do client.
  */
 
 import { useCallback } from "react";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import type { AuditAction } from "@/types/auth";
 
-// Cast local mínimo: as colunas da E1/E2 em audit_logs (sequencia, origem, servidor_*, alvos...) e a RPC
-// registrar_evento não estão em types.ts (gerado, não editar); este client sem tipagem só é usado neste hook.
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 
 // ============================================================================
 // Tipos
@@ -172,7 +168,7 @@ function inicioDoDia(data: string, fimDoDia = false): string | null {
   return d.toISOString();
 }
 
-// Consulta de audit_logs (builder do PostgREST sem tipagem). Com fundamentoNegado, traz também a via e a cascata.
+// Consulta de audit_logs. Com fundamentoNegado, traz também a via e a cascata.
 const consultaTrilha = (comVia = false) =>
   db
     .from("audit_logs")
@@ -471,7 +467,7 @@ export async function registrarEvento(ev: EventoTrilha): Promise<string | null> 
     p_entidade: ev.entidade,
     p_entidade_id: ev.entidadeId ?? null,
     p_descricao: ev.descricao ?? null,
-    p_metadados: ev.metadados ?? {},
+    p_metadados: (ev.metadados ?? {}) as Json, // jsonb: valores serializáveis em JSON
   });
   if (error) throw error;
   return (data as string | null) ?? null;
