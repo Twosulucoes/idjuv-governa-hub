@@ -12,8 +12,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { useIdentidade } from "@/core/tenant";
+import { toast } from "sonner";
+import { abrirArquivoPortaria } from "@/lib/portarias/arquivoPortaria";
 
 type Documento = Tables<"documentos">;
+
+/** Abre o PDF da portaria por URL assinada (bucket privado); erro vira toast. */
+function abrirArquivo(valor?: string | null) {
+  abrirArquivoPortaria(valor).catch((erro: unknown) => {
+    toast.error(erro instanceof Error ? erro.message : "Não foi possível abrir o arquivo.");
+  });
+}
 type CategoriaPortaria = 'estruturante' | 'normativa' | 'pessoal' | 'delegacao';
 
 // Situação do documento → rótulo e tom (status nunca só por cor)
@@ -216,8 +225,8 @@ const PortariasPage = () => {
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            disabled={!doc.arquivo_url}
-                            onClick={() => doc.arquivo_url && window.open(doc.arquivo_url, '_blank')}
+                            disabled={!doc.arquivo_url && !doc.arquivo_assinado_url}
+                            onClick={() => abrirArquivo(doc.arquivo_url || doc.arquivo_assinado_url)}
                             aria-label={`Baixar PDF da Portaria nº ${doc.numero}`}
                           >
                             <Download className="w-4 h-4 mr-1" aria-hidden="true" />

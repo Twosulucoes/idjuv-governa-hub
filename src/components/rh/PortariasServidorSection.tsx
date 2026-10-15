@@ -24,6 +24,7 @@ import {
   Send,
   ExternalLink,
   Eye,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -35,6 +36,15 @@ import {
   STATUS_PORTARIA_COLORS,
   TIPO_PORTARIA_LABELS 
 } from "@/types/portaria";
+import { toast } from "sonner";
+import { abrirArquivoPortaria } from "@/lib/portarias/arquivoPortaria";
+
+/** Abre o PDF da portaria por URL assinada (bucket privado `documentos`); erro vira toast. */
+function abrirArquivo(valor?: string | null) {
+  abrirArquivoPortaria(valor).catch((erro: unknown) => {
+    toast.error(erro instanceof Error ? erro.message : "Não foi possível abrir o arquivo.");
+  });
+}
 
 interface PortariasServidorSectionProps {
   servidorId: string;
@@ -164,15 +174,30 @@ export function PortariasServidorSection({
                       </div>
                     </div>
                     
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      asChild
-                    >
-                      <Link to={`/gabinete/portarias?id=${portaria.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {(portaria.arquivo_assinado_url || portaria.arquivo_url) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Abrir PDF da Portaria nº ${portaria.numero}`}
+                          onClick={() => abrirArquivo(portaria.arquivo_assinado_url || portaria.arquivo_url)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        asChild
+                      >
+                        <Link
+                          to={`/gabinete/portarias?id=${portaria.id}`}
+                          aria-label={`Ver Portaria nº ${portaria.numero} na Central de Portarias`}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );

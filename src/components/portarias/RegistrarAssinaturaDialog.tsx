@@ -102,7 +102,7 @@ export function RegistrarAssinaturaDialog({
   const uploadArquivo = async (): Promise<string | null> => {
     if (!arquivo || !portaria) return null;
 
-    const fileName = `portarias/${portaria.numero.replace(/\//g, '-')}_assinada_${Date.now()}.pdf`;
+    const fileName = `portarias/${portaria.numero.replace(/[^a-zA-Z0-9._-]/g, '-')}_assinada_${Date.now()}.pdf`;
     
     const { error } = await supabase.storage
       .from('documentos')
@@ -113,11 +113,8 @@ export function RegistrarAssinaturaDialog({
       throw new Error('Erro ao fazer upload do arquivo');
     }
 
-    const { data: urlData } = supabase.storage
-      .from('documentos')
-      .getPublicUrl(fileName);
-
-    return urlData.publicUrl;
+    // Bucket privado: grava o caminho; a leitura usa URL assinada (abrirArquivoPortaria)
+    return fileName;
   };
 
   const numeroPendente = !!portaria && NUMERO_PORTARIA_PENDENTE.test(portaria.numero);

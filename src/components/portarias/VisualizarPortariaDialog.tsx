@@ -6,7 +6,8 @@
  * consulta. O texto do ato é feito no SEI: aqui só aparecem o ciclo e o PDF anexado.
  */
 import { useMemo } from 'react';
-import { AlertTriangle, Pencil } from 'lucide-react';
+import { AlertTriangle, Paperclip, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,6 +19,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
+import { abrirArquivoPortaria } from '@/lib/portarias/arquivoPortaria';
+
+/** Abre o PDF da portaria por URL assinada (bucket privado); erro vira toast. */
+function abrirArquivo(valor?: string | null) {
+  abrirArquivoPortaria(valor).catch((erro: unknown) => {
+    toast.error(erro instanceof Error ? erro.message : 'Não foi possível abrir o arquivo.');
+  });
+}
 
 function htmlToText(html?: string | null) {
   if (!html) return '';
@@ -124,16 +133,16 @@ export function VisualizarPortariaDialog({
 
               <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Anexo / Arquivo</p>
-                {portaria.arquivo_assinado_url ? (
-                  <a href={portaria.arquivo_assinado_url} target="_blank" rel="noreferrer"
-                     className="text-sm text-primary underline font-medium">
-                    📎 Arquivo assinado
-                  </a>
-                ) : portaria.arquivo_url ? (
-                  <a href={portaria.arquivo_url} target="_blank" rel="noreferrer"
-                     className="text-sm text-primary underline font-medium">
-                    📎 Arquivo anexado
-                  </a>
+                {portaria.arquivo_assinado_url || portaria.arquivo_url ? (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-sm font-medium"
+                    onClick={() => abrirArquivo(portaria.arquivo_assinado_url || portaria.arquivo_url)}
+                  >
+                    <Paperclip className="h-3 w-3 mr-1" />
+                    {portaria.arquivo_assinado_url ? 'Arquivo assinado' : 'Arquivo anexado'}
+                  </Button>
                 ) : (
                   <div className="flex items-center gap-1 text-warning">
                     <AlertTriangle className="h-3 w-3" />

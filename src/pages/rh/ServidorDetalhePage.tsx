@@ -62,6 +62,9 @@ import {
 import { formatDateBR } from "@/lib/formatters";
 import { type TipoServidor } from "@/types/servidor";
 import { HistoricoFuncionalTab } from "@/components/rh/HistoricoFuncionalTab";
+import { PortariasServidorSection } from "@/components/rh/PortariasServidorSection";
+import { abrirArquivoPortaria } from "@/lib/portarias/arquivoPortaria";
+import { toast } from "sonner";
 import { ServidorFrequenciaConfigCard } from "@/components/rh/ServidorFrequenciaConfigCard";
 import { DesignacoesUnidadeTab } from "@/components/rh/DesignacoesUnidadeTab";
 import { DocumentosServidorTab } from "@/components/rh/DocumentosServidorTab";
@@ -147,7 +150,7 @@ export default function ServidorDetalheePage() {
     enabled: !!id,
   });
 
-  // Portarias agora são gerenciadas exclusivamente pela aba Histórico via PortariasServidorSection
+  // Portarias do servidor: aba Histórico (PortariasServidorSection, só consulta; cadastro na Central de Portarias)
 
   // Fetch férias
   const { data: ferias = [] } = useQuery({
@@ -595,6 +598,9 @@ export default function ServidorDetalheePage() {
                 servidorNome={servidor.nome_completo}
                 tipoServidor={(servidor as any).tipo_servidor as TipoServidor | undefined}
               />
+              <div className="mt-6">
+                <PortariasServidorSection servidorId={id!} servidorNome={servidor.nome_completo} />
+              </div>
             </TabsContent>
 
             {/* Designações de Chefia em Unidades Locais */}
@@ -779,7 +785,11 @@ function SecondVinculoCard({ servidor }: { servidor: any }) {
                 variant="link"
                 size="sm"
                 className="h-auto p-0 text-primary"
-                onClick={() => window.open(documento.arquivo_url!, '_blank', 'noopener,noreferrer')}
+                onClick={() =>
+                  abrirArquivoPortaria(documento.arquivo_url).catch((erro: unknown) => {
+                    toast.error(erro instanceof Error ? erro.message : 'Não foi possível abrir o arquivo.');
+                  })
+                }
               >
                 <FileText className="h-3 w-3 mr-1" />
                 {documento.numero ? `Portaria ${documento.numero}` : documento.titulo}

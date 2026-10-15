@@ -44,6 +44,7 @@ import { CentralRelatoriosDialog } from '@/components/relatorios/CentralRelatori
 import { usePortarias, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
 import { toast } from 'sonner';
+import { abrirArquivoPortaria } from '@/lib/portarias/arquivoPortaria';
 
 export default function CentralPortariasPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
@@ -123,8 +124,10 @@ export default function CentralPortariasPage() {
 
   // O texto da portaria é do SEI: aqui só se abre o PDF anexado (assinado ou publicado), quando houver
   const handleAbrirArquivo = (portaria: Portaria) => {
-    const url = portaria.arquivo_assinado_url || portaria.arquivo_url;
-    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    // Bucket privado: abre por URL assinada; erro (ex.: sem permissão) vira toast
+    abrirArquivoPortaria(portaria.arquivo_assinado_url || portaria.arquivo_url).catch((erro: unknown) => {
+      toast.error(erro instanceof Error ? erro.message : 'Não foi possível abrir o arquivo.');
+    });
   };
 
   const currentYear = new Date().getFullYear();
