@@ -3,8 +3,9 @@ name: Migrações do banco
 # Aplica supabase/migrations/ no banco de produção (Supabase self-hosted da VPS):
 #   - pull_request: NÃO toca a produção nem recebe segredo nenhum. Confere versões duplicadas e lista no resumo as
 #     migrações que o PR traz. O replay do zero e o teste de RLS ficam com o workflow "Banco do zero e RLS".
-#   - push na main (= merge) e manual (workflow_dispatch na main): espera o "Banco do zero e RLS" passar no mesmo
-#     commit e só então pede aprovação no ambiente "producao"; aprovado, simula, confere a trava e aplica.
+#   - push na main (= merge) e manual (workflow_dispatch na main): espera o "Banco do zero e RLS" passar no MESMO
+#     commit (no manual, rode antes o "Banco do zero e RLS" na main se o commit não mexeu no banco) e só então pede
+#     aprovação no ambiente "producao"; aprovado, simula, confere a trava e aplica.
 # O banco só muda quando o código que depende dele entra na main e alguém aprova; PR recusado não deixa tabela órfã.
 #
 # Segredos: SÓ no ambiente "producao" (Settings → Environments), que exige aprovação e aceita apenas a branch main.
@@ -29,8 +30,9 @@ on:
   workflow_dispatch:
 
 # Nunca duas aplicações ao mesmo tempo, e nunca cancelar uma no meio.
+# PR agrupa pelo número (o nome da branch de um fork não entra no grupo de produção).
 concurrency:
-  group: migracoes-banco-${{ github.event_name == 'pull_request' && github.head_ref || 'producao' }}
+  group: migracoes-banco-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'producao' }}
   cancel-in-progress: false
 
 permissions:
@@ -73,7 +75,7 @@ jobs:
 
   # Merge/manual: só segue se o replay do zero e o teste de RLS passaram neste commit.
   conferir:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -87,19 +89,16 @@ jobs:
       - name: Esperar o "Banco do zero e RLS" deste commit
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/ci/esperar-workflow.sh banco-rls.yml "$GITHUB_SHA" 30 --ultimo-da-main
+        run: bash scripts/ci/esperar-workflow.sh banco-rls.yml "$GITHUB_SHA" 30
 
   aplicar:
     needs: conferir
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # Aprovação e segredos: o ambiente "producao" exige revisor e só aceita a branch main.
     environment: producao
+    # Segredos só no `env` dos passos que precisam deles (a instalação da CLI roda antes e sem eles).
     env:
-      VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
-      VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
-      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-      VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
-      SUPABASE_DB_SENHA: ${{ secrets.SUPABASE_DB_SENHA }}
       DB_DESTINO_NA_VPS: ${{ vars.DB_DESTINO_NA_VPS || '127.0.0.1:5432' }}
       LIMITE_MIGRACOES: ${{ vars.LIMITE_MIGRACOES || '10' }}
       SUPABASE_CLI_VERSAO: 2.118.0
@@ -110,7 +109,19 @@ jobs:
         with:
           persist-credentials: false
 
+      # Versão fixa da CLI (instalada do npm), em vez de uma action de terceiro com `latest`.
+      - name: Supabase CLI
+        run: |
+          npm install --prefix "$RUNNER_TEMP/supabase" --no-audit --no-fund "supabase@${SUPABASE_CLI_VERSAO}" >/dev/null
+          echo "$RUNNER_TEMP/supabase/node_modules/.bin" >> "$GITHUB_PATH"
+
       - name: Segredos configurados?
+        env:
+          VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          SUPABASE_DB_SENHA: ${{ secrets.SUPABASE_DB_SENHA }}
         run: |
           faltam=""
           for v in VPS_SSH_HOST VPS_SSH_USER VPS_SSH_KEY VPS_SSH_KNOWN_HOSTS SUPABASE_DB_SENHA; do
@@ -126,6 +137,12 @@ jobs:
         run: bash scripts/check-migrations.sh
 
       - name: Túnel SSH até a VPS
+        env:
+          VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          SUPABASE_DB_SENHA: ${{ secrets.SUPABASE_DB_SENHA }}
         run: |
           install -d -m 700 ~/.ssh
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_vps && chmod 600 ~/.ssh/id_vps
@@ -138,12 +155,6 @@ jobs:
           senha=$(python3 -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["SUPABASE_DB_SENHA"],safe=""))')
           echo "::add-mask::$senha"
           echo "SUPABASE_DB_URL=postgresql://postgres:${senha}@127.0.0.1:54322/postgres" >> "$GITHUB_ENV"
-
-      # Versão fixa da CLI (instalada do npm), em vez de uma action de terceiro com `latest`.
-      - name: Supabase CLI
-        run: |
-          npm install --prefix "$RUNNER_TEMP/supabase" --no-audit --no-fund "supabase@${SUPABASE_CLI_VERSAO}" >/dev/null
-          echo "$RUNNER_TEMP/supabase/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Simular (dry-run) e conferir a trava
         run: |

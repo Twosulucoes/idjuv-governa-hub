@@ -60,7 +60,7 @@ O workflow `.github/workflows/migracoes-banco.yml` leva `supabase/migrations/` a
 |---|---|
 | PR que muda `supabase/migrations/` | sem segredo e sem tocar a produção: confere versões duplicadas e lista no resumo as migrações que o PR traz (avisa se altera ou remove uma já existente). O replay do zero e o teste de RLS são do workflow **Banco do zero e RLS** |
 | Merge na `main` | espera o **Banco do zero e RLS** passar no mesmo commit, pede aprovação no ambiente `producao` e, aprovado, simula (`--dry-run`), confere a trava e aplica (`supabase db push`) |
-| Manual (`workflow_dispatch` na `main`) | o mesmo do merge (vale a última execução do **Banco do zero e RLS** na `main` se o commit não mexeu no banco) |
+| Manual (`workflow_dispatch` na `main`) | o mesmo do merge; o **Banco do zero e RLS** precisa ter passado no mesmo commit (se o último commit não mexeu no banco, rode antes o **Banco do zero e RLS** à mão na `main`) |
 
 - A CLI do Supabase tem versão fixa (`SUPABASE_CLI_VERSAO` no workflow, instalada do npm); atualize de propósito.
 - **O Postgres da VPS não é exposto na internet.** O job abre um túnel SSH até a VPS e fala com o banco
@@ -230,8 +230,10 @@ Passo a passo (uma vez, por quem administra o repositório):
 3. Só no `producao`: marcar **Required reviewers** e adicionar o aprovador.
 4. Em *Environment secrets*, recriar cada segredo da tabela com o mesmo nome e valor (o GitHub não mostra o valor
    antigo; use o que está no cofre de senhas, ou gere uma chave nova e troque na VPS).
-5. Depois que os três ambientes estiverem prontos, apagar os mesmos segredos em **Repository secrets**. Enquanto
-   existirem lá, continuam ao alcance de PRs.
+5. Depois que os três ambientes estiverem prontos, apagar os mesmos segredos em **Repository secrets** (e conferir que
+   não há segredos da organização com os mesmos nomes). Enquanto existirem lá, continuam ao alcance de PRs.
+6. Recomendado: Settings → Actions → General → *Fork pull request workflows from outside collaborators* →
+   **Require approval for all outside collaborators**.
 
 Um job que cita um ambiente inexistente faz o GitHub criá-lo **sem regra nenhuma**: crie os ambientes antes do
 primeiro merge que precise deles, ou confira as regras logo depois. Variáveis (`vars.*`) continuam no nível do
@@ -245,7 +247,9 @@ O workflow `.github/workflows/deploy-front.yml` roda a cada merge na `main` (e m
 1. Job `esperar` (sem segredo): exige o **Quality Gates** (`scripts/gate.sh`) verde no mesmo commit e, se o
    commit traz migração, o workflow de migrações do mesmo commit terminado com sucesso, aprovação incluída (o front
    novo nunca chega antes do schema). Commit sem migração exige a execução mais recente das migrações na `main`
-   com sucesso: migração recusada ou com falha segura também os merges seguintes. Espera até 5h30.
+   com sucesso (de um commit anterior a este): migração recusada ou com falha segura também os merges seguintes, até
+   alguém rodar as migrações de novo. Espera até 5h30; se a aprovação vier depois disso, rode **Deploy do front** à mão.
+   Execuções de PR nunca contam nessa espera (nem de fork com branch chamada `main`).
 2. Faz o build com as variáveis do repositório e confere que o bundle aponta para `VITE_SUPABASE_URL`.
 3. Copia por `rsync` para a pasta do nginx: primeiro os arquivos com hash (`assets/`), depois
    os pontos de entrada (index, service worker do PWA e manifest). Quem está com o sistema aberto

@@ -38,6 +38,7 @@ permissions:
 
 jobs:
   esperar:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     permissions:
@@ -47,7 +48,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0  # o atalho --ultimo-da-main confere ancestralidade
           persist-credentials: false
 
       - name: Esperar o gate (Quality Gates) deste commit
@@ -55,8 +56,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/ci/esperar-workflow.sh quality.yml "$GITHUB_SHA" 60
 
-      # Inclui o tempo até a aprovação no ambiente "producao". Commit sem migração: vale a aplicação mais recente na
-      # main (se uma migração anterior foi recusada ou falhou, o front não sobe sem o schema de que depende).
+      # Inclui o tempo até a aprovação no ambiente "producao" (aprovação depois de 5h30: rode este workflow à mão).
+      # Commit sem migração: vale a aplicação mais recente na main, de um commit anterior a este (se uma migração
+      # anterior foi recusada ou falhou, o front não sobe sem o schema de que depende).
       - name: Esperar as migrações
         env:
           GH_TOKEN: ${{ github.token }}
@@ -69,6 +71,7 @@ jobs:
 
   deploy:
     needs: esperar
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # Segredos do deploy: o ambiente "deploy-front" só aceita a branch main.
     environment: deploy-front
