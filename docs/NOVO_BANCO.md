@@ -46,6 +46,9 @@ Para saber em que o banco de **produção** difere das migrações e do baseline
 `src/integrations/supabase/types.ts`; `--checar` só compara (workflow **Tipos do banco**). Ver
 [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
 
+O replay e o `validar-baseline.sh` com `PG_REPLAY` (teste de RLS incluído) também rodam no CI em todo PR que mexe
+no banco: workflow **Banco do zero e RLS** ([DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md#banco-do-zero-e-rls-ci)).
+
 ## 3. Subir o Supabase self-hosted
 
 Siga o guia oficial de self-hosting com Docker da Supabase. Antes de expor à internet:
