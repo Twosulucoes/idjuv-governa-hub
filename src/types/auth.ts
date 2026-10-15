@@ -106,7 +106,6 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   '/admin/perfis': 'admin.perfis',
   '/admin/auditoria': 'admin.auditoria',
   '/admin/database': 'admin.database',
-  '/admin/backup': 'admin.backup',
   '/admin/importacoes': 'orcamento.importar',
   '/admin/envios': ['admin.envios', 'admin.envios.configurar'],
   '/admin/configuracao-cliente': 'admin.configuracao_cliente',

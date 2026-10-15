@@ -101,23 +101,21 @@ Os demais usuários entram pelo app (Admin → Usuários). Guarde as credenciais
 - `.env` do front: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (a `ANON_KEY` nova),
   `VITE_SUPABASE_PROJECT_ID` e `VITE_TENANT_SLUG`. Nada de `SERVICE_ROLE_KEY` no front.
 - Edge Functions (detalhes em [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md)): `admin-create-user`,
-  `admin-reset-password`, `delete-user`, `download-frequencia`, `backup-offsite`,
+  `admin-reset-password`, `delete-user`, `download-frequencia`,
   `enviar-convite-reuniao`, `enviar-notificacao`, `cpsi-ai-assistant`, `database-schema`, `bb-api`. Segredos lidos pelo código:
   `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_ORIGINS` (use a URL do
   front), `RESEND_API_KEY`/`RESEND_FROM` (e-mail, só como reserva: o cliente configura o envio em
   `/admin/envios`, com credencial no Vault), `GEMINI_API_KEY`/`GEMINI_MODEL` (assistente),
-  `BACKUP_ENCRYPTION_KEY`, `BACKUP_EXTERNAL_API_KEY`, `BACKUP_DEST_SUPABASE_URL`,
-  `BACKUP_DEST_SERVICE_ROLE_KEY` (backup externo), `BB_AMBIENTE`, `BB_CLIENT_ID`, `BB_CLIENT_SECRET`,
+  `BB_AMBIENTE`, `BB_CLIENT_ID`, `BB_CLIENT_SECRET`,
   `BB_APP_KEY`, `BB_CERT_PEM`, `BB_KEY_PEM` (função `bb-api`, APIs de leitura do Banco do Brasil, com as
   credenciais do próprio cliente; passo a passo em
   [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md#configurar-as-credenciais-do-bb-numa-instância)). Defina só os das
   funções que for ligar.
 - **Defina `FUNCTIONS_VERIFY_JWT=true`** no `.env` das Edge Functions (no self-hosted o exemplo costuma vir
-  `false`; confirme na sua versão). `backup-offsite` só aceita como "cron" a própria service role key, mas as
-  demais funções confiam no gateway para validar o JWT.
-- O baseline **não** cria agendamento (`pg_cron`): `backup_config.schedule_cron` é só configuração.
-  Agende o `backup-offsite` por fora (cron do sistema chamando a função) — ver
-  [BACKUP_CONTINGENCIA.md](./BACKUP_CONTINGENCIA.md).
+  `false`; confirme na sua versão): as funções confiam no gateway para validar o JWT. A publicação na VPS é
+  feita pelo CI ([EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md#publicação-pelo-ci)).
+- O baseline **não** cria agendamento (`pg_cron`). O backup fora da VPS é o de [BACKUP.md](./BACKUP.md) (a antiga
+  `backup-offsite` foi aposentada no P06; as tabelas `backup_*` ficam até o P13).
 
 ## 7. Conferência depois de aplicar
 

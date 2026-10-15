@@ -199,7 +199,6 @@ Não há servidor de relatórios: 38 geradores `pdf*.ts`, `wordPortarias.ts` (do
 | Função | Papel |
 |---|---|
 | `admin-create-user`, `delete-user`, `admin-reset-password` | Gestão de usuários com service role |
-| `backup-offsite` | Backup para projeto Supabase secundário |
 | `database-schema` | Introspecção de schema para a UI de admin |
 | `download-frequencia` | Pacotes de frequência |
 | `enviar-convite-reuniao` | E-mail transacional (Resend) |

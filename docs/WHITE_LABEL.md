@@ -100,7 +100,6 @@ VITE_BRAND_PRIMARY="#1e40af"            # theme_color do PWA e splash
 VITE_PUBLIC_URL=https://governa.idjuv.rr.gov.br
 
 # --- Operação (hoje hardcoded em Edge Functions) ---
-BACKUP_BUCKET=idjuv-backups             # remove literal de backup-offsite
 RESEND_FROM="IDJUV <nao-responda@idjuv.rr.gov.br>"
 SUPER_ADMIN_EMAIL=                      # substitui protected-users.config.ts
 SUPER_ADMIN_ID=
@@ -462,7 +461,7 @@ RPC, view ou política de RLS referencia os nomes antigos antes de aplicar.
 
 | Item | Correção |
 |---|---|
-| `backup-offsite/index.ts` — bucket `idjuv-backups` (23 ocorrências, inclusive `createBucket`) | `Deno.env.get('BACKUP_BUCKET') ?? 'governa-backups'` |
+| Edge Function `backup-offsite` — bucket `idjuv-backups` fixo | ✅ **Resolvido (2026-10-15):** função aposentada no P06 |
 | `enviar-convite-reuniao/index.ts` — `RESEND_FROM` default e corpo do e-mail | ✅ **Feito (2026-10-09).** Remetente, marca e credencial vêm de `config_envio` (tela `/admin/envios`), com reserva em `config_institucional`; sem default com nome de cliente |
 | E-mails do Supabase Auth (confirmação, convite, senha…) | ✅ Gerados por tenant a partir do perfil e dos tokens: `scripts/emails/gerar-templates-email.ts` → `tenants/<slug>/emails/`. Ver [`EMAILS_AUTH.md`](./EMAILS_AUTH.md) |
 | `database-schema/index.ts:124` — mapa `'unidade_idjuv'` | Atualizar após a migração de colunas (§9) |

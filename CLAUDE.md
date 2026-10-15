@@ -124,7 +124,7 @@ src/
 supabase/
 ├── migrations/            # ~240 migrações SQL (timestamp_uuid.sql)
 ├── functions/             # Edge Functions (Deno): admin-create-user, delete-user,
-│                          #   backup-offsite, cpsi-ai-assistant, download-frequencia, ...
+│                          #   cpsi-ai-assistant, download-frequencia, ...
 └── config.toml
 
 docs/        # Documentação de operação (migração Supabase, backup, SQL de correção)

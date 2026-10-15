@@ -955,6 +955,12 @@ com `action_type` `consultar`, para que nenhuma carga por tipo a conceda ao pape
 admin: a RLS de `dados_oficiais` (classe `publico_admin`) só deixa o admin escrever, e a tela só habilita
 o formulário para ele. Leitura de `dados_oficiais` é pública (anon). Ver `docs/CONFIGURACAO_CLIENTE.md`.
 
+### Backup externo (aposentado no P06)
+
+A rota `/admin/backup` saiu do `App.tsx` e do `ROUTE_PERMISSIONS`, junto com a tela, o hook e a Edge Function
+`backup-offsite`. O código `admin.backup` continua no catálogo e em `role_permissions` (e no tipo `PermissionCode`)
+até a limpeza do P13; hoje não libera nada.
+
 ### Workflow: acompanhamento de processos do SEI
 
 Migrações `20261013100000` a `20261013100300` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#acompanhamento-de-processos-do-sei)).

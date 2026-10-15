@@ -202,11 +202,6 @@ serve(async (req) => {
       .update({ requires_password_change: true, updated_at: new Date().toISOString() })
       .eq("id", targetUserId);
 
-    // Forçar troca via settings de segurança (se existir)
-    await admin
-      .from("user_security_settings")
-      .upsert({ user_id: targetUserId, force_password_change: true }, { onConflict: "user_id" });
-
     // Trilha: quem redefiniu a senha de quem (nunca a senha). Falha aqui não desfaz a troca, mas fica no log.
     const { error: auditError } = await admin.from("audit_logs").insert({
       action: "password_reset",
