@@ -2,11 +2,23 @@
 
 O schema `public` tem **231 tabelas**, **15 views** e **47 funções (RPC)**. Os
 tipos TypeScript de todo o schema são gerados em
-`src/integrations/supabase/types.ts` (**não editar à mão** — regenerar).
+`src/integrations/supabase/types.ts` (**não editar à mão** — regenerar). Desde o P03 ele é gerado
+do banco que as **migrações** constroem, não de um projeto remoto: `bash scripts/db/gerar-tipos.sh`
+(`npm run db:tipos`) faz o replay de todas as migrações num Postgres local (mesmos pré-requisitos de
+`scripts/db/validar-migracoes.sh`: superusuário `supabase_admin` em `127.0.0.1:54329`, ex.: docker
+`postgres:17`) e roda o `@supabase/postgres-meta` 0.100.0 (o gerador do `supabase gen types typescript`,
+versão fixa). `--checar` (`npm run check:tipos`) só compara e sai 1 se o arquivo estiver defasado. Como a
+produção tem a mesma estrutura do replay desde o P02, são os tipos da produção. Todas as tabelas, views e
+RPCs estão tipadas, e o P03 removeu ~100 contornos de tipo no client (`supabase as any`, `.from("x" as any)`,
+`.rpc("x" as never)`, `as unknown as SupabaseClient`) em ~36 arquivos. Código novo não os reintroduz: tabela
+ou RPC de migração nova fica tipada ao regenerar.
 
 > Migrações versionadas em `supabase/migrations/*.sql` (~240 arquivos,
 > `YYYYMMDDHHMMSS_<uuid>.sql`). Para mudar o schema, crie uma migração nova
 > e regenere os tipos. Não edite migrações antigas.
+> **Migração nova → regenerar `types.ts` no mesmo PR** (`bash scripts/db/gerar-tipos.sh`): o workflow
+> `Tipos do banco` (`.github/workflows/tipos-banco.yml`) barra o PR cujo `types.ts` difere do que as
+> migrações geram.
 
 ## Baseline limpo e RLS por módulo (banco novo)
 
@@ -932,8 +944,7 @@ Todas idempotentes.
 
 **Inventário de campo (fase 1).** Migração
 `supabase/migrations/20261009160000_inventario_campo_fase1.sql` (criada em 2026-10-09 e **aplicada
-em produção no mesmo dia**, sob a versão `20261009160000`; `types.ts` ainda não regenerado, por isso o front acessa as tabelas novas com
-`supabase as any`):
+em produção no mesmo dia**, sob a versão `20261009160000`; as tabelas novas estão em `types.ts` desde o P03):
 
 - `unidades_locais` ganha geometria: `latitude`, `longitude` (CHECK de faixa), `poligono_geojson`
   (GeoJSON `Polygon`/`MultiPolygon`), `area_terreno_m2`, `area_construida_m2`, `fonte_geometria`
@@ -1068,8 +1079,8 @@ passagem de etapa.
 - **Funções antigas ajustadas**: `fn_contar_processos_por_status()` passou a `SECURITY INVOKER`, e a RLS decide o que
   entra na contagem (antes, `DEFINER`, contava os sigilosos); `fn_calcular_sla_processo(uuid)` continua `DEFINER`, mas
   devolve nenhuma linha para processo que o usuário não vê ou que não existe.
-- **Tipos**: as tabelas, a view e as RPCs novas ainda não estão em `src/integrations/supabase/types.ts` (gerado);
-  `useAcompanhamentoProcessos` as acessa por um alias sem tipos. Regenerar os tipos depois do merge.
+- **Tipos**: as tabelas, a view e as RPCs novas estão em `src/integrations/supabase/types.ts` (gerado) desde o
+  P03; `useAcompanhamentoProcessos` as acessa pelo client tipado.
 
 ### Governança e compliance
 `estrutura_organizacional`, `cargos`, `composicao_cargos`, `vagas_cargo`,

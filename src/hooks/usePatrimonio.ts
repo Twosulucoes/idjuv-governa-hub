@@ -241,11 +241,11 @@ export function useDecidirMovimentacao() {
 
   return useMutation({
     mutationFn: async ({ id, aprovar, motivoRejeicao }: { id: string; aprovar: boolean; motivoRejeicao?: string }) => {
-      const { error } = await supabase.rpc('patrimonio_decidir_movimentacao' as never, {
+      const { error } = await supabase.rpc('patrimonio_decidir_movimentacao', {
         p_movimentacao_id: id,
         p_aprovar: aprovar,
         p_motivo_rejeicao: aprovar ? null : (motivoRejeicao ?? null),
-      } as never);
+      });
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
@@ -560,11 +560,11 @@ export function useDecidirBaixa() {
 
   return useMutation({
     mutationFn: async ({ id, aprovar, motivoRejeicao }: { id: string; aprovar: boolean; motivoRejeicao?: string }) => {
-      const { error } = await supabase.rpc('patrimonio_decidir_baixa' as never, {
+      const { error } = await supabase.rpc('patrimonio_decidir_baixa', {
         p_baixa_id: id,
         p_aprovar: aprovar,
         p_motivo_rejeicao: aprovar ? null : (motivoRejeicao ?? null),
-      } as never);
+      });
       if (error) throw error;
     },
     onSuccess: (_, variables) => {

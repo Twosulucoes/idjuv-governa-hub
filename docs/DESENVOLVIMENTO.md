@@ -42,9 +42,11 @@ bun run preview      # serve o build localmente
 
 - Migrações em `supabase/migrations/*.sql`. Para mudanças de schema, **crie uma
   migração nova** — não edite migrações antigas.
-- Após mudar o schema, **regenere** `src/integrations/supabase/types.ts`
-  (via CLI do Supabase `supabase gen types typescript` ou pelo MCP do Supabase).
-  Esse arquivo é **gerado** — não editar à mão.
+- Após mudar o schema, **regenere** `src/integrations/supabase/types.ts` antes de abrir o PR, com
+  `bash scripts/db/gerar-tipos.sh` (`npm run db:tipos`): gera do replay das migrações num Postgres local
+  (pré-requisitos de `scripts/db/validar-migracoes.sh`), não de um banco remoto; `npm run check:tipos` só
+  confere. Commite o arquivo no mesmo PR da migração. Esse arquivo é **gerado** — não editar à mão. Detalhes em
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
 - Edge Functions: ver [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md).
 
 ### Aplicação automática das migrações (CI)
@@ -82,7 +84,14 @@ O workflow `.github/workflows/migracoes-banco.yml` leva `supabase/migrations/` a
   migração só consegue avisar — os 3 triggers `trilha_rh_storage_*` em `storage.objects` (E2) e, desde a E3, os 3
   índices únicos da remessa CNAB e do eSocial e o `BYPASSRLS` do dono de `remessa_integridade()` (detalhes em
   [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#integridade-da-remessa-cnab-e-do-esocial--onda-e3-banco)).
-- Depois do merge, regenere `src/integrations/supabase/types.ts` contra o banco de produção.
+- Os tipos não se regeneram depois do merge: o `types.ts` regenerado já vem no PR da migração (ver abaixo).
+
+### Tipos do banco (CI)
+
+O workflow `.github/workflows/tipos-banco.yml` (**Tipos do banco**) roda em PR que muda
+`supabase/migrations/`, `src/integrations/supabase/types.ts` ou os scripts do replay/gerador (e no push na
+`main`): sobe um Postgres descartável, roda `bash scripts/db/gerar-tipos.sh --checar` e falha se o `types.ts`
+commitado difere do que as migrações geram. Não usa segredo.
 
 ### Fotografia do banco de produção (CI, manual)
 

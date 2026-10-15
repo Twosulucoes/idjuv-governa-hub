@@ -45,7 +45,7 @@ export default function PatrimonioPublicoPage() {
   const { data: bens, isLoading, isError, refetch } = useQuery({
     queryKey: ['transparencia-patrimonio'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('transparencia_patrimonio' as never);
+      const { data, error } = await supabase.rpc('transparencia_patrimonio');
 
       if (error) throw error;
 
