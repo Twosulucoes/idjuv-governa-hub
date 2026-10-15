@@ -41,6 +41,14 @@ export interface ResultadoLinhaBanco {
   acao: AcaoLinha;
   /** campo → [antes, depois] */
   mudancas?: Record<string, [unknown, unknown]>;
+  /** Avisos do banco sobre a linha (não impedem a aplicação) */
+  avisos?: string[];
+}
+
+/** Erro do banco numa linha: com qualquer erro, a aplicação não grava nada. */
+export interface ErroLinhaBanco {
+  indice: number;
+  mensagem: string;
 }
 
 /** Resposta padronizada das RPCs de importação (simulação e aplicação). */
@@ -53,6 +61,8 @@ export interface ResultadoBanco {
   /** Registros que existem no banco no escopo do arquivo mas não vieram nele */
   ausentes?: string[];
   totais: Record<AcaoLinha, number>;
+  /** Erros por linha encontrados pelo banco; com algum, a importação não pode ser confirmada */
+  erros?: ErroLinhaBanco[];
 }
 
 export interface MetadadosArquivo {
@@ -93,6 +103,10 @@ export interface Importador<TLinha = unknown> {
   ) => Promise<ResultadoBanco>;
   /** Query keys do React Query a invalidar depois de aplicar */
   invalidar?: unknown[][];
+  /** Modelo de arquivo para o usuário preencher (botão "Baixar modelo" no assistente) */
+  modelo?: { nomeArquivo: string; gerar: () => void };
+  /** Como citar a linha nas mensagens (ex.: "Linha 5 (001/2026)"); padrão: posição na lista */
+  identificarLinha?: (linha: TLinha) => string;
   /** Arquivo sem linhas pode ser confirmado (a RPC registra a importação; ex.: retorno sem pagamentos) */
   aceitaArquivoVazio?: boolean;
 }

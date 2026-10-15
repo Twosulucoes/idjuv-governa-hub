@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertCircle, AlertTriangle, CheckCircle2, FileUp, Loader2, RotateCcw } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, FileDown, FileUp, Loader2, RotateCcw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -121,6 +121,13 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
     setErroAplicar(null);
     try {
       const res = await importador.enviar(leitura, arquivo, false);
+      if (res.erros && res.erros.length > 0) {
+        // O banco achou erro na aplicação (ex.: dado mudou desde a simulação): nada foi gravado
+        setSimulacao(res);
+        setEtapa("conferencia");
+        toast.error("A importação não foi aplicada", { description: "Corrija as linhas com erro. Nada foi gravado." });
+        return;
+      }
       setResultado(res);
       setEtapa("concluido");
       await Promise.all([
@@ -140,6 +147,12 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{importador.instrucoes}</p>
+        {importador.modelo && (
+          <Button variant="outline" size="sm" onClick={importador.modelo.gerar} disabled={etapa === "processando"}>
+            <FileDown className="mr-2 h-4 w-4" aria-hidden />
+            Baixar modelo ({importador.modelo.nomeArquivo})
+          </Button>
+        )}
         <label className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed p-8 text-center hover:bg-muted/50">
           {etapa === "processando" ? (
             <>
@@ -172,7 +185,15 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
   const final = resultado ?? simulacao;
   const acaoPorIndice = new Map(final?.linhas.map((l) => [l.indice, l]) ?? []);
   const criados = Object.entries(final?.criados ?? {}).filter(([, itens]) => itens.length > 0);
-  const podeAplicar = etapa === "conferencia" && erros.length === 0 && simulacao && !erroBanco;
+  const errosBanco = final?.erros ?? [];
+  const errosBancoPorIndice = new Map<number, string[]>();
+  for (const e of errosBanco) errosBancoPorIndice.set(e.indice, [...(errosBancoPorIndice.get(e.indice) ?? []), e.mensagem]);
+  const identificar = (indice: number) => {
+    const linha = leitura.linhas[indice];
+    return (linha !== undefined && importador.identificarLinha?.(linha)) || `Linha ${indice + 1} da lista`;
+  };
+  const podeAplicar =
+    etapa === "conferencia" && erros.length === 0 && simulacao && !erroBanco && errosBanco.length === 0;
   const arquivoVazioAceito = !!importador.aceitaArquivoVazio && leitura.linhas.length === 0;
   const nadaMuda =
     !arquivoVazioAceito &&
@@ -238,6 +259,23 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
           <AlertCircle className="h-4 w-4" aria-hidden />
           <AlertTitle>O sistema recusou a importação</AlertTitle>
           <AlertDescription>{erroBanco}</AlertDescription>
+        </Alert>
+      )}
+
+      {errosBanco.length > 0 && etapa !== "concluido" && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" aria-hidden />
+          <AlertTitle>O sistema encontrou {errosBanco.length} problema(s); nada será gravado</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc pl-4">
+              {errosBanco.slice(0, 50).map((e, i) => (
+                <li key={i}>
+                  {identificar(e.indice)}: {e.mensagem}
+                </li>
+              ))}
+            </ul>
+            {errosBanco.length > 50 && <p>…e mais {errosBanco.length - 50}. Veja a tabela abaixo.</p>}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -314,11 +352,21 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
             {leitura.linhas.map((linha, i) => {
               const banco = acaoPorIndice.get(i);
               const temErro = leitura.problemas.some((p) => p.linha === i && p.gravidade === "erro");
+              const errosLinha = errosBancoPorIndice.get(i);
               return (
                 <TableRow key={i} className="text-xs">
                   <TableCell>
                     {temErro ? (
                       <Badge variant="destructive">Erro</Badge>
+                    ) : errosLinha ? (
+                      <div className="space-y-0.5">
+                        <Badge variant="destructive">Erro</Badge>
+                        {errosLinha.map((m, j) => (
+                          <p key={j} className="max-w-[220px] text-[11px] text-destructive">
+                            {m}
+                          </p>
+                        ))}
+                      </div>
                     ) : banco ? (
                       <div className="space-y-0.5">
                         <Badge variant={VARIANTE_ACAO[banco.acao]} className="whitespace-nowrap">
@@ -331,6 +379,12 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
                               .join(", ")}
                           </p>
                         )}
+                        {banco.avisos?.map((m, j) => (
+                          <p key={j} className="flex max-w-[220px] gap-1 text-[11px] text-warning">
+                            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                            {m}
+                          </p>
+                        ))}
                       </div>
                     ) : (
                       <span className="text-muted-foreground">—</span>
@@ -358,7 +412,9 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
           </Button>
           <Button onClick={aplicar} disabled={!podeAplicar || !!nadaMuda}>
             {etapa === "aplicando" && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
-            {nadaMuda
+            {errosBanco.length > 0
+              ? "Corrija os erros para importar"
+              : nadaMuda
               ? "Nada a atualizar"
               : arquivoVazioAceito
                 ? "Registrar arquivo sem pagamentos"
