@@ -57,7 +57,9 @@ Agende no cron (`crontab -e`). O cron usa o fuso da VPS (confira com `date`); co
 30 3 * * * /usr/local/bin/idjuv-backup >> /var/log/idjuv-backup.log 2>&1
 ```
 
-**No GitHub** (Settings → Secrets and variables → Actions), para o teste mensal:
+**No GitHub**, para o teste mensal: segredos do **ambiente `backup`** (Settings → Environments → `backup`, só a
+branch `main`; ver [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md#ambientes-protegidos-do-github-segredos-de-produção)),
+não do nível do repositório, que fica ao alcance de PRs:
 
 | Secret | Valor |
 |---|---|

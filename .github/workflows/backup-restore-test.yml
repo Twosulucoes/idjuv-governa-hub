@@ -4,7 +4,7 @@ name: Teste de restauração do backup
 # decifra, restaura num Postgres descartável com a mesma imagem do Supabase self-hosted e confere
 # a contagem de linhas contra o manifesto. Backup que nunca foi restaurado não é backup.
 #
-# Secrets (Settings → Secrets and variables → Actions), explicados em docs/BACKUP.md:
+# Secrets do ambiente "backup" (Settings → Environments → backup; só a branch main), explicados em docs/BACKUP.md:
 #   BACKUP_RCLONE_CONF   conteúdo do rclone.conf com o remoto do backup (pode ser só-leitura)
 #   BACKUP_RCLONE_REMOTE remoto + bucket, igual ao da VPS (ex.: r2:idjuv-backups)
 #   BACKUP_AGE_KEY       chave PRIVADA do age (arquivo gerado por age-keygen)
@@ -31,6 +31,8 @@ jobs:
   restaurar:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    # Segredos BACKUP_* SÓ no ambiente "backup" (aceita apenas a branch main, sem aprovação: o teste é agendado).
+    environment: backup
     env:
       RCLONE_CONF: ${{ secrets.BACKUP_RCLONE_CONF }}
       REMOTO: ${{ secrets.BACKUP_RCLONE_REMOTE }}
@@ -40,6 +42,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Conferir configuração
         id: cfg
