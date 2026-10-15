@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-// processo_sei é coluna nova de documentos (ainda fora de types.ts)
+// processo_sei (coluna de documentos), lido de um objeto genérico
 const processoSei = (doc: object) => (doc as { processo_sei?: string | null }).processo_sei || null;
 import { Link } from "react-router-dom";
 import { 

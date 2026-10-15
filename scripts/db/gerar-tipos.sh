@@ -9,7 +9,7 @@
 #
 # Pré-requisitos: os de scripts/db/validar-migracoes.sh (PostgreSQL local com superusuário
 # supabase_admin; ex.: docker run -p 127.0.0.1:54329:5432 -e POSTGRES_USER=supabase_admin
-#   -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17 -c max_locks_per_transaction=1024) e Node 20.
+#   -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17 -c max_locks_per_transaction=1024) e Node 22 (o postgres-meta pede >= 22.12).
 #
 # Uso:  bash scripts/db/gerar-tipos.sh            # regenera o types.ts
 #       bash scripts/db/gerar-tipos.sh --checar   # só compara; sai 1 se o types.ts estiver defasado

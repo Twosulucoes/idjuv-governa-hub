@@ -18,7 +18,11 @@ on:
     branches: [main]
     paths:
       - "supabase/migrations/**"
+      - "supabase/baseline/lacunas/**"
       - "src/integrations/supabase/types.ts"
+      - "scripts/db/gerar-tipos.sh"
+      - "scripts/db/validar-migracoes.sh"
+      - "scripts/db/shim-supabase.sql"
   workflow_dispatch:
 
 concurrency:
@@ -38,7 +42,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       # Postgres descartável para o replay (superusuário supabase_admin, como pede o shim).
       - name: Postgres local

@@ -1,7 +1,6 @@
 /**
  * Tipos da conciliação bancária (spec docs/superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md,
- * etapas 2 a 4). As tabelas ainda não estão em src/integrations/supabase/types.ts (gerado): os tipos de linha
- * ficam aqui até a regeneração.
+ * etapas 2 a 4). Tipos de linha do domínio usados pelas telas.
  */
 
 import type {
