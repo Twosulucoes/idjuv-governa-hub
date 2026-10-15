@@ -416,8 +416,7 @@ Limites conhecidos:
 - A folha está bloqueada e não foi exercitada de ponta a ponta: `fn_gerar_esocial_s1200` usa uma coluna
   inexistente (`lancamentos_folha.folha_id`) e falha para todos; `fechar_folha`/`reabrir_folha` e
   `fn_audit_parametros` foram consertados (auditoria gravava texto em coluna uuid).
-- `backup-offsite`: só a própria service role key vale como "cron" e o perfil do usuário precisa estar ativo.
-  No self-hosted, confirme `FUNCTIONS_VERIFY_JWT=true` no `.env`; outras Edge Functions (`cpsi-ai-assistant`,
+- Edge Functions: no self-hosted, confirme `FUNCTIONS_VERIFY_JWT=true` no `.env`; outras Edge Functions (`cpsi-ai-assistant`,
   `enviar-convite-reuniao`) aceitam qualquer sessão, sem checar módulo nem perfil ativo. `download-frequencia`
   exige o módulo `rh` e `rh.frequencia.visualizar` desde a B3 (`docs/EDGE_FUNCTIONS.md`).
 - `overlay/40_privilegios.sql` ajusta os privilégios padrão só do papel `postgres`; objetos criados pelo Studio

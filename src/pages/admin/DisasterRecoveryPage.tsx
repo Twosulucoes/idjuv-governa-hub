@@ -9,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   Database, Code, FileDown, CheckCircle2, 
   AlertTriangle, Copy, ExternalLink, Server, GitBranch,
-  Download, Upload, RefreshCw, Clock, Zap
+  Download, Upload, RefreshCw, Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, StatusBadge } from "@/components/design-system";
@@ -299,13 +299,6 @@ const DisasterRecoveryPage = () => {
                     ))}
                   </div>
                 </div>
-
-                <Button asChild variant="outline">
-                  <a href="/admin/backup">
-                    <Zap className="h-4 w-4 mr-2" aria-hidden="true" />
-                    Ir para gestão de backup
-                  </a>
-                </Button>
               </CardContent>
             </Card>
           </TabsContent>

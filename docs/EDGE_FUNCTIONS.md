@@ -9,17 +9,23 @@ São invocadas do front via `supabase.functions.invoke('<nome>', { body })`.
 
 ## Funções existentes
 
+Todas exigem login: na VPS o roteador do container recusa chamada sem JWT válido (`VERIFY_JWT=true`, conferido de
+fora em 2026-10-15: sem cabeçalho e com token malformado, 401) e `supabase/config.toml` declara `verify_jwt = true`
+para cada uma. Função nova entra nos dois lugares e confere usuário e permissão no próprio código.
+
+Aposentada no P06 (2026-10-15): `backup-offsite` (backup antigo em JSON para outro projeto Supabase, com a tela
+`/admin/backup`). O backup oficial é o da VPS ([BACKUP.md](./BACKUP.md)); as tabelas `backup_config`, `backup_history`
+e `backup_integrity_checks` continuam no banco até a limpeza do P13.
+
 | Função | Propósito |
 |---|---|
 | `admin-create-user` | Cria usuário no Auth + perfil/permissões (requer service role). |
 | `admin-reset-password` | Reseta/redefine senha de um usuário pela administração. |
-| `create-test-user` | Cria usuário de teste (provisionamento/QA). |
 | `delete-user` | Exclui usuário do Auth e dados associados. |
 | `enviar-convite-reuniao` | Envia convites de reunião aos participantes por e-mail ou WhatsApp (pelo núcleo `_shared/envio`). |
 | `enviar-notificacao` | Disparos pela configuração de envio da instância. Hoje só a ação `teste` (exige `admin.envios.configurar`). |
 | `download-frequencia` | Devolve URL assinada (1 h) do arquivo de um pacote de frequência do bucket privado `frequencias`, ou só os dados do pacote (`action=info`). Exige o módulo `rh` e `rh.frequencia.visualizar` (ver abaixo). |
 | `database-schema` | Inspeciona o schema do banco (apoia a tela `DatabaseSchemaPage`). |
-| `backup-offsite` | Executa/orquestra backup off-site (apoia `BackupOffsitePage`). |
 | `cpsi-ai-assistant` | Assistente de IA para o formulário CPSI (`CPSIPage`). |
 | `bb-api` | APIs de leitura do Banco do Brasil: `status` da conexão, `extrato` (API Extratos v2, grava em `fin_extrato_lancamentos`) e `validar-conta` (API Validação de Contas v1). Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
 
@@ -35,24 +41,6 @@ Quem chama autentica o usuário, checa a permissão da própria ação e monta o
 núcleo não deve virar relay de texto livre. Sem configuração ativa, e-mail cai em `RESEND_API_KEY`/
 `RESEND_FROM` e o convite por WhatsApp volta ao link `wa.me`. Um novo uso (ex.: avisos) entra como ação
 nova em `enviar-notificacao`, recebendo o id do registro e checando a permissão do domínio.
-
-### Autorização do `backup-offsite`
-
-A função lê todas as tabelas com a service role, então só responde a quem prova
-uma das três coisas abaixo (medido no código em 2026-10-06):
-
-- **Usuário autenticado com papel** `ti_admin`, `presidencia` ou `admin` em
-  `user_roles`. Vale para todas as ações, inclusive `external-export` com
-  `localExport: true` (usado por `useBackupOffsite.ts`) e `list-tables`. Sem esses
-  papéis, `external-export` responde `403`; nas demais ações o erro sai pelo
-  tratamento geral da função (`500` com a mensagem "Sem permissão para executar backup").
-- **Service role** (chamada do cron), nas ações autenticadas (`list-tables`,
-  `test-connection`, `execute-backup` etc.). Não vale para `external-export`.
-- **`apiKey` igual a `BACKUP_EXTERNAL_API_KEY`**, somente para `external-export`
-  e `list-tables` (contingência externa, sem JWT; ver `docs/BACKUP_CONTINGENCIA.md`).
-
-`list-tables` era público (sem nenhuma autenticação) até a correção de 2026-10-06;
-quem o chamava sem `apiKey` nem papel passa a receber erro.
 
 ### Gestão de usuários (`admin-create-user`, `admin-reset-password`, `delete-user`)
 
@@ -97,8 +85,7 @@ linha `delete` que já gravava depois da exclusão. As linhas novas não levam e
 `delete` antiga ainda leva o e-mail e o nome em `description`/`before_data`). `delete-user` não é atômica: se a
 exclusão no Auth falhar, o usuário fica sem módulos, papéis e vínculo.
 
-`backup-offsite`: só o token **igual** à `SUPABASE_SERVICE_ROLE_KEY` vale como chamada de cron (antes decodificava o
-JWT sem validar a assinatura) e o usuário com papel precisa ter o perfil ativo.
+
 
 ### Autorização do `download-frequencia` (Onda B / B3)
 
@@ -206,7 +193,80 @@ banco: a tela não recebe nem guarda segredo.
   do front.
 - Valide a autorização do chamador dentro da função (verifique o JWT/role) antes
   de executar ações privilegiadas.
-- Deploy é feito no Supabase (via CLI `supabase functions deploy <nome>`). Em ambiente web/remoto sem CLI, use as ferramentas MCP do
-  Supabase quando disponíveis.
+- Deploy: só pelo CI (seção "Publicação pelo CI" abaixo). Não copie arquivo à mão para a VPS: a próxima publicação
+  apaga o que não estiver no repositório.
 - Mantenha o contrato (formato de `body`/resposta) em sincronia com o hook que a
   consome no front.
+
+## Publicação pelo CI
+
+No self-hosted não existe `supabase functions deploy`: o container `supabase-edge-functions` lê as funções de uma
+pasta da VPS (`volumes/functions` do docker compose), e o roteador `main/` (do próprio Supabase) cria um worker por
+função. O workflow `.github/workflows/deploy-funcoes.yml` (**Deploy das Edge Functions**) roda quando um merge na
+`main` muda `supabase/functions/` (e à mão, Actions → Run workflow):
+
+1. `esperar` (sem segredo): **Quality Gates** verde no mesmo commit e migrações aplicadas (como o deploy do front);
+2. `publicar`, no ambiente `producao` (pede a aprovação do dono): `rsync --delete` de `supabase/functions/` para
+   `VPS_FUNCOES_DIR`, sem tocar em `main/` (função apagada do repositório sai da VPS); `sudo -n docker restart` do
+   container; conferência: o runtime volta (401 sem login), cada função sobe (chamada com a chave anon, que nenhuma
+   aceita como usuário: espera-se 4xx, nunca erro de boot) e a pasta da VPS fica igual ao repositório.
+
+Os segredos que as funções leem (`SUPABASE_SERVICE_ROLE_KEY`, `BB_*`, `GEMINI_*`, `RESEND_*`…) continuam no `.env`
+do docker compose da VPS; o CI não os vê nem os altera. Depois de aposentar o `backup-offsite`, apague de lá
+`BACKUP_ENCRYPTION_KEY`, `BACKUP_EXTERNAL_API_KEY`, `BACKUP_DEST_SUPABASE_URL` e `BACKUP_DEST_SERVICE_ROLE_KEY`.
+
+### Preparar a VPS (uma vez, como root)
+
+```bash
+# 1. pasta das funções vista do host (a origem do volume montado em /home/deno/functions)
+docker inspect supabase-edge-functions --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+DIR=/caminho/da/saida/acima/functions          # ajuste
+
+# 2. usuário só para publicar funções: dono da pasta (menos main/, o roteador que verifica o JWT de todas as
+#    funções, que fica do root) e sudo apenas para reiniciar esse container
+adduser --disabled-password --gecos "" idjuv-funcoes
+chown -R idjuv-funcoes: "$DIR" && chown -R root:root "$DIR/main" && chmod -R u=rwX,go=rX "$DIR/main"
+echo "idjuv-funcoes ALL=(root) NOPASSWD: $(command -v docker) restart supabase-edge-functions" \
+  > /etc/sudoers.d/idjuv-funcoes && chmod 440 /etc/sudoers.d/idjuv-funcoes && visudo -c
+
+# 3. porteiro da chave: ela só consegue rodar o rsync para $DIR e o restart; qualquer outro comando é recusado
+echo "$DIR" > /etc/idjuv-funcoes.dir
+cat > /usr/local/bin/idjuv-funcoes-porteiro <<'PORTEIRO'
+#!/bin/sh
+set -f
+dir=$(cat /etc/idjuv-funcoes.dir); dir=${dir%/}
+c=$SSH_ORIGINAL_COMMAND
+case "$c" in
+  *[\;\&\|\`\$\<\>\(\)\'\"\\]*) ;;
+  "sudo -n docker restart supabase-edge-functions") exec sudo -n docker restart supabase-edge-functions ;;
+  "rsync --server "*" . $dir/") exec $c ;;
+esac
+echo "comando recusado" >&2; exit 1
+PORTEIRO
+chmod 755 /usr/local/bin/idjuv-funcoes-porteiro
+
+# 4. chave SSH (gere no seu computador: ssh-keygen -t ed25519 -f idjuv-funcoes -N "") e cole a PÚBLICA aqui,
+#    com "restrict" (sem terminal nem túnel) e o porteiro como único comando
+install -d -m 700 -o idjuv-funcoes -g idjuv-funcoes /home/idjuv-funcoes/.ssh
+echo "restrict,command=\"/usr/local/bin/idjuv-funcoes-porteiro\" $(cat idjuv-funcoes.pub)" \
+  > /home/idjuv-funcoes/.ssh/authorized_keys
+chown idjuv-funcoes: /home/idjuv-funcoes/.ssh/authorized_keys && chmod 600 /home/idjuv-funcoes/.ssh/authorized_keys
+
+# 5. o .env do Supabase (JWT_SECRET, senha do banco, service role) só para o root
+COMPOSE=/caminho/da/pasta/do/docker-compose     # ajuste (a que tem o .env)
+chown root:root "$COMPOSE/.env" "$COMPOSE/docker-compose.yml" && chmod 600 "$COMPOSE/.env"
+
+# 6. tire o agendamento antigo do backup-offsite (ele guardava a service role key na linha do comando)
+crontab -l | grep -n backup-offsite; systemctl list-timers --all | grep -i backup
+```
+
+Depois da primeira publicação, confira que o container lê a pasta publicada (o CI só confere a pasta do
+`VPS_FUNCOES_DIR`): `docker exec supabase-edge-functions ls /home/deno/functions` deve listar as mesmas funções do
+repositório. Como a função publicada roda com a service role, aprovar o job `publicar` é aprovar código com acesso
+total ao banco: olhe o que mudou em `supabase/functions/` antes de aprovar.
+
+No GitHub: segredos `VPS_FUNCOES_USER` (`idjuv-funcoes`) e `VPS_FUNCOES_KEY` (a chave **privada**) no ambiente
+`producao` (`VPS_SSH_HOST` e `VPS_SSH_KNOWN_HOSTS` já estão lá); variável do repositório `VPS_FUNCOES_DIR` (o `$DIR`
+acima, terminando em `/functions`) e, se o container tiver outro nome, `VPS_FUNCOES_CONTAINER`. A primeira publicação
+substitui o que estiver na pasta (menos `main/`); rode-a à mão depois de configurar (Actions → **Deploy das Edge
+Functions** → Run workflow) e confira o resumo do job.

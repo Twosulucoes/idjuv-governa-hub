@@ -64,7 +64,7 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `usePermissoesUsuario`, `useRBAC`, `useApprovalRequests`, `useAuditLog`,
   `useTrilhaAuditoria` (trilha de auditoria e `useRegistrarEvento`; ver abaixo),
   `useLancamentoPorSetor` (regra de lançamento por setor; ver abaixo),
-  `useBackupOffsite`, `useDatabaseSchema`, `useModuleSettings`,
+  `useDatabaseSchema`, `useModuleSettings`,
   `useConfigPaginasPublicas`, `useFormFieldConfig`.
 - **Organização**: `useOrganograma`, `useInstituicoes`, `useAgrupamentoUnidades`,
   `usePortalDiretoria`, `useEscolasJer`, `useFederacoesRelatorio`,

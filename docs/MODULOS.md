@@ -17,7 +17,7 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
   `CentralRelatoriosPage`, `RelatorioAdminPage`, `GestaoDocumentosPage`,
   `GestaoModulosPage`, `GerenciadorPaginasPage` (publicação de páginas públicas).
 - **Reuniões**: `ReunioesPage`, `ConfiguracaoReunioesPage`, `CheckinReuniaoPage`.
-- **Infra**: `AuditoriaPage`, `BackupOffsitePage`, `DisasterRecoveryPage`,
+- **Infra**: `AuditoriaPage`, `DisasterRecoveryPage`,
   `DatabaseSchemaPage`, `CalibradorSegadPage`, `SobreSistemaPage`, `AdminHelpPage`.
 - **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
   pode usar e o histórico (`importacoes`). Importadores: QDD do FIPLAN e arquivo do banco

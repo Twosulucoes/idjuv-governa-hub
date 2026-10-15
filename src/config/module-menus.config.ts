@@ -329,7 +329,6 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "menu-site", label: "Menu do Site", icon: ListChecks, route: "/admin/menu-site" },
       { id: "auditoria", label: "Auditoria", icon: Shield, route: "/admin/auditoria" },
       { id: "banco-dados", label: "Banco de Dados", icon: Database, route: "/admin/database" },
-      { id: "backup", label: "Backup", icon: Archive, route: "/admin/backup" },
       { id: "importacoes", label: "Importação de Dados", icon: Upload, route: "/admin/importacoes" },
       { id: "envios", label: "E-mail e WhatsApp", icon: Mail, route: "/admin/envios" },
       { id: "configuracao-cliente", label: "Configuração do Cliente", icon: Building2, route: "/admin/configuracao-cliente" },

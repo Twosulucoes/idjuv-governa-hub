@@ -2,8 +2,8 @@
 
 > Produção roda no Supabase self-hosted da VPS (`bd.idjuv.online`). Este guia cobre o backup **fora da
 > VPS**: se a máquina cair, site e banco caem juntos, e só o que estiver em outro lugar volta.
-> A Edge Function `backup-offsite` ([BACKUP_CONTINGENCIA.md](./BACKUP_CONTINGENCIA.md)) continua como
-> cópia de consulta, mas não substitui este backup (não leva `auth`, funções, triggers nem RLS).
+> A antiga Edge Function `backup-offsite` ([BACKUP_CONTINGENCIA.md](./BACKUP_CONTINGENCIA.md)) foi aposentada no P06:
+> este é o único backup fora da VPS.
 
 ## 1. Como funciona
 

@@ -219,7 +219,7 @@ libera os segredos para jobs da branch `main`:
 
 | Ambiente | Regras | Segredos | Usado por |
 |---|---|---|---|
-| `producao` | *Required reviewers*: o dono; *Deployment branches*: só `main`; marcar *Prevent self-review* só se houver outro aprovador | `VPS_SSH_HOST`, `VPS_SSH_USER`, `VPS_SSH_KEY`, `VPS_SSH_KNOWN_HOSTS`, `SUPABASE_DB_SENHA`, `FOTO_ARTEFATO_SENHA` | Migrações do banco (aplicar), Fotografia do banco |
+| `producao` | *Required reviewers*: o dono; *Deployment branches*: só `main`; marcar *Prevent self-review* só se houver outro aprovador | `VPS_SSH_HOST`, `VPS_SSH_USER`, `VPS_SSH_KEY`, `VPS_SSH_KNOWN_HOSTS`, `SUPABASE_DB_SENHA`, `FOTO_ARTEFATO_SENHA`, `VPS_FUNCOES_USER`, `VPS_FUNCOES_KEY` | Migrações do banco (aplicar), Fotografia do banco, Deploy das Edge Functions |
 | `deploy-front` | *Deployment branches*: só `main` (sem aprovação: o front sobe a cada merge) | `VPS_SSH_HOST`, `VPS_SSH_KNOWN_HOSTS`, `VPS_DEPLOY_USER`, `VPS_DEPLOY_KEY` | Deploy do front |
 | `backup` | *Deployment branches*: só `main` (sem aprovação: o teste é agendado) | `BACKUP_RCLONE_CONF`, `BACKUP_RCLONE_REMOTE`, `BACKUP_AGE_KEY` | Teste de restauração do backup ([BACKUP.md](./BACKUP.md)) |
 
@@ -281,4 +281,13 @@ Sem a configuração o job **falha** e não publica. O nginx precisa do fallback
 (`try_files $uri $uri/ /index.html;`); recomenda-se `Cache-Control: no-cache` no index e no
 service worker e cache longo em `/assets/`.
 
-- **Backend / Edge Functions**: Supabase self-hosted da VPS; migrações pelo CI (seção acima).
+### Deploy das Edge Functions (CI)
+
+O workflow `.github/workflows/deploy-funcoes.yml` roda a cada merge na `main` que muda `supabase/functions/**` (e
+manualmente por `workflow_dispatch`). O job `esperar` é igual ao do front (gate verde e migrações); o job `publicar`
+roda no ambiente `producao` (aprovação do dono), copia `supabase/functions/` por `rsync --delete` para a pasta que o
+container de Edge Functions lê (sem tocar em `main/`), reinicia o container e confere que o runtime voltou, que cada
+função sobe e que a pasta da VPS ficou igual ao repositório. Sem a configuração o job **falha**. Preparação da VPS,
+segredos e variáveis: [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md#publicação-pelo-ci). Ninguém publica função à mão.
+
+- **Backend / Edge Functions**: Supabase self-hosted da VPS; migrações e funções pelo CI (seções acima).

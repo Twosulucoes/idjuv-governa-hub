@@ -22,7 +22,7 @@ Hospedagem do front: nginx da VPS (SPA, fallback p/ index.html).
 
 O front é uma **SPA** que fala diretamente com o Supabase via `supabase-js`
 (consultas, mutações, RPC, auth, storage). Operações que exigem privilégios
-elevados (service role) — criar/excluir usuários, resetar senha, backup,
+elevados (service role) — criar/excluir usuários, resetar senha,
 schema — são feitas por **Edge Functions**.
 
 ## Camadas do front-end
