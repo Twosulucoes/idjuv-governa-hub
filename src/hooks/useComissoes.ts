@@ -2,21 +2,17 @@
  * Comissões e membros (tabelas `comissoes` e `comissoes_membros`, migração 20261011020000_lancamento_por_setor.sql).
  * Membro de comissão vigente, com ato, é fundamento de lançamento no módulo e no objeto da comissão. A escrita exige
  * `rh.comissoes.gerenciar` (RLS); a tela só esconde os botões.
- *
- * As tabelas ainda não estão em types.ts (gerado, não editar): consulta sem tipagem do client, como em
- * useTrilhaAuditoria.ts.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { descreverErroBanco } from "@/lib/folhaFichaRegras";
 import { buscarTodasPaginas } from "@/hooks/useRelatoriosRH";
 import type { Comissao, DadosComissao, DadosMembroComissao, MembroComissao } from "@/types/comissao";
 
-// Cast local mínimo: comissoes e comissoes_membros não estão em types.ts (gerado); este client só é usado aqui.
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 
 const CHAVE = ["comissoes"] as const;
 
@@ -78,7 +74,9 @@ export function useSalvarComissao() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, dados }: { id?: string; dados: DadosComissao }) => {
-      const linha = limpar(dados);
+      // Cast pontual: o tipo local aceita nulo nos campos do ato e `modulo` como texto livre; o banco (NOT NULL e
+      // enum app_module) é quem recusa o que não servir, como antes.
+      const linha = limpar(dados) as TablesInsert<"comissoes">;
       if (id) {
         const { error } = await db.from("comissoes").update(linha).eq("id", id);
         if (error) throw error;

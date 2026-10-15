@@ -2,6 +2,7 @@
  * Service layer para administração de cadastro de árbitros
  */
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 
 export interface ArbitroModalidade {
   id: string;
@@ -63,7 +64,7 @@ export async function fetchArbitros(filters?: {
 
   if ((filters?.modalidade && filters.modalidade !== "todos") || (filters?.categoria && filters.categoria !== "todos")) {
     let modQuery = supabase
-      .from("cadastro_arbitros_modalidades" as any)
+      .from("cadastro_arbitros_modalidades")
       .select("arbitro_id");
 
     if (filters?.modalidade && filters.modalidade !== "todos") {
@@ -80,7 +81,7 @@ export async function fetchArbitros(filters?: {
   }
 
   let query = supabase
-    .from("cadastro_arbitros" as any)
+    .from("cadastro_arbitros")
     .select("*")
     .order("created_at", { ascending: false });
 
@@ -109,7 +110,7 @@ export async function fetchArbitros(filters?: {
   if (arbitros.length > 0) {
     const ids = arbitros.map(a => a.id);
     const { data: modalidadesData } = await supabase
-      .from("cadastro_arbitros_modalidades" as any)
+      .from("cadastro_arbitros_modalidades")
       .select("*")
       .in("arbitro_id", ids);
 
@@ -139,7 +140,7 @@ export async function fetchArbitros(filters?: {
 
 export async function updateArbitroStatus(id: string, status: string) {
   const { error } = await supabase
-    .from("cadastro_arbitros" as any)
+    .from("cadastro_arbitros")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
@@ -147,7 +148,7 @@ export async function updateArbitroStatus(id: string, status: string) {
 
 export async function updateModalidadeStatus(id: string, status: string) {
   const { error } = await supabase
-    .from("cadastro_arbitros_modalidades" as any)
+    .from("cadastro_arbitros_modalidades")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
@@ -155,8 +156,10 @@ export async function updateModalidadeStatus(id: string, status: string) {
 
 export async function updateArbitro(id: string, dados: Partial<ArbitroCadastro>) {
   const { error } = await supabase
-    .from("cadastro_arbitros" as any)
-    .update({ ...dados, updated_at: new Date().toISOString() })
+    .from("cadastro_arbitros")
+    // Cast pontual: ArbitroCadastro traz modalidades_lista (montada no front, não é coluna); o modal de edição
+    // só envia campos da tabela
+    .update({ ...dados, updated_at: new Date().toISOString() } as TablesUpdate<"cadastro_arbitros">)
     .eq("id", id);
   if (error) throw error;
 }
@@ -171,7 +174,7 @@ export interface ModalidadeInput {
 export async function syncModalidades(arbitroId: string, modalidades: ModalidadeInput[]) {
   // 1. Buscar modalidades existentes
   const { data: existentes } = await supabase
-    .from("cadastro_arbitros_modalidades" as any)
+    .from("cadastro_arbitros_modalidades")
     .select("id")
     .eq("arbitro_id", arbitroId);
 
@@ -182,7 +185,7 @@ export async function syncModalidades(arbitroId: string, modalidades: Modalidade
   const toDelete = [...existingIds].filter(id => !incomingIds.has(id));
   if (toDelete.length > 0) {
     const { error } = await supabase
-      .from("cadastro_arbitros_modalidades" as any)
+      .from("cadastro_arbitros_modalidades")
       .delete()
       .in("id", toDelete);
     if (error) throw error;
@@ -192,7 +195,7 @@ export async function syncModalidades(arbitroId: string, modalidades: Modalidade
   for (const mod of modalidades) {
     if (mod.id && existingIds.has(mod.id)) {
       const { error } = await supabase
-        .from("cadastro_arbitros_modalidades" as any)
+        .from("cadastro_arbitros_modalidades")
         .update({
           modalidade: mod.modalidade,
           categoria: mod.categoria,
@@ -203,7 +206,7 @@ export async function syncModalidades(arbitroId: string, modalidades: Modalidade
       if (error) throw error;
     } else {
       const { error } = await supabase
-        .from("cadastro_arbitros_modalidades" as any)
+        .from("cadastro_arbitros_modalidades")
         .insert({
           arbitro_id: arbitroId,
           modalidade: mod.modalidade,
@@ -218,14 +221,14 @@ export async function syncModalidades(arbitroId: string, modalidades: Modalidade
   const modText = modalidades.map(m => m.modalidade).join(", ");
   const catText = modalidades[0]?.categoria || "estadual";
   await supabase
-    .from("cadastro_arbitros" as any)
+    .from("cadastro_arbitros")
     .update({ modalidade: modText, categoria: catText, updated_at: new Date().toISOString() })
     .eq("id", arbitroId);
 }
 
 export async function deleteArbitro(id: string) {
   const { error } = await supabase
-    .from("cadastro_arbitros" as any)
+    .from("cadastro_arbitros")
     .delete()
     .eq("id", id);
   if (error) throw error;
@@ -233,7 +236,7 @@ export async function deleteArbitro(id: string) {
 
 export async function fetchArbitroById(id: string) {
   const { data, error } = await supabase
-    .from("cadastro_arbitros" as any)
+    .from("cadastro_arbitros")
     .select("*")
     .eq("id", id)
     .single();
@@ -243,7 +246,7 @@ export async function fetchArbitroById(id: string) {
 
   // Buscar modalidades
   const { data: mods } = await supabase
-    .from("cadastro_arbitros_modalidades" as any)
+    .from("cadastro_arbitros_modalidades")
     .select("*")
     .eq("arbitro_id", id);
 
@@ -273,7 +276,7 @@ export interface EstatisticasArbitros {
 
 export async function fetchEstatisticas(): Promise<EstatisticasArbitros> {
   const { data, error } = await supabase
-    .from("cadastro_arbitros" as any)
+    .from("cadastro_arbitros")
     .select("*");
   if (error) throw error;
 
@@ -281,7 +284,7 @@ export async function fetchEstatisticas(): Promise<EstatisticasArbitros> {
 
   // Buscar todas as modalidades
   const { data: modsData } = await supabase
-    .from("cadastro_arbitros_modalidades" as any)
+    .from("cadastro_arbitros_modalidades")
     .select("*");
   const allMods = (modsData || []) as any[];
 

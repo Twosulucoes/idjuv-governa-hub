@@ -53,7 +53,7 @@ export function useCMSGalerias(options?: { destino?: string; status?: string }) 
     queryKey,
     queryFn: async () => {
       let query = supabase
-        .from("cms_galerias" as any)
+        .from("cms_galerias")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -75,7 +75,7 @@ export function useCMSGalerias(options?: { destino?: string; status?: string }) 
       const slug = input.slug || gerarSlug(input.titulo || "galeria");
       
       const { data, error } = await supabase
-        .from("cms_galerias" as any)
+        .from("cms_galerias")
         .insert({
           titulo: input.titulo || "Nova Galeria",
           slug,
@@ -104,7 +104,7 @@ export function useCMSGalerias(options?: { destino?: string; status?: string }) 
   const updateGaleria = useMutation({
     mutationFn: async ({ id, ...input }: Partial<CMSGaleria> & { id: string }) => {
       const { data, error } = await supabase
-        .from("cms_galerias" as any)
+        .from("cms_galerias")
         .update({
           ...input,
           updated_at: new Date().toISOString(),
@@ -128,7 +128,7 @@ export function useCMSGalerias(options?: { destino?: string; status?: string }) 
   const deleteGaleria = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("cms_galerias" as any)
+        .from("cms_galerias")
         .delete()
         .eq("id", id);
 
@@ -146,7 +146,7 @@ export function useCMSGalerias(options?: { destino?: string; status?: string }) 
   const publicarGaleria = useMutation({
     mutationFn: async (id: string) => {
       const { data, error } = await supabase
-        .from("cms_galerias" as any)
+        .from("cms_galerias")
         .update({
           status: "publicado",
           data_publicacao: new Date().toISOString(),
@@ -189,7 +189,7 @@ export function useCMSGaleriaFotos(galeriaId: string | null) {
       if (!galeriaId) return [];
       
       const { data, error } = await supabase
-        .from("cms_galeria_fotos" as any)
+        .from("cms_galeria_fotos")
         .select("*")
         .eq("galeria_id", galeriaId)
         .order("ordem", { ascending: true });
@@ -204,14 +204,14 @@ export function useCMSGaleriaFotos(galeriaId: string | null) {
     mutationFn: async ({ galeriaId, fotos }: { galeriaId: string; fotos: Omit<CMSGaleriaFoto, "id" | "galeria_id" | "created_at">[] }) => {
       // Deletar fotos existentes
       await supabase
-        .from("cms_galeria_fotos" as any)
+        .from("cms_galeria_fotos")
         .delete()
         .eq("galeria_id", galeriaId);
 
       // Inserir novas fotos
       if (fotos.length > 0) {
         const { error } = await supabase
-          .from("cms_galeria_fotos" as any)
+          .from("cms_galeria_fotos")
           .insert(
             fotos.map((f, i) => ({
               galeria_id: galeriaId,

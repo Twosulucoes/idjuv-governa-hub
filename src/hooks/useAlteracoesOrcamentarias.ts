@@ -87,7 +87,7 @@ export function useCriarAlteracaoOrcamentaria() {
 
       const { data, error } = await supabase
         .from("fin_alteracoes_orcamentarias")
-        .insert(payload as never)
+        .insert(payload)
         .select()
         .single();
 
@@ -122,7 +122,7 @@ export function useConfirmarAlteracaoFiplan() {
   return useMutation({
     mutationFn: async (id: string) => {
       // RPC nova: ainda não está nos tipos gerados (types.ts)
-      const { error } = await supabase.rpc("confirmar_alteracao_fiplan" as never, { p_id: id } as never);
+      const { error } = await supabase.rpc("confirmar_alteracao_fiplan", { p_id: id });
       if (error) throw error;
     },
     onSuccess: () => {

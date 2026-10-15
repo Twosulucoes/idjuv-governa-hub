@@ -14,33 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _backup_usuario_modulos_old: {
-        Row: {
-          ativo: boolean | null
-          created_at: string | null
-          created_by: string | null
-          id: string
-          modulo_id: string
-          user_id: string
-        }
-        Insert: {
-          ativo?: boolean | null
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          modulo_id: string
-          user_id: string
-        }
-        Update: {
-          ativo?: boolean | null
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          modulo_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       acesso_processo_sigiloso: {
         Row: {
           concedido_por: string | null
@@ -51,6 +24,7 @@ export type Database = {
           processo_id: string
           usuario_id: string
         }
+        ComputedFields: never
         Insert: {
           concedido_por?: string | null
           created_at?: string
@@ -81,6 +55,13 @@ export type Database = {
             foreignKeyName: "acesso_processo_sigiloso_processo_id_fkey"
             columns: ["processo_id"]
             isOneToOne: false
+            referencedRelation: "v_processos_acompanhamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acesso_processo_sigiloso_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
             referencedRelation: "v_processos_resumo"
             referencedColumns: ["id"]
           },
@@ -105,6 +86,7 @@ export type Database = {
           unidade_medida: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           codigo: string
           created_at?: string | null
@@ -165,6 +147,7 @@ export type Database = {
           ato_numero: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_base: string
           data_concessao: string
           data_proximo: string | null
@@ -176,15 +159,19 @@ export type Database = {
           servidor_id: string
           tipo: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_adicional: number | null
           valor_referencia: number | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           ato_data?: string | null
           ato_numero?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_base: string
           data_concessao: string
           data_proximo?: string | null
@@ -196,6 +183,8 @@ export type Database = {
           servidor_id: string
           tipo: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_adicional?: number | null
           valor_referencia?: number | null
         }
@@ -205,6 +194,7 @@ export type Database = {
           ato_numero?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_base?: string
           data_concessao?: string
           data_proximo?: string | null
@@ -216,6 +206,8 @@ export type Database = {
           servidor_id?: string
           tipo?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_adicional?: number | null
           valor_referencia?: number | null
         }
@@ -276,6 +268,7 @@ export type Database = {
           valor_acrescimo: number | null
           valor_supressao: number | null
         }
+        ComputedFields: never
         Insert: {
           contrato_id: string
           created_at?: string | null
@@ -365,6 +358,7 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           ano_vigencia?: number | null
           aprovador_id?: string | null
@@ -575,23 +569,39 @@ export type Database = {
         Row: {
           agrupamento_id: string
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           id: string
           ordem: number | null
           unidade_id: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           agrupamento_id: string
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           ordem?: number | null
           unidade_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           agrupamento_id?: string
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           ordem?: number | null
           unidade_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -621,6 +631,7 @@ export type Database = {
           responsavel_id: string | null
           unidade_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
@@ -701,6 +712,7 @@ export type Database = {
           valid_from: string
           valid_until: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           created_by?: string | null
@@ -753,6 +765,7 @@ export type Database = {
           submitted_at: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           approved_at?: string | null
           approver_decision?: string | null
@@ -828,6 +841,7 @@ export type Database = {
           updated_at: string | null
           valor_total_registrado: number
         }
+        ComputedFields: never
         Insert: {
           ano: number
           created_at?: string | null
@@ -889,6 +903,34 @@ export type Database = {
           },
         ]
       }
+      audit_colunas_sensiveis: {
+        Row: {
+          coluna: string
+          created_at: string
+          id: string
+          motivo: string | null
+          tabela: string
+          tratamento: string
+        }
+        ComputedFields: never
+        Insert: {
+          coluna: string
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          tabela: string
+          tratamento: string
+        }
+        Update: {
+          coluna?: string
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          tabela?: string
+          tratamento?: string
+        }
+        Relationships: []
+      }
       audit_log_licitacoes: {
         Row: {
           acao: string
@@ -906,6 +948,7 @@ export type Database = {
           usuario_nome: string | null
           usuario_perfil: string | null
         }
+        ComputedFields: never
         Insert: {
           acao: string
           campos_alterados?: string[] | null
@@ -944,48 +987,82 @@ export type Database = {
         Row: {
           action: Database["public"]["Enums"]["audit_action"]
           after_data: Json | null
+          alvos: string[] | null
           before_data: Json | null
+          campos_alterados: string[] | null
           description: string | null
           entity_id: string | null
           entity_type: string | null
+          fundamento: Json | null
           id: string
           ip_address: unknown
           metadata: Json | null
           module_name: string | null
           org_unit_id: string | null
+          origem: string | null
+          protocolo: string | null
+          role_at_time: Database["public"]["Enums"]["app_role"] | null
+          sequencia: number
+          servidor_id: string | null
+          servidor_matricula: string | null
+          servidor_nome: string | null
           timestamp: string
+          transacao: number | null
           user_agent: string | null
           user_id: string | null
         }
+        ComputedFields: never
         Insert: {
           action: Database["public"]["Enums"]["audit_action"]
           after_data?: Json | null
+          alvos?: never
           before_data?: Json | null
+          campos_alterados?: string[] | null
           description?: string | null
           entity_id?: string | null
           entity_type?: string | null
+          fundamento?: Json | null
           id?: string
           ip_address?: unknown
           metadata?: Json | null
           module_name?: string | null
           org_unit_id?: string | null
+          origem?: string | null
+          protocolo?: string | null
+          role_at_time?: Database["public"]["Enums"]["app_role"] | null
+          sequencia?: never
+          servidor_id?: string | null
+          servidor_matricula?: string | null
+          servidor_nome?: string | null
           timestamp?: string
+          transacao?: number | null
           user_agent?: string | null
           user_id?: string | null
         }
         Update: {
           action?: Database["public"]["Enums"]["audit_action"]
           after_data?: Json | null
+          alvos?: never
           before_data?: Json | null
+          campos_alterados?: string[] | null
           description?: string | null
           entity_id?: string | null
           entity_type?: string | null
+          fundamento?: Json | null
           id?: string
           ip_address?: unknown
           metadata?: Json | null
           module_name?: string | null
           org_unit_id?: string | null
+          origem?: string | null
+          protocolo?: string | null
+          role_at_time?: Database["public"]["Enums"]["app_role"] | null
+          sequencia?: never
+          servidor_id?: string | null
+          servidor_matricula?: string | null
+          servidor_nome?: string | null
           timestamp?: string
+          transacao?: number | null
           user_agent?: string | null
           user_id?: string | null
         }
@@ -1016,6 +1093,7 @@ export type Database = {
           updated_at: string
           valor_indicador: string | null
         }
+        ComputedFields: never
         Insert: {
           avaliador_id?: string | null
           conformidade_procedimento?: boolean | null
@@ -1109,6 +1187,7 @@ export type Database = {
           risco_id: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           avaliador_id?: string | null
           created_at?: string
@@ -1184,6 +1263,85 @@ export type Database = {
           },
         ]
       }
+      avisos: {
+        Row: {
+          ativo: boolean
+          conteudo: string
+          created_at: string
+          created_by: string | null
+          destaque: boolean
+          expira_em: string | null
+          id: string
+          inicio_em: string
+          link: string | null
+          modulos_alvo: Database["public"]["Enums"]["app_module"][]
+          prioridade: string
+          publico: string
+          titulo: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          conteudo: string
+          created_at?: string
+          created_by?: string | null
+          destaque?: boolean
+          expira_em?: string | null
+          id?: string
+          inicio_em?: string
+          link?: string | null
+          modulos_alvo?: Database["public"]["Enums"]["app_module"][]
+          prioridade?: string
+          publico?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          conteudo?: string
+          created_at?: string
+          created_by?: string | null
+          destaque?: boolean
+          expira_em?: string | null
+          id?: string
+          inicio_em?: string
+          link?: string | null
+          modulos_alvo?: Database["public"]["Enums"]["app_module"][]
+          prioridade?: string
+          publico?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      avisos_leituras: {
+        Row: {
+          aviso_id: string
+          lido_em: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          aviso_id: string
+          lido_em?: string
+          user_id?: string
+        }
+        Update: {
+          aviso_id?: string
+          lido_em?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avisos_leituras_aviso_id_fkey"
+            columns: ["aviso_id"]
+            isOneToOne: false
+            referencedRelation: "avisos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       backup_config: {
         Row: {
           buckets_included: string[] | null
@@ -1202,6 +1360,7 @@ export type Database = {
           updated_at: string | null
           weekly_day: number | null
         }
+        ComputedFields: never
         Insert: {
           buckets_included?: string[] | null
           created_at?: string | null
@@ -1264,6 +1423,7 @@ export type Database = {
           trigger_mode: string | null
           triggered_by: string | null
         }
+        ComputedFields: never
         Insert: {
           backup_type: Database["public"]["Enums"]["backup_type"]
           completed_at?: string | null
@@ -1329,6 +1489,7 @@ export type Database = {
           manifest_valid: boolean | null
           storage_checksum_valid: boolean | null
         }
+        ComputedFields: never
         Insert: {
           backup_id?: string | null
           checked_at?: string | null
@@ -1384,6 +1545,7 @@ export type Database = {
           updated_at: string | null
           valor_residual: number | null
         }
+        ComputedFields: never
         Insert: {
           aprovado_por?: string | null
           autorizacao_url?: string | null
@@ -1445,6 +1607,8 @@ export type Database = {
         Row: {
           ano: number
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           horas_compensadas: number | null
           horas_extras: number | null
           id: string
@@ -1453,10 +1617,15 @@ export type Database = {
           saldo_atual: number | null
           servidor_id: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ano: number
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           horas_compensadas?: number | null
           horas_extras?: number | null
           id?: string
@@ -1465,10 +1634,14 @@ export type Database = {
           saldo_atual?: number | null
           servidor_id: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ano?: number
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           horas_compensadas?: number | null
           horas_extras?: number | null
           id?: string
@@ -1477,6 +1650,8 @@ export type Database = {
           saldo_atual?: number | null
           servidor_id?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -1495,25 +1670,34 @@ export type Database = {
           configuracao_cnab240: Json | null
           configuracao_cnab400: Json | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           id: string
           layout_cnab240: boolean | null
           layout_cnab400: boolean | null
           nome: string
           nome_reduzido: string | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo_banco: string
           configuracao_cnab240?: Json | null
           configuracao_cnab400?: Json | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           layout_cnab240?: boolean | null
           layout_cnab400?: boolean | null
           nome: string
           nome_reduzido?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -1521,12 +1705,16 @@ export type Database = {
           configuracao_cnab240?: Json | null
           configuracao_cnab400?: Json | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           layout_cnab240?: boolean | null
           layout_cnab400?: boolean | null
           nome?: string
           nome_reduzido?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: []
       }
@@ -1589,6 +1777,7 @@ export type Database = {
           valor_residual: number | null
           vida_util_anos: number | null
         }
+        ComputedFields: never
         Insert: {
           andar?: string | null
           cargo_responsavel?: string | null
@@ -1645,7 +1834,7 @@ export type Database = {
           unidade_local_id?: string | null
           updated_at?: string | null
           valor_aquisicao: number
-          valor_liquido?: number | null
+          valor_liquido?: never
           valor_residual?: number | null
           vida_util_anos?: number | null
         }
@@ -1705,7 +1894,7 @@ export type Database = {
           unidade_local_id?: string | null
           updated_at?: string | null
           valor_aquisicao?: number
-          valor_liquido?: number | null
+          valor_liquido?: never
           valor_residual?: number | null
           vida_util_anos?: number | null
         }
@@ -1876,6 +2065,7 @@ export type Database = {
           updated_at: string
           validade_rne: string | null
         }
+        ComputedFields: never
         Insert: {
           agencia?: string | null
           bairro?: string | null
@@ -1964,6 +2154,7 @@ export type Database = {
           status: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           arbitro_id: string
           categoria?: string
@@ -2015,6 +2206,7 @@ export type Database = {
           titulo: string
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           categorias?: string | null
           cidade?: string | null
@@ -2082,6 +2274,7 @@ export type Database = {
           unidades_abrangidas: string[] | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ano: number
           created_at?: string | null
@@ -2160,33 +2353,169 @@ export type Database = {
           },
         ]
       }
+      campanhas_inventario_unidades: {
+        Row: {
+          campanha_id: string
+          concluida_em: string | null
+          created_at: string
+          created_by: string | null
+          data_prevista: string | null
+          equipe: string | null
+          id: string
+          iniciada_em: string | null
+          observacao: string | null
+          situacao: string
+          unidade_local_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          campanha_id: string
+          concluida_em?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_prevista?: string | null
+          equipe?: string | null
+          id?: string
+          iniciada_em?: string | null
+          observacao?: string | null
+          situacao?: string
+          unidade_local_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          campanha_id?: string
+          concluida_em?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_prevista?: string | null
+          equipe?: string | null
+          id?: string
+          iniciada_em?: string | null
+          observacao?: string | null
+          situacao?: string
+          unidade_local_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanhas_inventario_unidades_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_unidades_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_unidades_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_cedencias_a_vencer"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_unidades_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["unidade_local_id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_unidades_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimentacoes_completas"
+            referencedColumns: ["destino_unidade_id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_unidades_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimentacoes_completas"
+            referencedColumns: ["origem_unidade_id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_unidades_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_patrimonio_por_unidade"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_unidades_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_patrimonio"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_unidades_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanhas_inventario_unidades_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_uso_unidades"
+            referencedColumns: ["unidade_id"]
+          },
+        ]
+      }
       cargo_unidade_compatibilidade: {
         Row: {
           cargo_id: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           id: string
           observacao: string | null
           quantidade_maxima: number | null
           tipo_unidade: Database["public"]["Enums"]["tipo_unidade"] | null
           unidade_especifica_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           cargo_id?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           observacao?: string | null
           quantidade_maxima?: number | null
           tipo_unidade?: Database["public"]["Enums"]["tipo_unidade"] | null
           unidade_especifica_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           cargo_id?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           observacao?: string | null
           quantidade_maxima?: number | null
           tipo_unidade?: Database["public"]["Enums"]["tipo_unidade"] | null
           unidade_especifica_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -2214,6 +2543,8 @@ export type Database = {
           competencias: string[] | null
           conhecimentos_necessarios: string[] | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           escolaridade: string | null
           experiencia_exigida: string | null
           id: string
@@ -2229,8 +2560,11 @@ export type Database = {
           responsabilidades: string[] | null
           sigla: string | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           vencimento_base: number | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           atribuicoes?: string | null
@@ -2239,6 +2573,8 @@ export type Database = {
           competencias?: string[] | null
           conhecimentos_necessarios?: string[] | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           escolaridade?: string | null
           experiencia_exigida?: string | null
           id?: string
@@ -2254,6 +2590,8 @@ export type Database = {
           responsabilidades?: string[] | null
           sigla?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           vencimento_base?: number | null
         }
         Update: {
@@ -2264,6 +2602,8 @@ export type Database = {
           competencias?: string[] | null
           conhecimentos_necessarios?: string[] | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           escolaridade?: string | null
           experiencia_exigida?: string | null
           id?: string
@@ -2279,6 +2619,8 @@ export type Database = {
           responsabilidades?: string[] | null
           sigla?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           vencimento_base?: number | null
         }
         Relationships: []
@@ -2296,6 +2638,7 @@ export type Database = {
           tipo: string | null
           vida_util_meses: number | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
@@ -2334,6 +2677,7 @@ export type Database = {
           ordem: number | null
           slug: string
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           cor?: string | null
@@ -2372,6 +2716,7 @@ export type Database = {
           unidade_id: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
@@ -2423,6 +2768,7 @@ export type Database = {
           cargo_origem: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_fim: string | null
           data_inicio: string
           data_retorno: string | null
@@ -2438,8 +2784,10 @@ export type Database = {
           unidade_idjuv_id: string | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
           vinculo_origem: string | null
         }
+        ComputedFields: never
         Insert: {
           ativa?: boolean | null
           ato_data?: string | null
@@ -2454,6 +2802,7 @@ export type Database = {
           cargo_origem?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio: string
           data_retorno?: string | null
@@ -2469,6 +2818,7 @@ export type Database = {
           unidade_idjuv_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           vinculo_origem?: string | null
         }
         Update: {
@@ -2485,6 +2835,7 @@ export type Database = {
           cargo_origem?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio?: string
           data_retorno?: string | null
@@ -2500,6 +2851,7 @@ export type Database = {
           unidade_idjuv_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           vinculo_origem?: string | null
         }
         Relationships: [
@@ -2565,6 +2917,7 @@ export type Database = {
           updated_by: string | null
           versao: number
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           base_legal?: string | null
@@ -2621,6 +2974,7 @@ export type Database = {
           titulo: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           created_at?: string
@@ -2674,6 +3028,7 @@ export type Database = {
           ordem: number | null
           slug: string
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           cor?: string | null
@@ -2733,6 +3088,7 @@ export type Database = {
           video_url: string | null
           visualizacoes: number | null
         }
+        ComputedFields: never
         Insert: {
           aprovador_id?: string | null
           autor_id?: string | null
@@ -2810,6 +3166,7 @@ export type Database = {
           titulo: string | null
           url: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           galeria_id: string
@@ -2857,6 +3214,7 @@ export type Database = {
           updated_at: string
           visualizacoes: number | null
         }
+        ComputedFields: never
         Insert: {
           autor_id?: string | null
           autor_nome?: string | null
@@ -2903,6 +3261,7 @@ export type Database = {
           updated_at: string
           url: string
         }
+        ComputedFields: never
         Insert: {
           alt_text?: string | null
           created_at?: string
@@ -2945,6 +3304,7 @@ export type Database = {
           status_coleta: Database["public"]["Enums"]["status_coleta_inventario"]
           usuario_coletor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           bem_id: string
           campanha_id: string
@@ -3005,8 +3365,64 @@ export type Database = {
             foreignKeyName: "coletas_inventario_localizacao_encontrada_unidade_id_fkey"
             columns: ["localizacao_encontrada_unidade_id"]
             isOneToOne: false
-            referencedRelation: "estrutura_organizacional"
+            referencedRelation: "unidades_locais"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_localizacao_encontrada_unidade_id_fkey"
+            columns: ["localizacao_encontrada_unidade_id"]
+            isOneToOne: false
+            referencedRelation: "v_cedencias_a_vencer"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_localizacao_encontrada_unidade_id_fkey"
+            columns: ["localizacao_encontrada_unidade_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["unidade_local_id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_localizacao_encontrada_unidade_id_fkey"
+            columns: ["localizacao_encontrada_unidade_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimentacoes_completas"
+            referencedColumns: ["destino_unidade_id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_localizacao_encontrada_unidade_id_fkey"
+            columns: ["localizacao_encontrada_unidade_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimentacoes_completas"
+            referencedColumns: ["origem_unidade_id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_localizacao_encontrada_unidade_id_fkey"
+            columns: ["localizacao_encontrada_unidade_id"]
+            isOneToOne: false
+            referencedRelation: "v_patrimonio_por_unidade"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_localizacao_encontrada_unidade_id_fkey"
+            columns: ["localizacao_encontrada_unidade_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_patrimonio"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_localizacao_encontrada_unidade_id_fkey"
+            columns: ["localizacao_encontrada_unidade_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coletas_inventario_localizacao_encontrada_unidade_id_fkey"
+            columns: ["localizacao_encontrada_unidade_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_uso_unidades"
+            referencedColumns: ["unidade_id"]
           },
           {
             foreignKeyName: "coletas_inventario_responsavel_encontrado_id_fkey"
@@ -3045,27 +3461,211 @@ export type Database = {
           },
         ]
       }
+      comissoes: {
+        Row: {
+          ato_data: string
+          ato_doe_data: string | null
+          ato_doe_numero: string | null
+          ato_numero: string
+          ato_tipo: string
+          created_at: string
+          created_by: string | null
+          created_by_servidor_id: string | null
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          modulo: Database["public"]["Enums"]["app_module"]
+          motivo: string
+          nome: string
+          objeto_id: string | null
+          objeto_tipo: string | null
+          observacao: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_servidor_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          ato_data: string
+          ato_doe_data?: string | null
+          ato_doe_numero?: string | null
+          ato_numero: string
+          ato_tipo: string
+          created_at?: string
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          id?: string
+          modulo: Database["public"]["Enums"]["app_module"]
+          motivo: string
+          nome: string
+          objeto_id?: string | null
+          objeto_tipo?: string | null
+          observacao?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+        }
+        Update: {
+          ato_data?: string
+          ato_doe_data?: string | null
+          ato_doe_numero?: string | null
+          ato_numero?: string
+          ato_tipo?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          modulo?: Database["public"]["Enums"]["app_module"]
+          motivo?: string
+          nome?: string
+          objeto_id?: string | null
+          objeto_tipo?: string | null
+          observacao?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+        }
+        Relationships: []
+      }
+      comissoes_membros: {
+        Row: {
+          comissao_id: string
+          created_at: string
+          created_by: string | null
+          created_by_servidor_id: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          id: string
+          observacao: string | null
+          papel: string
+          servidor_id: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_servidor_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          comissao_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          observacao?: string | null
+          papel?: string
+          servidor_id: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+        }
+        Update: {
+          comissao_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          observacao?: string | null
+          papel?: string
+          servidor_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comissoes_membros_comissao_id_fkey"
+            columns: ["comissao_id"]
+            isOneToOne: false
+            referencedRelation: "comissoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comissoes_membros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comissoes_membros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "comissoes_membros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comissoes_membros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "comissoes_membros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       composicao_cargos: {
         Row: {
           cargo_id: string
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           id: string
           quantidade_vagas: number | null
           unidade_id: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           cargo_id: string
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           quantidade_vagas?: number | null
           unidade_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           cargo_id?: string
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           quantidade_vagas?: number | null
           unidade_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -3102,6 +3702,7 @@ export type Database = {
           tipo_divergencia: string
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ajuste_proposto: string
           aprovador_id?: string | null
@@ -3173,33 +3774,43 @@ export type Database = {
           cor: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           id: string
           nome: string
           ordem: number | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           cor?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           id?: string
           nome: string
           ordem?: number | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
           cor?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           id?: string
           nome?: string
           ordem?: number | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: []
       }
@@ -3211,6 +3822,8 @@ export type Database = {
           ativo: boolean | null
           codigo: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           id: string
           instituicao_id: string | null
           nome: string
@@ -3220,7 +3833,10 @@ export type Database = {
           texto_declaracao: string | null
           tipo_assinatura: string | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           assinatura_chefia_obrigatoria?: boolean | null
           assinatura_rh_obrigatoria?: boolean | null
@@ -3228,6 +3844,8 @@ export type Database = {
           ativo?: boolean | null
           codigo?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           instituicao_id?: string | null
           nome: string
@@ -3237,6 +3855,8 @@ export type Database = {
           texto_declaracao?: string | null
           tipo_assinatura?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           assinatura_chefia_obrigatoria?: boolean | null
@@ -3245,6 +3865,8 @@ export type Database = {
           ativo?: boolean | null
           codigo?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           instituicao_id?: string | null
           nome?: string
@@ -3254,6 +3876,8 @@ export type Database = {
           texto_declaracao?: string | null
           tipo_assinatura?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -3280,6 +3904,7 @@ export type Database = {
           texto_rodape: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           cargo_assinante_1?: string | null
@@ -3321,6 +3946,7 @@ export type Database = {
           crc_contabil: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           email_institucional: string | null
           endereco_bairro: string | null
           endereco_cep: string | null
@@ -3342,7 +3968,9 @@ export type Database = {
           telefone: string | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           cargo_responsavel?: string | null
@@ -3353,6 +3981,7 @@ export type Database = {
           crc_contabil?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           email_institucional?: string | null
           endereco_bairro?: string | null
           endereco_cep?: string | null
@@ -3374,6 +4003,7 @@ export type Database = {
           telefone?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -3385,6 +4015,7 @@ export type Database = {
           crc_contabil?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           email_institucional?: string | null
           endereco_bairro?: string | null
           endereco_cep?: string | null
@@ -3406,6 +4037,7 @@ export type Database = {
           telefone?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -3433,6 +4065,7 @@ export type Database = {
           compensacao_manual: boolean | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           exibe_na_frequencia: boolean | null
           exibe_na_impressao: boolean | null
           id: string
@@ -3447,7 +4080,10 @@ export type Database = {
           quem_autoriza: string | null
           unidade_id: string | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           aplicar_a_todos?: boolean | null
           ativo?: boolean | null
@@ -3456,6 +4092,7 @@ export type Database = {
           compensacao_manual?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           exibe_na_frequencia?: boolean | null
           exibe_na_impressao?: boolean | null
           id?: string
@@ -3470,6 +4107,8 @@ export type Database = {
           quem_autoriza?: string | null
           unidade_id?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           aplicar_a_todos?: boolean | null
@@ -3479,6 +4118,7 @@ export type Database = {
           compensacao_manual?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           exibe_na_frequencia?: boolean | null
           exibe_na_impressao?: boolean | null
           id?: string
@@ -3493,6 +4133,8 @@ export type Database = {
           quem_autoriza?: string | null
           unidade_id?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -3511,6 +4153,82 @@ export type Database = {
           },
         ]
       }
+      config_envio: {
+        Row: {
+          ativo: boolean
+          canal: string
+          created_at: string
+          marca_cor: string | null
+          marca_logo_url: string | null
+          marca_nome: string | null
+          provedor: string | null
+          remetente_email: string | null
+          remetente_nome: string | null
+          responder_para: string | null
+          rodape: string | null
+          segredo_atualizado_em: string | null
+          segredo_id: string | null
+          smtp_host: string | null
+          smtp_porta: number | null
+          smtp_seguranca: string | null
+          smtp_usuario: string | null
+          updated_at: string
+          updated_by: string | null
+          wa_business_account_id: string | null
+          wa_phone_number_id: string | null
+          wa_templates: NonNullable<Json>
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          canal: string
+          created_at?: string
+          marca_cor?: string | null
+          marca_logo_url?: string | null
+          marca_nome?: string | null
+          provedor?: string | null
+          remetente_email?: string | null
+          remetente_nome?: string | null
+          responder_para?: string | null
+          rodape?: string | null
+          segredo_atualizado_em?: string | null
+          segredo_id?: string | null
+          smtp_host?: string | null
+          smtp_porta?: number | null
+          smtp_seguranca?: string | null
+          smtp_usuario?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          wa_business_account_id?: string | null
+          wa_phone_number_id?: string | null
+          wa_templates?: NonNullable<Json>
+        }
+        Update: {
+          ativo?: boolean
+          canal?: string
+          created_at?: string
+          marca_cor?: string | null
+          marca_logo_url?: string | null
+          marca_nome?: string | null
+          provedor?: string | null
+          remetente_email?: string | null
+          remetente_nome?: string | null
+          responder_para?: string | null
+          rodape?: string | null
+          segredo_atualizado_em?: string | null
+          segredo_id?: string | null
+          smtp_host?: string | null
+          smtp_porta?: number | null
+          smtp_seguranca?: string | null
+          smtp_usuario?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          wa_business_account_id?: string | null
+          wa_phone_number_id?: string | null
+          wa_templates?: NonNullable<Json>
+        }
+        Relationships: []
+      }
       config_fechamento_folha: {
         Row: {
           ativo: boolean | null
@@ -3518,6 +4236,7 @@ export type Database = {
           conta_remessa_padrao_id: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           dia_limite_lancamento: number | null
           dia_limite_processamento: number | null
@@ -3539,13 +4258,16 @@ export type Database = {
           registra_historico_alteracoes: boolean | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           bloqueia_alteracoes?: boolean | null
           conta_remessa_padrao_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           dia_limite_lancamento?: number | null
           dia_limite_processamento?: number | null
@@ -3567,6 +4289,7 @@ export type Database = {
           registra_historico_alteracoes?: boolean | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -3574,6 +4297,7 @@ export type Database = {
           conta_remessa_padrao_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           dia_limite_lancamento?: number | null
           dia_limite_processamento?: number | null
@@ -3595,6 +4319,7 @@ export type Database = {
           registra_historico_alteracoes?: boolean | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -3620,6 +4345,8 @@ export type Database = {
           consolidado_em: string | null
           consolidado_por: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_limite_chefia: string | null
           data_limite_rh: string | null
           data_limite_servidor: string | null
@@ -3635,13 +4362,18 @@ export type Database = {
           servidor_pode_fechar: boolean | null
           status: string | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ano: number
           chefia_pode_fechar?: boolean | null
           consolidado_em?: string | null
           consolidado_por?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_limite_chefia?: string | null
           data_limite_rh?: string | null
           data_limite_servidor?: string | null
@@ -3657,6 +4389,8 @@ export type Database = {
           servidor_pode_fechar?: boolean | null
           status?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ano?: number
@@ -3664,6 +4398,8 @@ export type Database = {
           consolidado_em?: string | null
           consolidado_por?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_limite_chefia?: string | null
           data_limite_rh?: string | null
           data_limite_servidor?: string | null
@@ -3679,6 +4415,8 @@ export type Database = {
           servidor_pode_fechar?: boolean | null
           status?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -3695,26 +4433,35 @@ export type Database = {
           ativo: boolean | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           id: string
           instituicao_id: string | null
           percentual_incidencia: number | null
           rubrica_destino_id: string
           rubrica_origem_id: string
           tipo_incidencia: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_limite: number | null
           vigencia_fim: string | null
           vigencia_inicio: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           instituicao_id?: string | null
           percentual_incidencia?: number | null
           rubrica_destino_id: string
           rubrica_origem_id: string
           tipo_incidencia: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_limite?: number | null
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
@@ -3723,12 +4470,16 @@ export type Database = {
           ativo?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           instituicao_id?: string | null
           percentual_incidencia?: number | null
           rubrica_destino_id?: string
           rubrica_origem_id?: string
           tipo_incidencia?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_limite?: number | null
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
@@ -3769,6 +4520,7 @@ export type Database = {
           cpf_responsavel: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           endereco: Json | null
           expediente: Json | null
           id: string
@@ -3780,7 +4532,9 @@ export type Database = {
           responsavel_legal: string | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           brasao_url?: string | null
@@ -3792,6 +4546,7 @@ export type Database = {
           cpf_responsavel?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           endereco?: Json | null
           expediente?: Json | null
           id?: string
@@ -3803,6 +4558,7 @@ export type Database = {
           responsavel_legal?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -3815,6 +4571,7 @@ export type Database = {
           cpf_responsavel?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           endereco?: Json | null
           expediente?: Json | null
           id?: string
@@ -3826,6 +4583,7 @@ export type Database = {
           responsavel_legal?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: []
       }
@@ -3839,6 +4597,7 @@ export type Database = {
           cargo_id: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           entrada_manha: string | null
           entrada_tarde: string | null
@@ -3861,9 +4620,11 @@ export type Database = {
           unidade_id: string | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
           vigencia_fim: string | null
           vigencia_inicio: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           banco_tolerancia_diario?: boolean | null
@@ -3873,6 +4634,7 @@ export type Database = {
           cargo_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           entrada_manha?: string | null
           entrada_tarde?: string | null
@@ -3895,6 +4657,7 @@ export type Database = {
           unidade_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
         }
@@ -3907,6 +4670,7 @@ export type Database = {
           cargo_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           entrada_manha?: string | null
           entrada_tarde?: string | null
@@ -3929,6 +4693,7 @@ export type Database = {
           unidade_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
         }
@@ -3991,6 +4756,40 @@ export type Database = {
           },
         ]
       }
+      config_menu_publico: {
+        Row: {
+          alterado_por: string | null
+          chave: string
+          created_at: string
+          id: string
+          label: string
+          ordem: number
+          updated_at: string
+          visivel: boolean
+        }
+        ComputedFields: never
+        Insert: {
+          alterado_por?: string | null
+          chave: string
+          created_at?: string
+          id?: string
+          label: string
+          ordem?: number
+          updated_at?: string
+          visivel?: boolean
+        }
+        Update: {
+          alterado_por?: string | null
+          chave?: string
+          created_at?: string
+          id?: string
+          label?: string
+          ordem?: number
+          updated_at?: string
+          visivel?: boolean
+        }
+        Relationships: []
+      }
       config_motivos_desligamento: {
         Row: {
           aplica_cedido: boolean
@@ -4000,6 +4799,7 @@ export type Database = {
           codigo: string
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           gera_vacancia: boolean
           id: string
@@ -4010,7 +4810,9 @@ export type Database = {
           requer_portaria: boolean
           updated_at: string
           updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           aplica_cedido?: boolean
           aplica_comissionado?: boolean
@@ -4019,6 +4821,7 @@ export type Database = {
           codigo: string
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           gera_vacancia?: boolean
           id?: string
@@ -4029,6 +4832,7 @@ export type Database = {
           requer_portaria?: boolean
           updated_at?: string
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           aplica_cedido?: boolean
@@ -4038,6 +4842,7 @@ export type Database = {
           codigo?: string
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           gera_vacancia?: boolean
           id?: string
@@ -4048,6 +4853,7 @@ export type Database = {
           requer_portaria?: boolean
           updated_at?: string
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -4069,6 +4875,7 @@ export type Database = {
           pagina_id: string
           usuario_id: string | null
         }
+        ComputedFields: never
         Insert: {
           acao: string
           created_at?: string
@@ -4113,6 +4920,7 @@ export type Database = {
           titulo_manutencao: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           alterado_por?: string | null
           ativo?: boolean
@@ -4167,6 +4975,7 @@ export type Database = {
           tipo_valor: string
           valor_padrao: Json | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
@@ -4225,12 +5034,13 @@ export type Database = {
           unidade_id: string | null
           updated_at: string | null
           updated_by: string | null
-          valor: Json
+          valor: NonNullable<Json>
           versao: number | null
           versao_anterior_id: string | null
           vigencia_fim: string | null
           vigencia_inicio: string
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           created_at?: string | null
@@ -4244,7 +5054,7 @@ export type Database = {
           unidade_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
-          valor: Json
+          valor: NonNullable<Json>
           versao?: number | null
           versao_anterior_id?: string | null
           vigencia_fim?: string | null
@@ -4263,7 +5073,7 @@ export type Database = {
           unidade_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
-          valor?: Json
+          valor?: NonNullable<Json>
           versao?: number | null
           versao_anterior_id?: string | null
           vigencia_fim?: string | null
@@ -4342,37 +5152,42 @@ export type Database = {
           condicoes: Json | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           escopo: string
           escopo_id: string | null
           id: string
           instituicao_id: string | null
           nome: string
-          parametros: Json
+          parametros: NonNullable<Json>
           prioridade: number | null
           tipo_regra: string
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
           vigencia_fim: string | null
           vigencia_inicio: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
           condicoes?: Json | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           escopo?: string
           escopo_id?: string | null
           id?: string
           instituicao_id?: string | null
           nome: string
-          parametros?: Json
+          parametros?: NonNullable<Json>
           prioridade?: number | null
           tipo_regra: string
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
         }
@@ -4382,17 +5197,19 @@ export type Database = {
           condicoes?: Json | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           escopo?: string
           escopo_id?: string | null
           id?: string
           instituicao_id?: string | null
           nome?: string
-          parametros?: Json
+          parametros?: NonNullable<Json>
           prioridade?: number | null
           tipo_regra?: string
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           vigencia_fim?: string | null
           vigencia_inicio?: string | null
         }
@@ -4417,6 +5234,7 @@ export type Database = {
           compoe_base_irrf: boolean | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           desconta_faltas: boolean | null
           descricao: string | null
           formula: string | null
@@ -4442,12 +5260,14 @@ export type Database = {
           tipo_rubrica_id: string | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_fixo: number | null
           valor_maximo: number | null
           valor_minimo: number | null
           vigencia_fim: string | null
           vigencia_inicio: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           automatica?: boolean | null
@@ -4458,6 +5278,7 @@ export type Database = {
           compoe_base_irrf?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           desconta_faltas?: boolean | null
           descricao?: string | null
           formula?: string | null
@@ -4483,6 +5304,7 @@ export type Database = {
           tipo_rubrica_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_fixo?: number | null
           valor_maximo?: number | null
           valor_minimo?: number | null
@@ -4499,6 +5321,7 @@ export type Database = {
           compoe_base_irrf?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           desconta_faltas?: boolean | null
           descricao?: string | null
           formula?: string | null
@@ -4524,6 +5347,7 @@ export type Database = {
           tipo_rubrica_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_fixo?: number | null
           valor_maximo?: number | null
           valor_minimo?: number | null
@@ -4561,6 +5385,7 @@ export type Database = {
           cor_classe: string | null
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           exige_documento: boolean
           icone: string | null
@@ -4573,13 +5398,16 @@ export type Database = {
           situacao_final: boolean
           updated_at: string
           updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           codigo: string
           cor_classe?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           exige_documento?: boolean
           icone?: string | null
@@ -4592,6 +5420,7 @@ export type Database = {
           situacao_final?: boolean
           updated_at?: string
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean
@@ -4599,6 +5428,7 @@ export type Database = {
           cor_classe?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           exige_documento?: boolean
           icone?: string | null
@@ -4611,6 +5441,7 @@ export type Database = {
           situacao_final?: boolean
           updated_at?: string
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -4628,6 +5459,7 @@ export type Database = {
           codigo: string
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           id: string
           instituicao_id: string
@@ -4638,12 +5470,15 @@ export type Database = {
           sigla: string | null
           updated_at: string
           updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           codigo: string
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           id?: string
           instituicao_id: string
@@ -4654,12 +5489,14 @@ export type Database = {
           sigla?: string | null
           updated_at?: string
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean
           codigo?: string
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           id?: string
           instituicao_id?: string
@@ -4670,6 +5507,7 @@ export type Database = {
           sigla?: string | null
           updated_at?: string
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -4687,33 +5525,46 @@ export type Database = {
           codigo: string
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           id: string
           instituicao_id: string
           nome: string
           ordem: number | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           codigo: string
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           id?: string
           instituicao_id: string
           nome: string
           ordem?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean
           codigo?: string
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           id?: string
           instituicao_id?: string
           nome?: string
           ordem?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -4731,6 +5582,7 @@ export type Database = {
           codigo: string
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           exibe_contracheque: boolean | null
           exibe_relatorio: boolean | null
@@ -4743,12 +5595,15 @@ export type Database = {
           subgrupo: string | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           exibe_contracheque?: boolean | null
           exibe_relatorio?: boolean | null
@@ -4761,12 +5616,14 @@ export type Database = {
           subgrupo?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
           codigo?: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           exibe_contracheque?: boolean | null
           exibe_relatorio?: boolean | null
@@ -4779,6 +5636,7 @@ export type Database = {
           subgrupo?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -4797,6 +5655,7 @@ export type Database = {
           cor_classe: string | null
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           gera_matricula: boolean
           icone: string | null
@@ -4815,15 +5674,18 @@ export type Database = {
           tipos_cargo_permitidos: string[] | null
           updated_at: string
           updated_by: string | null
+          updated_by_servidor_id: string | null
           vigencia_fim: string | null
           vigencia_inicio: string
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           codigo: string
           cor_classe?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           gera_matricula?: boolean
           icone?: string | null
@@ -4842,6 +5704,7 @@ export type Database = {
           tipos_cargo_permitidos?: string[] | null
           updated_at?: string
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           vigencia_fim?: string | null
           vigencia_inicio?: string
         }
@@ -4851,6 +5714,7 @@ export type Database = {
           cor_classe?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           gera_matricula?: boolean
           icone?: string | null
@@ -4869,6 +5733,7 @@ export type Database = {
           tipos_cargo_permitidos?: string[] | null
           updated_at?: string
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           vigencia_fim?: string | null
           vigencia_inicio?: string
         }
@@ -4886,6 +5751,8 @@ export type Database = {
         Row: {
           carga_horaria_semanal: number | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           dias_trabalho: number[] | null
           exige_foto: boolean | null
           exige_localizacao: boolean | null
@@ -4898,10 +5765,15 @@ export type Database = {
           tolerancia_atraso: number | null
           tolerancia_saida_antecipada: number | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           carga_horaria_semanal?: number | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           dias_trabalho?: number[] | null
           exige_foto?: boolean | null
           exige_localizacao?: boolean | null
@@ -4914,10 +5786,14 @@ export type Database = {
           tolerancia_atraso?: number | null
           tolerancia_saida_antecipada?: number | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           carga_horaria_semanal?: number | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           dias_trabalho?: number[] | null
           exige_foto?: boolean | null
           exige_localizacao?: boolean | null
@@ -4930,6 +5806,8 @@ export type Database = {
           tolerancia_atraso?: number | null
           tolerancia_saida_antecipada?: number | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -4951,6 +5829,7 @@ export type Database = {
           consignataria_nome: string
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_fim: string | null
           data_inicio: string
           data_quitacao: string | null
@@ -4968,9 +5847,12 @@ export type Database = {
           tipo_consignacao: string | null
           total_parcelas: number
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_parcela: number
           valor_total: number | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           competencia_fim?: string | null
@@ -4980,6 +5862,7 @@ export type Database = {
           consignataria_nome: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio: string
           data_quitacao?: string | null
@@ -4997,6 +5880,8 @@ export type Database = {
           tipo_consignacao?: string | null
           total_parcelas: number
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_parcela: number
           valor_total?: number | null
         }
@@ -5009,6 +5894,7 @@ export type Database = {
           consignataria_nome?: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio?: string
           data_quitacao?: string | null
@@ -5026,6 +5912,8 @@ export type Database = {
           tipo_consignacao?: string | null
           total_parcelas?: number
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_parcela?: number
           valor_total?: number | null
         }
@@ -5094,12 +5982,16 @@ export type Database = {
           convenio_pagamento: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string
           id: string
           tipo_conta: string | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           uso_principal: string | null
         }
+        ComputedFields: never
         Insert: {
           agencia: string
           agencia_digito?: string | null
@@ -5112,10 +6004,13 @@ export type Database = {
           convenio_pagamento?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao: string
           id?: string
           tipo_conta?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           uso_principal?: string | null
         }
         Update: {
@@ -5130,10 +6025,13 @@ export type Database = {
           convenio_pagamento?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string
           id?: string
           tipo_conta?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           uso_principal?: string | null
         }
         Relationships: [
@@ -5167,6 +6065,7 @@ export type Database = {
           updated_at: string
           valor: string
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           created_at?: string
@@ -5212,6 +6111,7 @@ export type Database = {
           titulo: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           aprovado_em?: string | null
           aprovado_por?: string | null
@@ -5279,6 +6179,7 @@ export type Database = {
           valor_executado: number | null
           valor_inicial: number
         }
+        ComputedFields: never
         Insert: {
           ano?: number
           created_at?: string | null
@@ -5453,6 +6354,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           codigo: string
@@ -5570,6 +6472,7 @@ export type Database = {
           tipo: string
           valor: number
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           created_by?: string | null
@@ -5629,6 +6532,7 @@ export type Database = {
           updated_at: string | null
           valor: string
         }
+        ComputedFields: never
         Insert: {
           bloqueado?: boolean | null
           categoria?: string | null
@@ -5661,6 +6565,52 @@ export type Database = {
         }
         Relationships: []
       }
+      datas_importantes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          data: string
+          data_fim: string | null
+          descricao: string | null
+          id: string
+          modulos_alvo: Database["public"]["Enums"]["app_module"][]
+          recorrente_anual: boolean
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          data: string
+          data_fim?: string | null
+          descricao?: string | null
+          id?: string
+          modulos_alvo?: Database["public"]["Enums"]["app_module"][]
+          recorrente_anual?: boolean
+          tipo?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          data_fim?: string | null
+          descricao?: string | null
+          id?: string
+          modulos_alvo?: Database["public"]["Enums"]["app_module"][]
+          recorrente_anual?: boolean
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       debitos_tecnicos: {
         Row: {
           codigo: string
@@ -5685,6 +6635,7 @@ export type Database = {
           titulo: string
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           codigo: string
           created_at?: string | null
@@ -5757,6 +6708,7 @@ export type Database = {
           updated_by: string | null
           veiculo_publicacao: string | null
         }
+        ComputedFields: never
         Insert: {
           ano: number
           autoridade_id?: string | null
@@ -5889,6 +6841,7 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           ano?: number
           aprovado_por_id?: string | null
@@ -6132,6 +7085,7 @@ export type Database = {
           tipo_mime: string | null
           url_arquivo: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           created_by?: string | null
@@ -6176,6 +7130,7 @@ export type Database = {
           tipo: string
           visivel_solicitante: boolean | null
         }
+        ComputedFields: never
         Insert: {
           conteudo: string
           created_at?: string | null
@@ -6219,6 +7174,7 @@ export type Database = {
           tipo_entregavel: string
           url_arquivo: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           created_by?: string | null
@@ -6257,6 +7213,73 @@ export type Database = {
           },
         ]
       }
+      denuncias: {
+        Row: {
+          anonima: boolean
+          atualizado_por: string | null
+          cargo_denunciante: string | null
+          created_at: string
+          data_ocorrencia: string
+          descricao: string
+          email_denunciante: string | null
+          envolvidos: string
+          evidencias: string | null
+          id: string
+          local_ocorrencia: string
+          nome_denunciante: string | null
+          parecer: string | null
+          protocolo: string
+          responsavel: string | null
+          status: string
+          telefone_denunciante: string | null
+          tipo: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          anonima?: boolean
+          atualizado_por?: string | null
+          cargo_denunciante?: string | null
+          created_at?: string
+          data_ocorrencia: string
+          descricao: string
+          email_denunciante?: string | null
+          envolvidos: string
+          evidencias?: string | null
+          id?: string
+          local_ocorrencia: string
+          nome_denunciante?: string | null
+          parecer?: string | null
+          protocolo: string
+          responsavel?: string | null
+          status?: string
+          telefone_denunciante?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          anonima?: boolean
+          atualizado_por?: string | null
+          cargo_denunciante?: string | null
+          created_at?: string
+          data_ocorrencia?: string
+          descricao?: string
+          email_denunciante?: string | null
+          envolvidos?: string
+          evidencias?: string | null
+          id?: string
+          local_ocorrencia?: string
+          nome_denunciante?: string | null
+          parecer?: string | null
+          protocolo?: string
+          responsavel?: string | null
+          status?: string
+          telefone_denunciante?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dependentes_irrf: {
         Row: {
           ativo: boolean | null
@@ -6264,6 +7287,7 @@ export type Database = {
           cpf: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_fim_deducao: string | null
           data_inicio_deducao: string
           data_nascimento: string
@@ -6276,13 +7300,17 @@ export type Database = {
           servidor_id: string | null
           tipo_dependente: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           certidao_url?: string | null
           cpf?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim_deducao?: string | null
           data_inicio_deducao: string
           data_nascimento: string
@@ -6295,6 +7323,8 @@ export type Database = {
           servidor_id?: string | null
           tipo_dependente: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -6302,6 +7332,7 @@ export type Database = {
           cpf?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim_deducao?: string | null
           data_inicio_deducao?: string
           data_nascimento?: string
@@ -6314,6 +7345,8 @@ export type Database = {
           servidor_id?: string | null
           tipo_dependente?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -6371,6 +7404,7 @@ export type Database = {
           ato_tipo: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_aprovacao: string | null
           data_fim: string | null
           data_inicio: string
@@ -6384,7 +7418,10 @@ export type Database = {
           unidade_destino_id: string
           unidade_origem_id: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           aprovado_por?: string | null
           ativo?: boolean | null
@@ -6395,6 +7432,7 @@ export type Database = {
           ato_tipo?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_aprovacao?: string | null
           data_fim?: string | null
           data_inicio: string
@@ -6408,6 +7446,8 @@ export type Database = {
           unidade_destino_id: string
           unidade_origem_id: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           aprovado_por?: string | null
@@ -6419,6 +7459,7 @@ export type Database = {
           ato_tipo?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_aprovacao?: string | null
           data_fim?: string | null
           data_inicio?: string
@@ -6432,6 +7473,8 @@ export type Database = {
           unidade_destino_id?: string
           unidade_origem_id?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -6522,6 +7565,7 @@ export type Database = {
           tipo_despacho: Database["public"]["Enums"]["tipo_despacho"]
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           autoridade_id?: string | null
           created_at?: string
@@ -6606,6 +7650,13 @@ export type Database = {
             foreignKeyName: "despachos_processo_id_fkey"
             columns: ["processo_id"]
             isOneToOne: false
+            referencedRelation: "v_processos_acompanhamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despachos_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
             referencedRelation: "v_processos_resumo"
             referencedColumns: ["id"]
           },
@@ -6618,6 +7669,7 @@ export type Database = {
           conta_frequencia: boolean | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data: string
           dia_recorrente: number | null
           esfera: string | null
@@ -6636,13 +7688,16 @@ export type Database = {
           unidades_aplicaveis: string[] | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           abrangencia?: string | null
           ativo?: boolean | null
           conta_frequencia?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data: string
           dia_recorrente?: number | null
           esfera?: string | null
@@ -6661,6 +7716,7 @@ export type Database = {
           unidades_aplicaveis?: string[] | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           abrangencia?: string | null
@@ -6668,6 +7724,7 @@ export type Database = {
           conta_frequencia?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data?: string
           dia_recorrente?: number | null
           esfera?: string | null
@@ -6686,6 +7743,7 @@ export type Database = {
           unidades_aplicaveis?: string[] | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -6708,6 +7766,7 @@ export type Database = {
           conteudo_unificado: Json | null
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           data_assinatura: string | null
           data_documento: string
           data_publicacao: string | null
@@ -6721,6 +7780,7 @@ export type Database = {
           id: string
           numero: string
           observacoes: string | null
+          processo_sei: string | null
           provimento_id: string | null
           responsavel_id: string | null
           servidores_ids: string[] | null
@@ -6729,7 +7789,10 @@ export type Database = {
           titulo: string
           unidade_id: string | null
           updated_at: string
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           arquivo_assinado_url?: string | null
           arquivo_url?: string | null
@@ -6740,6 +7803,7 @@ export type Database = {
           conteudo_unificado?: Json | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_assinatura?: string | null
           data_documento?: string
           data_publicacao?: string | null
@@ -6753,6 +7817,7 @@ export type Database = {
           id?: string
           numero: string
           observacoes?: string | null
+          processo_sei?: string | null
           provimento_id?: string | null
           responsavel_id?: string | null
           servidores_ids?: string[] | null
@@ -6761,6 +7826,8 @@ export type Database = {
           titulo: string
           unidade_id?: string | null
           updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           arquivo_assinado_url?: string | null
@@ -6772,6 +7839,7 @@ export type Database = {
           conteudo_unificado?: Json | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_assinatura?: string | null
           data_documento?: string
           data_publicacao?: string | null
@@ -6785,6 +7853,7 @@ export type Database = {
           id?: string
           numero?: string
           observacoes?: string | null
+          processo_sei?: string | null
           provimento_id?: string | null
           responsavel_id?: string | null
           servidores_ids?: string[] | null
@@ -6793,6 +7862,8 @@ export type Database = {
           titulo?: string
           unidade_id?: string | null
           updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -6815,6 +7886,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "provimentos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_provimento_id_fkey"
+            columns: ["provimento_id"]
+            isOneToOne: false
+            referencedRelation: "v_quadro_vagas"
+            referencedColumns: ["provimento_id"]
           },
           {
             foreignKeyName: "documentos_provimento_id_fkey"
@@ -6884,6 +7962,7 @@ export type Database = {
           url_arquivo: string
           versao: number | null
         }
+        ComputedFields: never
         Insert: {
           agenda_id: string
           created_at?: string | null
@@ -6962,6 +8041,7 @@ export type Database = {
           updated_by: string | null
           versao: number | null
         }
+        ComputedFields: never
         Insert: {
           aprovado?: boolean | null
           aprovado_em?: string | null
@@ -7102,6 +8182,7 @@ export type Database = {
           titulo: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           arquivo_nome?: string | null
           arquivo_tamanho?: number | null
@@ -7148,6 +8229,13 @@ export type Database = {
             foreignKeyName: "documentos_processo_processo_id_fkey"
             columns: ["processo_id"]
             isOneToOne: false
+            referencedRelation: "v_processos_acompanhamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_processo_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
             referencedRelation: "v_processos_resumo"
             referencedColumns: ["id"]
           },
@@ -7158,6 +8246,7 @@ export type Database = {
           arquivo_assinado_url: string | null
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           data_solicitacao: string
           data_upload_assinado: string | null
           descricao: string | null
@@ -7169,11 +8258,15 @@ export type Database = {
           tipo_documento: string
           titulo: string
           updated_at: string
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           arquivo_assinado_url?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_solicitacao?: string
           data_upload_assinado?: string | null
           descricao?: string | null
@@ -7185,11 +8278,14 @@ export type Database = {
           tipo_documento: string
           titulo: string
           updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           arquivo_assinado_url?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_solicitacao?: string
           data_upload_assinado?: string | null
           descricao?: string | null
@@ -7201,6 +8297,8 @@ export type Database = {
           tipo_documento?: string
           titulo?: string
           updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -7269,11 +8367,12 @@ export type Database = {
           valor_pago: number
           valor_suplementado: number
         }
+        ComputedFields: never
         Insert: {
           acao_orcamentaria: string
           categoria_economica: string
           centro_custo_id?: string | null
-          classificacao_completa?: string | null
+          classificacao_completa?: never
           created_at?: string | null
           created_by?: string | null
           descricao_fonte?: string | null
@@ -7285,12 +8384,12 @@ export type Database = {
           id?: string
           modalidade_aplicacao: string
           programa: string
-          saldo_disponivel?: number | null
+          saldo_disponivel?: never
           subfuncao: string
           unidade_orcamentaria: string
           updated_at?: string | null
           valor_anulado?: number
-          valor_atual?: number | null
+          valor_atual?: never
           valor_empenhado?: number
           valor_inicial?: number
           valor_liquidado?: number
@@ -7301,7 +8400,7 @@ export type Database = {
           acao_orcamentaria?: string
           categoria_economica?: string
           centro_custo_id?: string | null
-          classificacao_completa?: string | null
+          classificacao_completa?: never
           created_at?: string | null
           created_by?: string | null
           descricao_fonte?: string | null
@@ -7313,12 +8412,12 @@ export type Database = {
           id?: string
           modalidade_aplicacao?: string
           programa?: string
-          saldo_disponivel?: number | null
+          saldo_disponivel?: never
           subfuncao?: string
           unidade_orcamentaria?: string
           updated_at?: string | null
           valor_anulado?: number
-          valor_atual?: number | null
+          valor_atual?: never
           valor_empenhado?: number
           valor_inicial?: number
           valor_liquidado?: number
@@ -7359,6 +8458,7 @@ export type Database = {
           valor_liquidado: number
           valor_pago: number
         }
+        ComputedFields: never
         Insert: {
           contrato_id?: string | null
           created_at?: string | null
@@ -7373,7 +8473,7 @@ export type Database = {
           numero_empenho: string
           observacao?: string | null
           processo_licitatorio_id?: string | null
-          saldo_empenho?: number | null
+          saldo_empenho?: never
           situacao?: string | null
           tipo: string
           updated_at?: string | null
@@ -7396,7 +8496,7 @@ export type Database = {
           numero_empenho?: string
           observacao?: string | null
           processo_licitatorio_id?: string | null
-          saldo_empenho?: number | null
+          saldo_empenho?: never
           situacao?: string | null
           tipo?: string
           updated_at?: string | null
@@ -7456,6 +8556,7 @@ export type Database = {
           updated_at: string
           urgente: boolean
         }
+        ComputedFields: never
         Insert: {
           assunto: string
           created_at?: string
@@ -7539,6 +8640,52 @@ export type Database = {
           },
         ]
       }
+      envios_log: {
+        Row: {
+          assunto: string | null
+          canal: string
+          criado_em: string
+          destinatario: string
+          disparado_por: string | null
+          erro: string | null
+          id: string
+          id_externo: string | null
+          origem_id: string | null
+          origem_modulo: string
+          provedor: string
+          status: string
+        }
+        ComputedFields: never
+        Insert: {
+          assunto?: string | null
+          canal: string
+          criado_em?: string
+          destinatario: string
+          disparado_por?: string | null
+          erro?: string | null
+          id?: string
+          id_externo?: string | null
+          origem_id?: string | null
+          origem_modulo: string
+          provedor: string
+          status: string
+        }
+        Update: {
+          assunto?: string | null
+          canal?: string
+          criado_em?: string
+          destinatario?: string
+          disparado_por?: string | null
+          erro?: string | null
+          id?: string
+          id_externo?: string | null
+          origem_id?: string | null
+          origem_modulo?: string
+          provedor?: string
+          status?: string
+        }
+        Relationships: []
+      }
       escolas_jer: {
         Row: {
           created_at: string
@@ -7549,6 +8696,7 @@ export type Database = {
           nome: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           id?: string
@@ -7578,6 +8726,7 @@ export type Database = {
           ultima_movimentacao: string | null
           valor_total: number
         }
+        ComputedFields: never
         Insert: {
           almoxarifado_id: string
           id?: string
@@ -7641,6 +8790,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_unidade"]
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           atribuicoes?: string | null
@@ -7728,18 +8878,22 @@ export type Database = {
           competencia_ano: number | null
           competencia_mes: number | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_envio: string | null
           data_geracao: string | null
           data_retorno: string | null
+          enviado_por: string | null
           folha_id: string | null
           gerado_por: string | null
           id: string
           id_evento: string | null
           lote_id: string | null
           mensagem_retorno: string | null
-          payload: Json
+          payload: NonNullable<Json>
           payload_xml: string | null
           protocolo_envio: string | null
+          rascunho: boolean | null
           recibo: string | null
           sequencia_lote: number | null
           servidor_id: string | null
@@ -7747,23 +8901,30 @@ export type Database = {
           tentativas_envio: number | null
           tipo_evento: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           competencia_ano?: number | null
           competencia_mes?: number | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_envio?: string | null
           data_geracao?: string | null
           data_retorno?: string | null
+          enviado_por?: string | null
           folha_id?: string | null
           gerado_por?: string | null
           id?: string
           id_evento?: string | null
           lote_id?: string | null
           mensagem_retorno?: string | null
-          payload: Json
+          payload: NonNullable<Json>
           payload_xml?: string | null
           protocolo_envio?: string | null
+          rascunho?: never
           recibo?: string | null
           sequencia_lote?: number | null
           servidor_id?: string | null
@@ -7771,23 +8932,29 @@ export type Database = {
           tentativas_envio?: number | null
           tipo_evento: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           competencia_ano?: number | null
           competencia_mes?: number | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_envio?: string | null
           data_geracao?: string | null
           data_retorno?: string | null
+          enviado_por?: string | null
           folha_id?: string | null
           gerado_por?: string | null
           id?: string
           id_evento?: string | null
           lote_id?: string | null
           mensagem_retorno?: string | null
-          payload?: Json
+          payload?: NonNullable<Json>
           payload_xml?: string | null
           protocolo_envio?: string | null
+          rascunho?: never
           recibo?: string | null
           sequencia_lote?: number | null
           servidor_id?: string | null
@@ -7795,6 +8962,8 @@ export type Database = {
           tentativas_envio?: number | null
           tipo_evento?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -7865,6 +9034,7 @@ export type Database = {
           titulo: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           arquivo_hash_sha512?: string | null
           arquivo_nome?: string | null
@@ -7911,6 +9081,9 @@ export type Database = {
         Row: {
           arquivo_url: string | null
           banco_id: string | null
+          created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           enviado_em: string | null
           enviado_por: string | null
           folha_id: string | null
@@ -7924,11 +9097,18 @@ export type Database = {
           status: string | null
           tamanho_bytes: number | null
           tipo_exportacao: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_total: number | null
         }
+        ComputedFields: never
         Insert: {
           arquivo_url?: string | null
           banco_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           enviado_em?: string | null
           enviado_por?: string | null
           folha_id?: string | null
@@ -7942,11 +9122,17 @@ export type Database = {
           status?: string | null
           tamanho_bytes?: number | null
           tipo_exportacao: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_total?: number | null
         }
         Update: {
           arquivo_url?: string | null
           banco_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           enviado_em?: string | null
           enviado_por?: string | null
           folha_id?: string | null
@@ -7960,6 +9146,9 @@ export type Database = {
           status?: string | null
           tamanho_bytes?: number | null
           tipo_exportacao?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_total?: number | null
         }
         Relationships: [
@@ -8008,6 +9197,7 @@ export type Database = {
           telefone: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           created_at?: string
@@ -8067,6 +9257,7 @@ export type Database = {
           unidade_local_id: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
@@ -8199,6 +9390,7 @@ export type Database = {
           titulo: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
@@ -8290,6 +9482,7 @@ export type Database = {
           vice_presidente_nome: string
           vice_presidente_telefone: string
         }
+        ComputedFields: never
         Insert: {
           analisado_por?: string | null
           cnpj?: string | null
@@ -8384,29 +9577,45 @@ export type Database = {
         Row: {
           ativo: boolean | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data: string
           id: string
           nome: string
           recorrente: boolean | null
           tipo: string | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data: string
           id?: string
           nome: string
           recorrente?: boolean | null
           tipo?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data?: string
           id?: string
           nome?: string
           recorrente?: boolean | null
           tipo?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: []
       }
@@ -8415,6 +9624,7 @@ export type Database = {
           abono_pecuniario: boolean | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_fim: string
           data_inicio: string
           dias_abono: number | null
@@ -8430,11 +9640,16 @@ export type Database = {
           servidor_id: string
           status: string | null
           total_parcelas: number | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           abono_pecuniario?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim: string
           data_inicio: string
           dias_abono?: number | null
@@ -8450,11 +9665,15 @@ export type Database = {
           servidor_id: string
           status?: string | null
           total_parcelas?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           abono_pecuniario?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string
           data_inicio?: string
           dias_abono?: number | null
@@ -8470,6 +9689,9 @@ export type Database = {
           servidor_id?: string
           status?: string | null
           total_parcelas?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -8527,6 +9749,8 @@ export type Database = {
           competencia_ano: number | null
           competencia_mes: number | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_processamento: string | null
           folha_id: string | null
           id: string
@@ -8547,11 +9771,14 @@ export type Database = {
           unidade_id: string | null
           unidade_nome: string | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_deducao_dependentes: number | null
           valor_inss: number | null
           valor_irrf: number | null
           valor_liquido: number | null
         }
+        ComputedFields: never
         Insert: {
           banco_agencia?: string | null
           banco_codigo?: string | null
@@ -8569,6 +9796,8 @@ export type Database = {
           competencia_ano?: number | null
           competencia_mes?: number | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_processamento?: string | null
           folha_id?: string | null
           id?: string
@@ -8589,6 +9818,8 @@ export type Database = {
           unidade_id?: string | null
           unidade_nome?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_deducao_dependentes?: number | null
           valor_inss?: number | null
           valor_irrf?: number | null
@@ -8611,6 +9842,8 @@ export type Database = {
           competencia_ano?: number | null
           competencia_mes?: number | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_processamento?: string | null
           folha_id?: string | null
           id?: string
@@ -8631,6 +9864,8 @@ export type Database = {
           unidade_id?: string | null
           unidade_nome?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_deducao_dependentes?: number | null
           valor_inss?: number | null
           valor_irrf?: number | null
@@ -8724,6 +9959,7 @@ export type Database = {
           unidade_medida: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
@@ -8781,6 +10017,7 @@ export type Database = {
           valido: boolean | null
           valor: number
         }
+        ComputedFields: never
         Insert: {
           adiantamento_id: string
           cnpj_cpf_fornecedor?: string | null
@@ -8868,6 +10105,7 @@ export type Database = {
           valor_solicitado: number
           valor_utilizado: number | null
         }
+        ComputedFields: never
         Insert: {
           autorizado_em?: string | null
           autorizado_por?: string | null
@@ -9018,6 +10256,8 @@ export type Database = {
         Row: {
           aprovado_em: string | null
           aprovado_por: string | null
+          confirmado_fiplan_em: string | null
+          confirmado_fiplan_por: string | null
           created_at: string | null
           created_by: string | null
           data_alteracao: string
@@ -9029,6 +10269,8 @@ export type Database = {
           justificativa: string
           numero: string
           observacoes: string | null
+          processo_sei: string | null
+          situacao_fiplan: string
           status:
             | Database["public"]["Enums"]["status_workflow_financeiro"]
             | null
@@ -9036,9 +10278,12 @@ export type Database = {
           updated_at: string | null
           valor: number
         }
+        ComputedFields: never
         Insert: {
           aprovado_em?: string | null
           aprovado_por?: string | null
+          confirmado_fiplan_em?: string | null
+          confirmado_fiplan_por?: string | null
           created_at?: string | null
           created_by?: string | null
           data_alteracao?: string
@@ -9050,6 +10295,8 @@ export type Database = {
           justificativa: string
           numero: string
           observacoes?: string | null
+          processo_sei?: string | null
+          situacao_fiplan?: string
           status?:
             | Database["public"]["Enums"]["status_workflow_financeiro"]
             | null
@@ -9060,6 +10307,8 @@ export type Database = {
         Update: {
           aprovado_em?: string | null
           aprovado_por?: string | null
+          confirmado_fiplan_em?: string | null
+          confirmado_fiplan_por?: string | null
           created_at?: string | null
           created_by?: string | null
           data_alteracao?: string
@@ -9071,6 +10320,8 @@ export type Database = {
           justificativa?: string
           numero?: string
           observacoes?: string | null
+          processo_sei?: string | null
+          situacao_fiplan?: string
           status?:
             | Database["public"]["Enums"]["status_workflow_financeiro"]
             | null
@@ -9110,6 +10361,7 @@ export type Database = {
           usuario_id: string | null
           usuario_nome: string | null
         }
+        ComputedFields: never
         Insert: {
           acao: string
           campos_alterados?: string[] | null
@@ -9152,6 +10404,7 @@ export type Database = {
           verificado_em: string | null
           verificado_por: string | null
         }
+        ComputedFields: never
         Insert: {
           conforme?: boolean | null
           created_at?: string | null
@@ -9205,6 +10458,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_conta_bancaria"]
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           agencia: string
           agencia_digito?: string | null
@@ -9316,6 +10570,7 @@ export type Database = {
           valor_documento: number | null
           versao: number | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           categoria: string
@@ -9413,6 +10668,7 @@ export type Database = {
           valor_restos_pagar: number | null
           valor_suplementado: number | null
         }
+        ComputedFields: never
         Insert: {
           acao_id?: string | null
           ativo?: boolean | null
@@ -9432,11 +10688,11 @@ export type Database = {
           paoe?: string | null
           programa_id?: string | null
           regional?: string | null
-          saldo_disponivel?: number | null
+          saldo_disponivel?: never
           tro?: string | null
           unidade_orcamentaria_id?: string | null
           updated_at?: string | null
-          valor_atual?: number | null
+          valor_atual?: never
           valor_bloqueado?: number | null
           valor_em_liquidacao?: number | null
           valor_empenhado?: number | null
@@ -9468,11 +10724,11 @@ export type Database = {
           paoe?: string | null
           programa_id?: string | null
           regional?: string | null
-          saldo_disponivel?: number | null
+          saldo_disponivel?: never
           tro?: string | null
           unidade_orcamentaria_id?: string | null
           updated_at?: string | null
-          valor_atual?: number | null
+          valor_atual?: never
           valor_bloqueado?: number | null
           valor_em_liquidacao?: number | null
           valor_empenhado?: number | null
@@ -9541,6 +10797,7 @@ export type Database = {
           numero: string
           valor: number
         }
+        ComputedFields: never
         Insert: {
           anulado_por?: string | null
           created_at?: string | null
@@ -9605,6 +10862,7 @@ export type Database = {
           valor_liquidado: number | null
           valor_pago: number | null
         }
+        ComputedFields: never
         Insert: {
           conta_contabil_credito_id?: string | null
           conta_contabil_debito_id?: string | null
@@ -9626,8 +10884,8 @@ export type Database = {
           objeto: string
           observacoes?: string | null
           processo_sei?: string | null
-          saldo_liquidar?: number | null
-          saldo_pagar?: number | null
+          saldo_liquidar?: never
+          saldo_pagar?: never
           solicitacao_id?: string | null
           status?: Database["public"]["Enums"]["status_empenho"] | null
           tipo?: Database["public"]["Enums"]["tipo_empenho"]
@@ -9659,8 +10917,8 @@ export type Database = {
           objeto?: string
           observacoes?: string | null
           processo_sei?: string | null
-          saldo_liquidar?: number | null
-          saldo_pagar?: number | null
+          saldo_liquidar?: never
+          saldo_pagar?: never
           solicitacao_id?: string | null
           status?: Database["public"]["Enums"]["status_empenho"] | null
           tipo?: Database["public"]["Enums"]["tipo_empenho"]
@@ -9730,6 +10988,88 @@ export type Database = {
           },
         ]
       }
+      fin_extrato_lancamentos: {
+        Row: {
+          chave_unica: string
+          codigo_historico: number | null
+          conta_bancaria_id: string
+          contrapartida_agencia: number | null
+          contrapartida_banco: number | null
+          contrapartida_conta: string | null
+          contrapartida_documento: string | null
+          contrapartida_tipo: string | null
+          created_at: string
+          data_lancamento: string
+          data_movimento: string | null
+          descricao: string | null
+          id: string
+          identificador_bb: string
+          informacao_complementar: string | null
+          numero_documento: string | null
+          pagamento_id: string | null
+          sinal: string
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          chave_unica: string
+          codigo_historico?: number | null
+          conta_bancaria_id: string
+          contrapartida_agencia?: number | null
+          contrapartida_banco?: number | null
+          contrapartida_conta?: string | null
+          contrapartida_documento?: string | null
+          contrapartida_tipo?: string | null
+          created_at?: string
+          data_lancamento: string
+          data_movimento?: string | null
+          descricao?: string | null
+          id?: string
+          identificador_bb: string
+          informacao_complementar?: string | null
+          numero_documento?: string | null
+          pagamento_id?: string | null
+          sinal: string
+          valor: number
+        }
+        Update: {
+          chave_unica?: string
+          codigo_historico?: number | null
+          conta_bancaria_id?: string
+          contrapartida_agencia?: number | null
+          contrapartida_banco?: number | null
+          contrapartida_conta?: string | null
+          contrapartida_documento?: string | null
+          contrapartida_tipo?: string | null
+          created_at?: string
+          data_lancamento?: string
+          data_movimento?: string | null
+          descricao?: string | null
+          id?: string
+          identificador_bb?: string
+          informacao_complementar?: string | null
+          numero_documento?: string | null
+          pagamento_id?: string | null
+          sinal?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_extrato_lancamentos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_extrato_lancamentos_pagamento_id_fkey"
+            columns: ["pagamento_id"]
+            isOneToOne: false
+            referencedRelation: "fin_pagamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_extrato_transacoes: {
         Row: {
           conciliado_em: string | null
@@ -9749,6 +11089,7 @@ export type Database = {
           tipo: string
           valor: number
         }
+        ComputedFields: never
         Insert: {
           conciliado_em?: string | null
           conciliado_por?: string | null
@@ -9827,6 +11168,7 @@ export type Database = {
           total_creditos: number | null
           total_debitos: number | null
         }
+        ComputedFields: never
         Insert: {
           ano_referencia: number
           arquivo_original?: string | null
@@ -9890,6 +11232,7 @@ export type Database = {
           total_receitas: number | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           data_fechamento?: string | null
@@ -9940,6 +11283,7 @@ export type Database = {
           origem: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
@@ -9985,6 +11329,7 @@ export type Database = {
           tipo_origem: string
           valor: number
         }
+        ComputedFields: never
         Insert: {
           complemento?: string | null
           conta_credito_id: string
@@ -10077,6 +11422,7 @@ export type Database = {
           valor_liquido: number | null
           valor_retencoes: number | null
         }
+        ComputedFields: never
         Insert: {
           aprovado_em?: string | null
           aprovado_por?: string | null
@@ -10108,7 +11454,7 @@ export type Database = {
           updated_at?: string | null
           valor_documento: number
           valor_liquidado: number
-          valor_liquido?: number | null
+          valor_liquido?: never
           valor_retencoes?: number | null
         }
         Update: {
@@ -10142,7 +11488,7 @@ export type Database = {
           updated_at?: string | null
           valor_documento?: number
           valor_liquidado?: number
-          valor_liquido?: number | null
+          valor_liquido?: never
           valor_retencoes?: number | null
         }
         Relationships: [
@@ -10169,6 +11515,147 @@ export type Database = {
           },
         ]
       }
+      fin_movimentos_bancarios: {
+        Row: {
+          agencia: string | null
+          autenticacao: string | null
+          banco: string | null
+          chave_unica: string
+          codigo_barras: string | null
+          codigo_retorno: string | null
+          conciliacao_justificativa: string | null
+          conciliado_em: string | null
+          conciliado_por: string | null
+          conta: string | null
+          conta_corrigida: Json | null
+          corrigido_em: string | null
+          corrigido_por: string | null
+          created_at: string
+          data_arquivo: string | null
+          data_efetivacao: string | null
+          data_pagamento: string | null
+          favorecido_documento: string | null
+          favorecido_nome: string | null
+          id: string
+          identificador: string
+          importacao_id: string | null
+          importacao_retorno_id: string | null
+          motivo_recusa: string | null
+          origem: string
+          pagamento_id: string | null
+          reenviado_em: string | null
+          remessa_id: string | null
+          sentido: string
+          sequencial_arquivo: string | null
+          situacao: string
+          tipo_lancamento: string
+          updated_at: string
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          agencia?: string | null
+          autenticacao?: string | null
+          banco?: string | null
+          chave_unica: string
+          codigo_barras?: string | null
+          codigo_retorno?: string | null
+          conciliacao_justificativa?: string | null
+          conciliado_em?: string | null
+          conciliado_por?: string | null
+          conta?: string | null
+          conta_corrigida?: Json | null
+          corrigido_em?: string | null
+          corrigido_por?: string | null
+          created_at?: string
+          data_arquivo?: string | null
+          data_efetivacao?: string | null
+          data_pagamento?: string | null
+          favorecido_documento?: string | null
+          favorecido_nome?: string | null
+          id?: string
+          identificador: string
+          importacao_id?: string | null
+          importacao_retorno_id?: string | null
+          motivo_recusa?: string | null
+          origem: string
+          pagamento_id?: string | null
+          reenviado_em?: string | null
+          remessa_id?: string | null
+          sentido: string
+          sequencial_arquivo?: string | null
+          situacao: string
+          tipo_lancamento?: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          agencia?: string | null
+          autenticacao?: string | null
+          banco?: string | null
+          chave_unica?: string
+          codigo_barras?: string | null
+          codigo_retorno?: string | null
+          conciliacao_justificativa?: string | null
+          conciliado_em?: string | null
+          conciliado_por?: string | null
+          conta?: string | null
+          conta_corrigida?: Json | null
+          corrigido_em?: string | null
+          corrigido_por?: string | null
+          created_at?: string
+          data_arquivo?: string | null
+          data_efetivacao?: string | null
+          data_pagamento?: string | null
+          favorecido_documento?: string | null
+          favorecido_nome?: string | null
+          id?: string
+          identificador?: string
+          importacao_id?: string | null
+          importacao_retorno_id?: string | null
+          motivo_recusa?: string | null
+          origem?: string
+          pagamento_id?: string | null
+          reenviado_em?: string | null
+          remessa_id?: string | null
+          sentido?: string
+          sequencial_arquivo?: string | null
+          situacao?: string
+          tipo_lancamento?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_movimentos_bancarios_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_movimentos_bancarios_importacao_retorno_id_fkey"
+            columns: ["importacao_retorno_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_movimentos_bancarios_pagamento_id_fkey"
+            columns: ["pagamento_id"]
+            isOneToOne: false
+            referencedRelation: "fin_pagamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_movimentos_bancarios_remessa_id_fkey"
+            columns: ["remessa_id"]
+            isOneToOne: false
+            referencedRelation: "fin_remessas_bancarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_naturezas_despesa: {
         Row: {
           ativo: boolean | null
@@ -10184,6 +11671,7 @@ export type Database = {
           subelemento: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           categoria_economica?: string | null
@@ -10251,6 +11739,7 @@ export type Database = {
           valor_liquido: number | null
           valor_retencoes: number | null
         }
+        ComputedFields: never
         Insert: {
           agencia_favorecido?: string | null
           autorizado_em?: string | null
@@ -10284,7 +11773,7 @@ export type Database = {
           tipo_conta_favorecido?: string | null
           updated_at?: string | null
           valor_bruto: number
-          valor_liquido?: number | null
+          valor_liquido?: never
           valor_retencoes?: number | null
         }
         Update: {
@@ -10320,7 +11809,7 @@ export type Database = {
           tipo_conta_favorecido?: string | null
           updated_at?: string | null
           valor_bruto?: number
-          valor_liquido?: number | null
+          valor_liquido?: never
           valor_retencoes?: number | null
         }
         Relationships: [
@@ -10380,6 +11869,7 @@ export type Database = {
           updated_at: string | null
           valor: string
         }
+        ComputedFields: never
         Insert: {
           categoria?: string | null
           chave: string
@@ -10419,6 +11909,7 @@ export type Database = {
           nome: string
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           aceita_lancamento?: boolean | null
           ativo?: boolean | null
@@ -10468,6 +11959,7 @@ export type Database = {
           objetivo: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
@@ -10512,6 +12004,7 @@ export type Database = {
           updated_at: string | null
           valor: number
         }
+        ComputedFields: never
         Insert: {
           cnpj_cpf_pagador?: string | null
           conciliacao_id?: string | null
@@ -10578,6 +12071,81 @@ export type Database = {
           },
         ]
       }
+      fin_remessas_bancarias: {
+        Row: {
+          agencia: string
+          agencia_digito: string | null
+          arquivo_sha256: string | null
+          conta: string
+          conta_autarquia_id: string
+          conta_digito: string | null
+          convenio: string
+          created_at: string
+          created_by: string | null
+          creditos: NonNullable<Json>
+          data_geracao: string
+          data_pagamento: string
+          id: string
+          layout: string
+          movimentos: string[]
+          nsa: number
+          quantidade: number
+          tipo_servico: string
+          valor_total: number
+        }
+        ComputedFields: never
+        Insert: {
+          agencia: string
+          agencia_digito?: string | null
+          arquivo_sha256?: string | null
+          conta: string
+          conta_autarquia_id: string
+          conta_digito?: string | null
+          convenio: string
+          created_at?: string
+          created_by?: string | null
+          creditos: NonNullable<Json>
+          data_geracao?: string
+          data_pagamento: string
+          id?: string
+          layout?: string
+          movimentos?: string[]
+          nsa: number
+          quantidade: number
+          tipo_servico?: string
+          valor_total: number
+        }
+        Update: {
+          agencia?: string
+          agencia_digito?: string | null
+          arquivo_sha256?: string | null
+          conta?: string
+          conta_autarquia_id?: string
+          conta_digito?: string | null
+          convenio?: string
+          created_at?: string
+          created_by?: string | null
+          creditos?: NonNullable<Json>
+          data_geracao?: string
+          data_pagamento?: string
+          id?: string
+          layout?: string
+          movimentos?: string[]
+          nsa?: number
+          quantidade?: number
+          tipo_servico?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_remessas_bancarias_conta_autarquia_id_fkey"
+            columns: ["conta_autarquia_id"]
+            isOneToOne: false
+            referencedRelation: "contas_autarquia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_restos_pagar: {
         Row: {
           created_at: string | null
@@ -10600,6 +12168,7 @@ export type Database = {
           valor_liquidado: number
           valor_pago: number
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           created_by?: string | null
@@ -10612,7 +12181,7 @@ export type Database = {
           id?: string
           motivo_cancelamento?: string | null
           observacoes?: string | null
-          saldo?: number | null
+          saldo?: never
           status?: string
           tipo: string
           updated_at?: string | null
@@ -10633,7 +12202,7 @@ export type Database = {
           id?: string
           motivo_cancelamento?: string | null
           observacoes?: string | null
-          saldo?: number | null
+          saldo?: never
           status?: string
           tipo?: string
           updated_at?: string | null
@@ -10665,6 +12234,7 @@ export type Database = {
           valor_total_estimado: number | null
           valor_unitario_estimado: number | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           descricao: string
@@ -10674,7 +12244,7 @@ export type Database = {
           quantidade?: number
           solicitacao_id: string
           unidade?: string | null
-          valor_total_estimado?: number | null
+          valor_total_estimado?: never
           valor_unitario_estimado?: number | null
         }
         Update: {
@@ -10686,7 +12256,7 @@ export type Database = {
           quantidade?: number
           solicitacao_id?: string
           unidade?: string | null
-          valor_total_estimado?: number | null
+          valor_total_estimado?: never
           valor_unitario_estimado?: number | null
         }
         Relationships: [
@@ -10733,6 +12303,7 @@ export type Database = {
           updated_at: string | null
           valor_estimado: number
         }
+        ComputedFields: never
         Insert: {
           autorizado_em?: string | null
           autorizado_por?: string | null
@@ -10888,6 +12459,7 @@ export type Database = {
           updated_at: string | null
           valor: number
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           created_by?: string | null
@@ -10940,6 +12512,7 @@ export type Database = {
           usuario_id: string | null
           usuario_nome: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           folha_id: string
@@ -10980,6 +12553,7 @@ export type Database = {
           conferido_por: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_fechamento: string | null
           data_processamento: string | null
           fechado_em: string | null
@@ -11006,7 +12580,10 @@ export type Database = {
           total_irrf: number | null
           total_liquido: number | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           competencia_ano: number
           competencia_mes: number
@@ -11014,6 +12591,7 @@ export type Database = {
           conferido_por?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fechamento?: string | null
           data_processamento?: string | null
           fechado_em?: string | null
@@ -11040,6 +12618,8 @@ export type Database = {
           total_irrf?: number | null
           total_liquido?: number | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           competencia_ano?: number
@@ -11048,6 +12628,7 @@ export type Database = {
           conferido_por?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fechamento?: string | null
           data_processamento?: string | null
           fechado_em?: string | null
@@ -11074,6 +12655,8 @@ export type Database = {
           total_irrf?: number | null
           total_liquido?: number | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -11119,6 +12702,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           display_order?: number
           enabled?: boolean
@@ -11181,6 +12765,7 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           agencia?: string | null
           ativo?: boolean | null
@@ -11253,6 +12838,155 @@ export type Database = {
         }
         Relationships: []
       }
+      fotos_vistoria_inventario: {
+        Row: {
+          bem_id: string | null
+          campanha_id: string
+          capturada_em: string
+          codigo_objeto: string | null
+          dispositivo_info: Json | null
+          enviada_em: string
+          hash_sha256: string
+          id: string
+          latitude: number | null
+          legenda: string | null
+          longitude: number | null
+          mime_type: string | null
+          precisao_m: number | null
+          storage_path: string
+          tamanho_bytes: number | null
+          tem_pessoa: boolean
+          unidade_local_id: string
+          usuario_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          bem_id?: string | null
+          campanha_id: string
+          capturada_em: string
+          codigo_objeto?: string | null
+          dispositivo_info?: Json | null
+          enviada_em?: string
+          hash_sha256: string
+          id?: string
+          latitude?: number | null
+          legenda?: string | null
+          longitude?: number | null
+          mime_type?: string | null
+          precisao_m?: number | null
+          storage_path: string
+          tamanho_bytes?: number | null
+          tem_pessoa?: boolean
+          unidade_local_id: string
+          usuario_id?: string
+        }
+        Update: {
+          bem_id?: string | null
+          campanha_id?: string
+          capturada_em?: string
+          codigo_objeto?: string | null
+          dispositivo_info?: Json | null
+          enviada_em?: string
+          hash_sha256?: string
+          id?: string
+          latitude?: number | null
+          legenda?: string | null
+          longitude?: number | null
+          mime_type?: string | null
+          precisao_m?: number | null
+          storage_path?: string
+          tamanho_bytes?: number | null
+          tem_pessoa?: boolean
+          unidade_local_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fotos_vistoria_inventario_bem_id_fkey"
+            columns: ["bem_id"]
+            isOneToOne: false
+            referencedRelation: "bens_patrimoniais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_bem_id_fkey"
+            columns: ["bem_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimentacoes_completas"
+            referencedColumns: ["bem_id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_cedencias_a_vencer"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["unidade_local_id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimentacoes_completas"
+            referencedColumns: ["destino_unidade_id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimentacoes_completas"
+            referencedColumns: ["origem_unidade_id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_patrimonio_por_unidade"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_patrimonio"
+            referencedColumns: ["unidade_id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_unidades_locais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fotos_vistoria_inventario_unidade_local_id_fkey"
+            columns: ["unidade_local_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_uso_unidades"
+            referencedColumns: ["unidade_id"]
+          },
+        ]
+      }
       frequencia_arquivos: {
         Row: {
           ano: number
@@ -11261,6 +12995,7 @@ export type Database = {
           arquivo_tamanho: number | null
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           hash_conteudo: string | null
           id: string
           mes: number
@@ -11272,7 +13007,11 @@ export type Database = {
           unidade_id: string | null
           unidade_nome: string | null
           unidade_sigla: string | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ano: number
           arquivo_nome: string
@@ -11280,6 +13019,7 @@ export type Database = {
           arquivo_tamanho?: number | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           hash_conteudo?: string | null
           id?: string
           mes: number
@@ -11291,6 +13031,9 @@ export type Database = {
           unidade_id?: string | null
           unidade_nome?: string | null
           unidade_sigla?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ano?: number
@@ -11299,6 +13042,7 @@ export type Database = {
           arquivo_tamanho?: number | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           hash_conteudo?: string | null
           id?: string
           mes?: number
@@ -11310,6 +13054,9 @@ export type Database = {
           unidade_id?: string | null
           unidade_nome?: string | null
           unidade_sigla?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -11365,6 +13112,8 @@ export type Database = {
           consolidado_rh_em: string | null
           consolidado_rh_por: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           id: string
           justificativa_reabertura: string | null
           mes: number
@@ -11374,10 +13123,13 @@ export type Database = {
           reaberto_por: string | null
           servidor_id: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           validado_chefia: boolean | null
           validado_chefia_em: string | null
           validado_chefia_por: string | null
         }
+        ComputedFields: never
         Insert: {
           ano: number
           assinado_servidor?: boolean | null
@@ -11386,6 +13138,8 @@ export type Database = {
           consolidado_rh_em?: string | null
           consolidado_rh_por?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           justificativa_reabertura?: string | null
           mes: number
@@ -11395,6 +13149,8 @@ export type Database = {
           reaberto_por?: string | null
           servidor_id: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           validado_chefia?: boolean | null
           validado_chefia_em?: string | null
           validado_chefia_por?: string | null
@@ -11407,6 +13163,8 @@ export type Database = {
           consolidado_rh_em?: string | null
           consolidado_rh_por?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           justificativa_reabertura?: string | null
           mes?: number
@@ -11416,6 +13174,8 @@ export type Database = {
           reaberto_por?: string | null
           servidor_id?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           validado_chefia?: boolean | null
           validado_chefia_em?: string | null
           validado_chefia_por?: string | null
@@ -11462,6 +13222,8 @@ export type Database = {
         Row: {
           ano: number
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_fechamento: string | null
           dias_atestado: number | null
           dias_falta: number | null
@@ -11480,10 +13242,15 @@ export type Database = {
           total_atrasos: number | null
           total_saidas_antecipadas: number | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ano: number
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fechamento?: string | null
           dias_atestado?: number | null
           dias_falta?: number | null
@@ -11502,10 +13269,14 @@ export type Database = {
           total_atrasos?: number | null
           total_saidas_antecipadas?: number | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ano?: number
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fechamento?: string | null
           dias_atestado?: number | null
           dias_falta?: number | null
@@ -11524,6 +13295,8 @@ export type Database = {
           total_atrasos?: number | null
           total_saidas_antecipadas?: number | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -11573,6 +13346,7 @@ export type Database = {
           arquivo_tamanho: number | null
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           erro_mensagem: string | null
           gerado_em: string | null
           id: string
@@ -11586,7 +13360,10 @@ export type Database = {
           unidade_id: string | null
           unidade_nome: string | null
           updated_at: string
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           agrupamento_id?: string | null
           agrupamento_nome?: string | null
@@ -11596,6 +13373,7 @@ export type Database = {
           arquivo_tamanho?: number | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           erro_mensagem?: string | null
           gerado_em?: string | null
           id?: string
@@ -11609,6 +13387,8 @@ export type Database = {
           unidade_id?: string | null
           unidade_nome?: string | null
           updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           agrupamento_id?: string | null
@@ -11619,6 +13399,7 @@ export type Database = {
           arquivo_tamanho?: number | null
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           erro_mensagem?: string | null
           gerado_em?: string | null
           id?: string
@@ -11632,6 +13413,8 @@ export type Database = {
           unidade_id?: string | null
           unidade_nome?: string | null
           updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -11669,6 +13452,7 @@ export type Database = {
           titulo: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
@@ -11730,6 +13514,7 @@ export type Database = {
           status: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           acesso_testado?: boolean
           celular: string
@@ -11798,6 +13583,7 @@ export type Database = {
           usuario_id: string | null
           usuario_nome: string | null
         }
+        ComputedFields: never
         Insert: {
           acao: string
           created_at?: string
@@ -11849,6 +13635,7 @@ export type Database = {
           titulo: string | null
           versao: number
         }
+        ComputedFields: never
         Insert: {
           conteudo: string
           conteudo_estruturado?: Json | null
@@ -11895,6 +13682,7 @@ export type Database = {
           status_envio: string | null
           tipo_envio: string
         }
+        ComputedFields: never
         Insert: {
           assunto?: string | null
           conteudo?: string | null
@@ -11955,6 +13743,7 @@ export type Database = {
           cargo_novo_id: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_evento: string
           data_vigencia_fim: string | null
           data_vigencia_inicio: string | null
@@ -11967,16 +13756,22 @@ export type Database = {
           observacoes: string | null
           portaria_data: string | null
           portaria_numero: string | null
+          processo_sei: string | null
           servidor_id: string
           tipo: Database["public"]["Enums"]["tipo_movimentacao_funcional"]
           unidade_anterior_id: string | null
           unidade_nova_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           cargo_anterior_id?: string | null
           cargo_novo_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_evento: string
           data_vigencia_fim?: string | null
           data_vigencia_inicio?: string | null
@@ -11989,16 +13784,21 @@ export type Database = {
           observacoes?: string | null
           portaria_data?: string | null
           portaria_numero?: string | null
+          processo_sei?: string | null
           servidor_id: string
           tipo: Database["public"]["Enums"]["tipo_movimentacao_funcional"]
           unidade_anterior_id?: string | null
           unidade_nova_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           cargo_anterior_id?: string | null
           cargo_novo_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_evento?: string
           data_vigencia_fim?: string | null
           data_vigencia_inicio?: string | null
@@ -12011,10 +13811,14 @@ export type Database = {
           observacoes?: string | null
           portaria_data?: string | null
           portaria_numero?: string | null
+          processo_sei?: string | null
           servidor_id?: string
           tipo?: Database["public"]["Enums"]["tipo_movimentacao_funcional"]
           unidade_anterior_id?: string | null
           unidade_nova_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -12103,6 +13907,7 @@ export type Database = {
           unidade_nova_id: string | null
           user_agent: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           created_by?: string | null
@@ -12175,6 +13980,7 @@ export type Database = {
           usuario_id: string | null
           valor_aquisicao: number | null
         }
+        ComputedFields: never
         Insert: {
           baixa_id?: string | null
           bem_id: string
@@ -12363,30 +14169,49 @@ export type Database = {
       horarios_jornada: {
         Row: {
           configuracao_id: string
+          created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           dia_semana: number
           entrada1: string | null
           entrada2: string | null
           id: string
           saida1: string | null
           saida2: string | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           configuracao_id: string
+          created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           dia_semana: number
           entrada1?: string | null
           entrada2?: string | null
           id?: string
           saida1?: string | null
           saida2?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           configuracao_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           dia_semana?: number
           entrada1?: string | null
           entrada2?: string | null
           id?: string
           saida1?: string | null
           saida2?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -12397,6 +14222,49 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      importacoes: {
+        Row: {
+          arquivo_nome: string
+          arquivo_sha256: string
+          arquivo_tamanho: number
+          created_at: string
+          created_by: string | null
+          detalhes: NonNullable<Json>
+          exercicio: number | null
+          id: string
+          modulo: Database["public"]["Enums"]["app_module"]
+          resumo: NonNullable<Json>
+          tipo: string
+        }
+        ComputedFields: never
+        Insert: {
+          arquivo_nome: string
+          arquivo_sha256: string
+          arquivo_tamanho: number
+          created_at?: string
+          created_by?: string | null
+          detalhes?: NonNullable<Json>
+          exercicio?: number | null
+          id?: string
+          modulo: Database["public"]["Enums"]["app_module"]
+          resumo?: NonNullable<Json>
+          tipo: string
+        }
+        Update: {
+          arquivo_nome?: string
+          arquivo_sha256?: string
+          arquivo_tamanho?: number
+          created_at?: string
+          created_by?: string | null
+          detalhes?: NonNullable<Json>
+          exercicio?: number | null
+          id?: string
+          modulo?: Database["public"]["Enums"]["app_module"]
+          resumo?: NonNullable<Json>
+          tipo?: string
+        }
+        Relationships: []
       }
       instituicoes: {
         Row: {
@@ -12439,6 +14307,7 @@ export type Database = {
           updated_by: string | null
           validado_por: string | null
         }
+        ComputedFields: never
         Insert: {
           area_atuacao?: string[] | null
           ativo?: boolean
@@ -12540,6 +14409,7 @@ export type Database = {
           valor_total: number | null
           valor_unitario: number
         }
+        ComputedFields: never
         Insert: {
           ata_id: string
           created_at?: string | null
@@ -12551,11 +14421,11 @@ export type Database = {
           numero_item: number
           quantidade_consumida?: number | null
           quantidade_registrada: number
-          saldo_quantidade?: number | null
+          saldo_quantidade?: never
           situacao?: string | null
           unidade_medida: string
           updated_at?: string | null
-          valor_total?: number | null
+          valor_total?: never
           valor_unitario: number
         }
         Update: {
@@ -12569,11 +14439,11 @@ export type Database = {
           numero_item?: number
           quantidade_consumida?: number | null
           quantidade_registrada?: number
-          saldo_quantidade?: number | null
+          saldo_quantidade?: never
           situacao?: string | null
           unidade_medida?: string
           updated_at?: string | null
-          valor_total?: number | null
+          valor_total?: never
           valor_unitario?: number
         }
         Relationships: [
@@ -12609,6 +14479,7 @@ export type Database = {
           peso: number | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           categoria?: string | null
@@ -12666,6 +14537,7 @@ export type Database = {
           valor_total: number | null
           valor_unitario: number
         }
+        ComputedFields: never
         Insert: {
           contrato_id: string
           created_at?: string | null
@@ -12675,11 +14547,11 @@ export type Database = {
           numero_item: number
           quantidade: number
           quantidade_entregue?: number | null
-          saldo_quantidade?: number | null
+          saldo_quantidade?: never
           situacao?: string | null
           unidade_medida: string
           updated_at?: string | null
-          valor_total?: number | null
+          valor_total?: never
           valor_unitario: number
         }
         Update: {
@@ -12691,11 +14563,11 @@ export type Database = {
           numero_item?: number
           quantidade?: number
           quantidade_entregue?: number | null
-          saldo_quantidade?: number | null
+          saldo_quantidade?: never
           situacao?: string | null
           unidade_medida?: string
           updated_at?: string | null
-          valor_total?: number | null
+          valor_total?: never
           valor_unitario?: number
         }
         Relationships: [
@@ -12719,40 +14591,59 @@ export type Database = {
         Row: {
           base_calculo: number | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string
           ficha_id: string
           id: string
           ordem: number | null
+          origem: string
           percentual: number | null
           referencia: string | null
           rubrica_id: string | null
           tipo: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor: number
         }
+        ComputedFields: never
         Insert: {
           base_calculo?: number | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao: string
           ficha_id: string
           id?: string
           ordem?: number | null
+          origem?: string
           percentual?: number | null
           referencia?: string | null
           rubrica_id?: string | null
           tipo: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor?: number
         }
         Update: {
           base_calculo?: number | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string
           ficha_id?: string
           id?: string
           ordem?: number | null
+          origem?: string
           percentual?: number | null
           referencia?: string | null
           rubrica_id?: string | null
           tipo?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor?: number
         }
         Relationships: [
@@ -12789,6 +14680,7 @@ export type Database = {
           valor_unitario_final: number | null
           vencedor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           descricao: string
@@ -12858,6 +14750,7 @@ export type Database = {
           validade: string | null
           valor_unitario_medio: number | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           categoria_id?: string | null
@@ -12924,6 +14817,7 @@ export type Database = {
           valor_estimado_total: number | null
           valor_estimado_unitario: number | null
         }
+        ComputedFields: never
         Insert: {
           catmat_catser?: string | null
           created_at?: string | null
@@ -12938,7 +14832,7 @@ export type Database = {
           situacao?: string | null
           unidade_medida: string
           updated_at?: string | null
-          valor_estimado_total?: number | null
+          valor_estimado_total?: never
           valor_estimado_unitario?: number | null
         }
         Update: {
@@ -12955,7 +14849,7 @@ export type Database = {
           situacao?: string | null
           unidade_medida?: string
           updated_at?: string | null
-          valor_estimado_total?: number | null
+          valor_estimado_total?: never
           valor_estimado_unitario?: number | null
         }
         Relationships: [
@@ -12972,6 +14866,8 @@ export type Database = {
         Row: {
           codigo_ocorrencia: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_pagamento: string | null
           descricao_ocorrencia: string | null
           ficha_id: string | null
@@ -12979,11 +14875,17 @@ export type Database = {
           retorno_id: string
           servidor_id: string | null
           status: string | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor: number | null
         }
+        ComputedFields: never
         Insert: {
           codigo_ocorrencia?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_pagamento?: string | null
           descricao_ocorrencia?: string | null
           ficha_id?: string | null
@@ -12991,11 +14893,16 @@ export type Database = {
           retorno_id: string
           servidor_id?: string | null
           status?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor?: number | null
         }
         Update: {
           codigo_ocorrencia?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_pagamento?: string | null
           descricao_ocorrencia?: string | null
           ficha_id?: string | null
@@ -13003,6 +14910,9 @@ export type Database = {
           retorno_id?: string
           servidor_id?: string | null
           status?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor?: number | null
         }
         Relationships: [
@@ -13062,6 +14972,8 @@ export type Database = {
           aprovador_id: string | null
           arquivo_url: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_aprovacao: string | null
           descricao: string
           id: string
@@ -13070,11 +14982,16 @@ export type Database = {
           status: Database["public"]["Enums"]["status_solicitacao"] | null
           tipo: Database["public"]["Enums"]["tipo_justificativa"]
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           aprovador_id?: string | null
           arquivo_url?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_aprovacao?: string | null
           descricao: string
           id?: string
@@ -13083,11 +15000,15 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_solicitacao"] | null
           tipo: Database["public"]["Enums"]["tipo_justificativa"]
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           aprovador_id?: string | null
           arquivo_url?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_aprovacao?: string | null
           descricao?: string
           id?: string
@@ -13096,6 +15017,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_solicitacao"] | null
           tipo?: Database["public"]["Enums"]["tipo_justificativa"]
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -13118,32 +15041,48 @@ export type Database = {
         Row: {
           banco_horas_id: string
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data: string
           horas: number
           id: string
           motivo: string | null
           registro_ponto_id: string | null
           tipo: Database["public"]["Enums"]["tipo_lancamento_horas"]
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           banco_horas_id: string
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data: string
           horas: number
           id?: string
           motivo?: string | null
           registro_ponto_id?: string | null
           tipo: Database["public"]["Enums"]["tipo_lancamento_horas"]
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           banco_horas_id?: string
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data?: string
           horas?: number
           id?: string
           motivo?: string | null
           registro_ponto_id?: string | null
           tipo?: Database["public"]["Enums"]["tipo_lancamento_horas"]
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -13166,6 +15105,8 @@ export type Database = {
         Row: {
           competencia_referencia: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           ficha_id: string | null
           id: string
           incidiu_inss: boolean | null
@@ -13177,12 +15118,18 @@ export type Database = {
           rubrica_descricao: string
           rubrica_id: string | null
           rubrica_tipo: Database["public"]["Enums"]["tipo_rubrica"]
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_base: number | null
           valor_calculado: number
         }
+        ComputedFields: never
         Insert: {
           competencia_referencia?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           ficha_id?: string | null
           id?: string
           incidiu_inss?: boolean | null
@@ -13194,12 +15141,17 @@ export type Database = {
           rubrica_descricao: string
           rubrica_id?: string | null
           rubrica_tipo: Database["public"]["Enums"]["tipo_rubrica"]
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_base?: number | null
           valor_calculado: number
         }
         Update: {
           competencia_referencia?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           ficha_id?: string | null
           id?: string
           incidiu_inss?: boolean | null
@@ -13211,6 +15163,9 @@ export type Database = {
           rubrica_descricao?: string
           rubrica_id?: string | null
           rubrica_tipo?: Database["public"]["Enums"]["tipo_rubrica"]
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_base?: number | null
           valor_calculado?: number
         }
@@ -13236,6 +15191,7 @@ export type Database = {
           cid: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           crm: string | null
           data_fim: string | null
           data_inicio: string
@@ -13254,11 +15210,16 @@ export type Database = {
           status: string | null
           tipo_afastamento: Database["public"]["Enums"]["tipo_afastamento"]
           tipo_licenca: Database["public"]["Enums"]["tipo_licenca"] | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           cid?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           crm?: string | null
           data_fim?: string | null
           data_inicio: string
@@ -13277,11 +15238,15 @@ export type Database = {
           status?: string | null
           tipo_afastamento: Database["public"]["Enums"]["tipo_afastamento"]
           tipo_licenca?: Database["public"]["Enums"]["tipo_licenca"] | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           cid?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           crm?: string | null
           data_fim?: string | null
           data_inicio?: string
@@ -13300,6 +15265,9 @@ export type Database = {
           status?: string | null
           tipo_afastamento?: Database["public"]["Enums"]["tipo_afastamento"]
           tipo_licenca?: Database["public"]["Enums"]["tipo_licenca"] | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -13339,6 +15307,43 @@ export type Database = {
           },
         ]
       }
+      links_uteis: {
+        Row: {
+          alterado_por: string | null
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          ordem: number
+          titulo: string
+          updated_at: string
+          url: string
+        }
+        ComputedFields: never
+        Insert: {
+          alterado_por?: string | null
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          titulo: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          alterado_por?: string | null
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          titulo?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       liquidacoes: {
         Row: {
           atestado_por: string | null
@@ -13363,6 +15368,7 @@ export type Database = {
           valor_liquido: number | null
           valor_retido: number
         }
+        ComputedFields: never
         Insert: {
           atestado_por?: string | null
           created_at?: string | null
@@ -13383,7 +15389,7 @@ export type Database = {
           situacao?: string | null
           updated_at?: string | null
           valor_liquidado: number
-          valor_liquido?: number | null
+          valor_liquido?: never
           valor_retido?: number
         }
         Update: {
@@ -13406,7 +15412,7 @@ export type Database = {
           situacao?: string | null
           updated_at?: string | null
           valor_liquidado?: number
-          valor_liquido?: number | null
+          valor_liquido?: never
           valor_retido?: number
         }
         Relationships: [
@@ -13472,6 +15478,8 @@ export type Database = {
           ato_url: string | null
           cargo_id: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_fim: string | null
           data_inicio: string
           documento_referencia: string | null
@@ -13484,7 +15492,10 @@ export type Database = {
           tipo_movimentacao: string | null
           unidade_id: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           ato_data?: string | null
@@ -13495,6 +15506,8 @@ export type Database = {
           ato_url?: string | null
           cargo_id?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio?: string
           documento_referencia?: string | null
@@ -13507,6 +15520,8 @@ export type Database = {
           tipo_movimentacao?: string | null
           unidade_id: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -13518,6 +15533,8 @@ export type Database = {
           ato_url?: string | null
           cargo_id?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio?: string
           documento_referencia?: string | null
@@ -13530,6 +15547,8 @@ export type Database = {
           tipo_movimentacao?: string | null
           unidade_id?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -13605,6 +15624,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_manutencao"]
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           bem_id: string
           created_at?: string | null
@@ -13686,6 +15706,7 @@ export type Database = {
           updated_by: string | null
           versao: number
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           created_at?: string
@@ -13745,6 +15766,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           cargo_id?: string | null
@@ -13802,6 +15824,7 @@ export type Database = {
           updated_by: string | null
           versao: number
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           codigo: string
@@ -13852,6 +15875,7 @@ export type Database = {
           valor_aprovado: number | null
           valor_medido: number
         }
+        ComputedFields: never
         Insert: {
           aprovado_por?: string | null
           contrato_id: string
@@ -13946,6 +15970,8 @@ export type Database = {
           cargo_id: string | null
           cargo_nome: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_emissao: string
           data_entrega: string | null
           data_inicio_exercicio: string
@@ -13967,13 +15993,18 @@ export type Database = {
           unidade_destino_id: string
           unidade_destino_nome: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ano?: number
           assinatura_recebimento?: string | null
           cargo_id?: string | null
           cargo_nome?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_emissao?: string
           data_entrega?: string | null
           data_inicio_exercicio: string
@@ -13995,6 +16026,8 @@ export type Database = {
           unidade_destino_id: string
           unidade_destino_nome: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ano?: number
@@ -14002,6 +16035,8 @@ export type Database = {
           cargo_id?: string | null
           cargo_nome?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_emissao?: string
           data_entrega?: string | null
           data_inicio_exercicio?: string
@@ -14023,6 +16058,8 @@ export type Database = {
           unidade_destino_id?: string
           unidade_destino_nome?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -14076,6 +16113,7 @@ export type Database = {
           updated_at: string | null
           variaveis_disponiveis: string[] | null
         }
+        ComputedFields: never
         Insert: {
           assunto: string
           ativo?: boolean | null
@@ -14115,6 +16153,7 @@ export type Database = {
           id: string
           module_name: string
         }
+        ComputedFields: never
         Insert: {
           access_scope?: Database["public"]["Enums"]["access_scope"]
           can_approve?: boolean | null
@@ -14149,6 +16188,7 @@ export type Database = {
           permission_code: string
           sort_order: number | null
         }
+        ComputedFields: never
         Insert: {
           action_type?: string
           category?: string | null
@@ -14185,6 +16225,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           description?: string | null
           display_name?: string | null
@@ -14229,6 +16270,7 @@ export type Database = {
           valor_anterior: number | null
           valor_novo: number | null
         }
+        ComputedFields: never
         Insert: {
           bem_id: string
           created_at?: string | null
@@ -14388,6 +16430,7 @@ export type Database = {
           valor_total: number | null
           valor_unitario: number | null
         }
+        ComputedFields: never
         Insert: {
           almoxarifado_destino_id?: string | null
           almoxarifado_id: string
@@ -14534,6 +16577,7 @@ export type Database = {
           unidade_origem_id: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           aceite_responsavel?: boolean | null
           aprovado_por?: string | null
@@ -14836,6 +16880,8 @@ export type Database = {
           data_recebimento: string | null
           data_resposta: string | null
           descricao: string
+          etapa_destino_ordem: number | null
+          etapa_origem_ordem: number | null
           id: string
           numero_sequencial: number
           observacoes: string | null
@@ -14850,12 +16896,15 @@ export type Database = {
           unidade_origem_id: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
           data_recebimento?: string | null
           data_resposta?: string | null
           descricao: string
+          etapa_destino_ordem?: number | null
+          etapa_origem_ordem?: number | null
           id?: string
           numero_sequencial?: number
           observacoes?: string | null
@@ -14876,6 +16925,8 @@ export type Database = {
           data_recebimento?: string | null
           data_resposta?: string | null
           descricao?: string
+          etapa_destino_ordem?: number | null
+          etapa_origem_ordem?: number | null
           id?: string
           numero_sequencial?: number
           observacoes?: string | null
@@ -14896,6 +16947,13 @@ export type Database = {
             columns: ["processo_id"]
             isOneToOne: false
             referencedRelation: "processos_administrativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_processo_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_acompanhamento"
             referencedColumns: ["id"]
           },
           {
@@ -15001,6 +17059,7 @@ export type Database = {
           cargo: string
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_fim: string | null
           data_inicio: string
           documento_nomeacao_url: string | null
@@ -15011,7 +17070,9 @@ export type Database = {
           unidade_local_id: string
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ato_data_publicacao: string
           ato_doe_data?: string | null
@@ -15021,6 +17082,7 @@ export type Database = {
           cargo?: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio: string
           documento_nomeacao_url?: string | null
@@ -15031,6 +17093,7 @@ export type Database = {
           unidade_local_id: string
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ato_data_publicacao?: string
@@ -15041,6 +17104,7 @@ export type Database = {
           cargo?: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio?: string
           documento_nomeacao_url?: string | null
@@ -15051,6 +17115,7 @@ export type Database = {
           unidade_local_id?: string
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -15175,6 +17240,7 @@ export type Database = {
           updated_at: string
           visualizacoes: number | null
         }
+        ComputedFields: never
         Insert: {
           autor_id?: string | null
           autor_nome?: string | null
@@ -15234,6 +17300,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_ocorrencia_patrimonio"]
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           anexos_urls?: Json | null
           bem_id: string
@@ -15318,32 +17385,45 @@ export type Database = {
         Row: {
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_ocorrencia: string
           descricao: string
           documento_url: string | null
           id: string
           servidor_id: string
           tipo: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_ocorrencia: string
           descricao: string
           documento_url?: string | null
           id?: string
           servidor_id: string
           tipo: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_ocorrencia?: string
           descricao?: string
           documento_url?: string | null
           id?: string
           servidor_id?: string
           tipo?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -15401,6 +17481,7 @@ export type Database = {
           situacao: string | null
           valor_pago: number
         }
+        ComputedFields: never
         Insert: {
           agencia?: string | null
           banco?: string | null
@@ -15457,26 +17538,31 @@ export type Database = {
           ativo: boolean | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           id: string
           observacoes: string | null
           tipo_parametro: string
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
           valor: number
           vigencia_fim: string | null
           vigencia_inicio: string
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           id?: string
           observacoes?: string | null
           tipo_parametro: string
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor: number
           vigencia_fim?: string | null
           vigencia_inicio: string
@@ -15485,12 +17571,14 @@ export type Database = {
           ativo?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           id?: string
           observacoes?: string | null
           tipo_parametro?: string
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor?: number
           vigencia_fim?: string | null
           vigencia_inicio?: string
@@ -15535,6 +17623,7 @@ export type Database = {
           unidade_origem_id: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           analise: string
           ano: number
@@ -15656,6 +17745,7 @@ export type Database = {
           tipo_participante: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           assinatura_presenca?: boolean | null
           cargo_funcao?: string | null
@@ -15771,6 +17861,7 @@ export type Database = {
           updated_by: string | null
           valor_estimado: number | null
         }
+        ComputedFields: never
         Insert: {
           anexos?: string[] | null
           categoria?: string | null
@@ -15895,6 +17986,7 @@ export type Database = {
           comarca: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_decisao: string | null
           data_fim: string | null
           data_inicio: string
@@ -15909,9 +18001,12 @@ export type Database = {
           servidor_id: string | null
           tipo_calculo: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_fixo: number | null
           vara_judicial: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           banco_agencia?: string | null
@@ -15927,6 +18022,7 @@ export type Database = {
           comarca?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_decisao?: string | null
           data_fim?: string | null
           data_inicio: string
@@ -15941,6 +18037,8 @@ export type Database = {
           servidor_id?: string | null
           tipo_calculo: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_fixo?: number | null
           vara_judicial?: string | null
         }
@@ -15959,6 +18057,7 @@ export type Database = {
           comarca?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_decisao?: string | null
           data_fim?: string | null
           data_inicio?: string
@@ -15973,6 +18072,8 @@ export type Database = {
           servidor_id?: string | null
           tipo_calculo?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_fixo?: number | null
           vara_judicial?: string | null
         }
@@ -16043,6 +18144,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           acao_proposta: string
           ativo?: boolean
@@ -16148,6 +18250,7 @@ export type Database = {
           unidade: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           bio?: string | null
@@ -16191,6 +18294,7 @@ export type Database = {
           conteudo: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_publicacao: string
           data_vigencia_fim: string | null
           data_vigencia_inicio: string | null
@@ -16206,13 +18310,18 @@ export type Database = {
           servidor_id: string
           status: string | null
           tipo: Database["public"]["Enums"]["tipo_portaria_rh"]
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ano: number
           assunto: string
           conteudo?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_publicacao: string
           data_vigencia_fim?: string | null
           data_vigencia_inicio?: string | null
@@ -16228,6 +18337,9 @@ export type Database = {
           servidor_id: string
           status?: string | null
           tipo: Database["public"]["Enums"]["tipo_portaria_rh"]
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ano?: number
@@ -16235,6 +18347,7 @@ export type Database = {
           conteudo?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_publicacao?: string
           data_vigencia_fim?: string | null
           data_vigencia_inicio?: string | null
@@ -16250,6 +18363,9 @@ export type Database = {
           servidor_id?: string
           status?: string | null
           tipo?: Database["public"]["Enums"]["tipo_portaria_rh"]
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -16317,6 +18433,7 @@ export type Database = {
           tipo_prazo: string
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           base_legal?: string | null
@@ -16363,6 +18480,7 @@ export type Database = {
           responsavel_id: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           base_legal?: string | null
           created_at?: string
@@ -16403,6 +18521,13 @@ export type Database = {
             columns: ["processo_id"]
             isOneToOne: false
             referencedRelation: "processos_administrativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prazos_processo_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_acompanhamento"
             referencedColumns: ["id"]
           },
           {
@@ -16477,6 +18602,9 @@ export type Database = {
           convertido_por: string | null
           cpf: string
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
+          criado_ip_hash: string | null
           ctps_data_emissao: string | null
           ctps_numero: string | null
           ctps_serie: string | null
@@ -16561,8 +18689,13 @@ export type Database = {
           titulo_secao: string | null
           titulo_uf_votacao: string | null
           titulo_zona: string | null
+          token_acesso: string | null
+          token_expira_em: string | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           acumula_cargo?: boolean | null
           acumulo_descricao?: string | null
@@ -16590,6 +18723,9 @@ export type Database = {
           convertido_por?: string | null
           cpf: string
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          criado_ip_hash?: string | null
           ctps_data_emissao?: string | null
           ctps_numero?: string | null
           ctps_serie?: string | null
@@ -16674,7 +18810,11 @@ export type Database = {
           titulo_secao?: string | null
           titulo_uf_votacao?: string | null
           titulo_zona?: string | null
+          token_acesso?: string | null
+          token_expira_em?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           acumula_cargo?: boolean | null
@@ -16703,6 +18843,9 @@ export type Database = {
           convertido_por?: string | null
           cpf?: string
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          criado_ip_hash?: string | null
           ctps_data_emissao?: string | null
           ctps_numero?: string | null
           ctps_serie?: string | null
@@ -16787,7 +18930,11 @@ export type Database = {
           titulo_secao?: string | null
           titulo_uf_votacao?: string | null
           titulo_zona?: string | null
+          token_acesso?: string | null
+          token_expira_em?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -16827,6 +18974,193 @@ export type Database = {
           },
         ]
       }
+      processo_checklist_respostas: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          marcado: boolean
+          marcado_em: string | null
+          marcado_por: string | null
+          observacao: string | null
+          processo_id: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          marcado?: boolean
+          marcado_em?: string | null
+          marcado_por?: string | null
+          observacao?: string | null
+          processo_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          marcado?: boolean
+          marcado_em?: string | null
+          marcado_por?: string | null
+          observacao?: string | null
+          processo_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_checklist_respostas_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "processo_modelo_checklist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_checklist_respostas_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_administrativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_checklist_respostas_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_acompanhamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_checklist_respostas_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processo_modelo_checklist: {
+        Row: {
+          codigo: string
+          created_at: string
+          descricao: string
+          etapa_ordem: number
+          id: string
+          modelo_id: string
+          obrigatorio: boolean
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          codigo: string
+          created_at?: string
+          descricao: string
+          etapa_ordem: number
+          id?: string
+          modelo_id: string
+          obrigatorio?: boolean
+          updated_at?: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          etapa_ordem?: number
+          id?: string
+          modelo_id?: string
+          obrigatorio?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_modelo_checklist_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "processo_modelos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processo_modelo_etapas: {
+        Row: {
+          created_at: string
+          id: string
+          modelo_id: string
+          nome: string
+          ordem: number
+          prazo_dias_uteis: number | null
+          responsavel_rotulo: string | null
+          unidade_sigla: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id?: string
+          modelo_id: string
+          nome: string
+          ordem: number
+          prazo_dias_uteis?: number | null
+          responsavel_rotulo?: string | null
+          unidade_sigla: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          modelo_id?: string
+          nome?: string
+          ordem?: number
+          prazo_dias_uteis?: number | null
+          responsavel_rotulo?: string | null
+          unidade_sigla?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_modelo_etapas_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "processo_modelos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processo_modelos: {
+        Row: {
+          ativo: boolean
+          base_legal: string | null
+          codigo: string
+          created_at: string
+          id: string
+          nome: string
+          tipo_processo: Database["public"]["Enums"]["tipo_processo_administrativo"]
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          base_legal?: string | null
+          codigo: string
+          created_at?: string
+          id?: string
+          nome: string
+          tipo_processo?: Database["public"]["Enums"]["tipo_processo_administrativo"]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          base_legal?: string | null
+          codigo?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          tipo_processo?: Database["public"]["Enums"]["tipo_processo_administrativo"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       processos_administrativos: {
         Row: {
           ano: number
@@ -16836,19 +19170,27 @@ export type Database = {
           data_abertura: string
           data_encerramento: string | null
           descricao: string | null
+          etapa_atual_ordem: number | null
+          etapa_iniciada_em: string | null
+          etapa_prazo_limite: string | null
           id: string
           interessado_documento: string | null
           interessado_nome: string
           interessado_tipo: string
+          modelo_id: string | null
           numero_processo: string
+          numero_sei: string | null
           observacoes: string | null
           processo_origem_id: string | null
           sigilo: Database["public"]["Enums"]["nivel_sigilo_processo"]
           status: Database["public"]["Enums"]["status_processo_administrativo"]
+          suspenso_desde: string | null
           tipo_processo: Database["public"]["Enums"]["tipo_processo_administrativo"]
+          unidade_atual_id: string | null
           unidade_origem_id: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           ano?: number
           assunto: string
@@ -16857,16 +19199,23 @@ export type Database = {
           data_abertura?: string
           data_encerramento?: string | null
           descricao?: string | null
+          etapa_atual_ordem?: number | null
+          etapa_iniciada_em?: string | null
+          etapa_prazo_limite?: string | null
           id?: string
           interessado_documento?: string | null
           interessado_nome: string
           interessado_tipo?: string
+          modelo_id?: string | null
           numero_processo: string
+          numero_sei?: string | null
           observacoes?: string | null
           processo_origem_id?: string | null
           sigilo?: Database["public"]["Enums"]["nivel_sigilo_processo"]
           status?: Database["public"]["Enums"]["status_processo_administrativo"]
+          suspenso_desde?: string | null
           tipo_processo?: Database["public"]["Enums"]["tipo_processo_administrativo"]
+          unidade_atual_id?: string | null
           unidade_origem_id?: string | null
           updated_at?: string
         }
@@ -16878,20 +19227,34 @@ export type Database = {
           data_abertura?: string
           data_encerramento?: string | null
           descricao?: string | null
+          etapa_atual_ordem?: number | null
+          etapa_iniciada_em?: string | null
+          etapa_prazo_limite?: string | null
           id?: string
           interessado_documento?: string | null
           interessado_nome?: string
           interessado_tipo?: string
+          modelo_id?: string | null
           numero_processo?: string
+          numero_sei?: string | null
           observacoes?: string | null
           processo_origem_id?: string | null
           sigilo?: Database["public"]["Enums"]["nivel_sigilo_processo"]
           status?: Database["public"]["Enums"]["status_processo_administrativo"]
+          suspenso_desde?: string | null
           tipo_processo?: Database["public"]["Enums"]["tipo_processo_administrativo"]
+          unidade_atual_id?: string | null
           unidade_origem_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "processos_administrativos_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "processo_modelos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "processos_administrativos_processo_origem_id_fkey"
             columns: ["processo_origem_id"]
@@ -16903,7 +19266,21 @@ export type Database = {
             foreignKeyName: "processos_administrativos_processo_origem_id_fkey"
             columns: ["processo_origem_id"]
             isOneToOne: false
+            referencedRelation: "v_processos_acompanhamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_administrativos_processo_origem_id_fkey"
+            columns: ["processo_origem_id"]
+            isOneToOne: false
             referencedRelation: "v_processos_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_administrativos_unidade_atual_id_fkey"
+            columns: ["unidade_atual_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
           {
@@ -16945,6 +19322,7 @@ export type Database = {
           updated_by: string | null
           valor_estimado: number | null
         }
+        ComputedFields: never
         Insert: {
           ano?: number
           created_at?: string | null
@@ -17100,6 +19478,7 @@ export type Database = {
           tipo_usuario: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           avatar_url?: string | null
           blocked_at?: string | null
@@ -17190,6 +19569,7 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           ano_fim?: number | null
           ano_inicio: number
@@ -17291,6 +19671,7 @@ export type Database = {
           valor_unitario: number
           vencedora: boolean | null
         }
+        ComputedFields: never
         Insert: {
           classificacao?: number | null
           created_at?: string | null
@@ -17357,6 +19738,7 @@ export type Database = {
           cargo_id: string
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_encerramento: string | null
           data_exercicio: string | null
           data_nomeacao: string
@@ -17369,7 +19751,10 @@ export type Database = {
           unidade_id: string | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
+          vaga_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ato_encerramento_data?: string | null
           ato_encerramento_numero?: string | null
@@ -17377,6 +19762,7 @@ export type Database = {
           cargo_id: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_encerramento?: string | null
           data_exercicio?: string | null
           data_nomeacao: string
@@ -17389,6 +19775,8 @@ export type Database = {
           unidade_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
+          vaga_id?: string | null
         }
         Update: {
           ato_encerramento_data?: string | null
@@ -17397,6 +19785,7 @@ export type Database = {
           cargo_id?: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_encerramento?: string | null
           data_exercicio?: string | null
           data_nomeacao?: string
@@ -17409,6 +19798,8 @@ export type Database = {
           unidade_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
+          vaga_id?: string | null
         }
         Relationships: [
           {
@@ -17460,6 +19851,20 @@ export type Database = {
             referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "provimentos_vaga_id_fkey"
+            columns: ["vaga_id"]
+            isOneToOne: false
+            referencedRelation: "v_quadro_vagas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provimentos_vaga_id_fkey"
+            columns: ["vaga_id"]
+            isOneToOne: false
+            referencedRelation: "vagas_cargo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       publicacoes_lai: {
@@ -17488,6 +19893,7 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           ano_referencia?: number | null
           arquivo_nome?: string | null
@@ -17613,6 +20019,7 @@ export type Database = {
           url_publicacao: string | null
           veiculo: Database["public"]["Enums"]["veiculo_publicacao"]
         }
+        ComputedFields: never
         Insert: {
           arquivo_url?: string | null
           conteudo_resumido?: string | null
@@ -17693,6 +20100,7 @@ export type Database = {
           status: Database["public"]["Enums"]["status_recurso_lai"] | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           created_by?: string | null
@@ -17745,6 +20153,7 @@ export type Database = {
           codigo: string
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           dias_trabalho: number[] | null
           exige_assinatura_servidor: boolean | null
@@ -17759,12 +20168,16 @@ export type Database = {
           permite_ponto_remoto: boolean | null
           tipo: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           dias_trabalho?: number[] | null
           exige_assinatura_servidor?: boolean | null
@@ -17779,12 +20192,15 @@ export type Database = {
           permite_ponto_remoto?: boolean | null
           tipo: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
           codigo?: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           dias_trabalho?: number[] | null
           exige_assinatura_servidor?: boolean | null
@@ -17799,6 +20215,8 @@ export type Database = {
           permite_ponto_remoto?: boolean | null
           tipo?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -17816,6 +20234,8 @@ export type Database = {
           aprovador_id: string | null
           atrasos: number | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data: string
           data_aprovacao: string | null
           dispositivo: string | null
@@ -17837,12 +20257,17 @@ export type Database = {
           status: Database["public"]["Enums"]["status_ponto"] | null
           tipo: Database["public"]["Enums"]["tipo_registro_ponto"] | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           aprovado?: boolean | null
           aprovador_id?: string | null
           atrasos?: number | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data: string
           data_aprovacao?: string | null
           dispositivo?: string | null
@@ -17864,12 +20289,16 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_ponto"] | null
           tipo?: Database["public"]["Enums"]["tipo_registro_ponto"] | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           aprovado?: boolean | null
           aprovador_id?: string | null
           atrasos?: number | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data?: string
           data_aprovacao?: string | null
           dispositivo?: string | null
@@ -17891,6 +20320,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_ponto"] | null
           tipo?: Database["public"]["Enums"]["tipo_registro_ponto"] | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -17937,11 +20368,57 @@ export type Database = {
           },
         ]
       }
+      regra_lancamento: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_by_servidor_id: string | null
+          id: string
+          modo: string
+          modulo: Database["public"]["Enums"]["app_module"]
+          observacao: string | null
+          updated_at: string
+          updated_by: string | null
+          updated_by_servidor_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          id?: string
+          modo?: string
+          modulo: Database["public"]["Enums"]["app_module"]
+          observacao?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          id?: string
+          modo?: string
+          modulo?: Database["public"]["Enums"]["app_module"]
+          observacao?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+        }
+        Relationships: []
+      }
       remessas_bancarias: {
         Row: {
+          arquivo_path: string | null
+          arquivo_sha256: string | null
           arquivo_url: string | null
+          cancelada_em: string | null
+          cancelada_por: string | null
           conta_autarquia_id: string
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_geracao: string | null
           enviado_em: string | null
           enviado_por: string | null
@@ -17950,18 +20427,28 @@ export type Database = {
           hash_arquivo: string | null
           id: string
           layout: string
+          motivo_cancelamento: string | null
           nome_arquivo: string
           numero_remessa: number
           observacoes: string | null
           quantidade_registros: number | null
           status: string | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_total: number | null
         }
+        ComputedFields: never
         Insert: {
+          arquivo_path?: string | null
+          arquivo_sha256?: string | null
           arquivo_url?: string | null
+          cancelada_em?: string | null
+          cancelada_por?: string | null
           conta_autarquia_id: string
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_geracao?: string | null
           enviado_em?: string | null
           enviado_por?: string | null
@@ -17970,18 +20457,27 @@ export type Database = {
           hash_arquivo?: string | null
           id?: string
           layout?: string
+          motivo_cancelamento?: string | null
           nome_arquivo: string
           numero_remessa: number
           observacoes?: string | null
           quantidade_registros?: number | null
           status?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_total?: number | null
         }
         Update: {
+          arquivo_path?: string | null
+          arquivo_sha256?: string | null
           arquivo_url?: string | null
+          cancelada_em?: string | null
+          cancelada_por?: string | null
           conta_autarquia_id?: string
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_geracao?: string | null
           enviado_em?: string | null
           enviado_por?: string | null
@@ -17990,12 +20486,15 @@ export type Database = {
           hash_arquivo?: string | null
           id?: string
           layout?: string
+          motivo_cancelamento?: string | null
           nome_arquivo?: string
           numero_remessa?: number
           observacoes?: string | null
           quantidade_registros?: number | null
           status?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_total?: number | null
         }
         Relationships: [
@@ -18039,6 +20538,7 @@ export type Database = {
           quantidade_solicitada: number
           requisicao_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           id?: string
@@ -18093,6 +20593,7 @@ export type Database = {
           status: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           almoxarifado_id?: string | null
           anexos_urls?: Json | null
@@ -18235,6 +20736,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
@@ -18321,6 +20823,8 @@ export type Database = {
           arquivo_nome: string | null
           arquivo_url: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_processamento: string | null
           detalhes: Json | null
           id: string
@@ -18328,13 +20832,19 @@ export type Database = {
           quantidade_pagos: number | null
           quantidade_rejeitados: number | null
           remessa_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_pago: number | null
           valor_rejeitado: number | null
         }
+        ComputedFields: never
         Insert: {
           arquivo_nome?: string | null
           arquivo_url?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_processamento?: string | null
           detalhes?: Json | null
           id?: string
@@ -18342,6 +20852,9 @@ export type Database = {
           quantidade_pagos?: number | null
           quantidade_rejeitados?: number | null
           remessa_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_pago?: number | null
           valor_rejeitado?: number | null
         }
@@ -18349,6 +20862,8 @@ export type Database = {
           arquivo_nome?: string | null
           arquivo_url?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_processamento?: string | null
           detalhes?: Json | null
           id?: string
@@ -18356,6 +20871,9 @@ export type Database = {
           quantidade_pagos?: number | null
           quantidade_rejeitados?: number | null
           remessa_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_pago?: number | null
           valor_rejeitado?: number | null
         }
@@ -18401,6 +20919,7 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           ata_aprovada?: boolean | null
           ata_conteudo?: string | null
@@ -18527,6 +21046,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           causa?: string | null
@@ -18643,6 +21163,39 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          permission?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_fkey"
+            columns: ["permission"]
+            isOneToOne: false
+            referencedRelation: "module_permissions_catalog"
+            referencedColumns: ["permission_code"]
+          },
+        ]
+      }
       rubricas: {
         Row: {
           ativo: boolean | null
@@ -18651,6 +21204,7 @@ export type Database = {
           compoe_liquido: boolean | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string
           formula_expressao: string | null
           formula_referencia: string | null
@@ -18670,11 +21224,13 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_rubrica"]
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_maximo: number | null
           valor_minimo: number | null
           vigencia_fim: string | null
           vigencia_inicio: string
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
@@ -18682,6 +21238,7 @@ export type Database = {
           compoe_liquido?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao: string
           formula_expressao?: string | null
           formula_referencia?: string | null
@@ -18701,6 +21258,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_rubrica"]
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_maximo?: number | null
           valor_minimo?: number | null
           vigencia_fim?: string | null
@@ -18713,6 +21271,7 @@ export type Database = {
           compoe_liquido?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string
           formula_expressao?: string | null
           formula_referencia?: string | null
@@ -18732,6 +21291,7 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["tipo_rubrica"]
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_maximo?: number | null
           valor_minimo?: number | null
           vigencia_fim?: string | null
@@ -18759,19 +21319,20 @@ export type Database = {
           alterado_em: string | null
           alterado_por: string | null
           campos_alterados: string[] | null
-          dados_anteriores: Json
-          dados_novos: Json
+          dados_anteriores: NonNullable<Json>
+          dados_novos: NonNullable<Json>
           id: string
           justificativa: string | null
           rubrica_id: string | null
           versao: number
         }
+        ComputedFields: never
         Insert: {
           alterado_em?: string | null
           alterado_por?: string | null
           campos_alterados?: string[] | null
-          dados_anteriores: Json
-          dados_novos: Json
+          dados_anteriores: NonNullable<Json>
+          dados_novos: NonNullable<Json>
           id?: string
           justificativa?: string | null
           rubrica_id?: string | null
@@ -18781,8 +21342,8 @@ export type Database = {
           alterado_em?: string | null
           alterado_por?: string | null
           campos_alterados?: string[] | null
-          dados_anteriores?: Json
-          dados_novos?: Json
+          dados_anteriores?: NonNullable<Json>
+          dados_novos?: NonNullable<Json>
           id?: string
           justificativa?: string | null
           rubrica_id?: string | null
@@ -18811,6 +21372,7 @@ export type Database = {
           carga_horaria_customizada: number | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_fim: string | null
           data_inicio: string
           dias_trabalho_customizados: number[] | null
@@ -18820,12 +21382,16 @@ export type Database = {
           regime_id: string
           servidor_id: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           carga_horaria_customizada?: number | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio?: string
           dias_trabalho_customizados?: number[] | null
@@ -18835,12 +21401,15 @@ export type Database = {
           regime_id: string
           servidor_id: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
           carga_horaria_customizada?: number | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio?: string
           dias_trabalho_customizados?: number[] | null
@@ -18850,6 +21419,8 @@ export type Database = {
           regime_id?: string
           servidor_id?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -18907,23 +21478,36 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           id: string
           servidor_id: string
           tag_id: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           servidor_id: string
           tag_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           id?: string
           servidor_id?: string
           tag_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -18975,25 +21559,38 @@ export type Database = {
           cor: string
           created_at: string
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           id: string
           nome: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           cor?: string
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           id?: string
           nome: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           cor?: string
           created_at?: string
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           id?: string
           nome?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: []
       }
@@ -19025,6 +21622,7 @@ export type Database = {
           cpf: string
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           ctps_data_emissao: string | null
           ctps_numero: string | null
           ctps_serie: string | null
@@ -19106,6 +21704,7 @@ export type Database = {
           unidade_atual_id: string | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
           user_id: string | null
           vinculo: Database["public"]["Enums"]["vinculo_funcional"]
           vinculo_externo_ato_id: string | null
@@ -19117,6 +21716,7 @@ export type Database = {
           vinculo_externo_orgao: string | null
           vinculo_externo_situacao: string | null
         }
+        ComputedFields: never
         Insert: {
           acumula_cargo?: boolean | null
           acumulo_descricao?: string | null
@@ -19144,6 +21744,7 @@ export type Database = {
           cpf: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           ctps_data_emissao?: string | null
           ctps_numero?: string | null
           ctps_serie?: string | null
@@ -19225,6 +21826,7 @@ export type Database = {
           unidade_atual_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           user_id?: string | null
           vinculo?: Database["public"]["Enums"]["vinculo_funcional"]
           vinculo_externo_ato_id?: string | null
@@ -19263,6 +21865,7 @@ export type Database = {
           cpf?: string
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           ctps_data_emissao?: string | null
           ctps_numero?: string | null
           ctps_serie?: string | null
@@ -19344,6 +21947,7 @@ export type Database = {
           unidade_atual_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
           user_id?: string | null
           vinculo?: Database["public"]["Enums"]["vinculo_funcional"]
           vinculo_externo_ato_id?: string | null
@@ -19379,6 +21983,60 @@ export type Database = {
           },
         ]
       }
+      setores_modulo: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          created_by_servidor_id: string | null
+          id: string
+          inclui_subordinadas: boolean
+          modulo: Database["public"]["Enums"]["app_module"]
+          observacao: string | null
+          unidade_id: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_servidor_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          id?: string
+          inclui_subordinadas?: boolean
+          modulo: Database["public"]["Enums"]["app_module"]
+          observacao?: string | null
+          unidade_id: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          id?: string
+          inclui_subordinadas?: boolean
+          modulo?: Database["public"]["Enums"]["app_module"]
+          observacao?: string | null
+          unidade_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setores_modulo_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitacoes_abono: {
         Row: {
           aprovado_chefia_em: string | null
@@ -19387,6 +22045,7 @@ export type Database = {
           aprovado_rh_por: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_fim: string
           data_inicio: string
           documento_url: string | null
@@ -19399,7 +22058,10 @@ export type Database = {
           status: string | null
           tipo_abono_id: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           aprovado_chefia_em?: string | null
           aprovado_chefia_por?: string | null
@@ -19407,6 +22069,7 @@ export type Database = {
           aprovado_rh_por?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim: string
           data_inicio: string
           documento_url?: string | null
@@ -19419,6 +22082,8 @@ export type Database = {
           status?: string | null
           tipo_abono_id: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           aprovado_chefia_em?: string | null
@@ -19427,6 +22092,7 @@ export type Database = {
           aprovado_rh_por?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string
           data_inicio?: string
           documento_url?: string | null
@@ -19439,6 +22105,8 @@ export type Database = {
           status?: string | null
           tipo_abono_id?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -19491,6 +22159,8 @@ export type Database = {
           campo_ajuste: string | null
           comprovante_url: string | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           data_aprovacao: string | null
           data_ocorrido: string
           horario_atual: string | null
@@ -19503,12 +22173,17 @@ export type Database = {
           status: Database["public"]["Enums"]["status_solicitacao"] | null
           tipo_ajuste: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           aprovador_id?: string | null
           campo_ajuste?: string | null
           comprovante_url?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_aprovacao?: string | null
           data_ocorrido: string
           horario_atual?: string | null
@@ -19521,12 +22196,16 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_solicitacao"] | null
           tipo_ajuste: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           aprovador_id?: string | null
           campo_ajuste?: string | null
           comprovante_url?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           data_aprovacao?: string | null
           data_ocorrido?: string
           horario_atual?: string | null
@@ -19539,6 +22218,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_solicitacao"] | null
           tipo_ajuste?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -19593,6 +22274,7 @@ export type Database = {
           token_consulta: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           bloqueado_ate?: string | null
           categoria?: string | null
@@ -19727,21 +22409,30 @@ export type Database = {
           aliquota: number
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           faixa_ordem: number
           id: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_maximo: number | null
           valor_minimo: number
           vigencia_fim: string | null
           vigencia_inicio: string
         }
+        ComputedFields: never
         Insert: {
           aliquota: number
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           faixa_ordem: number
           id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_maximo?: number | null
           valor_minimo: number
           vigencia_fim?: string | null
@@ -19751,9 +22442,13 @@ export type Database = {
           aliquota?: number
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           faixa_ordem?: number
           id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_maximo?: number | null
           valor_minimo?: number
           vigencia_fim?: string | null
@@ -19774,23 +22469,32 @@ export type Database = {
           aliquota: number
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           faixa_ordem: number
           id: string
           parcela_deduzir: number
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_maximo: number | null
           valor_minimo: number
           vigencia_fim: string | null
           vigencia_inicio: string
         }
+        ComputedFields: never
         Insert: {
           aliquota: number
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           faixa_ordem: number
           id?: string
           parcela_deduzir?: number
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_maximo?: number | null
           valor_minimo: number
           vigencia_fim?: string | null
@@ -19800,10 +22504,14 @@ export type Database = {
           aliquota?: number
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           faixa_ordem?: number
           id?: string
           parcela_deduzir?: number
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_maximo?: number | null
           valor_minimo?: number
           vigencia_fim?: string | null
@@ -19857,6 +22565,7 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           agenda_id: string
           ano: number
@@ -20031,6 +22740,8 @@ export type Database = {
           codigo: string
           conta_como_presenca: boolean | null
           created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
           descricao: string | null
           exige_aprovacao_chefia: boolean | null
           exige_aprovacao_rh: boolean | null
@@ -20044,12 +22755,17 @@ export type Database = {
           ordem: number | null
           tipos_documento_aceitos: string[] | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           codigo: string
           conta_como_presenca?: boolean | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           exige_aprovacao_chefia?: boolean | null
           exige_aprovacao_rh?: boolean | null
@@ -20063,12 +22779,16 @@ export type Database = {
           ordem?: number | null
           tipos_documento_aceitos?: string[] | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
           codigo?: string
           conta_como_presenca?: boolean | null
           created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
           descricao?: string | null
           exige_aprovacao_chefia?: boolean | null
           exige_aprovacao_rh?: boolean | null
@@ -20082,6 +22802,8 @@ export type Database = {
           ordem?: number | null
           tipos_documento_aceitos?: string[] | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -20095,6 +22817,8 @@ export type Database = {
       }
       unidades_locais: {
         Row: {
+          area_construida_m2: number | null
+          area_terreno_m2: number | null
           areas_disponiveis: string[] | null
           autoridade_autorizadora: string | null
           capacidade: number | null
@@ -20105,14 +22829,20 @@ export type Database = {
           documentos: string[] | null
           endereco_completo: string | null
           estrutura_disponivel: string | null
+          fonte_geometria: string | null
           fotos: string[] | null
+          geometria_atualizada_em: string | null
+          geometria_atualizada_por: string | null
           historico_alteracoes: Json | null
           horario_funcionamento: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           municipio: string
           natureza_uso: string | null
           nome_unidade: string
           observacoes: string | null
+          poligono_geojson: Json | null
           regras_de_uso: string | null
           status: Database["public"]["Enums"]["status_unidade_local"]
           tipo_unidade: Database["public"]["Enums"]["tipo_unidade_local"]
@@ -20120,7 +22850,10 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
+          area_construida_m2?: number | null
+          area_terreno_m2?: number | null
           areas_disponiveis?: string[] | null
           autoridade_autorizadora?: string | null
           capacidade?: number | null
@@ -20131,14 +22864,20 @@ export type Database = {
           documentos?: string[] | null
           endereco_completo?: string | null
           estrutura_disponivel?: string | null
+          fonte_geometria?: string | null
           fotos?: string[] | null
+          geometria_atualizada_em?: string | null
+          geometria_atualizada_por?: string | null
           historico_alteracoes?: Json | null
           horario_funcionamento?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           municipio: string
           natureza_uso?: string | null
           nome_unidade: string
           observacoes?: string | null
+          poligono_geojson?: Json | null
           regras_de_uso?: string | null
           status?: Database["public"]["Enums"]["status_unidade_local"]
           tipo_unidade: Database["public"]["Enums"]["tipo_unidade_local"]
@@ -20147,6 +22886,8 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          area_construida_m2?: number | null
+          area_terreno_m2?: number | null
           areas_disponiveis?: string[] | null
           autoridade_autorizadora?: string | null
           capacidade?: number | null
@@ -20157,14 +22898,20 @@ export type Database = {
           documentos?: string[] | null
           endereco_completo?: string | null
           estrutura_disponivel?: string | null
+          fonte_geometria?: string | null
           fotos?: string[] | null
+          geometria_atualizada_em?: string | null
+          geometria_atualizada_por?: string | null
           historico_alteracoes?: Json | null
           horario_funcionamento?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           municipio?: string
           natureza_uso?: string | null
           nome_unidade?: string
           observacoes?: string | null
+          poligono_geojson?: Json | null
           regras_de_uso?: string | null
           status?: Database["public"]["Enums"]["status_unidade_local"]
           tipo_unidade?: Database["public"]["Enums"]["tipo_unidade_local"]
@@ -20183,6 +22930,7 @@ export type Database = {
           permissions: string[] | null
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
@@ -20211,6 +22959,7 @@ export type Database = {
           unidade_id: string
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           access_scope?: Database["public"]["Enums"]["access_scope"] | null
           created_at?: string | null
@@ -20239,6 +22988,39 @@ export type Database = {
           },
         ]
       }
+      user_permissions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          permission: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          permission: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          permission?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_permission_fkey"
+            columns: ["permission"]
+            isOneToOne: false
+            referencedRelation: "module_permissions_catalog"
+            referencedColumns: ["permission_code"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -20247,6 +23029,7 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
@@ -20263,10 +23046,81 @@ export type Database = {
         }
         Relationships: []
       }
+      vagas_cargo: {
+        Row: {
+          ato_criacao: string | null
+          ato_extincao: string | null
+          cargo_id: string
+          codigo: string
+          created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
+          data_criacao: string
+          data_extincao: string | null
+          id: string
+          observacoes: string | null
+          unidade_id: string | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          ato_criacao?: string | null
+          ato_extincao?: string | null
+          cargo_id: string
+          codigo: string
+          created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          data_criacao: string
+          data_extincao?: string | null
+          id?: string
+          observacoes?: string | null
+          unidade_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+        }
+        Update: {
+          ato_criacao?: string | null
+          ato_extincao?: string | null
+          cargo_id?: string
+          codigo?: string
+          created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          data_criacao?: string
+          data_extincao?: string | null
+          id?: string
+          observacoes?: string | null
+          unidade_id?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vagas_cargo_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vagas_cargo_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       viagens_diarias: {
         Row: {
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_retorno: string
           data_saida: string
           destino_cidade: string
@@ -20290,6 +23144,8 @@ export type Database = {
           status: string | null
           tipo_onus: string
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
           valor_diaria: number | null
           valor_total: number | null
           veiculo_oficial: boolean | null
@@ -20298,9 +23154,11 @@ export type Database = {
           workflow_diraf_solicitado_em: string | null
           workflow_diraf_status: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_retorno: string
           data_saida: string
           destino_cidade: string
@@ -20324,6 +23182,8 @@ export type Database = {
           status?: string | null
           tipo_onus?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_diaria?: number | null
           valor_total?: number | null
           veiculo_oficial?: boolean | null
@@ -20335,6 +23195,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_retorno?: string
           data_saida?: string
           destino_cidade?: string
@@ -20358,6 +23219,8 @@ export type Database = {
           status?: string | null
           tipo_onus?: string
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
           valor_diaria?: number | null
           valor_total?: number | null
           veiculo_oficial?: boolean | null
@@ -20415,6 +23278,7 @@ export type Database = {
           ato_url: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_fim: string | null
           data_inicio: string
           fundamentacao_legal: string | null
@@ -20427,7 +23291,9 @@ export type Database = {
           tipo_vinculo: Database["public"]["Enums"]["tipo_vinculo_funcional"]
           updated_at: string | null
           updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           ato_data?: string | null
@@ -20438,6 +23304,7 @@ export type Database = {
           ato_url?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio: string
           fundamentacao_legal?: string | null
@@ -20450,6 +23317,7 @@ export type Database = {
           tipo_vinculo: Database["public"]["Enums"]["tipo_vinculo_funcional"]
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -20461,6 +23329,7 @@ export type Database = {
           ato_url?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_fim?: string | null
           data_inicio?: string
           fundamentacao_legal?: string | null
@@ -20473,6 +23342,7 @@ export type Database = {
           tipo_vinculo?: Database["public"]["Enums"]["tipo_vinculo_funcional"]
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -20524,6 +23394,7 @@ export type Database = {
           cargo_id: string | null
           created_at: string | null
           created_by: string | null
+          created_by_servidor_id: string | null
           data_exercicio: string | null
           data_fim: string | null
           data_inicio: string
@@ -20541,7 +23412,10 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_vinculo_servidor"]
           unidade_id: string | null
           updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean
           ato_data?: string | null
@@ -20553,6 +23427,7 @@ export type Database = {
           cargo_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_exercicio?: string | null
           data_fim?: string | null
           data_inicio: string
@@ -20570,6 +23445,8 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_vinculo_servidor"]
           unidade_id?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Update: {
           ativo?: boolean
@@ -20582,6 +23459,7 @@ export type Database = {
           cargo_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          created_by_servidor_id?: string | null
           data_exercicio?: string | null
           data_fim?: string | null
           data_inicio?: string
@@ -20599,6 +23477,8 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["tipo_vinculo_servidor"]
           unidade_id?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
         }
         Relationships: [
           {
@@ -20668,6 +23548,7 @@ export type Database = {
           titulo: string | null
           unidade_id: string | null
         }
+        ComputedFields: never
         Relationships: []
       }
       v_gestores_workflow_auditoria: {
@@ -20692,6 +23573,7 @@ export type Database = {
           ultima_atualizacao: string | null
           usuario_id: string | null
         }
+        ComputedFields: never
         Relationships: [
           {
             foreignKeyName: "gestores_escolares_historico_gestor_id_fkey"
@@ -20720,6 +23602,7 @@ export type Database = {
           tipo_evento: string | null
           unidade_local_id: string | null
         }
+        ComputedFields: never
         Relationships: [
           {
             foreignKeyName: "historico_patrimonio_bem_id_fkey"
@@ -20761,6 +23644,7 @@ export type Database = {
             | null
           total_solicitacoes: number | null
         }
+        ComputedFields: never
         Insert: {
           ativo?: boolean | null
           cnpj?: string | null
@@ -20843,6 +23727,7 @@ export type Database = {
             | Database["public"]["Enums"]["tipo_movimentacao_patrimonio"]
             | null
         }
+        ComputedFields: never
         Relationships: []
       }
       v_patrimonio_por_unidade: {
@@ -20862,7 +23747,96 @@ export type Database = {
           unidade_id: string | null
           valor_total: number | null
         }
+        ComputedFields: never
         Relationships: []
+      }
+      v_processos_acompanhamento: {
+        Row: {
+          ano: number | null
+          assunto: string | null
+          created_at: string | null
+          created_by: string | null
+          data_abertura: string | null
+          data_encerramento: string | null
+          descricao: string | null
+          etapa_atual_ordem: number | null
+          etapa_iniciada_em: string | null
+          etapa_nome: string | null
+          etapa_prazo_limite: string | null
+          etapa_total: number | null
+          id: string | null
+          interessado_documento: string | null
+          interessado_nome: string | null
+          interessado_tipo: string | null
+          modelo_codigo: string | null
+          modelo_id: string | null
+          modelo_nome: string | null
+          numero_formatado: string | null
+          numero_processo: string | null
+          numero_sei: string | null
+          observacoes: string | null
+          pendencias_obrigatorias: number | null
+          processo_origem_id: string | null
+          sigilo: Database["public"]["Enums"]["nivel_sigilo_processo"] | null
+          situacao_prazo: string | null
+          status:
+            | Database["public"]["Enums"]["status_processo_administrativo"]
+            | null
+          suspenso_desde: string | null
+          tipo_processo:
+            | Database["public"]["Enums"]["tipo_processo_administrativo"]
+            | null
+          unidade_atual_id: string | null
+          unidade_nome: string | null
+          unidade_origem_id: string | null
+          unidade_sigla: string | null
+          updated_at: string | null
+        }
+        ComputedFields: never
+        Relationships: [
+          {
+            foreignKeyName: "processos_administrativos_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "processo_modelos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_administrativos_processo_origem_id_fkey"
+            columns: ["processo_origem_id"]
+            isOneToOne: false
+            referencedRelation: "processos_administrativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_administrativos_processo_origem_id_fkey"
+            columns: ["processo_origem_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_acompanhamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_administrativos_processo_origem_id_fkey"
+            columns: ["processo_origem_id"]
+            isOneToOne: false
+            referencedRelation: "v_processos_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_administrativos_unidade_atual_id_fkey"
+            columns: ["unidade_atual_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_administrativos_unidade_origem_id_fkey"
+            columns: ["unidade_origem_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_processos_resumo: {
         Row: {
@@ -20884,7 +23858,86 @@ export type Database = {
           ultima_movimentacao: string | null
           unidade_origem: string | null
         }
+        ComputedFields: never
         Relationships: []
+      }
+      v_quadro_vagas: {
+        Row: {
+          ato_criacao: string | null
+          ato_extincao: string | null
+          cargo_categoria: Database["public"]["Enums"]["categoria_cargo"] | null
+          cargo_id: string | null
+          cargo_nome: string | null
+          cargo_sigla: string | null
+          codigo: string | null
+          data_criacao: string | null
+          data_extincao: string | null
+          id: string | null
+          observacoes: string | null
+          ocupante_desde: string | null
+          ocupante_nome: string | null
+          ocupante_servidor_id: string | null
+          ocupante_status:
+            | Database["public"]["Enums"]["status_provimento"]
+            | null
+          provimento_id: string | null
+          situacao: string | null
+          unidade_id: string | null
+          unidade_nome: string | null
+          unidade_sigla: string | null
+        }
+        ComputedFields: never
+        Relationships: [
+          {
+            foreignKeyName: "provimentos_servidor_id_fkey"
+            columns: ["ocupante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provimentos_servidor_id_fkey"
+            columns: ["ocupante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "provimentos_servidor_id_fkey"
+            columns: ["ocupante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provimentos_servidor_id_fkey"
+            columns: ["ocupante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "provimentos_servidor_id_fkey"
+            columns: ["ocupante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vagas_cargo_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vagas_cargo_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_relatorio_patrimonio: {
         Row: {
@@ -20914,6 +23967,7 @@ export type Database = {
           valor_estimado: number | null
           valor_total: number | null
         }
+        ComputedFields: never
         Relationships: []
       }
       v_relatorio_tce_pessoal: {
@@ -20944,6 +23998,7 @@ export type Database = {
           unidade_nome: string | null
           unidade_sigla: string | null
         }
+        ComputedFields: never
         Relationships: []
       }
       v_relatorio_unidades_locais: {
@@ -20984,6 +24039,7 @@ export type Database = {
           unidade_administrativa: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Relationships: [
           {
             foreignKeyName: "nomeacoes_chefe_unidade_servidor_id_fkey"
@@ -21038,6 +24094,7 @@ export type Database = {
           titulo: string | null
           unidade_id: string | null
         }
+        ComputedFields: never
         Relationships: []
       }
       v_resumo_patrimonio: {
@@ -21051,6 +24108,7 @@ export type Database = {
           valor_total_aquisicao: number | null
           valor_total_liquido: number | null
         }
+        ComputedFields: never
         Relationships: []
       }
       v_servidor_tipo_derivado: {
@@ -21062,6 +24120,7 @@ export type Database = {
           tipos_ativos: string[] | null
           total_vinculos_ativos: number | null
         }
+        ComputedFields: never
         Insert: {
           matricula?: string | null
           nome_completo?: string | null
@@ -21102,6 +24161,7 @@ export type Database = {
           unidade_sigla: string | null
           vinculo: Database["public"]["Enums"]["vinculo_funcional"] | null
         }
+        ComputedFields: never
         Relationships: [
           {
             foreignKeyName: "servidores_cargo_atual_id_fkey"
@@ -21128,6 +24188,7 @@ export type Database = {
           resposta: string | null
           status: string | null
         }
+        ComputedFields: never
         Insert: {
           dias_restantes?: never
           prazo_resposta?: string | null
@@ -21146,9 +24207,52 @@ export type Database = {
         }
         Relationships: []
       }
+      v_vagas_historico: {
+        Row: {
+          cargo_id: string | null
+          cargo_nome: string | null
+          cargo_sigla: string | null
+          codigo: string | null
+          data: string | null
+          detalhe: string | null
+          evento: string | null
+          provimento_id: string | null
+          registrado_em: string | null
+          servidor_id: string | null
+          servidor_nome: string | null
+          unidade_id: string | null
+          unidade_sigla: string | null
+          vaga_id: string | null
+        }
+        ComputedFields: never
+        Relationships: []
+      }
     }
     Functions: {
-      atualizar_codigos_unidades_locais: { Args: never; Returns: undefined }
+      afastamento_remunerado: {
+        Args: {
+          p_data: string
+          p_tipo_afastamento: string
+          p_tipo_licenca: string
+        }
+        Returns: boolean
+      }
+      alcanca_modulos_alvo: {
+        Args: { _modulos: Database["public"]["Enums"]["app_module"][] }
+        Returns: boolean
+      }
+      aniversariantes_do_mes: {
+        Args: { p_mes: number }
+        Returns: {
+          dia: number
+          nome: string
+        }[]
+      }
+      arbitro_cpf_cadastrado: { Args: { p_cpf: string }; Returns: boolean }
+      atualizar_codigos_unidades_locais: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       calcular_horas_trabalhadas: {
         Args: {
           p_entrada1: string
@@ -21182,9 +24286,36 @@ export type Database = {
         Args: { _module_name?: string; _user_id: string }
         Returns: boolean
       }
-      can_manage_cms: { Args: never; Returns: boolean }
+      can_manage_cms: { Args: Record<PropertyKey, never>; Returns: boolean }
       can_view_audit: { Args: { _user_id: string }; Returns: boolean }
       can_view_indicacao: { Args: { _user_id: string }; Returns: boolean }
+      cancelar_remessa: {
+        Args: { p_motivo: string; p_remessa_id: string }
+        Returns: {
+          cancelada_em: string
+          cancelada_por: string
+          id: string
+          motivo_cancelamento: string
+          numero_remessa: number
+          status: string
+        }[]
+      }
+      cancelar_remessa_bancaria: { Args: { p_id: string }; Returns: Json }
+      conciliar_movimento_bancario: {
+        Args: {
+          p_justificativa?: string
+          p_movimento_id: string
+          p_pagamento_id: string
+        }
+        Returns: Json
+      }
+      config_envio_servidor: { Args: { p_canal: string }; Returns: Json }
+      confirmar_alteracao_fiplan: { Args: { p_id: string }; Returns: Json }
+      confirmar_remessa_bancaria: {
+        Args: { p_id: string; p_sha256: string }
+        Returns: Json
+      }
+      consultar_gestor_por_cpf: { Args: { p_cpf: string }; Returns: Json }
       consultar_protocolo_sic: {
         Args: { p_protocolo: string; p_token: string }
         Returns: {
@@ -21197,15 +24328,57 @@ export type Database = {
           status: string
         }[]
       }
+      consumir_cota_uso: {
+        Args: {
+          _descricao: string
+          _limite: number
+          _modulo: string
+          _quantidade: number
+          _tipo: string
+          _usuario: string
+        }
+        Returns: boolean
+      }
+      corrigir_conta_movimento: {
+        Args: {
+          p_agencia: string
+          p_agencia_dv: string
+          p_banco: string
+          p_conta: string
+          p_conta_dv: string
+          p_justificativa: string
+          p_movimento_id: string
+          p_validado_bb?: boolean
+        }
+        Returns: Json
+      }
       count_dependentes_irrf: {
         Args: { p_data?: string; p_servidor_id: string }
         Returns: number
       }
+      data_local: { Args: Record<PropertyKey, never>; Returns: string }
+      eh_meu_arquivo_frequencia: { Args: { _path: string }; Returns: boolean }
+      eh_meu_servidor: { Args: { _servidor_id: string }; Returns: boolean }
+      eh_minha_pasta_servidor: { Args: { _name: string }; Returns: boolean }
       enviar_folha_conferencia: { Args: { p_folha_id: string }; Returns: Json }
       fechar_folha: {
         Args: { p_folha_id: string; p_justificativa?: string }
         Returns: Json
       }
+      fin_casar_movimento_pagamento: {
+        Args: {
+          p_data: string
+          p_documento: string
+          p_identificador: string
+          p_valor: number
+        }
+        Returns: string
+      }
+      fin_marcar_pagamento_pago: {
+        Args: { p_data: string; p_pagamento_id: string }
+        Returns: string
+      }
+      fin_remessa_bancaria_json: { Args: { p_id: string }; Returns: Json }
       fn_atualizar_situacao_servidor: {
         Args: { p_servidor_id: string }
         Returns: undefined
@@ -21248,7 +24421,7 @@ export type Database = {
         }[]
       }
       fn_contar_processos_por_status: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: {
           quantidade: number
           status: string
@@ -21271,11 +24444,15 @@ export type Database = {
         Args: { p_exercicio_inscricao?: number; p_exercicio_origem: number }
         Returns: number
       }
-      fn_pode_arquivar_processo: {
-        Args: { p_processo_id: string }
-        Returns: boolean
+      fn_proximo_numero_tombamento: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
-      fn_proximo_numero_processo: { Args: { p_ano?: number }; Returns: string }
+      fn_situacao_prazo: { Args: { p_limite: string }; Returns: string }
+      fn_somar_dias_uteis: {
+        Args: { p_dias: number; p_inicio: string }
+        Returns: string
+      }
       fn_validar_margem_consignavel: {
         Args: { p_servidor_id: string }
         Returns: {
@@ -21297,10 +24474,64 @@ export type Database = {
           valor_teto: number
         }[]
       }
+      folha_avos_13: {
+        Args: { p_ano: number; p_fim: string; p_inicio: string }
+        Returns: number
+      }
+      folha_dias_comerciais: {
+        Args: {
+          p_fim: string
+          p_inicio: string
+          p_mes_fim: string
+          p_mes_ini: string
+        }
+        Returns: number
+      }
       folha_esta_bloqueada: { Args: { p_folha_id: string }; Returns: boolean }
-      generate_schema_ddl: { Args: never; Returns: Json }
-      gerar_codigo_pre_cadastro: { Args: never; Returns: string }
-      gerar_link_frequencia: { Args: never; Returns: string }
+      folha_item: {
+        Args: {
+          p_base?: number
+          p_descricao: string
+          p_origem?: string
+          p_percentual?: number
+          p_referencia?: string
+          p_rubrica?: string
+          p_tipo: string
+          p_valor: number
+        }
+        Returns: Json
+      }
+      folha_montar_ficha: {
+        Args: {
+          p_d1: string
+          p_d2: string
+          p_manuais: Json
+          p_provimento_id: string
+          p_servidor_id: string
+          p_tabelas: Json
+          p_tipo: string
+        }
+        Returns: Json
+      }
+      frequencia_competencia_travada: {
+        Args: { p_data: string; p_servidor_id: string }
+        Returns: boolean
+      }
+      fundamento_lancamento: { Args: { p_modulos: string[] }; Returns: Json }
+      fundamento_linha: {
+        Args: { p_novo: Json; p_op: string; p_tabela: string; p_velho: Json }
+        Returns: Json
+      }
+      fundamento_tabela: { Args: { p_tabela: string }; Returns: Json }
+      generate_schema_ddl: { Args: Record<PropertyKey, never>; Returns: Json }
+      gerar_codigo_pre_cadastro: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      gerar_link_frequencia: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       gerar_numero_portaria: { Args: { p_ano?: number }; Returns: string }
       gerar_numero_tombamento: {
         Args: { p_unidade_local_id: string }
@@ -21310,7 +24541,10 @@ export type Database = {
         Args: { p_unidade_id: string }
         Returns: string
       }
-      gerar_protocolo_memorando_lotacao: { Args: never; Returns: string }
+      gerar_protocolo_memorando_lotacao: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       gerar_relatorio_responsavel: {
         Args: { p_responsavel_id: string }
         Returns: {
@@ -21337,7 +24571,7 @@ export type Database = {
         }[]
       }
       get_diagnostico_acessos: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: {
           email: string
           full_name: string
@@ -21358,9 +24592,9 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_unidade"]
         }[]
       }
-      get_my_access_context: { Args: never; Returns: Json }
+      get_my_access_context: { Args: Record<PropertyKey, never>; Returns: Json }
       get_my_modules: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: {
           module: string
         }[]
@@ -21385,6 +24619,10 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_unidade"]
         }[]
       }
+      get_user_permission_codes: {
+        Args: { _user_id: string }
+        Returns: string[]
+      }
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
       has_module:
         | {
@@ -21399,17 +24637,44 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_permission_code: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
+      importar_arquivo_bancario: {
+        Args: {
+          p_arquivo: Json
+          p_linhas: Json
+          p_parametros: Json
+          p_simular?: boolean
+        }
+        Returns: Json
+      }
+      importar_qdd_fiplan: {
+        Args: {
+          p_arquivo: Json
+          p_exercicio: number
+          p_linhas: Json
+          p_simular?: boolean
+        }
+        Returns: Json
+      }
       is_active_user:
-        | { Args: never; Returns: boolean }
+        | { Args: Record<PropertyKey, never>; Returns: boolean }
         | { Args: { p_user_id: string }; Returns: boolean }
+      is_admin_atual: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_admin_user: { Args: { _user_id?: string }; Returns: boolean }
       is_user_active: { Args: { _user_id?: string }; Returns: boolean }
+      lancamento_modulos_tabela: {
+        Args: { p_tabela: string }
+        Returns: string[]
+      }
       list_public_tables: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: {
           row_count: number
           table_name: string
@@ -21442,6 +24707,42 @@ export type Database = {
         }
         Returns: string
       }
+      lotacao_vigente: {
+        Args: { p_data?: string; p_servidor_id: string }
+        Returns: {
+          ato_data: string
+          ato_doe_data: string
+          ato_doe_numero: string
+          ato_numero: string
+          ato_tipo: string
+          created_by_servidor_id: string
+          data_fim: string
+          data_inicio: string
+          origem: string
+          registro_id: string
+          tipo: string
+          unidade_id: string
+        }[]
+      }
+      mascarar_parcial: { Args: { p_valor: string }; Returns: string }
+      meu_servidor_id: { Args: Record<PropertyKey, never>; Returns: string }
+      meus_fundamentos_lancamento: {
+        Args: { p_modulos?: Database["public"]["Enums"]["app_module"][] }
+        Returns: {
+          ato: Json
+          bloqueado: boolean
+          cessao_id: string
+          comissao_id: string
+          designacao_id: string
+          lotacao_id: string
+          modo: string
+          modulo: string
+          permitido: boolean
+          unidade_id: string
+          unidade_nome: string
+          via: string
+        }[]
+      }
       obter_dado_oficial: { Args: { p_chave: string }; Returns: string }
       obter_parametro_simples: {
         Args: {
@@ -21465,6 +24766,254 @@ export type Database = {
         }
         Returns: Json
       }
+      obter_protocolo_arbitro: { Args: { p_id: string }; Returns: string }
+      obter_remessa_bancaria: { Args: { p_id: string }; Returns: Json }
+      patrimonio_buscar_bem_por_codigo: {
+        Args: { p_codigo: string }
+        Returns: {
+          andar: string | null
+          cargo_responsavel: string | null
+          categoria_bem: Database["public"]["Enums"]["categoria_bem"] | null
+          centro_custo_id: string | null
+          codigo_qr: string | null
+          created_at: string | null
+          created_by: string | null
+          data_aquisicao: string
+          data_atribuicao_responsabilidade: string | null
+          data_nota_fiscal: string | null
+          data_ultima_avaliacao: string | null
+          depreciacao_acumulada: number | null
+          descricao: string
+          empenho_id: string | null
+          especificacao: string | null
+          estado_conservacao: string | null
+          estado_conservacao_inventario:
+            | Database["public"]["Enums"]["estado_conservacao_inventario"]
+            | null
+          fonte_recurso_id: string | null
+          forma_aquisicao: Database["public"]["Enums"]["forma_aquisicao"] | null
+          fornecedor_cnpj_cpf: string | null
+          fornecedor_id: string | null
+          foto_bem_url: string | null
+          foto_etiqueta_qr_url: string | null
+          garantia_ate: string | null
+          id: string
+          item_id: string | null
+          localizacao_especifica: string | null
+          marca: string | null
+          modelo: string | null
+          nota_fiscal: string | null
+          numero_patrimonio: string
+          numero_serie: string | null
+          observacao: string | null
+          patrimonio_anterior: string | null
+          pendencias: Json | null
+          ponto_especifico: string | null
+          predio: string | null
+          processo_sei: string | null
+          responsavel_id: string | null
+          sala: string | null
+          setor_responsavel_id: string | null
+          situacao: string | null
+          situacao_inventario:
+            | Database["public"]["Enums"]["situacao_bem_patrimonio"]
+            | null
+          subcategoria: string | null
+          termo_responsabilidade_url: string | null
+          unidade_id: string | null
+          unidade_local_id: string | null
+          updated_at: string | null
+          valor_aquisicao: number
+          valor_liquido: number | null
+          valor_residual: number | null
+          vida_util_anos: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "bens_patrimoniais"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      patrimonio_decidir_baixa: {
+        Args: {
+          p_aprovar: boolean
+          p_baixa_id: string
+          p_motivo_rejeicao?: string
+        }
+        Returns: undefined
+      }
+      patrimonio_decidir_movimentacao: {
+        Args: {
+          p_aprovar: boolean
+          p_motivo_rejeicao?: string
+          p_movimentacao_id: string
+        }
+        Returns: undefined
+      }
+      perfil_ativo_atual: { Args: Record<PropertyKey, never>; Returns: boolean }
+      pode_conciliar_pagamentos: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      pode_configurar_envios: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      pode_gerenciar_avisos: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      pode_ver_envios: { Args: Record<PropertyKey, never>; Returns: boolean }
+      portaria_nomeacao_publicada: {
+        Args: {
+          p_cargo_id: string
+          p_provimento_id: string
+          p_servidor_id: string
+        }
+        Returns: boolean
+      }
+      pre_cadastro_publico_buscar: {
+        Args: { p_bloquear?: boolean; p_token: string }
+        Returns: {
+          acumula_cargo: boolean | null
+          acumulo_descricao: string | null
+          ano_conclusao: number | null
+          ano_fim_primeiro_emprego: number | null
+          ano_inicio_primeiro_emprego: number | null
+          banco_agencia: string | null
+          banco_codigo: string | null
+          banco_conta: string | null
+          banco_nome: string | null
+          banco_tipo_conta: string | null
+          certidao_tipo: string | null
+          certificado_reservista: string | null
+          cnh_categoria: string | null
+          cnh_data_expedicao: string | null
+          cnh_numero: string | null
+          cnh_primeira_habilitacao: string | null
+          cnh_uf: string | null
+          cnh_validade: string | null
+          codigo_acesso: string
+          conselho_numero: string | null
+          contato_emergencia_nome: string | null
+          contato_emergencia_parentesco: string | null
+          convertido_em: string | null
+          convertido_por: string | null
+          cpf: string
+          created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
+          criado_ip_hash: string | null
+          ctps_data_emissao: string | null
+          ctps_numero: string | null
+          ctps_serie: string | null
+          ctps_uf: string | null
+          cursos_complementares: Json | null
+          data_envio: string | null
+          data_nascimento: string | null
+          dependentes: Json | null
+          doc_certidao: boolean | null
+          doc_certidao_criminal_estadual: boolean | null
+          doc_certidao_criminal_federal: boolean | null
+          doc_certidao_improbidade: boolean | null
+          doc_certificado_reservista: boolean | null
+          doc_comprovante_bancario: boolean | null
+          doc_comprovante_residencia: boolean | null
+          doc_cpf: boolean | null
+          doc_declaracao_acumulacao: boolean | null
+          doc_declaracao_bens: boolean | null
+          doc_diploma: boolean | null
+          doc_historico_escolar: boolean | null
+          doc_pis_pasep: boolean | null
+          doc_quitacao_eleitoral: boolean | null
+          doc_registro_conselho: boolean | null
+          doc_rg: boolean | null
+          doc_termo_responsabilidade: boolean | null
+          doc_titulo_eleitor: boolean | null
+          email: string
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_complemento: string | null
+          endereco_logradouro: string | null
+          endereco_numero: string | null
+          endereco_uf: string | null
+          escolaridade: string | null
+          estado_civil: string | null
+          estrangeiro_ano_chegada: number | null
+          estrangeiro_data_chegada: string | null
+          estrangeiro_data_limite_permanencia: string | null
+          estrangeiro_registro_nacional: string | null
+          experiencia_resumo: string | null
+          formacao_academica: string | null
+          foto_url: string | null
+          habilidades: string[] | null
+          id: string
+          idiomas: Json | null
+          indicacao: string | null
+          instituicao_ensino: string | null
+          ip_envio: string | null
+          molestia_grave: boolean | null
+          nacionalidade: string | null
+          naturalidade_cidade: string | null
+          naturalidade_uf: string | null
+          nome_completo: string
+          nome_mae: string | null
+          nome_pai: string | null
+          nome_social: string | null
+          observacoes: string | null
+          pcd: boolean | null
+          pcd_tipo: string | null
+          pis_pasep: string | null
+          raca_cor: string | null
+          registro_conselho: string | null
+          reservista_ano: number | null
+          reservista_categoria: string | null
+          reservista_data_emissao: string | null
+          reservista_orgao: string | null
+          rg: string | null
+          rg_data_emissao: string | null
+          rg_orgao_expedidor: string | null
+          rg_uf: string | null
+          servidor_id: string | null
+          sexo: string | null
+          status: string | null
+          telefone_celular: string | null
+          telefone_emergencia: string | null
+          telefone_fixo: string | null
+          tipo_sanguineo: string | null
+          titulo_cidade_votacao: string | null
+          titulo_data_emissao: string | null
+          titulo_eleitor: string | null
+          titulo_secao: string | null
+          titulo_uf_votacao: string | null
+          titulo_zona: string | null
+          token_acesso: string | null
+          token_expira_em: string | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pre_cadastros"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      pre_cadastro_publico_colunas: {
+        Args: Record<PropertyKey, never>
+        Returns: string[]
+      }
+      pre_cadastro_publico_criar: { Args: { p_dados: Json }; Returns: Json }
+      pre_cadastro_publico_enviar: { Args: { p_token: string }; Returns: Json }
+      pre_cadastro_publico_filtrar: { Args: { p_dados: Json }; Returns: Json }
+      pre_cadastro_publico_obter: { Args: { p_token: string }; Returns: Json }
+      pre_cadastro_publico_salvar: {
+        Args: { p_dados: Json; p_token: string }
+        Returns: Json
+      }
       processar_folha_pagamento: { Args: { p_folha_id: string }; Returns: Json }
       promover_rascunho: {
         Args: { p_justificativa?: string; p_rascunho_id: string }
@@ -21474,8 +25023,287 @@ export type Database = {
         Args: { p_folha_id: string; p_justificativa: string }
         Returns: Json
       }
+      registrar_denuncia_publica: {
+        Args: {
+          p_anonima: boolean
+          p_cargo?: string
+          p_data_ocorrencia: string
+          p_descricao: string
+          p_email?: string
+          p_envolvidos: string
+          p_evidencias?: string
+          p_local_ocorrencia: string
+          p_nome?: string
+          p_telefone?: string
+          p_tipo: string
+        }
+        Returns: string
+      }
+      registrar_evento: {
+        Args: {
+          p_acao: string
+          p_descricao?: string
+          p_entidade: string
+          p_entidade_id?: string
+          p_metadados?: Json
+        }
+        Returns: string
+      }
+      registrar_extrato_bb: {
+        Args: { p_conta_bancaria_id: string; p_lancamentos: Json }
+        Returns: Json
+      }
+      registrar_gestor_publico: {
+        Args: {
+          p_celular: string
+          p_cpf: string
+          p_data_nascimento: string
+          p_email: string
+          p_endereco: string
+          p_escola_id: string
+          p_nome: string
+          p_rg: string
+        }
+        Returns: Json
+      }
+      registrar_remessa_bancaria: {
+        Args: {
+          p_conta_autarquia_id: string
+          p_data_pagamento: string
+          p_layout: string
+          p_movimentos: string[]
+          p_nsa_minimo?: number
+          p_tipo_servico?: string
+        }
+        Returns: Json
+      }
+      responsavel_atual: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          origem: string
+          servidor_id: string
+          servidor_matricula: string
+          servidor_nome: string
+          user_id: string
+        }[]
+      }
+      rh_admitir_servidor: {
+        Args: {
+          p_ato_data?: string
+          p_ato_doe_data?: string
+          p_ato_doe_numero?: string
+          p_ato_numero?: string
+          p_ato_tipo?: string
+          p_cargo_id: string
+          p_data_inicio: string
+          p_funcao_exercida?: string
+          p_gerar_minuta?: boolean
+          p_observacao?: string
+          p_orgao_origem?: string
+          p_servidor_id: string
+          p_tipo: Database["public"]["Enums"]["tipo_vinculo_servidor"]
+          p_unidade_id: string
+        }
+        Returns: Json
+      }
+      rh_avancar_status_por_data: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      rh_desligar_servidor: {
+        Args: {
+          p_ato_data?: string
+          p_ato_doe_data?: string
+          p_ato_doe_numero?: string
+          p_ato_numero?: string
+          p_ato_tipo?: string
+          p_data: string
+          p_gerar_minuta?: boolean
+          p_motivo: string
+          p_observacao?: string
+          p_servidor_id: string
+        }
+        Returns: Json
+      }
+      rh_exige_servidor_vinculado: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      rh_importar_quadro_vagas: {
+        Args: { p_gravar?: boolean; p_linhas: Json }
+        Returns: Json
+      }
+      rh_pendencias_nomeacao: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cargo: string
+          data_nomeacao: string
+          matricula: string
+          nome: string
+          portaria_numero: string
+          portaria_status: string
+          provimento_id: string
+          servidor_id: string
+        }[]
+      }
+      rh_protocolo_atual: {
+        Args: {
+          p_dados?: Json
+          p_descricao?: string
+          p_servidor_alvo?: string
+          p_tipo?: string
+        }
+        Returns: string
+      }
+      rh_protocolo_consultar: { Args: { p_numero: string }; Returns: Json }
+      rh_protocolos_listar: {
+        Args: {
+          p_ate?: string
+          p_desde?: string
+          p_limite?: number
+          p_servidor?: string
+          p_tipo?: string
+        }
+        Returns: {
+          descricao: string
+          em: string
+          matricula: string
+          numero: string
+          origem: string
+          responsavel: string
+          servidor_alvo_id: string
+          tipo: string
+        }[]
+      }
+      rh_tipo_protocolo: { Args: { p_entidade: string }; Returns: string }
+      rh_transferir_servidor: {
+        Args: {
+          p_ato_data?: string
+          p_ato_doe_data?: string
+          p_ato_doe_numero?: string
+          p_ato_numero?: string
+          p_ato_tipo?: string
+          p_data: string
+          p_gerar_minuta?: boolean
+          p_motivo?: string
+          p_observacao?: string
+          p_servidor_id: string
+          p_unidade_id: string
+        }
+        Returns: Json
+      }
+      rh_vaga_ocupante_atual: { Args: { p_vaga_id: string }; Returns: string }
+      rh_vaga_situacao: { Args: { p_vaga_id: string }; Returns: string }
+      salvar_segredo_envio: {
+        Args: { p_canal: string; p_segredo: string }
+        Returns: string
+      }
+      saneamento_lancamento: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          login_ativo: boolean
+          lotacao_unidade_id: string
+          lotacao_unidade_nome: string
+          matricula: string
+          nome: string
+          problemas: string[]
+          servidor_id: string
+          situacao: string
+          tem_login: boolean
+          unidade_atual_id: string
+          unidade_atual_nome: string
+        }[]
+      }
+      transparencia_cargos_publicos: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          atualizado_em: string
+          cargo: string
+          cargo_id: string
+          categoria: string
+          diretoria: string
+          diretoria_tipo: string
+          lei_criacao_data: string
+          lei_criacao_numero: string
+          natureza: string
+          nivel_hierarquico: number
+          ocupante: string
+          simbolo: string
+          unidade: string
+          unidade_id: string
+          unidade_sigla: string
+          unidade_superior: string
+          vaga: number
+          vagas_ocupadas: number
+          vagas_previstas: number
+          vencimento: number
+        }[]
+      }
+      transparencia_execucao_orcamentaria: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          exercicio: number
+          quantidade_dotacoes: number
+          valor_atual: number
+          valor_empenhado: number
+          valor_inicial: number
+          valor_liquidado: number
+          valor_pago: number
+        }[]
+      }
+      transparencia_licitacoes: {
+        Args: { p_ano?: number; p_modalidade?: string }
+        Returns: {
+          ano: number
+          data_abertura: string
+          data_homologacao: string
+          fase_atual: string
+          id: string
+          modalidade: string
+          numero_processo: string
+          objeto: string
+          unidade_requisitante: string
+          valor_estimado: number
+          vencedor_cnpj_parcial: string
+          vencedor_razao_social: string
+        }[]
+      }
+      transparencia_patrimonio: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          data_aquisicao: string
+          descricao: string
+          estado_conservacao: string
+          id: string
+          marca: string
+          modelo: string
+          numero_patrimonio: string
+          situacao: string
+          unidade_local_municipio: string
+          unidade_local_nome: string
+          unidade_organizacional_nome: string
+          valor_aquisicao: number
+        }[]
+      }
+      trilha_contexto: { Args: Record<PropertyKey, never>; Returns: Json }
+      trilha_contexto_requisicao: {
+        Args: Record<PropertyKey, never>
+        Returns: Record<string, unknown>
+      }
+      trilha_mascarar: {
+        Args: { p_linha: Json; p_tabela: string }
+        Returns: Json
+      }
+      trilha_storage_chave: {
+        Args: { p_bucket: string; p_nome: string }
+        Returns: Json
+      }
+      unidade_e_superiores: {
+        Args: { p_unidade_id: string }
+        Returns: string[]
+      }
       user_context: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: {
           is_active: boolean
           modules: Database["public"]["Enums"]["app_module"][]
@@ -21486,6 +25314,7 @@ export type Database = {
         Args: { _unidade_id: string; _user_id: string }
         Returns: boolean
       }
+      usuario_eh_admin: { Args: { check_user_id?: string }; Returns: boolean }
       usuario_eh_super_admin: {
         Args: { check_user_id?: string }
         Returns: boolean
@@ -21496,14 +25325,6 @@ export type Database = {
       }
       usuario_pode_reabrir_folha: {
         Args: { p_user_id: string }
-        Returns: boolean
-      }
-      usuario_tem_acesso_modulo: {
-        Args: { _codigo_modulo: string; _user_id: string }
-        Returns: boolean
-      }
-      usuario_tem_acesso_rota: {
-        Args: { _pathname: string; _user_id: string }
         Returns: boolean
       }
       usuario_tem_permissao: {
@@ -21525,6 +25346,175 @@ export type Database = {
           agendas_conflitantes: Json
           tem_conflito: boolean
         }[]
+      }
+      wf_abrir_processo: {
+        Args: {
+          p_assunto: string
+          p_descricao: string
+          p_interessado_documento?: string
+          p_interessado_nome: string
+          p_interessado_tipo: string
+          p_modelo_codigo: string
+          p_numero_sei?: string
+          p_sigilo?: Database["public"]["Enums"]["nivel_sigilo_processo"]
+        }
+        Returns: string
+      }
+      wf_arquivar: {
+        Args: { p_motivo?: string; p_processo_id: string }
+        Returns: undefined
+      }
+      wf_atualizar_numero_sei: {
+        Args: { p_numero_sei: string; p_processo_id: string }
+        Returns: undefined
+      }
+      wf_avancar_etapa: {
+        Args: {
+          p_etapa_esperada: number
+          p_observacao?: string
+          p_processo_id: string
+        }
+        Returns: undefined
+      }
+      wf_conceder_acesso: {
+        Args: {
+          p_motivo?: string
+          p_nivel: string
+          p_processo_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
+      wf_concluir: {
+        Args: { p_motivo?: string; p_processo_id: string }
+        Returns: undefined
+      }
+      wf_devolver_etapa: {
+        Args: {
+          p_etapa_esperada: number
+          p_motivo: string
+          p_para_ordem: number
+          p_processo_id: string
+        }
+        Returns: undefined
+      }
+      wf_exigir_em_andamento: {
+        Args: {
+          p_status: Database["public"]["Enums"]["status_processo_administrativo"]
+        }
+        Returns: undefined
+      }
+      wf_listar_credenciais: {
+        Args: { p_processo_id: string }
+        Returns: {
+          concedido_por_nome: string
+          created_at: string
+          motivo: string
+          nivel_acesso: string
+          usuario_id: string
+          usuario_nome: string
+        }[]
+      }
+      wf_listar_usuarios_ativos: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
+      wf_marcar_item: {
+        Args: {
+          p_item_codigo: string
+          p_marcado: boolean
+          p_observacao?: string
+          p_processo_id: string
+        }
+        Returns: undefined
+      }
+      wf_pendencias: {
+        Args: {
+          p_ate: number
+          p_de: number
+          p_modelo_id: string
+          p_processo_id: string
+        }
+        Returns: string[]
+      }
+      wf_pode_ver_processo: {
+        Args: { p_processo_id: string }
+        Returns: boolean
+      }
+      wf_preparar_numero_sei: {
+        Args: { p_numero_sei: string; p_processo_id: string }
+        Returns: string
+      }
+      wf_reativar: {
+        Args: { p_motivo: string; p_processo_id: string }
+        Returns: undefined
+      }
+      wf_registrar_movimentacao: {
+        Args: {
+          p_descricao: string
+          p_etapa_destino: number
+          p_etapa_origem: number
+          p_observacoes: string
+          p_prazo_dias: number
+          p_prazo_limite: string
+          p_processo_id: string
+          p_tipo: Database["public"]["Enums"]["tipo_movimentacao_processo"]
+          p_unidade_destino: string
+          p_unidade_origem: string
+        }
+        Returns: undefined
+      }
+      wf_resolver_unidade: {
+        Args: { p_sigla: string; p_unidade_origem: string }
+        Returns: string
+      }
+      wf_revogar_acesso: {
+        Args: { p_processo_id: string; p_usuario_id: string }
+        Returns: undefined
+      }
+      wf_suspender: {
+        Args: { p_motivo: string; p_processo_id: string }
+        Returns: undefined
+      }
+      wf_travar_processo: {
+        Args: { p_escrita: boolean; p_processo_id: string }
+        Returns: {
+          ano: number
+          assunto: string
+          created_at: string
+          created_by: string | null
+          data_abertura: string
+          data_encerramento: string | null
+          descricao: string | null
+          etapa_atual_ordem: number | null
+          etapa_iniciada_em: string | null
+          etapa_prazo_limite: string | null
+          id: string
+          interessado_documento: string | null
+          interessado_nome: string
+          interessado_tipo: string
+          modelo_id: string | null
+          numero_processo: string
+          numero_sei: string | null
+          observacoes: string | null
+          processo_origem_id: string | null
+          sigilo: Database["public"]["Enums"]["nivel_sigilo_processo"]
+          status: Database["public"]["Enums"]["status_processo_administrativo"]
+          suspenso_desde: string | null
+          tipo_processo: Database["public"]["Enums"]["tipo_processo_administrativo"]
+          unidade_atual_id: string | null
+          unidade_origem_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "processos_administrativos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
@@ -21723,7 +25713,6 @@ export type Database = {
         | "despesa"
         | "resultado"
       natureza_rubrica: "remuneratorio" | "indenizatorio" | "informativo"
-      nivel_perfil: "sistema" | "organizacional" | "operacional"
       nivel_risco: "muito_baixo" | "baixo" | "medio" | "alto" | "muito_alto"
       nivel_sigilo_processo: "publico" | "restrito" | "sigiloso"
       origem_lancamento: "automatico" | "manual" | "importado" | "retroativo"
@@ -21796,6 +25785,7 @@ export type Database = {
         | "divergente"
         | "avariado"
         | "em_manutencao"
+        | "sem_etiqueta"
       status_conciliacao:
         | "pendente"
         | "conciliado"
@@ -22235,12 +26225,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -22264,11 +26254,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -22289,11 +26279,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -22314,11 +26304,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -22331,11 +26321,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -22559,7 +26549,6 @@ export const Constants = {
         "resultado",
       ],
       natureza_rubrica: ["remuneratorio", "indenizatorio", "informativo"],
-      nivel_perfil: ["sistema", "organizacional", "operacional"],
       nivel_risco: ["muito_baixo", "baixo", "medio", "alto", "muito_alto"],
       nivel_sigilo_processo: ["publico", "restrito", "sigiloso"],
       origem_lancamento: ["automatico", "manual", "importado", "retroativo"],
@@ -22640,6 +26629,7 @@ export const Constants = {
         "divergente",
         "avariado",
         "em_manutencao",
+        "sem_etiqueta",
       ],
       status_conciliacao: [
         "pendente",

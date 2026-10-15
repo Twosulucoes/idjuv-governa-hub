@@ -138,6 +138,9 @@ o baseline e, com `FOTO_PROD_URL`, o banco de produção: diz quais correções 
 e o que a produção tem de diferente das migrações. Na produção roda pelo workflow manual **Fotografia do banco**
 (`docs/DESENVOLVIMENTO.md`).
 
+`scripts/db/gerar-tipos.sh` gera `src/integrations/supabase/types.ts` do mesmo replay das migrações (não do
+baseline); `--checar` só compara e é o que o workflow **Tipos do banco** roda (`docs/BANCO_DE_DADOS.md`).
+
 `validar-baseline.sh` recria um banco vazio com o shim do Supabase (`scripts/db/shim-supabase.sql`),
 aplica o baseline, confirma que uma segunda aplicação é recusada e que só as 24 tabelas de catálogo têm linhas, roda
 `scripts/db/testar-rls.sh` e, com `PG_REPLAY`, compara schema, privilégios e storage com o replay das

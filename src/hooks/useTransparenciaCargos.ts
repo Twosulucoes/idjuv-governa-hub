@@ -38,7 +38,7 @@ export function useTransparenciaCargos() {
   return useQuery({
     queryKey: ["transparencia-cargos"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("transparencia_cargos_publicos" as never);
+      const { data, error } = await supabase.rpc("transparencia_cargos_publicos");
       if (error) throw error;
       return (data as unknown as VagaCargoPublico[] | null) ?? [];
     },

@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   adicionarFotoPendente,
@@ -150,7 +151,7 @@ export function useFilaFotosVistoria() {
       .upload(caminho, foto.blob, { contentType: foto.mime_type, upsert: false, cacheControl: "3600" });
     if (erroUpload && !arquivoJaExiste(erroUpload)) throw erroUpload;
 
-    const registro: Record<string, unknown> = {
+    const registro: TablesInsert<"fotos_vistoria_inventario"> = {
       id: foto.id,
       campanha_id: foto.campanha_id,
       unidade_local_id: foto.unidade_local_id,
@@ -169,8 +170,7 @@ export function useFilaFotosVistoria() {
       usuario_id: foto.usuario_id,
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: erroInsert } = await (supabase as any)
+    const { error: erroInsert } = await supabase
       .from("fotos_vistoria_inventario")
       .insert(registro);
     if (erroInsert && (erroInsert as ErroComCodigo).code !== "23505") throw erroInsert;

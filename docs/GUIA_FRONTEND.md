@@ -195,16 +195,15 @@ não grava nada.
 
 Fora dessa estrutura: a planilha do **quadro de vagas** (`ImportarQuadroVagasDialog`, em `/cargos/vagas`) lê
 XLSX/XLS/CSV com `xlsx` e chama a RPC `rh_importar_quadro_vagas` pelo hook `src/hooks/useQuadroVagas.ts` (simular,
-depois gravar); não grava em `importacoes` nem aparece na Central. As views e a RPC ainda não estão em `types.ts`:
-o hook usa o client sem tipagem, como `useTrilhaAuditoria.ts`.
+depois gravar); não grava em `importacoes` nem aparece na Central. As views e a RPC vêm tipadas de `types.ts`.
 
 ## Trilha de auditoria no front (onda E2)
 
 Spec: [`superpowers/specs/2026-10-10-rh-trilha-tela-design.md`](./superpowers/specs/2026-10-10-rh-trilha-tela-design.md).
 O banco grava quem fez cada lançamento (onda E1); o front consulta a trilha e registra o que não é gravação.
 
-- **Hook** `src/hooks/useTrilhaAuditoria.ts` (as colunas novas de `audit_logs` e a RPC `registrar_evento` ainda não
-  estão em `types.ts`: consulta com `supabase as unknown as SupabaseClient`, tipos no próprio hook):
+- **Hook** `src/hooks/useTrilhaAuditoria.ts` (colunas de `audit_logs` e RPC `registrar_evento` tipadas por
+  `types.ts`; as linhas da trilha têm tipos próprios no hook):
   - `useTrilhaAuditoria(filtros, cursor)`: lista paginada **no servidor** por cursor na `sequencia`
     (`sequencia < cursor`, `limit(n + 1)`; a tela guarda a pilha de cursores para "Anterior"), sem
     `before_data`/`after_data`, ordem só `sequencia` desc (é o que usa os índices); filtros por período, módulo, ação,
@@ -247,8 +246,7 @@ Quem lança no módulo é o servidor lotado no setor dele ou designado para o se
 fase 1 a comissão é só cadastro (não vale como fundamento). O banco decide (migração
 `supabase/migrations/20261011020000_lancamento_por_setor.sql`, ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)); nesta
 fase só as tabelas do RH são checadas, em modo **registrar** (nada é bloqueado). O modo **exigir** só entra por
-migração, módulo a módulo: o banco o recusa pela API. As tabelas e RPCs novas ainda não estão em `types.ts`: os hooks
-usam o client sem tipagem, como `useTrilhaAuditoria.ts`.
+migração, módulo a módulo: o banco o recusa pela API. As tabelas e RPCs novas vêm tipadas de `types.ts`.
 
 - **Hook** `src/hooks/useLancamentoPorSetor.ts`:
   - `useFundamentosLancamento(habilitado?)`: RPC `meus_fundamentos_lancamento()` chamada sem argumento, uma linha por
@@ -308,8 +306,8 @@ Spec: [`superpowers/specs/2026-10-11-rh-vazamentos-arquivos-design.md`](./superp
 Regras do banco (folha fechada, número da remessa, arquivo guardado, cancelamento, índice único do eSocial) na
 migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`; ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
 
-- **Hook** `src/hooks/useArquivosFolha.ts` (as colunas novas e a RPC `cancelar_remessa` ainda não estão em
-  `types.ts`: client sem tipagem, como em `useTrilhaAuditoria.ts`). `mensagemErroBanco` mostra o texto do `RAISE`
+- **Hook** `src/hooks/useArquivosFolha.ts` (colunas novas e RPC `cancelar_remessa` tipadas por `types.ts`).
+  `mensagemErroBanco` mostra o texto do `RAISE`
   (RHE01 folha não fechada, RHE02/RHE03, 22023, o 42501 das funções) e a mensagem dos erros do Storage, e esconde a
   recusa da RLS e o `DETAIL`.
 - **Folha fechada:** no detalhe da folha (`/folha/:id`) os botões "Gerar CNAB", "Nova Remessa", "eSocial" e "Gerar
@@ -430,6 +428,9 @@ migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`;
 - Combine com o estilo do arquivo vizinho (densidade de comentários, nomes).
 - **Arquivos gerados — não editar**: `src/integrations/supabase/client.ts` e
   `src/integrations/supabase/types.ts`.
+- **Client sempre tipado**: não contorne os tipos do Supabase (`supabase as any`, `.from("x" as any)`,
+  `.rpc("x" as never)`, `as unknown as SupabaseClient`). Tabela ou RPC de migração nova fica tipada ao
+  regenerar o `types.ts` (ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md)).
 
 ## Adicionando uma página (resumo)
 

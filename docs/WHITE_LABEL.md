@@ -443,8 +443,8 @@ alter table cessoes rename column unidade_idjuv_id to unidade_orgao_id;
 alter table cessoes rename column funcao_exercida_idjuv to funcao_exercida_orgao;
 ```
 
-Depois: regenerar `src/integrations/supabase/types.ts` (MCP
-`generate_typescript_types`) e atualizar `src/types/servidor.ts`,
+Depois: regenerar `src/integrations/supabase/types.ts` no mesmo PR
+(`bash scripts/db/gerar-tipos.sh`, ver `docs/BANCO_DE_DADOS.md`) e atualizar `src/types/servidor.ts`,
 `useConfigVidaFuncional.ts`, `CessaoForm.tsx`, `VinculosServidorPanel.tsx`,
 `CessoesSection.tsx`, `SegundoVinculoSection.tsx`.
 

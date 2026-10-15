@@ -86,7 +86,7 @@ export function MediaLibrary({
     queryKey: ["cms-media", tipoFiltro],
     queryFn: async () => {
       let query = supabase
-        .from("cms_media" as any)
+        .from("cms_media")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -116,7 +116,7 @@ export function MediaLibrary({
       const filename = input.filename || input.url.split("/").pop()?.split("?")[0] || "arquivo";
 
       const { data, error } = await supabase
-        .from("cms_media" as any)
+        .from("cms_media")
         .insert({
           url: input.url,
           filename,
@@ -144,7 +144,7 @@ export function MediaLibrary({
   // Deletar mídia
   const deleteMedia = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("cms_media" as any).delete().eq("id", id);
+      const { error } = await supabase.from("cms_media").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

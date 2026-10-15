@@ -9,6 +9,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/formatters";
 import { lerCnab240, TAMANHO_LINHA_CNAB240 } from "@/lib/bancario/cnab240";
 import {
@@ -124,12 +125,12 @@ export const importadorArquivoBancario: Importador<LinhaMovimentoBancario> = {
   },
 
   async enviar(leitura, arquivo, simular) {
-    const { data, error } = await supabase.rpc("importar_arquivo_bancario" as never, {
-      p_linhas: leitura.linhas,
+    const { data, error } = await supabase.rpc("importar_arquivo_bancario", {
+      p_linhas: leitura.linhas as unknown as Json,
       p_arquivo: { nome: arquivo.nome, sha256: arquivo.sha256, tamanho: arquivo.tamanho },
-      p_parametros: leitura.parametros,
+      p_parametros: leitura.parametros as Json,
       p_simular: simular,
-    } as never);
+    });
     if (error) throw error;
     return data as unknown as ResultadoBanco;
   },

@@ -787,7 +787,7 @@ export default function FolhaDetalhePage() {
                             </TableCell>
                             <TableCell className="text-center">
                               {(() => {
-                                // Colunas da E3 (arquivo_path, arquivo_sha256) fora de types.ts (gerado)
+                                // Colunas da E3 (arquivo_path, arquivo_sha256) no formato de RemessaComArquivo
                                 const r = remessa as unknown as RemessaComArquivo;
                                 return (
                                   <div className="flex items-center justify-center gap-1">

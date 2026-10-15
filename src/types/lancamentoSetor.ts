@@ -1,7 +1,7 @@
 /**
  * Lançamento só por servidor do setor (spec docs/superpowers/specs/2026-10-11-lancamento-por-setor-design.md, fase 1).
  *
- * Tipos das tabelas e RPCs da migração 20261011020000_lancamento_por_setor.sql (ainda fora de types.ts, que é gerado):
+ * Tipos das tabelas e RPCs da migração 20261011020000_lancamento_por_setor.sql (tipos do domínio usados pelas telas):
  *   - setores_modulo: quais unidades da estrutura são o setor de cada módulo (escrita só do papel admin);
  *   - regra_lancamento: modo da regra por módulo (escrita só do papel admin);
  *   - meus_fundamentos_lancamento(): por módulo, se o login tem fundamento para lançar e qual;

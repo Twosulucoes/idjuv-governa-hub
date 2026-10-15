@@ -1,10 +1,6 @@
 /**
  * TIPOS: INVENTÁRIO DE CAMPO (fase 1)
  * Vistoria de unidades, fotos de evidência georreferenciadas e mapa.
- *
- * As tabelas `campanhas_inventario_unidades` e `fotos_vistoria_inventario`
- * (e as colunas de geometria de `unidades_locais`) ainda não estão em
- * `src/integrations/supabase/types.ts` (gerado); por isso os tipos ficam aqui.
  */
 
 // ========== SITUAÇÃO DA UNIDADE NA CAMPANHA ==========

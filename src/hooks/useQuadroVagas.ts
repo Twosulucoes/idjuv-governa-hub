@@ -7,8 +7,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export type SituacaoVaga = "livre" | "ocupada" | "extinta";
 
@@ -81,8 +81,7 @@ export interface RelatorioImportacaoVagas {
   avisos: { linha?: number; aviso: string }[];
 }
 
-// As views e a RPC ainda não estão em types.ts (gerado): consulta sem tipagem do client.
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 
 // No mesmo dia, a saída do anterior vem antes da entrada do sucessor.
 const ORDEM_EVENTO: Record<EventoVaga, number> = { vaga_criada: 0, saida: 1, entrada: 2, vaga_extinta: 3 };
@@ -119,9 +118,13 @@ export function useImportarQuadroVagas() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ linhas, gravar }: { linhas: LinhaPlanilhaVagas[]; gravar: boolean }) => {
-      const { data, error } = await db.rpc("rh_importar_quadro_vagas", { p_linhas: linhas, p_gravar: gravar });
+      // p_linhas e o retorno são jsonb: os formatos estruturados ficam nos tipos locais
+      const { data, error } = await db.rpc("rh_importar_quadro_vagas", {
+        p_linhas: linhas as unknown as Json,
+        p_gravar: gravar,
+      });
       if (error) throw new Error(error.hint ? `${error.message}. ${error.hint}` : error.message);
-      return data as RelatorioImportacaoVagas;
+      return data as unknown as RelatorioImportacaoVagas;
     },
     onSuccess: (relatorio) => {
       if (relatorio.gravado) {

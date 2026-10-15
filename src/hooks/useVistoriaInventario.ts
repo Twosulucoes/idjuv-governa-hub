@@ -3,13 +3,11 @@
  *
  * Situação de cada unidade na campanha, fotos de evidência (URL assinada)
  * e geometria das unidades (importação de KML).
- *
- * As tabelas novas ainda não estão em src/integrations/supabase/types.ts
- * (gerado); por isso o acesso usa `(supabase as any)` com tipos locais.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -44,8 +42,7 @@ export function useUnidadesCampanha(campanhaId: string | undefined) {
   return useQuery<UnidadeCampanha[]>({
     queryKey: ["unidades-campanha", campanhaId],
     queryFn: async (): Promise<UnidadeCampanha[]> => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (supabase as any)
+      const response = await supabase
         .from("campanhas_inventario_unidades")
         .select(`
           id, campanha_id, unidade_local_id, situacao, equipe, data_prevista,
@@ -57,7 +54,7 @@ export function useUnidadesCampanha(campanhaId: string | undefined) {
         `)
         .eq("campanha_id", campanhaId);
       if (response.error) throw response.error;
-      const linhas = (response.data || []) as LinhaUnidadeCampanha[];
+      const linhas = (response.data || []) as unknown as LinhaUnidadeCampanha[];
       return linhas
         .map((l) => ({
           ...l,
@@ -91,7 +88,7 @@ export function useAtualizarSituacaoUnidade() {
   return useMutation({
     mutationFn: async ({ atual, situacao, observacao, equipe, data_prevista }: AtualizarSituacaoUnidadeInput) => {
       const agora = new Date().toISOString();
-      const patch: Record<string, unknown> = {
+      const patch: TablesUpdate<"campanhas_inventario_unidades"> = {
         situacao,
         updated_at: agora,
       };
@@ -110,8 +107,7 @@ export function useAtualizarSituacaoUnidade() {
         patch.concluida_em = null;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (supabase as any)
+      const response = await supabase
         .from("campanhas_inventario_unidades")
         .update(patch)
         .eq("id", atual.id)
@@ -143,8 +139,7 @@ export function useIncluirUnidadesNaCampanha() {
         situacao: "a_visitar" as SituacaoUnidadeCampanha,
         ...(user?.id ? { created_by: user.id } : {}),
       }));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (supabase as any)
+      const response = await supabase
         .from("campanhas_inventario_unidades")
         .upsert(linhas, { onConflict: "campanha_id,unidade_local_id", ignoreDuplicates: true })
         .select("id");
@@ -173,8 +168,7 @@ export function useFotosUnidade(campanhaId: string | undefined, unidadeLocalId: 
   return useQuery<FotoVistoria[]>({
     queryKey: ["fotos-vistoria", campanhaId, unidadeLocalId],
     queryFn: async (): Promise<FotoVistoria[]> => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (supabase as any)
+      const response = await supabase
         .from("fotos_vistoria_inventario")
         .select(
           "id, campanha_id, unidade_local_id, bem_id, codigo_objeto, legenda, storage_path, hash_sha256, latitude, longitude, precisao_m, capturada_em, enviada_em, mime_type, tamanho_bytes, tem_pessoa, usuario_id",
@@ -226,8 +220,7 @@ export function useContagemFotosCampanha(campanhaId: string | undefined) {
       let total = 0;
       const pagina = 1000;
       for (let inicio = 0; ; inicio += pagina) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const response = await (supabase as any)
+        const response = await supabase
           .from("fotos_vistoria_inventario")
           .select("unidade_local_id")
           .eq("campanha_id", campanhaId)
@@ -265,18 +258,17 @@ export function useAtualizarGeometriaUnidade() {
       let atualizadas = 0;
       const falhas: string[] = [];
       for (const item of itens) {
-        const patch: Record<string, unknown> = {
+        const patch: TablesUpdate<"unidades_locais"> = {
           latitude: item.latitude,
           longitude: item.longitude,
           fonte_geometria: "kml",
           geometria_atualizada_em: new Date().toISOString(),
         };
         // Só substitui o polígono quando o KML trouxe um
-        if (item.poligono) patch.poligono_geojson = item.poligono;
+        if (item.poligono) patch.poligono_geojson = item.poligono as unknown as Json; // jsonb no banco
         if (user?.id) patch.geometria_atualizada_por = user.id;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const response = await (supabase as any)
+        const response = await supabase
           .from("unidades_locais")
           .update(patch)
           .eq("id", item.unidadeLocalId)

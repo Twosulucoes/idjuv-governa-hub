@@ -1,0 +1,57 @@
+name: Tipos do banco
+
+# Barra `src/integrations/supabase/types.ts` defasado: monta o banco das migrações num Postgres
+# descartável, gera os tipos com scripts/db/gerar-tipos.sh e falha se o arquivo commitado for diferente.
+# Migração nova sem os tipos regenerados no mesmo PR fica vermelha aqui. Não usa segredo nenhum.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/baseline/lacunas/**"
+      - "src/integrations/supabase/types.ts"
+      - "scripts/db/gerar-tipos.sh"
+      - "scripts/db/validar-migracoes.sh"
+      - "scripts/db/shim-supabase.sql"
+      - ".github/workflows/tipos-banco.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/baseline/lacunas/**"
+      - "src/integrations/supabase/types.ts"
+      - "scripts/db/gerar-tipos.sh"
+      - "scripts/db/validar-migracoes.sh"
+      - "scripts/db/shim-supabase.sql"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tipos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Postgres descartável para o replay (superusuário supabase_admin, como pede o shim).
+      - name: Postgres local
+        run: |
+          docker run -d --name pg -p 127.0.0.1:54329:5432 \
+            -e POSTGRES_USER=supabase_admin -e POSTGRES_HOST_AUTH_METHOD=trust \
+            postgres:17 -c max_locks_per_transaction=1024
+          for i in $(seq 1 30); do pg_isready -h 127.0.0.1 -p 54329 -q && break; sleep 2; done
+          pg_isready -h 127.0.0.1 -p 54329
+
+      - name: types.ts igual ao banco das migrações
+        run: bash scripts/db/gerar-tipos.sh --checar

@@ -97,7 +97,7 @@ const TIPO_DOC_LABELS: Record<string, string> = {
   outro: "Outro",
 };
 
-// Ato vinculado ao servidor (documentos). processo_sei é coluna nova, ainda fora de types.ts.
+// Ato vinculado ao servidor (documentos), com o processo_sei.
 interface AtoTimeline {
   id: string;
   tipo: string;
@@ -139,7 +139,6 @@ export function VidaFuncionalTimeline({ servidorId }: VidaFuncionalTimelineProps
         .order("data_evento", { ascending: false });
 
       if (error) throw error;
-      // processo_sei é coluna nova de historico_funcional (ainda fora de types.ts)
       return (data || []) as Array<NonNullable<typeof data>[number] & { processo_sei?: string | null }>;
     },
   });

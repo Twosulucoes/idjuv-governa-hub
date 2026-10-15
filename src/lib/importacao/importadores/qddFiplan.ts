@@ -7,6 +7,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/formatters";
 import { lerLinhasPdf } from "../pdfTexto";
 import type { Importador, ResultadoBanco } from "../types";
@@ -62,12 +63,12 @@ export const importadorQddFiplan: Importador<LinhaQdd> = {
       const { atual: _atual, disponivel: _disponivel, ...gravaveis } = valores;
       return { ...resto, valores: gravaveis };
     });
-    const { data, error } = await supabase.rpc("importar_qdd_fiplan" as never, {
-      p_exercicio: leitura.parametros.exercicio,
-      p_linhas: linhas,
+    const { data, error } = await supabase.rpc("importar_qdd_fiplan", {
+      p_exercicio: Number(leitura.parametros.exercicio),
+      p_linhas: linhas as unknown as Json,
       p_arquivo: { nome: arquivo.nome, sha256: arquivo.sha256, tamanho: arquivo.tamanho },
       p_simular: simular,
-    } as never);
+    });
     if (error) throw error;
     return data as unknown as ResultadoBanco;
   },

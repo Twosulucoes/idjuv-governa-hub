@@ -42,6 +42,10 @@ Para saber em que o banco de **produção** difere das migrações e do baseline
 **Fotografia do banco**, que lê a produção pelo túnel SSH em modo só leitura. Ver
 [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md#fotografia-do-banco-de-produção-ci-manual).
 
+`bash scripts/db/gerar-tipos.sh` usa o mesmo replay (mesmos pré-requisitos de `validar-migracoes.sh`) para gerar
+`src/integrations/supabase/types.ts`; `--checar` só compara (workflow **Tipos do banco**). Ver
+[BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+
 ## 3. Subir o Supabase self-hosted
 
 Siga o guia oficial de self-hosting com Docker da Supabase. Antes de expor à internet:

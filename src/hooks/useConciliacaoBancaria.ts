@@ -3,16 +3,10 @@
  * etapas 2 a 4): movimentos lidos dos arquivos do banco, conciliação manual com pagamentos, reenvio de recusados
  * pelo Gestão MAX e leitura das APIs do Banco do Brasil (Edge Function `bb-api`).
  *
- * As tabelas e RPCs novas (`fin_movimentos_bancarios`, `fin_remessas_bancarias`, `fin_extrato_lancamentos`,
- * `conciliar_movimento_bancario`, `corrigir_conta_movimento`, `registrar_remessa_bancaria`,
- * `confirmar_remessa_bancaria`, `obter_remessa_bancaria`, `cancelar_remessa_bancaria`) ainda não estão em
- * types.ts (gerado, não editar):
- * consultas pelo client sem tipagem (`db`), como em useArquivosFolha.ts, e RPC com `as never`.
  * A permissão é conferida de novo no banco (RLS e RPCs): a tela é só UX.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getTenantSnapshotOuNulo } from "@/core/tenant";
@@ -36,7 +30,7 @@ import type {
   StatusApiBB,
 } from "@/types/conciliacaoBancaria";
 
-const db = supabase as unknown as SupabaseClient;
+const db = supabase;
 
 const CAMPOS_MOVIMENTO = "*, pagamento:fin_pagamentos(id, numero, status)";
 const TAMANHO_PAGINA = 1000;
@@ -87,7 +81,7 @@ export function useMovimentosBancarios(exercicio: number, situacao: FiltroSituac
         else if (situacao !== "todos") q = q.eq("situacao", situacao);
         const { data, error } = await q;
         if (error) throw error;
-        const pagina = (data ?? []) as MovimentoBancario[];
+        const pagina = (data ?? []) as unknown as MovimentoBancario[];
         todos.push(...pagina);
         if (pagina.length < TAMANHO_PAGINA) break;
       }
@@ -117,7 +111,7 @@ export function useMovimentosDoPagamento(pagamentoId: string | undefined) {
         .eq("pagamento_id", pagamentoId)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as MovimentoBancario[];
+      return (data ?? []) as unknown as MovimentoBancario[];
     },
   });
 }
@@ -169,11 +163,11 @@ export function useConciliarMovimento() {
       pagamentoId: string | null;
       justificativa?: string | null;
     }) => {
-      const { error } = await supabase.rpc("conciliar_movimento_bancario" as never, {
+      const { error } = await supabase.rpc("conciliar_movimento_bancario", {
         p_movimento_id: movimentoId,
         p_pagamento_id: pagamentoId,
         p_justificativa: justificativa?.trim() || null,
-      } as never);
+      });
       if (error) throw error;
       return { desvinculou: pagamentoId === null };
     },
@@ -274,7 +268,7 @@ export function useCorrigirContaMovimento() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ movimentoId, dados }: { movimentoId: string; dados: ContaCorrigidaInput }) => {
-      const { error } = await supabase.rpc("corrigir_conta_movimento" as never, {
+      const { error } = await supabase.rpc("corrigir_conta_movimento", {
         p_movimento_id: movimentoId,
         p_banco: dados.banco,
         p_agencia: dados.agencia,
@@ -283,7 +277,7 @@ export function useCorrigirContaMovimento() {
         p_conta_dv: dados.conta_dv,
         p_justificativa: dados.justificativa.trim(),
         p_validado_bb: dados.validado_bb,
-      } as never);
+      });
       if (error) throw error;
     },
     onSuccess: async () => {
@@ -400,23 +394,23 @@ export function useGerarRemessaGestaoMax() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: GerarRemessaInput) => {
-      const { data, error } = await supabase.rpc("registrar_remessa_bancaria" as never, {
+      const { data, error } = await supabase.rpc("registrar_remessa_bancaria", {
         p_conta_autarquia_id: input.conta.id,
         p_layout: "gestao_max_cnab240",
         p_movimentos: input.movimentoIds,
         p_data_pagamento: input.dataPagamento,
         p_nsa_minimo: input.nsaMinimo,
         p_tipo_servico: input.servicoCreditoBB,
-      } as never);
+      });
       if (error) throw error;
       const remessa = data as unknown as RemessaRegistrada;
 
       try {
         const arquivo = await montarArquivo(remessa, input.pagador, remessa.tipo_servico);
-        const { error: erroConfirmar } = await supabase.rpc("confirmar_remessa_bancaria" as never, {
+        const { error: erroConfirmar } = await supabase.rpc("confirmar_remessa_bancaria", {
           p_id: remessa.id,
           p_sha256: arquivo.sha256,
-        } as never);
+        });
         if (erroConfirmar) throw erroConfirmar;
         baixarArquivo(arquivo.blob, arquivo.nome);
         return { nome: arquivo.nome, nsa: remessa.nsa, quantidade: arquivo.quantidade };
@@ -444,7 +438,7 @@ export function useCancelarRemessaBancaria() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (remessaId: string) => {
-      const { error } = await supabase.rpc("cancelar_remessa_bancaria" as never, { p_id: remessaId } as never);
+      const { error } = await supabase.rpc("cancelar_remessa_bancaria", { p_id: remessaId });
       if (error) throw error;
     },
     onSuccess: async () => {
@@ -466,7 +460,7 @@ export function useCancelarRemessaBancaria() {
 export function useBaixarRemessaNovamente() {
   return useMutation({
     mutationFn: async ({ remessaId, pagador }: { remessaId: string; pagador: DadosPagador }) => {
-      const { data, error } = await supabase.rpc("obter_remessa_bancaria" as never, { p_id: remessaId } as never);
+      const { data, error } = await supabase.rpc("obter_remessa_bancaria", { p_id: remessaId });
       if (error) throw error;
       const remessa = data as unknown as RemessaRegistrada;
       if (!remessa?.arquivo_sha256) throw new Error("Esta remessa não foi confirmada: não há arquivo registrado.");

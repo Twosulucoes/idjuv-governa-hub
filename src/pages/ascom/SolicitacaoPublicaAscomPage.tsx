@@ -205,7 +205,7 @@ export default function SolicitacaoPublicaAscomPage() {
     setIsSubmitting(true);
     try {
       // Criar demanda
-      const { data: demanda, error: demandaError } = await (supabase as any)
+      const { data: demanda, error: demandaError } = await supabase
         .from('demandas_ascom')
         .insert({
           nome_responsavel: dados.nome_responsavel.trim(),
@@ -214,8 +214,9 @@ export default function SolicitacaoPublicaAscomPage() {
           contato_email: dados.contato_email.trim(),
           email_solicitante: dados.contato_email.trim(),
           telefone_solicitante: dados.contato_telefone.trim(),
-          categoria: dados.categoria,
-          tipo: dados.tipo,
+          // O schema valida texto; os Selects só oferecem as chaves de CATEGORIA/TIPO/PRIORIDADE (enums do banco)
+          categoria: dados.categoria as CategoriaDemandasAscom,
+          tipo: dados.tipo as TipoDemandaAscom,
           titulo: dados.titulo.trim(),
           descricao_detalhada: dados.descricao_detalhada.trim(),
           objetivo_institucional: dados.objetivo_institucional?.trim() || null,
@@ -224,7 +225,7 @@ export default function SolicitacaoPublicaAscomPage() {
           hora_evento: dados.hora_evento?.trim() || null,
           local_evento: dados.local_evento?.trim() || null,
           prazo_entrega: dados.prazo_entrega,
-          prioridade: dados.prioridade,
+          prioridade: dados.prioridade as PrioridadeDemandaAscom,
           requer_autorizacao_presidencia: requerAutorizacao,
           servidor_solicitante_id: servidorLogado?.id || null,
           status: 'enviada'
@@ -246,7 +247,7 @@ export default function SolicitacaoPublicaAscomPage() {
             .from('ascom-demandas')
             .getPublicUrl(fileName);
 
-          await (supabase as any)
+          await supabase
             .from('demandas_ascom_anexos')
             .insert({
               demanda_id: demanda.id,
