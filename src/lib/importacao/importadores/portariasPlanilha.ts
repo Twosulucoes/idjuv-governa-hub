@@ -9,6 +9,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { baixarModeloPlanilha, lerPrimeiraAba, type AbaModelo } from "../planilha";
 import type { Importador, ResultadoBanco } from "../types";
 import {
@@ -140,11 +141,11 @@ export const importadorPortariasPlanilha: Importador<LinhaPortariaPlanilha> = {
   },
 
   async enviar(leitura, arquivo, simular) {
-    const { data, error } = await supabase.rpc("importar_portarias_planilha" as never, {
-      p_linhas: leitura.linhas.map(paraContrato),
+    const { data, error } = await supabase.rpc("importar_portarias_planilha", {
+      p_linhas: leitura.linhas.map(paraContrato) as unknown as Json,
       p_arquivo: { nome: arquivo.nome, sha256: arquivo.sha256, tamanho: arquivo.tamanho },
       p_simular: simular,
-    } as never);
+    });
     if (error) throw error;
     return data as unknown as ResultadoBanco;
   },
