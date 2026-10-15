@@ -220,6 +220,10 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
   remessa lida pelo módulo e inserida ou alterada só com `processar`; DELETE em remessas e eventos recusado (`42501`) até para o admin, sem policy nem privilégio. Nos
   blocos por tabela, `;leitura=` mede persona por código de leitura (lê; a avulsa não; só leitura não insere) e
   `excluir=ninguem` espera DELETE negado a todos;
+- importação de portarias (migração `20261015120000`, bloco "Gabinete: importação de portarias" de `testar-rls.sql`):
+  `importar_portarias_planilha` recusa (`42501`) quem tem o módulo `gabinete` sem `gabinete.portarias.importar`, a
+  permissão sem o módulo e a sessão sem usuário; `anon`/`PUBLIC` sem EXECUTE; lista vazia e dados do arquivo inválidos
+  na aplicação (`22023`); permissão no catálogo em `schema/02_dados_catalogo.sql`;
 - inventário de campo: `fotos_vistoria_inventario` (INSERT só em nome próprio, UPDATE só do autor ou com
   `patrimonio.tramitar`, DELETE só com `patrimonio.tramitar`, campos de prova imutáveis), no bloco de
   cobertura adicional de `testar-rls.sql`;

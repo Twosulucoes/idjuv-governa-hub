@@ -55,7 +55,7 @@ linha. Aplicação com erro em qualquer linha aborta tudo. Log em `importacoes` 
 
 **Via banco:** a mesma RPC chamada por `psql` (túnel SSH), carregando o CSV numa tabela `TEMP` e assumindo o usuário real
 (`SET LOCAL role authenticated` + `request.jwt.claims`), com simulação e depois aplicação. Sem usuário, `auth.uid()` é
-nulo e a RPC recusa. Script `scripts/db/importar-portarias.sh`, operado por humano.
+nulo e a RPC recusa. Procedimento em `docs/BANCO_DE_DADOS.md`, operado por humano.
 
 ## Front
 

@@ -1210,6 +1210,79 @@ dos campos alterados). RLS: `SELECT` para quem acessa o módulo da linha (`can_a
 policy de escrita e sem `INSERT/UPDATE/DELETE` para `anon`/`authenticated` — só as RPCs de importação
 gravam. No baseline está como `preservar` em `rls/mapa.csv`.
 
+#### Importar portarias (`importar_portarias_planilha`)
+
+Migração `supabase/migrations/20261015120000_gab_importar_portarias.sql`. Spec:
+[`2026-10-15-importacao-portarias-planilha-design.md`](./superpowers/specs/2026-10-15-importacao-portarias-planilha-design.md).
+Cria a permissão `gabinete.portarias.importar` no `module_permissions_catalog` (módulo `gabinete`, categoria
+"Portarias") e a RPC `importar_portarias_planilha(p_linhas jsonb, p_arquivo jsonb, p_simular boolean DEFAULT true)
+RETURNS jsonb`. Nenhuma RLS existente muda.
+
+- **Segurança:** `SECURITY DEFINER`, `search_path = public`. Exige `auth.uid()`, perfil ativo, `can_access_module(uid,
+  'gabinete')` e `has_permission_code(uid, 'gabinete.portarias.importar')`; senão `42501`. `REVOKE ALL` de `PUBLIC` e
+  `anon`; `EXECUTE` só para `authenticated`. De 1 a 2000 linhas (`22023`); na aplicação, `p_arquivo` precisa de nome,
+  `sha256` (64 hex) e tamanho. `pg_advisory_xact_lock` impede duas importações de portarias ao mesmo tempo.
+- **Linha (contrato):** `indice`, `numero`, `data_documento`, `categoria`, `ementa`, `processo_sei`, `status`,
+  `assinado_por`, `data_assinatura`, `doe_numero`, `doe_data`, `data_vigencia_inicio`, `data_vigencia_fim`,
+  `matriculas[]`, `observacoes`; datas `AAAA-MM-DD`, vazio = `null`. O servidor é identificado **só pela matrícula**
+  (CPF não entra, não é lido nem devolvido).
+- **Simulação por savepoint:** a RPC faz o INSERT/UPDATE real de cada linha, cada uma num bloco com `EXCEPTION`
+  próprio, para os triggers de `documentos` atuarem como na tela (`documentos_portaria_validar`, índice único do
+  número, regra de setor, autoria, trilha, ficha). O erro do trigger vira o erro da linha. No fim, com
+  `p_simular = true` ou com qualquer erro, um `RAISE` com SQLSTATE próprio `PTI01` é capturado no bloco externo e desfaz
+  tudo o que as linhas gravaram; os resultados continuam nas variáveis. Assim a simulação mostra o efeito acumulado.
+- **Tudo ou nada:** na aplicação, qualquer linha com erro aborta o lote inteiro (nada gravado, `importacao_id` nulo).
+- **Regras de validação:** número `NNN/AAAA` (`1/2026` vira `001/2026`; `PENDENTE` recusado; repetido no arquivo é
+  erro); data da portaria obrigatória e não futura; categoria do enum `categoria_portaria`; Nº DOE e Data DOE juntos,
+  data DOE não anterior à da portaria; situação aceita `aguardando_assinatura`, `assinado`, `publicado`, `vigente`
+  (vazia: `publicado` se houver DOE, senão `aguardando_assinatura`; `revogado` recusada); assinada exige quem
+  assinou e a data; publicada/vigente exige DOE; vigente exige início da vigência; fim não anterior ao início;
+  matrícula inexistente é erro; até 500 matrículas por portaria.
+- **Regras de inclusão e atualização:** número que não existe → `inserir` (título = ementa ou "Portaria nº X";
+  `data_publicacao` = data do DOE). Número que existe (também se gravado fora do padrão, como `1/2026`) → só
+  **preenche o que está vazio** (processo SEI, ementa, DOE quando a portaria já está publicada/vigente, vigência) e
+  **soma servidores novos**; nunca muda categoria, status nem data, nunca remove servidor, nunca apaga. Divergência
+  de situação, categoria, data ou DOE vira **aviso**, não alteração (o ciclo se avança na tela da portaria); portaria
+  revogada no sistema não é alterada. Sem o que preencher: `sem_alteracao`. Pendência `PENDENTE/AAAA` do mesmo
+  servidor e categoria não é alterada: a simulação só avisa. Também são avisos: servidor inativo, portaria de
+  pessoal sem matrícula e observações preenchidas (não colocar dado pessoal).
+- **Retorno:** `{ simulacao, importacao_id, totais {inserir, atualizar, sem_alteracao}, linhas [{indice, acao,
+  mudancas {campo: [antes, depois]}, avisos}], erros [{indice, mensagem}] }`; servidores aparecem por matrícula em
+  `mudancas`, nunca por UUID.
+- **Log:** só a aplicação sem erro grava em `importacoes` (`tipo = 'portarias_planilha'`, `modulo = 'gabinete'`),
+  com `detalhes` contendo índice, número, ação, `documento_id` e nomes dos campos alterados (sem valores pessoais).
+
+##### Importar portarias pelo banco
+
+Procedimento manual, operado por uma pessoa, para lotes grandes ou sem a tela. Usa a **mesma RPC** (mesmas regras,
+mesmos triggers e mesmo log), por `psql` pelo túnel SSH da VPS (o Postgres não fica exposto). Não há script no repositório.
+
+1. Com o túnel aberto, conecte-se com `psql` (host e credencial vêm do ambiente seguro do operador; nunca em arquivo
+   do repositório) e carregue o CSV numa tabela temporária da sessão: `CREATE TEMP TABLE portarias_csv (...)` e
+   `\copy portarias_csv FROM 'arquivo.csv' CSV HEADER`. Não use CPF; só matrícula.
+2. Monte o `jsonb` no formato do contrato acima (um objeto por linha, datas `AAAA-MM-DD`, vazio = `null`,
+   `matriculas` como array) com `jsonb_agg(jsonb_build_object(...))` sobre a tabela temporária, guardando em uma
+   variável do `psql` (`\gset`) ou na própria tabela temporária.
+3. Assuma um usuário **real** na mesma transação, simule e depois aplique:
+
+```sql
+BEGIN;
+SET LOCAL role authenticated;
+SELECT set_config('request.jwt.claims', '{"sub":"<uuid do usuário>","role":"authenticated"}', true);
+-- simulação (nada é gravado): confira linhas, avisos e erros
+SELECT public.importar_portarias_planilha(:'linhas'::jsonb, NULL, true);
+-- aplicação (tudo ou nada): p_arquivo é obrigatório e vira o log
+SELECT public.importar_portarias_planilha(:'linhas'::jsonb,
+  '{"nome":"portarias.csv","sha256":"<64 hex>","tamanho":<bytes>}'::jsonb, false);
+COMMIT;
+```
+
+- **Sem usuário real a RPC recusa** (`auth.uid()` nulo → `42501`). O usuário assumido precisa ter o módulo
+  `gabinete`, a permissão `gabinete.portarias.importar` e lotação no setor (a regra de setor dos triggers vale).
+- **Não use `INSERT` direto em `documentos`:** ele fura o RBAC e a regra de setor e não gera o log em `importacoes`.
+- Se a simulação trouxer `erros`, corrija o CSV e repita; só aplique com `erros` vazio. Se algo der errado antes do
+  `COMMIT`, use `ROLLBACK`.
+
 ### Parâmetros e catálogos de configuração
 `config_parametros_meta`, `config_parametros_valores`, `config_regras_calculo`,
 `config_motivos_desligamento`, `config_situacoes_funcionais`, `config_tipos_ato`,
@@ -1273,6 +1346,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   que mudaria; com `false` grava numa transação (cria programa, ação/PAOE, natureza e fonte que faltarem,
   insere/atualiza `fin_dotacoes`, nunca apaga) e registra em `importacoes`. Dotações do antigo import de
   planilha (`natureza.fonte.IDU`) são reconhecidas e migradas para a chave nova.
+- **Importação de portarias**: `importar_portarias_planilha(p_linhas, p_arquivo, p_simular)` — `SECURITY DEFINER`,
+  exige módulo `gabinete` e `gabinete.portarias.importar`; simula por savepoint e aplica tudo ou nada (seção
+  "Importar portarias").
 - **Quadro de vagas**: `rh_importar_quadro_vagas(p_linhas, p_gravar)` (migração `20261012150000`, em PR rascunho) —
   `SECURITY INVOKER` (RLS, autoria, trilha e regra de setor valem para cada gravação), exige
   `governanca.cargos.gerenciar` (`42501`), até 2000 linhas. Cada linha traz `cargo` e, opcionais, `sigla`, `categoria`
