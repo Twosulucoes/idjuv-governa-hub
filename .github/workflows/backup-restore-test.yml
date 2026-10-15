@@ -4,13 +4,15 @@ name: Teste de restauração do backup
 # decifra, restaura num Postgres descartável com a mesma imagem do Supabase self-hosted e confere
 # a contagem de linhas contra o manifesto. Backup que nunca foi restaurado não é backup.
 #
-# Secrets (Settings → Secrets and variables → Actions), explicados em docs/BACKUP.md:
+# Secrets do ambiente "backup" (Settings → Environments → backup; só a branch main), explicados em docs/BACKUP.md:
 #   BACKUP_RCLONE_CONF   conteúdo do rclone.conf com o remoto do backup (pode ser só-leitura)
 #   BACKUP_RCLONE_REMOTE remoto + bucket, igual ao da VPS (ex.: r2:idjuv-backups)
 #   BACKUP_AGE_KEY       chave PRIVADA do age (arquivo gerado por age-keygen)
 # Variável opcional: SUPABASE_PG_IMAGE (padrão abaixo) — use a mesma imagem do container db da VPS.
 #
 # O log mostra só contagens e a primeira linha de cada erro do pg_restore, nunca dados.
+# Reprova também sem configuração (o teste agendado não pode ficar verde sem testar nada) e sem o pacote do
+# Storage, ou com menos arquivos nele que objetos em storage.objects. O dia a dia é vigiado pelo backup-vigia.yml.
 on:
   schedule:
     - cron: "0 9 3 * *" # dia 3 de cada mês, 06:00 em Brasília
@@ -31,6 +33,8 @@ jobs:
   restaurar:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    # Segredos BACKUP_* SÓ no ambiente "backup" (aceita apenas a branch main, sem aprovação: o teste é agendado).
+    environment: backup
     env:
       RCLONE_CONF: ${{ secrets.BACKUP_RCLONE_CONF }}
       REMOTO: ${{ secrets.BACKUP_RCLONE_REMOTE }}
@@ -40,23 +44,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Conferir configuração
-        id: cfg
         run: |
           if [ -z "$RCLONE_CONF" ] || [ -z "$REMOTO" ] || [ -z "$AGE_KEY" ]; then
-            echo "::warning::Backup ainda não configurado (faltam secrets BACKUP_*). Ver docs/BACKUP.md."
-            echo "pronto=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "pronto=true" >> "$GITHUB_OUTPUT"
+            echo "::error::Backup não configurado (faltam secrets BACKUP_* no ambiente backup). Ver docs/BACKUP.md."
+            exit 1
           fi
 
       - name: Instalar rclone e age
-        if: steps.cfg.outputs.pronto == 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone age
 
       - name: Baixar e decifrar o backup
-        if: steps.cfg.outputs.pronto == 'true'
         run: |
           set -euo pipefail
           umask 077
@@ -84,14 +85,19 @@ jobs:
           for f in banco.dump papeis.sql; do
             age -d -i "$RUNNER_TEMP/chave.key" -o "$RUNNER_TEMP/dados/$f" "$RUNNER_TEMP/bk/$f.age"
           done
-          if [ -f "$RUNNER_TEMP/bk/storage.tar.gz.age" ]; then
-            age -d -i "$RUNNER_TEMP/chave.key" "$RUNNER_TEMP/bk/storage.tar.gz.age" | tar -tzf - | wc -l \
-              | xargs -I{} echo "Storage: {} entradas no arquivo" | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
+          [ -f "$RUNNER_TEMP/bk/storage.tar.gz.age" ] \
+            || { echo "::error::o backup não tem storage.tar.gz.age: os arquivos do Storage não voltariam."; exit 1; }
+          # lê o pacote inteiro (prova que decifra e descompacta) e conta só arquivos, sem listar nomes no log
+          age -d -i "$RUNNER_TEMP/chave.key" -o "$RUNNER_TEMP/bk/storage.tar.gz" "$RUNNER_TEMP/bk/storage.tar.gz.age"
+          tar -tvzf "$RUNNER_TEMP/bk/storage.tar.gz" > "$RUNNER_TEMP/bk/storage.lista"
+          arquivos=$(grep -c '^-' "$RUNNER_TEMP/bk/storage.lista" || true)
+          objetos=$(awk -F'\t' '$1 == "storage.objects" {print $2}' "$RUNNER_TEMP/dados/manifesto.tsv")
+          echo "Storage: $arquivos arquivos no pacote, ${objetos:-0} objetos no banco" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$arquivos" -ge "${objetos:-0}" ] \
+            || { echo "::error::o pacote do Storage tem menos arquivos que objetos no banco."; exit 1; }
           rm -f "$RUNNER_TEMP/chave.key"
 
       - name: Restaurar e conferir
-        if: steps.cfg.outputs.pronto == 'true'
         run: |
           set -euo pipefail
           docker run -d --name pgteste -e POSTGRES_PASSWORD=postgres \

@@ -2,15 +2,16 @@
 
 > Produção roda no Supabase self-hosted da VPS (`bd.idjuv.online`). Este guia cobre o backup **fora da
 > VPS**: se a máquina cair, site e banco caem juntos, e só o que estiver em outro lugar volta.
-> A Edge Function `backup-offsite` ([BACKUP_CONTINGENCIA.md](./BACKUP_CONTINGENCIA.md)) continua como
-> cópia de consulta, mas não substitui este backup (não leva `auth`, funções, triggers nem RLS).
+> A antiga Edge Function `backup-offsite` ([BACKUP_CONTINGENCIA.md](./BACKUP_CONTINGENCIA.md)) foi aposentada no P06:
+> este é o único backup fora da VPS.
 
 ## 1. Como funciona
 
 | Peça | Onde roda | O que faz |
 |---|---|---|
-| [`scripts/backup/backup-vps.sh`](../scripts/backup/backup-vps.sh) | VPS, cron diário | `pg_dump` do banco + papéis + arquivos do Storage, criptografados com `age` e enviados com `rclone` |
+| [`scripts/backup/backup-vps.sh`](../scripts/backup/backup-vps.sh) | VPS, cron diário ([`idjuv-backup.cron`](../scripts/backup/idjuv-backup.cron)) | `pg_dump` do banco + papéis + arquivos do Storage (obrigatórios), criptografados com `age` e enviados com `rclone` |
 | [`.github/workflows/backup-restore-test.yml`](../.github/workflows/backup-restore-test.yml) | GitHub Actions, dia 3 de cada mês | baixa o backup mais recente, restaura num Postgres descartável (imagem `supabase/postgres`) e confere as contagens |
+| [`.github/workflows/backup-vigia.yml`](../.github/workflows/backup-vigia.yml) | GitHub Actions, todo dia às 08:00 de Boa Vista | só lista o remoto: reprova se o backup mais recente tiver mais de 26 horas ou faltar algum dos quatro arquivos |
 | [`scripts/backup/testar-restauracao.sh`](../scripts/backup/testar-restauracao.sh) | Action acima ou qualquer máquina | restaura num banco novo e compara com o `manifesto.tsv` |
 
 - **Por que na VPS:** a porta do Postgres não é publicada ([NOVO_BANCO.md](./NOVO_BANCO.md) §3), então o dump
@@ -19,8 +20,13 @@
   **pública**. A privada fica com o responsável (gerenciador de senhas) e no secret do GitHub.
 - **Retenção:** 8 dias de diários, ~5 semanas de semanais (domingos) e ~13 meses de mensais (dia 1),
   apagados por idade no remoto. Na VPS ficam só os 2 últimos dias.
-- **Alerta:** opcional, via [healthchecks.io](https://healthchecks.io) (gratuito): e-mail se o backup falhar
-  ou deixar de rodar. O teste mensal também reprova se o diário mais recente tiver mais de 2 dias.
+- **Storage obrigatório:** sem `BACKUP_STORAGE_DIR` o backup falha. Ele também falha se a pasta tiver menos
+  arquivos que linhas em `storage.objects` (pasta errada). O teste mensal repete a conta com o pacote baixado.
+- **Alerta:** o **Vigia do backup** (GitHub Actions, diário) fica vermelho se o backup não chegou ao remoto, e o
+  GitHub manda e-mail. Opcional e complementar: [healthchecks.io](https://healthchecks.io) (gratuito), que avisa na
+  hora em que o script falha na VPS. O teste mensal também reprova se o diário mais recente tiver mais de 2 dias.
+- **Sem configuração, vermelho:** o teste mensal e o vigia falham (não só avisam) se faltar algum segredo do
+  ambiente `backup`.
 
 ## 2. Instalação (uma vez)
 
@@ -50,14 +56,19 @@ Confira os nomes com `docker ps --format '{{.Names}}'` (container do Postgres) e
 (`docker/volumes/storage` dentro da pasta do Supabase). O arquivo `/etc/idjuv-backup.env` tem prioridade
 sobre variáveis de ambiente.
 
-Agende no cron (`crontab -e`). O cron usa o fuso da VPS (confira com `date`); com a VPS em
-`America/Boa_Vista`, 03:30 locais:
+Agende pelo arquivo versionado [`scripts/backup/idjuv-backup.cron`](../scripts/backup/idjuv-backup.cron) (todo dia
+03:30 no fuso da VPS; confira com `date`):
 
-```cron
-30 3 * * * /usr/local/bin/idjuv-backup >> /var/log/idjuv-backup.log 2>&1
+```bash
+install -m 644 scripts/backup/idjuv-backup.cron /etc/cron.d/idjuv-backup
+crontab -l | grep idjuv-backup     # se havia a linha antiga no crontab do root, apague-a (crontab -e)
 ```
 
-**No GitHub** (Settings → Secrets and variables → Actions), para o teste mensal:
+Mudou o horário? Mude no arquivo do repositório e reinstale; o vigia (08:00) assume o backup das 03:30.
+
+**No GitHub**, para o teste mensal: segredos do **ambiente `backup`** (Settings → Environments → `backup`, só a
+branch `main`; ver [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md#ambientes-protegidos-do-github-segredos-de-produção)),
+não do nível do repositório, que fica ao alcance de PRs:
 
 | Secret | Valor |
 |---|---|
@@ -66,8 +77,9 @@ Agende no cron (`crontab -e`). O cron usa o fuso da VPS (confira com `date`); co
 | `BACKUP_AGE_KEY` | conteúdo do `idjuv-backup.key` (a chave **privada**, linha `AGE-SECRET-KEY-1...`; a pública `age1...` não serve) |
 
 Variável opcional `SUPABASE_PG_IMAGE`: a imagem do container db da VPS
-(`docker inspect -f '{{.Config.Image}}' supabase-db`). Depois rode a Action uma vez à mão
-(Actions → *Teste de restauração do backup* → Run workflow).
+(`docker inspect -f '{{.Config.Image}}' supabase-db`). Depois rode as duas Actions uma vez à mão
+(Actions → *Teste de restauração do backup* e *Vigia do backup* → Run workflow). O vigia usa só
+`BACKUP_RCLONE_CONF` e `BACKUP_RCLONE_REMOTE`.
 
 ## 3. Restaurar
 

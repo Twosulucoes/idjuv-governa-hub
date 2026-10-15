@@ -133,6 +133,12 @@ bash scripts/db/validar-migracoes.sh                       # replay das migraç�
 PG_REPLAY=idjuv_validacao bash scripts/db/validar-baseline.sh   # EXIGIR_REPLAY=1 reprova se o passo 5 for pulado
 ```
 
+Os dois comandos rodam no CI em todo PR que muda `supabase/migrations/`, `supabase/baseline/` ou estes scripts
+(workflow **Banco do zero e RLS**, `.github/workflows/banco-rls.yml`, com `EXIGIR_REPLAY=1`). Migração nova sem
+o schema regenerado (seção "Regenerar o schema") reprova no passo 5; tabela nova fora do `rls/mapa.csv` reprova no
+teste de RLS ("tabela fora de rls/mapa.csv (decida o módulo dono)"). Se o catálogo não mudou, dá para descartar a
+regeneração de `schema/02_dados_catalogo.sql` (`git checkout` do arquivo): o passo 5 compara só a estrutura.
+
 `scripts/db/fotografia-banco.sh` faz uma comparação mais ampla e legível (relatório em markdown) entre o replay,
 o baseline e, com `FOTO_PROD_URL`, o banco de produção: diz quais correções do baseline ainda não viraram migração
 e o que a produção tem de diferente das migrações. Na produção roda pelo workflow manual **Fotografia do banco**
@@ -414,8 +420,7 @@ Limites conhecidos:
 - A folha está bloqueada e não foi exercitada de ponta a ponta: `fn_gerar_esocial_s1200` usa uma coluna
   inexistente (`lancamentos_folha.folha_id`) e falha para todos; `fechar_folha`/`reabrir_folha` e
   `fn_audit_parametros` foram consertados (auditoria gravava texto em coluna uuid).
-- `backup-offsite`: só a própria service role key vale como "cron" e o perfil do usuário precisa estar ativo.
-  No self-hosted, confirme `FUNCTIONS_VERIFY_JWT=true` no `.env`; outras Edge Functions (`cpsi-ai-assistant`,
+- Edge Functions: no self-hosted, confirme `FUNCTIONS_VERIFY_JWT=true` no `.env`; outras Edge Functions (`cpsi-ai-assistant`,
   `enviar-convite-reuniao`) aceitam qualquer sessão, sem checar módulo nem perfil ativo. `download-frequencia`
   exige o módulo `rh` e `rh.frequencia.visualizar` desde a B3 (`docs/EDGE_FUNCTIONS.md`).
 - `overlay/40_privilegios.sql` ajusta os privilégios padrão só do papel `postgres`; objetos criados pelo Studio

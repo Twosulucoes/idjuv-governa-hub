@@ -354,7 +354,7 @@ levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3
   `operation`, `table`, `registrar_evento` e `fonte` saem dos metadados, que levam `fonte = 'log_audit'`, e antes,
   depois e metadados têm limite de 32 KB cada (`22023`). Chamadores conferidos: contracheque (`view` no `rh`, segue
   funcionando), `useAuditLog` (módulos `financeiro` e `aprovacoes`; um `logCreate` com módulo `rh` passaria a falhar
-  em silêncio, porque o hook engole o erro) e `backup-offsite`.
+  em silêncio, porque o hook engole o erro); a `backup-offsite`, que também chamava, foi aposentada no P06.
 - **Leitura** — além do papel admin, policy `audit_logs_rh_auditoria_select` (migração 20261011000100, fora do
   gerador): quem tem o módulo `rh` **e** `rh.auditoria.visualizar` lê as linhas com `module_name = 'rh'` (ver
   [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#trilha-de-auditoria-do-rh-onda-e1)).

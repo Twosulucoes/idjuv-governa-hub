@@ -1,0 +1,155 @@
+name: Deploy das Edge Functions (VPS)
+
+# Publica supabase/functions/ no Supabase self-hosted da VPS (P06). Sem isso nada garantia que o código rodando na
+# VPS fosse o do repositório. No self-hosted não há `supabase functions deploy`: o container de Edge Functions lê
+# as funções de uma pasta (volumes/functions do docker compose), então publicar é copiar a pasta e reiniciar o
+# container.
+#
+# Ordem: o job `esperar` exige o "Quality Gates" verde no mesmo commit e as migrações (como o deploy do front: uma
+# função nova não chega antes do schema de que depende). O job `publicar` roda no ambiente "producao" (aprovação do
+# dono, só a main): as funções usam a service role do banco.
+#
+# Publicação:
+#   1. rsync de supabase/functions/ para VPS_FUNCOES_DIR com --delete (função apagada do repositório sai da VPS),
+#      sem tocar em main/ (o roteador do Supabase, que não é deste repositório);
+#   2. `sudo -n docker restart <container>` (o usuário de deploy só pode rodar exatamente esse comando, ver docs);
+#   3. confere: o runtime voltou (401 sem login), cada função sobe (chamada com a chave anon, pública, que nenhuma
+#      função aceita como usuário: espera-se 4xx, nunca erro de boot) e a pasta da VPS bate com o repositório.
+# O JWT é verificado pelo roteador para toda função (VERIFY_JWT do container; ver docs/EDGE_FUNCTIONS.md).
+#
+# Configuração:
+#   Segredos do ambiente "producao": VPS_SSH_HOST e VPS_SSH_KNOWN_HOSTS (os mesmos das migrações),
+#     VPS_FUNCOES_USER e VPS_FUNCOES_KEY (usuário só para isto: dono da pasta das funções + sudo só do restart).
+#   Variáveis do repositório: VPS_FUNCOES_DIR (ex.: /opt/supabase/docker/volumes/functions), opcional
+#     VPS_FUNCOES_CONTAINER (padrão supabase-edge-functions), VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY
+#     (as mesmas do front).
+# Sem a configuração o job FALHA. Guia: docs/EDGE_FUNCTIONS.md (Publicação pelo CI).
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/functions/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-funcoes-producao
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  esperar:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # o atalho --ultimo-da-main confere ancestralidade
+          persist-credentials: false
+
+      - name: Esperar o gate (Quality Gates) deste commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci/esperar-workflow.sh quality.yml "$GITHUB_SHA" 60
+
+      - name: Esperar as migrações
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q '^supabase/migrations/'; then
+            bash scripts/ci/esperar-workflow.sh migracoes-banco.yml "$GITHUB_SHA" 330
+          else
+            bash scripts/ci/esperar-workflow.sh migracoes-banco.yml "$GITHUB_SHA" 330 --ultimo-da-main
+          fi
+
+  publicar:
+    needs: esperar
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Aprovação e segredos: o ambiente "producao" exige revisor e só aceita a branch main.
+    environment: producao
+    env:
+      VPS_FUNCOES_DIR: ${{ vars.VPS_FUNCOES_DIR }}
+      VPS_FUNCOES_CONTAINER: ${{ vars.VPS_FUNCOES_CONTAINER || 'supabase-edge-functions' }}
+      SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      ANON_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configuração e chave SSH
+        env:
+          VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          VPS_FUNCOES_USER: ${{ secrets.VPS_FUNCOES_USER }}
+          VPS_FUNCOES_KEY: ${{ secrets.VPS_FUNCOES_KEY }}
+        run: |
+          faltam=""
+          for v in VPS_SSH_HOST VPS_SSH_KNOWN_HOSTS VPS_FUNCOES_USER VPS_FUNCOES_KEY VPS_FUNCOES_DIR SUPABASE_URL ANON_KEY; do
+            [ -z "${!v}" ] && faltam="$faltam $v"
+          done
+          if [ -n "$faltam" ]; then
+            echo "::error::Funções NÃO publicadas: falta configurar$faltam. Ver docs/EDGE_FUNCTIONS.md (Publicação pelo CI)."
+            echo "### Funções não publicadas: falta configurar$faltam" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          # Vão para a linha de comando remota: só caracteres seguros, sem "..".
+          if ! [[ "$VPS_FUNCOES_DIR" =~ ^/[A-Za-z0-9._/-]+/functions/?$ ]] || [[ "$VPS_FUNCOES_DIR" == *..* ]]; then
+            echo "::error::VPS_FUNCOES_DIR precisa ser um caminho absoluto simples terminando em /functions (o rsync usa --delete)."; exit 1
+          fi
+          [[ "$VPS_FUNCOES_CONTAINER" =~ ^[A-Za-z0-9_.-]+$ ]] || { echo "::error::VPS_FUNCOES_CONTAINER inválido."; exit 1; }
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VPS_FUNCOES_KEY" > ~/.ssh/id_funcoes && chmod 600 ~/.ssh/id_funcoes
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          echo "DESTINO=${VPS_FUNCOES_USER}@${VPS_SSH_HOST}" >> "$GITHUB_ENV"
+          echo "RSH=ssh -i $HOME/.ssh/id_funcoes -o StrictHostKeyChecking=yes -o BatchMode=yes" >> "$GITHUB_ENV"
+
+      - name: Copiar as funções
+        run: |
+          rsync -rlz --delete --chmod=D755,F644 --exclude=/main/ -e "$RSH" \
+            supabase/functions/ "${DESTINO}:${VPS_FUNCOES_DIR%/}/"
+          funcoes=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name '_*' -printf '%f\n' | sort)
+          echo "FUNCOES=$(echo $funcoes)" >> "$GITHUB_ENV"
+          {
+            echo "### Edge Functions publicadas (commit ${GITHUB_SHA::7})"
+            printf '%s\n' $funcoes | sed 's/^/- `/; s/$/`/'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Reiniciar o container das funções
+        run: $RSH "$DESTINO" "sudo -n docker restart ${VPS_FUNCOES_CONTAINER}"
+
+      - name: Conferir
+        run: |
+          base="${SUPABASE_URL%/}/functions/v1"
+          # 1) runtime de volta: sem login o roteador responde 401
+          for i in $(seq 1 30); do
+            c=$(curl -s -o /dev/null -w '%{http_code}' -m 10 "$base/conferencia-deploy" || true)
+            [ "$c" = 401 ] && break; sleep 3
+          done
+          [ "$c" = 401 ] || { echo "::error::o runtime das funções não voltou ($base respondeu $c)."; exit 1; }
+          # 2) cada função sobe: a chave anon passa no roteador, a função recusa (não é usuário); erro de boot reprova
+          falhas=0
+          for f in $FUNCOES; do
+            corpo=$(curl -s -m 30 -w '\n%{http_code}' -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" "$base/$f" || true)
+            c=$(printf '%s' "$corpo" | tail -1)
+            if [ "${c:0:1}" = 4 ] && ! printf '%s' "$corpo" | grep -qiE 'boot|InvalidWorker|WORKER_'; then
+              echo "ok    $f ($c)"
+            else
+              # O log é público: o corpo da resposta não é impresso (pode trazer dado da função).
+              echo "::error::$f não subiu como esperado (HTTP $c). Veja os logs do container na VPS."; falhas=$((falhas+1))
+            fi
+          done
+          # 3) a pasta da VPS é igual ao repositório
+          dif=$(rsync -rlnc --delete --exclude=/main/ --out-format='%n' -e "$RSH" \
+                  supabase/functions/ "${DESTINO}:${VPS_FUNCOES_DIR%/}/" | grep -v '/$' || true)
+          if [ -n "$dif" ]; then echo "::error::a pasta da VPS difere do repositório: $(echo $dif)"; falhas=$((falhas+1)); fi
+          [ "$falhas" -eq 0 ] || exit 1
+          echo "Conferido: runtime no ar, $(echo $FUNCOES | wc -w) funções sobem, pasta igual ao repositório." >> "$GITHUB_STEP_SUMMARY"

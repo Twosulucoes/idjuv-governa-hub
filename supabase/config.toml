@@ -1,1 +1,37 @@
-project_id = "qvbhejhcktcaftiamksd"
+# Configuração da CLI do Supabase para este repositório (desenvolvimento local: `supabase start`/`functions serve`).
+# A produção é o Supabase self-hosted da VPS: as Edge Functions chegam lá pelo workflow "Deploy das Edge Functions"
+# (.github/workflows/deploy-funcoes.yml), e lá quem exige o JWT é o roteador do container (VERIFY_JWT=true, vale
+# para todas as funções). Ver docs/EDGE_FUNCTIONS.md.
+#
+# project_id é só um nome local (antes apontava para o projeto antigo do Lovable, que não é mais usado).
+project_id = "idjuv-governa-hub"
+
+# Toda função exige login (JWT válido). Cada função ainda confere o usuário e a permissão dentro do próprio código.
+# Função nova: acrescente o bloco aqui com verify_jwt = true; só use false com motivo escrito ao lado.
+
+[functions.admin-create-user]
+verify_jwt = true
+
+[functions.admin-reset-password]
+verify_jwt = true
+
+[functions.bb-api]
+verify_jwt = true
+
+[functions.cpsi-ai-assistant]
+verify_jwt = true
+
+[functions.database-schema]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.download-frequencia]
+verify_jwt = true
+
+[functions.enviar-convite-reuniao]
+verify_jwt = true
+
+[functions.enviar-notificacao]
+verify_jwt = true

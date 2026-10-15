@@ -1,0 +1,77 @@
+name: Vigia do backup
+
+# Todo dia confere, sem baixar nada, que o backup da VPS (scripts/backup/backup-vps.sh, agendado por
+# scripts/backup/idjuv-backup.cron às 03:30 de Boa Vista) chegou ao remoto: a pasta diario/ mais recente tem
+# menos de 26 horas e traz os quatro arquivos, nenhum vazio. Se o cron parar, a VPS cair ou o envio falhar, este
+# workflow fica vermelho e o GitHub manda e-mail para quem acompanha o repositório. A restauração de verdade é
+# testada uma vez por mês (backup-restore-test.yml).
+#
+# Usa os segredos do ambiente "backup" (BACKUP_RCLONE_CONF e BACKUP_RCLONE_REMOTE; ver docs/BACKUP.md). Só lista
+# nomes, tamanhos e datas: nenhum dado do backup passa pelo runner.
+on:
+  schedule:
+    - cron: "0 12 * * *" # 08:00 em Boa Vista, 4h30 depois do backup
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-vigia
+  cancel-in-progress: false
+
+jobs:
+  vigiar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: backup
+    env:
+      RCLONE_CONF: ${{ secrets.BACKUP_RCLONE_CONF }}
+      REMOTO: ${{ secrets.BACKUP_RCLONE_REMOTE }}
+      HORAS_MAX: 26
+    steps:
+      - name: Conferir configuração
+        run: |
+          if [ -z "$RCLONE_CONF" ] || [ -z "$REMOTO" ]; then
+            echo "::error::Backup não configurado (faltam secrets BACKUP_* no ambiente backup). Ver docs/BACKUP.md."
+            exit 1
+          fi
+
+      - name: Instalar rclone
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone
+
+      - name: Conferir o backup mais recente
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.config/rclone
+          printf '%s\n' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
+          ultimo=$(rclone lsf --dirs-only "$REMOTO/diario" | sort | tail -1)
+          [ -n "$ultimo" ] || { echo "::error::nenhum backup em diario/."; exit 1; }
+          pasta="diario/${ultimo%/}"
+          rclone lsjson "$REMOTO/$pasta" > "$RUNNER_TEMP/lista.json"
+          falhas=0
+          for f in banco.dump.age papeis.sql.age storage.tar.gz.age manifesto.tsv; do
+            tam=$(jq -r --arg f "$f" '.[] | select(.Name == $f) | .Size' "$RUNNER_TEMP/lista.json")
+            if [ -z "$tam" ] || [ "$tam" -le 0 ]; then
+              echo "::error::$pasta sem $f (ou vazio)."; falhas=$((falhas + 1))
+            fi
+          done
+          enviado=$(jq -r '[.[] | select(.Name == "manifesto.tsv") | .ModTime][0] // empty' "$RUNNER_TEMP/lista.json")
+          [ -n "$enviado" ] || enviado="${pasta##*/}T00:00:00Z"
+          horas=$(( ( $(date -u +%s) - $(date -u -d "$enviado" +%s) ) / 3600 ))
+          if [ "$horas" -gt "$HORAS_MAX" ]; then
+            echo "::error::o backup mais recente ($pasta) tem $horas horas: o cron da VPS parou ou o envio falhou."
+            falhas=$((falhas + 1))
+          fi
+          {
+            echo "### Vigia do backup"
+            echo "- Mais recente: \`$pasta\`, enviado há $horas h"
+            jq -r '.[] | "- \(.Name): \(.Size) bytes"' "$RUNNER_TEMP/lista.json"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$falhas" -eq 0 ] || exit 1
+          echo "Backup em dia: $pasta, há $horas h."
+
+      - name: Limpar
+        if: always()
+        run: rm -rf ~/.config/rclone "$RUNNER_TEMP/lista.json"

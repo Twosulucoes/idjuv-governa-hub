@@ -16,7 +16,8 @@ name: Fotografia do banco
 #
 # Manual de propósito (Actions → "Fotografia do banco" → Run workflow, na `main`).
 # Mesmo túnel e segredos de migracoes-banco.yml (VPS_SSH_*, SUPABASE_DB_SENHA) + FOTO_ARTEFATO_SENHA;
-# sem eles o job falha. Os segredos só entram nos passos que precisam deles.
+# todos no ambiente "producao" (pede aprovação ao rodar); sem eles o job falha. Os segredos só entram nos passos que
+# precisam deles.
 on:
   workflow_dispatch: {}
 
@@ -31,6 +32,8 @@ jobs:
   fotografia:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Segredos SÓ no ambiente "producao" (aprovação + só a main), os mesmos das migrações e FOTO_ARTEFATO_SENHA.
+    environment: producao
     env:
       FOTO_SAIDA: /tmp/fotografia-banco
 

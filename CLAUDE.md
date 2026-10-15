@@ -124,7 +124,7 @@ src/
 supabase/
 ├── migrations/            # ~240 migrações SQL (timestamp_uuid.sql)
 ├── functions/             # Edge Functions (Deno): admin-create-user, delete-user,
-│                          #   backup-offsite, cpsi-ai-assistant, download-frequencia, ...
+│                          #   cpsi-ai-assistant, download-frequencia, ...
 └── config.toml
 
 docs/        # Documentação de operação (migração Supabase, backup, SQL de correção)
@@ -240,7 +240,7 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
   produção: a Vercel foi desligada (não há prévia por PR; teste local com `bun run dev`).
 - Backend: Supabase self-hosted na VPS do órgão. Edge Functions são deployadas no Supabase.
 - **Migrações:** aplicadas automaticamente pelo CI (`.github/workflows/migracoes-banco.yml`):
-  simulação no PR, aplicação no merge na `main`. Detalhes em `docs/DESENVOLVIMENTO.md`.
+  listagem no PR (sem segredo), aplicação no merge na `main` depois do teste do banco e da aprovação no ambiente `producao`. Detalhes em `docs/DESENVOLVIMENTO.md`.
 
 ---
 

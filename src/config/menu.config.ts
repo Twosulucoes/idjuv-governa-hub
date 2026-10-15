@@ -28,7 +28,6 @@ import {
   Eye,
   Globe,
   Settings,
-  Database,
   Upload,
   HelpCircle,
   Send,
@@ -1278,13 +1277,6 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/config-campos-precadastro",
         icon: Settings,
         permission: "admin.usuarios",
-      },
-      {
-        id: "backup",
-        label: "Backup",
-        route: "/admin/backup",
-        icon: Database,
-        permission: "admin.backup",
       },
       {
         id: "importacoes",

@@ -1,5 +1,9 @@
 # Sistema de Backup e Contingência Externa - IDJUV
 
+> **Aposentado no P06 (15/10/2026).** A Edge Function `backup-offsite`, a tela `/admin/backup` e o hook foram
+> removidos; o backup fora da VPS é o de [BACKUP.md](./BACKUP.md). As tabelas `backup_*` continuam no banco até a
+> limpeza do P13. Este texto fica só como histórico.
+
 ## Visão Geral
 
 O sistema de backup foi projetado para garantir **redundância total** dos dados do IDJUV, permitindo operação e leitura dos dados fora da plataforma de hospedagem atual em caso de indisponibilidade.

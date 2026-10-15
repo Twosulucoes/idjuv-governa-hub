@@ -39,7 +39,9 @@ Desde o P03 (tipos do banco gerados das migrações) a baseline do typecheck é 
 
 Migração nova exige o `src/integrations/supabase/types.ts` regenerado no mesmo PR:
 `bash scripts/db/gerar-tipos.sh` (Postgres local, ver `docs/BANCO_DE_DADOS.md`). O CI **Tipos do banco**
-(`.github/workflows/tipos-banco.yml`) reprova o PR se o arquivo estiver defasado.
+(`.github/workflows/tipos-banco.yml`) reprova o PR se o arquivo estiver defasado. O CI **Banco do zero e RLS**
+(`.github/workflows/banco-rls.yml`) refaz o banco do zero, testa a RLS e reprova migração sem o schema do baseline
+regenerado ou com tabela nova fora de `supabase/baseline/rls/mapa.csv` (ver `docs/DESENVOLVIMENTO.md`).
 
 Para pular conscientemente: `git push --no-verify`. **Isso é desaconselhado**
 — o hook existe justamente para pegar erro de tipo, lint ou build antes de
