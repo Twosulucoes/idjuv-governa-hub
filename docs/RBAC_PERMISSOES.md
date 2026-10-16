@@ -870,10 +870,10 @@ módulo (a tela não oferece). No modo `exigir` a recusa vem com o SQLSTATE `RHS
 do banco. Telas e hooks em
 [GUIA_FRONTEND.md](./GUIA_FRONTEND.md#lançamento-por-setor-fase-1).
 
-| Rota | Guarda (`ProtectedRoute` e `ROUTE_PERMISSIONS`) | Menu | Gravação |
+| Rota | Guarda (`ProtectedRoute` no `App.tsx`) | Menu | Gravação |
 |---|---|---|---|
 | `/admin/setores-modulos` (setores de cada módulo e modo da regra) | módulo `admin` e `admin.config` | "Setores dos Módulos" em Administração (`menu.config.ts` e `module-menus.config.ts`, `admin.config`) | só o **papel** admin (RLS de `setores_modulo` e `regra_lancamento`); sem o papel a tela é só consulta |
-| `/rh/comissoes` (comissões e membros) | módulo `rh` (`ROUTE_PERMISSIONS`: `'rh'`) | "Comissões" no RH, nos dois menus com a mesma exigência da rota: `permission: "rh"` (código sem ponto = o módulo) | `rh.comissoes.gerenciar` (botões e RLS de `comissoes` e `comissoes_membros`) |
+| `/rh/comissoes` (comissões e membros) | módulo `rh` (`requiredModule="rh"`) | "Comissões" no RH, nos dois menus com a mesma exigência da rota: `permission: "rh"` (código sem ponto = o módulo) | `rh.comissoes.gerenciar` (botões e RLS de `comissoes` e `comissoes_membros`) |
 | `/rh/auditoria`, aba "Lançamento por setor" | `rh.auditoria.visualizar` (a mesma da trilha) | — | — (leitura: RLS de `audit_logs` e RPC `saneamento_lancamento`, que pede admin ou a mesma permissão) |
 
 - O aviso "somente consulta" (`AvisoSomenteConsulta`, no `ModuleLayout`, só no modo `exigir`) é UX: a fronteira é o
@@ -1054,7 +1054,11 @@ Camadas complementares:
   `governanca.relatorios.visualizar`; `/integridade/codigo-etica`, `/conflito`, `/politica` →
   `integridade.visualizar`; 5 páginas de programas → `programas.visualizar`; 6 formulários →
   `formularios.visualizar`. Pelo catálogo, só as duas primeiras ficam restritas a admin e manager; as demais
-  todos os papéis têm, e barram apenas login sem papel.
+  todos os papéis têm, e barram apenas login sem papel. Os itens de menu dessas telas pedem a mesma permissão.
+  O manager abre a gestão do portal, mas só o papel admin grava (RLS de `config_paginas_publicas`,
+  `config_menu_publico` e `links_uteis`).
+- **A URL é comparada como o react-router compara:** sem diferenciar maiúsculas e decodificada, para
+  `/Programas/...` ou `/%70rogramas/...` não escaparem do 404 de módulo não contratado.
 - **`ROUTE_PERMISSIONS` removido** de `src/types/auth.ts` (84 entradas, nenhuma lida pelo `ProtectedRoute`, 11
   de rotas inexistentes). As menções a ele nas seções acima são registro histórico.
 - **D6 confirmada pelo dono (16/10/2026):** fica como a Onda B2 deixou; o papel `user` não grava férias,

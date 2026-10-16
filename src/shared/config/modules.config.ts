@@ -229,11 +229,19 @@ export const MODULES_CONFIG: ModuleConfig[] = [
  */
 export function findModuleByRoute(pathname: string): ModuleConfig | undefined {
   // Vence o prefixo mais longo: `/admin/federacoes` é de `organizacoes`, não de `admin`.
+  // O react-router casa rotas sem diferenciar maiúsculas e com a URL decodificada; aqui também,
+  // senão `/Programas/...` ou `/%70rogramas/...` abririam a tela sem cair no módulo.
+  let caminho: string;
+  try {
+    caminho = decodeURI(pathname).toLowerCase();
+  } catch {
+    return undefined;
+  }
   let achado: ModuleConfig | undefined;
   let tamanho = -1;
   for (const m of MODULES_CONFIG) {
     for (const r of m.rotas) {
-      if ((pathname === r || pathname.startsWith(r + '/')) && r.length > tamanho) {
+      if ((caminho === r || caminho.startsWith(r + '/')) && r.length > tamanho) {
         achado = m;
         tamanho = r.length;
       }

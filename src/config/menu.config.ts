@@ -129,6 +129,7 @@ export type PermissaoInstitucional =
   | 'governanca.aprovar'
   | 'governanca.avaliar'
   | 'governanca.cargos.visualizar'
+  | 'governanca.relatorios.visualizar'
   // Transparência
   | 'transparencia.visualizar'
   | 'transparencia.responder'
@@ -143,6 +144,9 @@ export type PermissaoInstitucional =
   | 'admin.perfis'
   | 'admin.auditoria'
   | 'admin.config'
+  | 'comunicacao.visualizar'
+  | 'ascom.gerenciar'
+  | 'rh.servidores.visualizar'
   | 'admin.backup'
   | 'admin.envios'
   | 'admin.configuracao_cliente';
@@ -821,7 +825,7 @@ export const menuConfig: MenuSection[] = [
         label: "Relatórios",
         route: "/governanca/relatorio",
         icon: BarChart3,
-        permission: "governanca.visualizar",
+        permission: "governanca.relatorios.visualizar",
       },
     ],
   },
@@ -1097,6 +1101,7 @@ export const menuConfig: MenuSection[] = [
         label: "Calendário",
         route: "/comunicacao/calendario",
         icon: Calendar,
+        permission: "comunicacao.visualizar",
       },
       {
         id: "demandas-ascom",
@@ -1109,6 +1114,7 @@ export const menuConfig: MenuSection[] = [
         label: "Aniversariantes",
         route: "/comunicacao/aniversariantes",
         icon: Cake,
+        permissions: ["rh.servidores.visualizar", "ascom.gerenciar"],
       },
       {
         id: "avisos-datas",
@@ -1249,21 +1255,21 @@ export const menuConfig: MenuSection[] = [
         label: "Páginas Públicas",
         route: "/admin/paginas",
         icon: Globe,
-        // Visível para todos os admins
+        permission: "admin.config",
       },
       {
         id: "menu-site",
         label: "Menu do Site",
         route: "/admin/menu-site",
         icon: ListChecks,
-        // Visível para todos os admins
+        permission: "admin.config",
       },
       {
         id: "links-uteis",
         label: "Links Úteis",
         route: "/admin/links-uteis",
         icon: Link2,
-        // Visível para todos os admins
+        permission: "admin.config",
       },
       {
         id: "configuracoes",

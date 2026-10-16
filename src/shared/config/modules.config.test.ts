@@ -30,6 +30,8 @@ const TRANSVERSAIS = [
   "/manuais/convenios",
 ];
 
+// Limitação: só enxerga `<Route path="..." element={<ProtectedRoute`; rota com `path={...}` ou outro
+// componente antes do ProtectedRoute escapa desta checagem.
 function rotasProtegidas(): string[] {
   const app = readFileSync(resolve(__dirname, "../../App.tsx"), "utf8");
   const rotas: string[] = [];
@@ -50,6 +52,12 @@ describe("módulo de cada rota", () => {
     expect(moduloDaRota("/patrimonio")).toBe("patrimonio");
     expect(moduloDaRota("/comunicacao/aniversariantes")).toBe("comunicacao");
     expect(moduloDaRota("/acesso")).toBe("admin");
+  });
+
+  it("casa como o react-router: sem diferenciar maiúsculas e com a URL decodificada", () => {
+    expect(moduloDaRota("/Programas/bolsa-atleta")).toBe("programas");
+    expect(moduloDaRota("/%70rogramas/bolsa-atleta")).toBe("programas");
+    expect(moduloDaRota("/%E0%A4%A")).toBeNull();
   });
 
   it("não confunde prefixo parcial", () => {
