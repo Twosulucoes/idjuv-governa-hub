@@ -3110,22 +3110,6 @@ ALTER TABLE ONLY public.user_roles
 
 
 --
--- Name: _backup_usuario_modulos_old usuario_modulos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public._backup_usuario_modulos_old
-    ADD CONSTRAINT usuario_modulos_pkey PRIMARY KEY (id);
-
-
---
--- Name: _backup_usuario_modulos_old usuario_modulos_user_id_modulo_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public._backup_usuario_modulos_old
-    ADD CONSTRAINT usuario_modulos_user_id_modulo_id_key UNIQUE (user_id, modulo_id);
-
-
---
 -- Name: vagas_cargo vagas_cargo_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3235,6 +3219,13 @@ CREATE INDEX idx_agenda_unidade ON public.agenda_unidade USING btree (unidade_lo
 
 
 --
+-- Name: idx_agenda_unidade_aprovador_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_agenda_unidade_aprovador_id ON public.agenda_unidade USING btree (aprovador_id);
+
+
+--
 -- Name: idx_agenda_unidade_federacao; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3270,6 +3261,20 @@ CREATE INDEX idx_agrupamento_vinculo_unidade ON public.agrupamento_unidade_vincu
 
 
 --
+-- Name: idx_almoxarifados_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_almoxarifados_responsavel_id ON public.almoxarifados USING btree (responsavel_id);
+
+
+--
+-- Name: idx_almoxarifados_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_almoxarifados_unidade_id ON public.almoxarifados USING btree (unidade_id);
+
+
+--
 -- Name: idx_approval_requests_approver; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3288,6 +3293,13 @@ CREATE INDEX idx_approval_requests_entity ON public.approval_requests USING btre
 --
 
 CREATE INDEX idx_approval_requests_requester ON public.approval_requests USING btree (requester_id);
+
+
+--
+-- Name: idx_approval_requests_requester_org_unit_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_approval_requests_requester_org_unit_id ON public.approval_requests USING btree (requester_org_unit_id);
 
 
 --
@@ -3396,6 +3408,13 @@ CREATE INDEX idx_audit_logs_modulo_seq ON public.audit_logs USING btree (module_
 
 
 --
+-- Name: idx_audit_logs_org_unit_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_logs_org_unit_id ON public.audit_logs USING btree (org_unit_id);
+
+
+--
 -- Name: idx_audit_logs_protocolo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3431,6 +3450,34 @@ CREATE INDEX idx_audit_logs_usuario_seq ON public.audit_logs USING btree (user_i
 
 
 --
+-- Name: idx_avaliacoes_controle_avaliador_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_avaliacoes_controle_avaliador_id ON public.avaliacoes_controle USING btree (avaliador_id);
+
+
+--
+-- Name: idx_avaliacoes_controle_controle_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_avaliacoes_controle_controle_id ON public.avaliacoes_controle USING btree (controle_id);
+
+
+--
+-- Name: idx_avaliacoes_risco_avaliador_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_avaliacoes_risco_avaliador_id ON public.avaliacoes_risco USING btree (avaliador_id);
+
+
+--
+-- Name: idx_avaliacoes_risco_risco_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_avaliacoes_risco_risco_id ON public.avaliacoes_risco USING btree (risco_id);
+
+
+--
 -- Name: idx_avisos_leituras_user; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3463,6 +3510,13 @@ CREATE INDEX idx_backup_history_status ON public.backup_history USING btree (sta
 --
 
 CREATE INDEX idx_backup_history_type ON public.backup_history USING btree (backup_type);
+
+
+--
+-- Name: idx_backup_integrity_checks_backup_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_backup_integrity_checks_backup_id ON public.backup_integrity_checks USING btree (backup_id);
 
 
 --
@@ -3512,6 +3566,27 @@ CREATE INDEX idx_bens_codigo_qr ON public.bens_patrimoniais USING btree (codigo_
 --
 
 CREATE INDEX idx_bens_patrimoniais_codigo_qr_norm ON public.bens_patrimoniais USING btree (upper(btrim(codigo_qr)));
+
+
+--
+-- Name: idx_bens_patrimoniais_empenho_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_bens_patrimoniais_empenho_id ON public.bens_patrimoniais USING btree (empenho_id);
+
+
+--
+-- Name: idx_bens_patrimoniais_fornecedor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_bens_patrimoniais_fornecedor_id ON public.bens_patrimoniais USING btree (fornecedor_id);
+
+
+--
+-- Name: idx_bens_patrimoniais_item_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_bens_patrimoniais_item_id ON public.bens_patrimoniais USING btree (item_id);
 
 
 --
@@ -3578,6 +3653,13 @@ CREATE INDEX idx_campanhas_ano ON public.campanhas_inventario USING btree (ano);
 
 
 --
+-- Name: idx_campanhas_inventario_responsavel_geral_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_campanhas_inventario_responsavel_geral_id ON public.campanhas_inventario USING btree (responsavel_geral_id);
+
+
+--
 -- Name: idx_campanhas_inventario_unidades_campanha; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3606,6 +3688,13 @@ CREATE INDEX idx_cargo_unidade_compat_cargo ON public.cargo_unidade_compatibilid
 
 
 --
+-- Name: idx_cargo_unidade_compatibilidade_unidade_especifica_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cargo_unidade_compatibilidade_unidade_especifica_id ON public.cargo_unidade_compatibilidade USING btree (unidade_especifica_id);
+
+
+--
 -- Name: idx_cargos_ativo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3620,6 +3709,13 @@ CREATE INDEX idx_cargos_categoria ON public.cargos USING btree (categoria);
 
 
 --
+-- Name: idx_centros_custo_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_centros_custo_unidade_id ON public.centros_custo USING btree (unidade_id);
+
+
+--
 -- Name: idx_cessoes_ativa; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3631,6 +3727,13 @@ CREATE INDEX idx_cessoes_ativa ON public.cessoes USING btree (ativa) WHERE (ativ
 --
 
 CREATE INDEX idx_cessoes_servidor ON public.cessoes USING btree (servidor_id);
+
+
+--
+-- Name: idx_cessoes_unidade_idjuv_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cessoes_unidade_idjuv_id ON public.cessoes USING btree (unidade_idjuv_id);
 
 
 --
@@ -3760,6 +3863,20 @@ CREATE INDEX idx_coletas_campanha ON public.coletas_inventario USING btree (camp
 
 
 --
+-- Name: idx_coletas_inventario_localizacao_encontrada_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_coletas_inventario_localizacao_encontrada_unidade_id ON public.coletas_inventario USING btree (localizacao_encontrada_unidade_id);
+
+
+--
+-- Name: idx_coletas_inventario_responsavel_encontrado_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_coletas_inventario_responsavel_encontrado_id ON public.coletas_inventario USING btree (responsavel_encontrado_id);
+
+
+--
 -- Name: idx_coletas_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3788,10 +3905,31 @@ CREATE INDEX idx_comissoes_modulo ON public.comissoes USING btree (modulo);
 
 
 --
+-- Name: idx_composicao_cargos_cargo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_composicao_cargos_cargo_id ON public.composicao_cargos USING btree (cargo_id);
+
+
+--
 -- Name: idx_conciliacoes_campanha; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_conciliacoes_campanha ON public.conciliacoes_inventario USING btree (campanha_id);
+
+
+--
+-- Name: idx_conciliacoes_inventario_bem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_conciliacoes_inventario_bem_id ON public.conciliacoes_inventario USING btree (bem_id);
+
+
+--
+-- Name: idx_conciliacoes_inventario_coleta_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_conciliacoes_inventario_coleta_id ON public.conciliacoes_inventario USING btree (coleta_id);
 
 
 --
@@ -3813,6 +3951,20 @@ CREATE INDEX idx_config_assinatura_frequencia_instituicao ON public.config_assin
 --
 
 CREATE INDEX idx_config_compensacao_instituicao ON public.config_compensacao USING btree (instituicao_id);
+
+
+--
+-- Name: idx_config_compensacao_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_config_compensacao_unidade_id ON public.config_compensacao USING btree (unidade_id);
+
+
+--
+-- Name: idx_config_fechamento_folha_conta_remessa_padrao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_config_fechamento_folha_conta_remessa_padrao_id ON public.config_fechamento_folha USING btree (conta_remessa_padrao_id);
 
 
 --
@@ -3844,6 +3996,13 @@ CREATE INDEX idx_config_incidencias_destino ON public.config_incidencias USING b
 
 
 --
+-- Name: idx_config_incidencias_instituicao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_config_incidencias_instituicao_id ON public.config_incidencias USING btree (instituicao_id);
+
+
+--
 -- Name: idx_config_incidencias_origem; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3858,10 +4017,24 @@ CREATE INDEX idx_config_jornada_escopo ON public.config_jornada_padrao USING btr
 
 
 --
+-- Name: idx_config_jornada_padrao_cargo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_config_jornada_padrao_cargo_id ON public.config_jornada_padrao USING btree (cargo_id);
+
+
+--
 -- Name: idx_config_jornada_padrao_instituicao; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_config_jornada_padrao_instituicao ON public.config_jornada_padrao USING btree (instituicao_id);
+
+
+--
+-- Name: idx_config_jornada_padrao_servidor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_config_jornada_padrao_servidor_id ON public.config_jornada_padrao USING btree (servidor_id);
 
 
 --
@@ -3876,6 +4049,13 @@ CREATE INDEX idx_config_jornada_unidade ON public.config_jornada_padrao USING bt
 --
 
 CREATE INDEX idx_config_motivos_desligamento_instituicao ON public.config_motivos_desligamento USING btree (instituicao_id);
+
+
+--
+-- Name: idx_config_paginas_historico_pagina_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_config_paginas_historico_pagina_id ON public.config_paginas_historico USING btree (pagina_id);
 
 
 --
@@ -3907,6 +4087,13 @@ CREATE INDEX idx_config_param_valores_vigencia ON public.config_parametros_valor
 
 
 --
+-- Name: idx_config_parametros_valores_servidor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_config_parametros_valores_servidor_id ON public.config_parametros_valores USING btree (servidor_id);
+
+
+--
 -- Name: idx_config_parametros_valores_unicidade; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3918,6 +4105,13 @@ CREATE UNIQUE INDEX idx_config_parametros_valores_unicidade ON public.config_par
 --
 
 COMMENT ON INDEX public.idx_config_parametros_valores_unicidade IS 'Garante unicidade de parâmetros por instituição, código, contexto hierárquico e vigência. Suporta ON CONFLICT para upserts.';
+
+
+--
+-- Name: idx_config_parametros_valores_versao_anterior_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_config_parametros_valores_versao_anterior_id ON public.config_parametros_valores USING btree (versao_anterior_id);
 
 
 --
@@ -3974,6 +4168,13 @@ CREATE INDEX idx_config_rubricas_instituicao ON public.config_rubricas USING btr
 --
 
 CREATE INDEX idx_config_rubricas_natureza ON public.config_rubricas USING btree (natureza);
+
+
+--
+-- Name: idx_config_rubricas_rubrica_base_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_config_rubricas_rubrica_base_id ON public.config_rubricas USING btree (rubrica_base_id);
 
 
 --
@@ -4061,10 +4262,24 @@ CREATE INDEX idx_consignacoes_ativo ON public.consignacoes USING btree (ativo, s
 
 
 --
+-- Name: idx_consignacoes_rubrica_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_consignacoes_rubrica_id ON public.consignacoes USING btree (rubrica_id);
+
+
+--
 -- Name: idx_consignacoes_servidor; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_consignacoes_servidor ON public.consignacoes USING btree (servidor_id);
+
+
+--
+-- Name: idx_contas_autarquia_banco_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contas_autarquia_banco_id ON public.contas_autarquia USING btree (banco_id);
 
 
 --
@@ -4089,6 +4304,27 @@ CREATE INDEX idx_conteudo_rascunho_tipo ON public.conteudo_rascunho USING btree 
 
 
 --
+-- Name: idx_contratos_fiscal_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contratos_fiscal_id ON public.contratos USING btree (fiscal_id);
+
+
+--
+-- Name: idx_contratos_fornecedor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contratos_fornecedor_id ON public.contratos USING btree (fornecedor_id);
+
+
+--
+-- Name: idx_contratos_gestor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contratos_gestor_id ON public.contratos USING btree (gestor_id);
+
+
+--
 -- Name: idx_contratos_numero; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4096,10 +4332,45 @@ CREATE INDEX idx_contratos_numero ON public.contratos USING btree (numero_contra
 
 
 --
+-- Name: idx_contratos_processo_licitatorio_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contratos_processo_licitatorio_id ON public.contratos USING btree (processo_licitatorio_id);
+
+
+--
 -- Name: idx_contratos_status; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_contratos_status ON public.contratos USING btree (status);
+
+
+--
+-- Name: idx_controles_internos_processo_raci_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_controles_internos_processo_raci_id ON public.controles_internos USING btree (processo_raci_id);
+
+
+--
+-- Name: idx_controles_internos_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_controles_internos_responsavel_id ON public.controles_internos USING btree (responsavel_id);
+
+
+--
+-- Name: idx_controles_internos_risco_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_controles_internos_risco_id ON public.controles_internos USING btree (risco_id);
+
+
+--
+-- Name: idx_controles_internos_unidade_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_controles_internos_unidade_responsavel_id ON public.controles_internos USING btree (unidade_responsavel_id);
 
 
 --
@@ -4114,6 +4385,20 @@ CREATE INDEX idx_controles_modulo ON public.controles_internos USING btree (modu
 --
 
 CREATE INDEX idx_controles_tipo ON public.controles_internos USING btree (tipo);
+
+
+--
+-- Name: idx_creditos_adicionais_dotacao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_creditos_adicionais_dotacao_id ON public.creditos_adicionais USING btree (dotacao_id);
+
+
+--
+-- Name: idx_creditos_adicionais_dotacao_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_creditos_adicionais_dotacao_origem_id ON public.creditos_adicionais USING btree (dotacao_origem_id);
 
 
 --
@@ -4159,6 +4444,20 @@ CREATE INDEX idx_debitos_tecnicos_status ON public.debitos_tecnicos USING btree 
 
 
 --
+-- Name: idx_decisoes_administrativas_autoridade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_decisoes_administrativas_autoridade_id ON public.decisoes_administrativas USING btree (autoridade_id);
+
+
+--
+-- Name: idx_decisoes_administrativas_unidade_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_decisoes_administrativas_unidade_origem_id ON public.decisoes_administrativas USING btree (unidade_origem_id);
+
+
+--
 -- Name: idx_decisoes_ano; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4170,6 +4469,62 @@ CREATE INDEX idx_decisoes_ano ON public.decisoes_administrativas USING btree (an
 --
 
 CREATE INDEX idx_decisoes_tipo ON public.decisoes_administrativas USING btree (tipo);
+
+
+--
+-- Name: idx_demandas_ascom_anexos_demanda_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_demandas_ascom_anexos_demanda_id ON public.demandas_ascom_anexos USING btree (demanda_id);
+
+
+--
+-- Name: idx_demandas_ascom_aprovado_por_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_demandas_ascom_aprovado_por_id ON public.demandas_ascom USING btree (aprovado_por_id);
+
+
+--
+-- Name: idx_demandas_ascom_autorizado_presidencia_por_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_demandas_ascom_autorizado_presidencia_por_id ON public.demandas_ascom USING btree (autorizado_presidencia_por_id);
+
+
+--
+-- Name: idx_demandas_ascom_comentarios_demanda_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_demandas_ascom_comentarios_demanda_id ON public.demandas_ascom_comentarios USING btree (demanda_id);
+
+
+--
+-- Name: idx_demandas_ascom_entregaveis_demanda_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_demandas_ascom_entregaveis_demanda_id ON public.demandas_ascom_entregaveis USING btree (demanda_id);
+
+
+--
+-- Name: idx_demandas_ascom_responsavel_ascom_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_demandas_ascom_responsavel_ascom_id ON public.demandas_ascom USING btree (responsavel_ascom_id);
+
+
+--
+-- Name: idx_demandas_ascom_servidor_solicitante_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_demandas_ascom_servidor_solicitante_id ON public.demandas_ascom USING btree (servidor_solicitante_id);
+
+
+--
+-- Name: idx_demandas_ascom_unidade_solicitante_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_demandas_ascom_unidade_solicitante_id ON public.demandas_ascom USING btree (unidade_solicitante_id);
 
 
 --
@@ -4215,6 +4570,13 @@ CREATE INDEX idx_designacoes_ativo ON public.designacoes USING btree (ativo) WHE
 
 
 --
+-- Name: idx_designacoes_lotacao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_designacoes_lotacao_id ON public.designacoes USING btree (lotacao_id);
+
+
+--
 -- Name: idx_designacoes_servidor_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4236,10 +4598,24 @@ CREATE INDEX idx_designacoes_unidade_destino ON public.designacoes USING btree (
 
 
 --
+-- Name: idx_designacoes_unidade_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_designacoes_unidade_origem_id ON public.designacoes USING btree (unidade_origem_id);
+
+
+--
 -- Name: idx_despachos_autoridade; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_despachos_autoridade ON public.despachos USING btree (autoridade_id);
+
+
+--
+-- Name: idx_despachos_movimentacao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_despachos_movimentacao_id ON public.despachos USING btree (movimentacao_id);
 
 
 --
@@ -4306,6 +4682,13 @@ CREATE INDEX idx_doc_req_status ON public.documentos_requerimento_servidor USING
 
 
 --
+-- Name: idx_documentos_cargo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_documentos_cargo_id ON public.documentos USING btree (cargo_id);
+
+
+--
 -- Name: idx_documentos_cedencia_agenda; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4331,6 +4714,27 @@ CREATE INDEX idx_documentos_designacao_id ON public.documentos USING btree (desi
 --
 
 CREATE INDEX idx_documentos_numero ON public.documentos USING btree (numero);
+
+
+--
+-- Name: idx_documentos_preparatorios_licitacao_aprovado_por; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_documentos_preparatorios_licitacao_aprovado_por ON public.documentos_preparatorios_licitacao USING btree (aprovado_por);
+
+
+--
+-- Name: idx_documentos_preparatorios_licitacao_processo_licitatorio_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_documentos_preparatorios_licitacao_processo_licitatorio_id ON public.documentos_preparatorios_licitacao USING btree (processo_licitatorio_id);
+
+
+--
+-- Name: idx_documentos_preparatorios_licitacao_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_documentos_preparatorios_licitacao_responsavel_id ON public.documentos_preparatorios_licitacao USING btree (responsavel_id);
 
 
 --
@@ -4383,6 +4787,13 @@ CREATE INDEX idx_documentos_tipo_ano ON public.documentos USING btree (tipo, EXT
 
 
 --
+-- Name: idx_documentos_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_documentos_unidade_id ON public.documentos USING btree (unidade_id);
+
+
+--
 -- Name: idx_dotacoes_classificacao; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4394,6 +4805,13 @@ CREATE INDEX idx_dotacoes_classificacao ON public.dotacoes_orcamentarias USING b
 --
 
 CREATE INDEX idx_dotacoes_exercicio ON public.dotacoes_orcamentarias USING btree (exercicio);
+
+
+--
+-- Name: idx_dotacoes_orcamentarias_centro_custo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_dotacoes_orcamentarias_centro_custo_id ON public.dotacoes_orcamentarias USING btree (centro_custo_id);
 
 
 --
@@ -4425,6 +4843,13 @@ CREATE INDEX idx_empenhos_fornecedor ON public.empenhos USING btree (fornecedor_
 
 
 --
+-- Name: idx_empenhos_processo_licitatorio_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_empenhos_processo_licitatorio_id ON public.empenhos USING btree (processo_licitatorio_id);
+
+
+--
 -- Name: idx_encaminhamentos_destino; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4436,6 +4861,13 @@ CREATE INDEX idx_encaminhamentos_destino ON public.encaminhamentos USING btree (
 --
 
 CREATE INDEX idx_encaminhamentos_origem ON public.encaminhamentos USING btree (tipo_origem, origem_id);
+
+
+--
+-- Name: idx_encaminhamentos_servidor_destino_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_encaminhamentos_servidor_destino_id ON public.encaminhamentos USING btree (servidor_destino_id);
 
 
 --
@@ -4495,6 +4927,13 @@ CREATE INDEX idx_estrutura_ativo ON public.estrutura_organizacional USING btree 
 
 
 --
+-- Name: idx_estrutura_organizacional_cargo_chefe_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_estrutura_organizacional_cargo_chefe_id ON public.estrutura_organizacional USING btree (cargo_chefe_id);
+
+
+--
 -- Name: idx_estrutura_superior; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4548,6 +4987,13 @@ CREATE INDEX idx_eventos_esocial_tipo ON public.eventos_esocial USING btree (tip
 --
 
 CREATE INDEX idx_evidencias_controle ON public.evidencias_controle USING btree (controle_id);
+
+
+--
+-- Name: idx_exportacoes_folha_banco_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_exportacoes_folha_banco_id ON public.exportacoes_folha USING btree (banco_id);
 
 
 --
@@ -4663,6 +5109,13 @@ CREATE INDEX idx_fichas_financeiras_cargo ON public.fichas_financeiras USING btr
 
 
 --
+-- Name: idx_fichas_financeiras_centro_custo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fichas_financeiras_centro_custo_id ON public.fichas_financeiras USING btree (centro_custo_id);
+
+
+--
 -- Name: idx_fichas_financeiras_folha; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4670,10 +5123,24 @@ CREATE INDEX idx_fichas_financeiras_folha ON public.fichas_financeiras USING btr
 
 
 --
+-- Name: idx_fichas_financeiras_lotacao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fichas_financeiras_lotacao_id ON public.fichas_financeiras USING btree (lotacao_id);
+
+
+--
 -- Name: idx_fichas_financeiras_servidor; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_fichas_financeiras_servidor ON public.fichas_financeiras USING btree (servidor_id);
+
+
+--
+-- Name: idx_fichas_financeiras_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fichas_financeiras_unidade_id ON public.fichas_financeiras USING btree (unidade_id);
 
 
 --
@@ -4688,6 +5155,27 @@ CREATE INDEX idx_fin_acoes_programa ON public.fin_acoes_orcamentarias USING btre
 --
 
 CREATE INDEX idx_fin_adiantamento_itens_adi ON public.fin_adiantamento_itens USING btree (adiantamento_id);
+
+
+--
+-- Name: idx_fin_adiantamentos_conta_bancaria_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_adiantamentos_conta_bancaria_id ON public.fin_adiantamentos USING btree (conta_bancaria_id);
+
+
+--
+-- Name: idx_fin_adiantamentos_dotacao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_adiantamentos_dotacao_id ON public.fin_adiantamentos USING btree (dotacao_id);
+
+
+--
+-- Name: idx_fin_adiantamentos_empenho_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_adiantamentos_empenho_id ON public.fin_adiantamentos USING btree (empenho_id);
 
 
 --
@@ -4709,6 +5197,27 @@ CREATE INDEX idx_fin_adiantamentos_servidor ON public.fin_adiantamentos USING bt
 --
 
 CREATE INDEX idx_fin_adiantamentos_status ON public.fin_adiantamentos USING btree (status);
+
+
+--
+-- Name: idx_fin_adiantamentos_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_adiantamentos_unidade_id ON public.fin_adiantamentos USING btree (unidade_id);
+
+
+--
+-- Name: idx_fin_alteracoes_orcamentarias_dotacao_destino_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_alteracoes_orcamentarias_dotacao_destino_id ON public.fin_alteracoes_orcamentarias USING btree (dotacao_destino_id);
+
+
+--
+-- Name: idx_fin_alteracoes_orcamentarias_dotacao_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_alteracoes_orcamentarias_dotacao_origem_id ON public.fin_alteracoes_orcamentarias USING btree (dotacao_origem_id);
 
 
 --
@@ -4740,6 +5249,27 @@ CREATE INDEX idx_fin_audit_tabela ON public.fin_audit_log USING btree (tabela_or
 
 
 --
+-- Name: idx_fin_checklist_ci_solicitacao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_checklist_ci_solicitacao_id ON public.fin_checklist_ci USING btree (solicitacao_id);
+
+
+--
+-- Name: idx_fin_contas_bancarias_fonte_recurso_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_contas_bancarias_fonte_recurso_id ON public.fin_contas_bancarias USING btree (fonte_recurso_id);
+
+
+--
+-- Name: idx_fin_contas_bancarias_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_contas_bancarias_responsavel_id ON public.fin_contas_bancarias USING btree (responsavel_id);
+
+
+--
 -- Name: idx_fin_contas_banco; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4751,6 +5281,13 @@ CREATE INDEX idx_fin_contas_banco ON public.fin_contas_bancarias USING btree (ba
 --
 
 CREATE INDEX idx_fin_documentos_categoria ON public.fin_documentos USING btree (categoria);
+
+
+--
+-- Name: idx_fin_documentos_documento_anterior_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_documentos_documento_anterior_id ON public.fin_documentos USING btree (documento_anterior_id);
 
 
 --
@@ -4768,6 +5305,13 @@ CREATE INDEX idx_fin_dotacoes_acao ON public.fin_dotacoes USING btree (acao_id);
 
 
 --
+-- Name: idx_fin_dotacoes_conta_contabil_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_dotacoes_conta_contabil_id ON public.fin_dotacoes USING btree (conta_contabil_id);
+
+
+--
 -- Name: idx_fin_dotacoes_exercicio; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4782,10 +5326,45 @@ CREATE INDEX idx_fin_dotacoes_fonte ON public.fin_dotacoes USING btree (fonte_re
 
 
 --
+-- Name: idx_fin_dotacoes_natureza_despesa_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_dotacoes_natureza_despesa_id ON public.fin_dotacoes USING btree (natureza_despesa_id);
+
+
+--
+-- Name: idx_fin_dotacoes_programa_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_dotacoes_programa_id ON public.fin_dotacoes USING btree (programa_id);
+
+
+--
 -- Name: idx_fin_dotacoes_unidade; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_fin_dotacoes_unidade ON public.fin_dotacoes USING btree (unidade_orcamentaria_id);
+
+
+--
+-- Name: idx_fin_empenho_anulacoes_empenho_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_empenho_anulacoes_empenho_id ON public.fin_empenho_anulacoes USING btree (empenho_id);
+
+
+--
+-- Name: idx_fin_empenhos_conta_contabil_credito_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_empenhos_conta_contabil_credito_id ON public.fin_empenhos USING btree (conta_contabil_credito_id);
+
+
+--
+-- Name: idx_fin_empenhos_conta_contabil_debito_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_empenhos_conta_contabil_debito_id ON public.fin_empenhos USING btree (conta_contabil_debito_id);
 
 
 --
@@ -4810,10 +5389,31 @@ CREATE INDEX idx_fin_empenhos_exercicio ON public.fin_empenhos USING btree (exer
 
 
 --
+-- Name: idx_fin_empenhos_fonte_recurso_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_empenhos_fonte_recurso_id ON public.fin_empenhos USING btree (fonte_recurso_id);
+
+
+--
 -- Name: idx_fin_empenhos_fornecedor; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_fin_empenhos_fornecedor ON public.fin_empenhos USING btree (fornecedor_id);
+
+
+--
+-- Name: idx_fin_empenhos_natureza_despesa_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_empenhos_natureza_despesa_id ON public.fin_empenhos USING btree (natureza_despesa_id);
+
+
+--
+-- Name: idx_fin_empenhos_solicitacao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_empenhos_solicitacao_id ON public.fin_empenhos USING btree (solicitacao_id);
 
 
 --
@@ -4859,10 +5459,31 @@ CREATE INDEX idx_fin_extrato_trans_status ON public.fin_extrato_transacoes USING
 
 
 --
+-- Name: idx_fin_extrato_transacoes_pagamento_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_extrato_transacoes_pagamento_id ON public.fin_extrato_transacoes USING btree (pagamento_id);
+
+
+--
+-- Name: idx_fin_extrato_transacoes_receita_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_extrato_transacoes_receita_id ON public.fin_extrato_transacoes USING btree (receita_id);
+
+
+--
 -- Name: idx_fin_extratos_periodo; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX idx_fin_extratos_periodo ON public.fin_extratos_bancarios USING btree (conta_bancaria_id, ano_referencia, mes_referencia);
+
+
+--
+-- Name: idx_fin_lancamentos_contabeis_conta_credito_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_lancamentos_contabeis_conta_credito_id ON public.fin_lancamentos_contabeis USING btree (conta_credito_id);
 
 
 --
@@ -4884,6 +5505,20 @@ CREATE INDEX idx_fin_lancamentos_data ON public.fin_lancamentos_contabeis USING 
 --
 
 CREATE INDEX idx_fin_lancamentos_origem ON public.fin_lancamentos_contabeis USING btree (tipo_origem, origem_id);
+
+
+--
+-- Name: idx_fin_liquidacoes_conta_contabil_credito_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_liquidacoes_conta_contabil_credito_id ON public.fin_liquidacoes USING btree (conta_contabil_credito_id);
+
+
+--
+-- Name: idx_fin_liquidacoes_conta_contabil_debito_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_liquidacoes_conta_contabil_debito_id ON public.fin_liquidacoes USING btree (conta_contabil_debito_id);
 
 
 --
@@ -4971,6 +5606,20 @@ CREATE INDEX idx_fin_pagamentos_conta ON public.fin_pagamentos USING btree (cont
 
 
 --
+-- Name: idx_fin_pagamentos_conta_contabil_credito_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_pagamentos_conta_contabil_credito_id ON public.fin_pagamentos USING btree (conta_contabil_credito_id);
+
+
+--
+-- Name: idx_fin_pagamentos_conta_contabil_debito_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_pagamentos_conta_contabil_debito_id ON public.fin_pagamentos USING btree (conta_contabil_debito_id);
+
+
+--
 -- Name: idx_fin_pagamentos_data; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4982,6 +5631,13 @@ CREATE INDEX idx_fin_pagamentos_data ON public.fin_pagamentos USING btree (data_
 --
 
 CREATE INDEX idx_fin_pagamentos_empenho ON public.fin_pagamentos USING btree (empenho_id);
+
+
+--
+-- Name: idx_fin_pagamentos_fornecedor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_pagamentos_fornecedor_id ON public.fin_pagamentos USING btree (fornecedor_id);
 
 
 --
@@ -5041,10 +5697,24 @@ CREATE INDEX idx_fin_receitas_conta ON public.fin_receitas USING btree (conta_ba
 
 
 --
+-- Name: idx_fin_receitas_convenio_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_receitas_convenio_id ON public.fin_receitas USING btree (convenio_id);
+
+
+--
 -- Name: idx_fin_receitas_exercicio; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_fin_receitas_exercicio ON public.fin_receitas USING btree (exercicio);
+
+
+--
+-- Name: idx_fin_receitas_fonte_recurso_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_receitas_fonte_recurso_id ON public.fin_receitas USING btree (fonte_recurso_id);
 
 
 --
@@ -5062,10 +5732,45 @@ CREATE INDEX idx_fin_solicitacao_itens_sol ON public.fin_solicitacao_itens USING
 
 
 --
+-- Name: idx_fin_solicitacoes_contrato_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_solicitacoes_contrato_id ON public.fin_solicitacoes USING btree (contrato_id);
+
+
+--
+-- Name: idx_fin_solicitacoes_dotacao_sugerida_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_solicitacoes_dotacao_sugerida_id ON public.fin_solicitacoes USING btree (dotacao_sugerida_id);
+
+
+--
 -- Name: idx_fin_solicitacoes_exercicio; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_fin_solicitacoes_exercicio ON public.fin_solicitacoes USING btree (exercicio);
+
+
+--
+-- Name: idx_fin_solicitacoes_fornecedor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_solicitacoes_fornecedor_id ON public.fin_solicitacoes USING btree (fornecedor_id);
+
+
+--
+-- Name: idx_fin_solicitacoes_processo_licitatorio_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_solicitacoes_processo_licitatorio_id ON public.fin_solicitacoes USING btree (processo_licitatorio_id);
+
+
+--
+-- Name: idx_fin_solicitacoes_servidor_solicitante_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_solicitacoes_servidor_solicitante_id ON public.fin_solicitacoes USING btree (servidor_solicitante_id);
 
 
 --
@@ -5146,6 +5851,13 @@ CREATE INDEX idx_fotos_vistoria_inventario_capturada_em ON public.fotos_vistoria
 
 
 --
+-- Name: idx_fotos_vistoria_inventario_unidade_local_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fotos_vistoria_inventario_unidade_local_id ON public.fotos_vistoria_inventario USING btree (unidade_local_id);
+
+
+--
 -- Name: idx_frequencia_arquivos_arquivo_path; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5181,6 +5893,13 @@ CREATE INDEX idx_frequencia_fechamento_competencia ON public.frequencia_fechamen
 
 
 --
+-- Name: idx_frequencia_pacotes_agrupamento_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_frequencia_pacotes_agrupamento_id ON public.frequencia_pacotes USING btree (agrupamento_id);
+
+
+--
 -- Name: idx_frequencia_pacotes_link; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5199,6 +5918,13 @@ CREATE INDEX idx_frequencia_pacotes_periodo ON public.frequencia_pacotes USING b
 --
 
 CREATE INDEX idx_frequencia_pacotes_status ON public.frequencia_pacotes USING btree (status);
+
+
+--
+-- Name: idx_frequencia_pacotes_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_frequencia_pacotes_unidade_id ON public.frequencia_pacotes USING btree (unidade_id);
 
 
 --
@@ -5300,10 +6026,52 @@ CREATE INDEX idx_historico_conteudo_versao ON public.historico_conteudo_oficial 
 
 
 --
+-- Name: idx_historico_convites_reuniao_modelo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historico_convites_reuniao_modelo_id ON public.historico_convites_reuniao USING btree (modelo_id);
+
+
+--
+-- Name: idx_historico_convites_reuniao_participante_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historico_convites_reuniao_participante_id ON public.historico_convites_reuniao USING btree (participante_id);
+
+
+--
 -- Name: idx_historico_data; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_historico_data ON public.historico_funcional USING btree (data_evento);
+
+
+--
+-- Name: idx_historico_funcional_cargo_anterior_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historico_funcional_cargo_anterior_id ON public.historico_funcional USING btree (cargo_anterior_id);
+
+
+--
+-- Name: idx_historico_funcional_cargo_novo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historico_funcional_cargo_novo_id ON public.historico_funcional USING btree (cargo_novo_id);
+
+
+--
+-- Name: idx_historico_funcional_unidade_anterior_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historico_funcional_unidade_anterior_id ON public.historico_funcional USING btree (unidade_anterior_id);
+
+
+--
+-- Name: idx_historico_funcional_unidade_nova_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historico_funcional_unidade_nova_id ON public.historico_funcional USING btree (unidade_nova_id);
 
 
 --
@@ -5328,6 +6096,13 @@ CREATE INDEX idx_historico_lai_tipo_evento ON public.historico_lai USING btree (
 
 
 --
+-- Name: idx_historico_patrimonio_baixa_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historico_patrimonio_baixa_id ON public.historico_patrimonio USING btree (baixa_id);
+
+
+--
 -- Name: idx_historico_patrimonio_bem; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5339,6 +6114,20 @@ CREATE INDEX idx_historico_patrimonio_bem ON public.historico_patrimonio USING b
 --
 
 CREATE INDEX idx_historico_patrimonio_data ON public.historico_patrimonio USING btree (data_evento DESC);
+
+
+--
+-- Name: idx_historico_patrimonio_manutencao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historico_patrimonio_manutencao_id ON public.historico_patrimonio USING btree (manutencao_id);
+
+
+--
+-- Name: idx_historico_patrimonio_movimentacao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historico_patrimonio_movimentacao_id ON public.historico_patrimonio USING btree (movimentacao_id);
 
 
 --
@@ -5433,6 +6222,13 @@ CREATE INDEX idx_itens_ata_registro_preco_ata ON public.itens_ata_registro_preco
 
 
 --
+-- Name: idx_itens_ata_registro_preco_item_licitatorio_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_itens_ata_registro_preco_item_licitatorio_id ON public.itens_ata_registro_preco USING btree (item_licitatorio_id);
+
+
+--
 -- Name: idx_itens_checklist; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5447,10 +6243,31 @@ CREATE INDEX idx_itens_contrato_contrato ON public.itens_contrato USING btree (c
 
 
 --
+-- Name: idx_itens_contrato_item_ata_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_itens_contrato_item_ata_id ON public.itens_contrato USING btree (item_ata_id);
+
+
+--
 -- Name: idx_itens_ficha_ficha_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_itens_ficha_ficha_id ON public.itens_ficha_financeira USING btree (ficha_id);
+
+
+--
+-- Name: idx_itens_ficha_financeira_rubrica_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_itens_ficha_financeira_rubrica_id ON public.itens_ficha_financeira USING btree (rubrica_id);
+
+
+--
+-- Name: idx_itens_licitacao_vencedor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_itens_licitacao_vencedor_id ON public.itens_licitacao USING btree (vencedor_id);
 
 
 --
@@ -5465,6 +6282,48 @@ CREATE INDEX idx_itens_material_categoria ON public.itens_material USING btree (
 --
 
 CREATE INDEX idx_itens_processo_licitatorio_processo ON public.itens_processo_licitatorio USING btree (processo_id);
+
+
+--
+-- Name: idx_itens_retorno_bancario_ficha_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_itens_retorno_bancario_ficha_id ON public.itens_retorno_bancario USING btree (ficha_id);
+
+
+--
+-- Name: idx_itens_retorno_bancario_retorno_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_itens_retorno_bancario_retorno_id ON public.itens_retorno_bancario USING btree (retorno_id);
+
+
+--
+-- Name: idx_itens_retorno_bancario_servidor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_itens_retorno_bancario_servidor_id ON public.itens_retorno_bancario USING btree (servidor_id);
+
+
+--
+-- Name: idx_justificativas_ponto_registro_ponto_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_justificativas_ponto_registro_ponto_id ON public.justificativas_ponto USING btree (registro_ponto_id);
+
+
+--
+-- Name: idx_lancamentos_banco_horas_banco_horas_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lancamentos_banco_horas_banco_horas_id ON public.lancamentos_banco_horas USING btree (banco_horas_id);
+
+
+--
+-- Name: idx_lancamentos_banco_horas_registro_ponto_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lancamentos_banco_horas_registro_ponto_id ON public.lancamentos_banco_horas USING btree (registro_ponto_id);
 
 
 --
@@ -5496,6 +6355,13 @@ CREATE INDEX idx_licencas_servidor ON public.licencas_afastamentos USING btree (
 
 
 --
+-- Name: idx_liquidacoes_atestado_por; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_liquidacoes_atestado_por ON public.liquidacoes USING btree (atestado_por);
+
+
+--
 -- Name: idx_liquidacoes_empenho; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5514,6 +6380,13 @@ CREATE INDEX idx_liquidacoes_medicao ON public.liquidacoes USING btree (medicao_
 --
 
 CREATE INDEX idx_lotacoes_ativo ON public.lotacoes USING btree (ativo);
+
+
+--
+-- Name: idx_lotacoes_cargo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lotacoes_cargo_id ON public.lotacoes USING btree (cargo_id);
 
 
 --
@@ -5552,10 +6425,45 @@ CREATE INDEX idx_manut_patrimonio_status ON public.manutencoes_patrimonio USING 
 
 
 --
+-- Name: idx_manutencoes_patrimonio_fornecedor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_manutencoes_patrimonio_fornecedor_id ON public.manutencoes_patrimonio USING btree (fornecedor_id);
+
+
+--
+-- Name: idx_matriz_raci_papeis_cargo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_matriz_raci_papeis_cargo_id ON public.matriz_raci_papeis USING btree (cargo_id);
+
+
+--
+-- Name: idx_matriz_raci_papeis_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_matriz_raci_papeis_unidade_id ON public.matriz_raci_papeis USING btree (unidade_id);
+
+
+--
+-- Name: idx_medicoes_contrato_aprovado_por; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_medicoes_contrato_aprovado_por ON public.medicoes_contrato USING btree (aprovado_por);
+
+
+--
 -- Name: idx_memorandos_lotacao_ano; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_memorandos_lotacao_ano ON public.memorandos_lotacao USING btree (ano);
+
+
+--
+-- Name: idx_memorandos_lotacao_cargo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_memorandos_lotacao_cargo_id ON public.memorandos_lotacao USING btree (cargo_id);
 
 
 --
@@ -5577,6 +6485,13 @@ CREATE INDEX idx_memorandos_lotacao_protocolo ON public.memorandos_lotacao USING
 --
 
 CREATE INDEX idx_memorandos_lotacao_servidor ON public.memorandos_lotacao USING btree (servidor_id);
+
+
+--
+-- Name: idx_memorandos_lotacao_unidade_destino_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_memorandos_lotacao_unidade_destino_id ON public.memorandos_lotacao USING btree (unidade_destino_id);
 
 
 --
@@ -5622,10 +6537,94 @@ CREATE INDEX idx_movest_item ON public.movimentacoes_estoque USING btree (item_i
 
 
 --
+-- Name: idx_movimentacoes_bem_responsavel_destino_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_bem_responsavel_destino_id ON public.movimentacoes_bem USING btree (responsavel_destino_id);
+
+
+--
+-- Name: idx_movimentacoes_bem_responsavel_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_bem_responsavel_origem_id ON public.movimentacoes_bem USING btree (responsavel_origem_id);
+
+
+--
+-- Name: idx_movimentacoes_bem_unidade_destino_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_bem_unidade_destino_id ON public.movimentacoes_bem USING btree (unidade_destino_id);
+
+
+--
+-- Name: idx_movimentacoes_bem_unidade_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_bem_unidade_origem_id ON public.movimentacoes_bem USING btree (unidade_origem_id);
+
+
+--
 -- Name: idx_movimentacoes_destino; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_movimentacoes_destino ON public.movimentacoes_processo USING btree (unidade_destino_id);
+
+
+--
+-- Name: idx_movimentacoes_estoque_almoxarifado_destino_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_estoque_almoxarifado_destino_id ON public.movimentacoes_estoque USING btree (almoxarifado_destino_id);
+
+
+--
+-- Name: idx_movimentacoes_estoque_empenho_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_estoque_empenho_id ON public.movimentacoes_estoque USING btree (empenho_id);
+
+
+--
+-- Name: idx_movimentacoes_estoque_servidor_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_estoque_servidor_responsavel_id ON public.movimentacoes_estoque USING btree (servidor_responsavel_id);
+
+
+--
+-- Name: idx_movimentacoes_estoque_setor_destino_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_estoque_setor_destino_id ON public.movimentacoes_estoque USING btree (setor_destino_id);
+
+
+--
+-- Name: idx_movimentacoes_patrimonio_responsavel_destino_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_patrimonio_responsavel_destino_id ON public.movimentacoes_patrimonio USING btree (responsavel_destino_id);
+
+
+--
+-- Name: idx_movimentacoes_patrimonio_responsavel_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_patrimonio_responsavel_origem_id ON public.movimentacoes_patrimonio USING btree (responsavel_origem_id);
+
+
+--
+-- Name: idx_movimentacoes_patrimonio_unidade_destino_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_patrimonio_unidade_destino_id ON public.movimentacoes_patrimonio USING btree (unidade_destino_id);
+
+
+--
+-- Name: idx_movimentacoes_patrimonio_unidade_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_patrimonio_unidade_origem_id ON public.movimentacoes_patrimonio USING btree (unidade_origem_id);
 
 
 --
@@ -5640,6 +6639,20 @@ CREATE INDEX idx_movimentacoes_prazo ON public.movimentacoes_processo USING btre
 --
 
 CREATE INDEX idx_movimentacoes_processo_id ON public.movimentacoes_processo USING btree (processo_id);
+
+
+--
+-- Name: idx_movimentacoes_processo_servidor_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_processo_servidor_origem_id ON public.movimentacoes_processo USING btree (servidor_origem_id);
+
+
+--
+-- Name: idx_movimentacoes_processo_unidade_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_movimentacoes_processo_unidade_origem_id ON public.movimentacoes_processo USING btree (unidade_origem_id);
 
 
 --
@@ -5741,6 +6754,27 @@ CREATE INDEX idx_ocorr_patrimonio_tipo ON public.ocorrencias_patrimonio USING bt
 
 
 --
+-- Name: idx_ocorrencias_patrimonio_responsavel_relato_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ocorrencias_patrimonio_responsavel_relato_id ON public.ocorrencias_patrimonio USING btree (responsavel_relato_id);
+
+
+--
+-- Name: idx_ocorrencias_servidor_servidor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ocorrencias_servidor_servidor_id ON public.ocorrencias_servidor USING btree (servidor_id);
+
+
+--
+-- Name: idx_pagamentos_conta_autarquia_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pagamentos_conta_autarquia_id ON public.pagamentos USING btree (conta_autarquia_id);
+
+
+--
 -- Name: idx_pagamentos_liquidacao; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5759,6 +6793,27 @@ CREATE INDEX idx_parametros_folha_vigencia ON public.parametros_folha USING btre
 --
 
 CREATE INDEX idx_pareceres_ano ON public.pareceres_tecnicos USING btree (ano);
+
+
+--
+-- Name: idx_pareceres_tecnicos_autor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pareceres_tecnicos_autor_id ON public.pareceres_tecnicos USING btree (autor_id);
+
+
+--
+-- Name: idx_pareceres_tecnicos_decisao_vinculada_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pareceres_tecnicos_decisao_vinculada_id ON public.pareceres_tecnicos USING btree (decisao_vinculada_id);
+
+
+--
+-- Name: idx_pareceres_tecnicos_unidade_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pareceres_tecnicos_unidade_origem_id ON public.pareceres_tecnicos USING btree (unidade_origem_id);
 
 
 --
@@ -5818,6 +6873,13 @@ CREATE INDEX idx_planos_status ON public.planos_tratamento_risco USING btree (st
 
 
 --
+-- Name: idx_planos_tratamento_risco_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_planos_tratamento_risco_responsavel_id ON public.planos_tratamento_risco USING btree (responsavel_id);
+
+
+--
 -- Name: idx_ponto_data; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5874,6 +6936,20 @@ CREATE INDEX idx_portarias_servidor ON public.portarias_servidor USING btree (se
 
 
 --
+-- Name: idx_portarias_servidor_historico_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_portarias_servidor_historico_id ON public.portarias_servidor USING btree (historico_id);
+
+
+--
+-- Name: idx_portarias_servidor_portaria_revogadora_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_portarias_servidor_portaria_revogadora_id ON public.portarias_servidor USING btree (portaria_revogadora_id);
+
+
+--
 -- Name: idx_portarias_tipo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5902,6 +6978,13 @@ CREATE INDEX idx_prazos_processo_id ON public.prazos_processo USING btree (proce
 
 
 --
+-- Name: idx_prazos_processo_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_prazos_processo_responsavel_id ON public.prazos_processo USING btree (responsavel_id);
+
+
+--
 -- Name: idx_pre_cadastros_codigo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5920,6 +7003,13 @@ CREATE INDEX idx_pre_cadastros_cpf ON public.pre_cadastros USING btree (cpf);
 --
 
 CREATE INDEX idx_pre_cadastros_created ON public.pre_cadastros USING btree (created_at DESC);
+
+
+--
+-- Name: idx_pre_cadastros_servidor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pre_cadastros_servidor_id ON public.pre_cadastros USING btree (servidor_id);
 
 
 --
@@ -5986,6 +7076,13 @@ CREATE INDEX idx_processos_admin_unidade_atual ON public.processos_administrativ
 
 
 --
+-- Name: idx_processos_administrativos_processo_origem_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processos_administrativos_processo_origem_id ON public.processos_administrativos USING btree (processo_origem_id);
+
+
+--
 -- Name: idx_processos_lic_fase; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5997,6 +7094,27 @@ CREATE INDEX idx_processos_lic_fase ON public.processos_licitatorios USING btree
 --
 
 CREATE INDEX idx_processos_lic_numero ON public.processos_licitatorios USING btree (numero_processo);
+
+
+--
+-- Name: idx_processos_licitatorios_pregoeiro_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processos_licitatorios_pregoeiro_id ON public.processos_licitatorios USING btree (pregoeiro_id);
+
+
+--
+-- Name: idx_processos_licitatorios_servidor_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processos_licitatorios_servidor_responsavel_id ON public.processos_licitatorios USING btree (servidor_responsavel_id);
+
+
+--
+-- Name: idx_processos_licitatorios_unidade_requisitante_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processos_licitatorios_unidade_requisitante_id ON public.processos_licitatorios USING btree (unidade_requisitante_id);
 
 
 --
@@ -6049,6 +7167,13 @@ CREATE INDEX idx_profiles_tipo_usuario ON public.profiles USING btree (tipo_usua
 
 
 --
+-- Name: idx_programas_servidor_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_programas_servidor_responsavel_id ON public.programas USING btree (servidor_responsavel_id);
+
+
+--
 -- Name: idx_programas_situacao; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6056,10 +7181,24 @@ CREATE INDEX idx_programas_situacao ON public.programas USING btree (situacao);
 
 
 --
+-- Name: idx_programas_unidade_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_programas_unidade_responsavel_id ON public.programas USING btree (unidade_responsavel_id);
+
+
+--
 -- Name: idx_propostas_licitacao_fornecedor; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_propostas_licitacao_fornecedor ON public.propostas_licitacao USING btree (fornecedor_id);
+
+
+--
+-- Name: idx_propostas_licitacao_item_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_propostas_licitacao_item_id ON public.propostas_licitacao USING btree (item_id);
 
 
 --
@@ -6091,10 +7230,52 @@ CREATE INDEX idx_provimentos_status ON public.provimentos USING btree (status) W
 
 
 --
+-- Name: idx_provimentos_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_provimentos_unidade_id ON public.provimentos USING btree (unidade_id);
+
+
+--
 -- Name: idx_provimentos_vaga; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_provimentos_vaga ON public.provimentos USING btree (vaga_id) WHERE (vaga_id IS NOT NULL);
+
+
+--
+-- Name: idx_publicacoes_lai_contrato_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_publicacoes_lai_contrato_id ON public.publicacoes_lai USING btree (contrato_id);
+
+
+--
+-- Name: idx_publicacoes_lai_servidor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_publicacoes_lai_servidor_id ON public.publicacoes_lai USING btree (servidor_id);
+
+
+--
+-- Name: idx_publicacoes_lai_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_publicacoes_lai_unidade_id ON public.publicacoes_lai USING btree (unidade_id);
+
+
+--
+-- Name: idx_publicacoes_legais_contrato_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_publicacoes_legais_contrato_id ON public.publicacoes_legais USING btree (contrato_id);
+
+
+--
+-- Name: idx_publicacoes_legais_processo_licitatorio_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_publicacoes_legais_processo_licitatorio_id ON public.publicacoes_legais USING btree (processo_licitatorio_id);
 
 
 --
@@ -6154,6 +7335,55 @@ CREATE INDEX idx_remessas_status ON public.remessas_bancarias USING btree (statu
 
 
 --
+-- Name: idx_requisicao_itens_item_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_requisicao_itens_item_id ON public.requisicao_itens USING btree (item_id);
+
+
+--
+-- Name: idx_requisicao_itens_requisicao_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_requisicao_itens_requisicao_id ON public.requisicao_itens USING btree (requisicao_id);
+
+
+--
+-- Name: idx_requisicoes_material_almoxarifado_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_requisicoes_material_almoxarifado_id ON public.requisicoes_material USING btree (almoxarifado_id);
+
+
+--
+-- Name: idx_requisicoes_material_responsavel_entrega_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_requisicoes_material_responsavel_entrega_id ON public.requisicoes_material USING btree (responsavel_entrega_id);
+
+
+--
+-- Name: idx_requisicoes_material_setor_solicitante_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_requisicoes_material_setor_solicitante_id ON public.requisicoes_material USING btree (setor_solicitante_id);
+
+
+--
+-- Name: idx_requisicoes_material_solicitante_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_requisicoes_material_solicitante_id ON public.requisicoes_material USING btree (solicitante_id);
+
+
+--
+-- Name: idx_respostas_checklist_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_respostas_checklist_responsavel_id ON public.respostas_checklist USING btree (responsavel_id);
+
+
+--
 -- Name: idx_respostas_exercicio; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6182,6 +7412,13 @@ CREATE INDEX idx_reunioes_data ON public.reunioes USING btree (data_reuniao);
 
 
 --
+-- Name: idx_reunioes_organizador_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reunioes_organizador_id ON public.reunioes USING btree (organizador_id);
+
+
+--
 -- Name: idx_reunioes_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6193,6 +7430,27 @@ CREATE INDEX idx_reunioes_status ON public.reunioes USING btree (status);
 --
 
 CREATE INDEX idx_reunioes_tipo ON public.reunioes USING btree (tipo);
+
+
+--
+-- Name: idx_reunioes_unidade_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reunioes_unidade_responsavel_id ON public.reunioes USING btree (unidade_responsavel_id);
+
+
+--
+-- Name: idx_riscos_institucionais_processo_raci_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_riscos_institucionais_processo_raci_id ON public.riscos_institucionais USING btree (processo_raci_id);
+
+
+--
+-- Name: idx_riscos_institucionais_unidade_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_riscos_institucionais_unidade_responsavel_id ON public.riscos_institucionais USING btree (unidade_responsavel_id);
 
 
 --
@@ -6214,6 +7472,13 @@ CREATE INDEX idx_riscos_responsavel ON public.riscos_institucionais USING btree 
 --
 
 CREATE INDEX idx_riscos_status ON public.riscos_institucionais USING btree (status);
+
+
+--
+-- Name: idx_role_permissions_permission; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_role_permissions_permission ON public.role_permissions USING btree (permission);
 
 
 --
@@ -6256,6 +7521,20 @@ CREATE INDEX idx_rubricas_vigencia ON public.rubricas USING btree (vigencia_inic
 --
 
 CREATE INDEX idx_servidor_regime_ativo ON public.servidor_regime USING btree (servidor_id, ativo) WHERE (ativo = true);
+
+
+--
+-- Name: idx_servidor_regime_jornada_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_servidor_regime_jornada_id ON public.servidor_regime USING btree (jornada_id);
+
+
+--
+-- Name: idx_servidor_regime_regime_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_servidor_regime_regime_id ON public.servidor_regime USING btree (regime_id);
 
 
 --
@@ -6385,10 +7664,38 @@ CREATE INDEX idx_solicitacoes_abono_status ON public.solicitacoes_abono USING bt
 
 
 --
+-- Name: idx_solicitacoes_abono_tipo_abono_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_solicitacoes_abono_tipo_abono_id ON public.solicitacoes_abono USING btree (tipo_abono_id);
+
+
+--
+-- Name: idx_solicitacoes_ajuste_ponto_registro_ponto_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_solicitacoes_ajuste_ponto_registro_ponto_id ON public.solicitacoes_ajuste_ponto USING btree (registro_ponto_id);
+
+
+--
 -- Name: idx_solicitacoes_servidor; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_solicitacoes_servidor ON public.solicitacoes_ajuste_ponto USING btree (servidor_id);
+
+
+--
+-- Name: idx_solicitacoes_sic_recurso_respondido_por; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_solicitacoes_sic_recurso_respondido_por ON public.solicitacoes_sic USING btree (recurso_respondido_por);
+
+
+--
+-- Name: idx_solicitacoes_sic_respondido_por; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_solicitacoes_sic_respondido_por ON public.solicitacoes_sic USING btree (respondido_por);
 
 
 --
@@ -6410,6 +7717,20 @@ CREATE INDEX idx_tabela_inss_vigencia ON public.tabela_inss USING btree (vigenci
 --
 
 CREATE INDEX idx_tabela_irrf_vigencia ON public.tabela_irrf USING btree (vigencia_inicio, vigencia_fim, faixa_ordem);
+
+
+--
+-- Name: idx_termos_cessao_agenda_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_termos_cessao_agenda_id ON public.termos_cessao USING btree (agenda_id);
+
+
+--
+-- Name: idx_termos_cessao_chefe_responsavel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_termos_cessao_chefe_responsavel_id ON public.termos_cessao USING btree (chefe_responsavel_id);
 
 
 --
@@ -6462,6 +7783,20 @@ CREATE INDEX idx_user_modules_lookup ON public.user_modules USING btree (user_id
 
 
 --
+-- Name: idx_user_org_units_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_org_units_unidade_id ON public.user_org_units USING btree (unidade_id);
+
+
+--
+-- Name: idx_user_permissions_permission; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_permissions_permission ON public.user_permissions USING btree (permission);
+
+
+--
 -- Name: idx_user_permissions_user; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6480,20 +7815,6 @@ CREATE UNIQUE INDEX idx_user_primary_org_unit ON public.user_org_units USING btr
 --
 
 CREATE INDEX idx_user_roles_lookup ON public.user_roles USING btree (user_id, role);
-
-
---
--- Name: idx_usuario_modulos_modulo_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_usuario_modulos_modulo_id ON public._backup_usuario_modulos_old USING btree (modulo_id);
-
-
---
--- Name: idx_usuario_modulos_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_usuario_modulos_user_id ON public._backup_usuario_modulos_old USING btree (user_id) WHERE (ativo = true);
 
 
 --
@@ -6543,6 +7864,27 @@ CREATE INDEX idx_vinc_serv_servidor ON public.vinculos_servidor USING btree (ser
 --
 
 CREATE INDEX idx_vinc_serv_tipo ON public.vinculos_servidor USING btree (tipo);
+
+
+--
+-- Name: idx_vinculos_funcionais_servidor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_vinculos_funcionais_servidor_id ON public.vinculos_funcionais USING btree (servidor_id);
+
+
+--
+-- Name: idx_vinculos_servidor_cargo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_vinculos_servidor_cargo_id ON public.vinculos_servidor USING btree (cargo_id);
+
+
+--
+-- Name: idx_vinculos_servidor_unidade_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_vinculos_servidor_unidade_id ON public.vinculos_servidor USING btree (unidade_id);
 
 
 --
@@ -8233,10 +9575,38 @@ CREATE TRIGGER trg_folhas_proteger_exclusao BEFORE DELETE ON public.folhas_pagam
 
 
 --
+-- Name: cadastro_arbitros trg_forcar_campos_iniciais; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.cadastro_arbitros FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('arbitros', 'status=enviado', 'protocolo=NULL', 'created_by=@uid');
+
+
+--
+-- Name: cadastro_arbitros_modalidades trg_forcar_campos_iniciais; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.cadastro_arbitros_modalidades FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('arbitros', 'status=pendente', 'observacoes=NULL', 'created_by=@uid');
+
+
+--
 -- Name: documentos_requerimento_servidor trg_forcar_campos_iniciais; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.documentos_requerimento_servidor FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('perm:rh:rh.servidores.editar', 'status=pendente', 'arquivo_assinado_url=NULL', 'data_upload_assinado=NULL', 'modelo_url=NULL', 'created_by=@uid');
+
+
+--
+-- Name: federacoes_esportivas trg_forcar_campos_iniciais; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.federacoes_esportivas FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('federacoes', 'status=em_analise', 'observacoes_internas=NULL', 'analisado_por=NULL', 'data_analise=NULL', 'created_by=@uid');
+
+
+--
+-- Name: gestores_escolares trg_forcar_campos_iniciais; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.gestores_escolares FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('gestores_escolares', 'status=aguardando', 'responsavel_id=NULL', 'responsavel_nome=NULL', 'observacoes=NULL', 'contato_realizado=false', 'acesso_testado=false', 'data_cadastro_cbde=NULL', 'data_contato=NULL', 'data_confirmacao=NULL', 'created_by=@uid');
 
 
 --
@@ -8258,6 +9628,20 @@ CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.solicitacoes_a
 --
 
 CREATE TRIGGER trg_forcar_campos_iniciais BEFORE INSERT ON public.solicitacoes_ajuste_ponto FOR EACH ROW EXECUTE FUNCTION public.forcar_campos_iniciais('perm:rh:rh.aprovar|rh.frequencia.lancar:usuario', 'status=pendente', 'aprovador_id=NULL', 'data_aprovacao=NULL', 'observacao_aprovador=NULL', 'motivo_rejeicao=NULL', 'created_by=@uid');
+
+
+--
+-- Name: cadastro_arbitros trg_forcar_urls_arbitros; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_forcar_urls_arbitros BEFORE INSERT OR UPDATE ON public.cadastro_arbitros FOR EACH ROW EXECUTE FUNCTION public.sanear_urls_arbitros();
+
+
+--
+-- Name: cadastro_arbitros_modalidades trg_forcar_urls_arbitros; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_forcar_urls_arbitros BEFORE INSERT OR UPDATE ON public.cadastro_arbitros_modalidades FOR EACH ROW EXECUTE FUNCTION public.sanear_urls_arbitros();
 
 
 --
@@ -16169,22 +17553,6 @@ ALTER TABLE ONLY public.user_roles
 
 
 --
--- Name: _backup_usuario_modulos_old usuario_modulos_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public._backup_usuario_modulos_old
-    ADD CONSTRAINT usuario_modulos_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
-
-
---
--- Name: _backup_usuario_modulos_old usuario_modulos_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public._backup_usuario_modulos_old
-    ADD CONSTRAINT usuario_modulos_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
-
---
 -- Name: vagas_cargo vagas_cargo_cargo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16249,42 +17617,6 @@ ALTER TABLE ONLY public.vinculos_servidor
 
 
 --
--- Name: links_uteis Apenas admins podem alterar links uteis; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Apenas admins podem alterar links uteis" ON public.links_uteis USING ((EXISTS ( SELECT 1
-   FROM public.user_roles
-  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::public.app_role))))) WITH CHECK ((EXISTS ( SELECT 1
-   FROM public.user_roles
-  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::public.app_role)))));
-
-
---
--- Name: config_menu_publico Apenas admins podem alterar menu publico; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Apenas admins podem alterar menu publico" ON public.config_menu_publico USING ((EXISTS ( SELECT 1
-   FROM public.user_roles
-  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::public.app_role))))) WITH CHECK ((EXISTS ( SELECT 1
-   FROM public.user_roles
-  WHERE ((user_roles.user_id = auth.uid()) AND (user_roles.role = 'admin'::public.app_role)))));
-
-
---
--- Name: config_menu_publico Leitura publica dos itens de menu; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Leitura publica dos itens de menu" ON public.config_menu_publico FOR SELECT USING (true);
-
-
---
--- Name: links_uteis Leitura publica dos links uteis; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Leitura publica dos links uteis" ON public.links_uteis FOR SELECT TO anon, authenticated USING (true);
-
-
---
 -- Name: publicacoes_lai Publicacoes LAI publicadas sao publicas; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -16304,12 +17636,6 @@ CREATE POLICY "Público pode inserir modalidades" ON public.cadastro_arbitros_mo
 
 CREATE POLICY "Qualquer pessoa pode se cadastrar como árbitro" ON public.cadastro_arbitros FOR INSERT TO anon, authenticated WITH CHECK (true);
 
-
---
--- Name: _backup_usuario_modulos_old; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public._backup_usuario_modulos_old ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: acesso_processo_sigiloso; Type: ROW SECURITY; Schema: public; Owner: -
@@ -16336,108 +17662,10 @@ ALTER TABLE public.adicionais_tempo_servico ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.aditivos_contrato ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: backup_config admin_only_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_delete ON public.backup_config FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_history admin_only_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_delete ON public.backup_history FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_integrity_checks admin_only_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_delete ON public.backup_integrity_checks FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_config admin_only_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_insert ON public.backup_config FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_history admin_only_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_insert ON public.backup_history FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_integrity_checks admin_only_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_insert ON public.backup_integrity_checks FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: audit_logs admin_only_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_select ON public.audit_logs FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_config admin_only_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_select ON public.backup_config FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_history admin_only_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_select ON public.backup_history FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_integrity_checks admin_only_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_select ON public.backup_integrity_checks FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_config admin_only_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_update ON public.backup_config FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_history admin_only_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_update ON public.backup_history FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_integrity_checks admin_only_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_only_update ON public.backup_integrity_checks FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
 -- Name: form_field_config admin_read_form_config; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY admin_read_form_config ON public.form_field_config FOR SELECT TO authenticated USING (true);
-
-
---
--- Name: form_field_config admin_write_form_config; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY admin_write_form_config ON public.form_field_config TO authenticated USING (public.can_access_module(auth.uid(), 'admin'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'admin'::text));
 
 
 --
@@ -16766,202 +17994,6 @@ ALTER TABLE public.comissoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comissoes_membros ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: aditivos_contrato comp_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_delete ON public.aditivos_contrato FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: atas_registro_preco comp_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_delete ON public.atas_registro_preco FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: contratos comp_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_delete ON public.contratos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: fornecedores comp_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_delete ON public.fornecedores FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: itens_licitacao comp_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_delete ON public.itens_licitacao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: medicoes_contrato comp_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_delete ON public.medicoes_contrato FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: processos_licitatorios comp_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_delete ON public.processos_licitatorios FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: aditivos_contrato comp_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_select ON public.aditivos_contrato FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: atas_registro_preco comp_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_select ON public.atas_registro_preco FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: contratos comp_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_select ON public.contratos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: fornecedores comp_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_select ON public.fornecedores FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: itens_licitacao comp_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_select ON public.itens_licitacao FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: medicoes_contrato comp_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_select ON public.medicoes_contrato FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: processos_licitatorios comp_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_select ON public.processos_licitatorios FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: aditivos_contrato comp_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_update ON public.aditivos_contrato FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: atas_registro_preco comp_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_update ON public.atas_registro_preco FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: contratos comp_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_update ON public.contratos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: fornecedores comp_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_update ON public.fornecedores FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: itens_licitacao comp_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_update ON public.itens_licitacao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: medicoes_contrato comp_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_update ON public.medicoes_contrato FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: processos_licitatorios comp_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_update ON public.processos_licitatorios FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: aditivos_contrato comp_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_write ON public.aditivos_contrato FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: atas_registro_preco comp_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_write ON public.atas_registro_preco FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: contratos comp_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_write ON public.contratos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: fornecedores comp_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_write ON public.fornecedores FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: itens_licitacao comp_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_write ON public.itens_licitacao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: medicoes_contrato comp_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_write ON public.medicoes_contrato FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
--- Name: processos_licitatorios comp_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY comp_module_write ON public.processos_licitatorios FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
 -- Name: composicao_cargos; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -17237,20 +18269,6 @@ ALTER TABLE public.debitos_tecnicos ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.decisoes_administrativas ENABLE ROW LEVEL SECURITY;
-
---
--- Name: role_permissions del_role_permissions_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY del_role_permissions_admin ON public.role_permissions FOR DELETE TO authenticated USING (public.is_admin_atual());
-
-
---
--- Name: user_permissions del_user_permissions_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY del_user_permissions_admin ON public.user_permissions FOR DELETE TO authenticated USING (public.is_admin_atual());
-
 
 --
 -- Name: demandas_ascom; Type: ROW SECURITY; Schema: public; Owner: -
@@ -17561,90 +18579,6 @@ ALTER TABLE public.fin_lancamentos_contabeis ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fin_liquidacoes ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: dotacoes_orcamentarias fin_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_delete ON public.dotacoes_orcamentarias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: empenhos fin_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_delete ON public.empenhos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: pagamentos fin_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_delete ON public.pagamentos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: dotacoes_orcamentarias fin_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_select ON public.dotacoes_orcamentarias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: empenhos fin_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_select ON public.empenhos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: pagamentos fin_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_select ON public.pagamentos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: dotacoes_orcamentarias fin_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_update ON public.dotacoes_orcamentarias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: empenhos fin_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_update ON public.empenhos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: pagamentos fin_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_update ON public.pagamentos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: dotacoes_orcamentarias fin_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_write ON public.dotacoes_orcamentarias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: empenhos fin_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_write ON public.empenhos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
--- Name: pagamentos fin_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY fin_module_write ON public.pagamentos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
-
-
---
 -- Name: fin_movimentos_bancarios; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -17849,20 +18783,6 @@ ALTER TABLE public.importacoes ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY importacoes_select ON public.importacoes FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND public.can_access_module(auth.uid(), (modulo)::text)));
-
-
---
--- Name: role_permissions ins_role_permissions_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY ins_role_permissions_admin ON public.role_permissions FOR INSERT TO authenticated WITH CHECK (public.is_admin_atual());
-
-
---
--- Name: user_permissions ins_user_permissions_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY ins_user_permissions_admin ON public.user_permissions FOR INSERT TO authenticated WITH CHECK (public.is_admin_atual());
 
 
 --
@@ -18108,202 +19028,6 @@ ALTER TABLE public.pareceres_tecnicos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.participantes_reuniao ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: agenda_unidade pat_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_delete ON public.agenda_unidade FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: almoxarifados pat_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_delete ON public.almoxarifados FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: baixas_patrimonio pat_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_delete ON public.baixas_patrimonio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: bens_patrimoniais pat_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_delete ON public.bens_patrimoniais FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: itens_material pat_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_delete ON public.itens_material FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: movimentacoes_patrimonio pat_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_delete ON public.movimentacoes_patrimonio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: unidades_locais pat_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_delete ON public.unidades_locais FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: agenda_unidade pat_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_select ON public.agenda_unidade FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: almoxarifados pat_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_select ON public.almoxarifados FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: baixas_patrimonio pat_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_select ON public.baixas_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: bens_patrimoniais pat_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_select ON public.bens_patrimoniais FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: itens_material pat_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_select ON public.itens_material FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: movimentacoes_patrimonio pat_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_select ON public.movimentacoes_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: unidades_locais pat_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_select ON public.unidades_locais FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: agenda_unidade pat_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_update ON public.agenda_unidade FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: almoxarifados pat_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_update ON public.almoxarifados FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: baixas_patrimonio pat_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_update ON public.baixas_patrimonio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: bens_patrimoniais pat_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_update ON public.bens_patrimoniais FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: itens_material pat_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_update ON public.itens_material FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: movimentacoes_patrimonio pat_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_update ON public.movimentacoes_patrimonio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: unidades_locais pat_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_update ON public.unidades_locais FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: agenda_unidade pat_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_write ON public.agenda_unidade FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: almoxarifados pat_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_write ON public.almoxarifados FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: baixas_patrimonio pat_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_write ON public.baixas_patrimonio FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: bens_patrimoniais pat_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_write ON public.bens_patrimoniais FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: itens_material pat_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_write ON public.itens_material FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: movimentacoes_patrimonio pat_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_write ON public.movimentacoes_patrimonio FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
--- Name: unidades_locais pat_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY pat_module_write ON public.unidades_locais FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
-
-
---
 -- Name: patrimonio_unidade; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -18512,34 +19236,6 @@ ALTER TABLE public.retornos_bancarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reunioes ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: adicionais_tempo_servico rh_module_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rh_module_delete ON public.adicionais_tempo_servico FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
-
-
---
--- Name: adicionais_tempo_servico rh_module_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rh_module_select ON public.adicionais_tempo_servico FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
-
-
---
--- Name: adicionais_tempo_servico rh_module_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rh_module_update ON public.adicionais_tempo_servico FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
-
-
---
--- Name: adicionais_tempo_servico rh_module_write; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rh_module_write ON public.adicionais_tempo_servico FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
-
-
---
 -- Name: riscos_institucionais; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -18560,10 +19256,38 @@ CREATE POLICY rls_delete ON public.acoes FOR DELETE TO authenticated USING (publ
 
 
 --
+-- Name: adicionais_tempo_servico rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.adicionais_tempo_servico FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: aditivos_contrato rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.aditivos_contrato FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: agenda_unidade rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.agenda_unidade FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: agrupamento_unidade_vinculo rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_delete ON public.agrupamento_unidade_vinculo FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: almoxarifados rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.almoxarifados FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
 
 
 --
@@ -18578,6 +19302,13 @@ CREATE POLICY rls_delete ON public.approval_delegations FOR DELETE TO authentica
 --
 
 CREATE POLICY rls_delete ON public.approval_requests FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: atas_registro_preco rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.atas_registro_preco FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -18602,6 +19333,34 @@ CREATE POLICY rls_delete ON public.avaliacoes_risco FOR DELETE TO authenticated 
 
 
 --
+-- Name: backup_config rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.backup_config FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: backup_history rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.backup_history FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: backup_integrity_checks rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.backup_integrity_checks FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: baixas_patrimonio rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.baixas_patrimonio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: banco_horas rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18613,6 +19372,13 @@ CREATE POLICY rls_delete ON public.banco_horas FOR DELETE TO authenticated USING
 --
 
 CREATE POLICY rls_delete ON public.bancos_cnab FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: bens_patrimoniais rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.bens_patrimoniais FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
 
 
 --
@@ -18847,6 +19613,13 @@ CREATE POLICY rls_delete ON public.config_jornada_padrao FOR DELETE TO authentic
 
 
 --
+-- Name: config_menu_publico rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.config_menu_publico FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: config_motivos_desligamento rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -18966,6 +19739,13 @@ CREATE POLICY rls_delete ON public.conteudo_rascunho FOR DELETE TO authenticated
 
 
 --
+-- Name: contratos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.contratos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: controles_internos rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19075,6 +19855,20 @@ CREATE POLICY rls_delete ON public.documentos_preparatorios_licitacao FOR DELETE
 --
 
 CREATE POLICY rls_delete ON public.documentos_requerimento_servidor FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text)));
+
+
+--
+-- Name: dotacoes_orcamentarias rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.dotacoes_orcamentarias FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: empenhos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.empenhos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
 
 
 --
@@ -19358,6 +20152,20 @@ CREATE POLICY rls_delete ON public.folhas_pagamento FOR DELETE TO authenticated 
 
 
 --
+-- Name: form_field_config rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.form_field_config FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'admin'::text));
+
+
+--
+-- Name: fornecedores rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fornecedores FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: fotos_vistoria_inventario rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19456,6 +20264,20 @@ CREATE POLICY rls_delete ON public.itens_ficha_financeira FOR DELETE TO authenti
 
 
 --
+-- Name: itens_licitacao rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.itens_licitacao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_material rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.itens_material FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: itens_processo_licitatorio rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19502,6 +20324,13 @@ CREATE POLICY rls_delete ON public.licencas_afastamentos FOR DELETE TO authentic
 
 
 --
+-- Name: links_uteis rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.links_uteis FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: liquidacoes rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19541,6 +20370,13 @@ CREATE POLICY rls_delete ON public.matriz_raci_papeis FOR DELETE TO authenticate
 --
 
 CREATE POLICY rls_delete ON public.matriz_raci_processos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: medicoes_contrato rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.medicoes_contrato FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -19593,6 +20429,13 @@ CREATE POLICY rls_delete ON public.movimentacoes_estoque FOR DELETE TO authentic
 
 
 --
+-- Name: movimentacoes_patrimonio rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.movimentacoes_patrimonio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: nomeacoes_chefe_unidade rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19618,6 +20461,13 @@ CREATE POLICY rls_delete ON public.ocorrencias_patrimonio FOR DELETE TO authenti
 --
 
 CREATE POLICY rls_delete ON public.ocorrencias_servidor FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: pagamentos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.pagamentos FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
 
 
 --
@@ -19709,6 +20559,13 @@ CREATE POLICY rls_delete ON public.processo_modelo_etapas FOR DELETE TO authenti
 --
 
 CREATE POLICY rls_delete ON public.processo_modelos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
+
+
+--
+-- Name: processos_licitatorios rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.processos_licitatorios FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -19810,6 +20667,13 @@ CREATE POLICY rls_delete ON public.riscos_institucionais FOR DELETE TO authentic
 
 
 --
+-- Name: role_permissions rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.role_permissions FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: rubricas rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19901,6 +20765,13 @@ CREATE POLICY rls_delete ON public.tipos_abono FOR DELETE TO authenticated USING
 
 
 --
+-- Name: unidades_locais rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.unidades_locais FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: user_modules rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -19912,6 +20783,13 @@ CREATE POLICY rls_delete ON public.user_modules FOR DELETE TO authenticated USIN
 --
 
 CREATE POLICY rls_delete ON public.user_org_units FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: user_permissions rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.user_permissions FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
 
 
 --
@@ -19964,10 +20842,38 @@ CREATE POLICY rls_insert ON public.acoes FOR INSERT TO authenticated WITH CHECK 
 
 
 --
+-- Name: adicionais_tempo_servico rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.adicionais_tempo_servico FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: aditivos_contrato rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.aditivos_contrato FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: agenda_unidade rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.agenda_unidade FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: agrupamento_unidade_vinculo rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_insert ON public.agrupamento_unidade_vinculo FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: almoxarifados rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.almoxarifados FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
 
 
 --
@@ -19982,6 +20888,13 @@ CREATE POLICY rls_insert ON public.approval_delegations FOR INSERT TO authentica
 --
 
 CREATE POLICY rls_insert ON public.approval_requests FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: atas_registro_preco rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.atas_registro_preco FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -20006,6 +20919,34 @@ CREATE POLICY rls_insert ON public.avaliacoes_risco FOR INSERT TO authenticated 
 
 
 --
+-- Name: backup_config rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.backup_config FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: backup_history rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.backup_history FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: backup_integrity_checks rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.backup_integrity_checks FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: baixas_patrimonio rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.baixas_patrimonio FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: banco_horas rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20017,6 +20958,13 @@ CREATE POLICY rls_insert ON public.banco_horas FOR INSERT TO authenticated WITH 
 --
 
 CREATE POLICY rls_insert ON public.bancos_cnab FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: bens_patrimoniais rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.bens_patrimoniais FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
 
 
 --
@@ -20251,6 +21199,13 @@ CREATE POLICY rls_insert ON public.config_jornada_padrao FOR INSERT TO authentic
 
 
 --
+-- Name: config_menu_publico rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.config_menu_publico FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: config_motivos_desligamento rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20370,6 +21325,13 @@ CREATE POLICY rls_insert ON public.conteudo_rascunho FOR INSERT TO authenticated
 
 
 --
+-- Name: contratos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.contratos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: controles_internos rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20479,6 +21441,20 @@ CREATE POLICY rls_insert ON public.documentos_preparatorios_licitacao FOR INSERT
 --
 
 CREATE POLICY rls_insert ON public.documentos_requerimento_servidor FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text)) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: dotacoes_orcamentarias rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.dotacoes_orcamentarias FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: empenhos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.empenhos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
 
 
 --
@@ -20769,6 +21745,20 @@ CREATE POLICY rls_insert ON public.folhas_pagamento FOR INSERT TO authenticated 
 
 
 --
+-- Name: form_field_config rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.form_field_config FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'admin'::text));
+
+
+--
+-- Name: fornecedores rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fornecedores FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: fotos_vistoria_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20867,6 +21857,20 @@ CREATE POLICY rls_insert ON public.itens_ficha_financeira FOR INSERT TO authenti
 
 
 --
+-- Name: itens_licitacao rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.itens_licitacao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_material rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.itens_material FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: itens_processo_licitatorio rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20915,6 +21919,13 @@ CREATE POLICY rls_insert ON public.licencas_afastamentos FOR INSERT TO authentic
 
 
 --
+-- Name: links_uteis rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.links_uteis FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: liquidacoes rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20954,6 +21965,13 @@ CREATE POLICY rls_insert ON public.matriz_raci_papeis FOR INSERT TO authenticate
 --
 
 CREATE POLICY rls_insert ON public.matriz_raci_processos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: medicoes_contrato rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.medicoes_contrato FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -21006,6 +22024,13 @@ CREATE POLICY rls_insert ON public.movimentacoes_estoque FOR INSERT TO authentic
 
 
 --
+-- Name: movimentacoes_patrimonio rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.movimentacoes_patrimonio FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: nomeacoes_chefe_unidade rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21031,6 +22056,13 @@ CREATE POLICY rls_insert ON public.ocorrencias_patrimonio FOR INSERT TO authenti
 --
 
 CREATE POLICY rls_insert ON public.ocorrencias_servidor FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: pagamentos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pagamentos FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
 
 
 --
@@ -21122,6 +22154,13 @@ CREATE POLICY rls_insert ON public.processo_modelo_etapas FOR INSERT TO authenti
 --
 
 CREATE POLICY rls_insert ON public.processo_modelos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
+
+
+--
+-- Name: processos_licitatorios rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.processos_licitatorios FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -21237,6 +22276,13 @@ CREATE POLICY rls_insert ON public.riscos_institucionais FOR INSERT TO authentic
 
 
 --
+-- Name: role_permissions rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.role_permissions FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: rubricas rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21328,6 +22374,13 @@ CREATE POLICY rls_insert ON public.tipos_abono FOR INSERT TO authenticated WITH 
 
 
 --
+-- Name: unidades_locais rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.unidades_locais FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: user_modules rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21339,6 +22392,13 @@ CREATE POLICY rls_insert ON public.user_modules FOR INSERT TO authenticated WITH
 --
 
 CREATE POLICY rls_insert ON public.user_org_units FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: user_permissions rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.user_permissions FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --
@@ -21391,10 +22451,38 @@ CREATE POLICY rls_select ON public.acoes FOR SELECT TO authenticated USING (publ
 
 
 --
+-- Name: adicionais_tempo_servico rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.adicionais_tempo_servico FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: aditivos_contrato rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.aditivos_contrato FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: agenda_unidade rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.agenda_unidade FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: agrupamento_unidade_vinculo rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_select ON public.agrupamento_unidade_vinculo FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: almoxarifados rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.almoxarifados FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
 
 
 --
@@ -21412,6 +22500,13 @@ CREATE POLICY rls_select ON public.approval_requests FOR SELECT TO authenticated
 
 
 --
+-- Name: atas_registro_preco rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.atas_registro_preco FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: audit_colunas_sensiveis rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21422,7 +22517,18 @@ CREATE POLICY rls_select ON public.audit_colunas_sensiveis FOR SELECT TO authent
 -- Name: audit_log_licitacoes rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.audit_log_licitacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+CREATE POLICY rls_select ON public.audit_log_licitacoes FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (((tabela_origem)::text <> ALL ((ARRAY['processos_administrativos'::character varying, 'despachos'::character varying, 'documentos_processo'::character varying, 'movimentacoes_processo'::character varying, 'prazos_processo'::character varying])::text[])) OR public.is_admin_user(auth.uid()) OR public.wf_pode_ver_processo(
+CASE
+    WHEN ((tabela_origem)::text = 'processos_administrativos'::text) THEN registro_id
+    ELSE ((COALESCE(dados_novos, dados_anteriores) ->> 'processo_id'::text))::uuid
+END))));
+
+
+--
+-- Name: audit_logs rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.audit_logs FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
 
 
 --
@@ -21440,6 +22546,34 @@ CREATE POLICY rls_select ON public.avaliacoes_risco FOR SELECT TO authenticated 
 
 
 --
+-- Name: backup_config rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.backup_config FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: backup_history rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.backup_history FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: backup_integrity_checks rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.backup_integrity_checks FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: baixas_patrimonio rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.baixas_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: banco_horas rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21451,6 +22585,13 @@ CREATE POLICY rls_select ON public.banco_horas FOR SELECT TO authenticated USING
 --
 
 CREATE POLICY rls_select ON public.bancos_cnab FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: bens_patrimoniais rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.bens_patrimoniais FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
 
 
 --
@@ -21685,6 +22826,13 @@ CREATE POLICY rls_select ON public.config_jornada_padrao FOR SELECT TO authentic
 
 
 --
+-- Name: config_menu_publico rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.config_menu_publico FOR SELECT TO anon, authenticated USING (true);
+
+
+--
 -- Name: config_motivos_desligamento rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21804,6 +22952,13 @@ CREATE POLICY rls_select ON public.conteudo_rascunho FOR SELECT TO authenticated
 
 
 --
+-- Name: contratos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.contratos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: controles_internos rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21913,6 +23068,20 @@ CREATE POLICY rls_select ON public.documentos_preparatorios_licitacao FOR SELECT
 --
 
 CREATE POLICY rls_select ON public.documentos_requerimento_servidor FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: dotacoes_orcamentarias rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.dotacoes_orcamentarias FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: empenhos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.empenhos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
 
 
 --
@@ -22219,6 +23388,20 @@ CREATE POLICY rls_select ON public.folhas_pagamento FOR SELECT TO authenticated 
 
 
 --
+-- Name: form_field_config rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.form_field_config FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'admin'::text));
+
+
+--
+-- Name: fornecedores rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fornecedores FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: fotos_vistoria_inventario rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22354,6 +23537,20 @@ CREATE POLICY rls_select ON public.itens_ficha_financeira FOR SELECT TO authenti
 
 
 --
+-- Name: itens_licitacao rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.itens_licitacao FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_material rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.itens_material FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: itens_processo_licitatorio rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22400,6 +23597,13 @@ CREATE POLICY rls_select ON public.licencas_afastamentos FOR SELECT TO authentic
 
 
 --
+-- Name: links_uteis rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.links_uteis FOR SELECT TO anon, authenticated USING (true);
+
+
+--
 -- Name: liquidacoes rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22439,6 +23643,13 @@ CREATE POLICY rls_select ON public.matriz_raci_papeis FOR SELECT TO authenticate
 --
 
 CREATE POLICY rls_select ON public.matriz_raci_processos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: medicoes_contrato rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.medicoes_contrato FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -22491,6 +23702,13 @@ CREATE POLICY rls_select ON public.movimentacoes_estoque FOR SELECT TO authentic
 
 
 --
+-- Name: movimentacoes_patrimonio rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.movimentacoes_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: nomeacoes_chefe_unidade rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22516,6 +23734,13 @@ CREATE POLICY rls_select ON public.ocorrencias_patrimonio FOR SELECT TO authenti
 --
 
 CREATE POLICY rls_select ON public.ocorrencias_servidor FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR (servidor_id = public.meu_servidor_id())));
+
+
+--
+-- Name: pagamentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pagamentos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
 
 
 --
@@ -22607,6 +23832,13 @@ CREATE POLICY rls_select ON public.processo_modelo_etapas FOR SELECT TO authenti
 --
 
 CREATE POLICY rls_select ON public.processo_modelos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'workflow'::text));
+
+
+--
+-- Name: processos_licitatorios rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.processos_licitatorios FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -22722,6 +23954,13 @@ CREATE POLICY rls_select ON public.riscos_institucionais FOR SELECT TO authentic
 
 
 --
+-- Name: role_permissions rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.role_permissions FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
 -- Name: rubricas rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22820,6 +24059,13 @@ CREATE POLICY rls_select ON public.tipos_abono FOR SELECT TO authenticated USING
 
 
 --
+-- Name: unidades_locais rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.unidades_locais FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: user_modules rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22831,6 +24077,13 @@ CREATE POLICY rls_select ON public.user_modules FOR SELECT TO authenticated USIN
 --
 
 CREATE POLICY rls_select ON public.user_org_units FOR SELECT TO authenticated USING ((public.is_admin_user(auth.uid()) OR ((user_id = auth.uid()) AND public.is_active_user())));
+
+
+--
+-- Name: user_permissions rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.user_permissions FOR SELECT TO authenticated USING ((public.is_admin_user(auth.uid()) OR ((user_id = auth.uid()) AND public.is_active_user())));
 
 
 --
@@ -22883,10 +24136,38 @@ CREATE POLICY rls_update ON public.acoes FOR UPDATE TO authenticated USING (publ
 
 
 --
+-- Name: adicionais_tempo_servico rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.adicionais_tempo_servico FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: aditivos_contrato rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.aditivos_contrato FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: agenda_unidade rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.agenda_unidade FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: agrupamento_unidade_vinculo rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY rls_update ON public.agrupamento_unidade_vinculo FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: almoxarifados rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.almoxarifados FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
 
 
 --
@@ -22901,6 +24182,13 @@ CREATE POLICY rls_update ON public.approval_delegations FOR UPDATE TO authentica
 --
 
 CREATE POLICY rls_update ON public.approval_requests FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: atas_registro_preco rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.atas_registro_preco FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -22925,6 +24213,34 @@ CREATE POLICY rls_update ON public.avaliacoes_risco FOR UPDATE TO authenticated 
 
 
 --
+-- Name: backup_config rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.backup_config FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: backup_history rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.backup_history FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: backup_integrity_checks rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.backup_integrity_checks FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: baixas_patrimonio rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.baixas_patrimonio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: banco_horas rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22936,6 +24252,13 @@ CREATE POLICY rls_update ON public.banco_horas FOR UPDATE TO authenticated USING
 --
 
 CREATE POLICY rls_update ON public.bancos_cnab FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: bens_patrimoniais rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.bens_patrimoniais FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
 
 
 --
@@ -23170,6 +24493,13 @@ CREATE POLICY rls_update ON public.config_jornada_padrao FOR UPDATE TO authentic
 
 
 --
+-- Name: config_menu_publico rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.config_menu_publico FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: config_motivos_desligamento rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -23289,6 +24619,13 @@ CREATE POLICY rls_update ON public.conteudo_rascunho FOR UPDATE TO authenticated
 
 
 --
+-- Name: contratos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.contratos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: controles_internos rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -23398,6 +24735,20 @@ CREATE POLICY rls_update ON public.documentos_preparatorios_licitacao FOR UPDATE
 --
 
 CREATE POLICY rls_update ON public.documentos_requerimento_servidor FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'rh.servidores.editar'::text)));
+
+
+--
+-- Name: dotacoes_orcamentarias rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.dotacoes_orcamentarias FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: empenhos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.empenhos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
 
 
 --
@@ -23688,6 +25039,20 @@ CREATE POLICY rls_update ON public.folhas_pagamento FOR UPDATE TO authenticated 
 
 
 --
+-- Name: form_field_config rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.form_field_config FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'admin'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'admin'::text));
+
+
+--
+-- Name: fornecedores rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fornecedores FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: fotos_vistoria_inventario rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -23786,6 +25151,20 @@ CREATE POLICY rls_update ON public.itens_ficha_financeira FOR UPDATE TO authenti
 
 
 --
+-- Name: itens_licitacao rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.itens_licitacao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: itens_material rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.itens_material FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: itens_processo_licitatorio rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -23836,6 +25215,13 @@ CREATE POLICY rls_update ON public.licencas_afastamentos FOR UPDATE TO authentic
 
 
 --
+-- Name: links_uteis rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.links_uteis FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: liquidacoes rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -23875,6 +25261,13 @@ CREATE POLICY rls_update ON public.matriz_raci_papeis FOR UPDATE TO authenticate
 --
 
 CREATE POLICY rls_update ON public.matriz_raci_processos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
+
+
+--
+-- Name: medicoes_contrato rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.medicoes_contrato FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -23927,6 +25320,13 @@ CREATE POLICY rls_update ON public.movimentacoes_estoque FOR UPDATE TO authentic
 
 
 --
+-- Name: movimentacoes_patrimonio rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.movimentacoes_patrimonio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: nomeacoes_chefe_unidade rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -23952,6 +25352,13 @@ CREATE POLICY rls_update ON public.ocorrencias_patrimonio FOR UPDATE TO authenti
 --
 
 CREATE POLICY rls_update ON public.ocorrencias_servidor FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: pagamentos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pagamentos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
 
 
 --
@@ -24043,6 +25450,13 @@ CREATE POLICY rls_update ON public.processo_modelo_etapas FOR UPDATE TO authenti
 --
 
 CREATE POLICY rls_update ON public.processo_modelos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
+
+
+--
+-- Name: processos_licitatorios rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.processos_licitatorios FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -24158,6 +25572,13 @@ CREATE POLICY rls_update ON public.riscos_institucionais FOR UPDATE TO authentic
 
 
 --
+-- Name: role_permissions rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.role_permissions FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
 -- Name: rubricas rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -24249,6 +25670,13 @@ CREATE POLICY rls_update ON public.tipos_abono FOR UPDATE TO authenticated USING
 
 
 --
+-- Name: unidades_locais rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.unidades_locais FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: user_modules rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -24260,6 +25688,13 @@ CREATE POLICY rls_update ON public.user_modules FOR UPDATE TO authenticated USIN
 --
 
 CREATE POLICY rls_update ON public.user_org_units FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
+
+
+--
+-- Name: user_permissions rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.user_permissions FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --
@@ -24320,20 +25755,6 @@ ALTER TABLE public.rubricas_historico ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY sel_denuncias_gerenciar ON public.denuncias FOR SELECT TO authenticated USING (public.has_permission_code(auth.uid(), 'integridade.gerenciar'::text));
-
-
---
--- Name: role_permissions sel_role_permissions_authenticated; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY sel_role_permissions_authenticated ON public.role_permissions FOR SELECT TO authenticated USING (true);
-
-
---
--- Name: user_permissions sel_user_permissions_own_or_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY sel_user_permissions_own_or_admin ON public.user_permissions FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_admin_atual()));
 
 
 --
@@ -24419,20 +25840,6 @@ ALTER TABLE public.unidades_locais ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY upd_denuncias_gerenciar ON public.denuncias FOR UPDATE TO authenticated USING (public.has_permission_code(auth.uid(), 'integridade.gerenciar'::text)) WITH CHECK (public.has_permission_code(auth.uid(), 'integridade.gerenciar'::text));
-
-
---
--- Name: role_permissions upd_role_permissions_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY upd_role_permissions_admin ON public.role_permissions FOR UPDATE TO authenticated USING (public.is_admin_atual()) WITH CHECK (public.is_admin_atual());
-
-
---
--- Name: user_permissions upd_user_permissions_admin; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY upd_user_permissions_admin ON public.user_permissions FOR UPDATE TO authenticated USING (public.is_admin_atual()) WITH CHECK (public.is_admin_atual());
 
 
 --

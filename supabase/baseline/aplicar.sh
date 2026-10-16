@@ -24,7 +24,6 @@ ARQUIVOS=(
   rls/35_policies_geradas.sql     # policies por módulo (gerado de rls/mapa.csv)
   overlay/40_privilegios.sql      # anon sem acesso, exceto formulários públicos
   overlay/50_storage.sql          # buckets e policies de storage
-  overlay/60_realtime.sql
 )
 
 # Sem os NOTICE de "já existe/não existe, ignorando" dos DROP ... IF EXISTS idempotentes.

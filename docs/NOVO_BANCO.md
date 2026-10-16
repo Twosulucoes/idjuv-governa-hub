@@ -161,6 +161,8 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   (migração `supabase/migrations/20261010210000_onda_b_rh_storage.sql`, em PR rascunho) o documento assinado do
   servidor abre por URL assinada, mas portarias, atos e cedência ainda gravam link público (`getPublicUrl`) do
   bucket `documentos`, que num bucket privado não abre (pendência; ver [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3)).
+- O schema do baseline foi regenerado por inteiro em 2026-10-16 (P11, migrações até `20261016220000`) e aprovado por
+  `validar-baseline.sh` com `PG_REPLAY`; o overlay de Realtime saiu (nenhuma tabela publicada).
 - O schema do baseline foi regenerado em 2026-10-12 com as migrações até `20261012150000` (RH de 12/10 e quadro de
   vagas, tabela `vagas_cargo` na classe `catalogo`; 252 tabelas no mapa) e aprovado por `validar-baseline.sh` com
   `PG_REPLAY` ([detalhe](../supabase/baseline/README.md#verificação)).

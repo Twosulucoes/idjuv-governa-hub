@@ -9,7 +9,7 @@
 # Dados vêm ANTES das constraints/triggers de propósito: o INSERT não dispara auditoria nem
 # depende da ordem das FKs, e as FKs são validadas depois contra os dados semeados.
 #
-# Só o schema `public` é dumpado. Triggers em auth.users, storage e a publicação realtime ficam
+# Só o schema `public` é dumpado. Triggers em auth.users e storage ficam
 # nos overlays (supabase/baseline/overlay/).
 #
 # Uso:  PG_DB=idjuv_validacao bash scripts/db/gerar-baseline.sh
