@@ -12,7 +12,7 @@
 #   papeis.sql.age      pg_dumpall --roles-only (papéis e grants globais, sem senhas)
 #   storage.tar.gz.age  diretório de arquivos do Storage (obrigatório desde o P07a)
 #   manifesto.tsv       contagem de linhas por tabela (sem dado pessoal) — usado no teste de restauração
-# Aos domingos copia também para semanal/ e no dia 1 para mensal/. Retenção por idade (BACKUP_RETER_*).
+# Aos domingos copia também para semanal/ e no dia 1 para mensal/. Retenção por idade: rclone (BACKUP_RETER_*) ou regras do R2 (BACKUP_RETENCAO=r2).
 #
 # Configuração: /etc/idjuv-backup.env (ou BACKUP_ENV=<arquivo>). Modelo em scripts/backup/idjuv-backup.env.example.
 # Guia completo (instalação, cron, restauração): docs/BACKUP.md.
@@ -32,6 +32,8 @@ WORKDIR="${BACKUP_WORKDIR:-/var/backups/idjuv}"
 RETER_DIARIO="${BACKUP_RETER_DIARIO:-8d}"
 RETER_SEMANAL="${BACKUP_RETER_SEMANAL:-36d}"
 RETER_MENSAL="${BACKUP_RETER_MENSAL:-400d}"
+RETENCAO="${BACKUP_RETENCAO:-rclone}"   # rclone (padrão: apaga por idade) | r2 (ciclo de vida do bucket)
+[[ "$RETENCAO" == "rclone" || "$RETENCAO" == "r2" ]] || { echo "BACKUP_RETENCAO inválido: $RETENCAO (use rclone ou r2)" >&2; exit 2; }
 RETER_LOCAL_DIAS="${BACKUP_RETER_LOCAL_DIAS:-2}"
 TAMANHO_MINIMO="${BACKUP_TAMANHO_MINIMO_BYTES:-100000}"
 HEALTHCHECK="${BACKUP_HEALTHCHECK_URL:-}"
@@ -91,10 +93,19 @@ if [[ "$(date -u +%u)" == "7" ]]; then rclone copy "$DESTINO" "$REMOTO/semanal/$
 if [[ "$(date -u +%d)" == "01" ]]; then rclone copy "$DESTINO" "$REMOTO/mensal/$DIA"; fi
 rclone check --one-way "$DESTINO" "$REMOTO/diario/$DIA"
 
-log "retenção (diário $RETER_DIARIO, semanal $RETER_SEMANAL, mensal $RETER_MENSAL)"
-rclone delete --min-age "$RETER_DIARIO" "$REMOTO/diario" --rmdirs
-rclone delete --min-age "$RETER_SEMANAL" "$REMOTO/semanal" --rmdirs
-rclone delete --min-age "$RETER_MENSAL" "$REMOTO/mensal" --rmdirs
+case "$RETENCAO" in
+  rclone)
+    log "retenção pelo rclone (diário $RETER_DIARIO, semanal $RETER_SEMANAL, mensal $RETER_MENSAL)"
+    rclone delete --min-age "$RETER_DIARIO" "$REMOTO/diario" --rmdirs
+    rclone delete --min-age "$RETER_SEMANAL" "$REMOTO/semanal" --rmdirs
+    rclone delete --min-age "$RETER_MENSAL" "$REMOTO/mensal" --rmdirs
+    ;;
+  r2)
+    # Regras de ciclo de vida do bucket apagam por idade e a trava (bucket lock) impede apagar antes disso;
+    # a credencial da VPS não precisa (nem deve) ter direito de apagar. Ver docs/BACKUP.md.
+    log "retenção pelo R2 (regras de ciclo de vida do bucket): nada a apagar pelo rclone"
+    ;;
+esac
 find "$WORKDIR" -mindepth 1 -maxdepth 1 -type d -mtime +"$RETER_LOCAL_DIAS" -exec rm -rf {} +
 
 log "ok: $(du -sh "$DESTINO" | cut -f1) em $REMOTO/diario/$DIA"

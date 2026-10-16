@@ -4,4 +4,9 @@
 # O "Vigia do backup" (.github/workflows/backup-vigia.yml) confere todo dia às 08:00 locais que o backup chegou.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-30 3 * * * root /usr/local/bin/idjuv-backup >> /var/log/idjuv-backup.log 2>&1
+# O marcador .ultimo-ok (epoch do último backup bem-sucedido) é lido pelo /root/stack-health.sh.
+# Em cron o % precisa de \% (sem isso o comando é cortado e o marcador nunca é gravado).
+30 3 * * * root /usr/local/bin/idjuv-backup >> /var/log/idjuv-backup.log 2>&1 && date -u +\%s > /var/backups/idjuv/.ultimo-ok
+# Pacote de segredos (.env do Supabase, chave do pgsodium, rotas do Traefik), cifrado, para o bucket separado.
+# Domingo 03:50 (depois do backup do banco). Só funciona com BACKUP_SEGREDOS_REMOTE preenchido; o vigia cobre o banco.
+50 3 * * 0 root /usr/local/bin/idjuv-backup-segredos >> /var/log/idjuv-backup-segredos.log 2>&1
