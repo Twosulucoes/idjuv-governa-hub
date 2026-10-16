@@ -454,8 +454,7 @@ const App = () => (
               <Route path="/instalar" element={<InstalarAppPage />} />
               
               {/* ============================================ */}
-              {/* ROTAS PROTEGIDAS - Apenas autenticação */}
-              {/* (Sem mapeamento em ROUTE_PERMISSIONS) */}
+              {/* ROTAS PROTEGIDAS - área do próprio usuário (só login) */}
               {/* ============================================ */}
               
               <Route path="/sistema" element={<ProtectedRoute><SistemaEntryPage /></ProtectedRoute>} />
@@ -527,7 +526,6 @@ const App = () => (
               <Route path="/admin/permissoes" element={<ProtectedRoute requiredModule="admin"><PainelPermissoesPage /></ProtectedRoute>} />
               <Route path="/acesso" element={<ProtectedRoute requiredModule="admin"><ControleAcessoAdminPage /></ProtectedRoute>} />
               
-              {/* Com permissões mapeadas em ROUTE_PERMISSIONS */}
               <Route path="/admin/usuarios" element={
                 <ProtectedRoute requiredPermissions="admin.usuarios">
                   <GestaoUsuariosPage />
@@ -626,17 +624,17 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/admin/paginas" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermissions="admin.config">
                   <GerenciadorPaginasPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/menu-site" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermissions="admin.config">
                   <GerenciadorMenuPublicoPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/links-uteis" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermissions="admin.config">
                   <GerenciadorLinksUteisPage />
                 </ProtectedRoute>
               } />
@@ -669,7 +667,7 @@ const App = () => (
               {/* ASCOM / COMUNICAÇÃO - Com permissões mapeadas */}
               {/* ============================================ */}
               <Route path="/ascom" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermissions="comunicacao.visualizar">
                   <ComunicacaoDashboardPage />
                 </ProtectedRoute>
               } />
@@ -689,12 +687,12 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/comunicacao/calendario" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermissions="comunicacao.visualizar">
                   <CalendarioComunicacaoPage />
                 </ProtectedRoute>
               } />
               <Route path="/comunicacao/aniversariantes" element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermissions={["rh.servidores.visualizar", "ascom.gerenciar"]}>
                   <AniversariantesComunicacaoPage />
                 </ProtectedRoute>
               } />
@@ -727,7 +725,7 @@ const App = () => (
               } />
               
               {/* ============================================ */}
-              {/* FEDERAÇÕES - Apenas autenticação */}
+              {/* FEDERAÇÕES */}
               {/* (rota real é /admin/federacoes, não /federacoes) */}
               {/* ============================================ */}
               <Route path="/admin/federacoes" element={<ProtectedRoute requiredModule="organizacoes"><GestaoFederacoesPage /></ProtectedRoute>} />
@@ -777,11 +775,10 @@ const App = () => (
                   <PortariasPage />
                 </ProtectedRoute>
               } />
-              <Route path="/governanca/relatorio" element={<ProtectedRoute><RelatorioGovernancaPage /></ProtectedRoute>} />
+              <Route path="/governanca/relatorio" element={<ProtectedRoute requiredPermissions="governanca.relatorios.visualizar"><RelatorioGovernancaPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
-              {/* ORGANOGRAMA - Apenas autenticação */}
-              {/* (rotas reais não batem com ROUTE_PERMISSIONS) */}
+              {/* ORGANOGRAMA */}
               {/* ============================================ */}
               <Route path="/organograma" element={<ProtectedRoute requiredModule="governanca"><OrganogramaPage /></ProtectedRoute>} />
               <Route path="/organograma/gestao" element={<ProtectedRoute requiredModule="governanca"><GestaoOrganogramaPage /></ProtectedRoute>} />
@@ -811,8 +808,7 @@ const App = () => (
               } />
               
               {/* ============================================ */}
-              {/* UNIDADES LOCAIS - Apenas autenticação */}
-              {/* (rotas reais não batem com ROUTE_PERMISSIONS) */}
+              {/* UNIDADES LOCAIS */}
               {/* ============================================ */}
               <Route path="/unidades" element={<ProtectedRoute requiredModule="patrimonio"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
               <Route path="/unidades/gestao" element={<ProtectedRoute requiredModule="patrimonio"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
@@ -839,7 +835,7 @@ const App = () => (
                   <ServidorDetalhePage />
                 </ProtectedRoute>
               } />
-              <Route path="/rh/servidores/:id/editar" element={<ProtectedRoute><ServidorFormPage /></ProtectedRoute>} />
+              <Route path="/rh/servidores/:id/editar" element={<ProtectedRoute requiredPermissions="rh.servidores.editar"><ServidorFormPage /></ProtectedRoute>} />
               <Route path="/rh/viagens" element={
                 <ProtectedRoute requiredPermissions="rh.viagens.visualizar">
                   <GestaoViagensPage />
@@ -1128,15 +1124,14 @@ const App = () => (
               } />
               
               {/* ============================================ */}
-              {/* FORMULÁRIOS - Apenas autenticação */}
-              {/* (permissão genérica removida) */}
+              {/* FORMULÁRIOS - formularios.visualizar (todos os papéis têm) */}
               {/* ============================================ */}
-              <Route path="/formularios/termo-demanda" element={<ProtectedRoute><TermoDemandaPage /></ProtectedRoute>} />
-              <Route path="/formularios/ordem-missao" element={<ProtectedRoute><OrdemMissaoPage /></ProtectedRoute>} />
-              <Route path="/formularios/relatorio-viagem" element={<ProtectedRoute><RelatorioViagemPage /></ProtectedRoute>} />
-              <Route path="/formularios/requisicao-material" element={<ProtectedRoute><RequisicaoMaterialPage /></ProtectedRoute>} />
-              <Route path="/formularios/termo-responsabilidade" element={<ProtectedRoute><TermoResponsabilidadePage /></ProtectedRoute>} />
-              <Route path="/formularios/cpsi" element={<ProtectedRoute><CPSIPage /></ProtectedRoute>} />
+              <Route path="/formularios/termo-demanda" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><TermoDemandaPage /></ProtectedRoute>} />
+              <Route path="/formularios/ordem-missao" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><OrdemMissaoPage /></ProtectedRoute>} />
+              <Route path="/formularios/relatorio-viagem" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><RelatorioViagemPage /></ProtectedRoute>} />
+              <Route path="/formularios/requisicao-material" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><RequisicaoMaterialPage /></ProtectedRoute>} />
+              <Route path="/formularios/termo-responsabilidade" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><TermoResponsabilidadePage /></ProtectedRoute>} />
+              <Route path="/formularios/cpsi" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><CPSIPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* MANUAIS - Apenas autenticação */}
@@ -1161,9 +1156,9 @@ const App = () => (
                   <GestaoDenunciasPage />
                 </ProtectedRoute>
               } />
-              <Route path="/integridade/codigo-etica" element={<ProtectedRoute><IntegridadeDashboardPage /></ProtectedRoute>} />
-              <Route path="/integridade/conflito" element={<ProtectedRoute><IntegridadeDashboardPage /></ProtectedRoute>} />
-              <Route path="/integridade/politica" element={<ProtectedRoute><IntegridadeDashboardPage /></ProtectedRoute>} />
+              <Route path="/integridade/codigo-etica" element={<ProtectedRoute requiredPermissions="integridade.visualizar"><IntegridadeDashboardPage /></ProtectedRoute>} />
+              <Route path="/integridade/conflito" element={<ProtectedRoute requiredPermissions="integridade.visualizar"><IntegridadeDashboardPage /></ProtectedRoute>} />
+              <Route path="/integridade/politica" element={<ProtectedRoute requiredPermissions="integridade.visualizar"><IntegridadeDashboardPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* PROGRAMAS - Com dashboard modular */}
@@ -1319,13 +1314,12 @@ const App = () => (
               } />
 
               {/* ============================================ */}
-              {/* PROGRAMAS - Apenas autenticação */}
-              {/* (permissão genérica removida) */}
+              {/* PROGRAMAS - programas.visualizar, a mesma de /programas */}
               {/* ============================================ */}
-              <Route path="/programas/bolsa-atleta" element={<ProtectedRoute><BolsaAtletaPage /></ProtectedRoute>} />
-              <Route path="/programas/juventude-cidada" element={<ProtectedRoute><JuventudeCidadaPage /></ProtectedRoute>} />
-              <Route path="/programas/esporte-comunidade" element={<ProtectedRoute><EsporteComunidadePage /></ProtectedRoute>} />
-              <Route path="/programas/jovem-empreendedor" element={<ProtectedRoute><JovemEmpreendedorPage /></ProtectedRoute>} />
+              <Route path="/programas/bolsa-atleta" element={<ProtectedRoute requiredPermissions="programas.visualizar"><BolsaAtletaPage /></ProtectedRoute>} />
+              <Route path="/programas/juventude-cidada" element={<ProtectedRoute requiredPermissions="programas.visualizar"><JuventudeCidadaPage /></ProtectedRoute>} />
+              <Route path="/programas/esporte-comunidade" element={<ProtectedRoute requiredPermissions="programas.visualizar"><EsporteComunidadePage /></ProtectedRoute>} />
+              <Route path="/programas/jovem-empreendedor" element={<ProtectedRoute requiredPermissions="programas.visualizar"><JovemEmpreendedorPage /></ProtectedRoute>} />
               
               {/* Seleções Estudantis - Gestão Administrativa */}
               <Route path="/programas/selecoes/admin/inscricoes" element={
@@ -1353,7 +1347,7 @@ const App = () => (
                   <CMSGaleriaSelecaoPage />
                 </ProtectedRoute>
               } />
-              <Route path="/programas/jogos-escolares" element={<ProtectedRoute><JogosEscolaresPage /></ProtectedRoute>} />
+              <Route path="/programas/jogos-escolares" element={<ProtectedRoute requiredPermissions="programas.visualizar"><JogosEscolaresPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* 404 */}

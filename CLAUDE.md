@@ -151,7 +151,9 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
   Estratégia: `onAuthStateChange` do Supabase é o único disparador; `signIn`/
   `signOut` apenas acionam. Expõe `hasPermission`, `hasAnyPermission`,
   `isSuperAdmin`, etc. Permissões são cacheadas (TTL ~60s).
-- Mapeamento de permissões por rota: `ROUTE_PERMISSIONS` em `src/types/auth.ts`.
+- Permissão de cada rota: só no `src/App.tsx` (`requiredPermissions`/`requiredModule` do `ProtectedRoute`).
+  O módulo contratado vem da URL (`moduloDaRota` em `modules.config.ts`); rota protegida nova precisa
+  cair num módulo ou entrar na lista de transversais de `src/shared/config/modules.config.test.ts`.
 - `src/components/auth/ProtectedRoute.tsx` aplica RBAC real: valida
   `requiredModule`/`requiredPermissions` via `hasPermission`/`hasAnyPermission`
   do `AuthContext`, com bypass apenas para super admin. (Histórico: esteve em

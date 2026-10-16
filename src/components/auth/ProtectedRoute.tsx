@@ -7,6 +7,9 @@
 //   3. Troca de senha obrigatória → força /trocar-senha-obrigatoria.
 //   4. Módulo não contratado pela instituição → 404 (antes do bypass de super
 //      admin: se a instituição não contratou, nem o super admin deve ver).
+//      O módulo vem de `requiredModule` ou, sem ele, da própria URL
+//      (`moduloDaRota`), para que a URL digitada não abra tela de módulo
+//      não contratado.
 //   5. Super admin → bypass total.
 //   6. requiredModule / requiredPermissions → checa via AuthContext.
 //      requiredModule checa o módulo (user_modules); requiredPermissions exige
@@ -18,7 +21,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { moduloHabilitado } from '@/shared/config/modules.config';
+import { moduloDaRota, moduloHabilitado } from '@/shared/config/modules.config';
 import NotFound from '@/pages/NotFound';
 
 interface ProtectedRouteProps {
@@ -70,8 +73,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Vem ANTES do bypass de super admin de propósito: "não contratado" não é
   // falta de permissão, é funcionalidade que não existe nesta instância. E
   // devolve 404, não /acesso-negado, para não revelar o catálogo do produto a
-  // quem não o contratou.
-  if (requiredModule && !moduloHabilitado(requiredModule)) {
+  // quem não o contratou. Sem `requiredModule`, o módulo sai da URL. Não
+  // concede nem tira acesso de usuário: isso é o passo 6.
+  const moduloContratual = requiredModule ?? moduloDaRota(location.pathname);
+  if (moduloContratual && !moduloHabilitado(moduloContratual)) {
     return <NotFound />;
   }
 

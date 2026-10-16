@@ -152,9 +152,9 @@ Definido em `src/types/auth.ts` (`module_access_scopes` no banco):
 
 ## Onde isso aparece no código
 
-- **`src/types/auth.ts`** — tipos (`PermissionCode`, `AuthUser`, `AccessScope`),
-  o mapa **`ROUTE_PERMISSIONS`** (rota → permissão exigida) e
-  **`MODULE_PERMISSIONS`** (catálogo de permissões agrupadas por módulo).
+- **`src/types/auth.ts`** — tipos (`PermissionCode`, `AuthUser`, `AccessScope`) e
+  **`MODULE_PERMISSIONS`** (catálogo de permissões agrupadas por módulo). O antigo mapa
+  `ROUTE_PERMISSIONS` saiu no P08: a permissão de cada rota fica só no `ProtectedRoute` do `App.tsx`.
 - **`src/config/menu.config.ts`** — cada item de menu declara a `permission`
   necessária (tipo `PermissaoInstitucional`); o menu é filtrado por permissão.
 - **`src/contexts/AuthContext.tsx`** — busca, cache e API de checagem.
@@ -870,10 +870,10 @@ módulo (a tela não oferece). No modo `exigir` a recusa vem com o SQLSTATE `RHS
 do banco. Telas e hooks em
 [GUIA_FRONTEND.md](./GUIA_FRONTEND.md#lançamento-por-setor-fase-1).
 
-| Rota | Guarda (`ProtectedRoute` e `ROUTE_PERMISSIONS`) | Menu | Gravação |
+| Rota | Guarda (`ProtectedRoute` no `App.tsx`) | Menu | Gravação |
 |---|---|---|---|
 | `/admin/setores-modulos` (setores de cada módulo e modo da regra) | módulo `admin` e `admin.config` | "Setores dos Módulos" em Administração (`menu.config.ts` e `module-menus.config.ts`, `admin.config`) | só o **papel** admin (RLS de `setores_modulo` e `regra_lancamento`); sem o papel a tela é só consulta |
-| `/rh/comissoes` (comissões e membros) | módulo `rh` (`ROUTE_PERMISSIONS`: `'rh'`) | "Comissões" no RH, nos dois menus com a mesma exigência da rota: `permission: "rh"` (código sem ponto = o módulo) | `rh.comissoes.gerenciar` (botões e RLS de `comissoes` e `comissoes_membros`) |
+| `/rh/comissoes` (comissões e membros) | módulo `rh` (`requiredModule="rh"`) | "Comissões" no RH, nos dois menus com a mesma exigência da rota: `permission: "rh"` (código sem ponto = o módulo) | `rh.comissoes.gerenciar` (botões e RLS de `comissoes` e `comissoes_membros`) |
 | `/rh/auditoria`, aba "Lançamento por setor" | `rh.auditoria.visualizar` (a mesma da trilha) | — | — (leitura: RLS de `audit_logs` e RPC `saneamento_lancamento`, que pede admin ou a mesma permissão) |
 
 - O aviso "somente consulta" (`AvisoSomenteConsulta`, no `ModuleLayout`, só no modo `exigir`) é UX: a fronteira é o
@@ -916,7 +916,7 @@ O terceiro, planilha de portarias, declara `gabinete.portarias.importar` — per
 ativo, o módulo `gabinete` e essa permissão (`has_permission_code`; o papel admin passa), senão `42501`. Ter só o
 módulo `gabinete` (ver ou editar portarias) não importa, e a permissão sem o módulo também não. RH não importa nesta
 versão. Quem importa precisa receber a permissão em `user_modules` (nada é concedido pela migração além do atalho do
-papel admin). A rota `/admin/importacoes` (`ROUTE_PERMISSIONS` em `src/types/auth.ts`) e o item de menu "Importação de
+papel admin). A rota `/admin/importacoes` (`PERMISSOES_IMPORTACAO` no `App.tsx`) e o item de menu "Importação de
 Dados" (`src/config/menu.config.ts`) passam a aceitar qualquer uma de `orcamento.importar`, `pagamento.conciliar` ou
 `gabinete.portarias.importar`; na Central cada pessoa vê só os importadores da sua permissão. A rota é só UX: a RPC é
 quem barra. Detalhes da RPC em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-portarias-importar_portarias_planilha).
@@ -1019,8 +1019,10 @@ nesta ordem:
 2. **Não autenticado** → redireciona para `/auth` (guardando a origem).
 3. **Troca de senha obrigatória** (`requiresPasswordChange`) → força
    `/trocar-senha-obrigatoria`.
-4. **Módulo não contratado** pela instituição (`requiredModule` fora de
-   `moduloHabilitado`) → 404, antes do bypass, valendo também para o super admin.
+4. **Módulo não contratado** pela instituição → 404, antes do bypass, valendo também para o
+   super admin. O módulo é o `requiredModule` da rota ou, sem ele, o da própria URL
+   (`moduloDaRota`, prefixo mais longo de `MODULES_CONFIG.rotas`). Este passo não dá nem tira
+   acesso de usuário; só esconde o que a instituição não contratou.
 5. **Super admin** → bypass total.
 6. **`requiredModule`** → o usuário precisa ter o módulo (`hasPermission(<módulo>)`).
 7. **`requiredPermissions`** → basta um dos códigos (`hasAnyPermission`). O código
@@ -1036,6 +1038,31 @@ Camadas complementares:
 - O **RLS no Postgres** é a fronteira de segurança real dos dados (independe do
   front). Ver item C2 da auditoria sobre o reforço pendente das tabelas de usuário.
 - O **menu** (`menu.config.ts`) é filtrado por permissão — controla o que aparece.
+
+### Permissões nas rotas (P08, 16/10/2026)
+
+- **Módulo pela URL:** antes, só as 48 rotas com `requiredModule` davam 404 para módulo não contratado; nas
+  outras 152 a URL digitada abria a tela. Agora o passo 4 descobre o módulo pela URL. `MODULES_CONFIG.rotas`
+  ganhou `/patrimonio`, `/comunicacao` e `/acesso`, e `findModuleByRoute`/`moduloDaRota` usam o prefixo mais
+  longo (`/admin/federacoes` e `/admin/instituicoes` são de `organizacoes`, não de `admin`).
+  `src/shared/config/modules.config.test.ts` reprova rota protegida nova que não caia em módulo nem esteja na
+  lista de transversais (área do próprio usuário, `/processos`, `/manuais/*` e 4 formulários).
+- **Telas que pediam só login** passam a exigir: `/rh/servidores/:id/editar` → `rh.servidores.editar`;
+  `/admin/paginas`, `/admin/menu-site`, `/admin/links-uteis` → `admin.config` (gravar continua só para o papel
+  admin, pela RLS); `/comunicacao/aniversariantes` → `rh.servidores.visualizar` ou `ascom.gerenciar`; `/ascom` e
+  `/comunicacao/calendario` → `comunicacao.visualizar`; `/governanca/relatorio` →
+  `governanca.relatorios.visualizar`; `/integridade/codigo-etica`, `/conflito`, `/politica` →
+  `integridade.visualizar`; 5 páginas de programas → `programas.visualizar`; 6 formulários →
+  `formularios.visualizar`. Pelo catálogo, só as duas primeiras ficam restritas a admin e manager; as demais
+  todos os papéis têm, e barram apenas login sem papel. Os itens de menu dessas telas pedem a mesma permissão.
+  O manager abre a gestão do portal, mas só o papel admin grava (RLS de `config_paginas_publicas`,
+  `config_menu_publico` e `links_uteis`).
+- **A URL é comparada como o react-router compara:** sem diferenciar maiúsculas e decodificada, para
+  `/Programas/...` ou `/%70rogramas/...` não escaparem do 404 de módulo não contratado.
+- **`ROUTE_PERMISSIONS` removido** de `src/types/auth.ts` (84 entradas, nenhuma lida pelo `ProtectedRoute`, 11
+  de rotas inexistentes). As menções a ele nas seções acima são registro histórico.
+- **D6 confirmada pelo dono (16/10/2026):** fica como a Onda B2 deixou; o papel `user` não grava férias,
+  licenças, viagens, ponto nem frequência.
 
 ### Exemplo: inventário de campo (fase 1)
 

@@ -139,7 +139,7 @@ contrário é possível autorregistro via API.
 
 O `AuthContext` deriva o acesso de `user_roles` (→ `isSuperAdmin` quando há role
 `admin`) e `user_modules` (→ lista de permissões em nível de módulo). A RPC
-`listar_permissoes_usuario` e as estruturas granulares (`ROUTE_PERMISSIONS`,
+`listar_permissoes_usuario` e as estruturas granulares (`ROUTE_PERMISSIONS`, removido no P08,
 `MODULE_PERMISSIONS`, `permissoesDetalhadas`) **não** alimentam o contexto em
 runtime; `permissoesDetalhadas` é sintetizada a partir dos módulos. Como
 `hasPermission` faz match hierárquico no "pai", ter o módulo `rh` concede `rh.*`.

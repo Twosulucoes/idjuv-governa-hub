@@ -251,8 +251,8 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
           { id: "cms-banners", label: "Banners", icon: Megaphone, route: "/ascom/cms/banners" },
         ]
       },
-      { id: "aniversariantes", label: "Aniversariantes", icon: Cake, route: "/comunicacao/aniversariantes" },
-      { id: "calendario", label: "Calendário", icon: Calendar, route: "/comunicacao/calendario" },
+      { id: "aniversariantes", label: "Aniversariantes", icon: Cake, route: "/comunicacao/aniversariantes", permission: "rh.servidores.visualizar" },
+      { id: "calendario", label: "Calendário", icon: Calendar, route: "/comunicacao/calendario", permission: "comunicacao.visualizar" },
       { id: "avisos", label: "Avisos e Datas", icon: Bell, route: "/avisos" },
     ],
   },
@@ -325,8 +325,8 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel Admin", route: "/admin" },
     items: [
       { id: "usuarios", label: "Usuários", icon: Users, route: "/admin/usuarios" },
-      { id: "paginas-publicas", label: "Páginas Públicas", icon: Globe, route: "/admin/paginas" },
-      { id: "menu-site", label: "Menu do Site", icon: ListChecks, route: "/admin/menu-site" },
+      { id: "paginas-publicas", label: "Páginas Públicas", icon: Globe, route: "/admin/paginas", permission: "admin.config" },
+      { id: "menu-site", label: "Menu do Site", icon: ListChecks, route: "/admin/menu-site", permission: "admin.config" },
       { id: "auditoria", label: "Auditoria", icon: Shield, route: "/admin/auditoria" },
       { id: "banco-dados", label: "Banco de Dados", icon: Database, route: "/admin/database" },
       { id: "importacoes", label: "Importação de Dados", icon: Upload, route: "/admin/importacoes" },

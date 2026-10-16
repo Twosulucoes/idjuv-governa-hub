@@ -4,6 +4,13 @@ Detalhamento funcional de cada módulo e suas principais páginas. As rotas vive
 em `src/App.tsx`; o menu lateral em `src/config/menu.config.ts`; a definição dos
 módulos em `src/shared/config/modules.config.ts`.
 
+Cada módulo declara em `rotas` os prefixos de URL que são dele; vence o prefixo mais longo
+(`/admin/federacoes` é de `organizacoes`, não de `admin`). O `ProtectedRoute` usa esse mapa para
+devolver 404 em tela de módulo que a instituição não contratou, mesmo sem `requiredModule` na rota.
+Página nova sob um prefixo que não é de módulo nenhum precisa entrar em `rotas` ou na lista de
+transversais do teste `src/shared/config/modules.config.test.ts`. Ver
+[RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#permissões-nas-rotas-p08-16102026).
+
 ---
 
 ## Administração (`admin`)

@@ -69,7 +69,7 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
-  `docs/GUIA_FRONTEND.md` (Importação de dados). O item de menu e o `ROUTE_PERMISSIONS` da rota repetem a mesma lista
+  `docs/GUIA_FRONTEND.md` (Importação de dados). A rota usa a própria `PERMISSOES_IMPORTACAO` e o item de menu repete a mesma lista
   (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`); `src/lib/importacao/registro.test.ts`
   reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha".
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"
@@ -77,8 +77,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   (`orcamento.aprovar`); `/financeiro/orcamento` só redireciona para `/financeiro/qdd`. O ano das telas do
   módulo vai na query `?exercicio=` (ver [MODULOS.md](./MODULOS.md)). `/financeiro` é declarada uma vez só
   (painel do módulo, `FinanceiroDashboardPage`, `requiredModule="financeiro"`).
-- Quadro de vagas: `/cargos/vagas` (`QuadroVagasPage`, `ProtectedRoute requiredPermissions="governanca.cargos.visualizar"`,
-  também em `ROUTE_PERMISSIONS`; a página exige ainda o módulo `governanca`), com link em `/cargos` e item "Quadro de
+- Quadro de vagas: `/cargos/vagas` (`QuadroVagasPage`, `ProtectedRoute requiredPermissions="governanca.cargos.visualizar"`;
+  a página exige ainda o módulo `governanca`), com link em `/cargos` e item "Quadro de
   Vagas" no menu de governança. Importar a planilha exige `governanca.cargos.gerenciar` (ver
   [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#quadro-de-vagas)).
 - Inventário de campo: `/inventario/campanhas/:id/painel` (painel com mapa,
