@@ -2837,7 +2837,7 @@ $$;
 --
 
 CREATE FUNCTION public.desmarcar_escola_cadastrada() RETURNS trigger
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
 BEGIN
@@ -4273,12 +4273,10 @@ BEGIN
     END LOOP;
   END IF;
 
-  BEGIN SELECT p.full_name INTO v_usuario_nome FROM public.profiles p WHERE p.id = auth.uid();
-  EXCEPTION WHEN OTHERS THEN v_usuario_nome := NULL; END;
+  SELECT p.full_name INTO v_usuario_nome FROM public.profiles p WHERE p.id = auth.uid();
 
-  BEGIN SELECT string_agg(pf.nome, ', ') INTO v_usuario_perfil FROM public.usuario_perfis up
-    JOIN public.perfis pf ON up.perfil_id = pf.id WHERE up.user_id = auth.uid() AND up.ativo = true;
-  EXCEPTION WHEN OTHERS THEN v_usuario_perfil := NULL; END;
+  SELECT string_agg(ur.role::text, ', ' ORDER BY ur.role::text) INTO v_usuario_perfil
+    FROM public.user_roles ur WHERE ur.user_id = auth.uid();
 
   INSERT INTO public.audit_log_licitacoes (tabela_origem, registro_id, acao, dados_anteriores, dados_novos, campos_alterados, usuario_id, usuario_nome, usuario_perfil)
   VALUES (TG_TABLE_NAME, v_registro_id, TG_OP, v_dados_anteriores, v_dados_novos, v_campos_alterados, auth.uid(), v_usuario_nome, v_usuario_perfil);
@@ -4321,7 +4319,7 @@ BEGIN
   ) VALUES (
     v_action,
     TG_TABLE_NAME,
-    COALESCE(NEW.id, OLD.id)::text,
+    COALESCE(NEW.id, OLD.id),
     CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
     CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END,
     auth.uid(),
@@ -4477,7 +4475,7 @@ $$;
 --
 
 CREATE FUNCTION public.fn_calcular_13_proporcional(p_servidor_id uuid, p_ano integer, p_remuneracao_base numeric) RETURNS TABLE(meses_trabalhados integer, valor_proporcional numeric, valor_integral numeric)
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql STABLE
     SET search_path TO 'public'
     AS $$
 DECLARE
@@ -4708,7 +4706,7 @@ $$;
 --
 
 CREATE FUNCTION public.fn_gerar_esocial_s1200(p_servidor_id uuid, p_competencia_ano integer, p_competencia_mes integer) RETURNS jsonb
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql STABLE
     SET search_path TO 'public'
     AS $$
 DECLARE
@@ -4761,7 +4759,7 @@ $$;
 --
 
 CREATE FUNCTION public.fn_gerar_esocial_s2200(p_servidor_id uuid) RETURNS jsonb
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql STABLE
     SET search_path TO 'public'
     AS $$
 DECLARE
@@ -5464,6 +5462,7 @@ $$;
 
 CREATE FUNCTION public.folha_avos_13(p_inicio date, p_fim date, p_ano integer) RETURNS integer
     LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public'
     AS $$
   SELECT count(*)::int
     FROM generate_series(1, 12) m
@@ -5478,6 +5477,7 @@ $$;
 
 CREATE FUNCTION public.folha_dias_comerciais(p_inicio date, p_fim date, p_mes_ini date, p_mes_fim date) RETURNS integer
     LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public'
     AS $$
   SELECT CASE
     WHEN p_inicio IS NULL OR p_fim IS NULL THEN 0
@@ -5511,6 +5511,7 @@ $$;
 
 CREATE FUNCTION public.folha_item(p_descricao text, p_tipo text, p_valor numeric, p_referencia text DEFAULT NULL::text, p_base numeric DEFAULT NULL::numeric, p_percentual numeric DEFAULT NULL::numeric, p_origem text DEFAULT 'automatico'::text, p_rubrica uuid DEFAULT NULL::uuid) RETURNS jsonb
     LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public'
     AS $$
   SELECT jsonb_build_object('descricao', p_descricao, 'tipo', p_tipo, 'valor', p_valor, 'referencia', p_referencia,
                             'base', p_base, 'percentual', p_percentual, 'origem', p_origem, 'rubrica_id', p_rubrica);
@@ -6650,7 +6651,7 @@ $$;
 --
 
 CREATE FUNCTION public.gerar_relatorio_responsavel(p_responsavel_id uuid) RETURNS TABLE(bem_id uuid, numero_patrimonio text, descricao text, categoria text, unidade_local text, localizacao text, estado_conservacao text, valor_aquisicao numeric, data_atribuicao date)
-    LANGUAGE sql STABLE SECURITY DEFINER
+    LANGUAGE sql STABLE
     SET search_path TO 'public'
     AS $$
   SELECT 
@@ -6787,6 +6788,7 @@ $$;
 
 CREATE FUNCTION public.get_parametro_vigente(p_tipo text, p_data date DEFAULT CURRENT_DATE) RETURNS numeric
     LANGUAGE plpgsql STABLE
+    SET search_path TO 'public'
     AS $$
 BEGIN
   RETURN COALESCE((
@@ -6992,21 +6994,20 @@ CREATE FUNCTION public.handle_new_user() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 BEGIN
-  -- Inserir perfil (inativos por padrão)
-  INSERT INTO public.profiles (id, email, full_name, is_active)
+  INSERT INTO public.profiles (id, email, full_name, is_active, tipo_usuario)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-    false
+    false,
+    CASE WHEN NEW.raw_user_meta_data->>'tipo_usuario' = 'tecnico' THEN 'tecnico' ELSE 'servidor' END
   )
   ON CONFLICT (id) DO NOTHING;
-  
-  -- Inserir role padrão 'user'
+
   INSERT INTO public.user_roles (user_id, role)
   VALUES (NEW.id, 'user')
   ON CONFLICT (user_id) DO NOTHING;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -8551,7 +8552,7 @@ COMMENT ON FUNCTION public.lotacao_vigente(p_servidor_id uuid, p_data date) IS '
 --
 
 CREATE FUNCTION public.marcar_escola_cadastrada() RETURNS trigger
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
 BEGIN
@@ -8726,6 +8727,18 @@ DECLARE
     v_resultado jsonb;
     v_valor_padrao jsonb;
 BEGIN
+    -- sem usuário (service role, chamadas internas de triggers/cron) segue como antes
+    IF auth.uid() IS NOT NULL AND NOT public.is_active_user() THEN
+        RETURN '{}'::jsonb;
+    END IF;
+    -- nível "servidor individual": só o próprio servidor, o RH e o financeiro
+    -- (COALESCE: meu_servidor_id() é NULL para quem não tem servidor, e NULL faria o IF não disparar)
+    IF auth.uid() IS NOT NULL AND p_servidor_id IS NOT NULL AND NOT (
+         COALESCE(p_servidor_id = public.meu_servidor_id(), false)
+         OR public.can_access_module(auth.uid(), 'rh')
+         OR public.can_access_module(auth.uid(), 'financeiro')) THEN
+        p_servidor_id := NULL;
+    END IF;
     -- Nível 4: Servidor individual
     IF p_servidor_id IS NOT NULL THEN
         SELECT valor INTO v_resultado
@@ -9758,25 +9771,19 @@ DECLARE
   v_rascunho RECORD;
   v_proxima_versao INTEGER;
 BEGIN
-  -- Verificar se usuário é super_admin
-  IF NOT EXISTS (
-    SELECT 1 FROM public.usuario_perfis up
-    JOIN public.perfis p ON up.perfil_id = p.id
-    WHERE up.user_id = auth.uid() AND p.codigo = 'super_admin'
-  ) THEN
+  IF NOT public.is_admin_user(auth.uid()) THEN
     RAISE EXCEPTION 'Apenas Super Admin pode promover conteúdo';
   END IF;
 
   SELECT * INTO v_rascunho FROM public.conteudo_rascunho WHERE id = p_rascunho_id;
-  
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Rascunho não encontrado';
   END IF;
-  
+
   SELECT COALESCE(MAX(versao), 0) + 1 INTO v_proxima_versao
   FROM public.historico_conteudo_oficial
   WHERE tipo = v_rascunho.tipo AND identificador IS NOT DISTINCT FROM v_rascunho.identificador;
-  
+
   INSERT INTO public.historico_conteudo_oficial (
     tipo, identificador, titulo, conteudo, conteudo_estruturado,
     versao, promovido_por, justificativa
@@ -9785,14 +9792,11 @@ BEGIN
     v_rascunho.conteudo, v_rascunho.conteudo_estruturado,
     v_proxima_versao, auth.uid(), p_justificativa
   );
-  
+
   UPDATE public.conteudo_rascunho
-  SET status = 'publicado',
-      aprovado_por = auth.uid(),
-      aprovado_em = now(),
-      updated_at = now()
+  SET status = 'publicado', aprovado_por = auth.uid(), aprovado_em = now(), updated_at = now()
   WHERE id = p_rascunho_id;
-  
+
   RETURN true;
 END;
 $$;
@@ -12149,6 +12153,37 @@ COMMENT ON FUNCTION public.saneamento_lancamento() IS 'Servidores ativos sem log
 
 
 --
+-- Name: sanear_urls_arbitros(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.sanear_urls_arbitros() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  j jsonb := to_jsonb(NEW);
+  padrao constant text := '^https?://[^/]+/storage/v1/object/public/arbitros-docs/';
+BEGIN
+  IF coalesce(current_setting('role', true), 'none') IN ('anon', 'authenticated')
+     AND NOT public.can_access_module(auth.uid(), 'arbitros') THEN
+    IF j ? 'foto_url' AND j->>'foto_url' IS NOT NULL AND j->>'foto_url' !~ padrao THEN
+      j := j || jsonb_build_object('foto_url', NULL);
+    END IF;
+    IF j ? 'documentos_urls' AND jsonb_typeof(j->'documentos_urls') = 'array' THEN
+      j := j || jsonb_build_object('documentos_urls', COALESCE(
+        (SELECT jsonb_agg(e) FROM jsonb_array_elements(j->'documentos_urls') e
+          WHERE jsonb_typeof(e) = 'string' AND (e #>> '{}') ~ padrao), '[]'::jsonb));
+    ELSIF j ? 'documentos_urls' THEN
+      j := j || jsonb_build_object('documentos_urls', '[]'::jsonb);
+    END IF;
+    NEW := jsonb_populate_record(NEW, j);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: servidores_proteger_cpf(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -12195,23 +12230,21 @@ CREATE FUNCTION public.sync_usuario_servidor_status() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 BEGIN
-  -- Quando servidor é exonerado, inativo ou falecido, bloqueia o usuário
-  IF NEW.situacao IN ('exonerado', 'inativo', 'falecido') 
+  IF NEW.situacao IN ('exonerado', 'inativo', 'falecido')
      AND OLD.situacao NOT IN ('exonerado', 'inativo', 'falecido') THEN
     UPDATE public.profiles
     SET is_active = false,
         blocked_at = now(),
         blocked_reason = 'Servidor ' || NEW.situacao || ' em ' || now()::date
-    WHERE servidor_id = NEW.id;
-  -- Quando servidor é reativado
+    WHERE servidor_id = NEW.id AND is_active;
   ELSIF NEW.situacao = 'ativo' AND OLD.situacao IN ('exonerado', 'inativo') THEN
-    UPDATE public.profiles
-    SET is_active = true,
-        blocked_at = NULL,
-        blocked_reason = NULL
-    WHERE servidor_id = NEW.id;
+    UPDATE public.profiles p
+    SET is_active = true, blocked_at = NULL, blocked_reason = NULL
+    WHERE p.servidor_id = NEW.id
+      AND NOT p.is_active
+      AND p.blocked_reason LIKE 'Servidor %'
+      AND NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = p.id AND ur.role = 'admin');
   END IF;
-  
   RETURN NEW;
 END;
 $$;
@@ -13024,6 +13057,7 @@ $$;
 
 CREATE FUNCTION public.update_updated_at_column() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'public'
     AS $$
 BEGIN
   NEW.updated_at = now();
@@ -13113,63 +13147,6 @@ CREATE FUNCTION public.usuario_pode_reabrir_folha(p_user_id uuid) RETURNS boolea
     SET search_path TO 'public'
     AS $$
   SELECT public.usuario_eh_admin(p_user_id);
-$$;
-
-
---
--- Name: usuario_tem_acesso_modulo(uuid, text); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.usuario_tem_acesso_modulo(_user_id uuid, _codigo_modulo text) RETURNS boolean
-    LANGUAGE sql STABLE SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-  SELECT 
-    -- Super admin tem acesso total
-    CASE WHEN public.usuario_eh_admin(_user_id) THEN true
-    -- Usuário sem restrição tem acesso total
-    WHEN NOT COALESCE((SELECT restringir_modulos FROM public.profiles WHERE id = _user_id), false) THEN true
-    -- Usuário com restrição: verificar se módulo está autorizado
-    ELSE EXISTS (
-      SELECT 1 
-      FROM public.usuario_modulos um
-      JOIN public.modulos_sistema ms ON ms.id = um.modulo_id
-      WHERE um.user_id = _user_id 
-        AND um.ativo = true
-        AND ms.codigo = _codigo_modulo
-        AND ms.ativo = true
-    )
-    END
-$$;
-
-
---
--- Name: usuario_tem_acesso_rota(uuid, text); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.usuario_tem_acesso_rota(_user_id uuid, _pathname text) RETURNS boolean
-    LANGUAGE sql STABLE SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-  SELECT 
-    -- Super admin tem acesso total
-    CASE WHEN public.usuario_eh_admin(_user_id) THEN true
-    -- Usuário sem restrição tem acesso total
-    WHEN NOT COALESCE((SELECT restringir_modulos FROM public.profiles WHERE id = _user_id), false) THEN true
-    -- Usuário com restrição: verificar se algum módulo autorizado cobre a rota
-    ELSE EXISTS (
-      SELECT 1 
-      FROM public.usuario_modulos um
-      JOIN public.modulos_sistema ms ON ms.id = um.modulo_id
-      WHERE um.user_id = _user_id 
-        AND um.ativo = true
-        AND ms.ativo = true
-        AND EXISTS (
-          SELECT 1 FROM unnest(ms.prefixos_rota) AS prefixo
-          WHERE _pathname LIKE prefixo OR _pathname LIKE prefixo || '%'
-        )
-    )
-    END
 $$;
 
 
@@ -13620,7 +13597,7 @@ $$;
 --
 
 CREATE FUNCTION public.verificar_conflito_agenda(p_unidade_id uuid, p_data_inicio timestamp with time zone, p_data_fim timestamp with time zone, p_agenda_id uuid DEFAULT NULL::uuid) RETURNS TABLE(tem_conflito boolean, agendas_conflitantes jsonb)
-    LANGUAGE plpgsql SECURITY DEFINER
+    LANGUAGE plpgsql
     SET search_path TO 'public'
     AS $$
 DECLARE
@@ -14464,20 +14441,6 @@ BEGIN
   RETURN p;
 END;
 $$;
-
-
---
--- Name: _backup_usuario_modulos_old; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public._backup_usuario_modulos_old (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    user_id uuid NOT NULL,
-    modulo_id uuid NOT NULL,
-    ativo boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now(),
-    created_by uuid
-);
 
 
 --

@@ -88,6 +88,27 @@ muda em relação ao estado das migrações antigas:
 Alterar RLS do baseline = editar `rls/mapa.csv` e rodar `node scripts/db/gerar-rls.mjs` (o gate confere);
 mudança de schema continua por migração nova (e regeneração do baseline). Tabela nova precisa de linha no mapa.
 
+### Limpeza e desempenho (P11, 16/10/2026)
+
+Migração `supabase/migrations/20261016220000_banco_limpeza_desempenho.sql`, idempotente:
+
+- **Auditoria com o papel de quem mexeu.** `fn_audit_log_licitacoes()` (trigger nas 43 tabelas auditadas em
+  `audit_log_licitacoes`) lia o perfil em `usuario_perfis`/`perfis`, que não existem mais; o erro era engolido e
+  `usuario_perfil` ficava sempre vazio. Agora lê `user_roles` (`admin`, `manager` ou `user`).
+- **`search_path` fixo** em `folha_avos_13`, `folha_dias_comerciais`, `folha_item`, `get_parametro_vigente` (as
+  duas versões) e `update_updated_at_column`. Nenhuma função de `public` fica sem `search_path` fixo.
+- **Índice em toda chave estrangeira de dados.** 196 índices `idx_<tabela>_<coluna>` nas FKs que não tinham índice
+  cobrindo a coluna (ficha financeira, rubrica, retorno bancário, vínculo, lotação, `fin_*`, movimentações e
+  afins). Ficam sem índice, de propósito, as 225 FKs de autoria (`created_by`, `aprovado_por`… para `auth.users`
+  ou `profiles`): nenhuma consulta filtra por elas e usuário é desativado, não apagado. Regra daqui em diante: FK de dados
+  nova nasce com índice na mesma migração.
+- **Sem Realtime.** `folhas_pagamento` e `fichas_financeiras` saíram da publicação `supabase_realtime` (nenhuma
+  tela assina mudanças); o overlay de Realtime do baseline (`60_realtime.sql`) saiu junto.
+- Já resolvidos antes, sem mudança aqui: `usuario_tem_acesso_modulo`/`usuario_tem_acesso_rota` e a tabela
+  `_backup_usuario_modulos_old` (P02); `promover_rascunho` funciona (sem chamador no front).
+
+<!-- doc-links-absent: overlay/60_realtime.sql, 60_realtime.sql -->
+
 ## Tabelas por domínio
 
 ### Autenticação, RBAC e administração
