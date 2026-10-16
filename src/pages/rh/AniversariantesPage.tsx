@@ -224,7 +224,7 @@ export default function AniversariantesPage() {
                 Aniversariantes
               </h1>
               <p className="text-muted-foreground mt-1">
-                Acompanhe os aniversários dos servidores
+                Acompanhe os aniversários dos servidores agatha
               </p>
             </div>
             
