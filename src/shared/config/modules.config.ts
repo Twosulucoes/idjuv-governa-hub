@@ -71,7 +71,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     descricao: 'Usuários, perfis, auditoria, reuniões',
     icone: Settings,
     cor: 'slate',
-    rotas: ['/admin'],
+    rotas: ['/admin', '/acesso'],
     menuSectionIds: ['admin', 'sistema'],
   },
   {
@@ -125,7 +125,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     descricao: 'Bens, inventário, almoxarifado, unidades',
     icone: Package,
     cor: 'cyan',
-    rotas: ['/inventario', '/unidades', '/processos/patrimonio', '/processos/almoxarifado'],
+    rotas: ['/patrimonio', '/inventario', '/unidades', '/processos/patrimonio', '/processos/almoxarifado'],
     menuSectionIds: ['inventario', 'unidades'],
   },
   {
@@ -161,7 +161,7 @@ export const MODULES_CONFIG: ModuleConfig[] = [
     descricao: 'ASCOM e demandas de comunicação',
     icone: Megaphone,
     cor: 'pink',
-    rotas: ['/ascom'],
+    rotas: ['/ascom', '/comunicacao'],
     menuSectionIds: ['ascom'],
   },
   {
@@ -228,9 +228,18 @@ export const MODULES_CONFIG: ModuleConfig[] = [
  * Encontra o módulo que corresponde a uma rota
  */
 export function findModuleByRoute(pathname: string): ModuleConfig | undefined {
-  return MODULES_CONFIG.find(m => 
-    m.rotas.some(r => pathname === r || pathname.startsWith(r + '/'))
-  );
+  // Vence o prefixo mais longo: `/admin/federacoes` é de `organizacoes`, não de `admin`.
+  let achado: ModuleConfig | undefined;
+  let tamanho = -1;
+  for (const m of MODULES_CONFIG) {
+    for (const r of m.rotas) {
+      if ((pathname === r || pathname.startsWith(r + '/')) && r.length > tamanho) {
+        achado = m;
+        tamanho = r.length;
+      }
+    }
+  }
+  return achado;
 }
 
 /**
@@ -314,8 +323,5 @@ export function modulosHabilitados(): ModuleConfig[] {
  * Usado pelo guard de rota para decidir 404 antes de montar a página.
  */
 export function moduloDaRota(pathname: string): Modulo | null {
-  const config = MODULES_CONFIG.find((m) =>
-    m.rotas.some((rota) => pathname === rota || pathname.startsWith(rota + '/'))
-  );
-  return config?.codigo ?? null;
+  return findModuleByRoute(pathname)?.codigo ?? null;
 }

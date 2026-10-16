@@ -154,8 +154,8 @@ todos no ambiente `producao`; sem eles o job falha.
    `src/App.tsx`, com o guard apropriado (`PublicPageGuard` ou `ProtectedRoute`).
 6. **Menu/módulo** — item em `src/config/menu.config.ts`; módulo novo em
    `src/shared/config/modules.config.ts`.
-7. **Permissões** — se aplicável, registrar em `ROUTE_PERMISSIONS`/
-   `MODULE_PERMISSIONS` (`src/types/auth.ts`) e na permissão do item de menu.
+7. **Permissões** — `requiredPermissions` no `ProtectedRoute` da rota (`src/App.tsx`), a mesma no item de
+   menu e, se o caminho for de módulo novo, a rota em `MODULES_CONFIG.rotas` (`modules.config.ts`).
 8. **Verificar** — `bun run lint` && `bun run build`.
 
 ## Ambiente de desenvolvimento em nuvem (Claude Code na web)

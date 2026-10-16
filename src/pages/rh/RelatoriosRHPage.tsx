@@ -64,7 +64,7 @@ export default function RelatoriosRHPage() {
   const [selectedTipoPortaria, setSelectedTipoPortaria] = useState<string>("all");
   const [selectedStatusPortaria, setSelectedStatusPortaria] = useState<string>("all");
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
-  // Folha: mesmo gate das rotas /folha (ROUTE_PERMISSIONS); a RLS continua sendo a fronteira real.
+  // Folha: mesmo gate das rotas /folha no App.tsx; a RLS continua sendo a fronteira real.
   const { isSuperAdmin, hasAnyPermission } = useAuth();
   const podeVerFolha = isSuperAdmin || hasAnyPermission(["financeiro.folha.visualizar"]);
   const { registrarAntes } = useRegistrarEvento();

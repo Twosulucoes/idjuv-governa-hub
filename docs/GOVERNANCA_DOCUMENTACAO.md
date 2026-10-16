@@ -77,7 +77,7 @@ Linhas sem caminho de arquivo que as identifique (ex.: "regra para agentes" fora
 | Baseline do banco (`supabase/baseline/`), `rls/mapa.csv`, overlay, scripts `scripts/db/` | `docs/NOVO_BANCO.md` + `supabase/baseline/README.md` | `docs/BANCO_DE_DADOS.md`; rode `scripts/db/validar-baseline.sh` |
 | Edge Function nova ou alterada | `docs/EDGE_FUNCTIONS.md` | Checagem de auth (`AGENTS.md`) |
 | E-mails do Supabase Auth (`scripts/emails/`, `tenants/<slug>/emails/`) | `docs/EMAILS_AUTH.md` | Regere com `bun scripts/emails/gerar-templates-email.ts` |
-| Permissão, papel, RBAC | `docs/RBAC_PERMISSOES.md` | `src/types/auth.ts` (`ROUTE_PERMISSIONS`) |
+| Permissão, papel, RBAC | `docs/RBAC_PERMISSOES.md` | `src/types/auth.ts`, `ProtectedRoute` em `src/App.tsx` |
 | Hook de dados, lib, padrão de front | `docs/GUIA_FRONTEND.md` | — |
 | White Label / tenant / branding | `docs/WHITE_LABEL.md` | `src/core/tenant/README.md`, `tenants/README.md` |
 | Deploy, build, comandos, fluxo Git | `docs/DESENVOLVIMENTO.md` | `CLAUDE.md` §3/§8; `CONTRIBUTING.md` se mudar o gate |

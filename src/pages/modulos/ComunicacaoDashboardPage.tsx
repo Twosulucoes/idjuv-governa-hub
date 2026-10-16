@@ -52,7 +52,7 @@ export default function ComunicacaoDashboardPage() {
           titulo="Comunicação"
           descricao="ASCOM e demandas de comunicação"
           acoes={
-            // Mesma permissão da rota de destino (ROUTE_PERMISSIONS)
+            // Mesma permissão da rota de destino no App.tsx
             hasPermission("ascom.demandas.criar") ? (
               <Button asChild>
                 <Link to="/ascom/demandas/nova">

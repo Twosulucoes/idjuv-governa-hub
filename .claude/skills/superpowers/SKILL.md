@@ -29,7 +29,7 @@ Eixos que o desenho precisa cobrir (levante no código/docs antes de perguntar):
 |---|---|---|
 | Módulo | `src/shared/config/modules.config.ts`, `docs/MODULOS.md` | A que módulo pertence; módulo novo? |
 | Banco e RLS | `docs/BANCO_DE_DADOS.md`, skill `migracao-segura-idjuv` | Tabelas/colunas, RLS e políticas desde a migração, RPCs |
-| RBAC | `docs/RBAC_PERMISSOES.md`, `ROUTE_PERMISSIONS` em `src/types/auth.ts` | Quem vê/edita; permissão exigida na rota **e** no banco |
+| RBAC | `docs/RBAC_PERMISSOES.md`, `ProtectedRoute` das rotas em `src/App.tsx` | Quem vê/edita; permissão exigida na rota **e** no banco |
 | Rota e menu | `src/App.tsx`, `src/config/menu.config.ts` | Guard (Public/Protected), bloco do módulo, item de menu |
 | Dados | `src/hooks/use<Dominio>.ts` | Reusar/estender hook; React Query |
 | UI | `docs/GUIA_FRONTEND.md`, shadcn/ui, skill `ui-ux-pro-max`, spec de design system em `docs/superpowers/specs/` | Componentes existentes, formulário zod, tokens (nada de cor crua), acessibilidade AA |

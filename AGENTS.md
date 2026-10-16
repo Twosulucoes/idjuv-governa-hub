@@ -14,7 +14,7 @@ importa este arquivo (`@AGENTS.md`). Contexto completo: [`CLAUDE.md`](./CLAUDE.m
 ## Invariantes (não quebrar com nenhuma mudança)
 
 1. **RLS é a fronteira real de segurança.** Toda tabela nova nasce com RLS + políticas na mesma migração (skill `migracao-segura-idjuv`). Função nova: `search_path` fixo e `EXECUTE` só para quem precisa.
-2. **RBAC no banco e na rota.** Permissão exigida no `ProtectedRoute`/`ROUTE_PERMISSIONS` **e** na policy/RPC; esconder botão não é controle de acesso. Mudar `ProtectedRoute`/`AuthContext`/RLS existente exige confirmação do usuário.
+2. **RBAC no banco e na rota.** Permissão exigida no `ProtectedRoute` (`App.tsx`) **e** na policy/RPC; esconder botão não é controle de acesso. Mudar `ProtectedRoute`/`AuthContext`/RLS existente exige confirmação do usuário.
 3. **Arquivos gerados:** não edite `src/integrations/supabase/client.ts` nem `types.ts`.
 4. **Tenant-agnóstico:** nunca importe `tenants/<slug>` em `src/` nem escreva nome de cliente no código (`docs/WHITE_LABEL.md`).
 5. **Segredos só no servidor** (Edge Functions/`supabase secrets`); nada em `src/`, `.env` do front ou docs. Nunca logar token ou dado pessoal (LGPD).

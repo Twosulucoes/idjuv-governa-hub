@@ -128,6 +128,7 @@ export type PermissaoInstitucional =
   | 'governanca.visualizar'
   | 'governanca.aprovar'
   | 'governanca.avaliar'
+  | 'governanca.cargos.visualizar'
   // Transparência
   | 'transparencia.visualizar'
   | 'transparencia.responder'
@@ -310,7 +311,7 @@ export const menuConfig: MenuSection[] = [
         label: "Comissões",
         route: "/rh/comissoes",
         icon: Scale,
-        // Mesma exigência da rota (requiredModule="rh" e ROUTE_PERMISSIONS '/rh/comissoes': 'rh'): o módulo rh
+        // Mesma exigência da rota (requiredModule="rh" em /rh/comissoes no App.tsx): o módulo rh
         permission: "rh",
         priority: 2.5,
       },
