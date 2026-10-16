@@ -108,10 +108,10 @@ function lerRotas() {
   return rotas;
 }
 
-/** Rotas citadas no menu lateral (src/config/menu.config.ts), sem query string. */
+/** Rotas citadas nos menus (geral e barra de cada módulo), sem query string. */
 function lerRotasMenu() {
-  const menu = ler('src/config/menu.config.ts');
-  return [...new Set([...menu.matchAll(/route:\s*["']([^"'?#]+)/g)].map((m) => m[1]))];
+  const menus = ['src/config/menu.config.ts', 'src/config/module-menus.config.ts'].map(ler).join('\n');
+  return [...new Set([...menus.matchAll(/route:\s*["']([^"'?#]+)/g)].map((m) => m[1]))];
 }
 
 /** "src/pages/X" → arquivo real (.tsx/.ts/index), ou null. */

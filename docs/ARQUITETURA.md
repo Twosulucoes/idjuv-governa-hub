@@ -59,6 +59,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   - **Mobile/PWA** — `/patrimonio-mobile`, `/instalar`. O `/patrimonio-mobile`
     inclui o modo "Vistoria de Unidade" do inventário de campo (fotos com fila
     offline; ver [MODULOS.md](./MODULOS.md)).
+- Dois menus: o geral (`src/config/menu.config.ts`) e a barra lateral de cada módulo
+  (`src/config/module-menus.config.ts`, usada pelo `ModuleSidebar`). Todo item dos dois precisa de `<Route>` no
+  `App.tsx`; `src/config/menu.config.test.ts` reprova item que leve ao 404 (P09). Tela não construída fica fora do menu.
 - Telas de módulo usam `ModuleLayout` (`src/components/layout/`), que inclui o sino de avisos
   (`AvisosSino`, no cabeçalho) e a faixa de avisos em destaque (`AvisosDestaque`, no topo do
   conteúdo); o mural completo fica em `/avisos` (protegida, qualquer usuário logado).

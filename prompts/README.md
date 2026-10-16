@@ -51,5 +51,6 @@ Comandos (`.claude/commands/`):
   disponíveis: `{{descricao}}`, `{{modulo}}`, `{{contexto_modulo}}`, `{{pendencias}}`, `{{data}}`. Aparece
   sozinho em `npm run prompt`.
 - **Contexto novo:** a leitura do código fica em `scripts/prompt.mjs` (regex sobre
-  `src/shared/config/modules.config.ts`, `src/App.tsx` e `src/config/menu.config.ts`, sem dependências).
+  `src/shared/config/modules.config.ts`, `src/App.tsx`, `src/config/menu.config.ts` e
+  `src/config/module-menus.config.ts`, sem dependências).
   O relatório de pendências é heurístico — o Claude confirma no código antes de agir.

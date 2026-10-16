@@ -1,8 +1,12 @@
 # Módulos
 
 Detalhamento funcional de cada módulo e suas principais páginas. As rotas vivem
-em `src/App.tsx`; o menu lateral em `src/config/menu.config.ts`; a definição dos
-módulos em `src/shared/config/modules.config.ts`.
+em `src/App.tsx`; o menu geral em `src/config/menu.config.ts` e a barra lateral de cada módulo em
+`src/config/module-menus.config.ts`; a definição dos módulos em `src/shared/config/modules.config.ts`.
+
+Item de menu só aponta para tela que existe: o teste `src/config/menu.config.test.ts` reprova o PR se algum item
+dos dois menus levar a um endereço sem `<Route>` no `App.tsx` (P09, 16/10/2026). Tela que ainda não existe fica fora
+do menu até ser construída.
 
 Cada módulo declara em `rotas` os prefixos de URL que são dele; vence o prefixo mais longo
 (`/admin/federacoes` é de `organizacoes`, não de `admin`). O `ProtectedRoute` usa esse mapa para
@@ -155,7 +159,9 @@ escrita é por RPC `wf_*`).
 Licitações, aquisições e gestão contratual. Operados via
 `src/pages/processos/ComprasProcessoPage` e dashboards de módulo
 (`ComprasDashboardPage`, `ContratosDashboardPage`). Backend: `processos_licitatorios`,
-`contratos`, `atas_registro_preco`, `fornecedores`, etc.
+`contratos`, `atas_registro_preco`, `fornecedores`, etc. Atas SRP, fornecedores e as telas de contratos (lista,
+execução, aditivos, vencimentos) ainda não existem; saíram do menu no P09 e voltam no P20/P21. A barra do módulo
+Contratos tem só o painel.
 
 ## Financeiro (`financeiro`)
 
@@ -237,8 +243,9 @@ Estrutura e compliance. `src/pages/governanca/` + `organograma/` + `cargos/`:
 `EstruturaOrganizacionalPage`, `OrganogramaPage`/`GestaoOrganogramaPage`
 (diagrama via `reactflow`), `GestaoCargosPage`, `MatrizRaciPage`,
 `LeiCriacaoPage`, `DecretoPage`, `RegimentoInternoPage`, `PortariasPage`,
-`RelatorioGovernancaPage`. Inclui riscos, controles internos, checklists e
-decisões administrativas (no menu/banco).
+`RelatorioGovernancaPage`. Riscos, controles internos, checklists e decisões administrativas têm tabelas no
+banco (`riscos_institucionais`, `controles_internos`, `checklists_conformidade`, `decisoes_administrativas`), mas
+ainda não têm tela; saíram do menu no P09 e voltam no P18.
 
 `QuadroVagasPage` (`/cargos/vagas`, botão "Quadro de vagas" em `GestaoCargosPage`): cada vaga com código, cargo,
 unidade, situação (livre, ocupada, extinta) e ocupante; KPIs de vagas ativas, ocupadas, livres e extintas; abas
@@ -250,7 +257,8 @@ unidade, situação (livre, ocupada, extinta) e ocupante; KPIs de vagas ativas, 
 
 Ética e canal de denúncias. `src/pages/integridade/`: `DenunciasPage` (público),
 `GestaoDenunciasPage` + `IntegridadeDashboardPage` (código de ética, conflito de
-interesses, política).
+interesses, política). A barra do módulo leva a Código de Ética, Conflito de Interesses e Política de Integridade
+(antes "Comitê de Ética" e "Compliance", que não tinham tela).
 
 ## Transparência (`transparencia`)
 
@@ -280,7 +288,8 @@ ainda não lidos (`AvisosDestaque`). Desenho: `docs/superpowers/specs/2026-10-09
 Programas sociais/esportivos. `src/pages/programas/`: `BolsaAtletaPage`,
 `JuventudeCidadaPage`, `EsporteComunidadePage`, `JovemEmpreendedorPage`,
 `JogosEscolaresPage`, e o subconjunto **Seleções Estudantis** (hot site público
-em `eventos/SeletivaEstudantilV2Page` + gestão em `programas/selecoes/`).
+em `eventos/SeletivaEstudantilV2Page` + gestão em `programas/selecoes/`). A barra do módulo lista os 5 programas e
+as Seleções; "Ações" e "Beneficiários" saíram do menu no P09 (sem tela nem tabela) e voltam no P19.
 
 ## Gestores Escolares (`gestores_escolares`)
 
@@ -304,7 +313,7 @@ e `src/pages/instituicoes/GestaoInstituicoesPage`.
 
 Painel executivo da Presidência. `src/pages/gabinete/GabineteDashboardPage` +
 rotas que reaproveitam Central de Portarias, pré-cadastros, ordem de missão e
-relatório de viagem.
+relatório de viagem. O item "Workflow RH" saiu do menu no P09 (não havia tela); volta no P22 se for construído.
 
 - **Importar portarias por planilha:** quem tem `gabinete.portarias.importar` registra portarias já feitas no SEI em
   `/admin/importacoes` (importador "Portarias (planilha)"): baixa o modelo, preenche uma linha por portaria
