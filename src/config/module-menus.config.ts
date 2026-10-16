@@ -55,6 +55,10 @@ import {
   Bell,
   Mail,
   History,
+  BookOpen,
+  Medal,
+  Heart,
+  Briefcase,
 } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
 import type { PermissionCode } from "@/types/auth";
@@ -153,20 +157,14 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     items: [
       { id: "licitacoes", label: "Licitações", icon: ShoppingCart, route: "/processos/compras" },
       { id: "nova-licitacao", label: "Nova Licitação", icon: FileText, route: "/processos/compras?acao=novo" },
-      { id: "atas-srp", label: "Atas SRP", icon: FileCheck, route: "/compras/atas" },
-      { id: "fornecedores", label: "Fornecedores", icon: Building2, route: "/compras/fornecedores" },
     ],
   },
 
   // Contratos
   contratos: {
     dashboard: { label: "Painel de Contratos", route: "/contratos" },
-    items: [
-      { id: "contratos-lista", label: "Contratos", icon: FileCheck, route: "/contratos/lista" },
-      { id: "execucao", label: "Execução Contratual", icon: TrendingUp, route: "/contratos/execucao" },
-      { id: "aditivos", label: "Aditivos", icon: FileText, route: "/contratos/aditivos" },
-      { id: "vencimentos", label: "Vencimentos", icon: AlertTriangle, route: "/contratos/vencimentos" },
-    ],
+    // Lista, execução, aditivos e vencimentos voltam quando as telas existirem (P21).
+    items: [],
   },
 
   // Patrimônio
@@ -197,8 +195,6 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "quadro-vagas", label: "Quadro de Vagas", icon: Users, route: "/cargos/vagas" },
       { id: "federacoes", label: "Federações", icon: Trophy, route: "/admin/federacoes" },
       { id: "instituicoes", label: "Instituições", icon: Landmark, route: "/admin/instituicoes" },
-      { id: "riscos", label: "Gestão de Riscos", icon: AlertTriangle, route: "/governanca/riscos" },
-      { id: "controles", label: "Controles Internos", icon: Shield, route: "/governanca/controles" },
     ],
   },
 
@@ -218,8 +214,9 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel de Integridade", route: "/integridade" },
     items: [
       { id: "denuncias", label: "Canal de Denúncias", icon: AlertTriangle, route: "/integridade/denuncias" },
-      { id: "etica", label: "Comitê de Ética", icon: Scale, route: "/integridade/etica" },
-      { id: "compliance", label: "Compliance", icon: Shield, route: "/integridade/compliance" },
+      { id: "codigo-etica", label: "Código de Ética", icon: BookOpen, route: "/integridade/codigo-etica", permission: "integridade.visualizar" },
+      { id: "conflito", label: "Conflito de Interesses", icon: Scale, route: "/integridade/conflito", permission: "integridade.visualizar" },
+      { id: "politica", label: "Política de Integridade", icon: Shield, route: "/integridade/politica", permission: "integridade.visualizar" },
     ],
   },
 
@@ -261,9 +258,11 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
   programas: {
     dashboard: { label: "Painel de Programas", route: "/programas" },
     items: [
-      { id: "lista", label: "Programas", icon: Trophy, route: "/programas/lista" },
-      { id: "acoes", label: "Ações", icon: ClipboardList, route: "/programas/acoes" },
-      { id: "beneficiarios", label: "Beneficiários", icon: Users, route: "/programas/beneficiarios" },
+      { id: "bolsa-atleta", label: "Bolsa Atleta", icon: Medal, route: "/programas/bolsa-atleta", permission: "programas.visualizar" },
+      { id: "juventude-cidada", label: "Juventude Cidadã", icon: Users, route: "/programas/juventude-cidada", permission: "programas.visualizar" },
+      { id: "esporte-comunidade", label: "Esporte na Comunidade", icon: Heart, route: "/programas/esporte-comunidade", permission: "programas.visualizar" },
+      { id: "jovem-empreendedor", label: "Jovem Empreendedor", icon: Briefcase, route: "/programas/jovem-empreendedor", permission: "programas.visualizar" },
+      { id: "jogos-escolares", label: "Jogos Escolares", icon: School, route: "/programas/jogos-escolares", permission: "programas.visualizar" },
       { 
         id: "selecoes", 
         label: "Seleções Estudantis", 
@@ -316,7 +315,6 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       },
       { id: "ordem-missao", label: "Ordem de Missão", icon: Plane, route: "/formularios/ordem-missao" },
       { id: "relatorio-viagem", label: "Relatório de Viagem", icon: FileCheck, route: "/formularios/relatorio-viagem" },
-      { id: "workflow-rh", label: "Workflow RH", icon: Workflow, route: "/gabinete/workflow-rh" },
     ],
   },
 

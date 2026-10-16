@@ -10,6 +10,10 @@ de ataque. Itens aprovados vão para o [ROADMAP](./ROADMAP.md).
 Saída de `npm run prompt -- pendencias`, só os módulos com algo a ver. É
 heurística (regex sobre menu, rotas e páginas): confirmar no código antes de agir.
 
+> **Atualização (P09, 16/10/2026):** os itens de menu sem rota abaixo foram resolvidos. O relatório passou a ler os
+> dois menus (`menu.config.ts` e `module-menus.config.ts`) e achou 20 itens; os que tinham tela foram apontados para
+> ela e os outros saíram do menu. O teste `src/config/menu.config.test.ts` impede item novo sem tela.
+
 
 ### Administração (`admin`) — 31 rotas, 31 páginas
 - Itens de menu sem rota: `/admin/configuracoes`

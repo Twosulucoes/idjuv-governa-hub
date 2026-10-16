@@ -793,34 +793,6 @@ export const menuConfig: MenuSection[] = [
         permission: "governanca.visualizar",
       },
       {
-        id: "riscos",
-        label: "Gestão de Riscos",
-        route: "/governanca/riscos",
-        icon: AlertTriangle,
-        permission: "governanca.visualizar",
-      },
-      {
-        id: "controles",
-        label: "Controles Internos",
-        route: "/governanca/controles",
-        icon: Shield,
-        permission: "governanca.visualizar",
-      },
-      {
-        id: "decisoes",
-        label: "Decisões",
-        route: "/governanca/decisoes",
-        icon: Scale,
-        permission: "governanca.aprovar",
-      },
-      {
-        id: "checklists",
-        label: "Checklists",
-        route: "/governanca/checklists",
-        icon: ClipboardCheck,
-        permission: "governanca.avaliar",
-      },
-      {
         id: "relatorio-governanca",
         label: "Relatórios",
         route: "/governanca/relatorio",
@@ -1079,12 +1051,6 @@ export const menuConfig: MenuSection[] = [
         route: "/formularios/relatorio-viagem",
         icon: FileCheck,
       },
-      {
-        id: "gab-workflow-rh",
-        label: "Workflow RH",
-        route: "/gabinete/workflow-rh",
-        icon: Workflow,
-      },
     ],
   },
 
@@ -1269,13 +1235,6 @@ export const menuConfig: MenuSection[] = [
         label: "Links Úteis",
         route: "/admin/links-uteis",
         icon: Link2,
-        permission: "admin.config",
-      },
-      {
-        id: "configuracoes",
-        label: "Configurações",
-        route: "/admin/configuracoes",
-        icon: Settings,
         permission: "admin.config",
       },
       {
