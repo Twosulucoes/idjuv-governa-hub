@@ -160,7 +160,7 @@ Definido em `src/types/auth.ts` (`module_access_scopes` no banco):
 - **`src/contexts/AuthContext.tsx`** — busca, cache e API de checagem.
 - **`src/components/auth/ProtectedRoute.tsx`** — guarda de rota.
 - **`src/shared/config/protected-users.config.ts`** — usuários protegidos.
-- Hooks: `useRBAC`, `usePermissions`, `usePermissoesUsuario`, `useModulosUsuario`.
+- Hooks: `usePermissions`, `useModulosUsuario` (os antigos `useRBAC` e `usePermissoesUsuario`, sem uso, saíram no P10).
 
 ### Avisos e datas importantes
 
@@ -254,8 +254,8 @@ leitura da própria linha em `servidores` e autoatendimento (B2, subseção abai
 `frequencias`/`documentos-requerimento`/`documentos` e a Edge Function `download-frequencia` (B3, subseção
 abaixo).
 Também pendentes: RPC de recálculo atômico da ficha e preservação dos itens manuais no reprocessamento
-(dependem da PR #56), quem fecha a folha, auditoria mascarada das tabelas com dado pessoal e a remoção de
-`src/hooks/useMotorFolha.ts` (motor de folha no cliente, sem uso por página).
+(dependem da PR #56), quem fecha a folha e auditoria mascarada das tabelas com dado pessoal. O motor de folha
+no cliente (`useMotorFolha.ts`, sem uso por página) saiu no P10.
 
 ### Férias, licenças, viagens e frequência: RLS por permissão (Onda B / B2)
 
@@ -1082,3 +1082,5 @@ Rotas sob `<PublicPageGuard rota="...">` não exigem login; verificam apenas o
 status de publicação/manutenção da rota (tabela `config_paginas_publicas`). Ex.:
 `/`, `/transparencia/*`, `/curriculo`, `/cadastrogestores`, `/cadastro-arbitros`,
 `/ascom/solicitar`, notícias e galerias públicas.
+
+<!-- doc-links-absent: useMotorFolha.ts, useRHIntegracoes.ts -->

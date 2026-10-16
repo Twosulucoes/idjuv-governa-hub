@@ -46,7 +46,7 @@ não é mais usado pelo site publicado.
 | Ícones | **lucide-react** |
 | Gráficos | **recharts** |
 | Diagramas/fluxo | **reactflow** (organograma, workflow) |
-| Documentos | **jspdf**, **pdf-lib**, **docx**, **xlsx**, **file-saver** |
+| Documentos | **jspdf**, **pdf-lib**, **xlsx** |
 | PWA | **vite-plugin-pwa** |
 | Notificações | **sonner** + toaster do shadcn |
 | Tema | **next-themes** (light/dark) |
@@ -108,7 +108,6 @@ src/
 │   ├── auth/              # ProtectedRoute, guards
 │   ├── layout/, menu/, navigation/
 │   └── <dominio>/         # rh/, financeiro/, inventario/, folha/, cms/, ...
-├── modules/               # Configuração modular (re-exporta shared/config + dashboards)
 ├── shared/config/         # modules.config.ts (FONTE DA VERDADE dos módulos), protected-users
 ├── config/                # menu.config.ts, module-menus.config.ts, segadFieldsConfig.ts
 ├── contexts/              # AuthContext (auth + permissões), MenuContext
@@ -265,10 +264,12 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
    `supabase/disaster-recovery/`; documentos institucionais, para
    `tenants/<slug>/assets/documentos/` (importados com `?url` quando a UI
    precisar deles). O `.gitignore` já barra `public/**/*.sql`.
-7. **Há duplicação histórica de wrappers Supabase** (`src/lib/supabase.ts`,
-   `src/lib/supabaseClient.ts`, `src/integrations/supabase/client.ts`). Prefira
-   `@/lib/supabase` ou `@/integrations/supabase/client` conforme o padrão do
-   arquivo onde está trabalhando.
+7. **Há dois pontos de import do Supabase** (`src/lib/supabase.ts`, que re-exporta, e
+   `src/integrations/supabase/client.ts`). Prefira `@/lib/supabase` ou
+   `@/integrations/supabase/client` conforme o padrão do arquivo onde está trabalhando.
+8. **Sem código morto:** `src/codigo-alcancavel.test.ts` reprova arquivo de `src/` que nenhuma
+   entrada do app (`main.tsx`, `main-site.tsx`) alcança pelos imports (P10). Arquivo novo precisa
+   ser usado; `src/lib/documentos/` é a única exceção declarada.
 
 ---
 

@@ -330,6 +330,6 @@ relatório de viagem. O item "Workflow RH" saiu do menu no P09 (não havia tela)
 
 ## Portal público (sem login)
 
-`src/pages/public/` (notícias e galerias), `EmBrevePage` (home),
+`src/pages/public/` (notícias e galerias),
 `PortalPreviewPage`, além das rotas públicas de transparência, currículo, ASCOM,
 federações, árbitros e gestores escolares — todas sob `PublicPageGuard`.

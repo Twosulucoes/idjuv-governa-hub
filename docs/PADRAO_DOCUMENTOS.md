@@ -44,7 +44,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfCPSI.ts` | 359 | `generateDFD`, `generateETP`, `generateTR` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
 | `src/lib/pdfContracheque.ts` | 447 | `generateContracheque`, `generateContrachequeEmLote` | 4 | 0 | Comprovante | F5 |
 | `src/lib/pdfDeclaracoes.ts` | 219 | `gerarDeclaracaoNaoAcumulacao`, `gerarDeclaracaoBensValores` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI (decisão pendente do dono) |
-| `src/lib/pdfFederacoesModular.ts` | 747 | `isMandatoExpirado`, `gerarFichaFederacaoPDF`, `gerarRelatorioListagemPDF` | 0 | 0 | Ficha + Relatório (dividir) | F3/F4 |
+| `src/lib/pdfFederacoesModular.ts` | 747 | `isMandatoExpirado`, `gerarFichaFederacaoPDF`, `gerarRelatorioListagemPDF` | 0 | 0 | Ficha + Relatório (dividir) | removido no P10 (código morto) |
 | `src/lib/pdfFichaCadastroGeral.ts` | 380 | `listarCamposPdf`, `gerarFichaCadastroGeral`, `downloadFichaCadastroGeral` | 1 | 0 | Ficha | F3 |
 | `src/lib/pdfFichaUnidadeLocal.ts` | 117 | — | 1 | 0 | Ficha | F3 |
 | `src/lib/pdfFrequenciaLote.ts` | 354 | `generateFrequenciaLotePDFInternal`, `generateFrequenciaLotePDF`, `generateFrequenciaLoteBlob` | 1 | 0 | Comprovante | F5 |
@@ -53,7 +53,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfInstitucional.ts` | 656 | `CORES_INSTITUCIONAIS`, `MARGENS`, `TIPOGRAFIA`, `carregarLogos`, `getDimensoesPagina`, `gerarCabecalhoInstitucional`, `gerarRodapeInstitucional`, `adicionarSecao`, `adicionarTituloSecao`, `adicionarCampo`, `adicionarCampoInline`, `verificarQuebraPagina`, `criarDocumentoInstitucional`, `finalizarDocumentoInstitucional` | 0 | 4 | Base (a eliminar) | F5 |
 | `src/lib/pdfListagemUnidades.ts` | 188 | — | 1 | 0 | Relatório | F4 |
 | `src/lib/pdfLogos.ts` | 81 | `LOGO_ASPECTOS`, `calcularDimensoesLogos`, `LOGO_CONFIG_PADRAO`, `getLogosPDF` | 0 | 5 | Base (a eliminar) | F5 |
-| `src/lib/pdfMemorandoLotacao.ts` | 203 | `generateMemorandoLotacao`, `downloadMemorandoLotacao` | 0 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
+| `src/lib/pdfMemorandoLotacao.ts` | 203 | `generateMemorandoLotacao`, `downloadMemorandoLotacao` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
 | `src/lib/pdfMiniCurriculo.ts` | 453 | `gerarPdfMiniCurriculo` | 2 | 0 | Ficha | F3 |
 | `src/lib/pdfModelos.ts` | 1335 | `generateRelacaoDocumentosModelo`, `generateFichaCadastralModelo`, `generateFichaCadastralPreenchida`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoAcumulacaoPreenchida`, `generateDeclaracaoBensModelo`, `generateDeclaracaoBensPreenchida`, `generateTermoDemandaModelo`, `generateOrdemMissaoModelo`, `generateRelatorioViagemModelo`, `generateRequisicaoMaterialModelo`, `generateTermoResponsabilidadeModelo` | 2 | 0 | Misto (dividir por documento) | SEI (termos, declarações; decisão pendente) / F3 / F4 |
 | `src/lib/pdfOrganograma.ts` | 650 | `gerarOrganogramaPDF`, `gerarOrganogramaListaPDF` | 2 | 0 | Relatório | F4 |
@@ -78,9 +78,9 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfRelatoriosFolha.ts` | 231 | `gerarResumoFolhasAno`, `gerarFolhaPorUnidade`, `gerarFolhaPorRubrica` | 1 | 0 | Relatório | F4 |
 | `src/lib/pdfRelatoriosRH.ts` | 918 | `generateRelatorioServidoresDiretoria`, `generateRelatorioServidoresVinculo`, `generateRelatorioHistoricoFuncional`, `generateRelatorioVagasCargo`, `generateRelatorioServidoresPortarias` | 1 | 0 | Relatório | F4 |
 | `src/lib/pdfTemplate.ts` | 878 | `CORES`, `loadImageWithDimensions`, `calculateLogoDimensions`, `loadLogos`, `PAGINA`, `getPageDimensions`, `setColor`, `generateInstitutionalHeader`, `generateInstitutionalFooter`, `addPageNumbers`, `addSectionHeader`, `addSectionTitle`, `addField`, `addFieldWithLine`, `addTextArea`, `addCheckbox`, `addSignatureArea`, `addLocalData`, `addTableHeader`, `addTableRow`, `formatCPF`, `formatDate`, `formatCurrency`, `generateDocumentNumber`, `checkPageBreak`, `VINCULO_LABELS`, `SITUACAO_LABELS`, `CATEGORIA_LABELS`, `cabecalhoOficial`, `nomeOficialDocumentos`, `nomeEntidadeSuperiorDocumentos`, `rodapeOficial` | 2 | 34 | Base (a eliminar) | F5 |
-| `src/lib/pdfTermoAutorizacao.ts` | 210 | `generateTermoAutorizacao` | 0 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
+| `src/lib/pdfTermoAutorizacao.ts` | 210 | `generateTermoAutorizacao` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
 | `src/lib/pdfTermoCessao.ts` | 138 | `generateTermoCessao` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
-| `src/lib/pdfTermoResponsabilidade.ts` | 181 | `generateTermoResponsabilidade` | 0 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI (decisão pendente do dono) |
+| `src/lib/pdfTermoResponsabilidade.ts` | 181 | `generateTermoResponsabilidade` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
 | portariaPdf.ts (removido em 12/10/2026) | 150 | `buildPortariaPdfDoc`, `savePortariaPdf` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
 
 ### Documentos dentro de arquivos multiuso
@@ -100,11 +100,10 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 
 ### Achados do inventário
 
-- **Sem chamador em `src/` (0 telas, 0 libs):** `pdfMemorandoLotacao.ts`, `pdfTermoAutorizacao.ts`, `pdfTermoResponsabilidade.ts`, `pdfFederacoesModular.ts`. Antes de migrar
-  ou remover, confirmar se são código morto (não apagar sem autorização do usuário).
+- **Sem chamador em `src/` (0 telas, 0 libs):** `pdfMemorandoLotacao.ts`, `pdfTermoAutorizacao.ts`, `pdfTermoResponsabilidade.ts`, `pdfFederacoesModular.ts`. Removidos no P10 (16/10/2026), com autorização do dono.
 - **Despachos do Workflow** não aparecem na tabela (não são `src/lib/pdf*`), mas seguem a mesma regra: decisão pendente do dono.
 - **Duplicações:** termo de responsabilidade (3 lugares), ficha cadastral (3), declarações (3).
-- **Protocolo:** só `pdfMemorandoLotacao.ts` imprime número de protocolo hoje.
+- **Protocolo:** nenhum gerador imprime número de protocolo hoje (o único, `pdfMemorandoLotacao.ts`, era código morto e saiu no P10).
 
 ## 3. Como criar um documento novo
 
@@ -179,3 +178,5 @@ exige tabela/RPC com RLS (decisão e spec próprias; fora de escopo desta fase).
 - O logo entra no PDF em resolução total (peso do arquivo); reduzir no canvas é melhoria futura.
 - Não há QR de verificação pública (fase opcional pós-F5).
 - A comparação antes/depois (`scripts/documentos-comparar.mjs`) usa poppler: roda na VPS, não no CI.
+
+<!-- doc-links-absent: src/lib/pdfFederacoesModular.ts, src/lib/pdfMemorandoLotacao.ts, src/lib/pdfTermoAutorizacao.ts, src/lib/pdfTermoResponsabilidade.ts, pdfTermoResponsabilidade.ts, pdfFederacoesModular.ts, pdfMemorandoLotacao.ts, pdfTermoAutorizacao.ts -->

@@ -15,9 +15,8 @@ src/
 ├── contexts/              # AuthContext, MenuContext
 ├── config/                # menu.config.ts, module-menus.config.ts, segadFieldsConfig.ts
 ├── shared/config/         # modules.config.ts (fonte da verdade dos módulos)
-├── modules/               # re-exports de config + dashboards de módulo
 ├── types/                 # tipos de domínio (auth, rh, folha, financeiro, ...)
-├── lib/                   # cálculos + geradores (PDF/Word/CNAB/eSocial) + utils
+├── lib/                   # cálculos + geradores (PDF/CNAB/eSocial) + utils
 ├── export/                # exportCSV.ts, exportExcel.ts
 ├── integrations/supabase/ # client.ts (gerado), types.ts (gerado)
 └── services/              # serviços específicos
@@ -34,11 +33,11 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   Compras, Contratos, Comunicação, Governança, Integridade, Programas,
   Transparência, Workflow, Gestores Escolares).
 - **RH / folha**: `useServidorCompleto`, `useServidoresPorUnidade`,
-  `useVinculosServidor`, `useConfigVidaFuncional`, `useGestaoLotacao`,
+  `useVinculosServidor`, `useGestaoLotacao`,
   `useDesignacoes`, `useComissoes` (comissões e membros), `useFrequencia`, `useFrequenciaPacotes`,
   `useParametrizacoesFrequencia`, `useGerarFrequenciaPDF`, `useFolhaPagamento`,
-  `useFolhaCalculos`, `useMotorFolha`, `useFechamentoFolha`, `useContracheque`,
-  `useRHIntegracoes`, `useRelatorios`, `usePortarias`, `usePreCadastro`.
+  `useFolhaCalculos`, `useFechamentoFolha`, `useContracheque`,
+  `useRelatorios`, `usePortarias`, `usePreCadastro`.
 - **Financeiro**: `useFinanceiro` (inclui `useResumoOrcamentario`, `useUltimaImportacaoQdd`,
   `useCriarSolicitacao`, `useCriarContaBancaria`), `useAlteracoesOrcamentarias` (inclui
   `useConfirmarAlteracaoFiplan`), `useSubEmpenhos`, `useRestosAPagar`,
@@ -61,7 +60,7 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
 - **Comunicação/CMS**: `useCMSConteudos`, `useCMSBanners`, `useCMSGalerias`,
   `useCalendarioComunicacao`, `useDemandasAscom`.
 - **Admin/segurança**: `useAdminUsuarios`, `useUsuarios`, `usePermissions`,
-  `usePermissoesUsuario`, `useRBAC`, `useApprovalRequests`, `useAuditLog`,
+  `useApprovalRequests`, `useAuditLog`,
   `useTrilhaAuditoria` (trilha de auditoria e `useRegistrarEvento`; ver abaixo),
   `useLancamentoPorSetor` (regra de lançamento por setor; ver abaixo),
   `useDatabaseSchema`, `useModuleSettings`,
@@ -93,7 +92,7 @@ de chamar `supabase` direto dentro da página.
   `src/lib/pdfRelatoriosFolha.ts` e os cards/filtros em `src/components/rh/relatorios/`.
 - **Planilhas**: `exportarPlanilha.ts`, `exportarFederacoes.ts`, e `src/export/`.
 - **Fiscal/folha**: `cnabGenerator.ts` (CNAB240), `esocialGenerator.ts` +
-  `esocialXmlGenerator.ts`, `folhaCalculos.ts`/`folhaCalculoService.ts` (INSS,
+  `esocialXmlGenerator.ts`, `folhaCalculos.ts` (INSS,
   IRRF, consignações), `frequenciaCalculoService.ts`. Fluxo da remessa e do eSocial em
   [Arquivos da folha](#arquivos-da-folha-remessa-cnab-e-esocial-onda-e3).
 - **Arquivos bancários** (`src/lib/bancario/`, funções puras, sem Supabase nem DOM):
@@ -104,7 +103,7 @@ de chamar `supabase` direto dentro da página.
   `src/lib/bancario/exibicao.ts` (rótulos, datas e CPF/CNPJ mascarado para a tela). Não há manual oficial do
   OBN600 no repositório: posições e códigos deduzidos dos arquivos estão marcados "conferir no manual" no código.
 - **Utils**: `formatters.ts` (máscaras), `utils.ts` (`cn`, helpers),
-  `matriculaUtils.ts`, `statusColors.ts`, `supabase.ts`/`supabaseClient.ts`.
+  `matriculaUtils.ts`, `statusColors.ts`, `supabase.ts`.
 - **Arquivos em bucket privado**: `src/lib/storageArquivos.ts`. Use ao gravar ou abrir arquivo de bucket
   privado do Storage: o banco guarda o **caminho** dentro do bucket (não a URL pública) e a leitura é por URL
   assinada de curta duração.
