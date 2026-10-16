@@ -5782,6 +5782,294 @@ BEGIN
   PERFORM pg_temp.nota('Workflow (RPCs e view): abertura com lotação e sem lotação, checklist por etapa, avanço com pendência/sem SEI/etapa mudada (40001), devolução, última etapa, conclusão e arquivamento (com e sem modelo), suspensão e reativação com recálculo do prazo, sigilo igual a inexistente em todas as RPCs, credenciais de leitura e tramitação, semáforo e colunas da view verificados');
 END $$;
 
+-- ---------------------------------------------------------------- Gabinete: importação de portarias (TRIGGERS LIGADOS)
+-- Migração 20261015120000_gab_importar_portarias.sql (spec docs/superpowers/specs/2026-10-15-importacao-portarias-planilha-design.md):
+--   * importar_portarias_planilha: sem o módulo gabinete ou sem gabinete.portarias.importar recusa (42501); anon e PUBLIC
+--     sem EXECUTE; authenticated executa;
+--   * simulação não grava (documentos e importacoes iguais antes e depois) e avisa: servidor inativo, pendência
+--     PENDENTE/AAAA da mesma categoria com o servidor, observações preenchidas;
+--   * aplicação insere (número normalizado, título padrão, data_publicacao = DOE, servidores por matrícula) e registra
+--     em importacoes sem matrícula nos detalhes; a segunda aplicação do mesmo arquivo dá sem_alteracao;
+--   * portaria gravada fora do padrão (7/2025) casa com 007/2025: só preenche o vazio e SOMA servidor (nunca remove),
+--     não muda a situação (aviso "avance na tela da portaria");
+--   * tudo ou nada: matrícula inexistente, número repetido no arquivo, PENDENTE e erro de trigger (regra de setor em
+--     modo exigir, login sem servidor) viram erro da linha e nada é gravado;
+--   * LGPD: sem o módulo rh o aviso de inativo não diz a situação (exonerado) e as mudanças de servidores não mostram a
+--     matrícula de quem já estava vinculado e não veio na planilha ("N servidor(es) já vinculados"); com rh, mostram;
+--   * matrícula repetida no cadastro (sem a UNIQUE, desfeito no fim) é erro "ambígua", não pega um servidor qualquer;
+--   * status_informado = false (situação preenchida por padrão no front) não gera o aviso de situação divergente.
+-- Banco anterior à migração: o bloco reprova sem abortar.
+CREATE FUNCTION pg_temp.pi_chamar(p_uid uuid, p_linhas jsonb, p_simular boolean) RETURNS jsonb
+LANGUAGE plpgsql AS $$
+DECLARE r text;
+BEGIN
+  r := pg_temp.valor_como(p_uid, 'authenticated', format(
+    'SELECT public.importar_portarias_planilha(%L::jsonb, %L::jsonb, %L)::text', p_linhas,
+    jsonb_build_object('nome', 'portarias.xlsx', 'sha256', repeat('ab', 32), 'tamanho', 2048), p_simular));
+  IF r IS NULL OR left(r, 1) <> '{' THEN
+    RETURN jsonb_build_object('falhou', coalesce(r, 'nulo'));
+  END IF;
+  RETURN r::jsonb;
+END $$;
+-- linha do contrato com os campos vazios preenchidos com null
+CREATE FUNCTION pg_temp.pi_linha(p jsonb) RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object('indice', 0, 'numero', NULL, 'data_documento', to_char(current_date - 30, 'YYYY-MM-DD'),
+    'categoria', 'normativa', 'ementa', NULL, 'processo_sei', NULL, 'status', NULL, 'assinado_por', NULL,
+    'data_assinatura', NULL, 'doe_numero', NULL, 'doe_data', NULL, 'data_vigencia_inicio', NULL,
+    'data_vigencia_fim', NULL, 'matriculas', '[]'::jsonb, 'observacoes', NULL) || p
+$$;
+
+DO $$
+DECLARE
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000006a1';   -- módulo gabinete + gabinete.portarias.importar
+  u_gab uuid := 'a0000000-0000-0000-0000-0000000006a2';   -- módulo gabinete sem a permissão
+  u_rhp uuid := 'a0000000-0000-0000-0000-0000000006a3';   -- a permissão no módulo rh, sem o módulo gabinete
+  u_imr uuid := 'a0000000-0000-0000-0000-0000000006a4';   -- como u_imp e também com o módulo rh
+  s1 uuid := 'b2000000-0000-0000-0000-0000000000f1';      -- PI-001, ativo
+  s2 uuid := 'b2000000-0000-0000-0000-0000000000f2';      -- PI-002, ativo, com pendência PENDENTE de nomeação
+  s3 uuid := 'b2000000-0000-0000-0000-0000000000f3';      -- PI-003, exonerado
+  leg uuid := 'b2000000-0000-0000-0000-0000000000f9';     -- portaria antiga gravada como 7/2025
+  fn text := 'public.importar_portarias_planilha(jsonb, jsonb, boolean)';
+  d_doc text := to_char(current_date - 30, 'YYYY-MM-DD');
+  d_doe text := to_char(current_date - 28, 'YYYY-MM-DD');
+  modo_rh text;
+  linhas jsonb; j jsonb; n_doc int; n_imp int; n int; r text; x record;
+BEGIN
+  IF to_regprocedure(fn) IS NULL THEN
+    PERFORM pg_temp.falha('gabinete importação: ' || fn || ' não existe');
+    RETURN;
+  END IF;
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'pi_imp@teste.invalid'), (u_gab, 'pi_gab@teste.invalid'), (u_rhp, 'pi_rhp@teste.invalid'),
+    (u_imr, 'pi_imr@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_imp, u_gab, u_rhp, u_imr);
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_imp, 'gabinete', '{gabinete.portarias.visualizar,gabinete.portarias.importar}'),
+    (u_imr, 'gabinete', '{gabinete.portarias.visualizar,gabinete.portarias.importar}'),
+    (u_imr, 'rh', '{rh.servidores.visualizar}'),
+    (u_gab, 'gabinete', '{gabinete.portarias.visualizar,gabinete.portarias.criar,gabinete.portarias.editar}'),
+    (u_rhp, 'rh', '{gabinete.portarias.importar}');
+  -- regra de setor num estado conhecido (registrar não bloqueia); restaurada no fim
+  SELECT modo INTO modo_rh FROM public.regra_lancamento WHERE modulo = 'rh';
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = 'registrar' WHERE modulo = 'rh';
+  -- servidores, pendência e portaria antiga (modo réplica: sem os triggers de setor/autoria/portaria)
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.servidores (id, nome_completo, cpf, matricula, situacao, ativo) VALUES
+    (s1, 'PI Servidor 1', '000.000.6f1-01', 'PI-001', 'ativo', true),
+    (s2, 'PI Servidor 2', '000.000.6f2-02', 'PI-002', 'ativo', true),
+    (s3, 'PI Servidor 3', '000.000.6f3-03', 'PI-003', 'exonerado', false);
+  INSERT INTO public.documentos (id, tipo, numero, titulo, categoria, status, data_documento, servidores_ids) VALUES
+    (gen_random_uuid(), 'portaria', 'PENDENTE/2026', 'Pendência PI', 'nomeacao', 'minuta', current_date - 40, ARRAY[s2]),
+    (leg, 'portaria', '7/2025', 'Portaria nº 7/2025', 'nomeacao', 'aguardando_assinatura', current_date - 300, ARRAY[s1]);
+  SET LOCAL session_replication_role = origin;
+
+  -- ===== quem chama
+  IF has_function_privilege('anon', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('gabinete importação: anon executa ' || fn); END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              WHERE p.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    PERFORM pg_temp.falha('gabinete importação: PUBLIC executa ' || fn);
+  END IF;
+  IF NOT has_function_privilege('authenticated', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('gabinete importação: authenticated não executa ' || fn); END IF;
+  linhas := jsonb_build_array(pg_temp.pi_linha(jsonb_build_object('numero', '901/2026')));
+  r := pg_temp.sql_como(u_gab, 'authenticated', format('SELECT public.importar_portarias_planilha(%L::jsonb, NULL, true)', linhas));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('gabinete importação: módulo gabinete sem gabinete.portarias.importar não recusa (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rhp, 'authenticated', format('SELECT public.importar_portarias_planilha(%L::jsonb, NULL, true)', linhas));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('gabinete importação: a permissão sem o módulo gabinete não recusa (' || r || ')'); END IF;
+  r := pg_temp.sql_como(NULL, 'authenticated', format('SELECT public.importar_portarias_planilha(%L::jsonb, NULL, true)', linhas));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('gabinete importação: sessão sem usuário não recusa (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_imp, 'authenticated', 'SELECT public.importar_portarias_planilha(''[]''::jsonb, NULL, true)');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('gabinete importação: lista vazia aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_imp, 'authenticated', format('SELECT public.importar_portarias_planilha(%L::jsonb, ''{"nome": "x"}''::jsonb, false)', linhas));
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('gabinete importação: aplicação com dados do arquivo inválidos aceita (' || r || ')'); END IF;
+
+  -- ===== simulação: nada gravado
+  linhas := jsonb_build_array(
+    pg_temp.pi_linha(jsonb_build_object('indice', 0, 'numero', '901/2026', 'categoria', 'nomeacao', 'status', 'publicado',
+      'data_documento', d_doc, 'doe_numero', 'PI-DOE-1', 'doe_data', d_doe, 'matriculas', '["PI-001"]'::jsonb)),
+    pg_temp.pi_linha(jsonb_build_object('indice', 1, 'numero', '2/2026', 'observacoes', 'conferir no SEI')),
+    pg_temp.pi_linha(jsonb_build_object('indice', 2, 'numero', '903/2026', 'categoria', 'nomeacao', 'ementa', 'Nomeia servidores',
+      'matriculas', '["PI-002", "PI-003"]'::jsonb)));
+  SELECT count(*) INTO n_doc FROM public.documentos WHERE tipo = 'portaria';
+  SELECT count(*) INTO n_imp FROM public.importacoes;
+  j := pg_temp.pi_chamar(u_imp, linhas, true);
+  IF j ? 'falhou' OR j ->> 'simulacao' <> 'true' OR j -> 'totais' <> '{"inserir": 3, "atualizar": 0, "sem_alteracao": 0}'::jsonb
+     OR jsonb_array_length(j -> 'erros') <> 0 OR j ->> 'importacao_id' IS NOT NULL THEN
+    PERFORM pg_temp.falha('gabinete importação: simulação com 3 inserções devolveu ' || left(j::text, 300));
+  END IF;
+  IF (SELECT count(*) FROM public.documentos WHERE tipo = 'portaria') <> n_doc OR (SELECT count(*) FROM public.importacoes) <> n_imp
+     OR EXISTS (SELECT 1 FROM public.documentos WHERE numero IN ('901/2026', '002/2026', '903/2026')) THEN
+    PERFORM pg_temp.falha('gabinete importação: a simulação gravou');
+  END IF;
+  r := (SELECT x2 -> 'avisos' FROM jsonb_array_elements(j -> 'linhas') x2 WHERE (x2 ->> 'indice')::int = 2)::text;
+  IF coalesce(r, '') !~ 'Servidor da matrícula PI-003 não está ativo' OR r !~ 'pendência PENDENTE/2026' OR r ~ 'PI-001' THEN
+    PERFORM pg_temp.falha('gabinete importação: avisos de inativo/pendência ausentes na linha 2: ' || coalesce(r, 'nada'));
+  END IF;
+  IF j::text ~* 'exonerad' THEN
+    PERFORM pg_temp.falha('gabinete importação: usuário sem o módulo rh recebeu a situação funcional do servidor: ' || coalesce(r, 'nada'));
+  END IF;
+  -- com o módulo rh, o aviso diz a situação
+  j := pg_temp.pi_chamar(u_imr, linhas, true);
+  r := (SELECT x2 -> 'avisos' FROM jsonb_array_elements(j -> 'linhas') x2 WHERE (x2 ->> 'indice')::int = 2)::text;
+  IF coalesce(r, '') !~ 'PI-003: servidor não está ativo \(situação: exonerado\)' THEN
+    PERFORM pg_temp.falha('gabinete importação: com o módulo rh o aviso de inativo não traz a situação: ' || left(coalesce(j::text, 'nada'), 300));
+  END IF;
+  j := pg_temp.pi_chamar(u_imp, linhas, true);
+  r := (SELECT x2 -> 'avisos' FROM jsonb_array_elements(j -> 'linhas') x2 WHERE (x2 ->> 'indice')::int = 1)::text;
+  IF coalesce(r, '') !~ 'não coloque CPF' THEN PERFORM pg_temp.falha('gabinete importação: aviso das observações ausente: ' || coalesce(r, 'nada')); END IF;
+  IF j::text ~ '\d{3}\.\d{3}\.' OR j::text ~ 'b2000000-' THEN PERFORM pg_temp.falha('gabinete importação: o retorno traz CPF ou UUID de servidor'); END IF;
+
+  -- ===== aplicação: insere e registra
+  j := pg_temp.pi_chamar(u_imp, linhas, false);
+  IF j ? 'falhou' OR j ->> 'simulacao' <> 'false' OR j -> 'totais' <> '{"inserir": 3, "atualizar": 0, "sem_alteracao": 0}'::jsonb
+     OR jsonb_array_length(j -> 'erros') <> 0 OR j ->> 'importacao_id' IS NULL THEN
+    PERFORM pg_temp.falha('gabinete importação: aplicação com 3 inserções devolveu ' || left(j::text, 300));
+  END IF;
+  IF (SELECT count(*) FROM public.documentos WHERE tipo = 'portaria') <> n_doc + 3 THEN
+    PERFORM pg_temp.falha('gabinete importação: a aplicação não inseriu as 3 portarias');
+  END IF;
+  SELECT * INTO x FROM public.documentos WHERE numero = '901/2026';
+  IF x.titulo IS DISTINCT FROM 'Portaria nº 901/2026' OR x.status::text <> 'publicado' OR x.categoria::text <> 'nomeacao'
+     OR x.data_publicacao IS DISTINCT FROM d_doe::date OR x.doe_numero IS DISTINCT FROM 'PI-DOE-1' OR x.servidores_ids IS DISTINCT FROM ARRAY[s1]
+     OR x.created_by IS DISTINCT FROM u_imp THEN
+    PERFORM pg_temp.falha('gabinete importação: portaria 901/2026 gravada errada (' || row_to_json(x)::text || ')');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.documentos WHERE numero = '002/2026' AND status::text = 'aguardando_assinatura' AND observacoes = 'conferir no SEI') THEN
+    PERFORM pg_temp.falha('gabinete importação: 2/2026 não foi gravada como 002/2026 aguardando assinatura');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.documentos WHERE numero = '903/2026' AND titulo = 'Nomeia servidores' AND servidores_ids = ARRAY[s2, s3]) THEN
+    PERFORM pg_temp.falha('gabinete importação: 903/2026 sem título da ementa ou sem os servidores');
+  END IF;
+  SELECT * INTO x FROM public.importacoes WHERE id = (j ->> 'importacao_id')::uuid;
+  IF x.tipo IS DISTINCT FROM 'portarias_planilha' OR x.modulo::text IS DISTINCT FROM 'gabinete' OR x.created_by IS DISTINCT FROM u_imp
+     OR x.resumo -> 'totais' ->> 'inserir' IS DISTINCT FROM '3' OR jsonb_array_length(x.detalhes) <> 3 THEN
+    PERFORM pg_temp.falha('gabinete importação: log em importacoes errado (' || coalesce(row_to_json(x)::text, 'sem linha') || ')');
+  END IF;
+  IF x.detalhes::text ~ 'PI-00' OR x.detalhes::text ~ 'b2000000-' OR x.detalhes::text ~ 'Nomeia' THEN
+    PERFORM pg_temp.falha('gabinete importação: detalhes do log com matrícula, servidor ou texto da portaria: ' || left(x.detalhes::text, 200));
+  END IF;
+  SELECT count(*) INTO n_imp FROM public.importacoes;
+
+  -- ===== segunda aplicação do mesmo arquivo: nada muda
+  j := pg_temp.pi_chamar(u_imp, linhas, false);
+  IF j ? 'falhou' OR j -> 'totais' <> '{"inserir": 0, "atualizar": 0, "sem_alteracao": 3}'::jsonb OR jsonb_array_length(j -> 'erros') <> 0 THEN
+    PERFORM pg_temp.falha('gabinete importação: segunda aplicação devia dar 3 sem_alteracao e deu ' || left(j::text, 300));
+  END IF;
+  IF (SELECT count(*) FROM public.documentos WHERE tipo = 'portaria') <> n_doc + 3 THEN
+    PERFORM pg_temp.falha('gabinete importação: a segunda aplicação inseriu de novo');
+  END IF;
+  SELECT count(*) INTO n_imp FROM public.importacoes;
+
+  -- ===== atualização: 007/2025 casa com 7/2025; preenche o vazio, soma servidor, não muda a situação
+  linhas := jsonb_build_array(pg_temp.pi_linha(jsonb_build_object('numero', '007/2025', 'categoria', 'nomeacao',
+    'data_documento', to_char(current_date - 300, 'YYYY-MM-DD'), 'status', 'publicado', 'doe_numero', 'PI-DOE-7',
+    'doe_data', to_char(current_date - 290, 'YYYY-MM-DD'), 'processo_sei', 'PI-SEI-0007', 'matriculas', '["PI-002"]'::jsonb)));
+  -- com o módulo rh (simulação), a matrícula de quem já estava vinculado aparece
+  j := pg_temp.pi_chamar(u_imr, linhas, true);
+  IF j -> 'linhas' -> 0 -> 'mudancas' -> 'servidores_ids' IS DISTINCT FROM '[["PI-001"], ["PI-001", "PI-002"]]'::jsonb THEN
+    PERFORM pg_temp.falha('gabinete importação: com o módulo rh as mudanças de servidores não trazem as matrículas: ' || left(j::text, 400));
+  END IF;
+  -- situação preenchida por padrão no front (status_informado = false): sem aviso de situação divergente
+  j := pg_temp.pi_chamar(u_imp, jsonb_build_array(linhas -> 0 || '{"status_informado": false}'::jsonb), true);
+  IF j ? 'falhou' OR (j -> 'linhas' -> 0 -> 'avisos')::text ~ 'Situação no sistema' THEN
+    PERFORM pg_temp.falha('gabinete importação: status_informado = false ainda avisa da situação divergente: ' || left(j::text, 400));
+  END IF;
+  j := pg_temp.pi_chamar(u_imp, linhas, false);
+  IF j ? 'falhou' OR j -> 'totais' <> '{"inserir": 0, "atualizar": 1, "sem_alteracao": 0}'::jsonb OR jsonb_array_length(j -> 'erros') <> 0
+     OR j -> 'linhas' -> 0 -> 'mudancas' -> 'processo_sei' <> '[null, "PI-SEI-0007"]'::jsonb
+     OR j -> 'linhas' -> 0 -> 'mudancas' -> 'servidores_ids' <> '[["1 servidor(es) já vinculados"], ["1 servidor(es) já vinculados", "PI-002"]]'::jsonb
+     OR j::text ~ 'PI-001'
+     OR (j -> 'linhas' -> 0 -> 'avisos')::text !~ 'avance na tela da portaria' THEN
+    PERFORM pg_temp.falha('gabinete importação: atualização da 7/2025 devolveu ' || left(j::text, 400));
+  END IF;
+  SELECT * INTO x FROM public.documentos WHERE id = leg;
+  IF x.numero <> '7/2025' OR x.servidores_ids IS DISTINCT FROM ARRAY[s1, s2] OR x.processo_sei IS DISTINCT FROM 'PI-SEI-0007'
+     OR x.status::text <> 'aguardando_assinatura' OR x.doe_numero IS NOT NULL OR x.categoria::text <> 'nomeacao' THEN
+    PERFORM pg_temp.falha('gabinete importação: 7/2025 atualizada errada (' || row_to_json(x)::text || ')');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.documentos WHERE numero = '007/2025') THEN
+    PERFORM pg_temp.falha('gabinete importação: 007/2025 duplicou a portaria gravada como 7/2025');
+  END IF;
+  -- a planilha só com PI-002 não remove PI-001
+  j := pg_temp.pi_chamar(u_imp, linhas, false);
+  IF j -> 'totais' ->> 'sem_alteracao' IS DISTINCT FROM '1'
+     OR (SELECT servidores_ids FROM public.documentos WHERE id = leg) IS DISTINCT FROM ARRAY[s1, s2] THEN
+    PERFORM pg_temp.falha('gabinete importação: reaplicar a 7/2025 só com PI-002 mudou os servidores: ' || left(j::text, 300));
+  END IF;
+  SELECT count(*) INTO n_imp FROM public.importacoes;
+
+  -- ===== tudo ou nada: matrícula inexistente
+  linhas := jsonb_build_array(
+    pg_temp.pi_linha(jsonb_build_object('indice', 0, 'numero', '904/2026')),
+    pg_temp.pi_linha(jsonb_build_object('indice', 1, 'numero', '905/2026', 'categoria', 'nomeacao', 'matriculas', '["PI-NAO-EXISTE"]'::jsonb)));
+  j := pg_temp.pi_chamar(u_imp, linhas, false);
+  IF j ? 'falhou' OR j ->> 'importacao_id' IS NOT NULL
+     OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements(j -> 'erros') e WHERE (e ->> 'indice')::int = 1 AND e ->> 'mensagem' ~ 'PI-NAO-EXISTE não encontrada') THEN
+    PERFORM pg_temp.falha('gabinete importação: matrícula inexistente não virou erro da linha: ' || left(j::text, 300));
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.documentos WHERE numero IN ('904/2026', '905/2026')) OR (SELECT count(*) FROM public.importacoes) <> n_imp THEN
+    PERFORM pg_temp.falha('gabinete importação: com erro numa linha a aplicação gravou as outras (tudo ou nada)');
+  END IF;
+
+  -- ===== matrícula repetida no cadastro: erro "ambígua" (sem a UNIQUE só dentro deste bloco, desfeito no fim)
+  BEGIN
+    ALTER TABLE public.servidores DROP CONSTRAINT servidores_matricula_key;
+    SET LOCAL session_replication_role = replica;
+    INSERT INTO public.servidores (id, nome_completo, cpf, matricula, situacao, ativo) VALUES
+      ('b2000000-0000-0000-0000-0000000000f4', 'PI Servidor 4', '000.000.6f4-04', 'PI-001', 'ativo', true);
+    SET LOCAL session_replication_role = origin;
+    j := pg_temp.pi_chamar(u_imp, jsonb_build_array(pg_temp.pi_linha(jsonb_build_object('numero', '908/2026',
+      'categoria', 'nomeacao', 'matriculas', '["PI-001"]'::jsonb))), true);
+    RAISE EXCEPTION USING ERRCODE = 'P0098', MESSAGE = 'desfazer';
+  EXCEPTION WHEN SQLSTATE 'P0098' THEN NULL;
+  END;
+  SET LOCAL session_replication_role = origin;
+  IF j ? 'falhou' OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements(j -> 'erros') e WHERE e ->> 'mensagem' ~ 'PI-001 ambígua no cadastro')
+     OR jsonb_array_length(j -> 'linhas') <> 0 THEN
+    PERFORM pg_temp.falha('gabinete importação: matrícula repetida no cadastro não virou erro "ambígua": ' || left(j::text, 300));
+  END IF;
+  IF to_regclass('public.servidores') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'servidores_matricula_key') THEN
+    PERFORM pg_temp.falha('gabinete importação: o teste de matrícula ambígua não restaurou a UNIQUE de servidores.matricula');
+  END IF;
+
+  -- ===== número repetido no arquivo e PENDENTE
+  linhas := jsonb_build_array(
+    pg_temp.pi_linha(jsonb_build_object('indice', 0, 'numero', '906/2026')),
+    pg_temp.pi_linha(jsonb_build_object('indice', 1, 'numero', '6/2026')),
+    pg_temp.pi_linha(jsonb_build_object('indice', 2, 'numero', '906/2026')),
+    pg_temp.pi_linha(jsonb_build_object('indice', 3, 'numero', 'PENDENTE/2026')));
+  j := pg_temp.pi_chamar(u_imp, linhas, false);
+  IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements(j -> 'erros') e WHERE (e ->> 'indice')::int = 2 AND e ->> 'mensagem' ~ 'repetida') THEN
+    PERFORM pg_temp.falha('gabinete importação: número repetido no arquivo não virou erro: ' || left(j::text, 300));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements(j -> 'erros') e WHERE (e ->> 'indice')::int = 3 AND e ->> 'mensagem' ~ 'pendência') THEN
+    PERFORM pg_temp.falha('gabinete importação: PENDENTE não foi recusado: ' || left(j::text, 300));
+  END IF;
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(j -> 'erros') e WHERE (e ->> 'indice')::int IN (0, 1)) THEN
+    PERFORM pg_temp.falha('gabinete importação: 906/2026 e 6/2026 (006/2026) são números distintos e deram erro: ' || left(j::text, 300));
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.documentos WHERE numero IN ('906/2026', '006/2026')) OR (SELECT count(*) FROM public.importacoes) <> n_imp THEN
+    PERFORM pg_temp.falha('gabinete importação: arquivo com número repetido/PENDENTE gravou');
+  END IF;
+
+  -- ===== erro de trigger vira erro da linha: regra de setor em modo exigir e login sem servidor vinculado
+  PERFORM pg_temp.ls_sistema();   -- o modo exigir só entra sem usuário na sessão (como migração)
+  UPDATE public.regra_lancamento SET modo = 'exigir' WHERE modulo = 'rh';
+  linhas := jsonb_build_array(pg_temp.pi_linha(jsonb_build_object('numero', '907/2026')));
+  j := pg_temp.pi_chamar(u_imp, linhas, true);
+  IF j ? 'falhou' OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements(j -> 'erros') e WHERE e ->> 'mensagem' ~ 'lançamento no setor') THEN
+    PERFORM pg_temp.falha('gabinete importação: a regra de setor (zz_exigir_setor) não virou erro da linha na simulação: ' || left(j::text, 300));
+  END IF;
+  j := pg_temp.pi_chamar(u_imp, linhas, false);
+  IF j ->> 'importacao_id' IS NOT NULL OR EXISTS (SELECT 1 FROM public.documentos WHERE numero = '907/2026') THEN
+    PERFORM pg_temp.falha('gabinete importação: com a regra de setor recusando, a aplicação gravou: ' || left(j::text, 300));
+  END IF;
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
+
+  PERFORM pg_temp.nota('Gabinete (importação de portarias): permissão, simulação sem gravar, aplicação e log, reaplicação sem alteração, casamento do número antigo, soma de servidor, tudo ou nada (matrícula, repetido, PENDENTE, regra de setor), situação do servidor e matrículas antigas só com rh, matrícula ambígua e status_informado verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off

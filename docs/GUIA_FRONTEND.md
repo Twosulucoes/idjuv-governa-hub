@@ -160,6 +160,23 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
   pela largura da primeira linha (350 = OBN600, 240 = CNAB 240) e usa os leitores de `src/lib/bancario/`;
   largura diferente é erro de leitura. O cabeçalho da prévia mostra formato, remessa/retorno, data, quantidade,
   total e se o total confere com o trailer. CPF/CNPJ aparece mascarado na prévia.
+- `importadores/portariasPlanilha.ts` + `portariasPlanilhaParser.ts` — planilha de portarias (XLSX, XLS ou CSV) →
+  `importar_portarias_planilha` (`id` `portarias_planilha`, módulo `gabinete`, permissão `gabinete.portarias.importar`).
+  Uma linha por portaria, no modelo do assistente; o parser (função pura, testada com vitest) valida formato,
+  obrigatórios, datas e número repetido no arquivo e monta o contrato da RPC (`paraContrato`: datas AAAA-MM-DD,
+  vazio = `null`, matrículas em lista, `status_informado` `true` quando a coluna Situação veio preenchida e `false`
+  quando o parser aplicou o padrão); a RPC confere tudo de novo, inclusive matrículas e o que já existe.
+  Identifica o servidor só por matrícula (sem CPF). Invalida as chaves de `usePortarias` (`portarias`, `portaria`,
+  `portarias-servidor`, a seção da ficha do servidor) e `portarias-para-ato` (`useGestaoLotacao`). Regras de negócio: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-portarias-importar_portarias_planilha).
+- `planilha.ts` — helpers de planilha compartilhados (mesma lógica da importação do quadro de vagas, que mantém a
+  sua cópia): `lerPrimeiraAba`
+  (XLSX/XLS/CSV; CSV em UTF-8 ou Windows-1252; devolve cabeçalhos e linhas com o número da linha no Excel),
+  `normalizarCabecalho` (sem acento, minúsculo, `_`), `campoDoCabecalho`/`mapearColunas` (cabeçalho → chave por
+  sinônimos; só chaves próprias do mapa, então "constructor"/"__proto__" não casam),
+  `cabecalhosIgnorados`, `linhaVazia`, `paraTexto`, `paraDataIso` (série do Excel, `Date`, `dd/mm/aaaa` ou
+  `AAAA-MM-DD`, sem deslocar o fuso; `null` vazio, `undefined` inválida) e `montarModeloPlanilha`/
+  `baixarModeloPlanilha` (gera o `.xlsx`; `colunasTexto` formata colunas como texto `@` até a linha 501, para o
+  Excel não converter `3/2026` em data nem tirar zero à esquerda).
 - UI: `ImportacaoWizard` e `HistoricoImportacoes` (`src/components/importacao/`), usados por
   `ImportacoesPage` e por telas de módulo (ex.: `QDDPage`, `ConciliacaoBancariaPage`); hook `useImportacoes`.
 
@@ -167,6 +184,14 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
 que confere a permissão, valida cada linha, devolve o formato de `ResultadoBanco` e, ao aplicar, insere em
 `importacoes`; (2) `importadores/<algo>.ts` implementando `Importador`; (3) incluir em `registro.ts`.
 Erro de leitura bloqueia a importação; aviso só informa.
+
+**Campos opcionais do contrato `Importador`:** `modelo` (`{ nomeArquivo, gerar }`) mostra o botão "Baixar modelo
+(<arquivo>)" no assistente (o de portarias gera `modelo_portarias.xlsx` com a aba "Portarias", só com o cabeçalho e
+"Número"/"Matrículas" em formato de texto, e a aba "Como preencher", com as regras e dois exemplos fictícios); `identificarLinha` cita a linha nas mensagens (ex.: "Linha 5 (001/2026)");
+`aceitaArquivoVazio`. O `ResultadoBanco` traz `avisos` por linha (informam, não impedem) e `erros`
+(`{ indice, mensagem }` por linha, achados pelo banco): com qualquer erro o botão de confirmar fica bloqueado
+("Corrija os erros para importar"), o assistente lista os problemas e marca a linha na tabela; a aplicação com erro
+não grava nada.
 
 Fora dessa estrutura: a planilha do **quadro de vagas** (`ImportarQuadroVagasDialog`, em `/cargos/vagas`) lê
 XLSX/XLS/CSV com `xlsx` e chama a RPC `rh_importar_quadro_vagas` pelo hook `src/hooks/useQuadroVagas.ts` (simular,

@@ -5,6 +5,7 @@
 
 import type { Importador } from "./types";
 import { importadorArquivoBancario } from "./importadores/arquivoBancario";
+import { importadorPortariasPlanilha } from "./importadores/portariasPlanilha";
 import { importadorQddFiplan } from "./importadores/qddFiplan";
 
 // Cada importador é coerente com o próprio tipo de linha; na lista o tipo da linha não importa.
@@ -13,6 +14,7 @@ const generico = <T,>(imp: Importador<T>) => imp as unknown as Importador<unknow
 export const IMPORTADORES: Importador<unknown>[] = [
   generico(importadorQddFiplan),
   generico(importadorArquivoBancario),
+  generico(importadorPortariasPlanilha),
 ];
 
 export function obterImportador(id: string): Importador<unknown> | undefined {

@@ -118,6 +118,8 @@ export type PermissaoInstitucional =
   | 'orcamento.aprovar'
   | 'orcamento.importar'
   | 'pagamento.conciliar'
+  // Gabinete
+  | 'gabinete.portarias.importar'
   // Patrimônio
   | 'patrimonio.visualizar'
   | 'patrimonio.criar'
@@ -1281,7 +1283,8 @@ export const menuConfig: MenuSection[] = [
         label: "Importação de Dados",
         route: "/admin/importacoes",
         icon: Upload,
-        permission: "orcamento.importar",
+        // Qualquer permissão de importador (mesma lista de PERMISSOES_IMPORTACAO em src/lib/importacao/registro.ts)
+        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar"],
       },
       {
         id: "envios",

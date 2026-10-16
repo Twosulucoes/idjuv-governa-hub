@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Plus,
   LayoutGrid,
@@ -7,6 +7,7 @@ import {
   Filter,
   Search,
   BarChart3,
+  Upload,
 } from 'lucide-react';
 
 import { ModuleLayout } from '@/components/layout';
@@ -45,8 +46,10 @@ import { usePortarias, useDeletePortaria } from '@/hooks/usePortarias';
 import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
 import { toast } from 'sonner';
 import { abrirArquivoPortaria } from '@/lib/portarias/arquivoPortaria';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function CentralPortariasPage() {
+  const { hasPermission } = useAuth();
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [novaPortariaOpen, setNovaPortariaOpen] = useState(false);
   const [editPortariaOpen, setEditPortariaOpen] = useState(false);
@@ -149,6 +152,14 @@ export default function CentralPortariasPage() {
               <BarChart3 className="h-4 w-4 mr-2" />
               Central Relatórios
             </Button>
+            {hasPermission('gabinete.portarias.importar') && (
+              <Button variant="outline" asChild>
+                <Link to="/admin/importacoes">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar planilha
+                </Link>
+              </Button>
+            )}
             <Button onClick={() => setNovaPortariaOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Registrar Portaria

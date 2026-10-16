@@ -21,7 +21,7 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
   `DatabaseSchemaPage`, `CalibradorSegadPage`, `SobreSistemaPage`, `AdminHelpPage`.
 - **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
   pode usar e o histórico (`importacoes`). Importadores: QDD do FIPLAN e arquivo do banco
-  (OBN600/CNAB 240), ambos do financeiro.
+  (OBN600/CNAB 240), do financeiro, e planilha de portarias, do gabinete (com botão "Baixar modelo").
 - **Envio de e-mail e WhatsApp**: `ConfigEnviosPage` (`/admin/envios`, menu "E-mail e WhatsApp"). O
   cliente configura o remetente (SMTP próprio ou Resend), a identidade visual do e-mail e o WhatsApp
   oficial (Meta Cloud API, templates por uso), grava as credenciais (só escrita, no Vault), envia teste
@@ -298,6 +298,11 @@ e `src/pages/instituicoes/GestaoInstituicoesPage`.
 Painel executivo da Presidência. `src/pages/gabinete/GabineteDashboardPage` +
 rotas que reaproveitam Central de Portarias, pré-cadastros, ordem de missão e
 relatório de viagem.
+
+- **Importar portarias por planilha:** quem tem `gabinete.portarias.importar` registra portarias já feitas no SEI em
+  `/admin/importacoes` (importador "Portarias (planilha)"): baixa o modelo, preenche uma linha por portaria
+  (servidores por matrícula), simula e confirma. Tudo ou nada; portaria que já existe só ganha o que falta. Ver
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-portarias-importar_portarias_planilha).
 
 ---
 

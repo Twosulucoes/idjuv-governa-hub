@@ -106,7 +106,8 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionCode | PermissionCode[]
   '/admin/perfis': 'admin.perfis',
   '/admin/auditoria': 'admin.auditoria',
   '/admin/database': 'admin.database',
-  '/admin/importacoes': 'orcamento.importar',
+  // Qualquer permissão de importador (mesma lista de PERMISSOES_IMPORTACAO em src/lib/importacao/registro.ts)
+  '/admin/importacoes': ['orcamento.importar', 'pagamento.conciliar', 'gabinete.portarias.importar'],
   '/admin/envios': ['admin.envios', 'admin.envios.configurar'],
   '/admin/configuracao-cliente': 'admin.configuracao_cliente',
   '/admin/disaster-recovery': 'admin.disaster_recovery',

@@ -910,6 +910,17 @@ O segundo importador, arquivo do banco (OBN600/CNAB 240), declara `pagamento.con
 `PERMISSOES_IMPORTACAO` junta as permissões de todos os importadores, quem tem só `pagamento.conciliar` também entra
 em `/admin/importacoes`, e lá vê só esse importador.
 
+O terceiro, planilha de portarias, declara `gabinete.portarias.importar` — permissão nova do catálogo do módulo
+`gabinete` (categoria "Portarias", `action_type` `importar`), criada pela migração
+`supabase/migrations/20261015120000_gab_importar_portarias.sql`. A RPC `importar_portarias_planilha` exige perfil
+ativo, o módulo `gabinete` e essa permissão (`has_permission_code`; o papel admin passa), senão `42501`. Ter só o
+módulo `gabinete` (ver ou editar portarias) não importa, e a permissão sem o módulo também não. RH não importa nesta
+versão. Quem importa precisa receber a permissão em `user_modules` (nada é concedido pela migração além do atalho do
+papel admin). A rota `/admin/importacoes` (`ROUTE_PERMISSIONS` em `src/types/auth.ts`) e o item de menu "Importação de
+Dados" (`src/config/menu.config.ts`) passam a aceitar qualquer uma de `orcamento.importar`, `pagamento.conciliar` ou
+`gabinete.portarias.importar`; na Central cada pessoa vê só os importadores da sua permissão. A rota é só UX: a RPC é
+quem barra. Detalhes da RPC em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-portarias-importar_portarias_planilha).
+
 ### Conciliação bancária e Banco do Brasil (`pagamento.conciliar`)
 
 Permissão nova do catálogo do módulo `financeiro` (categoria "Pagamentos"), criada pela migração
