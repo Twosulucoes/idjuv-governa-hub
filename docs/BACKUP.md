@@ -135,7 +135,7 @@ sair), cifra com a **mesma chave pública** `age` do backup e envia para o remot
 ## 5. Retenção e trava no R2
 
 O `rclone delete --min-age` exige que a credencial da VPS possa apagar, o que anula qualquer trava. Por isso a retenção
-passou ao próprio R2:
+passou ao próprio R2 (a trava só funciona porque a credencial da VPS deixou de precisar apagar):
 
 1. **Regras de ciclo de vida** em `idjuv-backups` (confirmadas pelo dono em 15/10/2026; **não verificáveis** pela
    credencial do rclone): `diario/` 8 dias, `semanal/` 36, `mensal/` 400.
@@ -143,11 +143,14 @@ passou ao próprio R2:
    `retenção pelo R2 ... nada a apagar pelo rclone`).
 3. **Trava (bucket lock)** em `idjuv-backups`: retenção de **7 dias** no bucket inteiro (prefixo vazio). O prazo tem
    de ser **menor que 8** (a regra dos diários); maior, o ciclo de vida tentaria apagar objeto ainda protegido.
-   **PENDÊNCIA (16/10/2026): a trava não está ativa.** Dois testes (15 e 16/10) criaram um arquivo-isca fora de `diario/` (pasta de teste) e o
-   `rclone deletefile` apagou sem erro. Encerra quando o mesmo teste **falhar** (apagar e sobrescrever recusados). Confira
-   no painel (R2 → bucket → Settings → Bucket lock rules) se a regra está *Enabled*, no bucket certo e com prefixo vazio.
-   Teste: `rclone rcat` de um byte em uma pasta de teste do bucket, seguido de `rclone deletefile` no mesmo caminho
-   (com a trava ativa, o `deletefile` tem de dar erro e a isca fica 7 dias fora de `diario/`).
+   **ATIVA desde 16/10/2026** (regra `trava-7-dias`, 7 dias, sem prefixo, habilitada). Prova: com um arquivo-isca criado
+   às 17:14 UTC, o `rclone deletefile` falhou nas 3 tentativas com `409 ObjectLockedByBucketPolicy` e a sobrescrita
+   (`rclone rcat` no mesmo caminho) também foi recusada. Antes da regra (15 e 16/10) os mesmos testes apagavam sem erro.
+   Ainda **não provado** em operação: o primeiro backup automático sob a trava é o das 03:30 de 17/10 (pasta nova de data,
+   não deve conflitar); conferir o log e o Vigia depois dele.
+   **Arquivo-isca de teste (pasta `teste-trava` do bucket `idjuv-backups`):** fica **fora** das regras de ciclo de vida (não está em
+   `diario/`, `semanal/` nem `mensal/`) e não é apagado sozinho. Depois de **23/10/2026 17:14 UTC** (fim dos 7 dias) apague
+   à mão: `rclone deletefile r2:idjuv-backups/teste-trava/isca3.txt`. Repetir o teste exige criar uma isca nova.
 
 - O token *Object Read & Write* do R2 inclui apagar: quem impede o apagamento é a **trava**, não o escopo do token.
 - **Um backup por dia:** com a trava, rodar `idjuv-backup` duas vezes no mesmo dia tenta sobrescrever objetos protegidos
