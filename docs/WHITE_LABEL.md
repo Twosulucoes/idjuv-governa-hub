@@ -266,9 +266,9 @@ como texto sobre o fundo ≥ 4,5:1 e `ring` ≥ 3:1, em claro e escuro. Ao mudar
 (`successText`, `warningText`…), usado por `text-success` etc. — o guard falha se faltar, para o
 texto não herdar o matiz de `src/index.css`.
 
-Cuidado a observar: existem **três paletas divergentes** hoje (CSS `--primary`
-azul, `pdfTemplate.CORES.primaria` verde-petróleo #004444, `report.styles.ts`
-verde). O white label é a oportunidade de unificar — a paleta do tenant deve ser
+Cuidado a observar: existem **duas paletas divergentes** hoje (CSS `--primary`
+azul e `pdfTemplate.CORES.primaria` verde-petróleo #004444; a terceira, `report.styles.ts`, era código morto e
+saiu no P10). O white label é a oportunidade de unificar — a paleta do tenant deve ser
 **uma só**, com conversão HSL→RGB para o jsPDF.
 
 ### 5.3 Logos servidos por Storage
@@ -339,8 +339,7 @@ maior volume do trabalho: **364 ocorrências em 41 arquivos**.
 
 ## 7. Modelos de ato: de código para dado
 
-O ponto mais delicado. Os textos das portarias em `src/types/portaria.ts` e
-`portariaUnificada.ts` citam a **Lei nº 2.301/2025, art. 7º, §3º** do IDJUV. Para
+O ponto mais delicado. Os textos das portarias em `src/types/portaria.ts` citam a **Lei nº 2.301/2025, art. 7º, §3º** do IDJUV. Para
 outro cliente, a lei é outra, o cargo do dirigente é outro e a competência pode
 estar em outro dispositivo.
 
@@ -406,7 +405,7 @@ Três pontos de consumo:
 1. **Menu** (`menu.config.ts`, `module-menus.config.ts`) — filtra seções.
 2. **Rotas** (`App.tsx`) — novo guard `<ModuloHabilitado codigo="rh">` que
    devolve 404 para módulo não contratado (hoje 239 rotas sempre registradas).
-3. **Dashboards de módulo** (`src/modules/`) — só renderiza os habilitados.
+3. **Painéis de módulo** (`src/pages/modulos/`) — só renderiza os habilitados.
 
 ### Separar o núcleo da vertical
 
@@ -444,7 +443,7 @@ alter table cessoes rename column funcao_exercida_idjuv to funcao_exercida_orgao
 
 Depois: regenerar `src/integrations/supabase/types.ts` no mesmo PR
 (`bash scripts/db/gerar-tipos.sh`, ver `docs/BANCO_DE_DADOS.md`) e atualizar `src/types/servidor.ts`,
-`useConfigVidaFuncional.ts`, `CessaoForm.tsx`, `VinculosServidorPanel.tsx`,
+`CessaoForm.tsx`, `VinculosServidorPanel.tsx`,
 `CessoesSection.tsx`, `SegundoVinculoSection.tsx`.
 
 ⚠️ **Rótulos de exibição** (`"Efetivo do IDJuv"`) devem virar
@@ -604,3 +603,5 @@ O projeto **não parte do zero**. Já estão prontos ou quase:
 O que falta é **conectar** o que existe e **remover** o que está fixo. Depois das
 fases 0–3, o skill de onboarding deixa de ter a seção "o que ainda falta no
 código para isso ser produto".
+
+<!-- doc-links-absent: report.styles.ts -->

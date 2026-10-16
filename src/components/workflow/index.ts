@@ -1,1 +1,0 @@
-export { NovoProcessoDialog } from './NovoProcessoDialog';
