@@ -1,0 +1,7 @@
+node_modules
+dist
+dist-site
+.git
+.env
+.env.*
+supabase/disaster-recovery

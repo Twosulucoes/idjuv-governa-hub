@@ -301,6 +301,21 @@ herda os cabeçalhos nesse caso). O host do banco no arquivo é o de `VITE_SUPAB
 instalação, troque pelos valores do `.env` dela. Recurso externo novo no app (fonte, API, mapa) exige ajustar a CSP
 na mesma PR. A impressão de etiquetas de patrimônio não usa mais script inline, para funcionar com essa CSP.
 
+#### Publicação pelo Coolify
+
+Com a variável `COOLIFY_APP_UUID`, o job `deploy-coolify` substitui o `deploy` (rsync): depois da mesma espera
+pelo gate e pelas migrações, `scripts/ci/deploy-coolify.sh` pede o deploy ao Coolify pela API e espera terminar.
+O Coolify baixa a `main` pelo GitHub App e builda com o `Dockerfile` da raiz (nginx com fallback de SPA, cache e
+os cabeçalhos de `deploy/nginx/cabecalhos-seguranca.conf`); domínio e HTTPS ficam no Traefik do Coolify.
+
+- Dois apps no Coolify (projeto `idjuv`), mesmo repositório: **sistema** (build arg `MODO=sistema`,
+  `app.idjuv.online`) e **site** (`MODO=site`, `idjuv.online`). Variáveis `VITE_*` de cada app como
+  *Build Variable*. Deploy automático por push **desligado** nos dois: quem dispara é o workflow, para o front
+  nunca subir antes da migração de que depende.
+- GitHub: variáveis `COOLIFY_URL`, `COOLIFY_APP_UUID`, `COOLIFY_SITE_UUID` e `FRONT_URL`; segredo
+  `COOLIFY_TOKEN` (Coolify → Keys & Tokens → API tokens, permissão de deploy) no ambiente `deploy-front`.
+- Sem `COOLIFY_APP_UUID` nada muda: segue o rsync abaixo.
+
 ### Deploy das Edge Functions (CI)
 
 O workflow `.github/workflows/deploy-funcoes.yml` roda a cada merge na `main` que muda `supabase/functions/**` (e
