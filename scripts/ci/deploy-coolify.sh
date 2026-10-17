@@ -8,7 +8,7 @@ limite=$(( ${2:-20} * 60 ))
 api="${COOLIFY_URL%/}/api/v1"
 auth=(-H "Authorization: Bearer ${COOLIFY_TOKEN:?COOLIFY_TOKEN}" -H "Accept: application/json")
 
-resp=$(curl -fsS "${auth[@]}" "$api/deploy?uuid=$uuid&force=false")
+resp=$(curl -fsS -X POST "${auth[@]}" "$api/deploy?uuid=$uuid&force=false")
 dep=$(printf '%s' "$resp" | jq -r '.deployments[0].deployment_uuid // empty')
 [ -n "$dep" ] || { echo "::error::Coolify não aceitou o deploy de $uuid: $resp"; exit 1; }
 echo "Deploy $dep do app $uuid pedido ao Coolify."

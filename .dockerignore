@@ -4,4 +4,3 @@ dist-site
 .git
 .env
 .env.*
-supabase/disaster-recovery
