@@ -54,7 +54,7 @@ export default function HomeSimplesPage() {
                 >
                   <LinkSistema to="/auth">
                     <Building2 className="mr-2 h-5 w-5" aria-hidden="true" />
-                    Área administrativa
+                    Área Restrita
                   </LinkSistema>
                 </Button>
               </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MainLayout } from '@/components/layout/MainLayout';
+import { ModuleLayout } from '@/components/layout/ModuleLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -169,18 +169,18 @@ export default function OrganogramaPage() {
 
   if (loading) {
     return (
-      <MainLayout>
+      <ModuleLayout>
         <div className="container mx-auto py-8 px-4">
           <Skeleton className="h-8 w-64 mb-4" />
           <Skeleton className="h-[600px] w-full" />
         </div>
-      </MainLayout>
+      </ModuleLayout>
     );
   }
 
   if (error) {
     return (
-      <MainLayout>
+      <ModuleLayout>
         <div className="container mx-auto py-8 px-4">
           <Card className="border-destructive">
             <CardContent className="pt-6">
@@ -188,12 +188,12 @@ export default function OrganogramaPage() {
             </CardContent>
           </Card>
         </div>
-      </MainLayout>
+      </ModuleLayout>
     );
   }
 
   return (
-    <MainLayout>
+    <ModuleLayout>
       <div className="container mx-auto py-8 px-4">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
@@ -470,6 +470,6 @@ export default function OrganogramaPage() {
           isExporting={isExporting}
         />
       </div>
-    </MainLayout>
+    </ModuleLayout>
   );
 }

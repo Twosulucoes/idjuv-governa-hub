@@ -62,6 +62,17 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
 - Dois menus: o geral (`src/config/menu.config.ts`) e a barra lateral de cada módulo
   (`src/config/module-menus.config.ts`, usada pelo `ModuleSidebar`). Todo item dos dois precisa de `<Route>` no
   `App.tsx`; `src/config/menu.config.test.ts` reprova item que leve ao 404 (P09). Tela não construída fica fora do menu.
+- **Portal público x sistema interno (17/10/2026):** rota pública usa o `MainLayout` (cabeçalho e rodapé do
+  site); tela que exige login usa o `ModuleLayout`, inclusive as transversais (manuais, processos, formulários,
+  notícias internas, apresentação, organograma), que sem `module` pegam o módulo da rota ou o primeiro do usuário.
+  O menu do site fica em `src/config/menu-publico.config.ts` e só pode ter rota pública
+  (`src/config/menu-publico.config.test.ts` reprova). O build `site` (`src/AppSite.tsx`) serve as rotas de `ROTAS_DO_SITE`
+  (`src/core/modo-app.ts`): home, editais, base legal, notícias, galerias, transparência, denúncias, links úteis e
+  os formulários públicos (`/curriculo`, `/cadastrogestores`, `/cadastro-arbitros`, `/federacoes/cadastro`,
+  `/ascom/solicitar`, `/ascom/consultar`, `/programas/selecoes`). Telas internas embaixo dessas rotas
+  (ex.: `/transparencia/admin`) ficam em `ROTAS_DO_SISTEMA_SOB_O_SITE`; `src/core/modo-app.test.ts` reprova rota
+  protegida do `App.tsx` que caia no site. Separação dos endereços (site em `idjuv.online`, sistema em
+  `app.idjuv.online`): `docs/DESENVOLVIMENTO.md` (Deploy do front).
 - Telas de módulo usam `ModuleLayout` (`src/components/layout/`), que inclui o sino de avisos
   (`AvisosSino`, no cabeçalho) e a faixa de avisos em destaque (`AvisosDestaque`, no topo do
   conteúdo); o mural completo fica em `/avisos` (protegida, qualquer usuário logado).

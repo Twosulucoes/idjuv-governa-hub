@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { BookOpen, ShoppingCart, MapPin, Building2, Handshake } from "lucide-react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
@@ -33,12 +33,12 @@ const manuaisItems = [
 
 export default function ManuaisPage() {
   return (
-    <MainLayout>
+    <ModuleLayout>
       {/* Cabeçalho */}
       <section className="bg-info text-info-foreground py-12">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-3 text-sm mb-4 opacity-80">
-            <Link to="/" className="hover:underline">Início</Link>
+            <Link to="/sistema" className="hover:underline">Sistema</Link>
             <span>/</span>
             <span>Manuais</span>
           </div>
@@ -98,6 +98,6 @@ export default function ManuaisPage() {
           </div>
         </div>
       </section>
-    </MainLayout>
+    </ModuleLayout>
   );
 }

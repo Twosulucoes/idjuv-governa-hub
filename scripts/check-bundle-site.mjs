@@ -6,6 +6,8 @@
  * As sentinelas são textos que existem no bundle do sistema (dist/) e NÃO no do site. Foram medidas em
  * 12/10/2026 (cada uma: presente em dist/, ausente em dist-site/). Se o site passar a precisar legitimamente
  * de uma delas (ex.: exportar PDF com jspdf), tire-a da lista COM o motivo no commit.
+ * jspdf saiu em 17/10/2026: o mini-currículo (/curriculo) gera os PDFs do próprio candidato no site; a página
+ * é carregada sob demanda (React.lazy no AppSite.tsx), então o jsPDF fica num chunk que só baixa em /curriculo.
  *
  * Uso: node scripts/check-bundle-site.mjs [pasta=dist-site]
  */
@@ -14,7 +16,7 @@ import path from 'node:path';
 
 export const SENTINELAS = [
   '/admin/usuarios', '/rh/gestao-lotacao', '/gabinete/portarias', '/patrimonio-mobile',
-  '/folha', '/financeiro', 'requiredModule', 'jspdf', 'reactflow',
+  '/folha', '/financeiro', 'requiredModule', 'reactflow',
 ];
 export const PROIBIDOS_NA_RAIZ = [/^manifest\.webmanifest$/, /^registerSW\.js$/, /^workbox-.*\.js$/];
 

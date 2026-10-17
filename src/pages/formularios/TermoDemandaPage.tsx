@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { FileText, Download, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { MainLayout } from '@/components/layout/MainLayout';
+import { ModuleLayout } from '@/components/layout/ModuleLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -99,7 +99,7 @@ const TermoDemandaPage = () => {
   ];
 
   return (
-    <MainLayout>
+    <ModuleLayout>
       <div className="container mx-auto px-4 py-8">
         <Link to="/processos/compras" className="inline-flex items-center gap-2 text-primary hover:underline mb-6">
           <ArrowLeft className="h-4 w-4" />
@@ -366,7 +366,7 @@ const TermoDemandaPage = () => {
           </Card>
         </div>
       </div>
-    </MainLayout>
+    </ModuleLayout>
   );
 };
 
