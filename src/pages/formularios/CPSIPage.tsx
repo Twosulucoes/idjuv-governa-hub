@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { FileText, Download, ArrowLeft, Lightbulb, ClipboardList, BookOpen, Sparkles, Wand2, CheckCircle, Loader2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { MainLayout } from '@/components/layout/MainLayout';
+import { ModuleLayout } from '@/components/layout/ModuleLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -788,7 +788,7 @@ const TRForm = () => {
 
 const CPSIPage = () => {
   return (
-    <MainLayout>
+    <ModuleLayout>
       <div className="container mx-auto px-4 py-8">
         <Link to="/processos/compras" className="inline-flex items-center gap-2 text-primary hover:underline mb-6">
           <ArrowLeft className="h-4 w-4" />
@@ -870,7 +870,7 @@ const CPSIPage = () => {
           </Card>
         </div>
       </div>
-    </MainLayout>
+    </ModuleLayout>
   );
 };
 

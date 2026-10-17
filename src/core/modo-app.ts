@@ -11,13 +11,41 @@ export const ROTAS_DO_SITE = [
   '/integridade/denuncias',
   '/governanca/lei-criacao',
   '/governanca/decreto',
+  '/links-uteis',
+  '/galerias',
+  '/curriculo',
+  '/cadastrogestores',
+  '/cadastro-arbitros',
+  '/federacoes/cadastro',
+  '/ascom/solicitar',
+  '/ascom/consultar',
+  '/programas/selecoes',
 ] as const;
+
+/**
+ * Telas do sistema interno que moram embaixo de uma rota do site (ex.: /transparencia/admin). Ficam fora do
+ * site mesmo casando pelo prefixo. O teste modo-app.test.ts reprova rota protegida do App.tsx que caia no site.
+ */
+export const ROTAS_DO_SISTEMA_SOB_O_SITE = [
+  '/transparencia/admin',
+  '/transparencia/relatorios',
+  '/transparencia/editais',
+  '/cadastrogestores/admin',
+  '/cadastrogestores/escolas',
+  '/cadastrogestores/relatorios',
+  '/cadastrogestores/auditoria',
+  '/cadastro-arbitros/admin',
+  '/programas/selecoes/admin',
+] as const;
+
+function casa(caminho: string, rota: string): boolean {
+  return rota === '/' ? caminho === '/' : caminho === rota || caminho.startsWith(`${rota}/`);
+}
 
 export function rotaFicaNoSite(href: string): boolean {
   const caminho = href.split(/[?#]/)[0];
-  return ROTAS_DO_SITE.some((r) =>
-    r === '/' ? caminho === '/' : caminho === r || caminho.startsWith(`${r}/`),
-  );
+  if (ROTAS_DO_SISTEMA_SOB_O_SITE.some((r) => casa(caminho, r))) return false;
+  return ROTAS_DO_SITE.some((r) => casa(caminho, r));
 }
 
 /** Endereço de uma tela do sistema. No site vira URL absoluta do app; no sistema continua o caminho interno. */

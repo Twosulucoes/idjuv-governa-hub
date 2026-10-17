@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { urlSegura } from "@/lib/urlSegura";
-import { Eye, ExternalLink, FileText, Download, Calendar, Loader2, Users, Building2, BarChart3, Package, MessageSquareQuote } from "lucide-react";
+import { Eye, ExternalLink, FileText, Download, Calendar, Loader2, Users, BarChart3, Package, MessageSquareQuote } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -31,12 +31,6 @@ export default function TransparenciaPage() {
       description: "Quadro de cargos comissionados, com vínculo, valores e ocupantes",
       icon: Users,
       href: "/transparencia/cargos",
-    },
-    {
-      title: "Estrutura Organizacional",
-      description: "Diretorias, divisões e núcleos, com o organograma do Instituto",
-      icon: Building2,
-      href: "/governanca/estrutura",
     },
     {
       title: "Licitações e Contratos",

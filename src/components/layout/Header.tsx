@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, ChevronDown, Shield, FileText, BookOpen, Scale, Eye, Sun, Moon, LogOut, User, Link2 } from "lucide-react";
+import { Menu, X, ChevronDown, Sun, Moon, LogOut, User } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -20,99 +20,14 @@ import { useConfigMenuPublico } from "@/hooks/useConfigMenuPublico";
 import { useTenant } from '@/core/tenant';
 import { MODO_SITE, filtrarMenuParaSite } from "@/core/modo-app";
 import { LinkSistema } from "./LinkSistema";
+import { MENU_PUBLICO } from "@/config/menu-publico.config";
 import { LogoEntidadeSuperior } from '@/components/ui/Logo';
 
 // Marca vem do perfil do tenant, não de '@/assets' (White Label — Fase 1).
-
-const menuItems = [
-  // Itens no ar (visíveis por padrão). Os demais grupos abaixo ficam ocultos
-  // via config_menu_publico e podem ser reativados em /admin/menu-site.
-  {
-    title: "Editais",
-    chave: "editais",
-    icon: FileText,
-    href: "/editais",
-  },
-  {
-    title: "Base Legal",
-    chave: "base_legal",
-    icon: Scale,
-    href: "/base-legal",
-    items: [
-      { title: "Lei de Criação", href: "/governanca/lei-criacao" },
-      { title: "Decreto Regulamentador", href: "/governanca/decreto" },
-    ],
-  },
-  {
-    title: "Links Úteis",
-    chave: "links_uteis",
-    icon: Link2,
-    href: "/links-uteis",
-  },
-  {
-    title: "Governança",
-    chave: "governanca",
-    icon: Shield,
-    href: "/governanca",
-    items: [
-      { title: "Lei de Criação", href: "/governanca/lei-criacao" },
-      { title: "Decreto Regulamentador", href: "/governanca/decreto" },
-      { title: "Regimento Interno", href: "/governanca/regimento" },
-      { title: "Organograma", href: "/governanca/organograma" },
-      { title: "Portarias Estruturantes", href: "/governanca/portarias" },
-      { title: "Matriz RACI", href: "/governanca/matriz-raci" },
-      { title: "Relatório de Governança", href: "/governanca/relatorio" },
-    ],
-  },
-  {
-    title: "Processos",
-    chave: "processos",
-    icon: FileText,
-    href: "/processos",
-    items: [
-      { title: "Compras e Contratos", href: "/processos/compras" },
-      { title: "Diárias e Viagens", href: "/processos/diarias" },
-      { title: "Patrimônio", href: "/processos/patrimonio" },
-      { title: "Convênios e Parcerias", href: "/processos/convenios" },
-      { title: "Almoxarifado", href: "/processos/almoxarifado" },
-      { title: "Veículos", href: "/processos/veiculos" },
-      { title: "Pagamentos", href: "/processos/pagamentos" },
-    ],
-  },
-  {
-    title: "Manuais",
-    chave: "manuais",
-    icon: BookOpen,
-    href: "/manuais",
-    items: [
-      { title: "Manual de Compras", href: "/manuais/compras" },
-      { title: "Manual de Diárias", href: "/manuais/diarias" },
-      { title: "Manual de Patrimônio", href: "/manuais/patrimonio" },
-      { title: "Manual de Convênios", href: "/manuais/convenios" },
-    ],
-  },
-  {
-    title: "Integridade",
-    chave: "integridade",
-    icon: Scale,
-    href: "/integridade",
-    items: [
-      { title: "Código de Ética", href: "/integridade/codigo-etica" },
-      { title: "Canal de Denúncias", href: "/integridade/denuncias" },
-      { title: "Conflito de Interesses", href: "/integridade/conflito" },
-      { title: "Política de Integridade", href: "/integridade/politica" },
-    ],
-  },
-  {
-    title: "Transparência",
-    chave: "transparencia",
-    icon: Eye,
-    href: "/transparencia",
-  },
-];
+// Itens do menu: src/config/menu-publico.config.ts (só rotas públicas).
 
 // No build `site` o menu só tem o que o site serve (ver src/core/modo-app.ts).
-const menuBase = MODO_SITE ? filtrarMenuParaSite(menuItems) : menuItems;
+const menuBase = MODO_SITE ? filtrarMenuParaSite(MENU_PUBLICO) : MENU_PUBLICO;
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

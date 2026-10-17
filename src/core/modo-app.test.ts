@@ -1,15 +1,24 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ROTAS_DO_SITE, rotaFicaNoSite, urlDoSistema, filtrarMenuParaSite, ehHostDoApp } from './modo-app';
 
 describe('rotaFicaNoSite', () => {
   it('aceita as rotas do site e seus filhos', () => {
     for (const r of ['/', '/editais', '/base-legal', '/noticias-portal', '/noticias-portal/algum-slug',
       '/transparencia', '/transparencia/lai', '/integridade/denuncias',
-      '/governanca/lei-criacao', '/governanca/decreto']) expect(rotaFicaNoSite(r)).toBe(true);
+      '/governanca/lei-criacao', '/governanca/decreto', '/links-uteis', '/curriculo', '/curriculo/sucesso',
+      '/cadastrogestores', '/cadastrogestores/consulta', '/cadastro-arbitros', '/federacoes/cadastro',
+      '/ascom/solicitar', '/programas/selecoes', '/programas/selecoes/noticia/x', '/galerias/x'])
+      expect(rotaFicaNoSite(r)).toBe(true);
   });
   it('recusa o que é do sistema', () => {
     for (const r of ['/auth', '/sistema', '/admin/usuarios', '/rh', '/governanca/regimento', '/processos/compras',
-      '/manuais', '/curriculo', '/links-uteis', '/integridade/codigo-etica', '/integridade']) expect(rotaFicaNoSite(r)).toBe(false);
+      '/manuais', '/integridade/codigo-etica', '/integridade', '/ascom/demandas', '/federacoes']) expect(rotaFicaNoSite(r)).toBe(false);
+  });
+  it('recusa tela do sistema que mora embaixo de uma rota do site', () => {
+    for (const r of ['/transparencia/admin', '/cadastrogestores/escolas', '/cadastro-arbitros/admin',
+      '/programas/selecoes/admin/inscricoes']) expect(rotaFicaNoSite(r)).toBe(false);
   });
   it('"/" não casa com tudo', () => { expect(rotaFicaNoSite('/qualquer')).toBe(false); });
   it('ignora query e hash', () => { expect(rotaFicaNoSite('/editais?x=1#a')).toBe(true); });
@@ -33,6 +42,24 @@ describe('ROTAS_DO_SITE', () => {
   });
 });
 
+describe('site x sistema no App.tsx e no AppSite.tsx', () => {
+  const ler = (arquivo: string) => readFileSync(resolve(__dirname, '..', arquivo), 'utf8');
+  const caminhos = (fonte: string, re: RegExp) => [...fonte.matchAll(re)].map((m) => m[1]);
+
+  it('nenhuma rota protegida do sistema cai no site', () => {
+    const protegidas = caminhos(ler('App.tsx'), /<Route path="([^"]+)" element=\{\s*<ProtectedRoute\b/g);
+    expect(protegidas.length).toBeGreaterThan(150);
+    expect(protegidas.filter(rotaFicaNoSite)).toEqual([]);
+  });
+  it('toda rota do AppSite está em ROTAS_DO_SITE (menos os redirecionamentos)', () => {
+    const fonte = ler('AppSite.tsx');
+    const redirecionadas = new Set(caminhos(fonte, /<Route path="([^"]+)" element=\{<Navigate\b/g));
+    const rotas = caminhos(fonte, /<Route path="([^"*]+)"/g).filter((r) => !redirecionadas.has(r));
+    expect(rotas.length).toBeGreaterThan(20);
+    expect(rotas.filter((r) => !rotaFicaNoSite(r))).toEqual([]);
+  });
+});
+
 describe('filtrarMenuParaSite', () => {
   const menu = [
     { title: 'Editais', href: '/editais' },
@@ -50,7 +77,7 @@ describe('filtrarMenuParaSite', () => {
 
   it('some com o que não existe no site', () => {
     const titulos = r.map((i) => i.title);
-    expect(titulos).not.toContain('Links Úteis');
+    expect(titulos).toContain('Links Úteis');
     expect(titulos).not.toContain('Processos');
   });
   it('mantém o que existe e tira subitens que não existem', () => {

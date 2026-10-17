@@ -22,8 +22,9 @@ automaticamente nos passos internos.)
 
 O gate (`scripts/gate.sh`) roda, nesta ordem (o que falha em segundos primeiro):
 `check:migrations` → `check:docs` → `check:rls` → `check:contraste` → `check:autoria-rh` → `typecheck` → `lint` →
-cor crua → `build`. Não há suíte
-de testes automatizados configurada neste projeto. O `vite build` **não** checa
+cor crua → testes (vitest em `src/` e `scripts/`) → `build` → build do site (`npm run build:site` e
+`scripts/check-bundle-site.mjs`, que reprova código do sistema interno no `dist-site/`; o jsPDF é permitido
+desde 17/10/2026 porque o `/curriculo` gera PDF, carregado sob demanda). O `vite build` **não** checa
 tipos, por isso o typecheck (`tsc -p tsconfig.app.json`) é passo próprio.
 
 O repositório carrega dívida histórica de tipos e lint, então `typecheck` e

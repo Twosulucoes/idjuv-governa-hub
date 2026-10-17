@@ -20,19 +20,33 @@ import { useSidebarCollapse } from "@/hooks/useSidebarCollapse";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Menu, ArrowUp } from "lucide-react";
-import type { Modulo } from "@/shared/config/modules.config";
+import { moduloDaRota, type Modulo } from "@/shared/config/modules.config";
+import { useModuleRouter } from "@/hooks/useModuleRouter";
 import { SystemCredits } from "./SystemCredits";
 import { AvisosDestaque } from "@/components/avisos";
 import { AvisoSomenteConsulta } from "@/components/lancamento-setor/AvisoSomenteConsulta";
 
 interface ModuleLayoutProps {
   children: ReactNode;
-  module: Modulo;
+  /** Sem módulo (telas transversais, ex.: manuais): o da rota, senão o primeiro módulo do usuário. */
+  module?: Modulo;
   title?: string;
   description?: string;
 }
 
-export function ModuleLayout({ children, module, title, description }: ModuleLayoutProps) {
+export function ModuleLayout(props: ModuleLayoutProps) {
+  return props.module ? <LayoutDoModulo {...props} module={props.module} /> : <LayoutTransversal {...props} />;
+}
+
+// Tela transversal (manuais, processos, formulários…): módulo da rota, senão o primeiro do usuário. Fica num
+// componente à parte para o useModuleRouter (RPC de acesso) só rodar nessas telas.
+function LayoutTransversal(props: ModuleLayoutProps) {
+  const { pathname } = useLocation();
+  const { primaryModule } = useModuleRouter();
+  return <LayoutDoModulo {...props} module={moduloDaRota(pathname) ?? primaryModule ?? "admin"} />;
+}
+
+function LayoutDoModulo({ children, module, title, description }: ModuleLayoutProps & { module: Modulo }) {
   const { isCollapsed, toggle } = useSidebarCollapse(false);
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

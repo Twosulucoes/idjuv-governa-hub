@@ -9,9 +9,15 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Eye, EyeOff, ListChecks } from "lucide-react";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/design-system";
 import { useConfigMenuPublico, useToggleMenuVisivel } from "@/hooks/useConfigMenuPublico";
+import { MENU_PUBLICO } from "@/config/menu-publico.config";
 
 export default function GerenciadorMenuPublicoPage() {
-  const { data: itens = [], isLoading } = useConfigMenuPublico();
+  const { data: linhas = [], isLoading } = useConfigMenuPublico();
+  // Só as linhas de itens que ainda existem no menu do site, com o nome que aparece no cabeçalho.
+  const itens = linhas.flatMap((linha) => {
+    const item = MENU_PUBLICO.find((m) => m.chave === linha.chave);
+    return item ? [{ ...linha, label: item.title }] : [];
+  });
   const toggleVisivel = useToggleMenuVisivel();
 
   return (
