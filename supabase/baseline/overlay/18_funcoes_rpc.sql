@@ -556,34 +556,55 @@ $$;
 --     celular de TODOS os gestores) foi fechada; as duas telas públicas só precisam de nome, status e nome da
 --     escola, então passam a usar estas RPCs (mesma ideia das de árbitros: nada de dado pessoal além do que
 --     a própria pessoa informou ou já conhece). Quem envia continua sem escolher o status (trigger do overlay 20).
+--     P12 (migração 20261017090000, mesmo texto): limite por IP (limite_publico_consumir), a consulta devolve só a
+--     situação e o nome da escola, e a duplicidade no cadastro volta como {"erro": ...} neutro (sem constraint).
 CREATE OR REPLACE FUNCTION public.consultar_gestor_por_cpf(p_cpf text)
-RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT jsonb_build_object(
-           'id', g.id, 'nome', g.nome, 'status', g.status,
-           'escola', jsonb_build_object('id', e.id, 'nome', e.nome))
-  FROM public.gestores_escolares g
-  LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
-  WHERE length(regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g')) = 11
-    AND regexp_replace(coalesce(g.cpf, ''), '\D', '', 'g') = regexp_replace(p_cpf, '\D', '', 'g')
-  LIMIT 1;
-$$;
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF length(regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g')) <> 11 THEN
+    RETURN NULL;
+  END IF;
+  PERFORM public.limite_publico_consumir('gestor_consultar', 30, 'gestores_escolares');
+  RETURN (
+    SELECT jsonb_build_object('status', g.status, 'escola', jsonb_build_object('nome', e.nome))
+    FROM public.gestores_escolares g
+    LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
+    WHERE regexp_replace(coalesce(g.cpf, ''), '\D', '', 'g') = regexp_replace(p_cpf, '\D', '', 'g')
+    LIMIT 1);
+END;
+$function$;
 
 CREATE OR REPLACE FUNCTION public.registrar_gestor_publico(
   p_escola_id uuid, p_nome text, p_cpf text, p_rg text, p_data_nascimento date,
   p_email text, p_celular text, p_endereco text
-) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
 DECLARE
   v_id uuid;
 BEGIN
-  INSERT INTO public.gestores_escolares (escola_id, nome, cpf, rg, data_nascimento, email, celular, endereco, status)
-  VALUES (p_escola_id, p_nome, p_cpf, p_rg, p_data_nascimento, p_email, p_celular, p_endereco, 'aguardando')
-  RETURNING id INTO v_id;
-  RETURN (SELECT jsonb_build_object('id', g.id, 'nome', g.nome, 'status', g.status,
-                                    'escola', jsonb_build_object('id', e.id, 'nome', e.nome))
+  PERFORM public.limite_publico_consumir('gestor_registrar', 10, 'gestores_escolares');
+  BEGIN
+    INSERT INTO public.gestores_escolares (escola_id, nome, cpf, rg, data_nascimento, email, celular, endereco, status)
+    VALUES (p_escola_id, p_nome, p_cpf, p_rg, p_data_nascimento, p_email, p_celular, p_endereco, 'aguardando')
+    RETURNING id INTO v_id;
+  EXCEPTION WHEN unique_violation THEN
+    -- CPF, e-mail ou escola já cadastrados: mensagem neutra (não diz qual dado existe) e a tentativa conta no limite
+    RETURN jsonb_build_object('erro',
+      'Não foi possível concluir o pré-cadastro com estes dados. Confira as informações ou procure a coordenação.');
+  END;
+  RETURN (SELECT jsonb_build_object('nome', g.nome, 'status', g.status, 'escola', jsonb_build_object('nome', e.nome))
           FROM public.gestores_escolares g LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
           WHERE g.id = v_id);
 END;
-$$;
+$function$;
 
 -- I6) Portal da Transparência (migração 20261010200100): execução orçamentária, licitações e patrimônio.
 --     As tabelas continuam fechadas para anon; estas RPCs devolvem só os campos das telas públicas, com o

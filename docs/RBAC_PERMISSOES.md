@@ -117,7 +117,8 @@ nem exclui outro admin, e o assistente de IA (`compras`) e o convite de reunião
    `role_permissions` e o catálogo, e faz a união das três fontes.
    (O RPC **`listar_permissoes_usuario`** e a função
    **`get_user_permission_codes`** resolvem a mesma união no banco, para uso
-   em RLS e em consultas fora do front.)
+   em RLS e em consultas fora do front; desde o P12, pela API, só para o
+   próprio usuário ou o admin.)
 3. `AuthUser.permissions` recebe os códigos granulares e `AuthUser.modules` os
    módulos (cache em memória, TTL ~60s).
 4. UI consulta `hasPermission(codigo)`, `hasAnyPermission([...])`,
@@ -1063,6 +1064,21 @@ Camadas complementares:
   de rotas inexistentes). As menções a ele nas seções acima são registro histórico.
 - **D6 confirmada pelo dono (16/10/2026):** fica como a Onda B2 deixou; o papel `user` não grava férias,
   licenças, viagens, ponto nem frequência.
+
+### Login, senha e funções de permissão (P12, 17/10/2026)
+
+- **Login sem pista:** o `AuthContext` mostra "E-mail ou senha inválidos" para qualquer erro de credencial (não
+  revela se o e-mail existe ou não foi confirmado); erro de rede tem mensagem própria.
+- **Senha mínima de 8 caracteres** ao criar ou trocar (`MeuPerfilPage`, `TrocaSenhaObrigatoriaPage` e a
+  redefinição em `AuthPage`); no login a senha só é obrigatória. A regra é de tela: o GoTrue da instância ainda
+  precisa exigir o mínimo de 8 e a senha atual na troca (configuração do servidor). `requires_password_change`
+  também só é aplicado pela tela (passo 3 acima).
+- **Permissões de outro usuário:** `get_user_permission_codes`, `listar_permissoes_usuario`,
+  `get_permissions_from_servidor` e `get_user_permissions` respondem pela API só ao próprio usuário ou ao papel
+  admin (`42501` nos demais); service role e chamadas internas (policies com `auth.uid()`) continuam.
+  `get_chefe_unidade_atual` responde só a quem lê `nomeacoes_chefe_unidade` (módulos `rh` ou `patrimonio`; admin).
+  `has_permission_code`, `can_access_module` e `is_admin_user` ainda aceitam o uuid de outro usuário (pendência
+  em [AUDITORIA_USUARIOS.md](./AUDITORIA_USUARIOS.md)). Detalhes em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
 
 ### Exemplo: inventário de campo (fase 1)
 

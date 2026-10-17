@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { MENSAGEM_URL_HTTP, REGEX_URL_HTTP } from "@/lib/urlSegura";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,7 +51,7 @@ const cargoSchema = z.object({
   lei_criacao_numero: z.string().max(50).optional().or(z.literal("")),
   lei_criacao_data: z.string().optional().or(z.literal("")),
   lei_criacao_artigo: z.string().max(100).optional().or(z.literal("")),
-  lei_documento_url: z.string().url().optional().or(z.literal("")),
+  lei_documento_url: z.string().url().regex(REGEX_URL_HTTP, MENSAGEM_URL_HTTP).optional().or(z.literal("")),
   competencias: z.array(z.string()).optional(),
   responsabilidades: z.array(z.string()).optional(),
   requisitos: z.array(z.string()).optional(),

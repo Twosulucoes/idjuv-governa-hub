@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { MENSAGEM_URL_HTTP, REGEX_URL_HTTP } from '@/lib/urlSegura';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -40,7 +41,7 @@ const federacaoEditSchema = z.object({
   email: z.string().email('E-mail inválido'),
   instagram: z.string().optional(),
   facebook: z.string().optional(),
-  site: z.string().url('URL inválida').optional().or(z.literal('')),
+  site: z.string().url('URL inválida').regex(REGEX_URL_HTTP, MENSAGEM_URL_HTTP).optional().or(z.literal('')),
   mandato_inicio: z.string().min(1, 'Informe a data de início do mandato'),
   mandato_fim: z.string().min(1, 'Informe a data de fim do mandato'),
   presidente_nome: z.string().min(5, 'Nome deve ter pelo menos 5 caracteres'),

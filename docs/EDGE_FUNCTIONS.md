@@ -42,6 +42,21 @@ núcleo não deve virar relay de texto livre. Sem configuração ativa, e-mail c
 `RESEND_FROM` e o convite por WhatsApp volta ao link `wa.me`. Um novo uso (ex.: avisos) entra como ação
 nova em `enviar-notificacao`, recebendo o id do registro e checando a permissão do domínio.
 
+### CORS e `ALLOWED_ORIGINS` (`_shared/cors.ts`)
+
+Desde o P12 (17/10/2026), todas as funções montam o CORS por `montarCors` (`supabase/functions/_shared/cors.ts`),
+que falha fechado: sem `ALLOWED_ORIGINS`, a resposta sai sem `Access-Control-Allow-Origin` (antes caía em `*`) e o
+navegador bloqueia a chamada; com a lista (separada por vírgula), a origem que está nela é ecoada. Chamada servidor
+a servidor não depende de CORS. Por isso `ALLOWED_ORIGINS` é **obrigatória em toda instância**, no ambiente do
+serviço de funções: em produção, `https://idjuv.online` e o endereço do app, se houver; em desenvolvimento, a
+origem local (ex.: `http://localhost:8080`).
+
+### Erros devolvidos ao cliente
+
+`admin-reset-password`, `admin-create-user`, `delete-user` e `database-schema` devolvem mensagem genérica ao
+navegador e deixam o detalhe só no log (P12). `delete-user` sem token responde `401`. `admin-reset-password` grava
+na trilha "usuário `<id>`", sem o e-mail; `cpsi-ai-assistant` loga só o status e o tamanho da resposta.
+
 ### Gestão de usuários (`admin-create-user`, `admin-reset-password`, `delete-user`)
 
 As três exigem o **papel** `admin` (`is_admin_user`, que também exige perfil ativo), não só a permissão
@@ -62,10 +77,14 @@ teto vira erro claro (422). Erros internos não vão para o navegador.
 
 ### Convite de reunião (`enviar-convite-reuniao`)
 
-Só o criador da reunião ou um administrador envia. Limites contra uso como disparador de mensagens com a marca
+Só o criador da reunião ou um administrador envia, e desde o P12 ele precisa ter também o módulo `gabinete` ou
+`admin`, os mesmos que a RLS da agenda aceita (conferido no banco com o token do próprio usuário). Limites contra uso como disparador de mensagens com a marca
 do órgão: 50 participantes por chamada, 200 convites por usuário por hora (reenvios contam), mensagem livre de
 até 2.000 caracteres e nenhum link (com esquema, `www.` ou domínio nu) no texto final de cada destinatário,
-no local, na pauta ou na assinatura além do link da própria reunião. CORS por `ALLOWED_ORIGINS`, como as
+no local, na pauta, na assinatura, no título da reunião ou no nome de cada participante além do link da própria
+reunião (o título e os nomes são conferidos sempre). O link `wa.me` só é gerado para participante externo (número
+digitado na reunião); o servidor só recebe pela API oficial e, se o envio não sai, o resultado é sempre "Não
+enviado", sem revelar se ele tem telefone ou e-mail cadastrado. CORS por `ALLOWED_ORIGINS`, como as
 demais. Pendente (modelo novo): o módulo `gabinete` ainda pode trocar o `created_by` de uma reunião pela API,
 e o link da reunião é livre (uma lista de domínios por instância fecharia isso).
 
@@ -75,6 +94,9 @@ As duas funções acima usam a RPC `consumir_cota_uso(usuario, tipo, quantidade,
 (migração `supabase/migrations/20261010233100_onda2_cota_uso.sql`): conta o uso da última hora e registra em `audit_logs`
 (`entity_type` = tipo, `metadata.quantidade`) na mesma transação, sob lock por usuário, então pedidos em
 paralelo não furam o limite. Só a service role executa.
+
+Desde o P12 a RPC também limita `bb-api` na ação `validar-conta` (60 por usuário por hora, tipo `bb_validar_conta`)
+e o envio de teste de `enviar-notificacao` (20 por usuário por hora, tipo `envio_teste`).
 
 Trilha (onda E1, [`BANCO_DE_DADOS.md`](./BANCO_DE_DADOS.md#trilha-de-auditoria-e-servidor-responsável-do-rh--onda-e1)):
 as gravações dessas funções rodam pela service role e entram em `audit_logs` com origem `sistema`, sem autor. Por
@@ -107,8 +129,8 @@ A função lê `frequencia_pacotes` e assina URLs com a service role, então, de
   download") e o `console.error` só com o código do erro. Antes gravava sem módulo (a linha não aparecia na trilha
   do RH), com `entity_type = 'frequencia_pacote'` e o nome do arquivo, e ignorava a falha.
 
-O CORS continua `Access-Control-Allow-Origin: *`: a função só aceita o token no cabeçalho `Authorization`, sem
-cookie. Restringir o CORS à origem do tenant é pendência. O ZIP do pacote nunca é gravado hoje, então o download
+Desde o P12 a função deixou o `Access-Control-Allow-Origin: *` fixo e usa `montarCors`, como as demais (seção
+"CORS e `ALLOWED_ORIGINS`"). O ZIP do pacote nunca é gravado hoje, então o download
 fica sem arquivo até isso existir. Regras de acesso completas em
 [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3).
 

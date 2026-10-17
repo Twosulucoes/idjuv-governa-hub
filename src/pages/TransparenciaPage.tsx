@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { urlSegura } from "@/lib/urlSegura";
 import { Eye, ExternalLink, FileText, Download, Calendar, Loader2, Users, Building2, BarChart3, Package, MessageSquareQuote } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +66,9 @@ export default function TransparenciaPage() {
 
   // O portal externo é do tenant: só entra na lista se a instituição o declarou
   // (White Label — Fase 3). Antes era link fixo para o portal do Estado.
-  const transparenciaItems: ItemTransparencia[] = integracoes?.portalTransparenciaUrl
+  // O endereço vem de dados_oficiais (banco): só vale se for http(s)
+  const portalTransparenciaUrl = urlSegura(integracoes?.portalTransparenciaUrl);
+  const transparenciaItems: ItemTransparencia[] = portalTransparenciaUrl
     ? [
         {
           title: "Portal da Transparência",
@@ -74,7 +77,7 @@ export default function TransparenciaPage() {
           }`,
           icon: ExternalLink,
           external: true,
-          href: integracoes.portalTransparenciaUrl,
+          href: portalTransparenciaUrl,
         },
         ...itensInternos,
       ]
@@ -153,10 +156,10 @@ export default function TransparenciaPage() {
                               <p className="text-base text-muted-foreground">{doc.descricao}</p>
                             )}
                           </div>
-                          {doc.arquivo_url && (
+                          {urlSegura(doc.arquivo_url) && (
                             <Button asChild variant="outline">
                               <a
-                                href={doc.arquivo_url}
+                                href={urlSegura(doc.arquivo_url)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 aria-label={`Baixar ${doc.titulo} (abre em nova aba)`}
@@ -227,9 +230,9 @@ export default function TransparenciaPage() {
                 Para solicitar informações não disponíveis neste portal, utilize o 
                 Serviço de Informação ao Cidadão (SIC){entidadeSuperior ? ` do ${entidadeSuperior.nome}` : ""}.
               </p>
-              {integracoes?.portalTransparenciaUrl && (
+              {portalTransparenciaUrl && (
                 <a
-                  href={integracoes.portalTransparenciaUrl}
+                  href={portalTransparenciaUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex min-h-11 items-center gap-2 text-info hover:underline font-medium"

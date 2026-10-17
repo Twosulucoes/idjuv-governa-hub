@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { urlSegura } from "@/lib/urlSegura";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ModuleLayout } from "@/components/layout";
@@ -550,11 +551,11 @@ export default function GestaoDocumentosPage() {
                         </>
                       )}
                     </Button>
-                    {formData.arquivo_url && (
+                    {urlSegura(formData.arquivo_url) && (
                       <div className="flex items-center gap-2 text-sm text-success">
                         <CheckCircle className="h-4 w-4" aria-hidden="true" />
                         <a 
-                          href={formData.arquivo_url} 
+                          href={urlSegura(formData.arquivo_url)} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="hover:underline"
@@ -661,10 +662,10 @@ export default function GestaoDocumentosPage() {
           }
           acoesLinha={(doc) => (
             <div className="flex justify-end gap-1">
-              {doc.arquivo_url && (
+              {urlSegura(doc.arquivo_url) && (
                 <Button variant="ghost" size="icon" asChild>
                   <a
-                    href={doc.arquivo_url}
+                    href={urlSegura(doc.arquivo_url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`Ver arquivo do documento ${doc.numero}`}

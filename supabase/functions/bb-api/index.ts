@@ -14,7 +14,8 @@
 //                  movimento (fin_movimentos_bancarios, lido aqui no servidor; o corpo não aceita documento) é o
 //                  titular. banco, se vier, tem de ser 001. Cada consulta vai para a trilha audit_logs (módulo
 //                  financeiro, entity_type fin_movimentos_bancarios, entity_id = movimento) com o resultado e sem
-//                  documento, agência ou conta; sem registro na trilha, o resultado não é devolvido.
+//                  documento, agência ou conta; sem registro na trilha, o resultado não é devolvido. Cota de 60
+//                  consultas por usuário por hora (consumir_cota_uso, entity_type bb_validar_conta; acima, 429).
 //
 // Toda chamada ao BB tem tempo limite de 20 s (AbortSignal.timeout): estouro vira 503 com etapa e código "timeout".
 //
@@ -29,25 +30,11 @@
 // ============================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { CABECALHOS_CLIENTE_SUPABASE, montarCors } from "../_shared/cors.ts";
 
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
+// CORS com allowlist por ambiente (ALLOWED_ORIGINS), em falha fechada: ver ../_shared/cors.ts.
 function corsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowOrigin = ALLOWED_ORIGINS.length === 0
-    ? "*"
-    : ALLOWED_ORIGINS.includes(origin)
-      ? origin
-      : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Vary": "Origin",
-  };
+  return montarCors(req, { cabecalhos: CABECALHOS_CLIENTE_SUPABASE });
 }
 
 // ---------------------------------------------------------------- configuração
@@ -122,6 +109,9 @@ function obterClienteMtls(cfg: ConfigBB): ClienteHttp {
 
 const TEMPO_LIMITE_MS = 20_000;
 const MAX_PAGINAS_EXTRATO = 50;
+// validar-conta: no máximo 60 consultas por usuário por hora (cada uma confirma titularidade de CPF/CNPJ no BB).
+// Cota pela RPC consumir_cota_uso (conta e registra em audit_logs na mesma transação).
+const MAX_VALIDACOES_POR_HORA = 60;
 
 async function buscar(etapa: string, url: string, init: RequestInit, cliente?: ClienteHttp): Promise<Response> {
   // `client` é a extensão do Deno ao fetch para mTLS. Tempo limite em toda chamada ao BB.
@@ -358,6 +348,23 @@ Deno.serve(async (req) => {
       if (!mov) return responder({ error: "Movimento não encontrado" }, 404);
       const doc = digitos(mov.favorecido_documento);
       if (doc.length !== 11 && doc.length !== 14) return responder({ error: "O movimento não tem CPF/CNPJ do favorecido" }, 400);
+
+      // Cota por usuário na última hora, antes de chamar o BB. Sem documento, agência nem conta na descrição.
+      const { data: dentroDaCota, error: cotaError } = await admin.rpc("consumir_cota_uso", {
+        _usuario: user.id,
+        _tipo: "bb_validar_conta",
+        _quantidade: 1,
+        _limite: MAX_VALIDACOES_POR_HORA,
+        _modulo: "financeiro",
+        _descricao: `Validação de conta no Banco do Brasil (movimento ${movimentoId})`,
+      });
+      if (cotaError) {
+        console.error("bb-api: validar-conta: falha ao consumir a cota", cotaError.code ?? "");
+        return responder({ error: "Falha ao verificar o limite de uso" }, 500);
+      }
+      if (!dentroDaCota) {
+        return responder({ error: `Limite de ${MAX_VALIDACOES_POR_HORA} validações de conta por hora atingido. Tente mais tarde.` }, 429);
+      }
 
       // Trilha: quem consultou, qual movimento e o resultado (sem documento, agência nem conta).
       const registrar = async (resultado: Record<string, unknown>) => {

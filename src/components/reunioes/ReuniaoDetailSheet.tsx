@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { urlSegura } from "@/lib/urlSegura";
 import { useNavigate } from "react-router-dom";
 import {
   Sheet,
@@ -268,11 +269,11 @@ export function ReuniaoDetailSheet({ open, onOpenChange, reuniaoId, onUpdate }: 
                       <span>{reuniao.local}</span>
                     </div>
                   )}
-                  {reuniao.link_virtual && (
+                  {urlSegura(reuniao.link_virtual) && (
                     <div className="flex items-center gap-2">
                       <Video className="h-4 w-4 text-muted-foreground" />
                       <a 
-                        href={reuniao.link_virtual} 
+                        href={urlSegura(reuniao.link_virtual)} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline flex items-center gap-1 truncate flex-1"

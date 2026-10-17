@@ -4,6 +4,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/design-system";
 import { useLinksUteisPublicos } from "@/hooks/useLinksUteis";
+import { urlSegura } from "@/lib/urlSegura";
 
 export default function LinksUteisPage() {
   const { links, isLoading } = useLinksUteisPublicos();
@@ -60,15 +61,20 @@ export default function LinksUteisPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h2 className="text-lg font-semibold group-hover:text-primary transition-colors">
-                            <a
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="focus-visible:outline-none after:absolute after:inset-0 after:content-['']"
-                            >
-                              {link.titulo}
-                              <span className="sr-only"> (abre em nova aba)</span>
-                            </a>
+                            {urlSegura(link.url) ? (
+                              <a
+                                href={urlSegura(link.url)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="focus-visible:outline-none after:absolute after:inset-0 after:content-['']"
+                              >
+                                {link.titulo}
+                                <span className="sr-only"> (abre em nova aba)</span>
+                              </a>
+                            ) : (
+                              // Link fora de http(s) não vira <a>: mostra só o título
+                              link.titulo
+                            )}
                           </h2>
                           {link.descricao && (
                             <p className="text-base text-muted-foreground mt-1">{link.descricao}</p>

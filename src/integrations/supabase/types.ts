@@ -15307,6 +15307,28 @@ export type Database = {
           },
         ]
       }
+      limite_requisicoes_publicas: {
+        Row: {
+          acao: string
+          chave_hash: string
+          criado_em: string
+          id: string
+        }
+        ComputedFields: never
+        Insert: {
+          acao: string
+          chave_hash: string
+          criado_em?: string
+          id?: string
+        }
+        Update: {
+          acao?: string
+          chave_hash?: string
+          criado_em?: string
+          id?: string
+        }
+        Relationships: []
+      }
       links_uteis: {
         Row: {
           alterado_por: string | null
@@ -24676,6 +24698,10 @@ export type Database = {
       lancamento_modulos_tabela: {
         Args: { p_tabela: string }
         Returns: string[]
+      }
+      limite_publico_consumir: {
+        Args: { p_acao: string; p_limite: number; p_modulo?: string }
+        Returns: undefined
       }
       list_public_tables: {
         Args: Record<PropertyKey, never>

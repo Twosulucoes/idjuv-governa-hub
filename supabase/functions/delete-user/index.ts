@@ -1,28 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { montarCors } from "../_shared/cors.ts";
 
-// CORS com allowlist por ambiente (ver admin-create-user).
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
+// CORS com allowlist por ambiente (ALLOWED_ORIGINS), em falha fechada: ver ../_shared/cors.ts.
 function corsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowOrigin = ALLOWED_ORIGINS.length === 0
-    ? "*"
-    : ALLOWED_ORIGINS.includes(origin)
-      ? origin
-      : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Vary": "Origin",
-  };
+  return montarCors(req);
 }
 
 serve(async (req) => {
   const cors = corsHeaders(req);
+  const responder = (corpo: Record<string, unknown>, status: number) =>
+    new Response(JSON.stringify(corpo), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: cors });
@@ -31,7 +19,7 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      throw new Error("Não autorizado");
+      return responder({ success: false, error: "Não autorizado" }, 401);
     }
 
     // Cliente no contexto do usuário (para validar identidade e permissão)
@@ -43,7 +31,7 @@ serve(async (req) => {
 
     const { data: { user: requestingUser }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !requestingUser) {
-      throw new Error("Usuário não autenticado");
+      return responder({ success: false, error: "Usuário não autenticado" }, 401);
     }
 
     // Autorização: papel de administrador (is_admin_user). A permissão admin.usuarios, concedida por módulo ao papel `user`,
@@ -53,7 +41,9 @@ serve(async (req) => {
     );
 
     if (permError) {
-      throw new Error(`Falha ao validar permissões: ${permError.message}`);
+      // Detalhe só no log; o cliente recebe a mensagem genérica.
+      console.error("delete-user: falha ao validar permissões:", permError.code, permError.message);
+      return responder({ success: false, error: "Falha ao validar permissões" }, 500);
     }
 
     if (!temPermissao) {
@@ -72,11 +62,11 @@ serve(async (req) => {
 
     const { userId } = await req.json();
     if (!userId) {
-      throw new Error("ID do usuário não informado");
+      return responder({ success: false, error: "ID do usuário não informado" }, 400);
     }
 
     if (userId === requestingUser.id) {
-      throw new Error("Você não pode excluir sua própria conta");
+      return responder({ success: false, error: "Você não pode excluir sua própria conta" }, 400);
     }
 
     // Nenhum administrador é excluído por esta função (antes só um UUID fixo era protegido, e ele não
@@ -89,7 +79,8 @@ serve(async (req) => {
       .limit(1);
 
     if (alvoError) {
-      throw new Error("Falha ao verificar o usuário");
+      console.error("delete-user: falha ao verificar o usuário:", alvoError.code);
+      return responder({ success: false, error: "Falha ao verificar o usuário" }, 500);
     }
 
     if ((alvoAdmin ?? []).length > 0) {
@@ -131,7 +122,8 @@ serve(async (req) => {
     // Excluir do auth.users (cascata remove o profile)
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (deleteError) {
-      throw new Error(`Erro ao excluir usuário: ${deleteError.message}`);
+      console.error("delete-user: falha ao excluir no Auth:", deleteError.status, deleteError.message);
+      return responder({ success: false, error: "Erro ao excluir usuário" }, 500);
     }
 
     // Registrar no audit log
@@ -154,10 +146,8 @@ serve(async (req) => {
       { headers: { ...cors, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Erro:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: (error as Error).message }),
-      { status: 400, headers: { ...corsHeaders(req), "Content-Type": "application/json" } }
-    );
+    // Detalhe só no log; o cliente recebe a mensagem genérica.
+    console.error("delete-user: erro inesperado:", error);
+    return responder({ success: false, error: "Erro ao excluir usuário" }, 500);
   }
 });

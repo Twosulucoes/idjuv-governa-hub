@@ -117,11 +117,10 @@ BEGIN
   END LOOP;
 END $$;
 
--- Formulário público de gestores escolares: o INSERT anônimo só cria pré-cadastro "aguardando" (igual à
--- migração 20261010170000; o trigger acima já força o status, a policy recusa em vez de corrigir).
+-- Formulário público de gestores escolares: desde a P12 (migração 20261017090000) o cadastro público é só pela
+-- RPC registrar_gestor_publico (limite por IP, overlay 18). Sem policy de INSERT para anon nem para o logado sem
+-- o módulo (antes: insercao_publica_gestores, WITH CHECK (status = 'aguardando')); o privilégio sai no overlay 40.
 DROP POLICY IF EXISTS "insercao_publica_gestores" ON public.gestores_escolares;
-CREATE POLICY "insercao_publica_gestores" ON public.gestores_escolares FOR INSERT TO anon, authenticated
-  WITH CHECK (status = 'aguardando');
 
 -- Links gravados por quem envia o formulário público (foto e documentos do árbitro) aparecem como <a href>
 -- na tela da equipe: `javascript:` ou um endereço de phishing viravam link clicável dentro do sistema.

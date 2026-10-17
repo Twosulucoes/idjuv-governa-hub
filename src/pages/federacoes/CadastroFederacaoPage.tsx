@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { MENSAGEM_URL_HTTP, REGEX_URL_HTTP } from '@/lib/urlSegura';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CheckCircle, Loader2 } from 'lucide-react';
@@ -39,7 +40,7 @@ const federacaoSchema = z.object({
   email: z.string().email('E-mail inválido'),
   instagram: z.string().optional(),
   facebook: z.string().optional(),
-  site: z.string().url('URL inválida').optional().or(z.literal('')),
+  site: z.string().url('URL inválida').regex(REGEX_URL_HTTP, MENSAGEM_URL_HTTP).optional().or(z.literal('')),
   
   // Mandato
   mandato_inicio: z.string().min(1, 'Informe a data de início do mandato'),

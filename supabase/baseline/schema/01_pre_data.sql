@@ -1697,16 +1697,19 @@ $$;
 --
 
 CREATE FUNCTION public.arbitro_cpf_cadastrado(p_cpf text) RETURNS boolean
-    LANGUAGE sql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT length(regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g')) = 11
-     AND EXISTS (
-       SELECT 1
-       FROM public.cadastro_arbitros
-       WHERE regexp_replace(coalesce(cpf, ''), '\D', '', 'g')
-           = regexp_replace(p_cpf, '\D', '', 'g')
-     );
+BEGIN
+  IF length(regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g')) <> 11 THEN
+    RETURN false;
+  END IF;
+  PERFORM public.limite_publico_consumir('arbitro_cpf', 30, 'arbitros');
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.cadastro_arbitros
+    WHERE regexp_replace(coalesce(cpf, ''), '\D', '', 'g') = regexp_replace(p_cpf, '\D', '', 'g'));
+END;
 $$;
 
 
@@ -2610,17 +2613,21 @@ COMMENT ON FUNCTION public.confirmar_remessa_bancaria(p_id uuid, p_sha256 text) 
 --
 
 CREATE FUNCTION public.consultar_gestor_por_cpf(p_cpf text) RETURNS jsonb
-    LANGUAGE sql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT jsonb_build_object(
-           'id', g.id, 'nome', g.nome, 'status', g.status,
-           'escola', jsonb_build_object('id', e.id, 'nome', e.nome))
-  FROM public.gestores_escolares g
-  LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
-  WHERE length(regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g')) = 11
-    AND regexp_replace(coalesce(g.cpf, ''), '\D', '', 'g') = regexp_replace(p_cpf, '\D', '', 'g')
-  LIMIT 1;
+BEGIN
+  IF length(regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g')) <> 11 THEN
+    RETURN NULL;
+  END IF;
+  PERFORM public.limite_publico_consumir('gestor_consultar', 30, 'gestores_escolares');
+  RETURN (
+    SELECT jsonb_build_object('status', g.status, 'escola', jsonb_build_object('nome', e.nome))
+    FROM public.gestores_escolares g
+    LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
+    WHERE regexp_replace(coalesce(g.cpf, ''), '\D', '', 'g') = regexp_replace(p_cpf, '\D', '', 'g')
+    LIMIT 1);
+END;
 $$;
 
 
@@ -6675,7 +6682,7 @@ CREATE FUNCTION public.get_chefe_unidade_atual(p_unidade_id uuid) RETURNS TABLE(
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT 
+  SELECT
     n.id as nomeacao_id,
     n.servidor_id,
     s.nome_completo as servidor_nome,
@@ -6686,6 +6693,9 @@ CREATE FUNCTION public.get_chefe_unidade_atual(p_unidade_id uuid) RETURNS TABLE(
   JOIN public.servidores s ON s.id = n.servidor_id
   WHERE n.unidade_local_id = p_unidade_id
     AND n.status = 'ativo'
+    AND (coalesce(current_setting('role', true), 'none') NOT IN ('anon', 'authenticated')
+         OR public.can_access_module(auth.uid(), 'rh')
+         OR public.can_access_module(auth.uid(), 'patrimonio'))
   ORDER BY n.data_inicio DESC
   LIMIT 1;
 $$;
@@ -6842,6 +6852,11 @@ DECLARE
   v_permissions app_permission[] := ARRAY[]::app_permission[];
   v_role app_role;
 BEGIN
+  IF coalesce(current_setting('role', true), 'none') IN ('anon', 'authenticated')
+     AND _user_id IS DISTINCT FROM auth.uid() AND NOT public.is_admin_user(auth.uid()) THEN
+    RAISE EXCEPTION 'Sem permissão para consultar as permissões de outro usuário' USING ERRCODE = '42501';
+  END IF;
+
   -- Buscar dados do servidor vinculado
   SELECT s.cargo_atual_id, s.unidade_atual_id, c.nome as cargo_nome
   INTO v_servidor
@@ -6849,23 +6864,23 @@ BEGIN
   JOIN public.servidores s ON s.id = p.servidor_id
   LEFT JOIN public.cargos c ON c.id = s.cargo_atual_id
   WHERE p.id = _user_id;
-  
+
   -- Se não tem servidor vinculado, retorna vazio
   IF v_servidor IS NULL THEN
     RETURN v_permissions;
   END IF;
-  
+
   -- Buscar role do usuário
   SELECT role INTO v_role
   FROM public.user_roles
   WHERE user_id = _user_id
   LIMIT 1;
-  
+
   -- Buscar permissões baseadas no role
   SELECT ARRAY_AGG(DISTINCT rp.permission) INTO v_permissions
   FROM public.role_permissions rp
   WHERE rp.role = v_role;
-  
+
   RETURN COALESCE(v_permissions, ARRAY[]::app_permission[]);
 END;
 $$;
@@ -6925,37 +6940,46 @@ $$;
 --
 
 CREATE FUNCTION public.get_user_permission_codes(_user_id uuid) RETURNS text[]
-    LANGUAGE sql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT COALESCE(array_agg(DISTINCT permission), '{}'::text[])
-  FROM (
-    -- 1. concessão avulsa
-    SELECT up.permission
-    FROM public.user_permissions up
-    WHERE up.user_id = _user_id
-    UNION
-    -- 2. padrão do papel, RESTRITO aos módulos que o usuário tem.
-    --    Sem esse recorte, o papel `user` (que recebe todos os `visualizar`
-    --    do catálogo) daria leitura de financeiro a quem só tem o módulo rh —
-    --    o papel define o QUE se pode fazer, o módulo define ONDE.
-    SELECT rp.permission
-    FROM public.user_roles ur
-    JOIN public.role_permissions rp
-      ON rp.role = ur.role
-    JOIN public.module_permissions_catalog mpc
-      ON mpc.permission_code = rp.permission
-    JOIN public.user_modules um
-      ON um.user_id = ur.user_id
-     AND um.module::text = mpc.module_code
-    WHERE ur.user_id = _user_id
-    UNION
-    -- 3. concessão dentro do módulo
-    SELECT unnest(um.permissions)
-    FROM public.user_modules um
-    WHERE um.user_id = _user_id
-      AND um.permissions IS NOT NULL
-  ) fontes(permission);
+BEGIN
+  -- Pela API (anon/authenticated) só sobre si mesmo ou sendo admin. Dentro das policies has_permission_code
+  -- é chamada com auth.uid(); service role e conexões diretas não passam por aqui.
+  IF coalesce(current_setting('role', true), 'none') IN ('anon', 'authenticated')
+     AND _user_id IS DISTINCT FROM auth.uid() AND NOT public.is_admin_user(auth.uid()) THEN
+    RAISE EXCEPTION 'Sem permissão para consultar as permissões de outro usuário' USING ERRCODE = '42501';
+  END IF;
+  RETURN (
+    SELECT COALESCE(array_agg(DISTINCT permission), '{}'::text[])
+    FROM (
+      -- 1. concessão avulsa
+      SELECT up.permission
+      FROM public.user_permissions up
+      WHERE up.user_id = _user_id
+      UNION
+      -- 2. padrão do papel, RESTRITO aos módulos que o usuário tem.
+      --    Sem esse recorte, o papel `user` (que recebe todos os `visualizar`
+      --    do catálogo) daria leitura de financeiro a quem só tem o módulo rh —
+      --    o papel define o QUE se pode fazer, o módulo define ONDE.
+      SELECT rp.permission
+      FROM public.user_roles ur
+      JOIN public.role_permissions rp
+        ON rp.role = ur.role
+      JOIN public.module_permissions_catalog mpc
+        ON mpc.permission_code = rp.permission
+      JOIN public.user_modules um
+        ON um.user_id = ur.user_id
+       AND um.module::text = mpc.module_code
+      WHERE ur.user_id = _user_id
+      UNION
+      -- 3. concessão dentro do módulo
+      SELECT unnest(um.permissions)
+      FROM public.user_modules um
+      WHERE um.user_id = _user_id
+        AND um.permissions IS NOT NULL
+    ) fontes(permission));
+END;
 $$;
 
 
@@ -6971,17 +6995,24 @@ COMMENT ON FUNCTION public.get_user_permission_codes(_user_id uuid) IS 'União d
 --
 
 CREATE FUNCTION public.get_user_permissions(_user_id uuid) RETURNS text[]
-    LANGUAGE sql STABLE SECURITY DEFINER
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-  SELECT ARRAY_AGG(DISTINCT permission::TEXT)
-  FROM (
-    SELECT permission FROM public.user_permissions WHERE user_id = _user_id
-    UNION
-    SELECT rp.permission FROM public.user_roles ur
-    JOIN public.role_permissions rp ON ur.role = rp.role
-    WHERE ur.user_id = _user_id
-  ) perms
+BEGIN
+  IF coalesce(current_setting('role', true), 'none') IN ('anon', 'authenticated')
+     AND _user_id IS DISTINCT FROM auth.uid() AND NOT public.is_admin_user(auth.uid()) THEN
+    RAISE EXCEPTION 'Sem permissão para consultar as permissões de outro usuário' USING ERRCODE = '42501';
+  END IF;
+  RETURN (
+    SELECT ARRAY_AGG(DISTINCT permission::TEXT)
+    FROM (
+      SELECT permission FROM public.user_permissions WHERE user_id = _user_id
+      UNION
+      SELECT rp.permission FROM public.user_roles ur
+      JOIN public.role_permissions rp ON ur.role = rp.role
+      WHERE ur.user_id = _user_id
+    ) perms);
+END;
 $$;
 
 
@@ -8318,6 +8349,56 @@ $$;
 
 
 --
+-- Name: limite_publico_consumir(text, integer, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.limite_publico_consumir(p_acao text, p_limite integer, p_modulo text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_papel text := coalesce(current_setting('role', true), 'none');
+  v_ip text;
+  v_hash text;
+BEGIN
+  -- caminhos internos (service role, migrações, superusuário) não consomem
+  IF v_papel NOT IN ('anon', 'authenticated') THEN
+    RETURN;
+  END IF;
+  -- a equipe do módulo, logada, trabalha atrás do mesmo IP do órgão
+  IF v_papel = 'authenticated' AND p_modulo IS NOT NULL AND public.can_access_module(auth.uid(), p_modulo) THEN
+    RETURN;
+  END IF;
+  v_ip := (SELECT ip::text FROM public.trilha_contexto_requisicao());
+  v_hash := md5(p_acao || '|' || coalesce(v_ip, 'sem-ip'));
+  -- pedidos em paralelo do mesmo IP contam um depois do outro
+  PERFORM pg_advisory_xact_lock(hashtext('limite_publico:' || p_acao), hashtext(v_hash));
+  IF (SELECT count(*) FROM public.limite_requisicoes_publicas
+       WHERE acao = p_acao AND chave_hash = v_hash AND criado_em > now() - interval '1 hour') >= p_limite THEN
+    RAISE EXCEPTION 'Muitas solicitações deste endereço. Tente novamente mais tarde.' USING ERRCODE = 'PT429';
+  END IF;
+  INSERT INTO public.limite_requisicoes_publicas (acao, chave_hash) VALUES (p_acao, v_hash);
+  DELETE FROM public.limite_requisicoes_publicas WHERE criado_em < now() - interval '1 day';
+END;
+$$;
+
+
+--
+-- Name: limite_publico_insercao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.limite_publico_insercao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  PERFORM public.limite_publico_consumir(TG_ARGV[0], TG_ARGV[1]::integer, TG_ARGV[2]);
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: list_public_tables(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -8362,6 +8443,11 @@ CREATE FUNCTION public.listar_permissoes_usuario(check_user_id uuid) RETURNS TAB
 DECLARE
   user_role text;
 BEGIN
+  IF coalesce(current_setting('role', true), 'none') IN ('anon', 'authenticated')
+     AND check_user_id IS DISTINCT FROM auth.uid() AND NOT public.is_admin_user(auth.uid()) THEN
+    RAISE EXCEPTION 'Sem permissão para consultar as permissões de outro usuário' USING ERRCODE = '42501';
+  END IF;
+
   SELECT ur.role::text INTO user_role
   FROM public.user_roles ur
   WHERE ur.user_id = check_user_id
@@ -9910,6 +9996,8 @@ BEGIN
     RAISE EXCEPTION 'Informe seu nome ou selecione denúncia anônima';
   END IF;
 
+  PERFORM public.limite_publico_consumir('denuncia', 10, 'integridade');
+
   _protocolo := 'DEN-' || to_char(now(), 'YYYY') || '-' ||
                 lpad(nextval('public.denuncias_protocolo_seq')::text, 4, '0');
 
@@ -10137,11 +10225,17 @@ CREATE FUNCTION public.registrar_gestor_publico(p_escola_id uuid, p_nome text, p
 DECLARE
   v_id uuid;
 BEGIN
-  INSERT INTO public.gestores_escolares (escola_id, nome, cpf, rg, data_nascimento, email, celular, endereco, status)
-  VALUES (p_escola_id, p_nome, p_cpf, p_rg, p_data_nascimento, p_email, p_celular, p_endereco, 'aguardando')
-  RETURNING id INTO v_id;
-  RETURN (SELECT jsonb_build_object('id', g.id, 'nome', g.nome, 'status', g.status,
-                                    'escola', jsonb_build_object('id', e.id, 'nome', e.nome))
+  PERFORM public.limite_publico_consumir('gestor_registrar', 10, 'gestores_escolares');
+  BEGIN
+    INSERT INTO public.gestores_escolares (escola_id, nome, cpf, rg, data_nascimento, email, celular, endereco, status)
+    VALUES (p_escola_id, p_nome, p_cpf, p_rg, p_data_nascimento, p_email, p_celular, p_endereco, 'aguardando')
+    RETURNING id INTO v_id;
+  EXCEPTION WHEN unique_violation THEN
+    -- CPF, e-mail ou escola já cadastrados: mensagem neutra (não diz qual dado existe) e a tentativa conta no limite
+    RETURN jsonb_build_object('erro',
+      'Não foi possível concluir o pré-cadastro com estes dados. Confira as informações ou procure a coordenação.');
+  END;
+  RETURN (SELECT jsonb_build_object('nome', g.nome, 'status', g.status, 'escola', jsonb_build_object('nome', e.nome))
           FROM public.gestores_escolares g LEFT JOIN public.escolas_jer e ON e.id = g.escola_id
           WHERE g.id = v_id);
 END;
@@ -20131,6 +20225,25 @@ CREATE TABLE public.licencas_afastamentos (
 );
 
 ALTER TABLE ONLY public.licencas_afastamentos FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: limite_requisicoes_publicas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.limite_requisicoes_publicas (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    acao text NOT NULL,
+    chave_hash text NOT NULL,
+    criado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE limite_requisicoes_publicas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.limite_requisicoes_publicas IS 'Tentativas recentes dos formulários e consultas públicas (hash do IP por ação), para o limite por IP. Só limite_publico_consumir grava; ninguém lê pela API.';
 
 
 --

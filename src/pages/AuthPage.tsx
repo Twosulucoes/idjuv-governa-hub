@@ -18,7 +18,7 @@ import { useIdentidade } from '@/core/tenant';
 
 const loginSchema = z.object({
   email: z.string().trim().email('Email inválido'),
-  password: z.string().min(6, 'Mínimo 6 caracteres'),
+  password: z.string().min(1, 'Informe a senha'),
 });
 
 const resetSchema = z.object({
@@ -218,8 +218,8 @@ const AuthPage: React.FC = () => {
         else delete next.email;
       }
       if (field === 'password') {
-        if (value && value.length < 6) next.password = 'Mínimo 6 caracteres';
-        else delete next.password;
+        // Login: senha só é obrigatória (o mínimo de 8 vale ao criar/trocar senha)
+        delete next.password;
       }
       if (field === 'newPassword') {
         if (value && value.length < 8) next.newPassword = 'Mínimo 8 caracteres';

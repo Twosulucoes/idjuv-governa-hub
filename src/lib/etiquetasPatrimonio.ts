@@ -109,13 +109,19 @@ export async function imprimirEtiquetas(bens: BemEtiqueta[]): Promise<void> {
 </head>
 <body>
 ${etiquetas.join("\n")}
-<script>
-  window.onload = function () { window.focus(); window.print(); };
-</script>
 </body>
 </html>`;
 
   janela.document.open();
   janela.document.write(html);
   janela.document.close();
+
+  // A impressão é disparada daqui, não por <script> inline na janela: a CSP do app
+  // (script-src 'self', herdada pela janela about:blank) bloquearia o script inline.
+  const imprimir = () => {
+    janela.focus();
+    janela.print();
+  };
+  if (janela.document.readyState === "complete") imprimir();
+  else janela.addEventListener("load", imprimir, { once: true });
 }

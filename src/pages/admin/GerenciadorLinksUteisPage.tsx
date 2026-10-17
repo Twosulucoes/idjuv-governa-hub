@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, Link2, Plus, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { useLinksUteis, type LinkUtil } from "@/hooks/useLinksUteis";
+import { MENSAGEM_URL_HTTP, urlSegura } from "@/lib/urlSegura";
 
 interface FormState {
   titulo: string;
@@ -83,7 +84,9 @@ export default function GerenciadorLinksUteisPage() {
   };
 
   const salvando = createLink.isPending || updateLink.isPending;
-  const formValido = form.titulo.trim().length > 0 && form.url.trim().length > 0;
+  // O link vira href no portal público: só http(s) ou caminho interno ("/transparencia"), a mesma regra de urlSegura
+  const urlInvalida = form.url.trim().length > 0 && !urlSegura(form.url.trim());
+  const formValido = form.titulo.trim().length > 0 && form.url.trim().length > 0 && !urlInvalida;
 
   const colunas: ColunaTabela<LinkUtil>[] = [
     {
@@ -104,9 +107,13 @@ export default function GerenciadorLinksUteisPage() {
     {
       id: "url",
       cabecalho: "URL",
-      celula: (link) => (
+      celula: (link) =>
+        // Link fora de http(s) (ex.: `javascript:`) aparece só como texto
+        !urlSegura(link.url) ? (
+          <span className="inline-flex max-w-[280px] truncate text-muted-foreground">{link.url}</span>
+        ) : (
         <a
-          href={link.url}
+          href={urlSegura(link.url)}
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary hover:underline inline-flex max-w-[280px] items-center gap-1"
@@ -115,7 +122,7 @@ export default function GerenciadorLinksUteisPage() {
           <ExternalLink className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
           <span className="sr-only">(abre em nova aba)</span>
         </a>
-      ),
+        ),
       buscarPor: (link) => link.url,
     },
     {
@@ -215,7 +222,12 @@ export default function GerenciadorLinksUteisPage() {
                 value={form.url}
                 onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
                 placeholder="https://..."
+                aria-invalid={urlInvalida}
+                aria-describedby={urlInvalida ? "url-erro" : undefined}
               />
+              {urlInvalida && (
+                <p id="url-erro" className="text-sm text-destructive">{MENSAGEM_URL_HTTP}, ou um caminho do site começando com /</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="descricao">Descrição (opcional)</Label>

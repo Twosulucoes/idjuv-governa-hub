@@ -1,26 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { CABECALHOS_CLIENTE_SUPABASE, montarCors } from "../_shared/cors.ts";
 
-// CORS com allowlist por ambiente (ver admin-create-user).
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
+// CORS com allowlist por ambiente (ALLOWED_ORIGINS), em falha fechada: ver ../_shared/cors.ts.
 function buildCors(req: Request) {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowOrigin = ALLOWED_ORIGINS.length === 0
-    ? "*"
-    : ALLOWED_ORIGINS.includes(origin)
-      ? origin
-      : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Vary": "Origin",
-  };
+  return montarCors(req, { cabecalhos: CABECALHOS_CLIENTE_SUPABASE, metodos: "POST, OPTIONS" });
 }
 
 function generateTempPassword(): string {
@@ -76,7 +60,8 @@ serve(async (req) => {
       });
     }
 
-    // Validar JWT manualmente (verify_jwt=false)
+    // Validar o JWT também aqui: o roteador já exige (verify_jwt = true no config.toml), mas a função precisa
+    // do id de quem chama e não confia só na camada de fora.
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -92,16 +77,12 @@ serve(async (req) => {
     const requesterId = claimsData?.claims?.sub as string | undefined;
 
     if (claimsError || !requesterId) {
-      return new Response(
-        JSON.stringify({
-          error: "Usuário não autenticado",
-          details: claimsError?.message ?? null,
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      // Detalhe só no log; o cliente recebe a mensagem genérica.
+      if (claimsError) console.error("admin-reset-password: token recusado:", claimsError.message);
+      return new Response(JSON.stringify({ error: "Usuário não autenticado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Autorizar: só o papel de administrador (is_admin_user) redefine senhas; a permissão admin.usuarios, concedida
@@ -111,16 +92,11 @@ serve(async (req) => {
     );
 
     if (permError) {
-      return new Response(
-        JSON.stringify({
-          error: "Falha ao validar permissões",
-          details: permError.message,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      console.error("admin-reset-password: falha ao validar permissões:", permError.code, permError.message);
+      return new Response(JSON.stringify({ error: "Falha ao validar permissões" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     if (!temPermissao) {
@@ -176,12 +152,6 @@ serve(async (req) => {
       }
     }
 
-    const { data: alvo } = await admin
-      .from("profiles")
-      .select("email, full_name")
-      .eq("id", targetUserId)
-      .maybeSingle();
-
     const senhaTemporaria = generateTempPassword();
 
     // Atualizar senha do usuário (admin)
@@ -190,7 +160,8 @@ serve(async (req) => {
     });
 
     if (updateAuthError) {
-      return new Response(JSON.stringify({ error: updateAuthError.message }), {
+      console.error("admin-reset-password: falha ao atualizar a senha:", updateAuthError.status, updateAuthError.message);
+      return new Response(JSON.stringify({ error: "Não foi possível redefinir a senha" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -202,14 +173,15 @@ serve(async (req) => {
       .update({ requires_password_change: true, updated_at: new Date().toISOString() })
       .eq("id", targetUserId);
 
-    // Trilha: quem redefiniu a senha de quem (nunca a senha). Falha aqui não desfaz a troca, mas fica no log.
+    // Trilha: quem redefiniu a senha de quem (nunca a senha), pelo id: sem e-mail na descrição (LGPD).
+    // Falha aqui não desfaz a troca, mas fica no log.
     const { error: auditError } = await admin.from("audit_logs").insert({
       action: "password_reset",
       entity_type: "user",
       entity_id: targetUserId,
       user_id: requesterId,
       module_name: "admin",
-      description: `Senha redefinida pelo administrador: ${alvo?.email ?? targetUserId}`,
+      description: `Senha redefinida pelo administrador: usuário ${targetUserId}`,
       metadata: { senha_temporaria: true },
     });
     if (auditError) console.error("Falha ao gravar auditoria do reset de senha:", auditError.message);
@@ -219,7 +191,8 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    console.error("admin-reset-password: erro inesperado:", e);
+    return new Response(JSON.stringify({ error: "Erro ao redefinir a senha" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

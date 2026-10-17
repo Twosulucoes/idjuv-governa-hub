@@ -13,6 +13,7 @@
  * - o log leva só o id do usuário e um código, nunca e-mail, token, link ou caminho.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
+import { CABECALHOS_CLIENTE_SUPABASE, montarCors } from '../_shared/cors.ts';
 
 // Mesma regra do CHECK frequencia_pacotes_arquivo_path_seguro: caminho relativo, sem segmento `.`/`..` e sem `%`,
 // `\`, `?`, `#` ou caractere de controle (a service role assinaria qualquer objeto do bucket; o parser de URL apaga
@@ -25,12 +26,10 @@ function caminhoSeguro(caminho: unknown): caminho is string {
   return !caminho.split('/').some((segmento) => segmento === '.' || segmento === '..');
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
-
 Deno.serve(async (req) => {
+  // CORS com allowlist por ambiente (ALLOWED_ORIGINS), em falha fechada: ver ../_shared/cors.ts.
+  const corsHeaders = montarCors(req, { cabecalhos: CABECALHOS_CLIENTE_SUPABASE });
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });

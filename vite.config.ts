@@ -185,25 +185,13 @@ export default defineConfig(({ mode }) => {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
           maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB
           navigateFallbackDenylist: [/^\/~oauth/],
+          // Respostas da API do Supabase (dado pessoal) NÃO entram em cache do service worker:
+          // sem regra de runtimeCaching para elas, vão sempre à rede (auditoria P12).
           runtimeCaching: [
             {
               // URLs assinadas (evidências em bucket privado) nunca vão para o cache
               urlPattern: ({ url }) => url.pathname.includes("/storage/v1/object/sign/"),
               handler: "NetworkOnly",
-            },
-            {
-              urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-              handler: "NetworkFirst",
-              options: {
-                cacheName: "supabase-cache",
-                expiration: {
-                  maxEntries: 100,
-                  maxAgeSeconds: 60 * 60 * 24, // 24 hours
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
             },
           ],
         },

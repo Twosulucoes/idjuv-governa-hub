@@ -2503,6 +2503,9 @@ DROP POLICY IF EXISTS "rls_delete" ON public.licencas_afastamentos;
 CREATE POLICY "rls_delete" ON public.licencas_afastamentos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.licencas.gerenciar') AND (public.is_admin_user(auth.uid()) OR NOT public.eh_meu_servidor(servidor_id)));
 
+-- limite_requisicoes_publicas  [fechada]
+-- (nenhuma policy gerada)
+
 -- links_uteis  [publico_admin]
 DROP POLICY IF EXISTS "Apenas admins podem alterar links uteis" ON public.links_uteis;
 DROP POLICY IF EXISTS "Leitura publica dos links uteis" ON public.links_uteis;

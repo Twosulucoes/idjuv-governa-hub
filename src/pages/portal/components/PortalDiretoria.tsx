@@ -3,6 +3,7 @@
  */
 
 import { motion } from "framer-motion";
+import { urlSegura } from "@/lib/urlSegura";
 import { Mail, Phone, Linkedin, Award, User } from "lucide-react";
 import { usePortalDiretoria } from "@/hooks/usePortalDiretoria";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
@@ -116,9 +117,9 @@ function DiretoriaCard({
                   <Phone className="w-4 h-4" />
                 </a>
               )}
-              {membro.linkedin_url && (
+              {urlSegura(membro.linkedin_url) && (
                 <a 
-                  href={membro.linkedin_url}
+                  href={urlSegura(membro.linkedin_url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-9 h-9 rounded-full bg-muted flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"

@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { urlSegura } from "@/lib/urlSegura";
 import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -312,7 +313,8 @@ export default function GerenciadorPaginasPage() {
                                 <History className="h-4 w-4" aria-hidden="true" />
                               </Button>
 
-                              {/* Link externo */}
+                              {/* Link externo (rota vem do banco: só caminho interno ou http(s)) */}
+                              {urlSegura(pagina.rota) && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -320,7 +322,7 @@ export default function GerenciadorPaginasPage() {
                                 title="Abrir página"
                               >
                                 <a
-                                  href={pagina.rota}
+                                  href={urlSegura(pagina.rota)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   aria-label={`Abrir página ${pagina.nome} em nova aba`}
@@ -328,6 +330,7 @@ export default function GerenciadorPaginasPage() {
                                   <ExternalLink className="h-4 w-4" aria-hidden="true" />
                                 </a>
                               </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>

@@ -5,6 +5,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { urlSegura } from "@/lib/urlSegura";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -190,11 +191,11 @@ export function CargoDetailDialog({ cargo, open, onOpenChange }: CargoDetailDial
                   <InfoItem label="Lei/Decreto" value={cargo.lei_criacao_numero || "Não informado"} />
                   <InfoItem label="Data" value={formatDate(cargo.lei_criacao_data)} />
                   <InfoItem label="Artigo" value={cargo.lei_criacao_artigo || "Não informado"} />
-                  {cargo.lei_documento_url && (
+                  {urlSegura(cargo.lei_documento_url) && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Documento</p>
                       <a
-                        href={cargo.lei_documento_url}
+                        href={urlSegura(cargo.lei_documento_url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline inline-flex items-center gap-1"

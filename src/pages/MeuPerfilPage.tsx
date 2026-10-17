@@ -36,7 +36,7 @@ import { z } from 'zod';
 // Validação da nova senha
 const passwordSchema = z.object({
   senhaAtual: z.string().min(1, 'Senha atual é obrigatória'),
-  novaSenha: z.string().min(6, 'Nova senha deve ter pelo menos 6 caracteres'),
+  novaSenha: z.string().min(8, 'Nova senha deve ter pelo menos 8 caracteres'),
   confirmarSenha: z.string()
 }).refine(data => data.novaSenha === data.confirmarSenha, {
   message: 'As senhas não coincidem',
@@ -320,7 +320,7 @@ export default function MeuPerfilPage() {
                   {errors.novaSenha && (
                     <p className="text-sm text-destructive">{errors.novaSenha}</p>
                   )}
-                  <p className="text-xs text-muted-foreground">Mínimo de 6 caracteres</p>
+                  <p className="text-xs text-muted-foreground">Mínimo de 8 caracteres</p>
                 </div>
 
                 {/* Confirmar Nova Senha */}

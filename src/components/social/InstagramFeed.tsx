@@ -7,6 +7,7 @@
  */
 
 import { useState } from "react";
+import { urlSegura } from "@/lib/urlSegura";
 import { motion } from "framer-motion";
 import { Instagram, ExternalLink, Heart, MessageCircle, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -117,7 +118,7 @@ export function InstagramFeed({
           {displayPosts.map((post, index) => (
             <motion.a
               key={post.id}
-              href={post.permalink}
+              href={urlSegura(post.permalink) ?? "#"}
               target="_blank"
               rel="noopener noreferrer"
               initial={{ opacity: 0, scale: 0.9 }}

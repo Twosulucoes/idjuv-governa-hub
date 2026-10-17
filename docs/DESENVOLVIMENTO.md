@@ -14,6 +14,10 @@ cp .env .env.local    # se precisar de overrides locais (Vite lê ambos)
 bun run dev           # http://localhost:8080 (Vite, ver vite.config.ts)
 ```
 
+Desde o P12 (17/10/2026), o `xlsx` vem do CDN oficial da SheetJS
+(`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` no `package.json`), não do registro do npm, onde a
+última versão é a 0.18.5, com falha de segurança conhecida. O install precisa alcançar `cdn.sheetjs.com`.
+
 Variáveis necessárias (`.env`):
 
 ```
@@ -280,6 +284,22 @@ variables → Actions → Variables (valores públicos):
 Sem a configuração o job **falha** e não publica. O nginx precisa do fallback de SPA
 (`try_files $uri $uri/ /index.html;`); recomenda-se `Cache-Control: no-cache` no index e no
 service worker e cache longo em `/assets/`.
+
+O service worker do PWA guarda só os arquivos do build: desde o P12, a regra de cache das respostas da API do
+Supabase (`supabase-cache`) saiu do `vite.config.ts`, e o `src/main.tsx` apaga esse cache nos aparelhos que já o
+tinham (as respostas da API, com dados do usuário, deixam de ficar guardadas no aparelho).
+
+#### Cabeçalhos de segurança (nginx)
+
+`deploy/nginx/cabecalhos-seguranca.conf` (P12) versiona a CSP (fontes do Google, imagens `https:`/`data:`/`blob:`,
+`connect-src` para o host do banco + `wss` + `brasilapi.com.br`, worker `blob:`, `frame-ancestors 'none'`,
+`object-src 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` e
+`Permissions-Policy` (câmera e geolocalização só do próprio site). O CI **não** aplica esse arquivo: o dono inclui
+à mão, com `include /caminho/para/deploy/nginx/cabecalhos-seguranca.conf;`, dentro do `server { }` de cada site que
+serve o build (ou o equivalente no Traefik), e também em todo `location` que tenha `add_header` próprio (o nginx não
+herda os cabeçalhos nesse caso). O host do banco no arquivo é o de `VITE_SUPABASE_URL` da produção atual: em outra
+instalação, troque pelos valores do `.env` dela. Recurso externo novo no app (fonte, API, mapa) exige ajustar a CSP
+na mesma PR. A impressão de etiquetas de patrimônio não usa mais script inline, para funcionar com essa CSP.
 
 ### Deploy das Edge Functions (CI)
 
