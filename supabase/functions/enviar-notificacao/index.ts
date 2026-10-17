@@ -3,7 +3,8 @@
 // ============================================================================
 // Ações:
 //   teste   envia um e-mail ou WhatsApp de teste para validar a configuração da tela
-//           Administração › Envio de e-mail e WhatsApp. Exige admin.envios.configurar.
+//           Administração › Envio de e-mail e WhatsApp. Exige admin.envios.configurar e respeita
+//           a cota de 20 testes por usuário por hora (consumir_cota_uso).
 //
 // Novos usos (ex.: avisos) entram como novas ações aqui: cada ação checa a SUA
 // permissão e monta o conteúdo no servidor a partir do registro (aviso_id, ...), nunca
@@ -20,25 +21,15 @@ import {
   montarEmailInstitucional,
   textoParaHtml,
 } from "../_shared/envio/index.ts";
+import { CABECALHOS_CLIENTE_SUPABASE, montarCors } from "../_shared/cors.ts";
 
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
+// Envio de teste: no máximo 20 por usuário por hora (a função manda mensagem com a marca do órgão para
+// qualquer destino digitado). Cota pela RPC consumir_cota_uso, como em enviar-convite-reuniao.
+const MAX_TESTES_POR_HORA = 20;
 
+// CORS com allowlist por ambiente (ALLOWED_ORIGINS), em falha fechada: ver ../_shared/cors.ts.
 function corsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowOrigin = ALLOWED_ORIGINS.length === 0
-    ? "*"
-    : ALLOWED_ORIGINS.includes(origin)
-      ? origin
-      : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Vary": "Origin",
-  };
+  return montarCors(req, { cabecalhos: CABECALHOS_CLIENTE_SUPABASE });
 }
 
 Deno.serve(async (req) => {
@@ -76,12 +67,35 @@ Deno.serve(async (req) => {
     const alvo = String(destino ?? "").trim();
     const origem = { modulo: "teste", disparadoPor: user.id };
 
+    // Conta e registra o teste na trilha numa transação (pedidos em paralelo não furam o limite).
+    // Devolve a resposta de erro, ou null quando ainda está dentro da cota. Sem o destino na descrição (LGPD).
+    const consumirCotaTeste = async (): Promise<Response | null> => {
+      const { data: dentroDaCota, error: cotaError } = await admin.rpc("consumir_cota_uso", {
+        _usuario: user.id,
+        _tipo: "envio_teste",
+        _quantidade: 1,
+        _limite: MAX_TESTES_POR_HORA,
+        _modulo: "admin",
+        _descricao: `Envio de teste por ${canal}`,
+      });
+      if (cotaError) {
+        console.error("enviar-notificacao: falha ao consumir a cota:", cotaError.code);
+        return responder({ error: "Falha ao verificar o limite de envio" }, 500);
+      }
+      if (!dentroDaCota) {
+        return responder({ error: `Limite de ${MAX_TESTES_POR_HORA} envios de teste por hora atingido. Tente mais tarde.` }, 429);
+      }
+      return null;
+    };
+
     if (canal === "email") {
       if (!EMAIL_RE.test(alvo) || alvo.length > 254) return responder({ error: "E-mail de destino inválido" }, 400);
       // O teste vale para a configuração salva mesmo com o canal desligado (testar antes de ativar).
       const salva = await carregarConfigEnvio(admin, "email");
       if (!salva?.provedor) return responder({ error: "Salve a configuração de e-mail antes de testar" }, 400);
       const cfg = { ...salva, ativo: true };
+      const foraDaCota = await consumirCotaTeste();
+      if (foraDaCota) return foraDaCota;
       const identidade = await carregarIdentidade(admin, cfg);
       const html = montarEmailInstitucional(identidade, {
         titulo: "Teste de envio",
@@ -101,6 +115,8 @@ Deno.serve(async (req) => {
       // sem depender dos templates do cliente.
       const salva = await carregarConfigEnvio(admin, "whatsapp");
       if (!salva?.provedor) return responder({ error: "Salve a configuração do WhatsApp antes de testar" }, 400);
+      const foraDaCota = await consumirCotaTeste();
+      if (foraDaCota) return foraDaCota;
       const r = await enviarWhatsAppTemplate(
         admin,
         digitos,

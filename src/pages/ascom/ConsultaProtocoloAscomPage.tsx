@@ -36,6 +36,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Logo } from "@/components/ui/Logo";
 import { SkipLink, StatusBadge, type TomStatus } from "@/components/design-system";
 import { useIdentidade } from "@/core/tenant";
+import { urlSegura } from "@/lib/urlSegura";
 
 import {
   DemandaAscom,
@@ -382,11 +383,13 @@ export default function ConsultaProtocoloAscomPage() {
                                 )}
                               </div>
                             </div>
-                            <Button variant="ghost" size="icon" asChild>
-                              <a href={anexo.url_arquivo} target="_blank" rel="noopener noreferrer" aria-label={`Baixar ${anexo.nome_arquivo} (abre em nova aba)`}>
-                                <Download className="h-4 w-4" aria-hidden="true" />
-                              </a>
-                            </Button>
+                            {urlSegura(anexo.url_arquivo) && (
+                              <Button variant="ghost" size="icon" asChild>
+                                <a href={urlSegura(anexo.url_arquivo)} target="_blank" rel="noopener noreferrer" aria-label={`Baixar ${anexo.nome_arquivo} (abre em nova aba)`}>
+                                  <Download className="h-4 w-4" aria-hidden="true" />
+                                </a>
+                              </Button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -418,25 +421,25 @@ export default function ConsultaProtocoloAscomPage() {
                                 </p>
                               </div>
                               <div className="flex gap-2">
-                                {entregavel.url_arquivo && (
+                                {urlSegura(entregavel.url_arquivo) && (
                                   <Button variant="outline" asChild>
-                                    <a href={entregavel.url_arquivo} target="_blank" rel="noopener noreferrer">
+                                    <a href={urlSegura(entregavel.url_arquivo)} target="_blank" rel="noopener noreferrer">
                                       <Download className="h-4 w-4 mr-1" />
                                       Baixar
                                     </a>
                                   </Button>
                                 )}
-                                {entregavel.link_publicacao && (
+                                {urlSegura(entregavel.link_publicacao) && (
                                   <Button variant="outline" asChild>
-                                    <a href={entregavel.link_publicacao} target="_blank" rel="noopener noreferrer">
+                                    <a href={urlSegura(entregavel.link_publicacao)} target="_blank" rel="noopener noreferrer">
                                       <ExternalLink className="h-4 w-4 mr-1" />
                                       Ver
                                     </a>
                                   </Button>
                                 )}
-                                {(entregavel as any).link_drive && (
+                                {urlSegura((entregavel as any).link_drive) && (
                                   <Button variant="outline" asChild>
-                                    <a href={(entregavel as any).link_drive} target="_blank" rel="noopener noreferrer">
+                                    <a href={urlSegura((entregavel as any).link_drive)} target="_blank" rel="noopener noreferrer">
                                       <ExternalLink className="h-4 w-4 mr-1" />
                                       Drive
                                     </a>

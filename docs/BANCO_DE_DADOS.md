@@ -109,6 +109,41 @@ Migração `supabase/migrations/20261016220000_banco_limpeza_desempenho.sql`, id
 
 <!-- doc-links-absent: overlay/60_realtime.sql, 60_realtime.sql -->
 
+### Segurança dos formulários públicos e das funções de permissão (P12, 17/10/2026)
+
+Migração `supabase/migrations/20261017090000_seguranca_formularios_publicos.sql`, idempotente; os overlays 18, 20 e
+40 do baseline e o `rls/mapa.csv` trazem a mesma mudança:
+
+- **Limite por IP nos caminhos públicos.** Tabela nova `limite_requisicoes_publicas` (classe `fechada` no mapa: RLS
+  ligado, sem policy e sem privilégio para `anon`/`authenticated`) e função `limite_publico_consumir(acao, limite,
+  modulo)` (`SECURITY DEFINER`, sem EXECUTE pela API). O IP vem de `trilha_contexto_requisicao()` e é guardado só
+  como hash md5 junto da ação; a janela é de 1 hora e o excesso dá o erro `PT429` (HTTP 429). Linhas com mais de 1 dia
+  são apagadas a cada uso. Contam `anon` e o logado sem o módulo dono do formulário; a equipe do módulo, a service
+  role e as migrações não contam. Limites por hora: `registrar_gestor_publico` 10, `consultar_gestor_por_cpf` 30,
+  `arbitro_cpf_cadastrado` 30, `registrar_denuncia_publica` 10 e, pelo trigger `trg_limite_publico`, INSERT em
+  `cadastro_arbitros` 20, `cadastro_arbitros_modalidades` 100 e `federacoes_esportivas` 10. Os limites dependem do IP
+  real em `x-real-ip`: se o proxy entregar um IP interno, todos caem na mesma cota (conferir na VPS).
+- **Gestores escolares.** Sai a policy `insercao_publica_gestores` e o INSERT de `anon` na tabela: o cadastro
+  público é só pela RPC `registrar_gestor_publico`. Duplicidade de CPF, e-mail ou escola volta como mensagem neutra
+  no corpo (`{erro}`), e a RPC devolve só o nome enviado, o status e o nome da escola. `consultar_gestor_por_cpf`
+  devolve só `{status, escola: {nome}}` (sem nome da pessoa e sem ids) e passou a `VOLATILE`; a tela
+  `ConsultaGestorPage` não mostra mais o nome e tem mensagem própria para o 429.
+- **Cadastro público de federações e árbitros.** O INSERT público deixa de ser `WITH CHECK (true)`:
+  `federacoes_esportivas` (`cadastro_publico_insert`) só com `status = 'em_analise'` e `analisado_por`,
+  `data_analise` e `observacoes_internas` nulos; `cadastro_arbitros` só com `status = 'enviado'` (o protocolo
+  continua forçado pelo `trg_forcar_campos_iniciais`); `cadastro_arbitros_modalidades` só com `status = 'pendente'`
+  e `observacoes` nulo.
+- **Funções de permissão.** `get_user_permission_codes`, `listar_permissoes_usuario`,
+  `get_permissions_from_servidor` e `get_user_permissions`, chamadas pela API (`anon`/`authenticated`) para outro
+  usuário por quem não é admin, dão `42501`; o próprio usuário, o admin, a service role e as chamadas internas
+  (policies com `auth.uid()`) continuam. `get_chefe_unidade_atual` responde só a quem lê `nomeacoes_chefe_unidade`
+  pela RLS (módulos `rh` ou `patrimonio`; admin); os demais recebem vazio.
+- **Fica pendente:** `has_permission_code`, `can_access_module` e `is_admin_user` ainda aceitam o uuid de outro
+  usuário ([AUDITORIA_USUARIOS.md](./AUDITORIA_USUARIOS.md)).
+
+Testes no bloco "P12" de `scripts/db/testar-rls.sql`; `validar-baseline.sh` com `PG_REPLAY` aprovado (RLS com 0
+falhas) e `src/integrations/supabase/types.ts` regenerado.
+
 ## Tabelas por domínio
 
 ### Autenticação, RBAC e administração

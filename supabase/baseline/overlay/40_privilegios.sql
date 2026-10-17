@@ -42,9 +42,10 @@ GRANT SELECT ON public.config_menu_publico, public.config_paginas_publicas, publ
                 public.escolas_jer, public.form_field_config, public.publicacoes_lai TO anon;
 -- configuração do cliente (migração 20261011023500): só as colunas públicas, não a autoria nem o motivo
 GRANT SELECT (chave, valor, categoria) ON public.dados_oficiais TO anon;
--- escrita (formulários públicos de cadastro); sem SELECT: ver as RPCs abaixo
+-- escrita (formulários públicos de cadastro); sem SELECT: ver as RPCs abaixo. gestores_escolares saiu na P12
+-- (migração 20261017090000): o cadastro público é só pela RPC registrar_gestor_publico
 GRANT INSERT ON public.cadastro_arbitros, public.cadastro_arbitros_modalidades,
-                public.federacoes_esportivas, public.gestores_escolares TO anon;
+                public.federacoes_esportivas TO anon;
 
 -- ---- exceções públicas intencionais: RPCs ----
 GRANT EXECUTE ON FUNCTION public.registrar_denuncia_publica(boolean, text, text, text, text, text, text, text, text, text, text) TO anon;
@@ -283,3 +284,11 @@ BEGIN
 END $$;
 REVOKE ALL ON public.v_processos_acompanhamento FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.v_processos_acompanhamento TO authenticated;
+
+-- ---- P12 (migração 20261017090000): limite por IP dos formulários e consultas públicas ----
+-- A tabela das tentativas não é da API (RLS sem policy e sem privilégio); as duas funções só rodam por dentro
+-- das RPCs públicas e do trigger trg_limite_publico.
+REVOKE ALL ON TABLE public.limite_requisicoes_publicas FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.limite_publico_consumir(text, integer, text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.limite_publico_insercao() FROM PUBLIC, anon, authenticated;
+REVOKE INSERT ON public.gestores_escolares FROM anon;

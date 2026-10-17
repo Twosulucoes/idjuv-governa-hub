@@ -163,6 +163,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   bucket `documentos`, que num bucket privado não abre (pendência; ver [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#arquivos-do-rh-e-download-de-frequência-onda-b--b3)).
 - O schema do baseline foi regenerado por inteiro em 2026-10-16 (P11, migrações até `20261016220000`) e aprovado por
   `validar-baseline.sh` com `PG_REPLAY`; o overlay de Realtime saiu (nenhuma tabela publicada).
+- O schema do baseline foi regenerado em 2026-10-17 com a migração `20261017090000` (P12: limite por IP dos
+  formulários públicos, tabela `limite_requisicoes_publicas` na classe `fechada`, funções de permissão restritas),
+  com os overlays 18, 20 e 40 alterados com o mesmo texto, e aprovado por `validar-baseline.sh` com `PG_REPLAY`
+  ([detalhe](./BANCO_DE_DADOS.md)).
 - O schema do baseline foi regenerado em 2026-10-12 com as migrações até `20261012150000` (RH de 12/10 e quadro de
   vagas, tabela `vagas_cargo` na classe `catalogo`; 252 tabelas no mapa) e aprovado por `validar-baseline.sh` com
   `PG_REPLAY` ([detalhe](../supabase/baseline/README.md#verificação)).

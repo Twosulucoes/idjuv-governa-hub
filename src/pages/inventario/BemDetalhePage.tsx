@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { urlSegura } from "@/lib/urlSegura";
 import { Link, useParams } from "react-router-dom";
 import { 
   Package, ArrowLeft, Edit, MapPin, User, Calendar, 
@@ -576,9 +577,9 @@ export default function BemDetalhePage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {bem.termo_responsabilidade_url && (
+                    {urlSegura(bem.termo_responsabilidade_url) && (
                       <a
-                        href={bem.termo_responsabilidade_url}
+                        href={urlSegura(bem.termo_responsabilidade_url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
@@ -590,9 +591,9 @@ export default function BemDetalhePage() {
                         </div>
                       </a>
                     )}
-                    {bem.foto_bem_url && (
+                    {urlSegura(bem.foto_bem_url) && (
                       <a
-                        href={bem.foto_bem_url}
+                        href={urlSegura(bem.foto_bem_url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
@@ -604,9 +605,9 @@ export default function BemDetalhePage() {
                         </div>
                       </a>
                     )}
-                    {bem.foto_etiqueta_qr_url && (
+                    {urlSegura(bem.foto_etiqueta_qr_url) && (
                       <a
-                        href={bem.foto_etiqueta_qr_url}
+                        href={urlSegura(bem.foto_etiqueta_qr_url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"

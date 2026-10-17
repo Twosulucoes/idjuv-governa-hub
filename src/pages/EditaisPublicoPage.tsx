@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { urlSegura } from "@/lib/urlSegura";
 import { FileText, Download, Calendar, Loader2 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -71,10 +72,10 @@ export default function EditaisPublicoPage() {
                             <p className="text-base text-muted-foreground">{doc.descricao}</p>
                           )}
                         </div>
-                        {doc.arquivo_url && (
+                        {urlSegura(doc.arquivo_url) && (
                           <Button asChild variant="outline">
                             <a
-                              href={doc.arquivo_url}
+                              href={urlSegura(doc.arquivo_url)}
                               target="_blank"
                               rel="noopener noreferrer"
                               aria-label={`Baixar ${doc.titulo} (abre em nova aba)`}

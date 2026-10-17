@@ -2094,6 +2094,14 @@ ALTER TABLE ONLY public.licencas_afastamentos
 
 
 --
+-- Name: limite_requisicoes_publicas limite_requisicoes_publicas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.limite_requisicoes_publicas
+    ADD CONSTRAINT limite_requisicoes_publicas_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: links_uteis links_uteis_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7895,6 +7903,20 @@ CREATE UNIQUE INDEX itens_ficha_financeira_ficha_referencia_desconto_uidx ON pub
 
 
 --
+-- Name: limite_requisicoes_publicas_chave_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX limite_requisicoes_publicas_chave_idx ON public.limite_requisicoes_publicas USING btree (acao, chave_hash, criado_em);
+
+
+--
+-- Name: limite_requisicoes_publicas_criado_em_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX limite_requisicoes_publicas_criado_em_idx ON public.limite_requisicoes_publicas USING btree (criado_em);
+
+
+--
 -- Name: pre_cadastros_ip_hash_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9733,6 +9755,27 @@ CREATE TRIGGER trg_impedir_delecao_parametro BEFORE DELETE ON public.config_para
 --
 
 CREATE TRIGGER trg_licenca_atualiza_situacao AFTER INSERT OR UPDATE ON public.licencas_afastamentos FOR EACH ROW EXECUTE FUNCTION public.trigger_licenca_atualiza_situacao();
+
+
+--
+-- Name: cadastro_arbitros trg_limite_publico; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_limite_publico BEFORE INSERT ON public.cadastro_arbitros FOR EACH ROW EXECUTE FUNCTION public.limite_publico_insercao('arbitro_cadastro', '20', 'arbitros');
+
+
+--
+-- Name: cadastro_arbitros_modalidades trg_limite_publico; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_limite_publico BEFORE INSERT ON public.cadastro_arbitros_modalidades FOR EACH ROW EXECUTE FUNCTION public.limite_publico_insercao('arbitro_modalidade', '100', 'arbitros');
+
+
+--
+-- Name: federacoes_esportivas trg_limite_publico; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_limite_publico BEFORE INSERT ON public.federacoes_esportivas FOR EACH ROW EXECUTE FUNCTION public.limite_publico_insercao('federacao_cadastro', '10', 'federacoes');
 
 
 --
@@ -17627,14 +17670,14 @@ CREATE POLICY "Publicacoes LAI publicadas sao publicas" ON public.publicacoes_la
 -- Name: cadastro_arbitros_modalidades Público pode inserir modalidades; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "Público pode inserir modalidades" ON public.cadastro_arbitros_modalidades FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Público pode inserir modalidades" ON public.cadastro_arbitros_modalidades FOR INSERT TO anon, authenticated WITH CHECK (((status = 'pendente'::text) AND (observacoes IS NULL)));
 
 
 --
 -- Name: cadastro_arbitros Qualquer pessoa pode se cadastrar como árbitro; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "Qualquer pessoa pode se cadastrar como árbitro" ON public.cadastro_arbitros FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Qualquer pessoa pode se cadastrar como árbitro" ON public.cadastro_arbitros FOR INSERT TO anon, authenticated WITH CHECK ((status = 'enviado'::text));
 
 
 --
@@ -17876,7 +17919,7 @@ ALTER TABLE public.cadastro_arbitros_modalidades ENABLE ROW LEVEL SECURITY;
 -- Name: federacoes_esportivas cadastro_publico_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY cadastro_publico_insert ON public.federacoes_esportivas FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY cadastro_publico_insert ON public.federacoes_esportivas FOR INSERT TO anon WITH CHECK (((status = 'em_analise'::text) AND (analisado_por IS NULL) AND (data_analise IS NULL) AND (observacoes_internas IS NULL)));
 
 
 --
@@ -18786,13 +18829,6 @@ CREATE POLICY importacoes_select ON public.importacoes FOR SELECT TO authenticat
 
 
 --
--- Name: gestores_escolares insercao_publica_gestores; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY insercao_publica_gestores ON public.gestores_escolares FOR INSERT TO anon, authenticated WITH CHECK ((status = 'aguardando'::text));
-
-
---
 -- Name: instituicoes; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -18876,6 +18912,12 @@ CREATE POLICY leitura_publica_escolas ON public.escolas_jer FOR SELECT USING (tr
 --
 
 ALTER TABLE public.licencas_afastamentos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: limite_requisicoes_publicas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.limite_requisicoes_publicas ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: links_uteis; Type: ROW SECURITY; Schema: public; Owner: -

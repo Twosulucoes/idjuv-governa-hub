@@ -3,6 +3,7 @@
  * Só leitura nas tabelas; toda escrita vai pelas RPCs wf_* (hooks de useAcompanhamentoProcessos).
  */
 import { useState } from 'react';
+import { urlSegura } from '@/lib/urlSegura';
 import { Link, useParams } from 'react-router-dom';
 import { ModuleLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
@@ -462,10 +463,10 @@ export default function ProcessoDetalhePage() {
                             {format(new Date(doc.created_at), 'dd/MM/yyyy', { locale: ptBR })}
                           </p>
                         </div>
-                        {doc.arquivo_url && (
+                        {urlSegura(doc.arquivo_url) && (
                           <Button variant="outline" size="sm" asChild>
                             <a
-                              href={doc.arquivo_url}
+                              href={urlSegura(doc.arquivo_url)}
                               target="_blank"
                               rel="noopener noreferrer"
                               aria-label={`Abrir documento ${doc.titulo} (abre em nova aba)`}

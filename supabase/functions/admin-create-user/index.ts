@@ -1,26 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { CABECALHOS_CLIENTE_SUPABASE, montarCors } from "../_shared/cors.ts";
 
-// CORS com allowlist por ambiente. Defina ALLOWED_ORIGINS (lista separada por
-// vírgula) nas variáveis da função para restringir as origens. Sem a variável,
-// mantém o comportamento permissivo ("*") para não quebrar ambientes existentes.
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
+// CORS com allowlist por ambiente (ALLOWED_ORIGINS), em falha fechada: ver ../_shared/cors.ts.
 function corsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowOrigin = ALLOWED_ORIGINS.length === 0
-    ? "*"
-    : ALLOWED_ORIGINS.includes(origin)
-      ? origin
-      : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Vary": "Origin",
-  };
+  return montarCors(req, { cabecalhos: CABECALHOS_CLIENTE_SUPABASE });
 }
 
 Deno.serve(async (req) => {
@@ -69,8 +52,10 @@ Deno.serve(async (req) => {
     );
 
     if (permError) {
+      // Detalhe só no log; o cliente recebe a mensagem genérica.
+      console.error("admin-create-user: falha ao validar permissões:", permError.code, permError.message);
       return new Response(
-        JSON.stringify({ error: "Falha ao validar permissões", details: permError.message }),
+        JSON.stringify({ error: "Falha ao validar permissões" }),
         { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
@@ -179,6 +164,20 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Motivos que o admin precisa ver para corrigir o pedido: mensagem fixa, sem ecoar o texto do Auth.
+      const motivosDoPedido: Record<string, string> = {
+        weak_password: "Senha fraca: use ao menos 8 caracteres, misturando letras e números.",
+        email_address_invalid: "E-mail inválido.",
+        validation_failed: "Dados inválidos para criar o usuário.",
+      };
+      const motivo = motivosDoPedido[(createError as { code?: string }).code ?? ""];
+      if (motivo) {
+        return new Response(JSON.stringify({ error: motivo }), {
+          status: 400,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+
       throw createError;
     }
 
@@ -197,8 +196,9 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error: any) {
-    console.error("Error creating user:", error);
-    return new Response(JSON.stringify({ error: error.message || "Erro interno" }), {
+    // Detalhe (código/mensagem do Auth ou do banco) só no log, sem o e-mail do pedido; o cliente recebe a genérica.
+    console.error("admin-create-user: erro ao criar usuário:", error?.code ?? error?.status, error?.message);
+    return new Response(JSON.stringify({ error: "Erro ao criar usuário" }), {
       status: 500,
       headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     });

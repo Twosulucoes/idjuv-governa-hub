@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { urlSegura } from "@/lib/urlSegura";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -257,9 +258,9 @@ export default function LicitacoesPublicasPage() {
               Os dados exibidos seguem a Lei nº 14.133/2021 (Nova Lei de Licitações) e a LGPD. 
               Contratos com pessoa física não são exibidos para proteção de dados pessoais.
             </p>
-            {integracoes?.portalTransparenciaUrl && (
+            {urlSegura(integracoes?.portalTransparenciaUrl) && (
               <a
-                href={integracoes.portalTransparenciaUrl}
+                href={urlSegura(integracoes?.portalTransparenciaUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-h-11 items-center gap-2 text-primary hover:underline text-base font-medium"

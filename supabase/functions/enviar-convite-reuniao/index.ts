@@ -13,25 +13,11 @@ import {
   whatsappDisponivel,
   type IdentidadeEmail,
 } from "../_shared/envio/index.ts";
+import { montarCors } from "../_shared/cors.ts";
 
-// CORS com allowlist por ambiente (mesmo padrão de admin-create-user/delete-user).
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
+// CORS com allowlist por ambiente (ALLOWED_ORIGINS), em falha fechada: ver ../_shared/cors.ts.
 function buildCors(req: Request) {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowOrigin = ALLOWED_ORIGINS.length === 0
-    ? "*"
-    : ALLOWED_ORIGINS.includes(origin)
-      ? origin
-      : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Vary": "Origin",
-  };
+  return montarCors(req);
 }
 
 // Limites contra uso do convite como disparador de mensagens em nome do órgão (phishing/spam):
@@ -41,6 +27,8 @@ const MAX_PARTICIPANTES_POR_ENVIO = 50;
 const MAX_CONVITES_POR_HORA = 200;
 const MAX_MENSAGEM = 2000;
 const MAX_ASSINATURA = 200;
+// Falha de envio a servidor: mensagem neutra, que não revela se o contato do RH existe.
+const NAO_ENVIADO = "Não enviado";
 // Endereço com esquema/www, ou domínio nu com terminação comum (clientes de e-mail e o WhatsApp
 // transformam "site.com/login" em link).
 const PADRAO_LINK =
@@ -339,6 +327,28 @@ const handler = async (req: Request): Promise<Response> => {
       return erroPedido("Assinatura inválida");
     }
 
+    // Módulo da agenda de reuniões (conferido pelo banco com o token do próprio usuário, como nas demais
+    // funções): gabinete ou admin, os mesmos que a RLS de reunioes/participantes_reuniao aceita (a tela
+    // /admin/reunioes é do módulo admin). Erro na checagem nega. Vale também para administrador.
+    let temModulo = false;
+    for (const modulo of ["gabinete", "admin"]) {
+      const { data, error: moduloError } = await supabase.rpc("can_access_module", {
+        _user_id: userData.user.id,
+        _module: modulo,
+      });
+      if (moduloError) {
+        console.error("Erro ao verificar o módulo da agenda de reuniões:", moduloError.code);
+        return erroPedido("Falha ao validar permissões", 500);
+      }
+      if (data) {
+        temModulo = true;
+        break;
+      }
+    }
+    if (!temModulo) {
+      return erroPedido("Acesso negado. Requer o módulo de gabinete ou de administração.", 403);
+    }
+
     const { data: isAdmin, error: isAdminError } = await admin.rpc("is_admin_user", {
       _user_id: userData.user.id,
     });
@@ -434,7 +444,13 @@ Atenciosamente,`;
       substituirVariaveis(corpoFinal, reuniao as Reuniao, p as Participante, assinatura, ""),
       substituirVariaveis(assuntoFinal, reuniao as Reuniao, p as Participante, undefined, ""),
     ]);
-    const linksProibidos = [assuntoFinal, corpoFinal, reuniao.local, reuniao.pauta, ...camposAssinatura, ...textosFinais]
+    // Título e nome de cada participante entram sempre (vão no template do WhatsApp e no cabeçalho do e-mail
+    // mesmo quando o texto não usa {titulo}/{nome}).
+    const nomesParticipantes = (participantes || []).map((p) => nomeDoParticipante(p as Participante));
+    const linksProibidos = [
+      assuntoFinal, corpoFinal, reuniao.titulo, reuniao.local, reuniao.pauta,
+      ...camposAssinatura, ...nomesParticipantes, ...textosFinais,
+    ]
       .flatMap((t) => linksNaoPermitidos(t, reuniao.link_virtual));
     if (linksProibidos.length > 0) {
       return erroPedido("A mensagem não pode conter links além do link da reunião (cadastre-o no campo de link da reunião).");
@@ -504,10 +520,12 @@ Atenciosamente,`;
       }
 
       if (canal === "email") {
-        // Prioriza email_externo, se não tiver usa email_pessoal do servidor
+        // Prioriza email_externo, se não tiver usa email_pessoal do servidor. Contato de servidor vem do RH
+        // (quem dispara não necessariamente pode vê-lo): a resposta não diz se falta ou falhou, só "não enviado".
+        const externo = !!participante.email_externo;
         const email = participante.email_externo || servidorData?.email_pessoal;
         if (!email) {
-          resultados.push({ participante_id: participante.id, sucesso: false, erro: "Sem email" });
+          resultados.push({ participante_id: participante.id, sucesso: false, erro: externo ? "Sem email" : NAO_ENVIADO });
           continue;
         }
 
@@ -518,17 +536,24 @@ Atenciosamente,`;
           cfgEmail,
         );
         if (r.status !== "enviado") {
-          resultados.push({ participante_id: participante.id, sucesso: false, erro: r.erro || "Falha ao enviar e-mail" });
+          resultados.push({
+            participante_id: participante.id,
+            sucesso: false,
+            erro: externo ? r.erro || "Falha ao enviar e-mail" : NAO_ENVIADO,
+          });
           continue;
         }
 
         await marcarConviteEnviado(participante.id);
         resultados.push({ participante_id: participante.id, sucesso: true });
       } else if (canal === "whatsapp") {
-        // Prioriza telefone_externo, se não tiver usa telefone_celular do servidor
+        // Prioriza telefone_externo, se não tiver usa telefone_celular do servidor. O celular do servidor só
+        // é usado pela API oficial, no servidor: nunca volta na resposta (nem em link wa.me), e a falta dele
+        // não se distingue de outra falha ("não enviado").
+        const externo = !!participante.telefone_externo;
         const telefone = participante.telefone_externo || servidorData?.telefone_celular;
         if (!telefone) {
-          resultados.push({ participante_id: participante.id, sucesso: false, erro: "Sem telefone" });
+          resultados.push({ participante_id: participante.id, sucesso: false, erro: externo ? "Sem telefone" : NAO_ENVIADO });
           continue;
         }
 
@@ -549,7 +574,11 @@ Atenciosamente,`;
             cfgWhats,
           );
           if (envio.status !== "enviado") {
-            resultados.push({ participante_id: participante.id, sucesso: false, erro: envio.erro || "Falha ao enviar WhatsApp" });
+            resultados.push({
+              participante_id: participante.id,
+              sucesso: false,
+              erro: externo ? envio.erro || "Falha ao enviar WhatsApp" : NAO_ENVIADO,
+            });
             continue;
           }
           await marcarConviteEnviado(participante.id);
@@ -557,7 +586,12 @@ Atenciosamente,`;
           continue;
         }
 
-        // Sem WhatsApp oficial configurado: link wa.me para quem dispara abrir no próprio WhatsApp.
+        // Sem WhatsApp oficial configurado: link wa.me para quem dispara abrir no próprio WhatsApp, só para
+        // participante externo (número digitado na própria reunião). Servidor fica sem envio.
+        if (!externo) {
+          resultados.push({ participante_id: participante.id, sucesso: false, erro: NAO_ENVIADO });
+          continue;
+        }
         const linkWhatsApp = `https://wa.me/${normalizarTelefone(telefone)}?text=${encodeURIComponent(corpoSubstituido)}`;
         await marcarConviteEnviado(participante.id);
         resultados.push({ participante_id: participante.id, sucesso: true, link_whatsapp: linkWhatsApp });

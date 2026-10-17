@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { urlSegura } from "@/lib/urlSegura";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -264,7 +265,8 @@ export function EnviarConvitesDialog({
         if (result.enviados_whatsapp_api > 0) {
           toast.success(`${result.enviados_whatsapp_api} convite(s) enviado(s) pelo WhatsApp oficial`);
         } else if (links.length > 0) {
-          window.open(links[0].url, "_blank");
+          const url = urlSegura(links[0].url);
+          if (url) window.open(url, "_blank", "noopener,noreferrer");
           toast.success("WhatsApp aberto!");
         } else if (result.sucessos > 0) {
           toast.warning("Processado, mas nenhum link do WhatsApp foi gerado.");

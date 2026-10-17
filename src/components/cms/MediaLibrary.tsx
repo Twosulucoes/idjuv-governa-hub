@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { urlSegura } from "@/lib/urlSegura";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -343,7 +344,8 @@ export function MediaLibrary({
                             className="h-8 w-8"
                             onClick={(e) => {
                               e.stopPropagation();
-                              window.open(item.url, "_blank");
+                              const url = urlSegura(item.url);
+                              if (url) window.open(url, "_blank", "noopener,noreferrer");
                             }}
                           >
                             <ExternalLink className="h-4 w-4" />

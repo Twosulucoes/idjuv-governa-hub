@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { MENSAGEM_URL_HTTP, REGEX_URL_HTTP } from "@/lib/urlSegura";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +40,7 @@ const formSchema = z.object({
   hora_fim: z.string().optional(),
   tipo: z.enum(["ordinaria", "extraordinaria", "audiencia", "sessao_solene", "reuniao_trabalho"]),
   local: z.string().optional(),
-  link_virtual: z.string().url().optional().or(z.literal("")),
+  link_virtual: z.string().url().regex(REGEX_URL_HTTP, MENSAGEM_URL_HTTP).optional().or(z.literal("")),
   pauta: z.string().optional(),
 });
 

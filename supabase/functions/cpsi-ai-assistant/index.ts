@@ -1,24 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { montarCors } from "../_shared/cors.ts";
 
-// CORS com allowlist por ambiente (mesmo padrão de admin-create-user/delete-user).
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
+// CORS com allowlist por ambiente (ALLOWED_ORIGINS), em falha fechada: ver ../_shared/cors.ts.
 function corsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowOrigin = ALLOWED_ORIGINS.length === 0
-    ? "*"
-    : ALLOWED_ORIGINS.includes(origin)
-      ? origin
-      : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Vary": "Origin",
-  };
+  return montarCors(req);
 }
 
 const SYSTEM_PROMPT = `Você é um especialista em compras públicas e contratações inovadoras do Brasil.
@@ -351,8 +337,9 @@ Seja específico e cite artigos de lei quando pertinente.`;
           headers: { ...cors, "Content-Type": "application/json" },
         });
       }
+      // Só status e tamanho no log: o corpo do erro pode repetir o texto do pedido.
       const errText = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, errText);
+      console.error("AI error:", aiResponse.status, `(${errText.length} caracteres)`);
       throw new Error("Erro no serviço de IA");
     }
 
@@ -383,7 +370,8 @@ Seja específico e cite artigos de lei quando pertinente.`;
         const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
         parsed = JSON.parse(jsonMatch[1]!.trim());
       } catch {
-        console.error("Failed to parse AI JSON:", content);
+        // Sem o texto da resposta no log (pode trazer dado do processo): só o tamanho.
+        console.error("Failed to parse AI JSON:", `(${content.length} caracteres)`);
         return new Response(JSON.stringify({ error: "Não foi possível processar a resposta da IA. Tente novamente." }), {
           status: 422,
           headers: { ...cors, "Content-Type": "application/json" },

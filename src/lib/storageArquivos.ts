@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { urlHttpAbsoluta } from "@/lib/urlSegura";
 
 /**
  * Utilitários para arquivos em buckets privados do Supabase Storage.
@@ -72,17 +73,9 @@ function caminhoSeguro(caminho: string): string | null {
  * Evita que um valor como `javascript:...` gravado no banco rode código na origem do app.
  */
 export function abrirUrlExterna(valor: string | null | undefined): void {
-  if (!valor) throw new Error("Arquivo não encontrado ou link inválido.");
-  let url: URL;
-  try {
-    url = new URL(valor.trim());
-  } catch {
-    throw new Error("Arquivo não encontrado ou link inválido.");
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new Error("Arquivo não encontrado ou link inválido.");
-  }
-  window.open(url.href, "_blank", "noopener,noreferrer");
+  const url = urlHttpAbsoluta(valor);
+  if (!url) throw new Error("Arquivo não encontrado ou link inválido.");
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 interface OpcoesAbrirArquivo {

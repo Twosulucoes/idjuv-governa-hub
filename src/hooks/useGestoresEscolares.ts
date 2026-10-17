@@ -10,12 +10,23 @@ import type { GestorEscolar, GestorFormData, StatusGestor } from '@/types/gestor
 const QUERY_KEY = ['gestores-escolares'];
 
 /**
- * As RPCs públicas `consultar_gestor_por_cpf` e `registrar_gestor_publico` vêm com o baseline do banco novo
- * (supabase/baseline/overlay/18_funcoes_rpc.sql) e NÃO existem no banco anterior. Quando faltam, o hook cai
- * no caminho antigo (leitura/escrita direta na tabela), para o formulário público funcionar nos dois bancos.
+ * Cadastro e consulta públicos de gestores escolares só pelas RPCs `registrar_gestor_publico` e
+ * `consultar_gestor_por_cpf` (SECURITY DEFINER, limite por IP; migração 20261017090000). O visitante anônimo não
+ * insere nem lê a tabela `gestores_escolares` direto.
  */
-const rpcAusente = (erro: { code?: string; message?: string } | null): boolean =>
-  !!erro && (erro.code === 'PGRST202' || erro.code === '42883' || /could not find the function|does not exist/i.test(erro.message ?? ''));
+
+/** O que a consulta pública devolve: só a situação e o nome da escola (nada de nome, CPF ou ids). */
+export interface ConsultaGestorPublica {
+  status: StatusGestor;
+  escola: { nome: string | null } | null;
+}
+
+/** O que o cadastro público devolve: o nome enviado, a situação inicial e o nome da escola. */
+export interface CadastroGestorPublico {
+  nome: string;
+  status: StatusGestor;
+  escola: { nome: string | null } | null;
+}
 
 export function useGestoresEscolares() {
   const queryClient = useQueryClient();
@@ -49,38 +60,22 @@ export function useGestoresEscolares() {
     staleTime: 30_000,
   });
 
-  // Buscar gestor por CPF (consulta pública)
-  const buscarPorCpf = async (cpf: string): Promise<GestorEscolar | null> => {
+  // Consulta pública da situação pelo CPF (RPC; HTTP 429 quando o mesmo endereço consulta demais)
+  const buscarPorCpf = async (cpf: string): Promise<ConsultaGestorPublica | null> => {
     const cpfLimpo = cpf.replace(/\D/g, '');
-    
-    // RPC pública: devolve só id, nome, status e nome da escola (no banco novo a leitura anônima da tabela é fechada).
     const { data, error } = await supabase.rpc('consultar_gestor_por_cpf', { p_cpf: cpfLimpo });
-
-    if (!error) return (data as unknown as GestorEscolar | null) ?? null;
-    if (!rpcAusente(error)) throw error;
-
-    // Banco anterior, sem a RPC: leitura direta, como antes.
-    const { data: legado, error: erroLegado } = await supabase
-      .from('gestores_escolares')
-      .select(`
-        *,
-        escola:escolas_jer(*)
-      `)
-      .eq('cpf', cpfLimpo)
-      .maybeSingle();
-
-    if (erroLegado) throw erroLegado;
-    return legado as GestorEscolar | null;
+    if (error) throw error;
+    return (data as unknown as ConsultaGestorPublica | null) ?? null;
   };
 
   // Criar pré-cadastro (público)
   const criarGestor = useMutation({
-    mutationFn: async (dados: GestorFormData): Promise<GestorEscolar> => {
+    mutationFn: async (dados: GestorFormData): Promise<CadastroGestorPublico> => {
       const cpfLimpo = dados.cpf.replace(/\D/g, '');
       const celularLimpo = dados.celular.replace(/\D/g, '');
 
-      // RPC pública (SECURITY DEFINER): `anon` só tem INSERT/EXECUTE, sem SELECT; o status inicial é do banco
-      // e o trigger de gestores_escolares já marca a escola como cadastrada.
+      // RPC pública (SECURITY DEFINER): o status inicial é do banco e o trigger de gestores_escolares já marca a
+      // escola como cadastrada. CPF, e-mail ou escola repetidos voltam como { erro } com mensagem neutra.
       const { data, error } = await supabase.rpc('registrar_gestor_publico', {
         p_escola_id: dados.escola_id,
         p_nome: dados.nome.toUpperCase().trim(),
@@ -92,54 +87,18 @@ export function useGestoresEscolares() {
         p_endereco: dados.endereco?.trim() || null,
       });
 
-      if (!error) return data as unknown as GestorEscolar;
-      if (!rpcAusente(error)) throw error;
-
-      // Banco anterior, sem a RPC: INSERT direto e marcação da escola, como antes.
-      const { data: legado, error: erroLegado } = await supabase
-        .from('gestores_escolares')
-        .insert({
-          escola_id: dados.escola_id,
-          nome: dados.nome.toUpperCase().trim(),
-          cpf: cpfLimpo,
-          rg: dados.rg?.trim() || null,
-          data_nascimento: dados.data_nascimento || null,
-          email: dados.email.toLowerCase().trim(),
-          celular: celularLimpo,
-          endereco: dados.endereco?.trim() || null,
-          status: 'aguardando' as StatusGestor,
-        })
-        .select(`
-          *,
-          escola:escolas_jer(*)
-        `)
-        .single();
-
-      if (erroLegado) throw erroLegado;
-
-      await supabase
-        .from('escolas_jer')
-        .update({ ja_cadastrada: true })
-        .eq('id', dados.escola_id);
-
-      return legado as GestorEscolar;
+      if (error) throw error;
+      const resposta = data as unknown as (CadastroGestorPublico & { erro?: string }) | null;
+      if (!resposta) throw new Error('Não foi possível concluir o pré-cadastro.');
+      if (resposta.erro) throw new Error(resposta.erro);
+      return resposta;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ['escolas-jer'] });
     },
     onError: (error: Error) => {
-      console.error('Erro ao criar gestor:', error);
-      if (error.message.includes('gestores_escolares_cpf_unique') || error.message.includes('duplicate') && error.message.includes('cpf')) {
-        throw new Error('CPF já cadastrado no sistema.');
-      }
-      if (error.message.includes('gestores_escolares_email_unique') || error.message.includes('duplicate') && error.message.includes('email')) {
-        throw new Error('Email já cadastrado no sistema.');
-      }
-      if (error.message.includes('gestores_escolares_escola_unique') || error.message.includes('duplicate') && error.message.includes('escola')) {
-        throw new Error('Esta escola já possui um gestor cadastrado.');
-      }
-      throw error;
+      console.error('Erro ao criar gestor:', error.message);
     },
   });
 

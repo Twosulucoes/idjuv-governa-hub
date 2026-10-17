@@ -10,11 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { SkipLink, StatusBadge, type TomStatus } from '@/components/design-system';
-import { useGestoresEscolares } from '@/hooks/useGestoresEscolares';
+import { useGestoresEscolares, type ConsultaGestorPublica } from '@/hooks/useGestoresEscolares';
 import { 
   STATUS_GESTOR_CONFIG, 
   formatarCPF, 
-  type GestorEscolar 
 } from '@/types/gestoresEscolares';
 import { HeaderPublico } from '@/components/cadastrogestores/HeaderPublico';
 
@@ -34,7 +33,7 @@ export default function ConsultaGestorPage() {
   const { contato } = useTenant();
   const [cpf, setCpf] = useState('');
   const [buscando, setBuscando] = useState(false);
-  const [resultado, setResultado] = useState<GestorEscolar | null | undefined>(undefined);
+  const [resultado, setResultado] = useState<ConsultaGestorPublica | null | undefined>(undefined);
   const [erro, setErro] = useState<string | null>(null);
 
   const { buscarPorCpf } = useGestoresEscolares();
@@ -53,8 +52,9 @@ export default function ConsultaGestorPage() {
       const gestor = await buscarPorCpf(cpfLimpo);
       setResultado(gestor);
     } catch (error) {
-      console.error('Erro na busca:', error);
-      setErro('Erro ao consultar. Tente novamente.');
+      // HTTP 429: limite de consultas por endereço (o banco devolve a própria mensagem)
+      const muitas = (error as { code?: string })?.code === 'PT429';
+      setErro(muitas ? 'Muitas consultas seguidas. Aguarde alguns minutos e tente novamente.' : 'Erro ao consultar. Tente novamente.');
     } finally {
       setBuscando(false);
     }
@@ -138,12 +138,9 @@ export default function ConsultaGestorPage() {
             {/* Resultado: Encontrado */}
             {resultado && statusConfig && (
               <div className="space-y-4">
-                {/* Dados do gestor */}
+                {/* Escola do pré-cadastro (a consulta pública não devolve o nome da pessoa) */}
                 <div className="bg-muted p-4 rounded-lg">
-                  <p className="font-semibold">{resultado.nome}</p>
-                  <p className="text-base text-muted-foreground">
-                    {resultado.escola?.nome}
-                  </p>
+                  <p className="font-semibold">{resultado.escola?.nome ?? 'Escola não informada'}</p>
                 </div>
 
                 {/* Status */}

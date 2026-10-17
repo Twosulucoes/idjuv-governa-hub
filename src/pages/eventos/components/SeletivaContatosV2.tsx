@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { LucideIcon } from "lucide-react";
 import { useTenant } from '@/core/tenant';
+import { urlSegura } from '@/lib/urlSegura';
 interface Contato {
   id: string;
   tipo: string;
@@ -122,7 +123,8 @@ export function SeletivaContatosV2() {
       : contatosPadrao(identidade, contato);
 
   // Separar por tipo
-  const sitesOficiais = displayContatos.filter(c => c.tipo === "site_oficial");
+  // Só sites com link http(s): valor vem do banco e vira href
+  const sitesOficiais = displayContatos.filter(c => c.tipo === "site_oficial" && urlSegura(c.valor) !== undefined);
   const contatosDiretos = displayContatos.filter(c => c.tipo !== "site_oficial");
   // Classe "dark" fixa: faixa sempre escura, com os tokens do tema escuro
   return <section className="dark py-16 px-4 bg-background text-foreground transition-colors">
@@ -163,7 +165,7 @@ export function SeletivaContatosV2() {
       }} className="grid md:grid-cols-2 gap-4 mb-8">
             {sitesOficiais.map((site, index) => {
           const Icon = getIcon(site.icone);
-          return <a key={site.id} href={site.valor} target="_blank" rel="noopener noreferrer" className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          return <a key={site.id} href={urlSegura(site.valor)} target="_blank" rel="noopener noreferrer" className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <motion.div initial={{
               opacity: 0,
               x: index === 0 ? -20 : 20

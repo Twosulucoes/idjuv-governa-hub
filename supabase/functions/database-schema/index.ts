@@ -1,26 +1,9 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { montarCors } from "../_shared/cors.ts";
 
-// CORS com allowlist por ambiente (mesmo padrão de admin-create-user/delete-user).
-// Defina ALLOWED_ORIGINS (lista separada por vírgula) nas variáveis da função
-// para restringir as origens. Sem a variável, mantém "*" para não quebrar
-// ambientes existentes.
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
+// CORS com allowlist por ambiente (ALLOWED_ORIGINS), em falha fechada: ver ../_shared/cors.ts.
 function corsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") ?? "";
-  const allowOrigin = ALLOWED_ORIGINS.length === 0
-    ? "*"
-    : ALLOWED_ORIGINS.includes(origin)
-      ? origin
-      : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Vary": "Origin",
-  };
+  return montarCors(req);
 }
 
 interface TableInfo {
@@ -272,8 +255,10 @@ Deno.serve(async (req) => {
     );
 
     if (permError) {
+      // Detalhe só no log; o cliente recebe a mensagem genérica.
+      console.error("database-schema: falha ao validar permissões:", permError.code, permError.message);
       return new Response(
-        JSON.stringify({ error: "Falha ao validar permissões", details: permError.message }),
+        JSON.stringify({ error: "Falha ao validar permissões" }),
         { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
@@ -380,10 +365,10 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Erro:", error);
-    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    // Detalhe só no log; o cliente recebe a mensagem genérica.
+    console.error("database-schema: erro:", error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Erro ao ler a estrutura do banco" }),
       {
         headers: { ...cors, "Content-Type": "application/json" },
         status: 500,

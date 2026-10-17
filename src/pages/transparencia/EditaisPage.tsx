@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { urlSegura } from "@/lib/urlSegura";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -280,11 +281,11 @@ export default function EditaisPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {edital.arquivo_url && (
+                      {urlSegura(edital.arquivo_url) && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => window.open(edital.arquivo_url!, "_blank")}
+                          onClick={() => window.open(urlSegura(edital.arquivo_url), "_blank", "noopener,noreferrer")}
                           title="Baixar arquivo"
                         >
                           <Download className="h-4 w-4" />

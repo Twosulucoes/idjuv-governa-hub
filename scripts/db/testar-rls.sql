@@ -50,6 +50,9 @@
 --                    pela RPC, evento sem repetição, recibo, bucket remessas-cnab; contracheques só com
 --                    rh.contracheques.visualizar ou financeiro.folha.processar (ou o próprio); sem DELETE em remessas/eventos
 --   global           anon só nas exceções; nenhuma policy acesso_total; funções-stub não existem
+--   P12              INSERT público de federações/árbitros só na situação inicial (sem depender do trigger); gestor só
+--                    pela RPC (duplicidade neutra); limite por IP (PT429) nas RPCs e no INSERT público; permissões de
+--                    outro usuário só para o próprio ou o admin; chefe da unidade só com rh/patrimonio
 --
 -- Cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é FALHA. As tabelas temporárias do teste
 -- (mapa, persona, semeado...) são lidas por papéis com SET ROLE, então recebem GRANT explícito.
@@ -1052,6 +1055,7 @@ DECLARE
   u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
   u_srv_i uuid := (SELECT uid FROM persona WHERE nome='srv_inativo');
   u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');
   u_arb uuid := (SELECT uid FROM persona WHERE nome='mod_arbitros');
   sa text := 'b0000000-0000-0000-0000-00000000000a';
   sb text := 'b0000000-0000-0000-0000-00000000000b';
@@ -1121,12 +1125,13 @@ BEGIN
     'fn_gerar_numero_financeiro','gerar_numero_portaria','gerar_numero_tombamento',
     'gerar_protocolo_cedencia','gerar_protocolo_memorando_lotacao','get_proximo_numero_remessa',
     -- estrutura organizacional e processos (sem dado pessoal sensível)
-    'folha_esta_bloqueada','get_chefe_unidade_atual',
+    'folha_esta_bloqueada',
     'get_hierarquia_unidade','get_subordinados_unidade','user_has_unit_access','can_approve','can_view_indicacao',
     -- ajudantes de RLS/RBAC: as policies os chamam como o usuário, então precisam de EXECUTE (consultam
-    -- permissões de terceiros pelo UUID; risco aceito e registrado em supabase/baseline/README.md)
+    -- permissões de terceiros pelo UUID; risco aceito e registrado em supabase/baseline/README.md). Desde a P12
+    -- (migração 20261017090000) get_user_permission_codes, get_user_permissions, get_permissions_from_servidor,
+    -- listar_permissoes_usuario e get_chefe_unidade_atual checam quem chama e saíram desta lista.
     'can_access_module','has_module','has_permission','has_permission_code','is_active_user','is_admin_user','is_user_active',
-    'get_user_permission_codes','get_user_permissions','get_permissions_from_servidor','listar_permissoes_usuario',
     -- RPCs públicas (formulários e portal): anon executa
     'arbitro_cpf_cadastrado','obter_protocolo_arbitro','obter_dado_oficial','registrar_denuncia_publica',
     'consultar_gestor_por_cpf','registrar_gestor_publico',
@@ -1286,6 +1291,7 @@ DECLARE
   u_inativo uuid := (SELECT uid FROM persona WHERE nome='inativo');
   u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
   u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');
   u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');  -- módulo rh + permissão de processar
   sa text := 'b0000000-0000-0000-0000-00000000000a';
   sx uuid := 'b0000000-0000-0000-0000-0000000000c1';
@@ -1384,11 +1390,16 @@ BEGIN
   IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('escrita em config_parametros_valores falha (fn_audit_parametros): ' || r); END IF;
 
   -- ===== I5: o formulário público de gestores escolares funciona para anon (trigger atualiza escolas_jer)
+  -- Desde a P12 (migração 20261017090000) o INSERT direto é recusado (anon e logado sem módulo); só a RPC grava.
   escola := pg_temp.seed_row('escolas_jer');
-  r := pg_temp.insere_como(NULL, 'anon', 'gestores_escolares', jsonb_build_object('id', 'd1000000-0000-0000-0000-000000000006', 'escola_id', escola, 'status', 'ativo'));
-  IF r <> 'ok' THEN PERFORM pg_temp.falha('gestores_escolares: anon não consegue enviar o formulário (' || r || ')');
+  r := pg_temp.insere_como(NULL, 'anon', 'gestores_escolares', jsonb_build_object('id', 'd1000000-0000-0000-0000-000000000006', 'escola_id', escola, 'status', 'aguardando'));
+  IF r = 'ok' THEN PERFORM pg_temp.falha('gestores_escolares: anon insere direto na tabela (só pela RPC registrar_gestor_publico)'); END IF;
+  r := pg_temp.insere_como(u_nenhum, 'authenticated', 'gestores_escolares', jsonb_build_object('id', 'd1000000-0000-0000-0000-000000000006', 'escola_id', escola, 'status', 'aguardando'));
+  IF r = 'ok' THEN PERFORM pg_temp.falha('gestores_escolares: logado sem módulo insere direto na tabela'); END IF;
+  r := pg_temp.valor_como(NULL, 'anon', format('SELECT public.registrar_gestor_publico(%L::uuid, ''CICLANO'', ''10987654321'', NULL, NULL, ''c@teste.invalid'', ''95988888888'', NULL)::text', escola));
+  IF r IS NULL OR r LIKE 'erro:%' OR r LIKE '%"erro"%' THEN PERFORM pg_temp.falha('gestores_escolares: anon não consegue enviar o formulário pela RPC (' || coalesce(r, 'NULL') || ')');
   ELSIF NOT (SELECT ja_cadastrada FROM public.escolas_jer WHERE id = escola::uuid) THEN PERFORM pg_temp.falha('gestores_escolares: escolas_jer.ja_cadastrada não foi marcada');
-  ELSIF (SELECT status FROM public.gestores_escolares WHERE id = 'd1000000-0000-0000-0000-000000000006') <> 'aguardando' THEN PERFORM pg_temp.falha('gestores_escolares: anon escolheu o status');
+  ELSIF (SELECT status FROM public.gestores_escolares WHERE cpf = '10987654321') <> 'aguardando' THEN PERFORM pg_temp.falha('gestores_escolares: o cadastro público não nasceu aguardando');
   END IF;
 
   -- ===== M2/M6: usuário inativo não grava auditoria; perfil inexistente não é "ativo"
@@ -1533,13 +1544,190 @@ BEGIN
 
   -- ===== gestores escolares: as duas RPCs públicas funcionam para anon (e só devolvem nome, status e escola)
   r := pg_temp.valor_como(NULL, 'anon', format('SELECT public.registrar_gestor_publico(%L::uuid, ''FULANO'', ''12345678901'', NULL, NULL, ''f@teste.invalid'', ''95999999999'', NULL)::text',
-         (SELECT id FROM public.escolas_jer LIMIT 1)));
+         (SELECT e.id FROM public.escolas_jer e WHERE NOT EXISTS (SELECT 1 FROM public.gestores_escolares g WHERE g.escola_id = e.id) LIMIT 1)));
   IF r IS NULL OR r LIKE 'erro:%' THEN PERFORM pg_temp.falha('registrar_gestor_publico (anon) falha: ' || coalesce(r, 'NULL')); END IF;
   IF r ~* 'cpf|email|celular|12345678901' THEN PERFORM pg_temp.falha('registrar_gestor_publico devolve dado pessoal: ' || r); END IF;
   r := pg_temp.valor_como(NULL, 'anon', 'SELECT public.consultar_gestor_por_cpf(''123.456.789-01'')::text');
-  IF r IS NULL OR r LIKE 'erro:%' OR r NOT LIKE '%FULANO%' THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf (anon) não acha o gestor: ' || coalesce(r, 'NULL')); END IF;
+  IF r IS NULL OR r LIKE 'erro:%' OR r NOT LIKE '%aguardando%' THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf (anon) não acha o gestor: ' || coalesce(r, 'NULL')); END IF;
   IF r ~* 'cpf|email|celular|12345678901' THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf devolve dado pessoal: ' || r); END IF;
+  -- P12: só a situação e o nome da escola (sem o nome da pessoa e sem ids)
+  IF r ~* 'FULANO|"id"|"nome": "FULANO' OR (r::jsonb - 'status' - 'escola') <> '{}'::jsonb OR ((r::jsonb -> 'escola') - 'nome') <> '{}'::jsonb THEN
+    PERFORM pg_temp.falha('consultar_gestor_por_cpf devolve mais que situação e escola: ' || r);
+  END IF;
   IF pg_temp.valor_como(NULL, 'anon', 'SELECT public.consultar_gestor_por_cpf(''000'')::text') IS NOT NULL THEN PERFORM pg_temp.falha('consultar_gestor_por_cpf aceita CPF inválido'); END IF;
+END $$;
+
+-- ---------------------------------------------------------------- P12: formulários públicos e permissões (migração 20261017090000)
+-- Policies de INSERT público só com a situação inicial (também com o trigger de campos iniciais desligado);
+-- limite por IP (PT429) nas RPCs públicas e no INSERT direto, sem barrar a equipe do módulo nem outro IP;
+-- duplicidade neutra no cadastro de gestor; funções de permissão só sobre si mesmo ou para o admin;
+-- chefe da unidade só para quem lê nomeacoes_chefe_unidade. TRIGGERS LIGADOS.
+DO $$
+DECLARE
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');
+  u_arb uuid := (SELECT uid FROM persona WHERE nome='mod_arbitros');
+  u_fed uuid := (SELECT uid FROM persona WHERE nome='mod_federacoes');
+  u_pat uuid := (SELECT uid FROM persona WHERE nome='mod_patrimonio');
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');
+  arb uuid := 'd1200000-0000-0000-0000-000000000001';
+  unid text := (SELECT id_a FROM semeado WHERE tabela = 'unidades_locais');
+  srv text := (SELECT id_a FROM semeado WHERE tabela = 'servidores');
+  escola text; r text; i int; fn text; p record;
+  fed_ok jsonb := jsonb_build_object('status', 'em_analise', 'analisado_por', NULL, 'data_analise', NULL, 'observacoes_internas', NULL);
+BEGIN
+  -- ===== a) policy de INSERT público sem depender do trigger trg_forcar_campos_iniciais
+  ALTER TABLE public.federacoes_esportivas DISABLE TRIGGER trg_forcar_campos_iniciais;
+  ALTER TABLE public.cadastro_arbitros DISABLE TRIGGER trg_forcar_campos_iniciais;
+  ALTER TABLE public.cadastro_arbitros_modalidades DISABLE TRIGGER trg_forcar_campos_iniciais;
+  PERFORM set_config('request.headers', '{"x-real-ip": "198.51.100.1"}', true);
+  FOREACH r IN ARRAY ARRAY['ativo', 'rejeitado', 'inativo'] LOOP
+    IF pg_temp.insere_como(NULL, 'anon', 'federacoes_esportivas', fed_ok || jsonb_build_object('status', r)) = 'ok' THEN
+      PERFORM pg_temp.falha('P12 federacoes_esportivas: anon insere com status ' || r);
+    END IF;
+  END LOOP;
+  IF pg_temp.insere_como(NULL, 'anon', 'federacoes_esportivas', fed_ok || jsonb_build_object('analisado_por', u_admin::text)) = 'ok'
+     OR pg_temp.insere_como(NULL, 'anon', 'federacoes_esportivas', fed_ok || jsonb_build_object('data_analise', now()::text)) = 'ok'
+     OR pg_temp.insere_como(NULL, 'anon', 'federacoes_esportivas', fed_ok || jsonb_build_object('observacoes_internas', 'forjado')) = 'ok' THEN
+    PERFORM pg_temp.falha('P12 federacoes_esportivas: anon insere com campo interno preenchido');
+  END IF;
+  r := pg_temp.insere_como(NULL, 'anon', 'federacoes_esportivas', fed_ok);
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P12 federacoes_esportivas: anon não envia o formulário com a situação inicial (' || r || ')'); END IF;
+  r := pg_temp.insere_como(u_fed, 'authenticated', 'federacoes_esportivas', fed_ok || jsonb_build_object('status', 'ativo'));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P12 federacoes_esportivas: o módulo federacoes não cadastra federação ativa (' || r || ')'); END IF;
+  IF pg_temp.insere_como(NULL, 'anon', 'cadastro_arbitros', jsonb_build_object('status', 'aprovado')) = 'ok' THEN
+    PERFORM pg_temp.falha('P12 cadastro_arbitros: anon insere com status aprovado');
+  END IF;
+  IF pg_temp.insere_como(u_nenhum, 'authenticated', 'cadastro_arbitros', jsonb_build_object('status', 'aprovado')) = 'ok' THEN
+    PERFORM pg_temp.falha('P12 cadastro_arbitros: logado sem módulo insere com status aprovado');
+  END IF;
+  r := pg_temp.insere_como(NULL, 'anon', 'cadastro_arbitros', jsonb_build_object('id', arb, 'status', 'enviado', 'protocolo', NULL));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P12 cadastro_arbitros: anon não envia o formulário com a situação inicial (' || r || ')');
+  ELSIF (SELECT protocolo FROM public.cadastro_arbitros WHERE id = arb) !~ '^ARB-' THEN PERFORM pg_temp.falha('P12 cadastro_arbitros: protocolo não gerado');
+  END IF;
+  IF pg_temp.insere_como(NULL, 'anon', 'cadastro_arbitros_modalidades', jsonb_build_object('arbitro_id', arb, 'modalidade', 'p12-a', 'status', 'aprovado', 'observacoes', NULL)) = 'ok'
+     OR pg_temp.insere_como(NULL, 'anon', 'cadastro_arbitros_modalidades', jsonb_build_object('arbitro_id', arb, 'modalidade', 'p12-b', 'status', 'pendente', 'observacoes', 'forjado')) = 'ok' THEN
+    PERFORM pg_temp.falha('P12 cadastro_arbitros_modalidades: anon insere com status final ou observação interna');
+  END IF;
+  r := pg_temp.insere_como(NULL, 'anon', 'cadastro_arbitros_modalidades', jsonb_build_object('arbitro_id', arb, 'modalidade', 'p12-c', 'status', 'pendente', 'observacoes', NULL));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P12 cadastro_arbitros_modalidades: anon não envia a modalidade pendente (' || r || ')'); END IF;
+  r := pg_temp.insere_como(u_arb, 'authenticated', 'cadastro_arbitros', jsonb_build_object('status', 'aprovado'));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P12 cadastro_arbitros: o módulo arbitros não cadastra árbitro aprovado (' || r || ')'); END IF;
+  ALTER TABLE public.federacoes_esportivas ENABLE TRIGGER trg_forcar_campos_iniciais;
+  ALTER TABLE public.cadastro_arbitros ENABLE TRIGGER trg_forcar_campos_iniciais;
+  ALTER TABLE public.cadastro_arbitros_modalidades ENABLE TRIGGER trg_forcar_campos_iniciais;
+  FOREACH r IN ARRAY ARRAY['cadastro_arbitros', 'cadastro_arbitros_modalidades', 'federacoes_esportivas'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = ('public.' || r)::regclass AND tgname = 'trg_limite_publico' AND NOT tgisinternal AND tgenabled <> 'D') THEN
+      PERFORM pg_temp.falha('P12 ' || r || ': falta o trigger trg_limite_publico');
+    END IF;
+  END LOOP;
+
+  -- ===== b) limite por IP no INSERT direto (federações: 10 por hora; o IP 198.51.100.1 já gastou 1 acima)
+  PERFORM set_config('request.headers', '{"x-real-ip": "198.51.100.2"}', true);
+  FOR i IN 1..10 LOOP
+    r := pg_temp.insere_como(NULL, 'anon', 'federacoes_esportivas', '{}'::jsonb);
+    IF r <> 'ok' THEN PERFORM pg_temp.falha('P12 limite: federação ' || i || ' de 10 recusada (' || r || ')'); END IF;
+  END LOOP;
+  DELETE FROM seed_erro WHERE tabela = 'federacoes_esportivas';
+  r := pg_temp.insere_como(NULL, 'anon', 'federacoes_esportivas', '{}'::jsonb);
+  IF r = 'ok' OR NOT EXISTS (SELECT 1 FROM seed_erro WHERE tabela = 'federacoes_esportivas' AND msg LIKE 'Muitas solicitações%') THEN
+    PERFORM pg_temp.falha('P12 limite: 11ª federação do mesmo IP não deu PT429 (' || r || ': ' || coalesce((SELECT string_agg(msg, '; ') FROM seed_erro WHERE tabela = 'federacoes_esportivas'), '') || ')');
+  END IF;
+  FOR i IN 1..12 LOOP   -- a equipe do módulo (mesmo IP) não é barrada
+    r := pg_temp.insere_como(u_fed, 'authenticated', 'federacoes_esportivas', '{}'::jsonb);
+    IF r <> 'ok' THEN PERFORM pg_temp.falha('P12 limite: o módulo federacoes foi barrado pelo limite do IP (' || r || ')'); EXIT; END IF;
+  END LOOP;
+  PERFORM set_config('request.headers', '{"x-forwarded-for": "10.0.0.1, 198.51.100.3"}', true);
+  r := pg_temp.insere_como(NULL, 'anon', 'federacoes_esportivas', '{}'::jsonb);
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P12 limite: outro IP barrado pelo limite do primeiro (' || r || ')'); END IF;
+
+  -- ===== c) limite por IP nas RPCs públicas
+  PERFORM set_config('request.headers', '{"x-real-ip": "198.51.100.4"}', true);
+  FOR i IN 1..30 LOOP
+    r := pg_temp.valor_como(NULL, 'anon', 'SELECT public.consultar_gestor_por_cpf(''99999999999'')::text');
+    IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('P12 limite: consulta de gestor ' || i || ' de 30 recusada (' || r || ')'); EXIT; END IF;
+  END LOOP;
+  r := pg_temp.valor_como(NULL, 'anon', 'SELECT public.consultar_gestor_por_cpf(''99999999999'')::text');
+  IF coalesce(r, '') NOT LIKE 'erro:PT429%' THEN PERFORM pg_temp.falha('P12 limite: 31ª consulta de gestor não deu PT429 (' || coalesce(r, 'NULL') || ')'); END IF;
+  FOR i IN 1..30 LOOP
+    r := pg_temp.valor_como(NULL, 'anon', 'SELECT public.arbitro_cpf_cadastrado(''99999999999'')::text');
+    IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('P12 limite: consulta de CPF de árbitro ' || i || ' de 30 recusada (' || r || ')'); EXIT; END IF;
+  END LOOP;
+  r := pg_temp.valor_como(NULL, 'anon', 'SELECT public.arbitro_cpf_cadastrado(''99999999999'')::text');
+  IF coalesce(r, '') NOT LIKE 'erro:PT429%' THEN PERFORM pg_temp.falha('P12 limite: 31ª consulta de CPF de árbitro não deu PT429 (' || coalesce(r, 'NULL') || ')'); END IF;
+  FOR i IN 1..10 LOOP
+    r := pg_temp.valor_como(NULL, 'anon', 'SELECT public.registrar_denuncia_publica(true, ''outro'', ''x'', ''2026-01-01'', ''x'', ''descricao de teste'', NULL, NULL, NULL, NULL, NULL)');
+    IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('P12 limite: denúncia ' || i || ' de 10 recusada (' || r || ')'); EXIT; END IF;
+  END LOOP;
+  r := pg_temp.valor_como(NULL, 'anon', 'SELECT public.registrar_denuncia_publica(true, ''outro'', ''x'', ''2026-01-01'', ''x'', ''descricao de teste'', NULL, NULL, NULL, NULL, NULL)');
+  IF coalesce(r, '') NOT LIKE 'erro:PT429%' THEN PERFORM pg_temp.falha('P12 limite: 11ª denúncia não deu PT429 (' || coalesce(r, 'NULL') || ')'); END IF;
+  -- sem usuário de API (service role, migração): não consome nem é barrado
+  IF public.consultar_gestor_por_cpf('99999999999') IS NOT NULL THEN NULL; END IF;
+  -- o IP fica só como hash
+  IF EXISTS (SELECT 1 FROM public.limite_requisicoes_publicas WHERE chave_hash LIKE '%198.51.100%') THEN
+    PERFORM pg_temp.falha('P12 limite: IP em claro em limite_requisicoes_publicas');
+  END IF;
+  IF pg_temp.sel(u_admin, 'authenticated', 'limite_requisicoes_publicas') <> -1 OR pg_temp.sel(NULL, 'anon', 'limite_requisicoes_publicas') <> -1 THEN
+    PERFORM pg_temp.falha('P12 limite: limite_requisicoes_publicas tem privilégio de leitura pela API');
+  END IF;
+  FOREACH fn IN ARRAY ARRAY['public.limite_publico_consumir(text, integer, text)', 'public.limite_publico_insercao()'] LOOP
+    IF has_function_privilege('anon', fn, 'EXECUTE') OR has_function_privilege('authenticated', fn, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('P12 limite: ' || fn || ' executável pela API');
+    END IF;
+  END LOOP;
+
+  -- ===== d) gestor: duplicidade neutra e contada no limite (10 por hora)
+  PERFORM set_config('request.headers', '{"x-real-ip": "198.51.100.5"}', true);
+  escola := (SELECT escola_id::text FROM public.gestores_escolares WHERE cpf = '12345678901');
+  FOR i IN 1..10 LOOP
+    -- mesmo CPF, e-mail e escola novos; depois mesmo e-mail; depois mesma escola
+    r := pg_temp.valor_como(NULL, 'anon', format('SELECT public.registrar_gestor_publico(%L::uuid, ''X'', %L, NULL, NULL, %L, ''95900000000'', NULL)::text',
+           CASE i % 3 WHEN 0 THEN escola ELSE pg_temp.seed_row('escolas_jer') END,
+           CASE i % 3 WHEN 1 THEN '12345678901' ELSE lpad(i::text, 11, '7') END,
+           CASE i % 3 WHEN 2 THEN 'f@teste.invalid' ELSE 'p12-' || i || '@teste.invalid' END));
+    IF coalesce(r, '') NOT LIKE '{"erro": %' THEN PERFORM pg_temp.falha('P12 gestor: duplicidade ' || i || ' não voltou como erro neutro (' || coalesce(r, 'NULL') || ')'); EXIT; END IF;
+    IF r ~* 'unique|constraint|cpf|e-?mail|escola|23505' THEN PERFORM pg_temp.falha('P12 gestor: o erro de duplicidade revela o dado: ' || r); EXIT; END IF;
+  END LOOP;
+  r := pg_temp.valor_como(NULL, 'anon', format('SELECT public.registrar_gestor_publico(%L::uuid, ''X'', ''10000000001'', NULL, NULL, ''p12-novo@teste.invalid'', ''95900000000'', NULL)::text', pg_temp.seed_row('escolas_jer')));
+  IF coalesce(r, '') NOT LIKE 'erro:PT429%' THEN PERFORM pg_temp.falha('P12 gestor: 11ª tentativa do mesmo IP não deu PT429 (' || coalesce(r, 'NULL') || ')'); END IF;
+
+  -- ===== e) permissões de outro usuário: só o próprio ou o admin
+  FOREACH fn IN ARRAY ARRAY['get_user_permission_codes(%L)::text', 'get_user_permissions(%L)::text', 'get_permissions_from_servidor(%L)::text',
+                            '(SELECT count(*) FROM public.listar_permissoes_usuario(%L))::text'] LOOP
+    r := pg_temp.valor_como(u_nenhum, 'authenticated', 'SELECT ' || CASE WHEN fn LIKE '(%' THEN '' ELSE 'public.' END || format(fn, u_admin));
+    IF coalesce(r, '') NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('P12 permissões: usuário comum lê as de outro usuário com ' || fn || ' (' || coalesce(r, 'NULL') || ')'); END IF;
+    r := pg_temp.valor_como(u_nenhum, 'authenticated', 'SELECT ' || CASE WHEN fn LIKE '(%' THEN '' ELSE 'public.' END || format(fn, u_nenhum));
+    IF coalesce(r, '') LIKE 'erro:%' THEN PERFORM pg_temp.falha('P12 permissões: usuário não lê as próprias com ' || fn || ' (' || r || ')'); END IF;
+    r := pg_temp.valor_como(u_admin, 'authenticated', 'SELECT ' || CASE WHEN fn LIKE '(%' THEN '' ELSE 'public.' END || format(fn, u_nenhum));
+    IF coalesce(r, '') LIKE 'erro:%' THEN PERFORM pg_temp.falha('P12 permissões: admin não lê as de outro usuário com ' || fn || ' (' || r || ')'); END IF;
+  END LOOP;
+  r := pg_temp.valor_como(u_rh, 'authenticated', format('SELECT public.get_user_permission_codes(%L)::text', u_nenhum));
+  IF coalesce(r, '') NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('P12 permissões: usuário com módulo lê as de outro usuário (' || coalesce(r, 'NULL') || ')'); END IF;
+  r := pg_temp.valor_como(u_lanc, 'authenticated', 'SELECT public.get_user_permission_codes(auth.uid())::text');
+  IF coalesce(r, '') NOT LIKE '%rh.frequencia.lancar%' THEN PERFORM pg_temp.falha('P12 permissões: o usuário não lê os próprios códigos (' || coalesce(r, 'NULL') || ')'); END IF;
+  -- has_permission_code (policies, Edge Functions) segue igual para o próprio usuário e fora da API
+  r := pg_temp.valor_como(u_lanc, 'authenticated', 'SELECT public.has_permission_code(auth.uid(), ''rh.frequencia.lancar'')::text');
+  IF coalesce(r, '') <> 'true' THEN PERFORM pg_temp.falha('P12 permissões: has_permission_code(auth.uid()) quebrou (' || coalesce(r, 'NULL') || ')'); END IF;
+  IF NOT ('rh.frequencia.lancar' = ANY (public.get_user_permission_codes(u_lanc))) OR NOT public.has_permission_code(u_lanc, 'rh.frequencia.lancar')
+     OR public.has_permission_code(u_admin, 'qualquer.coisa') IS DISTINCT FROM true THEN
+    PERFORM pg_temp.falha('P12 permissões: fora da API (service role) a consulta de outro usuário deixou de funcionar');
+  END IF;
+
+  -- ===== f) chefe da unidade: só quem lê nomeacoes_chefe_unidade (rh ou patrimonio; admin passa)
+  PERFORM set_config('session_replication_role', 'replica', true);
+  INSERT INTO public.nomeacoes_chefe_unidade (unidade_local_id, servidor_id, ato_nomeacao_tipo, ato_numero, ato_data_publicacao, data_inicio, status)
+  VALUES (unid::uuid, srv::uuid, (SELECT e.enumlabel::public.tipo_ato_nomeacao FROM pg_enum e WHERE e.enumtypid = 'public.tipo_ato_nomeacao'::regtype ORDER BY e.enumsortorder LIMIT 1),
+          'P12/2026', current_date, current_date + 1, 'ativo');
+  PERFORM set_config('session_replication_role', 'origin', true);
+  FOR p IN SELECT * FROM (VALUES ('nenhum', 0), ('mod_arbitros', 0), ('mod_patrimonio', 1), ('mod_rh', 1), ('admin', 1)) v(nome, esperado) LOOP
+    r := pg_temp.valor_como((SELECT uid FROM persona WHERE nome = p.nome), 'authenticated', format('SELECT count(*)::text FROM public.get_chefe_unidade_atual(%L::uuid)', unid));
+    IF coalesce(r, '') <> p.esperado::text THEN
+      PERFORM pg_temp.falha(format('P12 get_chefe_unidade_atual: %s recebe %s linha(s) (esperado %s)', p.nome, coalesce(r, 'NULL'), p.esperado));
+    END IF;
+  END LOOP;
+
+  PERFORM pg_temp.nota('P12: INSERT público de federações e árbitros só na situação inicial, limite por IP (INSERT direto e 4 RPCs), duplicidade neutra do gestor, permissões de outro usuário e chefe da unidade verificados');
 END $$;
 
 -- ---------------------------------------------------------------- inventário de campo (migração 20261009160000)
@@ -1642,7 +1830,8 @@ END $$;
 DO $$
 DECLARE
   u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
-  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');                      -- módulo rh, sem permissão
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');                      -- módulo rh, sem permissão
   u_ch uuid := (SELECT uid FROM persona WHERE nome='perm_rh.aprovar');             -- chefia: módulo rh + rh.aprovar
   u_rhp uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');  -- RH: módulo rh + rh.frequencia.lancar
   sa text := 'b0000000-0000-0000-0000-00000000000a';
@@ -2140,6 +2329,7 @@ DECLARE
   u_ai uuid := (SELECT uid FROM persona WHERE nome='srv_inativo');
   u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');
   u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');
   u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
   u_ed uuid := (SELECT uid FROM persona WHERE nome='perm_rh.servidores.editar');   -- módulo rh + rh.servidores.editar
   r text; n int; c text; p record; f text;
@@ -2361,7 +2551,8 @@ DECLARE
   u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');                      -- sem servidor vinculado
   u_inativo uuid := (SELECT uid FROM persona WHERE nome='inativo');
   u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');                            -- vinculado ao servidor A
-  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');                          -- módulo rh, sem permissão
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');                          -- módulo rh, sem permissão
   u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');
   sa uuid := 'b0000000-0000-0000-0000-00000000000a';
   sb uuid := 'b0000000-0000-0000-0000-00000000000b';
@@ -2868,6 +3059,7 @@ DECLARE
   u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
   u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
   u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');
   u_fl uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');   -- módulo rh + rh.frequencia.lancar
   u_ed uuid := (SELECT uid FROM persona WHERE nome='perm_rh.servidores.editar');   -- módulo rh + rh.servidores.editar
   sa uuid := 'b0000000-0000-0000-0000-00000000000a';
@@ -3155,7 +3347,8 @@ DECLARE
   u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
   u_nenhum uuid := (SELECT uid FROM persona WHERE nome='nenhum');
   u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
-  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');                          -- módulo rh, sem permissão
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');                          -- módulo rh, sem permissão
   u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');
   u_anon uuid := '00000000-0000-0000-0000-000000000000';
   sa uuid := 'b0000000-0000-0000-0000-00000000000a';
@@ -3533,6 +3726,7 @@ DECLARE
   u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
   u_a uuid := (SELECT uid FROM persona WHERE nome='srv_a');
   u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');
   u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');
   u_cc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.contracheques.visualizar');
   sa uuid := 'b0000000-0000-0000-0000-00000000000a';
@@ -3784,6 +3978,7 @@ DECLARE
   u_avulsa uuid := 'f1000000-0000-0000-0000-000000000003'; u_conc2 uuid := 'f1000000-0000-0000-0000-000000000004';
   u_fin uuid := (SELECT uid FROM persona WHERE nome='mod_financeiro');
   u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');
   u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
   pag1 uuid := 'f2000000-0000-0000-0000-000000000003';
   pag3 uuid := 'f2000000-0000-0000-0000-000000000007';
@@ -4336,7 +4531,8 @@ $$;
 DO $$
 DECLARE
   u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
-  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');                       -- o "lançador" (relinkado abaixo)
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_lanc uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');                       -- o "lançador" (relinkado abaixo)
   u_ch uuid := (SELECT uid FROM persona WHERE nome='perm_rh.aprovar');              -- chefia
   u_rhp uuid := (SELECT uid FROM persona WHERE nome='perm_rh.frequencia.lancar');   -- RH da frequência
   u_cg uuid := (SELECT uid FROM persona WHERE nome='perm_rh.comissoes.gerenciar');  -- cadastra comissões

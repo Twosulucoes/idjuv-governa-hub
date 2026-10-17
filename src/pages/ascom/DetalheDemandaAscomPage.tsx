@@ -58,6 +58,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { REGEX_URL_HTTP, urlSegura } from '@/lib/urlSegura';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { EmptyState, PageHeader, StatusBadge, type TomStatus } from '@/components/design-system';
@@ -223,11 +224,19 @@ export default function DetalheDemandaAscomPage() {
       return;
     }
     
+    // Link exibido depois como href: só http(s), para não gravar `javascript:` e afins
+    const urlArquivo = novoEntregavel.url_arquivo.trim();
+    const linkPublicacao = novoEntregavel.link_publicacao.trim();
+    if ((urlArquivo && !REGEX_URL_HTTP.test(urlArquivo)) || (linkPublicacao && !REGEX_URL_HTTP.test(linkPublicacao))) {
+      toast.error('Informe os links começando com http:// ou https://');
+      return;
+    }
+
     const result = await adicionarEntregavel(id, {
       tipo_entregavel: novoEntregavel.tipo_entregavel.trim(),
       descricao: novoEntregavel.descricao.trim(),
-      url_arquivo: novoEntregavel.url_arquivo.trim() || undefined,
-      link_publicacao: novoEntregavel.link_publicacao.trim() || undefined,
+      url_arquivo: urlArquivo || undefined,
+      link_publicacao: linkPublicacao || undefined,
       data_entrega: new Date().toISOString()
     });
     if (result) {
@@ -479,16 +488,18 @@ export default function DetalheDemandaAscomPage() {
                                 </div>
                               </div>
                               <div className="flex gap-2">
-                                <Button variant="ghost" size="icon" asChild>
-                                  <a
-                                    href={anexo.url_arquivo}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    aria-label={`Baixar anexo ${anexo.nome_arquivo}`}
-                                  >
-                                    <Download className="h-4 w-4" aria-hidden="true" />
-                                  </a>
-                                </Button>
+                                {urlSegura(anexo.url_arquivo) && (
+                                  <Button variant="ghost" size="icon" asChild>
+                                    <a
+                                      href={urlSegura(anexo.url_arquivo)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      aria-label={`Baixar anexo ${anexo.nome_arquivo}`}
+                                    >
+                                      <Download className="h-4 w-4" aria-hidden="true" />
+                                    </a>
+                                  </Button>
+                                )}
                                 <Button 
                                   variant="ghost" 
                                   size="icon"
@@ -573,9 +584,9 @@ export default function DetalheDemandaAscomPage() {
                                 <div>
                                   <Badge variant="outline">{entregavel.tipo_entregavel}</Badge>
                                   <p className="mt-2">{entregavel.descricao}</p>
-                                  {entregavel.link_publicacao && (
+                                  {urlSegura(entregavel.link_publicacao) && (
                                     <a 
-                                      href={entregavel.link_publicacao} 
+                                      href={urlSegura(entregavel.link_publicacao)} 
                                       target="_blank" 
                                       rel="noopener noreferrer"
                                       className="text-body text-primary hover:underline flex items-center gap-1 mt-2"

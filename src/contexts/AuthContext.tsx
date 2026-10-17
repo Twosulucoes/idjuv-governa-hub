@@ -6,7 +6,7 @@
 // Sem race conditions, sem duplicação.
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { AuthUser, PermissionCode, PermissaoUsuario, AuthState } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -312,12 +312,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
+        // Não exibe a mensagem crua do GoTrue: ela distingue conta inexistente, não confirmada etc.
+        // (enumeração de usuários). Só falha de rede tem mensagem própria.
         toast({
           variant: 'destructive',
           title: 'Erro ao entrar',
-          description: error.message === 'Invalid login credentials'
-            ? 'Email ou senha incorretos'
-            : error.message,
+          description: isAuthRetryableFetchError(error)
+            ? 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.'
+            : 'E-mail ou senha inválidos',
         });
         return { error };
       }

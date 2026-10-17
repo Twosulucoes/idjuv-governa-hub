@@ -113,10 +113,18 @@ de chamar `supabase` direto dentro da página.
   - `caminhoNoBucket(bucket, valor)`: devolve o caminho a partir de um caminho ou de uma URL antiga do Storage
     (`/object/public|sign/<bucket>/...`), o que mantém abrindo os links gravados antes, sem migração de dados.
     Devolve `null` para URL de outro bucket ou caminho inseguro (`.`/`..`, `/` inicial, `\`, `%`, `?`, `#`).
-  - `abrirUrlExterna(valor)`: abre um link já gravado só se for `http(s)` (barra `javascript:` e afins). Para
+  - `abrirUrlExterna(valor)`: abre um link já gravado só se for `http(s)` (barra `javascript:` e afins), pela
+    mesma regra de `urlHttpAbsoluta` (`src/lib/urlSegura.ts`). Para
     links que ainda não passaram para caminho + URL assinada (hoje, os documentos expedidos da tabela
     `documentos` na mesma aba).
   - Primeiro uso: `DocumentosServidorTab` (bucket `documentos-requerimento`, Onda B / B3).
+- **Links vindos do banco** (`src/lib/urlSegura.ts`, com teste, P12): **todo** `href` ou `window.open` com URL
+  vinda do banco passa por `urlSegura(valor)`, que devolve o link só se for `http(s)` absoluto ou caminho interno
+  (`/x`, nunca `//host`) e `undefined` para o resto (`javascript:`, `data:`, relativo sem barra). Já está aplicado
+  em ASCOM, reuniões, cargos, editais, transparência, documentos, processos, bens, links úteis, portal da
+  diretoria, seletiva, CMS, Instagram e frequência. `urlHttpAbsoluta` é a versão que aceita só `http(s)`.
+  Formulário que grava link valida o campo no zod com `REGEX_URL_HTTP` (e `MENSAGEM_URL_HTTP`); hoje: reunião,
+  cargo, federação, ASCOM e links úteis.
 - **Inventário de campo**: `src/lib/filaFotosOffline.ts` (IndexedDB sem dependência,
   banco `inventario-campo`, store `fotos-pendentes`; também comprime a imagem e
   calcula o SHA-256) e `src/lib/kml.ts` (lê KML no navegador com `DOMParser` e devolve

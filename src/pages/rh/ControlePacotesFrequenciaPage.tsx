@@ -5,6 +5,7 @@
  * para inserção de links em processos do SEI
  */
 import { useState, useMemo } from 'react';
+import { urlSegura } from '@/lib/urlSegura';
 import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -174,7 +175,9 @@ function DownloadButton({ pacote }: { pacote: FrequenciaPacote }) {
       }
 
       // Abrir URL de download
-      window.open(data.download_url, '_blank');
+      const url = urlSegura(data.download_url);
+      if (!url) throw new Error('Link de download inválido');
+      window.open(url, '_blank', 'noopener,noreferrer');
       toast.success('Download iniciado!');
     } catch (error: any) {
       console.error('Erro no download:', error);

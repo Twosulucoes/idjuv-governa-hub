@@ -24,13 +24,60 @@ documentado está, na prática, colapsado para nível de módulo).
 | C3 | 🔴 Crítico | `database-schema` (expõe schema completo via service role) e `cpsi-ai-assistant` (chama IA paga) sem qualquer checagem de identidade | ✅ Corrigido — mesmo padrão de `admin-create-user` |
 | M1 | 🟡 Médio | Dois modelos de permissão divergentes (granular documentado x módulo real) | ✅ Documentação corrigida |
 | M2 | 🟡 Médio | `requires_password_change` não era forçado no roteamento | ✅ Guard adicionado no `ProtectedRoute` |
-| M3 | 🟡 Médio | CORS `*` em todas as funções | ✅ Allowlist por env (`ALLOWED_ORIGINS`), fallback `*` |
+| M3 | 🟡 Médio | CORS `*` em todas as funções | ✅ Allowlist por env (`ALLOWED_ORIGINS`); desde o P12 sem fallback `*` (falha fechado) |
 | M4 | 🟡 Médio | `signUp` latente; signups do Supabase podem estar habilitados | ⚠️ Verificar no painel Supabase (Auth → Providers) |
 | B1 | 🟢 Baixo | UUID/e-mail do super admin hardcoded no bundle | Mantido (decisão de produto) |
 | B2 | 🟢 Baixo | `console.log` de e-mail/permissões no `AuthContext` | ✅ Removidos |
-| B3 | 🟢 Baixo | Mínimo de senha inconsistente (login 6 / nova 8) | Não alterado (mudar o login bloquearia senhas atuais de 6–7 chars) |
+| B3 | 🟢 Baixo | Mínimo de senha inconsistente (login 6 / nova 8) | ✅ P12: mínimo 8 ao criar e trocar (perfil, troca obrigatória, redefinição); no login a senha só é obrigatória (não bloqueia senhas atuais curtas). Falta o GoTrue exigir o mínimo no servidor (dono) |
 | B4 | 🟢 Baixo | `delete-user` usa `.single()` (quebra com 0/n linhas) | ✅ Trocado por `.maybeSingle()` |
-| D1 | 🟠 Alto | `xlsx@0.18.5` (CVE de ReDoS/prototype pollution) sem correção no npm registry; `ImportarEscolasPage.tsx` faz parsing de arquivo enviado pelo usuário | ⚠️ Mitigado parcialmente (ver abaixo) — troca de pacote bloqueada nesta rede |
+| D1 | 🟠 Alto | `xlsx@0.18.5` (CVE de ReDoS/prototype pollution) sem correção no npm registry; `ImportarEscolasPage.tsx` faz parsing de arquivo enviado pelo usuário | ✅ P12: `xlsx` 0.20.3 instalado do CDN oficial da SheetJS (ver abaixo) |
+
+## Auditoria de segurança P12 (17/10/2026)
+
+Auditoria do projeto inteiro (banco, Edge Functions, front e servidor) no passo P12 do plano de finalização.
+Resultado: **nenhum achado crítico ou alto**. Os achados abaixo foram corrigidos na mesma entrega ou ficaram
+registrados como pendência.
+
+**Corrigidos** (detalhes em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md), [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md),
+[RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md), [GUIA_FRONTEND.md](./GUIA_FRONTEND.md) e
+[DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md)):
+
+- **Formulários públicos** (migração `20261017090000`): limite por IP (hash md5, janela de 1 hora, `PT429`) nas RPCs
+  de gestores escolares, árbitros e denúncia e no INSERT de árbitros, modalidades e federações; gestores escolares
+  só pela RPC, com duplicidade em mensagem neutra; `consultar_gestor_por_cpf` sem nome da pessoa e sem ids; INSERT
+  público de federações e árbitros só com a situação inicial e sem campos internos.
+- **Funções de permissão:** `get_user_permission_codes`, `listar_permissoes_usuario`,
+  `get_permissions_from_servidor` e `get_user_permissions` não respondem pela API sobre outro usuário (só o próprio
+  ou o admin); `get_chefe_unidade_atual` só para quem lê `nomeacoes_chefe_unidade`.
+- **Edge Functions:** CORS falha fechado (`_shared/cors.ts`, `ALLOWED_ORIGINS` obrigatória), inclusive em
+  `download-frequencia`; convite de reunião exige o módulo `gabinete` ou `admin`, só gera `wa.me` para participante externo,
+  não revela contato do servidor e confere título e nomes no filtro de link; erros genéricos ao cliente em
+  `admin-reset-password`, `admin-create-user`, `delete-user` e `database-schema`; trilha do reset sem e-mail; log
+  do `cpsi-ai-assistant` só com status e tamanho; cotas em `bb-api` (validar conta, 60/hora) e no envio de teste
+  de `enviar-notificacao` (20/hora).
+- **Front:** links vindos do banco por `urlSegura` e formulários de link só com `http(s)`; senha mínima de 8 ao
+  criar e trocar (B3); login com "E-mail ou senha inválidos" para qualquer erro de credencial; PWA sem cache das
+  respostas da API (o cache antigo é apagado nos aparelhos); `react-router-dom` 6.30.6 e `xlsx` 0.20.3 (D1);
+  cabeçalhos de segurança versionados em `deploy/nginx/cabecalhos-seguranca.conf` e impressão de etiquetas sem
+  script inline.
+
+**Pendências que continuam:**
+
+- `delete-user` ainda grava o e-mail na trilha (linha `delete`) e devolve o e-mail ao admin, e não é atômica.
+- Convite de reunião: o link da reunião (`link_virtual`) é livre e o `created_by` da reunião pode ser trocado pela API.
+- ASCOM e documentos usam `getPublicUrl` em buckets privados (o link não abre).
+- As telas públicas da ASCOM só funcionam com login.
+- `requires_password_change` só é aplicado pela tela (`ProtectedRoute`), não no servidor.
+- Nome do cliente em `public/data/resumo.json` e na rota `/portal-preview-idjuv-2026`.
+- `has_permission_code`, `can_access_module` e `is_admin_user` ainda aceitam o uuid de outro usuário.
+
+**Do dono, no servidor:**
+
+- Incluir `deploy/nginx/cabecalhos-seguranca.conf` no `server { }` do nginx/Traefik da VPS (o CI não faz).
+- Definir `ALLOWED_ORIGINS` no serviço de Edge Functions (sem ela, o navegador bloqueia as funções).
+- Configurar o GoTrue para exigir a senha atual na troca e o mínimo de 8 caracteres.
+- Conferir que o proxy entrega o IP real em `x-real-ip`; se entregar IP interno, todos os visitantes caem na mesma
+  cota do limite por IP.
 
 ## Detalhamento dos itens corrigidos
 
@@ -61,8 +108,10 @@ O `ProtectedRoute` agora redireciona para `/trocar-senha-obrigatoria` quando
 ### M3 — CORS com allowlist
 As funções de usuário leem `ALLOWED_ORIGINS` (lista separada por vírgula) das
 variáveis de ambiente e refletem a origem quando permitida. Sem a variável,
-mantêm `*` para não quebrar ambientes existentes.
-**Recomendado:** definir `ALLOWED_ORIGINS` com a(s) origem(ns) de produção.
+mantinham `*` para não quebrar ambientes existentes. Desde o P12 todas usam
+`supabase/functions/_shared/cors.ts`: sem a variável, a resposta sai sem
+`Access-Control-Allow-Origin` (falha fechado), e `ALLOWED_ORIGINS` passou a ser
+**obrigatória** em toda instância (ver `docs/EDGE_FUNCTIONS.md`).
 
 ## Itens que dependem de acesso ao banco/painel
 
@@ -90,7 +139,13 @@ C2 fechado.
 > Function privilegiada (como criação/exclusão) em vez de escrita direta do
 > client, deixando o RLS como segunda barreira.
 
-### D1 — `xlsx` sem correção no npm registry (mitigado parcialmente)
+### D1 — `xlsx` sem correção no npm registry (resolvido no P12)
+
+**Situação atual (P12, 17/10/2026):** `xlsx` 0.20.3 instalado do CDN oficial da
+SheetJS (`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` no `package.json`),
+que corrige a falha da 0.18.5. O texto abaixo é o registro de quando o item foi
+aberto.
+
 A SheetJS parou de publicar correções de segurança do pacote `xlsx` no npm
 registry a partir da 0.18.5 (2022) — confirmado consultando
 `npm view xlsx versions`, não há versão mais nova lá. A correção oficial só
@@ -113,7 +168,7 @@ limita — mas não elimina — o efeito prático do CVE de prototype pollution.
 volumoso; não elimina o risco de ReDoS/pollution de um arquivo pequeno e
 malicioso).
 
-**Ainda pendente — requer decisão/acesso do time:**
+**Pendente na época (a opção 1 foi feita no P12):**
 1. Instalar `xlsx` a partir do CDN oficial da SheetJS a partir de uma máquina/CI
    sem essa restrição de rede (`npm install https://cdn.sheetjs.com/...`); ou
 2. Substituir `xlsx` por uma lib mantida (ex. `exceljs`) pelo menos no caminho
