@@ -23,6 +23,10 @@ name: Deploy do front (VPS)
 #              opcionais FRONT_URL (padrão https://idjuv.online, para a conferência final)
 #              e DIAS_ASSETS_ANTIGOS.
 # Sem a configuração o job FALHA (o merge não chegou ao ar). Guia: docs/DESENVOLVIMENTO.md (Deploy do front).
+#
+# Coolify: com a variável COOLIFY_APP_UUID, quem publica é o Coolify (job deploy-coolify, Dockerfile da raiz);
+# o job deploy (rsync) fica desligado. Pede COOLIFY_URL (variável), COOLIFY_TOKEN (segredo do ambiente
+# "deploy-front") e, para o site institucional, COOLIFY_SITE_UUID.
 on:
   push:
     branches: [main]
@@ -69,9 +73,53 @@ jobs:
             bash scripts/ci/esperar-workflow.sh migracoes-banco.yml "$GITHUB_SHA" 330 --ultimo-da-main
           fi
 
+  # Publicação pelo Coolify (Dockerfile da raiz): liga quando a variável COOLIFY_APP_UUID existe; aí o
+  # job `deploy` (rsync por SSH) abaixo deixa de rodar. Mesma espera pelo gate e pelas migrações.
+  deploy-coolify:
+    needs: esperar
+    if: github.ref == 'refs/heads/main' && vars.COOLIFY_APP_UUID != ''
+    runs-on: ubuntu-latest
+    environment: deploy-front
+    env:
+      COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID }}
+      COOLIFY_SITE_UUID: ${{ vars.COOLIFY_SITE_UUID }}
+      FRONT_URL: ${{ vars.FRONT_URL || 'https://idjuv.online' }}
+      SITE_URL: ${{ vars.VITE_SITE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configuração presente?
+        run: |
+          faltam=""
+          for v in COOLIFY_URL COOLIFY_TOKEN COOLIFY_APP_UUID; do [ -z "${!v}" ] && faltam="$faltam $v"; done
+          if [ -n "$faltam" ]; then
+            echo "::error::Deploy pelo Coolify NÃO feito: falta configurar$faltam. Ver docs/DESENVOLVIMENTO.md."
+            exit 1
+          fi
+
+      - name: Deploy do sistema
+        run: bash scripts/ci/deploy-coolify.sh "$COOLIFY_APP_UUID"
+
+      - name: Deploy do site institucional
+        if: env.COOLIFY_SITE_UUID != ''
+        run: bash scripts/ci/deploy-coolify.sh "$COOLIFY_SITE_UUID"
+
+      - name: Conferir no ar
+        run: |
+          for url in "$FRONT_URL" ${COOLIFY_SITE_UUID:+${SITE_URL:-}}; do
+            [ -n "$url" ] || continue
+            curl -fsS -o /dev/null -H 'Cache-Control: no-cache' "${url%/}/" || { echo "::error::$url não respondeu"; exit 1; }
+            echo "### $url no ar (commit ${GITHUB_SHA::7})" >> "$GITHUB_STEP_SUMMARY"
+          done
+
   deploy:
     needs: esperar
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && vars.COOLIFY_APP_UUID == ''
     runs-on: ubuntu-latest
     # Segredos do deploy: o ambiente "deploy-front" só aceita a branch main.
     environment: deploy-front
