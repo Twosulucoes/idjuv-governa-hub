@@ -130,7 +130,7 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 
 Plano de finalização e entregas fora dele (uma linha por PR):
 
-- [x] #PR — Usuário técnico (fora do plano): grava os módulos marcados e mostra a senha temporária, como no usuário de servidor; a mensagem de "e-mail enviado" saiu porque nenhum e-mail é enviado; falha ao salvar módulos agora aparece.
+- [x] #124 — Usuário técnico (fora do plano): grava os módulos marcados e mostra a senha temporária, como no usuário de servidor; a mensagem de "e-mail enviado" saiu porque nenhum e-mail é enviado; falha ao salvar módulos agora aparece.
 - [x] #121 — Front publicado pelo Coolify (fora do plano): `Dockerfile` na raiz (sistema e site pelo build arg `MODO`) e job `deploy-coolify`; o rsync segue enquanto `COOLIFY_APP_UUID` não existir.
 - [x] #120 — Separação do portal público e do sistema interno (fora do plano): menu do site só com rota pública, telas internas no `ModuleLayout`, build `site` com os formulários públicos.
 - [x] #119 — P12, auditoria de segurança.
