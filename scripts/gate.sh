@@ -3,9 +3,10 @@
 # O repo tem dívida histórica (erros de tipo/lint), então typecheck e lint comparam
 # com scripts/gate-baseline.json: falham só se o número de erros AUMENTAR.
 # Quando reduzir a dívida, rode: bash scripts/gate.sh --update-baseline
-# Antes disso rodam cinco guards baratos (migrações sem versão duplicada, docs sem
+# Antes disso rodam sete guards baratos (migrações sem versão duplicada, docs sem
 # referência quebrada, RLS do baseline em dia com o mapa, contraste AA dos tokens
-# de cor, autoria e trilha em toda tabela do RH), que falham em qualquer ocorrência —
+# de cor, autoria e trilha em toda tabela do RH, docs/ESTADO_DO_SISTEMA.md em dia
+# e doc viva sem contagem escrita à mão), que falham em qualquer ocorrência —
 # não têm baseline (o do RH aceita exceção com motivo em scripts/autoria-rh-excecoes.txt). A "cor crua"
 # (paleta fixa do Tailwind/hex em .tsx) também compara com a baseline: só não pode subir.
 # Roda no pre-push (.githooks/pre-push) e no CI (.github/workflows/quality.yml).
@@ -50,6 +51,15 @@ guard "docs sem referência quebrada" node scripts/check-doc-links.mjs
 guard "RLS do baseline em dia com o mapa" node scripts/db/gerar-rls.mjs --check
 guard "contraste AA dos tokens de cor" node scripts/check-contraste.mjs
 guard "RH: autoria e trilha em toda tabela do RH" node scripts/check-autoria-rh.mjs
+# No push da main (depois do merge) o estado só avisa: dois PRs que mudam a mesma contagem entram sem conflito
+# e deixariam a main vermelha, travando o deploy. No PR e no pre-push ele reprova.
+if [ "${GITHUB_EVENT_NAME:-}" = "push" ] && [ "${GITHUB_REF:-}" = "refs/heads/main" ]; then
+  printf "\n${AMARELO}▸ estado do sistema em dia (só aviso na main)${SEM}\n"
+  node scripts/estado-do-sistema.mjs --checar || printf "${AMARELO}  ⚠ rode npm run estado num PR${SEM}\n"
+else
+  guard "estado do sistema em dia" node scripts/estado-do-sistema.mjs --checar
+fi
+guard "docs sem contagem escrita à mão" node scripts/check-numeros-docs.mjs
 
 comparar "typecheck" "$(ts_erros)" typecheck
 comparar "lint" "$(lint_erros)" lint

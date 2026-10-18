@@ -214,30 +214,6 @@ ALTER TABLE ONLY public.avisos
 
 
 --
--- Name: backup_config backup_config_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.backup_config
-    ADD CONSTRAINT backup_config_pkey PRIMARY KEY (id);
-
-
---
--- Name: backup_history backup_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.backup_history
-    ADD CONSTRAINT backup_history_pkey PRIMARY KEY (id);
-
-
---
--- Name: backup_integrity_checks backup_integrity_checks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.backup_integrity_checks
-    ADD CONSTRAINT backup_integrity_checks_pkey PRIMARY KEY (id);
-
-
---
 -- Name: baixas_patrimonio baixas_patrimonio_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3497,34 +3473,6 @@ CREATE INDEX idx_avisos_leituras_user ON public.avisos_leituras USING btree (use
 --
 
 CREATE INDEX idx_avisos_vigentes ON public.avisos USING btree (inicio_em DESC) WHERE ativo;
-
-
---
--- Name: idx_backup_history_started_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_backup_history_started_at ON public.backup_history USING btree (started_at DESC);
-
-
---
--- Name: idx_backup_history_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_backup_history_status ON public.backup_history USING btree (status);
-
-
---
--- Name: idx_backup_history_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_backup_history_type ON public.backup_history USING btree (backup_type);
-
-
---
--- Name: idx_backup_integrity_checks_backup_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_backup_integrity_checks_backup_id ON public.backup_integrity_checks USING btree (backup_id);
 
 
 --
@@ -10197,13 +10145,6 @@ CREATE TRIGGER update_avaliacoes_risco_updated_at BEFORE UPDATE ON public.avalia
 
 
 --
--- Name: backup_config update_backup_config_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_backup_config_updated_at BEFORE UPDATE ON public.backup_config FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-
---
 -- Name: baixas_patrimonio update_baixas_patrimonio_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -12849,30 +12790,6 @@ ALTER TABLE ONLY public.avisos_leituras
 
 ALTER TABLE ONLY public.avisos_leituras
     ADD CONSTRAINT avisos_leituras_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
-
---
--- Name: backup_history backup_history_triggered_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.backup_history
-    ADD CONSTRAINT backup_history_triggered_by_fkey FOREIGN KEY (triggered_by) REFERENCES auth.users(id);
-
-
---
--- Name: backup_integrity_checks backup_integrity_checks_backup_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.backup_integrity_checks
-    ADD CONSTRAINT backup_integrity_checks_backup_id_fkey FOREIGN KEY (backup_id) REFERENCES public.backup_history(id) ON DELETE CASCADE;
-
-
---
--- Name: backup_integrity_checks backup_integrity_checks_checked_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.backup_integrity_checks
-    ADD CONSTRAINT backup_integrity_checks_checked_by_fkey FOREIGN KEY (checked_by) REFERENCES auth.users(id);
 
 
 --
@@ -17862,24 +17779,6 @@ CREATE POLICY avisos_update ON public.avisos FOR UPDATE TO authenticated USING (
 
 
 --
--- Name: backup_config; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.backup_config ENABLE ROW LEVEL SECURITY;
-
---
--- Name: backup_history; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.backup_history ENABLE ROW LEVEL SECURITY;
-
---
--- Name: backup_integrity_checks; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.backup_integrity_checks ENABLE ROW LEVEL SECURITY;
-
---
 -- Name: baixas_patrimonio; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -19372,27 +19271,6 @@ CREATE POLICY rls_delete ON public.avaliacoes_controle FOR DELETE TO authenticat
 --
 
 CREATE POLICY rls_delete ON public.avaliacoes_risco FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
-
-
---
--- Name: backup_config rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.backup_config FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_history rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.backup_history FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_integrity_checks rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.backup_integrity_checks FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
 
 
 --
@@ -20958,27 +20836,6 @@ CREATE POLICY rls_insert ON public.avaliacoes_controle FOR INSERT TO authenticat
 --
 
 CREATE POLICY rls_insert ON public.avaliacoes_risco FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
-
-
---
--- Name: backup_config rls_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_insert ON public.backup_config FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_history rls_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_insert ON public.backup_history FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_integrity_checks rls_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_insert ON public.backup_integrity_checks FOR INSERT TO authenticated WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --
@@ -22585,27 +22442,6 @@ CREATE POLICY rls_select ON public.avaliacoes_controle FOR SELECT TO authenticat
 --
 
 CREATE POLICY rls_select ON public.avaliacoes_risco FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text));
-
-
---
--- Name: backup_config rls_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_select ON public.backup_config FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_history rls_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_select ON public.backup_history FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_integrity_checks rls_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_select ON public.backup_integrity_checks FOR SELECT TO authenticated USING (public.is_admin_user(auth.uid()));
 
 
 --
@@ -24252,27 +24088,6 @@ CREATE POLICY rls_update ON public.avaliacoes_controle FOR UPDATE TO authenticat
 --
 
 CREATE POLICY rls_update ON public.avaliacoes_risco FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'governanca'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'governanca'::text));
-
-
---
--- Name: backup_config rls_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_update ON public.backup_config FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_history rls_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_update ON public.backup_history FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
-
-
---
--- Name: backup_integrity_checks rls_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_update ON public.backup_integrity_checks FOR UPDATE TO authenticated USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
 
 
 --

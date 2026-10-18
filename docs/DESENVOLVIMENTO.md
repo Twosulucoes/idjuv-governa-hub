@@ -30,14 +30,22 @@ VITE_SUPABASE_PROJECT_ID=...
 
 ```bash
 bun run dev          # servidor de desenvolvimento
-bun run build        # build de produção (não checa tipos; o typecheck está no gate)
+bun run build        # build do sistema (não checa tipos; o typecheck está no gate)
+bun run build:site   # build do site institucional (VITE_APP_MODE=site → dist-site/)
 bun run build:dev    # build em modo development
 bun run lint         # ESLint
+bun run test         # testes vitest (src/ e scripts/)
+bun run estado       # regenera docs/ESTADO_DO_SISTEMA.md (contagens do sistema)
+bun run gate         # gate completo (o mesmo do pre-push e do CI)
 bun run preview      # serve o build localmente
 ```
 
 > **Verificação:** `bash scripts/gate.sh` (guards, testes vitest de `src/` e
-> `scripts/`, typecheck, lint e build). Antes da PR, confira a documentação que a
+> `scripts/`, typecheck, lint, build do sistema e do site). Entre os guards estão o
+> do estado do sistema (`npm run estado:checar`: `docs/ESTADO_DO_SISTEMA.md` igual
+> ao que o código gera; corrija com `npm run estado`; no push da `main` ele só avisa, para que dois PRs
+> que mudam a mesma contagem não travem o deploy, e o próximo PR corrige) e o de número escrito à mão
+> nas docs vivas (`npm run check:numeros`; detalhes em `CONTRIBUTING.md`). Antes da PR, confira a documentação que a
 > matriz exige com `node scripts/check-docs-matriz.mjs --base origin/main` (é o
 > que o `docs-guard` cobra em toda PR, ver `CONTRIBUTING.md`). Quando possível,
 > rode `bun run dev` e valide o fluxo no navegador com diferentes perfis.
@@ -160,7 +168,10 @@ todos no ambiente `producao`; sem eles o job falha.
    `src/shared/config/modules.config.ts`.
 7. **Permissões** — `requiredPermissions` no `ProtectedRoute` da rota (`src/App.tsx`), a mesma no item de
    menu e, se o caminho for de módulo novo, a rota em `MODULES_CONFIG.rotas` (`modules.config.ts`).
-8. **Verificar** — `bun run lint` && `bun run build`.
+8. **Verificar** — `bash scripts/gate.sh` (`npm run gate`).
+
+Rota do **site institucional** (portal público) vai em `src/AppSite.tsx`, entrada `src/main-site.tsx`, e o
+caminho precisa estar em `ROTAS_DO_SITE` (`src/core/modo-app.ts`); rota do sistema vai em `src/App.tsx`.
 
 ## Ambiente de desenvolvimento em nuvem (Claude Code na web)
 
@@ -210,8 +221,10 @@ Gerador de prompts para o dia a dia: [`prompts/README.md`](../prompts/README.md)
 
 ## Deploy
 
-A **VPS é a única produção** (`idjuv.online`): nginx servindo o front e Supabase self-hosted
-(`bd.idjuv.online`). A Vercel foi desligada em 2026-10-09 para não existir um segundo site com outra
+A **VPS é a única produção**: o sistema em `app.idjuv.online` (build `MODO=sistema`), o site institucional
+em `idjuv.online` (build `MODO=site`) e o Supabase self-hosted (`bd.idjuv.online`). O front é publicado pelo
+CI: pelo Coolify quando a variável `COOLIFY_APP_UUID` existe ([Publicação pelo Coolify](#publicação-pelo-coolify)),
+senão por `rsync` para o nginx. A Vercel foi desligada em 2026-10-09 para não existir um segundo site com outra
 versão ou outro banco. Não há prévia por PR: teste local com `bun run dev`.
 
 ### Ambientes protegidos do GitHub (segredos de produção)
@@ -314,7 +327,7 @@ os cabeçalhos de `deploy/nginx/cabecalhos-seguranca.conf`); domínio e HTTPS fi
   nunca subir antes da migração de que depende.
 - GitHub: variáveis `COOLIFY_URL`, `COOLIFY_APP_UUID`, `COOLIFY_SITE_UUID` e `FRONT_URL`; segredo
   `COOLIFY_TOKEN` (Coolify → Keys & Tokens → API tokens, permissão de deploy) no ambiente `deploy-front`.
-- Sem `COOLIFY_APP_UUID` nada muda: segue o rsync abaixo.
+- Sem `COOLIFY_APP_UUID` nada muda: segue o rsync descrito acima.
 
 ### Deploy das Edge Functions (CI)
 

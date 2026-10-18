@@ -118,7 +118,7 @@ mantinham `*` para não quebrar ambientes existentes. Desde o P12 todas usam
 ### C2 — RLS das tabelas de usuário (migração aplicada, validação pendente)
 A gestão de módulos (`useAdminRBAC`/`useAdminUsuarios`) escreve direto em
 `user_modules` (e atualiza `profiles`) pelo client. **A única barreira é o RLS.**
-A proposta em [RLS_USUARIOS_PROPOSTA.sql](./RLS_USUARIOS_PROPOSTA.sql) foi
+A proposta em [RLS_USUARIOS_PROPOSTA.sql](./historico/RLS_USUARIOS_PROPOSTA.sql) foi
 materializada como migração real em
 `supabase/migrations/20260824010000_rls_user_modules_user_roles_profiles.sql`
 (helper `is_admin_atual()` + políticas de leitura/escrita restringindo INSERT/

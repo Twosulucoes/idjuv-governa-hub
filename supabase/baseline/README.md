@@ -39,7 +39,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | # | Arquivo | O que faz | Origem |
 |---|---|---|---|
 | 1 | `schema/01_pre_data.sql` | tipos, funções, tabelas, views | **gerado** (`scripts/db/gerar-baseline.sh`) |
-| 2 | `schema/02_dados_catalogo.sql` | 24 tabelas de catálogo/parâmetros (972 linhas; `processo_modelos`, `processo_modelo_etapas` e `processo_modelo_checklist` (modelos de fluxo do workflow, migração `20261013100000`); `audit_colunas_sensiveis` entrou na E1, `rh.contracheques.visualizar` e seus 2 papéis na E3; `regra_lancamento` (um modo por módulo: `rh` em `registrar`, os demais `desligado`), `rh.comissoes.gerenciar` e o papel `admin` na regra de setor, migração `20261011020000`, que tira o `manager`) | **gerado** |
+| 2 | `schema/02_dados_catalogo.sql` | 23 tabelas de catálogo/parâmetros (972 linhas; `processo_modelos`, `processo_modelo_etapas` e `processo_modelo_checklist` (modelos de fluxo do workflow, migração `20261013100000`); `audit_colunas_sensiveis` entrou na E1, `rh.contracheques.visualizar` e seus 2 papéis na E3; `regra_lancamento` (um modo por módulo: `rh` em `registrar`, os demais `desligado`), `rh.comissoes.gerenciar` e o papel `admin` na regra de setor, migração `20261011020000`, que tira o `manager`) | **gerado** |
 | 3 | `schema/03_post_data.sql` | constraints, índices, triggers, RLS ligado, policies do replay | **gerado** |
 | 4 | `overlay/10_funcoes_acesso.sql` | `is_admin_user`, `is_admin_atual`, `has_permission_code`, `meu_servidor_id` exigem perfil **ativo**; fim dos stubs “acesso total”; alias `usuario_eh_admin`; `eh_meu_servidor(uuid)` (B2: "este servidor é o do usuário?", por vínculo ou, sem vínculo, por CPF); `eh_meu_arquivo_frequencia(text)` e `eh_minha_pasta_servidor(text)` (B3: o objeto do storage é do servidor do usuário?) | à mão |
 | 5 | `overlay/12_protecao_profiles.sql` | trigger: quem não é admin não muda `is_active`, `servidor_id`, bloqueio, tipo, CPF, e-mail; policies de `profiles` sem duplicatas | à mão |
@@ -148,7 +148,7 @@ e o que a produção tem de diferente das migrações. Na produção roda pelo w
 baseline); `--checar` só compara e é o que o workflow **Tipos do banco** roda (`docs/BANCO_DE_DADOS.md`).
 
 `validar-baseline.sh` recria um banco vazio com o shim do Supabase (`scripts/db/shim-supabase.sql`),
-aplica o baseline, confirma que uma segunda aplicação é recusada e que só as 24 tabelas de catálogo têm linhas, roda
+aplica o baseline, confirma que uma segunda aplicação é recusada e que só as 23 tabelas de catálogo têm linhas, roda
 `scripts/db/testar-rls.sh` e, com `PG_REPLAY`, compara schema, privilégios e storage com o replay das
 migrações, sem reaplicar os overlays (desde a `20261014120000` o replay já os traz; overlay ou `mapa.csv` mudado sem
 migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` + claims do JWT):
@@ -242,6 +242,10 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
 - RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada (desde 2026-10-12 a lista inclui as 4
   RPCs do pré-cadastro público e `frequencia_competencia_travada`), privilégios padrão, `anon` executando exatamente
   14 funções, campos que o autor não pode escolher nos formulários.
+
+Em 2026-10-18 (P13, migração `20261018100000_remove_tabelas_backup_aposentado.sql`), as tabelas `backup_config`,
+`backup_history` e `backup_integrity_checks` e os enums `backup_status` e `backup_type` (do backup antigo, aposentado
+no P06) saíram do schema do baseline e do `rls/mapa.csv`.
 
 Último resultado (2026-10-17, P12, migração `20261017090000`): overlays 18, 20 e 40 com o mesmo texto da migração,
 schema regenerado do replay e `validar-baseline.sh` com `PG_REPLAY` **APROVADO** (RLS com 0 falhas, incluindo os testes

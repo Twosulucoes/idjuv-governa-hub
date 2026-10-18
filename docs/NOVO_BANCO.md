@@ -2,12 +2,12 @@
 
 Como criar um banco **novo** do sistema a partir do baseline de `supabase/baseline/`
 ([conteúdo e manutenção](../supabase/baseline/README.md)). Escopo: banco **vazio** — nenhum dado de
-servidor, usuário ou documento é levado do banco antigo. Para exportar dados, veja
-[EXPORTAR_DADOS.md](./EXPORTAR_DADOS.md); migrar dados não está coberto aqui.
+servidor, usuário ou documento é levado do banco antigo. Migrar dados não está coberto aqui; para
+recuperar os dados da produção, restaure o backup ([BACKUP.md](./BACKUP.md)).
 
-> Este guia substitui [MIGRACAO_SUPABASE_PROPRIO.md](./MIGRACAO_SUPABASE_PROPRIO.md) (descreve 88
-> tabelas e 62 migrações) e [SCHEMA_SUPABASE_PROPRIO.sql](./SCHEMA_SUPABASE_PROPRIO.sql) (10
-> `CREATE TABLE`): nenhum dos dois reconstrói o sistema atual.
+> Este guia substitui o antigo guia de Supabase próprio e o dump parcial do schema, hoje em
+> [`historico/`](./historico/) (`MIGRACAO_SUPABASE_PROPRIO.md`, `SCHEMA_SUPABASE_PROPRIO.sql`,
+> `EXPORTAR_DADOS.md` e a pasta `disaster-recovery/`): nenhum deles reconstrói o sistema atual.
 
 ## 1. Onde rodar
 
@@ -103,8 +103,8 @@ Os demais usuários entram pelo app (Admin → Usuários). Guarde as credenciais
 - Edge Functions (detalhes em [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md)): `admin-create-user`,
   `admin-reset-password`, `delete-user`, `download-frequencia`,
   `enviar-convite-reuniao`, `enviar-notificacao`, `cpsi-ai-assistant`, `database-schema`, `bb-api`. Segredos lidos pelo código:
-  `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_ORIGINS` (use a URL do
-  front), `RESEND_API_KEY`/`RESEND_FROM` (e-mail, só como reserva: o cliente configura o envio em
+  `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_ORIGINS` (os endereços do
+  front separados por vírgula; no IDJUV, `https://idjuv.online,https://app.idjuv.online`), `RESEND_API_KEY`/`RESEND_FROM` (e-mail, só como reserva: o cliente configura o envio em
   `/admin/envios`, com credencial no Vault), `GEMINI_API_KEY`/`GEMINI_MODEL` (assistente),
   `BB_AMBIENTE`, `BB_CLIENT_ID`, `BB_CLIENT_SECRET`,
   `BB_APP_KEY`, `BB_CERT_PEM`, `BB_KEY_PEM` (função `bb-api`, APIs de leitura do Banco do Brasil, com as
@@ -115,7 +115,10 @@ Os demais usuários entram pelo app (Admin → Usuários). Guarde as credenciais
   `false`; confirme na sua versão): as funções confiam no gateway para validar o JWT. A publicação na VPS é
   feita pelo CI ([EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md#publicação-pelo-ci)).
 - O baseline **não** cria agendamento (`pg_cron`). O backup fora da VPS é o de [BACKUP.md](./BACKUP.md) (a antiga
-  `backup-offsite` foi aposentada no P06; as tabelas `backup_*` ficam até o P13).
+  `backup-offsite` foi aposentada no P06, e as tabelas `backup_*` dela foram apagadas no P13).
+- A tela **Admin → Disaster recovery** (`/admin/disaster-recovery`) resume este caminho para quem usa o sistema
+  (backup diário, banco novo pelo baseline, front pelo CI). É só informativa: desde o P13 não oferece mais o
+  download do schema antigo.
 
 ## 7. Conferência depois de aplicar
 
@@ -124,7 +127,7 @@ Rode estas consultas como `postgres` no banco novo:
 ```sql
 -- 0 policies "acesso total"
 SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND policyname ILIKE 'acesso_total%';
--- anon executa exatamente 14 funções (registrar_denuncia_publica, obter_dado_oficial, arbitro_cpf_cadastrado,
+-- anon executa só estas funções (registrar_denuncia_publica, obter_dado_oficial, arbitro_cpf_cadastrado,
 -- obter_protocolo_arbitro, consultar_gestor_por_cpf, registrar_gestor_publico, transparencia_execucao_orcamentaria,
 -- transparencia_licitacoes, transparencia_patrimonio, transparencia_cargos_publicos, pre_cadastro_publico_criar,
 -- pre_cadastro_publico_obter, pre_cadastro_publico_salvar, pre_cadastro_publico_enviar)
@@ -168,7 +171,7 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   com os overlays 18, 20 e 40 alterados com o mesmo texto, e aprovado por `validar-baseline.sh` com `PG_REPLAY`
   ([detalhe](./BANCO_DE_DADOS.md)).
 - O schema do baseline foi regenerado em 2026-10-12 com as migrações até `20261012150000` (RH de 12/10 e quadro de
-  vagas, tabela `vagas_cargo` na classe `catalogo`; 252 tabelas no mapa) e aprovado por `validar-baseline.sh` com
+  vagas, tabela `vagas_cargo` na classe `catalogo`; 252 tabelas no mapa) e aprovado por `validar-baseline.sh` com <!-- numero-datado -->
   `PG_REPLAY` ([detalhe](../supabase/baseline/README.md#verificação)).
 - A RPC `importar_portarias_planilha` e a permissão `gabinete.portarias.importar` (migração `20261015120000`) entraram no
   schema do baseline só com os dois trechos do dump (função e linha do catálogo), sem regenerar o resto; testes no bloco

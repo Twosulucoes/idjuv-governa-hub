@@ -30,12 +30,12 @@ a operação administrativa interna do órgão e seus canais públicos.
 
 ## Mapa de módulos
 
-O sistema tem **17 módulos** (definidos em
-`src/shared/config/modules.config.ts`):
+Os módulos são definidos em `src/shared/config/modules.config.ts` (lista e
+contagem atual em [ESTADO_DO_SISTEMA.md](./ESTADO_DO_SISTEMA.md#módulos)):
 
 | Módulo | Código | Função |
 |---|---|---|
-| Administração | `admin` | Usuários, perfis, auditoria, reuniões, backup, configurações |
+| Administração | `admin` | Usuários, perfis, auditoria, reuniões, disaster recovery (informativa), configurações |
 | Recursos Humanos | `rh` | Servidores, frequência, férias, licenças, lotações, folha |
 | Processos | `workflow` | Tramitação de processos administrativos (SEI-like) |
 | Compras | `compras` | Licitações e aquisições |

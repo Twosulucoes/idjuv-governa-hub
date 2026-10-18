@@ -77,7 +77,9 @@ Bug no caminho → `systematic-debugging`. Mudanças de lógica pura (cálculos 
    `revisor-seguranca-idjuv`. Trate achados com `receiving-code-review` (verifique antes de aplicar).
 2. `verification-before-completion`: rode e leia a saída — `bash scripts/gate.sh` (lint, typecheck, build).
    Tela nova se vê rodando (`bun run dev` + Playwright/Chromium do ambiente), em mobile (390px) e desktop.
-   Migração: `mcp__Supabase__get_advisors` (segurança) após aplicar. Não afirme sucesso sem evidência.
+   Migração: `scripts/db/validar-baseline.sh` com `PG_REPLAY` num Postgres local (o conector MCP do Supabase
+   não alcança o banco da VPS; no PR, o workflow **Banco do zero e RLS** repete o teste). Não afirme sucesso sem
+   evidência.
 
 ## Passo 6 — Entrega
 

@@ -7,8 +7,8 @@ importa este arquivo (`@AGENTS.md`). Contexto completo: [`CLAUDE.md`](./CLAUDE.m
 
 - **Projeto:** IDJUV Governa Hub — ERP/governança para órgão público (React 18 + Vite + TypeScript + Supabase).
 - **Idioma:** português (domínio, comentários, UI). Não traduza nomes existentes.
-- **Verificação:** testes automatizados em `src/lib/documentos`, `src/lib/workflow` e `scripts/` (vitest, rodam no gate). Use `bash scripts/gate.sh` (`npm run gate`): guards de migrações, de links de docs, de RLS do baseline e de contraste AA dos tokens + typecheck + lint + cor crua em `.tsx` + build; typecheck, lint e cor crua falham só se piorarem vs. `scripts/gate-baseline.json`. Roda no `pre-push` (`.githooks/`, ativado por `npm install`) e no CI (`.github/workflows/quality.yml`). Detalhes em [`CONTRIBUTING.md`](./CONTRIBUTING.md).
-- **Alias:** `@` → `src/`. Todas as rotas em `src/App.tsx`.
+- **Verificação:** testes automatizados em `src/lib/`, `src/config`, `src/shared/config`, `src/core`, `src/codigo-alcancavel.test.ts` e `scripts/` (vitest, rodam no gate). Use `bash scripts/gate.sh` (`npm run gate`): guards de migrações, de links de docs, de RLS do baseline, de contraste AA dos tokens, de autoria do RH, de estado do sistema em dia (`docs/ESTADO_DO_SISTEMA.md`, `npm run estado`) e de número escrito à mão nas docs + typecheck + lint + cor crua em `.tsx` + build; typecheck, lint e cor crua falham só se piorarem vs. `scripts/gate-baseline.json`. Roda no `pre-push` (`.githooks/`, ativado por `npm install`) e no CI (`.github/workflows/quality.yml`). Detalhes em [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+- **Alias:** `@` → `src/`. Rotas do sistema em `src/App.tsx`; do site institucional em `src/AppSite.tsx`.
 - **Instalar deps:** `bun install` ou `npm install --no-package-lock` (o `package-lock.json` está fora de sincronia; `npm ci` falha).
 
 ## Invariantes (não quebrar com nenhuma mudança)
@@ -24,8 +24,8 @@ importa este arquivo (`@AGENTS.md`). Contexto completo: [`CLAUDE.md`](./CLAUDE.m
    o workflow `.github/workflows/migracoes-banco.yml` lista no PR (sem segredo) e aplica no merge na `main`, com aprovação no ambiente `producao`
    (banco: Supabase self-hosted da VPS, acessado por túnel SSH; o Postgres não fica exposto). Agente não aplica migração direto
    em banco remoto; toda migração do PR deve ser segura para rodar sozinha no merge.
-   O **front** também: `.github/workflows/deploy-front.yml` publica no nginx da VPS a cada merge, depois das
-   migrações do commit. A VPS é a única produção (a Vercel foi desligada); agente não copia build à mão para a VPS.
+   O **front** também: `.github/workflows/deploy-front.yml` publica a cada merge, depois das migrações do commit:
+   pelo Coolify (job `deploy-coolify`, `Dockerfile`) quando `vars.COOLIFY_APP_UUID` existe, senão por rsync para o nginx. A VPS é a única produção (a Vercel foi desligada); agente não copia build à mão para a VPS.
 
 ## Fluxo de trabalho: prompt curto → execução estruturada
 
@@ -55,7 +55,7 @@ brainstorming → [gate de aprovação] → writing-plans → subagent-driven-de
 | `novo-modulo-idjuv` | IDJUV | Feature/CRUD/página nova |
 | `migracao-segura-idjuv` | IDJUV | Mudança de schema com RLS |
 | `auditoria-seguranca-idjuv` | IDJUV | Antes de release / PR grande |
-| `onboarding-cliente-idjuv` | IDJUV | Nova instância white-label |
+| `onboarding-cliente-idjuv` | IDJUV | Nova instância white-label (banco pelo baseline, `docs/NOVO_BANCO.md`) |
 | `novo-documento-idjuv` | IDJUV | Qualquer PDF/documento imprimível novo (relatório, ficha, comprovante) ou migração de gerador antigo (`src/lib/documentos/`). Ato formal (portaria, memorando, termo, requerimento, DFD/ETP/TR) não se gera: é do SEI; o sistema só acompanha o ciclo |
 | Gerador de prompts (`/prompt`, `/pendencias`, `/finalizar` em `.claude/commands/`) | IDJUV | Pedido curto → prompt com contexto real do módulo; ver [`prompts/README.md`](./prompts/README.md) |
 | `supabase`, `supabase-postgres-best-practices` | supabase/agent-skills (MIT) | Qualquer trabalho com Supabase/Postgres |
@@ -80,5 +80,5 @@ invariantes — subagente não herda o contexto da sessão. Nunca finja delegaç
 1. RLS/policies na migração? RBAC na rota e no banco?
 2. `bash scripts/gate.sh` verde (resultado lido, não presumido)?
 3. Docs da matriz e `ROADMAP.md` atualizados na mesma PR (`node scripts/check-docs-matriz.mjs --base origin/main` sem pendência) ou `docs: não se aplica — <motivo>`?
-4. Nada não implementado foi documentado como existente?
+4. Nada não implementado foi documentado como existente? Nenhuma contagem do sistema escrita à mão (ela vive em `docs/ESTADO_DO_SISTEMA.md`)?
 5. Revisores (`revisor-codigo-idjuv`, e `revisor-seguranca-idjuv` se tocou segurança) sem bloqueantes?

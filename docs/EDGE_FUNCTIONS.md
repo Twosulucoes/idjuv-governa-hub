@@ -14,8 +14,9 @@ fora em 2026-10-15: sem cabeçalho e com token malformado, 401) e `supabase/conf
 para cada uma. Função nova entra nos dois lugares e confere usuário e permissão no próprio código.
 
 Aposentada no P06 (2026-10-15): `backup-offsite` (backup antigo em JSON para outro projeto Supabase, com a tela
-`/admin/backup`). O backup oficial é o da VPS ([BACKUP.md](./BACKUP.md)); as tabelas `backup_config`, `backup_history`
-e `backup_integrity_checks` continuam no banco até a limpeza do P13.
+`/admin/backup`). O backup oficial é o da VPS ([BACKUP.md](./BACKUP.md)). As tabelas que ela usava (`backup_config`,
+`backup_history`, `backup_integrity_checks`) foram apagadas no P13 pela migração
+`supabase/migrations/20261018100000_remove_tabelas_backup_aposentado.sql` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#limpeza-do-p13-18102026)).
 
 | Função | Propósito |
 |---|---|
@@ -48,8 +49,9 @@ Desde o P12 (17/10/2026), todas as funções montam o CORS por `montarCors` (`su
 que falha fechado: sem `ALLOWED_ORIGINS`, a resposta sai sem `Access-Control-Allow-Origin` (antes caía em `*`) e o
 navegador bloqueia a chamada; com a lista (separada por vírgula), a origem que está nela é ecoada. Chamada servidor
 a servidor não depende de CORS. Por isso `ALLOWED_ORIGINS` é **obrigatória em toda instância**, no ambiente do
-serviço de funções: em produção, `https://idjuv.online` e o endereço do app, se houver; em desenvolvimento, a
-origem local (ex.: `http://localhost:8080`).
+serviço de funções: em produção, os dois endereços do front, `https://idjuv.online,https://app.idjuv.online` (site
+e sistema; sem o do sistema, as telas internas que chamam função falham no navegador); em desenvolvimento, a origem
+local (ex.: `http://localhost:8080`).
 
 ### Erros devolvidos ao cliente
 
@@ -147,7 +149,7 @@ Spec: [`2026-10-11-financeiro-fiplan-banco-design.md`](./superpowers/specs/2026-
     segredos existem (nunca o valor) e tenta obter o token OAuth de cada escopo.
   - `extrato` `{conta_bancaria_id, data_inicio, data_fim}` (`YYYY-MM-DD`, até 31 dias): lê agência e conta em
     `fin_contas_bancarias` (só banco `001`), chama `GET /conta-corrente/agencia/{agencia}/conta/{conta}` da API
-    Extratos v2 com mTLS, paginando (200 por página, no máximo 50 páginas: acima disso responde `422` sem gravar nada e
+    Extratos v2 com mTLS, paginando (200 lançamentos por página e até 50 chamadas: acima disso responde `422` sem gravar nada e
     pede um período menor) até `numeroPaginaProximo = 0`, descarta as linhas de saldo e grava
     pela RPC `registrar_extrato_bb` (só service role; idempotente). Devolve `periodo`, `paginas`,
     `recebidos_do_banco`, `recebidos`, `inseridos`, `existentes` e `conciliados` (débitos casados com
@@ -200,7 +202,8 @@ banco: a tela não recebe nem guarda segredo.
 
    Com a CLI do Supabase: `supabase secrets set BB_AMBIENTE=homologacao BB_CLIENT_ID=... (etc.)`. No Supabase
    self-hosted da VPS, as Edge Functions leem as variáveis de ambiente do serviço de funções do Docker: inclua as
-   seis no ambiente desse serviço e reinicie-o. Defina também `ALLOWED_ORIGINS` com a URL do front.
+   seis no ambiente desse serviço e reinicie-o. Defina também `ALLOWED_ORIGINS` com os endereços do front
+   (seção "CORS e `ALLOWED_ORIGINS`").
 3. Publique a função `bb-api` na instância.
 4. Em `/financeiro/conciliacao`, aba "Banco do Brasil (API)", use "Testar conexão": a ação `status` mostra o
    ambiente, quais segredos faltam (sem mostrar valores) e se o token de cada API saiu. Só depois importe um

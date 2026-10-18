@@ -106,7 +106,6 @@ function inferTargetTable(columnName: string): string | null {
     'unidade_atual': 'estrutura_organizacional',
     'unidade_idjuv': 'estrutura_organizacional',
     'agenda': 'agenda_unidade',
-    'backup': 'backup_history',
     'org_unit': 'estrutura_organizacional',
     'requester_org_unit': 'estrutura_organizacional',
   };

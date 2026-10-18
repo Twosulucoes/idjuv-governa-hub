@@ -12,13 +12,16 @@
                 ▼                                ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                          SUPABASE                              │
-│  Postgres (231 tabelas, 15 views, 47 RPC)                      │
+│  Postgres (tabelas, views, funções/RPC)                        │
 │  Auth (JWT)  ·  Storage  ·  Row Level Security                 │
 │  Edge Functions (Deno) — operações privilegiadas/admin         │
 └──────────────────────────────────────────────────────────────┘
 
-Hospedagem do front: nginx da VPS (SPA, fallback p/ index.html).
+Hospedagem do front: VPS (nginx com fallback p/ index.html), dois builds:
+sistema em app.idjuv.online e site institucional em idjuv.online.
 ```
+
+Contagens (rotas, páginas, tabelas, views, funções, migrações): [ESTADO_DO_SISTEMA.md](./ESTADO_DO_SISTEMA.md).
 
 O front é uma **SPA** que fala diretamente com o Supabase via `supabase-js`
 (consultas, mutações, RPC, auth, storage). Operações que exigem privilégios
@@ -45,9 +48,10 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
 
 ## Roteamento
 
-- **Tudo em `src/App.tsx`** — um único `<Routes>` (~1240 linhas) com blocos
-  comentados por módulo. Para adicionar página: importar no topo + registrar a
-  `<Route>` no bloco do módulo.
+- **Dois arquivos de rotas:** o sistema em `src/App.tsx` (entrada `src/main.tsx`), um único `<Routes>` com
+  blocos comentados por módulo; o site institucional em `src/AppSite.tsx` (entrada `src/main-site.tsx`, build
+  `npm run build:site`), só com as rotas de `ROTAS_DO_SITE` (abaixo). Para adicionar página: importar no topo +
+  registrar a `<Route>` no bloco do módulo do arquivo certo.
 - Três tipos de rota:
   - **Públicas** — `<PublicPageGuard rota="...">`: checa status de manutenção/
     publicação da rota (configurável em `config_paginas_publicas`).
@@ -131,14 +135,14 @@ caches relevantes. Estatísticas de dashboard ficam em `use<Modulo>DashboardStat
 
 ## Backend (Supabase)
 
-- **Postgres**: 231 tabelas, 15 views (prefixo `v_`, usadas em transparência e
-  relatórios), 47 funções/RPC (cálculos de folha, INSS/IRRF, SLA de processos,
-  controle de acesso, fechamento de folha, etc.). Ver [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+- **Postgres**: tabelas, views (prefixo `v_`, usadas em transparência e
+  relatórios) e funções/RPC (cálculos de folha, INSS/IRRF, SLA de processos,
+  controle de acesso, fechamento de folha, etc.). Contagens em
+  [ESTADO_DO_SISTEMA.md](./ESTADO_DO_SISTEMA.md); detalhes em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
 - **RLS (Row Level Security)**: políticas no banco controlam acesso por linha;
-  funções como `has_permission`, `has_role`, `user_has_unit_access`,
-  `usuario_tem_acesso_modulo` apoiam essas políticas.
-- **Migrações**: `supabase/migrations/*.sql` (~240), nomeadas
-  `YYYYMMDDHHMMSS_<uuid>.sql` (ou `_<slug>.sql`).
+  funções como `has_permission`, `has_role` e `user_has_unit_access` apoiam essas políticas.
+- **Migrações**: `supabase/migrations/*.sql`, nomeadas
+  `YYYYMMDDHHMMSS_<uuid>.sql` (ou `_<slug>.sql`), aplicadas na produção só pelo CI.
 - **Storage**: anexos (documentos, demandas ASCOM, galerias, frequência) e
   evidências do inventário de campo (bucket privado `inventario-evidencias`,
   lido por URL assinada).
@@ -164,10 +168,12 @@ relatórios), em `src/lib`:
 - **Vite 5** + `@vitejs/plugin-react-swc`. Alias `@` → `src/`.
 - **PWA** via `vite-plugin-pwa` (registrado em `src/main.tsx`); ícones/manifest
   em `public/` — habilita o app mobile de patrimônio.
-- **Deploy**: nginx da VPS, publicado pelo CI a cada merge na `main`
-  (`.github/workflows/deploy-front.yml`; o nginx faz `try_files ... /index.html`, padrão SPA).
-  Backend e Edge Functions no Supabase self-hosted da mesma VPS. Ver
-  [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md#deploy).
+- **Deploy**: publicado pelo CI a cada merge na `main` (`.github/workflows/deploy-front.yml`), depois do gate
+  e das migrações do mesmo commit. Com a variável `COOLIFY_APP_UUID`, o job `deploy-coolify` pede o deploy ao
+  Coolify, que builda o `Dockerfile` da raiz em dois apps: sistema (`MODO=sistema`, `app.idjuv.online`) e site
+  (`MODO=site`, `idjuv.online`). Sem a variável, o job `deploy` copia o build por `rsync` para o nginx da VPS.
+  Nos dois casos o nginx faz `try_files ... /index.html` (padrão SPA). Backend e Edge Functions no Supabase
+  self-hosted da mesma VPS. Ver [DESENVOLVIMENTO.md](./DESENVOLVIMENTO.md#deploy).
 
 ## Variáveis de ambiente
 

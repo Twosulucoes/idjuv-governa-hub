@@ -4,3 +4,4 @@ dist-site
 .git
 .env
 .env.*
+docs/historico/disaster-recovery

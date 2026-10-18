@@ -14,7 +14,8 @@
 
 - Documentação que diverge do código é pior do que documentação ausente:
   induz decisão errada com confiança.
-- Este repositório tem centenas de migrações e páginas e 17 módulos — sem um
+- Este repositório tem centenas de migrações e páginas e mais de uma dezena de
+  módulos ([números atuais](./ESTADO_DO_SISTEMA.md)) — sem um
   dono claro por assunto e um gatilho por tipo de mudança, a doc apodrece em
   silêncio (é exatamente o que `docs/AUDITORIA_USUARIOS.md` e
   `docs/INVENTARIO_HARDCODE.md` registram como achados de uma auditoria
@@ -29,10 +30,11 @@
 
 | Documento | Responde por |
 |---|---|
-| [`DOCUMENTACAO_TECNICA.md`](../DOCUMENTACAO_TECNICA.md) | Documento-mestre: arquitetura, stack, fluxos principais, mapa do acoplamento à marca do cliente, diretrizes White Label |
+| [`docs/ESTADO_DO_SISTEMA.md`](./ESTADO_DO_SISTEMA.md) | Contagens do sistema (rotas, páginas, componentes, hooks, migrações, tabelas, views, funções, Edge Functions, módulos). **Gerado** por `scripts/estado-do-sistema.mjs` (`npm run estado`); não editar à mão |
 | [`docs/ARQUITETURA.md`](./ARQUITETURA.md) | Stack, camadas, fluxo de dados, autenticação, deploy |
 | [`docs/MODULOS.md`](./MODULOS.md) | Detalhamento funcional de cada módulo e suas páginas |
 | [`docs/BANCO_DE_DADOS.md`](./BANCO_DE_DADOS.md) | Tabelas, views e funções (RPC) do Postgres/Supabase, política de migrações |
+| [`docs/BACKUP.md`](./BACKUP.md) | Backup da VPS: dump diário cifrado fora da VPS, teste mensal de restauração, como restaurar |
 | [`docs/NOVO_BANCO.md`](./NOVO_BANCO.md) | Criar banco novo e vazio a partir de `supabase/baseline/` (Supabase self-hosted, validação em Postgres), primeiro administrador, conferência |
 | [`docs/RBAC_PERMISSOES.md`](./RBAC_PERMISSOES.md) | Modelo de permissões, perfis, rotas protegidas |
 | [`docs/GUIA_FRONTEND.md`](./GUIA_FRONTEND.md) | Estrutura do front, hooks, libs, padrões de código |
@@ -85,6 +87,7 @@ Linhas sem caminho de arquivo que as identifique (ex.: "regra para agentes" fora
 | Template de prompt, comando em `.claude/commands/` ou `scripts/prompt.mjs` | `prompts/README.md` | `CLAUDE.md` §10.1 |
 | Decisão ou andamento de planejamento | `docs/planejamento/ROADMAP.md` | Spec/plano datado em `docs/superpowers/` |
 | Skill vendorizada nova/alterada (`.claude/skills/`) | `.claude/skills/SUPERPOWERS-VENDOR.md` (gerado por `scripts/sync-superpowers-skills.sh` — não editar à mão); `ui-ux-pro-max` → `.claude/skills/UI-UX-PRO-MAX-VENDOR.md` | Skill de domínio nova é autodocumentada (frontmatter + corpo) — não precisa de entrada aqui |
+| Algo que muda uma contagem do sistema (rota, página, componente, hook, migração, tabela, função, Edge Function, módulo) | `docs/ESTADO_DO_SISTEMA.md` regenerado com `npm run estado` (cobrado pelo gate, não pelo `docs-guard`) | — |
 | **Criação de doc canônica nova** | `LIVING_DOCS` em `scripts/check-doc-links.mjs` + linha em `docs/README.md` + linha nesta matriz | — |
 | Documento/PDF novo ou alterado (`src/lib/documentos/`, `src/lib/pdf*.ts`) | `docs/PADRAO_DOCUMENTOS.md` | Skill `novo-documento-idjuv` |
 
@@ -97,8 +100,9 @@ duplique conteúdo — cópia é a forma mais rápida de criar drift.
 Uma mudança está completa quando:
 
 1. O código passa em `bash scripts/gate.sh` (`npm run gate`): guards de
-   migrações e de links de docs, typecheck e lint sem piora vs. a baseline, e
-   build, e os testes vitest de `src/` e `scripts/`.
+   migrações, de links de docs, de estado do sistema em dia e de número escrito
+   à mão, typecheck e lint sem piora vs. a baseline, build, e os testes vitest de
+   `src/` e `scripts/`.
 2. **Toda linha aplicável da matriz do §3 foi atendida** na mesma PR.
 3. O que foi escrito descreve o que **existe no código agora** — não intenção
    futura.
@@ -133,6 +137,8 @@ Estado de cada mecanismo hoje (o `docs-guard` passou a rodar em toda PR em
 | **`check:migrations`** | Versão de migração duplicada / nome fora do padrão `<14 dígitos>_slug.sql` | `scripts/check-migrations.sh` | Existe e roda local e em CI via `quality.yml` |
 | **`check:rls`** | `supabase/baseline/rls/35_policies_geradas.sql` defasado em relação a `rls/mapa.csv` | `scripts/db/gerar-rls.mjs --check` | Existe e roda local e em CI (dentro do gate). **Não** executa o teste de RLS: ele exige um Postgres (`scripts/db/validar-baseline.sh`, manual) |
 | **`check:autoria-rh`** | Tabela do RH (linha com `rh` em `supabase/baseline/rls/mapa.csv`) sem os triggers da onda E1 no schema do baseline: `zz_fixar_autoria` (`BEFORE INSERT OR UPDATE`, `fixar_autoria`) e `audit_<tabela>` (`AFTER INSERT OR UPDATE OR DELETE`, `fn_audit_trigger('rh')`), e o `zz_exigir_setor` da regra de setor (`BEFORE INSERT OR UPDATE OR DELETE`, `exigir_setor()`, migração `20261011020000`) com o `zz_exigir_setor_fim` (`AFTER INSERT OR UPDATE OR DELETE` por comando, `exigir_setor_fim()`), sem `WHEN` e sem `DISABLE TRIGGER`; na classe `trilha`, `trilha_imutavel` e `trilha_imutavel_truncate` com `ENABLE ALWAYS`. Exceção só com motivo em `scripts/autoria-rh-excecoes.txt` (hoje nenhuma) | `scripts/check-autoria-rh.mjs` | Existe e roda local e em CI (dentro do gate) |
+| **`estado:checar`** | `docs/ESTADO_DO_SISTEMA.md` diferente do que `scripts/estado-do-sistema.mjs` gera do código agora (rotas, páginas, migrações, tabelas…). Corrija com `npm run estado` | `scripts/estado-do-sistema.mjs --checar` | Existe e roda local e em CI (dentro do gate) |
+| **`check:numeros`** | Contagem escrita à mão ("N rotas", "N tabelas"…) nas docs vivas (`LIVING_DOCS` + `CLAUDE.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md`). Exceção: fato datado marcado com `<!-- numero-datado -->` (linha) ou `<!-- numero-datado:inicio -->` … `<!-- numero-datado:fim -->` (bloco) | `scripts/check-numeros-docs.mjs` | Existe e roda local e em CI (dentro do gate) |
 | **`npm run gate`** | Os guards acima + `typecheck` + `lint` + `build`. Typecheck e lint comparam com `scripts/gate-baseline.json` e falham **só se a dívida piorar** (o repo tem erros históricos); os guards falham em qualquer ocorrência | `scripts/gate.sh` | Existe; roda automaticamente no `pre-push` (`.githooks/pre-push`, ativado por `npm install` via o script `prepare`) — pulável com `git push --no-verify`. Ao reduzir a dívida: `bash scripts/gate.sh --update-baseline` |
 | **`quality.yml`** (CI) | Guard de `.env` rastreado + `scripts/gate.sh` (os mesmos checks do gate local) em toda PR | `.github/workflows/quality.yml` | **Ativo** (gatilho `pull_request`) — primeira vez que este repositório tem CI |
 | **`docs-guard`** (CI) | PR que muda código sem a doc dona do assunto (matriz do §3, por caminho) e, em `src/**`/`supabase/**`, sem `docs/planejamento/ROADMAP.md`, e sem escape declarado → falha | `.github/workflows/docs-guard.yml` + `scripts/check-docs-matriz.mjs` (testes em `scripts/check-docs-matriz.test.mjs`, no gate) | **Ativo em toda PR** desde 14/10/2026 (decisão do dono). O script roda da `main`, não da branch da PR. Para **bloquear o merge**, o check `docs-guard` precisa estar marcado como obrigatório na proteção da `main` (GitHub → Settings → Branches); sem isso ele só fica vermelho. Local: `node scripts/check-docs-matriz.mjs --base origin/main` |
@@ -155,10 +161,11 @@ merge sem conferir essa configuração no GitHub.
   plano/spec explicitamente marcado como tal (`docs/superpowers/plans/`),
   nunca nas docs canônicas do §2.
 - **Não copiar conteúdo entre docs.** Aponte para o dono do assunto.
-- **Não deixar contagens mortas.** Números ("N tabelas", "N páginas")
-  apodrecem: toda contagem em doc canônica deve vir com **data de apuração**
-  (como já faz `docs/README.md` em "Números do sistema (snapshot)"), para
-  qualquer pessoa saber se está defasada.
+- **Não escrever contagem do sistema à mão.** Números ("N tabelas", "N páginas")
+  apodrecem: a contagem mora só em [`docs/ESTADO_DO_SISTEMA.md`](./ESTADO_DO_SISTEMA.md),
+  gerado do código, e as outras docs apontam para lá (o `check:numeros` cobra).
+  Fato datado de uma entrega ("a migração X cobriu N tabelas do RH") pode ficar,
+  marcado com `<!-- numero-datado -->`.
 - **Não remover as diretivas** `<!-- doc-links-absent: ... -->` /
   `<!-- doc-links-ignore: ... -->` de `docs/*.md` sem entender o que
   defendem (ver cabeçalho de `scripts/check-doc-links.mjs`).
