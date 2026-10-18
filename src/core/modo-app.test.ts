@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { ROTAS_DO_SITE, rotaFicaNoSite, urlDoSistema, filtrarMenuParaSite, ehHostDoApp } from './modo-app';
+import { ROTAS_DO_SITE, rotaFicaNoSite, urlDoSistema, filtrarMenuParaSite, ehHostDoApp, destinoForaDoSite } from './modo-app';
 
 describe('rotaFicaNoSite', () => {
   it('aceita as rotas do site e seus filhos', () => {
@@ -32,6 +32,20 @@ describe('urlDoSistema', () => {
   });
   it('sem base devolve o caminho interno (modo sistema)', () => {
     expect(urlDoSistema('/auth', '')).toBe('/auth');
+  });
+});
+
+describe('destinoForaDoSite', () => {
+  const app = 'https://app.idjuv.online';
+  it('manda rota do sistema para o app, com query e hash', () => {
+    expect(destinoForaDoSite('/auth?mode=reset#access_token=x', app)).toBe('https://app.idjuv.online/auth?mode=reset#access_token=x');
+    expect(destinoForaDoSite('/rh/servidores', app)).toBe('https://app.idjuv.online/rh/servidores');
+    expect(destinoForaDoSite('/transparencia/admin', app)).toBe('https://app.idjuv.online/transparencia/admin');
+  });
+  it('não mexe no que o site serve nem sem URL do app', () => {
+    expect(destinoForaDoSite('/', app)).toBeNull();
+    expect(destinoForaDoSite('/transparencia/lai', app)).toBeNull();
+    expect(destinoForaDoSite('/auth', '')).toBeNull();
   });
 });
 

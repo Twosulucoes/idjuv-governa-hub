@@ -4,16 +4,17 @@
  * Nada do sistema interno é importado aqui — o guard `check:bundle-site` falha o gate se vazar.
  * Páginas de notícias e galerias vêm direto dos arquivos (não do barrel `pages/public`).
  */
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { TenantProvider } from "@/core/tenant";
 import { PublicPageGuard } from "@/components/public/PublicPageGuard";
+import { destinoForaDoSite } from "@/core/modo-app";
 import { ModuloHabilitado } from "@/components/auth/ModuloHabilitado";
 
 import HomeSimplesPage from "./pages/HomeSimplesPage";
@@ -58,6 +59,16 @@ const queryClient = new QueryClient({
   },
 });
 
+/** Endereço do sistema aberto pelo site (favorito antigo, link de e-mail do login) vai para o app; o resto é 404. */
+function ForaDoSite() {
+  const { pathname, search, hash } = useLocation();
+  const destino = destinoForaDoSite(`${pathname}${search}${hash}`);
+  useEffect(() => {
+    if (destino) window.location.replace(destino);
+  }, [destino]);
+  return destino ? null : <NotFound />;
+}
+
 const AppSite = () => (
   <TenantProvider>
     <QueryClientProvider client={queryClient}>
@@ -100,7 +111,7 @@ const AppSite = () => (
                 <Route path="/programas/selecoes/noticia/:slug" element={<PublicPageGuard rota="/programas/selecoes" fallbackRota="/programas/selecoes"><NoticiaDetalhePage /></PublicPageGuard>} />
                 <Route path="/selecoes" element={<Navigate to="/programas/selecoes" replace />} />
                 <Route path="/selecao" element={<Navigate to="/programas/selecoes" replace />} />
-                <Route path="*" element={<NotFound />} />
+                <Route path="*" element={<ForaDoSite />} />
               </Routes>
             </BrowserRouter>
           </TooltipProvider>
