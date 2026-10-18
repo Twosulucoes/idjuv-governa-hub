@@ -280,18 +280,21 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
 
     setIsCreating(true);
     try {
-      await criarUsuarioTecnico.mutateAsync({
+      const resultado = await criarUsuarioTecnico.mutateAsync({
         email: tecnicoEmail,
         fullName: tecnicoNome,
+        modulos: selectedModulos
       });
 
-      toast({
-        title: "Usuário técnico criado!",
-        description: "Um email de confirmação foi enviado."
-      });
-      
       onSuccess?.();
-      onOpenChange(false);
+
+      // O sistema não envia e-mail: a senha temporária aparece aqui, como no usuário de servidor
+      if (resultado.senhaTemporaria) {
+        setSenhaGerada(resultado.senhaTemporaria);
+        setUsuarioCriado({ nome: tecnicoNome, email: tecnicoEmail });
+      } else {
+        onOpenChange(false);
+      }
     } catch (error: any) {
       // Erros já tratados no hook
     } finally {
@@ -407,7 +410,7 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  O usuário deverá alterar esta senha no primeiro acesso.
+                  Peça ao usuário que troque esta senha no primeiro acesso.
                 </p>
               </div>
             </div>

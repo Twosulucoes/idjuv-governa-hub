@@ -31,6 +31,26 @@ async function buildModuleInserts(userId: string, modulos: Modulo[]) {
   }));
 }
 
+// Substitui os módulos do usuário pelos escolhidos; falha vira erro visível (antes era ignorada em silêncio)
+async function salvarModulos(userId: string, modulos: Modulo[]) {
+  const { error: delError } = await supabase.from('user_modules').delete().eq('user_id', userId);
+  if (delError) throw new Error(`Os módulos não foram salvos: ${delError.message}`);
+  if (modulos.length === 0) return;
+  const modulosInsert = await buildModuleInserts(userId, modulos);
+  const { error } = await supabase.from('user_modules').insert(modulosInsert as any);
+  if (error) throw new Error(`Os módulos não foram salvos: ${error.message}`);
+}
+
+// Para usuário recém-criado: devolve o erro como aviso (a senha temporária já vale e não pode se perder)
+async function salvarModulosComAviso(userId: string, modulos: Modulo[]): Promise<string | undefined> {
+  try {
+    await salvarModulos(userId, modulos);
+    return undefined;
+  } catch (e) {
+    return `${(e as Error).message}. Ajuste os módulos na ficha do usuário.`;
+  }
+}
+
 export function useUsuarios() {
   const queryClient = useQueryClient();
 
@@ -142,7 +162,7 @@ export function useUsuarios() {
       servidorId: string; 
       email: string; 
       modulos?: Modulo[];
-    }): Promise<{ authData: any; senhaTemporaria: string | null; usuarioAtualizado?: boolean }> => {
+    }): Promise<{ authData: any; senhaTemporaria: string | null; usuarioAtualizado?: boolean; avisoModulos?: string }> => {
       // Buscar dados do servidor
       const { data: servidor, error: servidorError } = await supabase
         .from('servidores')
@@ -175,18 +195,8 @@ export function useUsuarios() {
           })
           .eq('id', userId);
 
-        // Limpar módulos antigos e inserir novos
-
-        // Limpar módulos antigos e inserir novos
-        await supabase
-          .from('user_modules')
-          .delete()
-          .eq('user_id', userId);
-
-        if (modulos.length > 0) {
-          const modulosInsert = await buildModuleInserts(userId, modulos);
-          await supabase.from('user_modules').insert(modulosInsert as any);
-        }
+        // Substituir os módulos antigos pelos novos
+        await salvarModulos(userId, modulos);
 
         return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
       }
@@ -229,11 +239,7 @@ export function useUsuarios() {
               is_active: true,
             }).eq('id', userId);
 
-            await supabase.from('user_modules').delete().eq('user_id', userId);
-            if (modulos.length > 0) {
-              const modulosInsert = await buildModuleInserts(userId, modulos);
-              await supabase.from('user_modules').insert(modulosInsert as any);
-            }
+            await salvarModulos(userId, modulos);
             return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
           }
         }
@@ -273,13 +279,15 @@ export function useUsuarios() {
         is_active: true,
       }).eq('id', userId);
 
-      // Atribuir módulos com todas as permissões do catálogo
-      if (modulos.length > 0) {
-        const modulosInsert = await buildModuleInserts(userId, modulos);
-        await supabase.from('user_modules').insert(modulosInsert as any);
+      // Usuário já existia no Auth: a senha gerada aqui não foi aplicada, então não é exibida
+      if (fnData?.recovered) {
+        await salvarModulos(userId, modulos);
+        return { authData: fnData, senhaTemporaria: null, usuarioAtualizado: true };
       }
 
-      return { authData: fnData, senhaTemporaria, usuarioAtualizado: false };
+      // Usuário novo: a senha já vale, então uma falha nos módulos vira aviso em vez de esconder a senha
+      const avisoModulos = await salvarModulosComAviso(userId, modulos);
+      return { authData: fnData, senhaTemporaria, usuarioAtualizado: false, avisoModulos };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['usuarios-sistema'] });
@@ -288,6 +296,7 @@ export function useUsuarios() {
       } else {
         toast.success('Usuário criado com sucesso!');
       }
+      if (data.avisoModulos) toast.error(data.avisoModulos);
     },
     onError: (error: any) => {
       toast.error(`Erro ao criar usuário: ${error.message}`);
@@ -299,12 +308,15 @@ export function useUsuarios() {
     mutationFn: async ({ 
       email, 
       fullName,
-      role = 'ti_admin' 
+      role = 'ti_admin',
+      modulos
     }: { 
       email: string; 
       fullName: string;
       role?: string;
-    }) => {
+      // Sem a lista (tela de usuários técnicos), os módulos do usuário ficam como estão
+      modulos?: Modulo[];
+    }): Promise<{ senhaTemporaria: string | null; usuarioAtualizado: boolean; avisoModulos?: string }> => {
       const senhaTemporaria = generateTempPassword();
 
       const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-create-user', {
@@ -335,11 +347,25 @@ export function useUsuarios() {
         })
         .eq('id', userId);
 
-      return { ...fnData, senhaTemporaria };
+      // A função não envia e-mail (cria o usuário já confirmado): quem cria repassa a senha temporária.
+      // Usuário que já existia no Auth mantém a senha dele, então a gerada aqui não é exibida.
+      if (fnData?.recovered) {
+        if (modulos) await salvarModulos(userId, modulos);
+        return { senhaTemporaria: null, usuarioAtualizado: true };
+      }
+
+      // Usuário novo: a senha já vale, então uma falha nos módulos vira aviso em vez de esconder a senha
+      const avisoModulos = modulos ? await salvarModulosComAviso(userId, modulos) : undefined;
+      return { senhaTemporaria, usuarioAtualizado: false, avisoModulos };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['usuarios-sistema'] });
-      toast.success('Usuário técnico criado! Email de confirmação enviado.');
+      if (data.usuarioAtualizado) {
+        toast.info('Usuário já existia: a senha dele não mudou.');
+      } else {
+        toast.success('Usuário técnico criado. Repasse a senha temporária ao usuário.');
+      }
+      if (data.avisoModulos) toast.error(data.avisoModulos);
     },
     onError: (error: any) => {
       toast.error(`Erro ao criar usuário: ${error.message}`);
