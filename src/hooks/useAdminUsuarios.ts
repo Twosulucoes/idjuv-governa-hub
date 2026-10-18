@@ -146,6 +146,27 @@ export function useAdminUsuarios() {
     }
   };
 
+  // Corrigir o nome exibido do usuário (o e-mail de acesso não muda por aqui)
+  const atualizarNome = async (userId: string, nome: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: nome })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast({ title: 'Nome atualizado' });
+      await fetchUsuarios();
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Erro', description: (err as Error).message });
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return {
     usuarios,
     usuariosAtivos: usuarios.filter(u => u.is_active),
@@ -157,5 +178,6 @@ export function useAdminUsuarios() {
     removerModulo,
     toggleModulo,
     toggleUsuarioAtivo,
+    atualizarNome,
   };
 }

@@ -4,6 +4,7 @@
 // ============================================
 
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ModuleLayout } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,7 @@ import { isProtectedAdmin } from '@/shared/config/protected-users.config';
 import {
   Search, Loader2, RefreshCw, UserPlus, Lock, ShieldCheck,
   ShieldOff, User, Mail, Calendar, Package, AlertTriangle,
-  CheckCircle2, XCircle, ChevronRight,
+  CheckCircle2, XCircle, ChevronRight, Pencil, ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -43,11 +44,26 @@ interface PainelDetalhesProps {
   saving: boolean;
   onToggleModulo: (modulo: Modulo, tem: boolean) => void;
   onToggleAtivo: (ativo: boolean) => void;
+  onSalvarNome: (nome: string) => Promise<void>;
 }
 
-function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: PainelDetalhesProps) {
+function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo, onSalvarNome }: PainelDetalhesProps) {
+  const navigate = useNavigate();
   const [confirmBloqueio, setConfirmBloqueio] = useState(false);
+  const [editandoNome, setEditandoNome] = useState(false);
+  const [nome, setNome] = useState(usuario.full_name ?? '');
   const isProtected = isProtectedAdmin(usuario.id, usuario.email);
+
+  const salvarNome = async () => {
+    const novo = nome.trim();
+    if (!novo) return;
+    try {
+      await onSalvarNome(novo);
+      setEditandoNome(false);
+    } catch {
+      // O hook já mostrou o erro; o campo continua aberto para tentar de novo
+    }
+  };
 
   const getInitials = (name: string | null) =>
     !name ? 'U' : name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -66,8 +82,45 @@ function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: Pain
             </Avatar>
 
             <div className="flex-1 min-w-0">
+              {editandoNome ? (
+                <form
+                  className="flex items-center gap-2"
+                  onSubmit={e => { e.preventDefault(); salvarNome(); }}
+                >
+                  <Input
+                    aria-label="Nome do usuário"
+                    value={nome}
+                    onChange={e => setNome(e.target.value)}
+                    className="h-9 max-w-xs"
+                    autoFocus
+                  />
+                  <Button type="submit" size="sm" disabled={saving || !nome.trim()}>
+                    {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />}
+                    Salvar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setNome(usuario.full_name ?? ''); setEditandoNome(false); }}
+                  >
+                    Cancelar
+                  </Button>
+                </form>
+              ) : (
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg font-semibold">{usuario.full_name || 'Sem nome'}</h2>
+                {!isProtected && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    aria-label="Editar nome"
+                    onClick={() => setEditandoNome(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Button>
+                )}
                 {isProtected && (
                   <StatusBadge tom="pendente" icone={false}>
                     <Lock className="h-3 w-3" aria-hidden="true" /> Protegido
@@ -80,6 +133,7 @@ function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: Pain
                   <StatusBadge tom="sucesso">Ativo</StatusBadge>
                 )}
               </div>
+              )}
 
               <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
@@ -100,9 +154,9 @@ function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: Pain
             </div>
           </div>
 
-          {/* Botão de bloqueio */}
+          {/* Bloqueio e ficha completa (resetar senha e excluir ficam na ficha) */}
           {!isProtected && (
-            <div className="mt-4 pt-4 border-t">
+            <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
               {usuario.is_active ? (
                 <Button
                   variant="destructive"
@@ -126,6 +180,15 @@ function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: Pain
                   Desbloquear usuário
                 </Button>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => navigate(`/admin/usuarios/${usuario.id}`)}
+              >
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                Senha e exclusão
+              </Button>
             </div>
           )}
         </CardContent>
@@ -199,7 +262,7 @@ function PainelDetalhes({ usuario, saving, onToggleModulo, onToggleAtivo }: Pain
 
 // ——— Página principal ———
 export default function GestaoUsuariosPage() {
-  const { usuarios, loading, saving, error, fetchUsuarios, toggleModulo, toggleUsuarioAtivo } = useAdminUsuarios();
+  const { usuarios, loading, saving, error, fetchUsuarios, toggleModulo, toggleUsuarioAtivo, atualizarNome } = useAdminUsuarios();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [usuarioSelecionado, setUsuarioSelecionado] = useState<UsuarioAdmin | null>(null);
@@ -234,6 +297,11 @@ export default function GestaoUsuariosPage() {
     if (!usuarioAtual) return;
     await toggleUsuarioAtivo(usuarioAtual.id, ativo);
   }, [usuarioAtual, toggleUsuarioAtivo]);
+
+  const handleSalvarNome = useCallback(async (nome: string) => {
+    if (!usuarioAtual) return;
+    await atualizarNome(usuarioAtual.id, nome);
+  }, [usuarioAtual, atualizarNome]);
 
   const stats = {
     total: usuarios.length,
@@ -377,10 +445,12 @@ export default function GestaoUsuariosPage() {
           <div className="flex-1 min-w-0">
             {usuarioAtual ? (
               <PainelDetalhes
+                key={usuarioAtual.id}
                 usuario={usuarioAtual}
                 saving={saving}
                 onToggleModulo={handleToggleModulo}
                 onToggleAtivo={handleToggleAtivo}
+                onSalvarNome={handleSalvarNome}
               />
             ) : (
               <div className="h-full flex items-center justify-center">
