@@ -73,10 +73,9 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   do Storage. Depois, trocar o papel `postgres` da fotografia por um papel só leitura.
 - [ ] **Segurança na VPS** (P12): incluir `deploy/nginx/cabecalhos-seguranca.conf` no nginx/Traefik, GoTrue exigindo a
   senha atual na troca e o mínimo de 8, proxy entregando o IP real em `x-real-ip`.
-- [ ] **Publicação pelo Coolify** (#121): token `COOLIFY_TOKEN` no ambiente `deploy-front`, variáveis `COOLIFY_URL`,
-  `COOLIFY_APP_UUID`, `COOLIFY_SITE_UUID`, `FRONT_URL` e `VITE_SITE_URL` (feitos), os dois apps conferidos e os domínios
-  `app.idjuv.online` (sistema) e `idjuv.online` (site) apontados para o Coolify; o site já manda rota do sistema para o
-  app ([DESENVOLVIMENTO.md](../DESENVOLVIMENTO.md#publicação-pelo-coolify)).
+- [ ] **Publicação pelo Coolify** (#121): domínios `app.idjuv.online` (sistema) e `idjuv.online` (site) já no Coolify
+  (18/10/2026) e o site manda rota do sistema para o app; falta `COOLIFY_APP_UUID` como variável do repositório (do
+  ambiente não basta) e o primeiro merge publicado pelo job `deploy-coolify` ([DESENVOLVIMENTO.md](../DESENVOLVIMENTO.md#publicação-pelo-coolify)).
 - [ ] **E-mails do Auth na VPS**: bucket `emails` e override do compose ([EMAILS_AUTH.md](../EMAILS_AUTH.md)).
 - [ ] **Configuração do cliente**: nome definitivo do produto e preencher `/admin/configuracao-cliente` em produção
   ([CONFIGURACAO_CLIENTE.md](../CONFIGURACAO_CLIENTE.md)).
