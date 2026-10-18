@@ -120,6 +120,9 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 - [ ] **Workflow**: "Na minha unidade" usa `lotacoes.ativo` e não cobre cessão; lista e painel leem até 1000 linhas
   (`LIMITE_LINHAS`), paginar quando o volume chegar perto; modelos sem trigger de `updated_at` (só importa com tela
   de edição de modelo). Unidades e etapas "(proposta)" estão no P17.
+- [ ] **Admin — usuários técnicos**: o "Perfil de acesso" da tela de usuários técnicos (TI ou Administrador Geral) só
+  vai para o `user_metadata` e não grava papel em `user_roles` (decisão de RBAC pendente); convite por e-mail ao criar
+  usuário depende do SMTP do Supabase da VPS (hoje quem cria repassa a senha temporária).
 - [ ] **Patrimônio — inventário de campo, fases 2–3**: edificações e instalações, relatórios automáticos, conciliação
   com a relação da SEED, importação de planilha; confirmar os termos de uso da Esri World Imagery para uso institucional.
 
@@ -127,6 +130,7 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 
 Plano de finalização e entregas fora dele (uma linha por PR):
 
+- [x] #PR — Usuário técnico (fora do plano): grava os módulos marcados e mostra a senha temporária, como no usuário de servidor; a mensagem de "e-mail enviado" saiu porque nenhum e-mail é enviado; falha ao salvar módulos agora aparece.
 - [x] #121 — Front publicado pelo Coolify (fora do plano): `Dockerfile` na raiz (sistema e site pelo build arg `MODO`) e job `deploy-coolify`; o rsync segue enquanto `COOLIFY_APP_UUID` não existir.
 - [x] #120 — Separação do portal público e do sistema interno (fora do plano): menu do site só com rota pública, telas internas no `ModuleLayout`, build `site` com os formulários públicos.
 - [x] #119 — P12, auditoria de segurança.

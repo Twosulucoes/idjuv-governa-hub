@@ -47,11 +47,12 @@ import {
   Loader2,
   RefreshCw,
   ShieldAlert,
-  Mail,
+  Copy,
   AlertTriangle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 type UsuarioTecnico = ReturnType<typeof useUsuarios>['usuariosTecnicos'][number];
 
@@ -68,18 +69,46 @@ export default function UsuariosTecnicosPage() {
     fullName: '',
     role: 'ti_admin'
   });
+  // Senha temporária do usuário recém-criado: o sistema não envia e-mail, quem cria repassa
+  const [senhaCriada, setSenhaCriada] = useState<string | null>(null);
+
+  const abrirFecharDialogo = (aberto: boolean) => {
+    // Não fecha no meio da criação: a senha chegaria com o diálogo fechado
+    if (!aberto && criarUsuarioTecnico.isPending) return;
+    setIsDialogOpen(aberto);
+    setSenhaCriada(null);
+  };
+
+  const copiarSenha = async () => {
+    if (!senhaCriada) return;
+    try {
+      await navigator.clipboard.writeText(senhaCriada);
+      toast.success('Senha copiada.');
+    } catch {
+      toast.error('Não foi possível copiar. Selecione a senha e copie manualmente.');
+    }
+  };
 
   const handleCreateUser = async () => {
     if (!formData.email || !formData.fullName) return;
     
-    await criarUsuarioTecnico.mutateAsync({
-      email: formData.email,
-      fullName: formData.fullName,
-      role: formData.role
-    });
+    let resultado: Awaited<ReturnType<typeof criarUsuarioTecnico.mutateAsync>>;
+    try {
+      resultado = await criarUsuarioTecnico.mutateAsync({
+        email: formData.email,
+        fullName: formData.fullName,
+        role: formData.role
+      });
+    } catch {
+      return; // o erro já aparece pelo onError do hook
+    }
     
     setFormData({ email: '', fullName: '', role: 'ti_admin' });
-    setIsDialogOpen(false);
+    if (resultado.senhaTemporaria) {
+      setSenhaCriada(resultado.senhaTemporaria);
+    } else {
+      setIsDialogOpen(false);
+    }
   };
 
   const handleToggleBlock = async (userId: string, currentlyActive: boolean) => {
@@ -170,7 +199,7 @@ export default function UsuariosTecnicosPage() {
                   Atualizar
                 </Button>
               
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={isDialogOpen} onOpenChange={abrirFecharDialogo}>
                   <DialogTrigger asChild>
                     <Button className="gap-2">
                       <Plus className="h-4 w-4" aria-hidden="true" />
@@ -185,6 +214,31 @@ export default function UsuariosTecnicosPage() {
                       </DialogDescription>
                     </DialogHeader>
                   
+                    {senhaCriada ? (
+                      <>
+                        <div className="space-y-2 py-4" role="status" aria-live="polite">
+                          <Label htmlFor="senha-temporaria">Senha temporária</Label>
+                          <div className="flex items-center gap-2">
+                            <Input id="senha-temporaria" readOnly value={senhaCriada} className="font-mono" />
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              aria-label="Copiar senha"
+                              onClick={copiarSenha}
+                            >
+                              <Copy className="h-4 w-4" aria-hidden="true" />
+                            </Button>
+                          </div>
+                          <p className="text-caption text-muted-foreground">
+                            Repasse esta senha ao usuário e peça que ele a troque no primeiro acesso. Ela não será exibida novamente.
+                          </p>
+                        </div>
+                        <DialogFooter>
+                          <Button onClick={() => abrirFecharDialogo(false)}>Fechar</Button>
+                        </DialogFooter>
+                      </>
+                    ) : (
+                    <>
                     <Alert>
                       <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                       <AlertDescription>
@@ -232,7 +286,7 @@ export default function UsuariosTecnicosPage() {
                     </div>
                   
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      <Button variant="outline" onClick={() => abrirFecharDialogo(false)}>
                         Cancelar
                       </Button>
                       <Button
@@ -240,10 +294,11 @@ export default function UsuariosTecnicosPage() {
                         disabled={!formData.email || !formData.fullName || criarUsuarioTecnico.isPending}
                       >
                         {criarUsuarioTecnico.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-                        <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
-                        Criar e enviar e-mail
+                        Criar usuário
                       </Button>
                     </DialogFooter>
+                    </>
+                    )}
                   </DialogContent>
                 </Dialog>
               </>
