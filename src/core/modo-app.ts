@@ -54,6 +54,18 @@ export function urlDoSistema(caminho: string, base: string = import.meta.env.VIT
   return base ? `${base.replace(/\/+$/, '')}${c}` : c;
 }
 
+/**
+ * Endereço que o site não serve (favorito antigo, link de e-mail do login): para onde mandar no sistema.
+ * Mantém query e hash (o link de "esqueci a senha" leva o token no hash). Sem VITE_APP_URL devolve null.
+ */
+export function destinoForaDoSite(
+  caminhoCompleto: string,
+  base: string = import.meta.env.VITE_APP_URL ?? '',
+): string | null {
+  if (!base || rotaFicaNoSite(caminhoCompleto)) return null;
+  return urlDoSistema(caminhoCompleto, base);
+}
+
 interface ItemMenu {
   href: string;
   title: string;

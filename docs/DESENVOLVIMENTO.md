@@ -325,7 +325,10 @@ os cabeçalhos de `deploy/nginx/cabecalhos-seguranca.conf`); domínio e HTTPS fi
   `app.idjuv.online`) e **site** (`MODO=site`, `idjuv.online`). Variáveis `VITE_*` de cada app como
   *Build Variable*. Deploy automático por push **desligado** nos dois: quem dispara é o workflow, para o front
   nunca subir antes da migração de que depende.
-- GitHub: variáveis `COOLIFY_URL`, `COOLIFY_APP_UUID`, `COOLIFY_SITE_UUID` e `FRONT_URL`; segredo
+- No site, endereço que ele não serve (favorito antigo, link de "esqueci a senha" que o Auth manda para o
+  `SITE_URL`) vai para o mesmo caminho no `VITE_APP_URL`, com query e hash (`destinoForaDoSite` em
+  `src/core/modo-app.ts`); o resto continua 404.
+- GitHub: variáveis `COOLIFY_URL`, `COOLIFY_APP_UUID`, `COOLIFY_SITE_UUID`, `FRONT_URL` e `VITE_SITE_URL`; segredo
   `COOLIFY_TOKEN` (Coolify → Keys & Tokens → API tokens, permissão de deploy) no ambiente `deploy-front`.
 - Sem `COOLIFY_APP_UUID` nada muda: segue o rsync descrito acima.
 

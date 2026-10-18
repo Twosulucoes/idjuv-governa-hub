@@ -75,7 +75,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   os formulários públicos (`/curriculo`, `/cadastrogestores`, `/cadastro-arbitros`, `/federacoes/cadastro`,
   `/ascom/solicitar`, `/ascom/consultar`, `/programas/selecoes`). Telas internas embaixo dessas rotas
   (ex.: `/transparencia/admin`) ficam em `ROTAS_DO_SISTEMA_SOB_O_SITE`; `src/core/modo-app.test.ts` reprova rota
-  protegida do `App.tsx` que caia no site. Separação dos endereços (site em `idjuv.online`, sistema em
+  protegida do `App.tsx` que caia no site. Endereço que o site não serve vai para o mesmo caminho no sistema
+  (`destinoForaDoSite`, com query e hash), em vez de 404. Separação dos endereços (site em `idjuv.online`, sistema em
   `app.idjuv.online`): `docs/DESENVOLVIMENTO.md` (Deploy do front).
 - Telas de módulo usam `ModuleLayout` (`src/components/layout/`), que inclui o sino de avisos
   (`AvisosSino`, no cabeçalho) e a faixa de avisos em destaque (`AvisosDestaque`, no topo do

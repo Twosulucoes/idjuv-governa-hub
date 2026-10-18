@@ -74,8 +74,9 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 - [ ] **Segurança na VPS** (P12): incluir `deploy/nginx/cabecalhos-seguranca.conf` no nginx/Traefik, GoTrue exigindo a
   senha atual na troca e o mínimo de 8, proxy entregando o IP real em `x-real-ip`.
 - [ ] **Publicação pelo Coolify** (#121): token `COOLIFY_TOKEN` no ambiente `deploy-front`, variáveis `COOLIFY_URL`,
-  `COOLIFY_APP_UUID`, `COOLIFY_SITE_UUID` e `FRONT_URL`, os dois apps conferidos e os domínios `app.idjuv.online`
-  (sistema) e `idjuv.online` (site) apontados para o Coolify ([DESENVOLVIMENTO.md](../DESENVOLVIMENTO.md#publicação-pelo-coolify)).
+  `COOLIFY_APP_UUID`, `COOLIFY_SITE_UUID`, `FRONT_URL` e `VITE_SITE_URL` (feitos), os dois apps conferidos e os domínios
+  `app.idjuv.online` (sistema) e `idjuv.online` (site) apontados para o Coolify; o site já manda rota do sistema para o
+  app ([DESENVOLVIMENTO.md](../DESENVOLVIMENTO.md#publicação-pelo-coolify)).
 - [ ] **E-mails do Auth na VPS**: bucket `emails` e override do compose ([EMAILS_AUTH.md](../EMAILS_AUTH.md)).
 - [ ] **Configuração do cliente**: nome definitivo do produto e preencher `/admin/configuracao-cliente` em produção
   ([CONFIGURACAO_CLIENTE.md](../CONFIGURACAO_CLIENTE.md)).
