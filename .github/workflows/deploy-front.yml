@@ -75,6 +75,8 @@ jobs:
 
   # Publicação pelo Coolify (Dockerfile da raiz): liga quando a variável COOLIFY_APP_UUID existe; aí o
   # job `deploy` (rsync por SSH) abaixo deixa de rodar. Mesma espera pelo gate e pelas migrações.
+  # COOLIFY_APP_UUID tem de ser variável do REPOSITÓRIO: o `if` do job é avaliado antes do ambiente
+  # deploy-front, então variável só do ambiente não aparece aqui e o rsync roda no lugar.
   deploy-coolify:
     needs: esperar
     if: github.ref == 'refs/heads/main' && vars.COOLIFY_APP_UUID != ''

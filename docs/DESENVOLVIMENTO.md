@@ -328,8 +328,14 @@ os cabeçalhos de `deploy/nginx/cabecalhos-seguranca.conf`); domínio e HTTPS fi
 - No site, endereço que ele não serve (favorito antigo, link de "esqueci a senha" que o Auth manda para o
   `SITE_URL`) vai para o mesmo caminho no `VITE_APP_URL`, com query e hash (`destinoForaDoSite` em
   `src/core/modo-app.ts`); o resto continua 404.
-- GitHub: variáveis `COOLIFY_URL`, `COOLIFY_APP_UUID`, `COOLIFY_SITE_UUID`, `FRONT_URL` e `VITE_SITE_URL`; segredo
-  `COOLIFY_TOKEN` (Coolify → Keys & Tokens → API tokens, permissão de deploy) no ambiente `deploy-front`.
+- GitHub: `COOLIFY_APP_UUID` como variável **do repositório** (Settings → Secrets and variables → Actions →
+  Variables). O `if` dos jobs que escolhe Coolify ou rsync é avaliado antes do ambiente, e variável só do ambiente
+  não aparece ali: o rsync roda no lugar. No ambiente `deploy-front` (ou no repositório): variáveis `COOLIFY_URL`,
+  `COOLIFY_SITE_UUID`, `FRONT_URL` e `VITE_SITE_URL`; segredo `COOLIFY_TOKEN` (Coolify → Keys & Tokens → API
+  tokens, permissão de deploy).
+- Domínios no Coolify: `app.idjuv.online` (sistema) e `idjuv.online`/`www` (site), com labels do Traefik editáveis
+  (*Container labels → Label management* fora do automático) e `priority=1000` nos roteadores desses domínios, para
+  passarem na frente da rota antiga do proxy da VPS. Para voltar ao servidor antigo, tire os domínios dos apps.
 - Sem `COOLIFY_APP_UUID` nada muda: segue o rsync descrito acima.
 
 ### Deploy das Edge Functions (CI)
