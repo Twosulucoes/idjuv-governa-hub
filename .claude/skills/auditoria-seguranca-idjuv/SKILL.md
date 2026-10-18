@@ -20,10 +20,16 @@ isso de volta para liberar todo autenticado, é uma regressão crítica — pare
 avise o usuário antes de qualquer outra coisa.
 
 ### 2. RLS em todas as tabelas
-Via MCP do Supabase: rode `get_advisors` (categoria segurança) e trate
-qualquer tabela com RLS desabilitado ou sem policy de escrita restritiva como
-bloqueante. Compare contra `docs/RLS_USUARIOS_PROPOSTA.sql` — se ainda não foi
-aplicado, é pendência conhecida (item C2 da auditoria), reporte o status.
+O conector MCP do Supabase não alcança o banco da VPS: confira pelo repositório.
+Toda tabela de `supabase/baseline/schema/01_pre_data.sql` precisa de linha em
+`supabase/baseline/rls/mapa.csv` (o teste de RLS do CI, workflow **Banco do zero
+e RLS**, reprova tabela fora do mapa); trate tabela com RLS desabilitado ou sem
+policy de escrita restritiva como bloqueante. As conferências SQL de
+`docs/NOVO_BANCO.md` §7 valem para um banco real. O item C2 da auditoria
+(RLS de `user_modules`, `user_roles`, `profiles`) foi aplicado pela migração
+`20260824010000_rls_user_modules_user_roles_profiles.sql`; confira que nenhuma
+migração posterior afrouxou essas policies. Para saber se a produção difere das
+migrações, use o workflow **Fotografia do banco** (`docs/DESENVOLVIMENTO.md`).
 
 ### 3. Edge Functions com ação privilegiada checam identidade
 Para cada arquivo em `supabase/functions/*/index.ts` que usa

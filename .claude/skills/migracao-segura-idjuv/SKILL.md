@@ -6,15 +6,19 @@ description: Cria uma migração SQL nova para o Supabase do IDJUV Governa Hub (
 # Migração de banco segura — IDJUV Governa Hub
 
 Este projeto já teve gap de RLS identificado em auditoria
-(`docs/AUDITORIA_USUARIOS.md`, item C2 — proposta em
-`docs/RLS_USUARIOS_PROPOSTA.sql`). O objetivo deste skill é **nunca mais
-criar uma tabela sem RLS pensada desde o commit inicial**, em vez de corrigir
-depois.
+(`docs/AUDITORIA_USUARIOS.md`, item C2; a proposta de correção foi aplicada
+pela migração `20260824010000_rls_user_modules_user_roles_profiles.sql` e o
+arquivo da proposta hoje é histórico, em `docs/historico/`). O objetivo deste
+skill é **nunca mais criar uma tabela sem RLS pensada desde o commit
+inicial**, em vez de corrigir depois.
 
 ## Antes de escrever SQL
 
-1. Rode (via MCP do Supabase, se disponível nesta sessão) `list_tables` para
-   confirmar que a tabela/coluna não existe e entender FKs relacionadas.
+1. Confira que a tabela/coluna não existe e entenda as FKs relacionadas lendo
+   o schema do baseline (`supabase/baseline/schema/01_pre_data.sql`), o mapa de
+   RLS (`supabase/baseline/rls/mapa.csv`) e `src/integrations/supabase/types.ts`.
+   O conector MCP do Supabase **não** alcança o banco da VPS; a migração só
+   chega à produção pelo CI, no merge.
 2. Confirme o nome do arquivo: `supabase/migrations/YYYYMMDDHHMMSS_<uuid>.sql`
    (o timestamp deve ser maior que o da última migração em
    `supabase/migrations/`; gere um uuid v4 qualquer para o sufixo).
@@ -67,11 +71,14 @@ quê — não deixe "sem RLS" como forma de simular "é pública".
    (`.github/workflows/migracoes-banco.yml`, ver `docs/DESENVOLVIMENTO.md`). Valide antes num
    Postgres local (`scripts/db/validar-baseline.sh` + a migração por cima) e confira no PR o resumo
    do job "Migrações do banco" (dry-run) com a lista do que vai rodar.
-2. Rode `get_advisors` (MCP Supabase) e resolva qualquer alerta de "RLS
-   disabled" ou "policy missing" antes de considerar a migração pronta.
-3. Regenere os tipos TypeScript (`generate_typescript_types` via MCP, ou
-   `supabase gen types typescript` localmente) — nunca edite
-   `src/integrations/supabase/types.ts` na mão.
+2. No mesmo PR, regenere o schema do baseline (`scripts/db/gerar-baseline.sh`) e
+   classifique a tabela nova em `supabase/baseline/rls/mapa.csv`: o workflow
+   **Banco do zero e RLS** refaz o banco do zero, roda o teste de RLS por persona
+   e reprova tabela fora do mapa (`docs/DESENVOLVIMENTO.md`).
+3. Regenere os tipos TypeScript com `bash scripts/db/gerar-tipos.sh`
+   (`npm run db:tipos`, replay das migrações num Postgres local) — nunca edite
+   `src/integrations/supabase/types.ts` na mão; o workflow **Tipos do banco**
+   reprova o PR com tipos defasados.
 4. Se a tabela alimenta uma nova permissão, insira o código em
    `module_permissions_catalog` (`module_code`, `permission_code`, rótulo,
    categoria, `action_type`) na mesma migração, não em uma separada solta — a

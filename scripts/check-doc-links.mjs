@@ -31,6 +31,7 @@
 import { readFileSync, statSync, existsSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { dirname, resolve, relative } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -38,7 +39,7 @@ const ROOT = resolve(import.meta.dirname, "..");
 // docs/AUDITORIA_USUARIOS.md e docs/INVENTARIO_HARDCODE.md ficam de FORA de
 // propósito — são registros datados de auditorias pontuais, não docs vivas
 // (ver docs/GOVERNANCA_DOCUMENTACAO.md §7).
-const LIVING_DOCS = [
+export const LIVING_DOCS = [
   "CLAUDE.md",
   "AGENTS.md",
   "docs/README.md",
@@ -58,6 +59,7 @@ const LIVING_DOCS = [
   "docs/VISAO_GERAL.md",
   "docs/WHITE_LABEL.md",
   "docs/planejamento/ROADMAP.md",
+  "docs/ESTADO_DO_SISTEMA.md", // gerado; scripts/check-numeros-docs.mjs o exclui de propósito
 ];
 
 const EXT = /\.(tsx?|jsx?|mjs|cjs|css|scss|json|sql|sh|ya?ml|html|md|png|svg|jpe?g|webp|ico|txt|toml)$/i;
@@ -168,67 +170,72 @@ function directives(text) {
   return { absent: read("absent"), ignore: read("ignore") };
 }
 
-const all = process.argv.includes("--all");
-const docs = all
-  ? execSync("git ls-files '*.md'", { cwd: ROOT, encoding: "utf8" })
-      .split("\n").filter((f) => f && !f.startsWith("node_modules/"))
-  : LIVING_DOCS;
+function main() {
+  const all = process.argv.includes("--all");
+  const docs = all
+    ? execSync("git ls-files '*.md'", { cwd: ROOT, encoding: "utf8" })
+        .split("\n").filter((f) => f && !f.startsWith("node_modules/"))
+    : LIVING_DOCS;
 
-let missing = 0;
-let empty = 0;
-let checked = 0;
+  let missing = 0;
+  let empty = 0;
+  let checked = 0;
 
-for (const doc of docs) {
-  const abs = resolve(ROOT, doc);
-  if (!existsSync(abs)) {
-    console.error(`::error::Doc listada em LIVING_DOCS não existe: ${doc}`);
-    missing++;
-    continue;
-  }
-  const text = readFileSync(abs, "utf8");
-  const { absent, ignore } = directives(text);
-  const problems = [];
-  for (const [cand, line] of extractCandidates(text)) {
-    if (ignore.has(cand)) continue;
-    if (absent.has(cand)) {
-      // Cobra o inverso: se o arquivo VOLTAR, a doc passou a mentir.
-      checked++;
-      if (resolveCandidate(doc, cand)) {
-        problems.push(`  ${doc}:${line}  →  ${cand}  (declarado ausente, mas existe)`);
-        missing++;
-      }
+  for (const doc of docs) {
+    const abs = resolve(ROOT, doc);
+    if (!existsSync(abs)) {
+      console.error(`::error::Doc listada em LIVING_DOCS não existe: ${doc}`);
+      missing++;
       continue;
     }
-    checked++;
-    const found = resolveCandidate(doc, cand);
-    if (found === AMBIGUOUS) continue;
-    if (!found) {
-      problems.push(`  ${doc}:${line}  →  ${cand}  (não existe)`);
-      missing++;
-    } else if (statSync(found).isFile() && statSync(found).size <= 1) {
-      problems.push(`  ${doc}:${line}  →  ${relative(ROOT, found)}  (arquivo vazio)`);
-      empty++;
+    const text = readFileSync(abs, "utf8");
+    const { absent, ignore } = directives(text);
+    const problems = [];
+    for (const [cand, line] of extractCandidates(text)) {
+      if (ignore.has(cand)) continue;
+      if (absent.has(cand)) {
+        // Cobra o inverso: se o arquivo VOLTAR, a doc passou a mentir.
+        checked++;
+        if (resolveCandidate(doc, cand)) {
+          problems.push(`  ${doc}:${line}  →  ${cand}  (declarado ausente, mas existe)`);
+          missing++;
+        }
+        continue;
+      }
+      checked++;
+      const found = resolveCandidate(doc, cand);
+      if (found === AMBIGUOUS) continue;
+      if (!found) {
+        problems.push(`  ${doc}:${line}  →  ${cand}  (não existe)`);
+        missing++;
+      } else if (statSync(found).isFile() && statSync(found).size <= 1) {
+        problems.push(`  ${doc}:${line}  →  ${relative(ROOT, found)}  (arquivo vazio)`);
+        empty++;
+      }
+    }
+    if (problems.length) {
+      console.error(`::error::Referências quebradas em ${doc}:`);
+      problems.forEach((p) => console.error(p));
     }
   }
-  if (problems.length) {
-    console.error(`::error::Referências quebradas em ${doc}:`);
-    problems.forEach((p) => console.error(p));
+
+  const total = missing + empty;
+  if (total === 0) {
+    console.log(`✅ Docs OK: ${docs.length} arquivos, ${checked} referências verificadas.`);
+  } else {
+    console.error(
+      `\n${total} referência(s) com problema (${missing} inexistente(s), ${empty} vazia(s)) ` +
+        `em ${checked} verificadas.`
+    );
+    console.error(
+      "Conserte o caminho, remova a referência, ou — se a doc for registro histórico —" +
+        " tire-a de LIVING_DOCS em scripts/check-doc-links.mjs."
+    );
   }
+
+  // `--all` é diagnóstico: relata mas nunca falha.
+  process.exit(all ? 0 : total === 0 ? 0 : 1);
 }
 
-const total = missing + empty;
-if (total === 0) {
-  console.log(`✅ Docs OK: ${docs.length} arquivos, ${checked} referências verificadas.`);
-} else {
-  console.error(
-    `\n${total} referência(s) com problema (${missing} inexistente(s), ${empty} vazia(s)) ` +
-      `em ${checked} verificadas.`
-  );
-  console.error(
-    "Conserte o caminho, remova a referência, ou — se a doc for registro histórico —" +
-      " tire-a de LIVING_DOCS em scripts/check-doc-links.mjs."
-  );
-}
-
-// `--all` é diagnóstico: relata mas nunca falha.
-process.exit(all ? 0 : total === 0 ? 0 : 1);
+// Só roda como CLI; importado (ex.: scripts/check-numeros-docs.mjs) expõe LIVING_DOCS.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) main();

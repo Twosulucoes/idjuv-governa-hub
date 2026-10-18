@@ -21,14 +21,14 @@ um checklist, sem abrir nenhum arquivo `.tsx`.
 ### Modelo de tenancy adotado
 
 Mantém-se o modelo já documentado em
-[MIGRACAO_SUPABASE_PROPRIO.md](./MIGRACAO_SUPABASE_PROPRIO.md) e no skill
+[NOVO_BANCO.md](./NOVO_BANCO.md) e no skill
 `onboarding-cliente-idjuv`: **uma instância isolada por instituição** (projeto
 Supabase próprio + deploy próprio), e não banco multi-tenant compartilhado.
 
 Justificativa: dados de RH e folha de pagamento de órgãos públicos distintos não
 devem compartilhar banco; o RLS atual foi desenhado para isolamento por unidade
 dentro de **um** órgão, não por tenant. Multi-tenant real exigiria `tenant_id` em
-231 tabelas e reescrita de todas as políticas de RLS — custo desproporcional.
+todas as tabelas ([quantas](./ESTADO_DO_SISTEMA.md)) e reescrita de todas as políticas de RLS — custo desproporcional.
 
 **Consequência arquitetural:** o código não precisa resolver "qual tenant é este
 request?". Precisa apenas ser **tenant-agnóstico** — ler sua identidade de
@@ -386,7 +386,7 @@ norma dentro.
 
 ## 8. Módulos contratados e verticais
 
-`MODULES_CONFIG` (17 módulos) continua sendo o **catálogo do produto**. O que
+`MODULES_CONFIG` ([lista e contagem](./ESTADO_DO_SISTEMA.md#módulos)) continua sendo o **catálogo do produto**. O que
 muda é que ele deixa de ser a lista de "o que aparece":
 
 ```ts
@@ -403,8 +403,13 @@ export function modulosHabilitados(): ModuleConfig[] {
 Três pontos de consumo:
 
 1. **Menu** (`menu.config.ts`, `module-menus.config.ts`) — filtra seções.
-2. **Rotas** (`App.tsx`) — novo guard `<ModuloHabilitado codigo="rh">` que
-   devolve 404 para módulo não contratado (hoje 239 rotas sempre registradas).
+2. **Rotas** — módulo não contratado devolve 404. **Já existe:** o `ProtectedRoute`
+   (`src/components/auth/ProtectedRoute.tsx`) tira o módulo de `requiredModule` ou da URL
+   (`moduloDaRota`) e devolve 404 se `moduloHabilitado` for falso, antes do bypass de super
+   admin; nas rotas públicas de módulo (formulários de árbitros e de gestores escolares, em
+   `App.tsx` e `AppSite.tsx`) o guard é `<ModuloHabilitado codigo="...">`
+   (`src/components/auth/ModuloHabilitado.tsx`). As rotas continuam todas registradas; o
+   guard decide na hora de abrir.
 3. **Painéis de módulo** (`src/pages/modulos/`) — só renderiza os habilitados.
 
 ### Separar o núcleo da vertical
@@ -465,7 +470,7 @@ RPC, view ou política de RLS referencia os nomes antigos antes de aplicar.
 | E-mails do Supabase Auth (confirmação, convite, senha…) | ✅ Gerados por tenant a partir do perfil e dos tokens: `scripts/emails/gerar-templates-email.ts` → `tenants/<slug>/emails/`. Ver [`EMAILS_AUTH.md`](./EMAILS_AUTH.md) |
 | `database-schema/index.ts:124` — mapa `'unidade_idjuv'` | Atualizar após a migração de colunas (§9) |
 | `protected-users.config.ts` — UUID + `handfabiano@gmail.com` | `SUPER_ADMIN_ID`/`SUPER_ADMIN_EMAIL` por ambiente. **Manter o fallback por e-mail** — a justificativa documentada no arquivo (UUID muda ao trocar de projeto Supabase) vale ainda mais no cenário multi-instância |
-| `public/documentos/*.pdf`, `public/disaster-recovery/*.sql` | ✅ **Feito na Fase 0.** `disaster-recovery/` → `supabase/disaster-recovery/` (27 arquivos deixaram de ser servidos); `documentos/` → `tenants/idjuv/assets/documentos/`. As 3 referências em código passaram a importar via `?url`, virando asset com nome hasheado. `.gitignore` passa a barrar `public/**/*.sql` e as duas pastas. **Ressalva:** isso remove o caminho previsível, não é controle de acesso — a URL hasheada segue pública. Bucket privado + URL assinada continua pendente (Fase 8) |
+| `public/documentos/*.pdf`, `public/disaster-recovery/*.sql` | ✅ **Feito na Fase 0.** `disaster-recovery/` → `supabase/disaster-recovery/` (27 arquivos deixaram de ser servidos; no P13 a pasta foi para `docs/historico/disaster-recovery/` e a tela de disaster recovery deixou de oferecer o download); `documentos/` → `tenants/idjuv/assets/documentos/`. As 3 referências em código passaram a importar via `?url`, virando asset com nome hasheado. `.gitignore` passa a barrar `public/**/*.sql` e as duas pastas. **Ressalva:** isso remove o caminho previsível, não é controle de acesso — a URL hasheada segue pública. Bucket privado + URL assinada continua pendente (Fase 8) |
 
 ---
 
@@ -577,12 +582,12 @@ fi
 
 | Risco | Mitigação |
 |---|---|
-| **`App.tsx` com 1.281 linhas e 239 rotas** — alto risco de conflito de merge | Tratar o guard de módulo como wrapper, não reorganizar o arquivo na mesma fase |
+| **`App.tsx` grande** ([tamanho atual](./ESTADO_DO_SISTEMA.md)) — alto risco de conflito de merge | Tratar o guard de módulo como wrapper, não reorganizar o arquivo na mesma fase |
 | **`types.ts` gerado (~23 mil linhas)** | Nunca editar à mão; regenerar após cada migração (§9) |
 | **Templates jurídicos** | Fase 5 exige validação do jurídico do cliente — errar o fundamento legal invalida o ato administrativo |
 | **Migração de enum em produção** | Aplicar em branch do Supabase primeiro; verificar funções/views/políticas de RLS que citem os valores antigos |
 | **Três paletas divergentes** (CSS azul / PDF #004444 / report verde) | Unificar na fase 4; decidir **qual** é a cor institucional real antes de parametrizar |
-| **Dados de cliente no repositório** (`public/documentos/`, `public/disaster-recovery/`) | Mover para Storage antes de entregar o repo a outro cliente — hoje qualquer um que clone leva documentos e dumps do IDJUV |
+| **Dados de cliente no repositório** (documentos em `tenants/idjuv/assets/documentos/`, dumps antigos em `docs/historico/disaster-recovery/`) | Mover para Storage antes de entregar o repo a outro cliente — hoje qualquer um que clone leva documentos e dumps do IDJUV |
 | **Escopo confundido com "trocar a logo"** | Os níveis N5 (jurídico), N6 (vertical) e N9 (enums) são os que realmente decidem se o produto é revendável |
 
 ---
@@ -595,8 +600,8 @@ O projeto **não parte do zero**. Já estão prontos ou quase:
 - ✅ `config_institucional` com `cores`, `logo_url`, `brasao_url` — **ociosos**.
 - ✅ `dados_oficiais` key-value auditável, com `lei_referencia` e `bloqueado`.
 - ✅ `MODULES_CONFIG` como catálogo declarativo de módulos.
-- ✅ `docs/MIGRACAO_SUPABASE_PROPRIO.md` + `SCHEMA_SUPABASE_PROPRIO.sql` —
-  provisionamento de instância nova.
+- ✅ `docs/NOVO_BANCO.md` + `supabase/baseline/` — provisionamento de instância
+  nova (banco vazio com RLS por módulo).
 - ✅ Skill `onboarding-cliente-idjuv` — checklist de provisionamento, que já
   lista estas pendências como pré-requisito.
 

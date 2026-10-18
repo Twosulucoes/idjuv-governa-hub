@@ -41,7 +41,7 @@ export function DiagnosticsTab({
     const orphanTables = tables.filter(t => 
       !referencedTables.has(t.name) && 
       !sourceTables.has(t.name) &&
-      !['audit_logs', 'backup_history', 'backup_config'].includes(t.name)
+      t.name !== 'audit_logs'
     );
 
     return {

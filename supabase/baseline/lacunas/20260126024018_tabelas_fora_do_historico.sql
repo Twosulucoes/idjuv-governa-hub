@@ -13,7 +13,7 @@
 -- colunas e restrições que as migrações desse período usam (ex.: funcoes_sistema.descricao e
 -- UNIQUE(codigo), exigida por INSERT ... ON CONFLICT (codigo)).
 --
--- Origem das definições: supabase/disaster-recovery/SCHEMA-TODAS-TABELAS.sql (dump antigo,
+-- Origem das definições: docs/historico/disaster-recovery/SCHEMA-TODAS-TABELAS.sql (dump antigo,
 -- ~82 tabelas). NÃO foram comparadas com o banco ao vivo (nunca inspecionado): antes de tratar este
 -- arquivo como fiel, compare-o com um `pg_dump --schema-only` do banco real.
 --
@@ -90,7 +90,7 @@ ON CONFLICT (codigo) DO NOTHING;
 
 -- ---------------------------------------------------------------------------------------------
 -- Funções usadas desde 20260131 e criadas fora do histórico (origem:
--- supabase/disaster-recovery/03-criar-funcoes.sql). A migração 20260207184919 e as seguintes
+-- docs/historico/disaster-recovery/03-criar-funcoes.sql). A migração 20260207184919 e as seguintes
 -- redefinem usuario_tem_permissao; usuario_eh_admin é usada por 20260126024019 e 20260201224705.
 -- ---------------------------------------------------------------------------------------------
 

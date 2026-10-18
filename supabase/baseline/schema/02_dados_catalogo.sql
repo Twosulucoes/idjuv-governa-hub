@@ -151,13 +151,6 @@ INSERT INTO public.audit_colunas_sensiveis (id, tabela, coluna, tratamento, moti
 
 
 --
--- Data for Name: backup_config; Type: TABLE DATA; Schema: public; Owner: -
---
-
-INSERT INTO public.backup_config (id, enabled, schedule_cron, weekly_day, retention_daily, retention_weekly, retention_monthly, buckets_included, encryption_enabled, last_backup_at, last_backup_status, created_at, updated_at) VALUES ('545e4a1e-b302-40e0-8dbf-d23220d561e5', true, '0 2 * * *', 0, 14, 8, 12, '{documentos}', true, NULL, NULL, '2026-10-13 17:56:03.264107+00', '2026-10-13 17:56:03.264107+00');
-
-
---
 -- Data for Name: categorias_noticias_eventos; Type: TABLE DATA; Schema: public; Owner: -
 --
 

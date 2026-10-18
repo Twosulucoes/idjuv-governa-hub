@@ -65,10 +65,15 @@ bun run build        # build de produção
 bun run build:dev    # build em modo development
 bun run lint         # ESLint
 bun run preview      # preview do build
+bun run build:site   # site institucional (dist-site/)
+bun run test         # vitest (src/ e scripts/)
+bun run estado       # regenera docs/ESTADO_DO_SISTEMA.md
+bun run gate         # = bash scripts/gate.sh
 ```
 
 > Testes vitest em `src/` e `scripts/` (dentro do gate). **Documentação obrigatória:** o `docs-guard` reprova a PR sem a doc da matriz e sem o ROADMAP (`node scripts/check-docs-matriz.mjs --base origin/main`; ver `AGENTS.md`). Verificação: **`bash scripts/gate.sh`** (`npm run gate`:
-> guards de migrações/docs/RLS do baseline/contraste AA dos tokens + typecheck + lint + cor crua + build;
+> guards de migrações/docs/RLS do baseline/contraste AA dos tokens/autoria do RH/estado do sistema em dia/número escrito à mão
+> nas docs + typecheck + lint + cor crua + jsPDF fora do core + testes + build do sistema e do site;
 > typecheck, lint e cor crua comparam com `scripts/gate-baseline.json` e falham só se a dívida piorar). Roda no `pre-push`
 > e no CI (`.github/workflows/quality.yml`) — ver `CONTRIBUTING.md`.
 > Atenção: `vite build` **não** checa tipos; o typecheck é `tsc -p tsconfig.app.json`.
@@ -99,11 +104,14 @@ Alias de import: **`@` → `src/`** (configurado em `vite.config.ts` e tsconfig)
 
 ```
 src/
-├── App.tsx                # Raiz: providers + TODAS as rotas (react-router)
-├── main.tsx               # Bootstrap React + registro do PWA
-├── pages/                 # ~241 páginas, organizadas por domínio (rh/, financeiro/,
+├── App.tsx                # Raiz do sistema: providers + rotas do sistema (react-router)
+├── main.tsx               # Bootstrap do sistema + registro do PWA
+├── AppSite.tsx            # Raiz do site institucional (só caminhos de ROTAS_DO_SITE)
+├── main-site.tsx          # Bootstrap do site (npm run build:site)
+├── core/                  # tenant/ (white label) e modo-app.ts (sistema × site)
+├── pages/                 # Páginas, organizadas por domínio (rh/, financeiro/,
 │                          #   admin/, inventario/, transparencia/, programas/, ...)
-├── components/            # ~282 componentes, agrupados por domínio + ui/ (shadcn)
+├── components/            # Componentes, agrupados por domínio + ui/ (shadcn)
 │   ├── ui/                # Componentes shadcn/ui (base — evite editar à toa)
 │   ├── auth/              # ProtectedRoute, guards
 │   ├── layout/, menu/, navigation/
@@ -111,23 +119,23 @@ src/
 ├── shared/config/         # modules.config.ts (FONTE DA VERDADE dos módulos), protected-users
 ├── config/                # menu.config.ts, module-menus.config.ts, segadFieldsConfig.ts
 ├── contexts/              # AuthContext (auth + permissões), MenuContext
-├── hooks/                 # ~65 hooks (use<Dominio>.ts) — camada de dados via React Query
+├── hooks/                 # Hooks (use<Dominio>.ts) — camada de dados via React Query
 ├── types/                 # Tipos de domínio (auth, rh, folha, financeiro, rbac, ...)
 ├── lib/                   # Lógica/utilitários: geradores de PDF (pdf*.ts), cálculos de
 │                          #   folha/frequência, CNAB, eSocial, formatters, utils
 ├── export/                # exportCSV.ts, exportExcel.ts
-├── integrations/supabase/ # client.ts (gerado) + types.ts (gerado, ~23k linhas)
-├── services/              # serviços específicos
+├── integrations/supabase/ # client.ts (gerado) + types.ts (gerado)
 └── assets/                # imagens/estáticos
 
 supabase/
-├── migrations/            # ~240 migrações SQL (timestamp_uuid.sql)
+├── migrations/            # Migrações SQL (YYYYMMDDHHMMSS_<slug>.sql)
+├── baseline/              # Schema consolidado + RLS por módulo (docs/NOVO_BANCO.md)
 ├── functions/             # Edge Functions (Deno): admin-create-user, delete-user,
 │                          #   cpsi-ai-assistant, download-frequencia, ...
 └── config.toml
 
-docs/        # Documentação de operação (migração Supabase, backup, SQL de correção)
-             #   docs/historico/ guarda relatórios e planos antigos (só contexto)
+docs/        # Documentação viva (índice em docs/README.md; contagens em docs/ESTADO_DO_SISTEMA.md)
+             #   docs/historico/ guarda documentos aposentados (só contexto)
 ```
 
 ---
@@ -135,9 +143,13 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 ## 6. Arquitetura e convenções
 
 ### Roteamento
-- **Todas as rotas vivem em `src/App.tsx`** (um único `<Routes>` grande, ~1240
-  linhas, organizado por blocos de comentários por módulo). Ao adicionar uma
-  página, registre a rota aqui e importe a page no topo.
+- **Rotas em dois arquivos:** o sistema em `src/App.tsx` (entrada `src/main.tsx`, um `<Routes>` grande
+  organizado por blocos de comentários por módulo) e o site institucional em `src/AppSite.tsx` (entrada
+  `src/main-site.tsx`, `npm run build:site`), que serve só os caminhos de `ROTAS_DO_SITE`
+  (`src/core/modo-app.ts`). Ao adicionar uma página, registre a rota no arquivo certo e importe a page no topo.
+- Contagens do sistema (rotas, páginas, tabelas, funções…) ficam só em
+  [`docs/ESTADO_DO_SISTEMA.md`](./docs/ESTADO_DO_SISTEMA.md), gerado por `npm run estado`; não as escreva em
+  outra doc (o gate reprova).
 - Três categorias de rota:
   - **Públicas** — envolvidas por `<PublicPageGuard rota="...">` (verifica status
     de manutenção/publicação da rota). Ex.: `/`, `/transparencia/*`, `/curriculo`,
@@ -211,9 +223,9 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
   (Deno/TypeScript).
 - Banco novo e vazio (schema consolidado + RLS por módulo): `supabase/baseline/`,
   guia em `docs/NOVO_BANCO.md`; validação em Postgres puro: `scripts/db/validar-baseline.sh`.
-- Há ferramentas MCP do Supabase disponíveis nesta sessão (listar tabelas,
-  aplicar migração, logs, advisors). Antes de mudar schema, use `list_tables`
-  para entender a estrutura; prefira inspecionar antes de aplicar.
+- O conector MCP do Supabase **não** alcança o banco da VPS. Para entender o schema antes de mudá-lo, leia
+  `supabase/baseline/schema/01_pre_data.sql`, `supabase/baseline/rls/mapa.csv` e
+  `src/integrations/supabase/types.ts`; migração chega à produção só pelo CI.
 
 ---
 
@@ -236,10 +248,13 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 
 ## 8. Deploy
 
-- **Front:** nginx da VPS (`idjuv.online`), publicado automaticamente a cada merge na `main` pelo
-  CI (`.github/workflows/deploy-front.yml`), depois das migrações do mesmo commit. A VPS é a única
-  produção: a Vercel foi desligada (não há prévia por PR; teste local com `bun run dev`).
-- Backend: Supabase self-hosted na VPS do órgão. Edge Functions são deployadas no Supabase.
+- **Front:** publicado automaticamente a cada merge na `main` pelo CI (`.github/workflows/deploy-front.yml`),
+  depois do gate e das migrações do mesmo commit: pelo Coolify (job `deploy-coolify`, `Dockerfile` da raiz:
+  `MODO=sistema` em `app.idjuv.online` e `MODO=site` em `idjuv.online`) quando a variável
+  `COOLIFY_APP_UUID` existe; senão por rsync para o nginx da VPS. A VPS é a única produção: a Vercel foi
+  desligada (não há prévia por PR; teste local com `bun run dev`).
+- Backend: Supabase self-hosted na VPS do órgão. Edge Functions publicadas pelo CI
+  (`.github/workflows/deploy-funcoes.yml`, ver `docs/EDGE_FUNCTIONS.md`).
 - **Migrações:** aplicadas automaticamente pelo CI (`.github/workflows/migracoes-banco.yml`):
   listagem no PR (sem segredo), aplicação no merge na `main` depois do teste do banco e da aprovação no ambiente `producao`. Detalhes em `docs/DESENVOLVIMENTO.md`.
 
@@ -255,13 +270,13 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
    skill `migracao-segura-idjuv` (RLS obrigatório desde a migração).
 3. **Diffs focados:** evite reformatações massivas/sem necessidade que gerem
    conflito entre branches; mantenha alterações focadas.
-4. **`App.tsx` é grande:** mudanças de rota ficam todas lá. Cuidado com merges.
-5. **Poucos testes automatizados** (vitest em `src/lib/documentos`, `src/lib/workflow`
-   e `scripts/`): valide com `bash scripts/gate.sh` e, quando possível, rode o app
+4. **`App.tsx` é grande:** mudanças de rota ficam nele (sistema) ou no `AppSite.tsx` (site). Cuidado com merges.
+5. **Poucos testes automatizados** (vitest em `src/lib/`, `src/config`, `src/shared/config`, `src/core`,
+   `src/codigo-alcancavel.test.ts` e `scripts/`): valide com `bash scripts/gate.sh` e, quando possível, rode o app
    (`bun run dev`) para conferir o comportamento.
 6. **Nada de dados de cliente em `public/`** — esse diretório é servido sem
-   autenticação e em caminho previsível. Dumps de schema vão para
-   `supabase/disaster-recovery/`; documentos institucionais, para
+   autenticação e em caminho previsível. Dumps antigos de schema ficam só como
+   histórico em `docs/historico/disaster-recovery/`; documentos institucionais, para
    `tenants/<slug>/assets/documentos/` (importados com `?url` quando a UI
    precisar deles). O `.gitignore` já barra `public/**/*.sql`.
 7. **Há dois pontos de import do Supabase** (`src/lib/supabase.ts`, que re-exporta, e
@@ -286,11 +301,11 @@ docs/        # Documentação de operação (migração Supabase, backup, SQL de
 1. **Tipos:** defina/atualize em `src/types/<dominio>.ts`.
 2. **Dados:** crie/estenda um hook em `src/hooks/use<Dominio>.ts` (React Query +
    `supabase`). Se precisar de schema novo, crie migração em
-   `supabase/migrations/` (ou via MCP) e regenere os tipos.
+   `supabase/migrations/` (skill `migracao-segura-idjuv`) e regenere os tipos.
 3. **UI:** crie componentes em `src/components/<dominio>/` usando shadcn/ui.
 4. **Página:** crie `src/pages/<dominio>/<Nome>Page.tsx`.
 5. **Rota:** importe a page e registre a `<Route>` no bloco do módulo em
-   `src/App.tsx` (com o guard apropriado).
+   `src/App.tsx` (com o guard apropriado), ou em `src/AppSite.tsx` + `ROTAS_DO_SITE` se for do site.
 6. **Menu/módulo:** se for um item navegável, adicione em
    `src/config/menu.config.ts` e, se for módulo novo, em
    `src/shared/config/modules.config.ts`.

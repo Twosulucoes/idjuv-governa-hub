@@ -21,8 +21,9 @@ npm run gate    # ou simplesmente: git push
 automaticamente nos passos internos.)
 
 O gate (`scripts/gate.sh`) roda, nesta ordem (o que falha em segundos primeiro):
-`check:migrations` → `check:docs` → `check:rls` → `check:contraste` → `check:autoria-rh` → `typecheck` → `lint` →
-cor crua → testes (vitest em `src/` e `scripts/`) → `build` → build do site (`npm run build:site` e
+`check:migrations` → `check:docs` → `check:rls` → `check:contraste` → `check:autoria-rh` → `estado:checar` →
+`check:numeros` → `typecheck` → `lint` → cor crua → jsPDF fora de `src/lib/documentos/core/` → testes (vitest em
+`src/` e `scripts/`) → `build` → build do site (`npm run build:site` e
 `scripts/check-bundle-site.mjs`, que reprova código do sistema interno no `dist-site/`; o jsPDF é permitido
 desde 17/10/2026 porque o `/curriculo` gera PDF, carregado sob demanda). O `vite build` **não** checa
 tipos, por isso o typecheck (`tsc -p tsconfig.app.json`) é passo próprio.
@@ -31,11 +32,22 @@ O repositório carrega dívida histórica de tipos e lint, então `typecheck` e
 `lint` comparam com `scripts/gate-baseline.json` e falham **só se o número de
 erros aumentar**. O mesmo vale para a **cor crua** (`bg-blue-500`, `#1e40af`… em
 `src/**/*.tsx`, contada por `scripts/check-cor-crua.mjs`): pode cair, nunca subir —
-use token semântico (ver `docs/GUIA_FRONTEND.md`, Design System). Os cinco guards
+use token semântico (ver `docs/GUIA_FRONTEND.md`, Design System). Os sete guards
 (migrações, docs, RLS, contraste AA dos tokens de cor de `src/index.css` e de cada
-`tenants/*`, e autoria e trilha em toda tabela do RH — `scripts/check-autoria-rh.mjs`, com
-exceções só com motivo em `scripts/autoria-rh-excecoes.txt`) e o build falham em qualquer ocorrência. Ao
+`tenants/*`, autoria e trilha em toda tabela do RH — `scripts/check-autoria-rh.mjs`, com
+exceções só com motivo em `scripts/autoria-rh-excecoes.txt` —, estado do sistema em dia e doc viva sem
+contagem escrita à mão) e o build falham em qualquer ocorrência. Ao
 reduzir a dívida: `bash scripts/gate.sh --update-baseline` e commite a baseline.
+
+**Estado do sistema e números nas docs.** As contagens do sistema (rotas, páginas, componentes, hooks,
+migrações, tabelas, views, funções, Edge Functions, módulos) moram só em
+[`docs/ESTADO_DO_SISTEMA.md`](./docs/ESTADO_DO_SISTEMA.md), gerado por `scripts/estado-do-sistema.mjs` a partir
+do código. Mudou algo que muda a contagem? Rode `npm run estado` e commite o arquivo; o guard
+(`npm run estado:checar`) reprova se ele estiver defasado. O `scripts/check-numeros-docs.mjs`
+(`npm run check:numeros`) reprova contagem escrita à mão nas docs vivas (as de `LIVING_DOCS` em
+`scripts/check-doc-links.mjs`, mais `CLAUDE.md`, `AGENTS.md`, `README.md` e este arquivo): aponte para o
+estado do sistema. Fato datado de uma entrega pode ficar, marcado com `<!-- numero-datado -->` na linha ou
+entre `<!-- numero-datado:inicio -->` e `<!-- numero-datado:fim -->`.
 Desde o P03 (tipos do banco gerados das migrações) a baseline do typecheck é 4.
 
 Migração nova exige o `src/integrations/supabase/types.ts` regenerado no mesmo PR:
@@ -103,6 +115,5 @@ indentação: `docs: não se aplica — <motivo real>`. Editar a descrição red
 
 ## Dúvidas
 
-Consulte o índice-mestre da documentação em [`docs/README.md`](./docs/README.md),
-o documento-mestre [`DOCUMENTACAO_TECNICA.md`](./DOCUMENTACAO_TECNICA.md) e as
-instruções para agentes em [`AGENTS.md`](./AGENTS.md).
+Consulte o índice-mestre da documentação em [`docs/README.md`](./docs/README.md)
+e as instruções para agentes em [`AGENTS.md`](./AGENTS.md).

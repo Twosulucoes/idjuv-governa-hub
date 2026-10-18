@@ -1,6 +1,7 @@
 # Banco de Dados (Supabase / Postgres)
 
-O schema `public` tem **231 tabelas**, **15 views** e **47 funções (RPC)**. Os
+Contagens do schema `public` (tabelas, views, funções, enums, policies, migrações) ficam em
+[ESTADO_DO_SISTEMA.md](./ESTADO_DO_SISTEMA.md), gerado do baseline por `npm run estado`. Os
 tipos TypeScript de todo o schema são gerados em
 `src/integrations/supabase/types.ts` (**não editar à mão** — regenerar). Desde o P03 ele é gerado
 do banco que as **migrações** constroem, não de um projeto remoto: `bash scripts/db/gerar-tipos.sh`
@@ -13,8 +14,10 @@ RPCs estão tipadas, e o P03 removeu ~100 contornos de tipo no client (`supabase
 `.rpc("x" as never)`, `as unknown as SupabaseClient`) em ~36 arquivos. Código novo não os reintroduz: tabela
 ou RPC de migração nova fica tipada ao regenerar.
 
-> Migrações versionadas em `supabase/migrations/*.sql` (~240 arquivos,
-> `YYYYMMDDHHMMSS_<uuid>.sql`). Para mudar o schema, crie uma migração nova
+> Migrações versionadas em `supabase/migrations/*.sql`
+> (`YYYYMMDDHHMMSS_<uuid>.sql` ou `YYYYMMDDHHMMSS_<slug>.sql`), aplicadas na produção só pelo CI
+> (`.github/workflows/migracoes-banco.yml`). Para inspecionar o schema, leia `supabase/baseline/` e
+> `src/integrations/supabase/types.ts`: o conector MCP do Supabase não alcança o banco da VPS. Para mudar o schema, crie uma migração nova
 > e regenere os tipos. Não edite migrações antigas.
 > **Migração nova → regenerar `types.ts` no mesmo PR** (`bash scripts/db/gerar-tipos.sh`): o workflow
 > `Tipos do banco` (`.github/workflows/tipos-banco.yml`) barra o PR cujo `types.ts` difere do que as
@@ -41,7 +44,7 @@ muda em relação ao estado das migrações antigas:
   `;proprio`, `;pai=<tabela>.<fk>` e `;filho=<tabela>.<fk>` acrescentam a leitura do próprio servidor, direta,
   pela tabela pai ou por uma tabela filha com `servidor_id`); escrita (INSERT/UPDATE/DELETE) exige o módulo
   **e** a permissão granular do `extra` (`escrita=<código>`), via `can_access_module` + `has_permission_code`.
-  Hoje são 29 tabelas (apurado em 2026-10-11): as 10 da folha (`financeiro.folha.processar` para operar,
+  Hoje são 29 tabelas (apurado em 2026-10-11): as 10 da folha <!-- numero-datado --> (`financeiro.folha.processar` para operar,
   `financeiro.folha.configurar` para rubricas, parâmetros e tabelas de INSS/IRRF) — detalhe em
   [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#folha-rls-por-permissão-onda-b--b1) —, 12 do RH na B2 (férias,
   licenças, viagens, frequência; seção "RH — frequência e ponto" abaixo) e 3 na B3 (`frequencia_pacotes`,
@@ -92,7 +95,7 @@ mudança de schema continua por migração nova (e regeneração do baseline). T
 
 Migração `supabase/migrations/20261016220000_banco_limpeza_desempenho.sql`, idempotente:
 
-- **Auditoria com o papel de quem mexeu.** `fn_audit_log_licitacoes()` (trigger nas 43 tabelas auditadas em
+- **Auditoria com o papel de quem mexeu.** `fn_audit_log_licitacoes()` (trigger nas 43 tabelas auditadas em <!-- numero-datado -->
   `audit_log_licitacoes`) lia o perfil em `usuario_perfis`/`perfis`, que não existem mais; o erro era engolido e
   `usuario_perfil` ficava sempre vazio. Agora lê `user_roles` (`admin`, `manager` ou `user`).
 - **`search_path` fixo** em `folha_avos_13`, `folha_dias_comerciais`, `folha_item`, `get_parametro_vigente` (as
@@ -144,14 +147,26 @@ Migração `supabase/migrations/20261017090000_seguranca_formularios_publicos.sq
 Testes no bloco "P12" de `scripts/db/testar-rls.sql`; `validar-baseline.sh` com `PG_REPLAY` aprovado (RLS com 0
 falhas) e `src/integrations/supabase/types.ts` regenerado.
 
+### Limpeza do P13 (18/10/2026)
+
+A migração `supabase/migrations/20261018100000_remove_tabelas_backup_aposentado.sql` apagou as tabelas
+`backup_config`, `backup_history` e `backup_integrity_checks` e os enums `backup_status` e `backup_type`. Eram do
+backup antigo em JSON (Edge Function `backup-offsite` e tela `/admin/backup`), aposentado no P06. O backup oficial
+é o da VPS ([BACKUP.md](./BACKUP.md)) e não guarda nada no banco.
+
+- Antes, foi verificado que nenhum código (`src/`, `supabase/functions/`, `scripts/`, `.github/`), view, função ou
+  tabela de fora delas as usava (a única FK era interna, `backup_integrity_checks` → `backup_history`).
+- `DROP` sem `CASCADE`, na ordem da FK: se algo novo passar a depender delas, a migração falha em vez de apagar o
+  dependente. Idempotente (`IF EXISTS`).
+- Saíram também do `supabase/baseline/rls/mapa.csv` e do catálogo do baseline.
+
 ## Tabelas por domínio
 
 ### Autenticação, RBAC e administração
 `profiles`, `user_roles`, `user_modules`, `user_org_units`, `module_access_scopes`,
 `module_permissions_catalog`, `module_settings`, `form_field_config`,
-`audit_logs`, `audit_log_licitacoes`, `approval_requests`, `approval_delegations`,
-`backup_config`, `backup_history`, `backup_integrity_checks`,
-`_backup_usuario_modulos_old` (legado).
+`audit_logs`, `audit_log_licitacoes`, `approval_requests`, `approval_delegations`.
+As tabelas do backup antigo (`backup_*`) e a `_backup_usuario_modulos_old` não existem mais (P13 e P02).
 
 ### RH — servidores e vida funcional
 `servidores`, `vinculos_servidor`, `vinculos_funcionais`, `servidor_regime`,
@@ -177,6 +192,7 @@ quem perde acesso em
 [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md#férias-licenças-viagens-e-frequência-rls-por-permissão-onda-b--b2).
 Os itens marcados "(contornos)" são da segunda migração.
 
+<!-- numero-datado:inicio -->
 - **Policies** de 16 tabelas do RH (as `acesso_total_*`, `rh_module_*` e `vinculos_*` saem): 12 na classe
   `permissao` — gravar exige o módulo `rh` **e** um código do catálogo (`ferias_servidor`,
   `licencas_afastamentos`, `viagens_diarias`, `registros_ponto`, `frequencia_mensal`, `solicitacoes_abono`,
@@ -197,6 +213,7 @@ Os itens marcados "(contornos)" são da segunda migração.
   quem grava pelo caminho da permissão não grava a própria linha (admin passa). Na justificativa a posse vem
   de `registros_ponto`; nos lançamentos, de `banco_horas`. O servidor insere o próprio pedido de abono,
   ajuste e justificativa pelo caminho da posse.
+<!-- numero-datado:fim -->
 - **Função `eh_meu_servidor(uuid)`** (`SECURITY DEFINER`, `STABLE`, `search_path` fixo, EXECUTE só para
   `authenticated`; mesmo texto no overlay 10): verdadeira se o id é `meu_servidor_id()` ou, quando o perfil
   não tem vínculo, se os dígitos do CPF do perfil batem com os do servidor (CPF vazio nunca casa). Nunca
@@ -291,7 +308,7 @@ Segurança da folha (migração `supabase/migrations/20261010070000_onda_b_folha
 na PR #63; idempotente, vale tanto para o banco do baseline quanto para o produzido só
 pelas migrações):
 
-- Policies por permissão nas 10 tabelas da folha (classe `permissao`, acima) e remoção das `acesso_total_*`
+- Policies por permissão nas 10 tabelas da folha (classe `permissao`, acima) e remoção das `acesso_total_*` <!-- numero-datado -->
   delas na mesma transação; `anon` perde todo privilégio nas dez tabelas e `authenticated` perde
   TRUNCATE/TRIGGER/REFERENCES (a RLS não cobre TRUNCATE); as funções-oráculo que as policies chamam
   (`has_module`, `can_access_module`, `get_user_permission_codes`, `folha_esta_bloqueada`,
@@ -323,7 +340,7 @@ Migrações `supabase/migrations/20261011000000_rh_autoria_trilha.sql` (autoria 
 `supabase/migrations/20261011000100_rh_auditoria_leitura.sql` (permissão e policy de leitura, separada para poder ser
 segurada: mexe em RLS existente), **em PR rascunho**. Idempotentes, valem para o banco do baseline e para o
 só-migrações; spec [`2026-10-10-rh-trilha-auditoria-design.md`](./superpowers/specs/2026-10-10-rh-trilha-auditoria-design.md),
-levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3. Escopo: as 79 tabelas com `rh` em
+levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3. Escopo: as 79 tabelas com `rh` em <!-- numero-datado -->
 `modulos` no `supabase/baseline/rls/mapa.csv` (lista explícita na migração; a que não existir é pulada com NOTICE).
 
 - **Responsável** — `trilha_contexto()` (plpgsql, `SECURITY DEFINER`, sem EXECUTE para a API) lê **uma vez por
@@ -337,7 +354,7 @@ levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3
   `anonimo` (papel `anon` sem usuário). `rh_exige_servidor_vinculado()` devolve `false` (decisão 1 da revisão: quem
   não tem servidor vinculado lança e a trilha marca `usuario_sem_vinculo`); bloquear é trocar para `true` numa
   migração nova.
-- **Autoria gravada pelo banco** — nas 77 tabelas de lançamento: colunas `created_at`, `created_by`,
+- **Autoria gravada pelo banco** — nas 77 tabelas de lançamento: colunas `created_at`, `created_by`, <!-- numero-datado -->
   `created_by_servidor_id`, `updated_at`, `updated_by`, `updated_by_servidor_id` criadas onde faltam (sem DEFAULT nem
   FK: linhas antigas ficam nulas; as `*_by` que já existiam mantêm tipo e FK) e o trigger `zz_fixar_autoria`
   (`BEFORE INSERT OR UPDATE`, função `fixar_autoria()`). INSERT grava `created_*` e `updated_*` com o responsável
@@ -362,7 +379,7 @@ levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3
 - **Folha** — `registrar_transicao_folha`: `fechado_por`, `conferido_por` e `reaberto_por` (e as datas) são de quem
   age, agora, e não mudam fora da transição de status (antes `COALESCE` com o valor do cliente; mesmo texto no
   overlay 18). `processar_folha_pagamento` grava `processado_por` e `data_processamento` de quem processou.
-- **Trilha (`fn_audit_trigger` v2)**, mesma assinatura `fn_audit_trigger('<módulo>')`, agora em 77 tabelas do RH
+- **Trilha (`fn_audit_trigger` v2)**, mesma assinatura `fn_audit_trigger('<módulo>')`, agora em 77 tabelas do RH <!-- numero-datado -->
   (`audit_<tabela>`, módulo `rh`; as multimódulo como `documentos` e `contas_autarquia` também gravam `rh`) e, com
   módulo `admin`, em `profiles` (INSERT, DELETE e UPDATE de `servidor_id`, `is_active`, bloqueio, tipo, CPF, e-mail e
   `restringir_modulos`; troca de nome ou avatar não gera linha), `user_permissions`, `user_org_units` e
@@ -389,7 +406,7 @@ levantamento em [`planejamento/REVISAO_RH.md`](./planejamento/REVISAO_RH.md) §3
   acesso do pré-cadastro, link do pacote de frequência e o **payload do eSocial** (`payload` e `payload_xml`: CPF
   completo e remuneração) viram `"[protegido]"`. O nome da coluna continua em `campos_alterados`. Funções
   `mascarar_parcial(text)` e `trilha_mascarar(text, jsonb)` (reaplicar não muda o valor). A trilha antiga do módulo
-  `rh` (15 tabelas já auditadas antes da E1) é mascarada pela migração antes de ficar imutável.
+  `rh` (15 tabelas já auditadas antes da E1) é mascarada pela migração antes de ficar imutável. <!-- numero-datado -->
 - **Trilha imutável** — trigger `trilha_imutavel` (`BEFORE UPDATE OR DELETE`, por linha) e
   `trilha_imutavel_truncate` (`BEFORE TRUNCATE`) em `audit_logs`, `folha_historico_status` e `rubricas_historico`,
   ambos `ENABLE ALWAYS` (valem também com `session_replication_role = replica`): recusam o **DML** com `42501` para
@@ -723,7 +740,7 @@ Idempotente.
 Migração `supabase/migrations/20261011020000_lancamento_por_setor.sql`, **em PR rascunho**; spec
 [`2026-10-11-lancamento-por-setor-design.md`](./superpowers/specs/2026-10-11-lancamento-por-setor-design.md)
 (premissas 1 a 8, seção "Fase 1"). Idempotente (roda de novo sobre o replay, o baseline novo e o anterior). Nesta fase a
-regra só roda nas 79 tabelas do RH (as do `mapa.csv` com `rh`, menos as 2 de classe `trilha`) e o RH nasce em modo
+regra só roda nas 79 tabelas do RH (as do `mapa.csv` com `rh`, menos as 2 de classe `trilha`) e o RH nasce em modo <!-- numero-datado -->
 `registrar`: **nada é bloqueado**, a trilha anota quem seria.
 
 - **Tabelas novas** (RLS e policies na mesma migração, autoria `zz_fixar_autoria` e trilha `audit_<tabela>`):
@@ -785,7 +802,7 @@ regra só roda nas 79 tabelas do RH (as do `mapa.csv` com `rh`, menos as 2 de cl
     `validado_chefia*` e `observacoes`, e no INSERT já com `validado_chefia = true`. O admin tem todos os códigos e
     nunca cai aqui. Férias e licenças não têm etapa de chefia no banco, então não há via chefia nelas. A hierarquia
     (se o aprovador chefia mesmo a unidade do servidor) não é conferida, como já não era.
-- **Triggers** nas 79 tabelas (o guard `check-autoria-rh.mjs` cobra os dois):
+- **Triggers** nas 79 tabelas (o guard `check-autoria-rh.mjs` cobra os dois): <!-- numero-datado -->
   - `zz_exigir_setor` (`BEFORE INSERT OR UPDATE OR DELETE`, por linha): recusa só em modo `exigir`, sem fundamento de
     setor e sem fundamento da linha, com SQLSTATE **`RHS01`**. Mensagens (com o nome do módulo de
     `module_settings.display_name`, ou o código): "Seu login não tem servidor vinculado: lançamento no setor de
@@ -1378,13 +1395,15 @@ Usadas em relatórios e transparência (muitas expõem dados agregados/sem PII):
 `v_sic_consulta_publica`, `v_quadro_vagas`, `v_vagas_historico` (quadro de vagas, `security_invoker`; seção
 "Quadro de vagas").
 
-## Funções / RPC (`47`)
+## Funções / RPC
+
+Quantidade em [ESTADO_DO_SISTEMA.md](./ESTADO_DO_SISTEMA.md).
 
 Chamadas via `supabase.rpc(...)`. Principais grupos:
 
 - **Permissões / acesso**: `listar_permissoes_usuario`, `has_permission`,
   `has_role`, `usuario_tem_permissao`, `usuario_tem_permissao_financeira`,
-  `usuario_tem_acesso_modulo`, `usuario_tem_acesso_rota`, `usuario_eh_super_admin`,
+  `usuario_eh_super_admin`,
   `user_has_unit_access`, `user_context`, `get_my_modules`,
   `get_permissions_from_servidor`, `get_diagnostico_acessos`, `can_approve`,
   `log_audit`. **A partir da migração
@@ -1411,7 +1430,7 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
 - **Trilha do RH (E1)**: `registrar_evento(p_acao, p_entidade, p_entidade_id, p_descricao, p_metadados)` —
   `SECURITY DEFINER`, EXECUTE só para `authenticated`, exige perfil ativo. Registra em `audit_logs` (módulo `rh`) uma
   ação sem gravação: `p_acao` em `view`, `export`, `download` (imprimir = `download`), senão `22023`; `p_entidade`
-  numa lista fechada (as 79 tabelas do RH e `contracheque`, `relatorio_rh`, `exportacao_rh`, `arquivo_esocial`,
+  numa lista fechada (as 79 tabelas do RH e `contracheque`, `relatorio_rh`, `exportacao_rh`, `arquivo_esocial`, <!-- numero-datado -->
   `arquivo_cnab`, `trilha_auditoria`); exige o módulo `rh` (sem ele, `42501`, salvo o próprio contracheque);
   metadados só objeto JSON de até 4000 caracteres, descrição cortada em 500.
   Usuário, servidor, origem, IP, user agent e transação vêm do banco. A E2 liga o front a ela. Funções internas

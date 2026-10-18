@@ -4,23 +4,27 @@
 
 ```
 src/
-├── App.tsx                # Providers + todas as rotas
-├── main.tsx               # Bootstrap + registro do PWA
-├── pages/                 # ~241 páginas por domínio (rh/, financeiro/, admin/, ...)
-├── components/            # ~282 componentes
+├── App.tsx                # Providers + rotas do sistema
+├── main.tsx               # Bootstrap do sistema + registro do PWA
+├── AppSite.tsx            # Rotas do site institucional (build `site`)
+├── main-site.tsx          # Bootstrap do site
+├── core/                  # tenant/ (perfil da instituição) + modo-app.ts (sistema × site)
+├── pages/                 # páginas por domínio (rh/, financeiro/, admin/, ...)
+├── components/            # componentes
 │   ├── ui/                # shadcn/ui (base — evitar editar à toa)
 │   ├── auth/, layout/, menu/, navigation/, public/
 │   └── <dominio>/         # rh/, financeiro/, inventario/, folha/, cms/, ...
-├── hooks/                 # ~80 hooks use<Dominio> (camada de dados)
+├── hooks/                 # hooks use<Dominio> (camada de dados)
 ├── contexts/              # AuthContext, MenuContext
 ├── config/                # menu.config.ts, module-menus.config.ts, segadFieldsConfig.ts
 ├── shared/config/         # modules.config.ts (fonte da verdade dos módulos)
 ├── types/                 # tipos de domínio (auth, rh, folha, financeiro, ...)
 ├── lib/                   # cálculos + geradores (PDF/CNAB/eSocial) + utils
 ├── export/                # exportCSV.ts, exportExcel.ts
-├── integrations/supabase/ # client.ts (gerado), types.ts (gerado)
-└── services/              # serviços específicos
+└── integrations/supabase/ # client.ts (gerado), types.ts (gerado)
 ```
+
+Contagens de páginas, componentes e hooks: [ESTADO_DO_SISTEMA.md](./ESTADO_DO_SISTEMA.md).
 
 Alias de import: **`@` → `src/`** (use `@/...`, não caminhos relativos longos).
 

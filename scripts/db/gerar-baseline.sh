@@ -30,7 +30,7 @@ SAIDA=supabase/baseline/schema
 # vinculos_servidor (74 nomes de pessoas, CPF placeholder — migração 20260110184920), audit_logs, portal_diretoria,
 # contatos_eventos_esportivos, debitos_tecnicos e config_paginas_historico (conteúdo operacional).
 SEMENTES=(
-  audit_colunas_sensiveis backup_config categorias_noticias_eventos cms_categorias config_agrupamento_unidades
+  audit_colunas_sensiveis categorias_noticias_eventos cms_categorias config_agrupamento_unidades
   config_menu_publico config_paginas_publicas dias_nao_uteis fin_fontes_recurso
   fin_naturezas_despesa fin_parametros fin_plano_contas form_field_config
   modelos_mensagem_reuniao module_access_scopes module_permissions_catalog module_settings

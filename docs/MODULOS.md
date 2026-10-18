@@ -1,7 +1,9 @@
 # Módulos
 
-Detalhamento funcional de cada módulo e suas principais páginas. As rotas vivem
-em `src/App.tsx`; o menu geral em `src/config/menu.config.ts` e a barra lateral de cada módulo em
+Detalhamento funcional de cada módulo e suas principais páginas. As rotas do sistema vivem
+em `src/App.tsx` e as do site institucional (portal público e formulários) em `src/AppSite.tsx`
+(só os caminhos de `ROTAS_DO_SITE`, em `src/core/modo-app.ts`); contagem de rotas por módulo em
+[ESTADO_DO_SISTEMA.md](./ESTADO_DO_SISTEMA.md#módulos). O menu geral em `src/config/menu.config.ts` e a barra lateral de cada módulo em
 `src/config/module-menus.config.ts`; a definição dos módulos em `src/shared/config/modules.config.ts`.
 
 Item de menu só aponta para tela que existe: o teste `src/config/menu.config.test.ts` reprova o PR se algum item
@@ -30,6 +32,8 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
 - **Reuniões**: `ReunioesPage`, `ConfiguracaoReunioesPage`, `CheckinReuniaoPage`.
 - **Infra**: `AuditoriaPage`, `DisasterRecoveryPage`,
   `DatabaseSchemaPage`, `CalibradorSegadPage`, `SobreSistemaPage`, `AdminHelpPage`.
+  `DisasterRecoveryPage` (`/admin/disaster-recovery`) é informativa desde o P13: explica o backup diário, o banco
+  novo pelo baseline e o front pelo CI, sem baixar arquivo (ver [BACKUP.md](./BACKUP.md)).
 - **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
   pode usar e o histórico (`importacoes`). Importadores: QDD do FIPLAN e arquivo do banco
   (OBN600/CNAB 240), do financeiro, e planilha de portarias, do gabinete (com botão "Baixar modelo").

@@ -5,7 +5,7 @@ Data: 2026-10-01 · Tipo: spike (análise, nenhuma alteração de código) · Au
 ## 0. Como ler e o que NÃO foi verificado
 
 - **Código e migrations:** lidos por agentes de exploração (somente leitura). Números de linhas e contagens são do repositório em `main`.
-- **Banco real: NÃO verificado.** O projeto Supabase do IDJUV (`qvbhejhcktcaftiamksd`, do `.env`) não está conectado ao MCP desta sessão. Todo o estado de RLS abaixo é **deduzido lendo as migrations em ordem cronológica** e pode divergir da produção. Primeiro passo recomendado: rodar a seção 0 de `docs/RLS_USUARIOS_PROPOSTA.sql` (consulta `pg_policies`) e o advisor de segurança no projeto real.
+- **Banco real: NÃO verificado.** O projeto Supabase do IDJUV (`qvbhejhcktcaftiamksd`, do `.env`) não está conectado ao MCP desta sessão. Todo o estado de RLS abaixo é **deduzido lendo as migrations em ordem cronológica** e pode divergir da produção. Primeiro passo recomendado: rodar a seção 0 de `docs/historico/RLS_USUARIOS_PROPOSTA.sql` (consulta `pg_policies`) e o advisor de segurança no projeto real.
 - **Mercado:** pesquisa web curta (8 buscas). Fontes oficiais do setor público brasileiro (SIGEPE/SIAPE, eSocial) e artigos de fornecedores. Não avaliei produtos fechados por demonstração. O que vai além das fontes está marcado como *julgamento de engenharia*.
 
 ## 1. Resumo executivo

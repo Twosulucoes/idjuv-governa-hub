@@ -93,7 +93,7 @@ permissões de 10/10/2026) fecha o restante do mesmo tipo de furo nesse banco:
   nova criada pelo `postgres` nasce sem EXECUTE para `anon`.
 
 A migração `supabase/migrations/20261010200000_onda1_remover_acesso_total.sql` (Onda 1) fecha as
-demais: em 166 tabelas troca as `acesso_total_*` (`TO authenticated USING (true)`) pelo bloco gerado
+demais: em 166 tabelas troca as `acesso_total_*` (`TO authenticated USING (true)`) pelo bloco gerado <!-- numero-datado -->
 do baseline (`35_policies_geradas.sql`, a partir do `mapa.csv`). Sem o módulo dono, o usuário não lê
 nem grava; trilhas (`*_audit_log`, históricos) ficam só leitura; catálogos são lidos por qualquer
 usuário ativo e escritos só pelo módulo. Tabelas usadas por telas de mais de um módulo têm vários
@@ -136,8 +136,9 @@ nem exclui outro admin, e o assistente de IA (`compras`) e o convite de reunião
 
 Funções de banco que apoiam o RLS e a checagem: `get_user_permission_codes`,
 `has_permission_code`, `has_permission`, `has_role`,
-`usuario_tem_permissao`, `usuario_tem_acesso_modulo`, `usuario_tem_acesso_rota`,
-`usuario_eh_super_admin`, `user_has_unit_access`, `can_approve`.
+`usuario_tem_permissao`, `usuario_eh_super_admin`, `user_has_unit_access`, `can_approve`
+(`usuario_tem_acesso_modulo` e `usuario_tem_acesso_rota` foram removidas no P02, migração
+`20261014120000_convergencia_baseline.sql`).
 
 ## Escopo de acesso (`AccessScope`)
 
@@ -268,7 +269,7 @@ achados da segunda revisão de segurança). Depende da S0
 banco só de migrações, qualquer logado trocaria o próprio `profiles.servidor_id` e a leitura da "própria
 linha" exporia qualquer servidor. O que muda com a migração de contornos está marcado como "(contornos)".
 
-Regra geral: nas 12 tabelas de férias, licenças, viagens, ponto e frequência, **gravar** exige o módulo
+Regra geral: nas 12 tabelas de férias, licenças, viagens, ponto e frequência, **gravar** exige o módulo <!-- numero-datado -->
 `rh` **e** um código do catálogo (nenhum código novo); `tipos_abono` também, desde os contornos.
 `servidores`, `vinculos_servidor`, `lotacoes` e `cargos` seguem gravados pelo módulo, com as exceções da
 tabela. O papel admin passa em tudo. As `acesso_total_*` (e as `rh_module_*`/`vinculos_*` que sobravam) são
@@ -424,7 +425,7 @@ administrador do banco (`postgres`, que não é barrado pela RLS de `audit_logs`
 olham os 90 dias anteriores; não cobrem `tipos_abono` nem a trava da própria ficha em `servidores`
 (contornos).
 
-A primeira consulta usa `audit_logs`. Das 16 tabelas, 8 têm o trigger de auditoria
+A primeira consulta usa `audit_logs`. Das 16 tabelas, 8 têm o trigger de auditoria <!-- numero-datado -->
 (`fn_audit_trigger('rh')`, migração `20260214235823`); a consulta olha 7: `ferias_servidor`,
 `licencas_afastamentos`, `viagens_diarias`, `registros_ponto`, `frequencia_mensal`, `banco_horas` e
 `servidores` (`lotacoes` fica de fora porque a regra de gravação dela não muda). Em `servidores` só a
@@ -1042,7 +1043,7 @@ Camadas complementares:
 
 ### Permissões nas rotas (P08, 16/10/2026)
 
-- **Módulo pela URL:** antes, só as 48 rotas com `requiredModule` davam 404 para módulo não contratado; nas
+- **Módulo pela URL:** antes, só as 48 rotas com `requiredModule` davam 404 para módulo não contratado; nas <!-- numero-datado -->
   outras 152 a URL digitada abria a tela. Agora o passo 4 descobre o módulo pela URL. `MODULES_CONFIG.rotas`
   ganhou `/patrimonio`, `/comunicacao` e `/acesso`, e `findModuleByRoute`/`moduloDaRota` usam o prefixo mais
   longo (`/admin/federacoes` e `/admin/instituicoes` são de `organizacoes`, não de `admin`).
