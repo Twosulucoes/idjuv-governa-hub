@@ -696,7 +696,13 @@ export default function ServidorFormPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel>Modelos em Branco</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => generateFichaCadastralModelo()}>
+                <DropdownMenuItem onClick={async () => {
+                  try {
+                    await generateFichaCadastralModelo();
+                  } catch (erro) {
+                    toast.error(erro instanceof Error ? erro.message : "Não foi possível gerar a ficha cadastral.");
+                  }
+                }}>
                   <FileDown className="h-4 w-4 mr-2" />
                   Ficha Cadastral (Modelo)
                 </DropdownMenuItem>
@@ -715,9 +721,13 @@ export default function ServidorFormPage() {
                     <DropdownMenuLabel>Documentos Preenchidos</DropdownMenuLabel>
                     <DropdownMenuItem onClick={async () => {
                       if (!(await registrarDocumentoServidor("ficha_cadastral", "Ficha cadastral impressa"))) return;
-                      generateFichaCadastral({
-                        ...servidor,
-                      });
+                      try {
+                        await generateFichaCadastral({
+                          ...servidor,
+                        });
+                      } catch (erro) {
+                        toast.error(erro instanceof Error ? erro.message : "Não foi possível gerar a ficha cadastral.");
+                      }
                     }}>
                       <FileText className="h-4 w-4 mr-2" />
                       Ficha Cadastral Completa

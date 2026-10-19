@@ -233,11 +233,15 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
     );
   };
 
-  const handleBaixarModelo = (tipo: string) => {
+  const handleBaixarModelo = async (tipo: string) => {
     const tipoConfig = TIPOS_REQUERIMENTO.find(t => t.value === tipo);
     if (tipoConfig?.gerador) {
-      tipoConfig.gerador();
-      toast.success("Modelo baixado");
+      try {
+        await tipoConfig.gerador();
+        toast.success("Modelo baixado");
+      } catch (erro) {
+        toast.error(erro instanceof Error ? erro.message : "Não foi possível gerar o modelo.");
+      }
     } else {
       toast.info("Modelo não disponível para geração automática. Faça upload manual.");
     }

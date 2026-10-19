@@ -5,6 +5,7 @@ import { folhaSimplificada } from './modelos/relatorios/folhaSimplificada';
 import { pendenciasPreCadastros } from './modelos/rh/pendenciasPreCadastros';
 import { pendenciasServidores } from './modelos/rh/pendenciasServidores';
 import { fichaHistoricoFuncional } from './modelos/rh/historicoFuncional';
+import { fichaCadastral } from './modelos/rh/fichaCadastral';
 import { relatorioServidoresDiretoria } from './modelos/rh/servidoresDiretoria';
 import { relatorioServidoresPortarias } from './modelos/rh/servidoresPortarias';
 import { relatorioServidoresVinculo } from './modelos/rh/servidoresVinculo';
@@ -57,6 +58,8 @@ export const REGISTRO = {
   'rh-situacao-portaria': relatorioSituacaoPortaria,
   'rh-agrupado-portaria': relatorioAgrupadoPortaria,
   'rh-contatos-estrategicos': relatorioContatosEstrategicos,
+  // RH — ficha cadastral do servidor (preenchida e em branco)
+  'rh-ficha-cadastral': fichaCadastral,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
