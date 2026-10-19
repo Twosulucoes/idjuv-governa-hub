@@ -18,13 +18,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Páginas (`*Page.tsx` em `src/pages`) | 210 |
+| Páginas (`*Page.tsx` em `src/pages`) | 212 |
 | Componentes (`.tsx` em `src/components`) | 314 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
 | — fora de `ui/` | 271 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 100 |
 | Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 29 |
-| Linhas de `src/App.tsx` | 1369 |
+| Linhas de `src/App.tsx` | 1371 |
 | Linhas de `src/integrations/supabase/types.ts` (gerado) | 27014 |
 
 ### Páginas por pasta de `src/pages`
@@ -49,7 +49,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | `governanca/` | 7 |
 | `instituicoes/` | 1 |
 | `integridade/` | 2 |
-| `inventario/` | 18 |
+| `inventario/` | 20 |
 | `mobile/` | 2 |
 | `modulos/` | 12 |
 | `organograma/` | 2 |
