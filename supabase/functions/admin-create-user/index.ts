@@ -68,10 +68,12 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { email, password, user_metadata } = body;
+    // convidar: o Auth manda o e-mail de convite e a pessoa cria a própria senha pelo link (/auth?type=invite).
+    // Com password (clientes antigos), o usuário nasce confirmado com a senha dada, sem e-mail.
+    const { email, password, user_metadata, convidar } = body;
 
-    if (!email || !password) {
-      return new Response(JSON.stringify({ error: "Email e senha são obrigatórios" }), {
+    if (!email || (!password && convidar !== true)) {
+      return new Response(JSON.stringify({ error: "Email e senha (ou convite) são obrigatórios" }), {
         status: 400,
         headers: { ...cors, "Content-Type": "application/json" },
       });
@@ -110,21 +112,24 @@ Deno.serve(async (req) => {
         module_name: "admin",
         description: recuperado
           ? "Perfil garantido para usuário que já existia (admin-create-user)"
-          : "Usuário criado (admin-create-user)",
-        metadata: { fonte: "admin-create-user", tipo_usuario: tipoUsuario, recuperado },
+          : password ? "Usuário criado (admin-create-user)" : "Usuário convidado por e-mail (admin-create-user)",
+        metadata: { fonte: "admin-create-user", tipo_usuario: tipoUsuario, recuperado, convite: !password },
       });
       if (auditError) console.error("Falha ao registrar a trilha da criação de usuário:", auditError.code);
     };
 
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: normalizedEmail,
-      password,
-      email_confirm: true,
-      user_metadata: user_metadata || {},
-    });
+    const { data: newUser, error: createError } = password
+      ? await supabaseAdmin.auth.admin.createUser({
+        email: normalizedEmail,
+        password,
+        email_confirm: true,
+        user_metadata: user_metadata || {},
+      })
+      : await supabaseAdmin.auth.admin.inviteUserByEmail(normalizedEmail, { data: user_metadata || {} });
 
     if (createError) {
       if (
+        (createError as { code?: string }).code === "email_exists" ||
         createError.message?.includes("already been registered") ||
         createError.message?.includes("already exists")
       ) {
@@ -169,6 +174,7 @@ Deno.serve(async (req) => {
         weak_password: "Senha fraca: use ao menos 8 caracteres, misturando letras e números.",
         email_address_invalid: "E-mail inválido.",
         validation_failed: "Dados inválidos para criar o usuário.",
+        over_email_send_rate_limit: "Muitos e-mails enviados em pouco tempo. Aguarde alguns minutos e tente de novo.",
       };
       const motivo = motivosDoPedido[(createError as { code?: string }).code ?? ""];
       if (motivo) {
@@ -189,7 +195,7 @@ Deno.serve(async (req) => {
     await registrarTrilha(newUser.user.id, false);
 
     return new Response(
-      JSON.stringify({ user: { id: newUser.user.id, email: newUser.user.email } }),
+      JSON.stringify({ user: { id: newUser.user.id, email: newUser.user.email }, convidado: !password }),
       {
         status: 200,
         headers: { ...cors, "Content-Type": "application/json" },

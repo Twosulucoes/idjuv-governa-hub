@@ -2,7 +2,6 @@
 // HOOK PARA GERENCIAMENTO DE USUÁRIOS
 // ============================================
 
-import { gerarSenhaTemporaria } from '@/lib/senhaTemporaria';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { UsuarioSistema, TipoUsuario } from '@/types/usuario';
@@ -162,7 +161,7 @@ export function useUsuarios() {
       servidorId: string; 
       email: string; 
       modulos?: Modulo[];
-    }): Promise<{ authData: any; senhaTemporaria: string | null; usuarioAtualizado?: boolean; avisoModulos?: string }> => {
+    }): Promise<{ authData: any; convidado: boolean; usuarioAtualizado?: boolean; avisoModulos?: string }> => {
       // Buscar dados do servidor
       const { data: servidor, error: servidorError } = await supabase
         .from('servidores')
@@ -198,16 +197,15 @@ export function useUsuarios() {
         // Substituir os módulos antigos pelos novos
         await salvarModulos(userId, modulos);
 
-        return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
+        return { authData: { user: { id: userId } }, convidado: false, usuarioAtualizado: true };
       }
 
-      // Se não existe, criar novo usuário via edge function (não afeta sessão do admin)
-      const senhaTemporaria = generateTempPassword();
-
+      // Se não existe, convidar via edge function (não afeta sessão do admin): o e-mail de convite leva o link
+      // em que a pessoa cria a própria senha
       const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-create-user', {
         body: {
           email,
-          password: senhaTemporaria,
+          convidar: true,
           user_metadata: {
             full_name: servidor.nome_completo,
             servidor_id: servidorId,
@@ -240,7 +238,7 @@ export function useUsuarios() {
             }).eq('id', userId);
 
             await salvarModulos(userId, modulos);
-            return { authData: { user: { id: userId } }, senhaTemporaria: null, usuarioAtualizado: true };
+            return { authData: { user: { id: userId } }, convidado: false, usuarioAtualizado: true };
           }
         }
         throw new Error(fnData.message || fnData.error);
@@ -279,22 +277,22 @@ export function useUsuarios() {
         is_active: true,
       }).eq('id', userId);
 
-      // Usuário já existia no Auth: a senha gerada aqui não foi aplicada, então não é exibida
+      // Usuário já existia no Auth: nenhum convite foi enviado, ele entra com a senha que já tem
       if (fnData?.recovered) {
         await salvarModulos(userId, modulos);
-        return { authData: fnData, senhaTemporaria: null, usuarioAtualizado: true };
+        return { authData: fnData, convidado: false, usuarioAtualizado: true };
       }
 
-      // Usuário novo: a senha já vale, então uma falha nos módulos vira aviso em vez de esconder a senha
+      // Usuário novo: o convite já saiu, então uma falha nos módulos vira aviso em vez de erro
       const avisoModulos = await salvarModulosComAviso(userId, modulos);
-      return { authData: fnData, senhaTemporaria, usuarioAtualizado: false, avisoModulos };
+      return { authData: fnData, convidado: true, usuarioAtualizado: false, avisoModulos };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['usuarios-sistema'] });
       if (data.usuarioAtualizado) {
         toast.info('Usuário já existia. Permissões atualizadas com sucesso!');
       } else {
-        toast.success('Usuário criado com sucesso!');
+        toast.success('Convite enviado por e-mail.');
       }
       if (data.avisoModulos) toast.error(data.avisoModulos);
     },
@@ -316,13 +314,11 @@ export function useUsuarios() {
       role?: string;
       // Sem a lista (tela de usuários técnicos), os módulos do usuário ficam como estão
       modulos?: Modulo[];
-    }): Promise<{ senhaTemporaria: string | null; usuarioAtualizado: boolean; avisoModulos?: string }> => {
-      const senhaTemporaria = generateTempPassword();
-
+    }): Promise<{ convidado: boolean; usuarioAtualizado: boolean; avisoModulos?: string }> => {
       const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-create-user', {
         body: {
           email,
-          password: senhaTemporaria,
+          convidar: true,
           user_metadata: {
             full_name: fullName,
             tipo_usuario: 'tecnico',
@@ -347,23 +343,23 @@ export function useUsuarios() {
         })
         .eq('id', userId);
 
-      // A função não envia e-mail (cria o usuário já confirmado): quem cria repassa a senha temporária.
-      // Usuário que já existia no Auth mantém a senha dele, então a gerada aqui não é exibida.
+      // A função manda o convite: a pessoa cria a própria senha pelo link do e-mail.
+      // Usuário que já existia no Auth não recebe convite e mantém a senha dele.
       if (fnData?.recovered) {
         if (modulos) await salvarModulos(userId, modulos);
-        return { senhaTemporaria: null, usuarioAtualizado: true };
+        return { convidado: false, usuarioAtualizado: true };
       }
 
-      // Usuário novo: a senha já vale, então uma falha nos módulos vira aviso em vez de esconder a senha
+      // Usuário novo: o convite já saiu, então uma falha nos módulos vira aviso em vez de erro
       const avisoModulos = modulos ? await salvarModulosComAviso(userId, modulos) : undefined;
-      return { senhaTemporaria, usuarioAtualizado: false, avisoModulos };
+      return { convidado: true, usuarioAtualizado: false, avisoModulos };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['usuarios-sistema'] });
       if (data.usuarioAtualizado) {
         toast.info('Usuário já existia: a senha dele não mudou.');
       } else {
-        toast.success('Usuário técnico criado. Repasse a senha temporária ao usuário.');
+        toast.success('Convite enviado por e-mail.');
       }
       if (data.avisoModulos) toast.error(data.avisoModulos);
     },
@@ -407,5 +403,3 @@ export function useUsuarios() {
   };
 }
 
-// Gerar senha temporária (gerador criptográfico em src/lib/senhaTemporaria.ts)
-const generateTempPassword = (): string => gerarSenhaTemporaria();

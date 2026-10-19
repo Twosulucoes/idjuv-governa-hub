@@ -41,16 +41,16 @@ corporativos que "visitam" links queimavam o link antes da pessoa clicar. Na tel
 Links antigos (com `#access_token` ou `?code=`) continuam funcionando.
 
 **Pré-requisito:** o `SITE_URL` do Supabase (vira `GOTRUE_SITE_URL` no serviço `auth`) tem que
-ser o endereço do app, `https://idjuv.online`, sem barra no fim. Se apontar para outro lugar, os
+ser o endereço do sistema, `https://app.idjuv.online`, sem barra no fim. Se apontar para outro lugar, os
 botões dos e-mails levam para lá.
 
 Todos usam `.Data.full_name` na saudação (`user_metadata.full_name`, gravado pelo `signUp` em
 `src/contexts/AuthContext.tsx`); quando ausente, a saudação fica só "Olá.".
 
-Hoje o app dispara de fato **recuperação de senha** (`resetPasswordForEmail`) e **confirmação**
-(`signUp`, se a confirmação de e-mail estiver ligada no GoTrue). Convite, link mágico, troca de
-e-mail e reautenticação ficam prontos para quando forem usados (o `admin-create-user` cria o
-usuário já confirmado, sem convite).
+Hoje o app dispara de fato **recuperação de senha** (`resetPasswordForEmail`), **convite**
+(`admin-create-user` com `convidar: true`, usado ao criar usuário nas telas de usuários; a pessoa cria
+a própria senha pelo link) e **confirmação** (`signUp`, se a confirmação de e-mail estiver ligada no
+GoTrue). Link mágico, troca de e-mail e reautenticação ficam prontos para quando forem usados.
 
 O cabeçalho é tipográfico (sigla + "Sistema de gestão"), sem imagem: não depende de URL pública
 de logo e não quebra em cliente que bloqueia imagens.
@@ -73,7 +73,7 @@ regenerar após mudar tokens ou perfil é convenção, cobrada na matriz de
 O Studio self-hosted não tem editor de templates; o GoTrue lê cada template de uma **URL HTTP**
 definida em `GOTRUE_MAILER_TEMPLATES_*`. O caminho sugerido usa o próprio Storage:
 
-0. **Confira o `SITE_URL`** no `.env` do Supabase: `SITE_URL=https://idjuv.online`.
+0. **Confira o `SITE_URL`** no `.env` do Supabase: `SITE_URL=https://app.idjuv.online`.
 1. **Bucket público `emails`**: criado pelas migrações (`20261014120000_convergencia_baseline.sql`) e pelo
    baseline (`overlay/50_storage.sql`); antes era criado à mão no Studio. No Studio (`bd.idjuv.online`) →
    Storage → `emails`, envie os seis `.html` de `tenants/idjuv/emails/`. Os templates não

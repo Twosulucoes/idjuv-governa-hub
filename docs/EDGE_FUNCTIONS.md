@@ -20,7 +20,7 @@ Aposentada no P06 (2026-10-15): `backup-offsite` (backup antigo em JSON para out
 
 | Função | Propósito |
 |---|---|
-| `admin-create-user` | Cria usuário no Auth + perfil/permissões (requer service role). |
+| `admin-create-user` | Cria usuário no Auth + perfil/permissões (requer service role). Com `convidar: true` manda o e-mail de convite (a pessoa cria a própria senha); com `password`, cria já confirmado e sem e-mail. |
 | `admin-reset-password` | Reseta/redefine senha de um usuário pela administração. |
 | `delete-user` | Exclui usuário do Auth e dados associados. |
 | `enviar-convite-reuniao` | Envia convites de reunião aos participantes por e-mail ou WhatsApp (pelo núcleo `_shared/envio`). |
