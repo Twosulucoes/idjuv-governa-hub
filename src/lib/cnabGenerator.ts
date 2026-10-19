@@ -1,13 +1,16 @@
 /**
  * Gerador de Arquivos CNAB240 para Pagamento de Folha
- * Padrão FEBRABAN 240 genérico (decisão 10 da revisão do RH): sem manual do convênio, os campos que variam por banco
- * estão marcados "conferir no manual do banco".
+ * Conta pagadora no Banco do Brasil: leiaute que o BB já aceita da folha (`bancario/folhaBbCnab240.ts`, conferido byte
+ * a byte com as remessas do SIGRH). Outros bancos: padrão FEBRABAN 240 genérico (decisão 10 da revisão do RH); sem
+ * manual do convênio, os campos que variam por banco estão marcados "conferir no manual do banco".
  *
  * Nada aqui é fixo da instituição: dados do pagador (CNPJ, razão social, endereço) vêm de `config_autarquia` (com o
  * endereço do perfil do tenant como reserva), a conta e o banco de `contas_autarquia`/`bancos_cnab`, e os dados do
  * favorecido da ficha financeira e do cadastro do servidor. Faltou dado obrigatório: `validarRemessaCNAB` lista o que
  * falta e a tela recusa gerar.
  */
+
+import { gerarFolhaBbCnab240, pendenciasFolhaBb } from "@/lib/bancario/folhaBbCnab240";
 
 export interface EnderecoPagador {
   logradouro: string;
@@ -351,8 +354,12 @@ export function formaDoFavorecido(empresa: Pick<DadosEmpresa, "banco">, favoreci
 
 const ORDEM_FORMAS: FormaPagamento[] = ["01", "05", "41"];
 
+/** Conta pagadora no BB usa o leiaute aceito pelo banco; as demais, o FEBRABAN genérico. */
+const pagadorNoBB = (empresa: Pick<DadosEmpresa, "banco">) => padLeft(onlyDigits(empresa.banco), 3) === "001";
+
 // Função principal para gerar arquivo CNAB240
 export function gerarCNAB240(remessa: RemessaCNAB): string {
+  if (pagadorNoBB(remessa.empresa)) return gerarFolhaBbCnab240(remessa);
   const linhas: string[] = [];
   const { empresa, favorecidos } = remessa;
 
@@ -436,6 +443,7 @@ export function validarRemessaCNAB(empresa: DadosEmpresa, favorecidos: DadosFavo
     if (!(f.valor > 0)) anotar("valor líquido", f.nome);
   }
   porCampo.forEach((nomes, campo) => faltas.push(`${campo} de ${nomes.length} servidor(es): ${listaCurta(nomes)}`));
+  if (pagadorNoBB(empresa)) faltas.push(...pendenciasFolhaBb({ favorecidos }));
   if (faltaNaFicha) {
     faltas.push(
       "Os dados bancários dos servidores vêm da ficha financeira desta folha (copiados do cadastro no processamento): " +
