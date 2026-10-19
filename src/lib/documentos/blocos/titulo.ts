@@ -1,6 +1,6 @@
 import { usarTexto } from '../core/pintura';
 import { quebrarEmLinhas } from '../core/texto';
-import { ESPACO, FONTE, NEUTROS, alturaLinha, ptParaMm } from '../core/tokens';
+import { ESPACO, NEUTROS, alturaLinha, ptParaMm } from '../core/tokens';
 import type { Bloco } from '../tipos';
 
 /** Título centralizado em caixa alta e subtítulo opcional. A moldura (cabeçalho) fica por conta de `aplicarMoldura`. */
@@ -11,12 +11,12 @@ export const titulo =
     const centro = ctx.esquerda + ctx.largura / 2;
 
     doc.setFont(ctx.fonteCorpo, 'bold');
-    doc.setFontSize(FONTE.titulo);
+    doc.setFontSize(ctx.fonte.titulo);
     usarTexto(doc, NEUTROS.texto);
     for (const linha of quebrarEmLinhas(doc, p.texto.toUpperCase(), ctx.largura)) {
-      ctx.garantirEspaco(alturaLinha(FONTE.titulo));
-      doc.text(linha, centro, ctx.y + ptParaMm(FONTE.titulo), { align: 'center' });
-      ctx.y += alturaLinha(FONTE.titulo);
+      ctx.garantirEspaco(alturaLinha(ctx.fonte.titulo));
+      doc.text(linha, centro, ctx.y + ptParaMm(ctx.fonte.titulo), { align: 'center' });
+      ctx.y += alturaLinha(ctx.fonte.titulo);
     }
     if (p.subtitulo) {
       doc.setFont(ctx.fonteCorpo, 'normal');

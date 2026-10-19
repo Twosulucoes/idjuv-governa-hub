@@ -1,6 +1,6 @@
 import { usarTexto, usarTraco } from '../core/pintura';
 import { quebrarEmLinhas } from '../core/texto';
-import { ESPACO, FONTE, NEUTROS, alturaLinha, corLegivel, ptParaMm } from '../core/tokens';
+import { ESPACO, NEUTROS, alturaLinha, corLegivel, ptParaMm } from '../core/tokens';
 import type { Bloco } from '../tipos';
 
 /** Título de seção com régua. Reserva espaço para a primeira linha do que vem depois (evita título órfão). */
@@ -9,14 +9,14 @@ export const secao =
   (ctx) => {
     const { doc } = ctx;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(FONTE.secao);
+    doc.setFontSize(ctx.fonte.secao);
     const linhas = quebrarEmLinhas(doc, p.texto, ctx.largura);
-    ctx.garantirEspaco(ESPACO.sm + linhas.length * alturaLinha(FONTE.secao) + ESPACO.sm + 12);
+    ctx.garantirEspaco(ESPACO.sm + linhas.length * alturaLinha(ctx.fonte.secao) + ESPACO.sm + 12);
     ctx.y += ESPACO.sm;
     usarTexto(doc, corLegivel(ctx.marca.corPrimaria));
     for (const linha of linhas) {
-      doc.text(linha, ctx.esquerda, ctx.y + ptParaMm(FONTE.secao));
-      ctx.y += alturaLinha(FONTE.secao);
+      doc.text(linha, ctx.esquerda, ctx.y + ptParaMm(ctx.fonte.secao));
+      ctx.y += alturaLinha(ctx.fonte.secao);
     }
     usarTraco(doc, NEUTROS.linha);
     doc.setLineWidth(0.3);

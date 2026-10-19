@@ -16,7 +16,7 @@
 
 import { NOME_PRODUTO_PADRAO } from './produto';
 import { getTenantSnapshot } from './snapshot';
-import type { TenantConfig } from './types';
+import type { TenantConfig, TenantImpressao } from './types';
 
 /** Grupos da tela; também é o valor gravado em `dados_oficiais.categoria`. */
 export type CategoriaCampoCliente =
@@ -27,7 +27,8 @@ export type CategoriaCampoCliente =
   | 'dirigente'
   | 'endereco'
   | 'contato'
-  | 'integracoes';
+  | 'integracoes'
+  | 'impressao';
 
 export interface CampoCliente {
   chave: string;
@@ -39,6 +40,12 @@ export interface CampoCliente {
   longo?: boolean;
   /** Endereço web: só http(s) é aceito. */
   url?: boolean;
+  /** Cor em hex (#RRGGBB): a tela mostra a amostra e o aviso de contraste. */
+  cor?: boolean;
+  /** Lista fechada (a tela mostra uma seleção; valor fora da lista é ignorado ao aplicar). */
+  opcoes?: { valor: string; rotulo: string }[];
+  /** Limite de caracteres (textos impressos numa linha só). */
+  maximo?: number;
   /** Valor no perfil do tenant (fallback). */
   ler: (t: TenantConfig) => string | undefined;
   /** Devolve o perfil com o valor do banco aplicado (sem mutar o original). */
@@ -70,6 +77,35 @@ const integracoes = (t: TenantConfig, parcial: TenantConfig['integracoes']): Ten
   ...t,
   integracoes: { ...t.integracoes, ...parcial },
 });
+
+const impressao = (t: TenantConfig, parcial: TenantConfig['impressao']): TenantConfig => ({
+  ...t,
+  impressao: { ...t.impressao, ...parcial },
+});
+
+/** Valor gravado como texto em `dados_oficiais` para as opções sim/não. */
+const SIM_NAO = [
+  { valor: 'sim', rotulo: 'Sim' },
+  { valor: 'nao', rotulo: 'Não' },
+];
+const simNao = (b: boolean | undefined): string | undefined => (b === undefined ? undefined : b ? 'sim' : 'nao');
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/** Só aplica valor que está na lista: um texto qualquer no banco não chega ao motor de PDF. */
+function opcao<T extends string>(lista: { valor: string }[], v: string): T | undefined {
+  return lista.some((o) => o.valor === v) ? (v as T) : undefined;
+}
+
+const TAMANHOS = [
+  { valor: 'compacto', rotulo: 'Compacto (cabe mais por página)' },
+  { valor: 'normal', rotulo: 'Normal' },
+  { valor: 'grande', rotulo: 'Grande (mais fácil de ler)' },
+];
+const ORIENTACOES = [
+  { valor: 'automatica', rotulo: 'Automática (cada documento escolhe)' },
+  { valor: 'retrato', rotulo: 'Sempre retrato (em pé)' },
+  { valor: 'paisagem', rotulo: 'Sempre paisagem (deitado)' },
+];
 
 export const CAMPOS_CLIENTE: CampoCliente[] = [
   // ---- Sistema ----
@@ -347,6 +383,91 @@ export const CAMPOS_CLIENTE: CampoCliente[] = [
     rotulo: 'Endereço do Portal da Transparência',
     ler: (t) => t.integracoes?.portalTransparenciaUrl,
     aplicar: (t, v) => integracoes(t, { portalTransparenciaUrl: v }),
+  },
+
+  // ---- Impressão de documentos (vale para todos os PDFs do motor src/lib/documentos) ----
+  {
+    chave: 'impressao_cor_destaque',
+    cor: true,
+    categoria: 'impressao',
+    rotulo: 'Cor de destaque',
+    ajuda: 'Em hex, ex.: #1E3A5F. Usada em réguas e títulos de seção. Vazio: cor da marca.',
+    ler: (t) => t.impressao?.corDestaqueHex,
+    aplicar: (t, v) => (HEX.test(v) ? impressao(t, { corDestaqueHex: v }) : t),
+  },
+  {
+    chave: 'impressao_logo_orgao',
+    opcoes: SIM_NAO,
+    categoria: 'impressao',
+    rotulo: 'Mostrar o logo da instituição',
+    ler: (t) => simNao(t.impressao?.mostrarLogoOrgao),
+    aplicar: (t, v) => (opcao(SIM_NAO, v) ? impressao(t, { mostrarLogoOrgao: v === 'sim' }) : t),
+  },
+  {
+    chave: 'impressao_logo_entidade',
+    opcoes: SIM_NAO,
+    categoria: 'impressao',
+    rotulo: 'Mostrar o logo da entidade superior',
+    ler: (t) => simNao(t.impressao?.mostrarLogoEntidadeSuperior),
+    aplicar: (t, v) => (opcao(SIM_NAO, v) ? impressao(t, { mostrarLogoEntidadeSuperior: v === 'sim' }) : t),
+  },
+  {
+    chave: 'impressao_linha_cabecalho',
+    maximo: 120,
+    categoria: 'impressao',
+    rotulo: 'Linha extra no cabeçalho',
+    ajuda: 'Aparece abaixo do nome da instituição na primeira página. Ex.: nome da secretaria.',
+    ler: (t) => t.impressao?.linhaCabecalho,
+    aplicar: (t, v) => impressao(t, { linhaCabecalho: v.slice(0, 120) }),
+  },
+  {
+    chave: 'impressao_texto_rodape',
+    maximo: 120,
+    categoria: 'impressao',
+    rotulo: 'Texto do rodapé',
+    ajuda: 'Ao lado do nome do sistema, em todas as páginas. Ex.: endereço e telefone.',
+    ler: (t) => t.impressao?.textoRodape,
+    aplicar: (t, v) => impressao(t, { textoRodape: v.slice(0, 120) }),
+  },
+  {
+    chave: 'impressao_mostrar_emissor',
+    opcoes: SIM_NAO,
+    categoria: 'impressao',
+    rotulo: 'Mostrar quem emitiu',
+    ajuda: 'Sim: "Emitido por Fulano em…". Não: só a data.',
+    ler: (t) => simNao(t.impressao?.mostrarEmissor),
+    aplicar: (t, v) => (opcao(SIM_NAO, v) ? impressao(t, { mostrarEmissor: v === 'sim' }) : t),
+  },
+  {
+    chave: 'impressao_tamanho_letra',
+    opcoes: TAMANHOS,
+    categoria: 'impressao',
+    rotulo: 'Tamanho da letra',
+    ler: (t) => t.impressao?.tamanhoLetra,
+    aplicar: (t, v) => {
+      const tamanho = opcao<NonNullable<TenantImpressao['tamanhoLetra']>>(TAMANHOS, v);
+      return tamanho ? impressao(t, { tamanhoLetra: tamanho }) : t;
+    },
+  },
+  {
+    chave: 'impressao_tabela_listrada',
+    opcoes: SIM_NAO,
+    categoria: 'impressao',
+    rotulo: 'Tabelas listradas',
+    ajuda: 'Linhas alternadas com fundo cinza claro.',
+    ler: (t) => simNao(t.impressao?.tabelaListrada),
+    aplicar: (t, v) => (opcao(SIM_NAO, v) ? impressao(t, { tabelaListrada: v === 'sim' }) : t),
+  },
+  {
+    chave: 'impressao_orientacao',
+    opcoes: ORIENTACOES,
+    categoria: 'impressao',
+    rotulo: 'Orientação da página',
+    ler: (t) => t.impressao?.orientacao,
+    aplicar: (t, v) => {
+      const orientacao = opcao<NonNullable<TenantImpressao['orientacao']>>(ORIENTACOES, v);
+      return orientacao ? impressao(t, { orientacao }) : t;
+    },
   },
 ];
 

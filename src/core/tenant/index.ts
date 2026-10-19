@@ -17,6 +17,7 @@ export type {
   TenantContato,
   TenantLegal,
   TenantIntegracoes,
+  TenantImpressao,
   TenantFeatures,
   TenantRH,
   TenantSistema,

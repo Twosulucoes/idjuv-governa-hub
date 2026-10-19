@@ -1,10 +1,20 @@
-import type { RGB } from '../tipos';
+import type { EscalaFonte, EscalaLetra, EstiloImpressao, RGB } from '../tipos';
 
 export const A4 = { largura: 210, altura: 297 } as const;
 /** `margemRodape` inclui a faixa do rodapé (régua + 2 linhas). */
 export const PAGINA = { margemLateral: 20, margemTopo: 18, margemRodape: 22 } as const;
 export const ESPACO = { sm: 4, md: 8, lg: 12, xl: 16 } as const;
-export const FONTE = { titulo: 14, secao: 11, corpo: 10.5, tabela: 9, rotulo: 8, rodape: 7.5 } as const;
+/** Rodapé fica igual em todas as escalas: a faixa do rodapé tem altura fixa. */
+export const ESCALAS: Record<EscalaLetra, EscalaFonte> = {
+  compacto: { titulo: 13, secao: 10, corpo: 9.5, tabela: 8, rotulo: 7.5, rodape: 7.5 },
+  normal: { titulo: 14, secao: 11, corpo: 10.5, tabela: 9, rotulo: 8, rodape: 7.5 },
+  grande: { titulo: 15, secao: 12, corpo: 11.5, tabela: 10, rotulo: 8.5, rodape: 7.5 },
+};
+/** Escala normal. Blocos usam `ctx.fonte` (a escala configurada); isto é para a moldura e os testes. */
+export const FONTE = ESCALAS.normal;
+
+/** Padrão quando a instalação não configurou nada. */
+export const ESTILO_PADRAO: EstiloImpressao = { escala: 'normal', zebra: true, mostrarEmissor: true, orientacao: 'automatica' };
 export const ALTURA_CABECALHO = { primeira: 28, demais: 10 } as const;
 
 export const NEUTROS = {
