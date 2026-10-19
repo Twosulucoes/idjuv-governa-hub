@@ -271,14 +271,14 @@ export function PendenciasPreCadastroDialog({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
+              onClick={async () => {
                 const filtroTexto = {
                   todos: "Todos os pré-cadastros",
                   incompletos: "Qualquer pendência",
                   com_obrigatorios: "Pendências obrigatórias",
                   completos: "Dados obrigatórios completos",
                 }[filtroIncompleto];
-                gerarPdfRelatorioPendencias(analiseFiltrada, stats, filtroTexto);
+                await gerarPdfRelatorioPendencias(analiseFiltrada, stats, filtroTexto);
               }}
               className="gap-2"
             >
