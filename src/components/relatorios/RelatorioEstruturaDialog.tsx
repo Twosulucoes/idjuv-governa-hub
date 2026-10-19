@@ -105,7 +105,7 @@ export function RelatorioEstruturaDialog({
               id="orgao-sigla"
               value={orgaoSigla}
               onChange={(e) => setOrgaoSigla(e.target.value.toUpperCase())}
-              placeholder="Ex: IDJUV"
+              placeholder="Ex.: sigla do órgão"
             />
             <p className="text-xs text-muted-foreground">
               Esta sigla será exibida na primeira coluna do relatório

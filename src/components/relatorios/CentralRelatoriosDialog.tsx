@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useIdentidade } from '@/core/tenant';
 import {
   FileText,
   Users,
@@ -96,6 +97,8 @@ export function CentralRelatoriosDialog({
 }: CentralRelatoriosDialogProps) {
   const [tipoSelecionado, setTipoSelecionado] = useState<TipoRelatorio>('portarias');
   const [isGenerating, setIsGenerating] = useState(false);
+  const identidade = useIdentidade();
+  const subtituloPadrao = `${identidade.nomeOficial} - ${identidade.sigla}`;
   const [configOpen, setConfigOpen] = useState(true);
   const [filtrosOpen, setFiltrosOpen] = useState(false);
   
@@ -108,7 +111,7 @@ export function CentralRelatoriosDialog({
     nome: 'Novo Relatório',
     tipo: 'portarias',
     titulo: 'RELATÓRIO DE PORTARIAS',
-    subtitulo: 'Instituto de Desenvolvimento da Juventude - IDJUV',
+    subtitulo: subtituloPadrao,
     incluirLogos: true,
     orientacao: 'retrato',
     camposSelecionados: ['numero', 'titulo', 'categoria', 'status', 'data_documento'],
@@ -287,7 +290,7 @@ export function CentralRelatoriosDialog({
       nome: 'Novo Relatório',
       tipo: tipoSelecionado,
       titulo: padrao.titulo || `RELATÓRIO DE ${TIPO_RELATORIO_LABELS[tipoSelecionado].toUpperCase()}`,
-      subtitulo: 'Instituto de Desenvolvimento da Juventude - IDJUV',
+      subtitulo: subtituloPadrao,
       incluirLogos: true,
       orientacao: 'retrato',
       camposSelecionados: padrao.camposSelecionados || [],
