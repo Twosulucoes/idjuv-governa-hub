@@ -180,6 +180,23 @@ export function useUpdateBem() {
   });
 }
 
+// ========== NOMES DE USUÁRIOS (quem solicitou/decidiu) ==========
+
+/**
+ * Resolve o nome de usuários (auth.users) por `profiles`. Sem permissão de leitura ou sem nome,
+ * o id fica fora do mapa e a tela mostra "—".
+ */
+async function nomesDeUsuarios(ids: (string | null | undefined)[]): Promise<Record<string, string>> {
+  const unicos = [...new Set(ids.filter((id): id is string => !!id))];
+  if (!unicos.length) return {};
+  const { data } = await supabase.from('profiles').select('id, full_name').in('id', unicos);
+  const nomes: Record<string, string> = {};
+  for (const p of data ?? []) {
+    if (p.full_name) nomes[p.id] = p.full_name;
+  }
+  return nomes;
+}
+
 // ========== MOVIMENTAÇÕES ==========
 
 export function useMovimentacoesPatrimonio(bemId?: string) {
@@ -206,6 +223,40 @@ export function useMovimentacoesPatrimonio(bemId?: string) {
       if (error) throw error;
       return data;
     },
+  });
+}
+
+/**
+ * Detalhe de uma movimentação (mesmo select da lista). A chave começa com
+ * 'movimentacoes-patrimonio', então as invalidações da lista/decisão também a atualizam.
+ */
+export function useMovimentacaoPatrimonio(id: string | undefined) {
+  return useQuery({
+    queryKey: ['movimentacoes-patrimonio', 'detalhe', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from('movimentacoes_patrimonio')
+        .select(`
+          *,
+          bem:bens_patrimoniais(id, numero_patrimonio, descricao),
+          responsavel_origem:servidores!movimentacoes_patrimonio_responsavel_origem_id_fkey(id, nome_completo),
+          responsavel_destino:servidores!movimentacoes_patrimonio_responsavel_destino_id_fkey(id, nome_completo),
+          origem_unidade_local:unidades_locais!movimentacoes_patrimonio_unidade_local_origem_id_fkey(id, nome_unidade, codigo_unidade),
+          destino_unidade_local:unidades_locais!movimentacoes_patrimonio_unidade_local_destino_id_fkey(id, nome_unidade, codigo_unidade)
+        `)
+        .eq('id', id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const nomes = await nomesDeUsuarios([data.solicitado_por, data.aprovado_por, data.created_by]);
+      return {
+        ...data,
+        solicitado_por_nome: nomes[data.solicitado_por ?? data.created_by ?? ''] ?? null,
+        aprovado_por_nome: data.aprovado_por ? nomes[data.aprovado_por] ?? null : null,
+      };
+    },
+    enabled: !!id,
   });
 }
 
@@ -453,6 +504,33 @@ export function useManutencoesPatrimonio(bemId?: string) {
   });
 }
 
+/**
+ * Detalhe de uma manutenção (mesmo select da lista). A chave começa com
+ * 'manutencoes-patrimonio', então a conclusão também a atualiza.
+ */
+export function useManutencaoPatrimonio(id: string | undefined) {
+  return useQuery({
+    queryKey: ['manutencoes-patrimonio', 'detalhe', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from('manutencoes_patrimonio')
+        .select(`
+          *,
+          bem:bens_patrimoniais(id, numero_patrimonio, descricao),
+          fornecedor:fornecedores!manutencoes_patrimonio_fornecedor_id_fkey(id, razao_social)
+        `)
+        .eq('id', id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const nomes = await nomesDeUsuarios([data.created_by]);
+      return { ...data, registrado_por_nome: data.created_by ? nomes[data.created_by] ?? null : null };
+    },
+    enabled: !!id,
+  });
+}
+
 /** Conclui uma manutenção aberta/em andamento; o banco devolve o bem para "ativo". */
 export function useConcluirManutencao() {
   const queryClient = useQueryClient();
@@ -548,6 +626,36 @@ export function useBaixasPatrimonio(status?: string) {
       if (error) throw error;
       return data;
     },
+  });
+}
+
+/**
+ * Detalhe de uma baixa (mesmo select da lista). A chave começa com 'baixas-patrimonio',
+ * então a decisão também a atualiza. Se o bem não vier no join, a tela usa dados_bem_snapshot.
+ */
+export function useBaixaPatrimonio(id: string | undefined) {
+  return useQuery({
+    queryKey: ['baixas-patrimonio', 'detalhe', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from('baixas_patrimonio')
+        .select(`
+          *,
+          bem:bens_patrimoniais(id, numero_patrimonio, descricao, valor_aquisicao)
+        `)
+        .eq('id', id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const nomes = await nomesDeUsuarios([data.created_by, data.aprovado_por]);
+      return {
+        ...data,
+        solicitado_por_nome: data.created_by ? nomes[data.created_by] ?? null : null,
+        aprovado_por_nome: data.aprovado_por ? nomes[data.aprovado_por] ?? null : null,
+      };
+    },
+    enabled: !!id,
   });
 }
 
