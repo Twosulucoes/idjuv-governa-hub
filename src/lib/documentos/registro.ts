@@ -19,6 +19,7 @@ import { relatorioContatosEstrategicos } from './modelos/rh/contatosEstrategicos
 import { relatorioSegundoVinculo } from './modelos/rh/segundoVinculo';
 import { relatorioDiretoriaHierarquia } from './modelos/rh/diretoriaHierarquia';
 import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
+import { fichaUnidadeLocal } from './modelos/unidades/fichaUnidadeLocal';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -57,6 +58,8 @@ export const REGISTRO = {
   'rh-situacao-portaria': relatorioSituacaoPortaria,
   'rh-agrupado-portaria': relatorioAgrupadoPortaria,
   'rh-contatos-estrategicos': relatorioContatosEstrategicos,
+  // Unidades locais — RelatoriosCentralPage
+  'unidades-ficha-unidade-local': fichaUnidadeLocal,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
