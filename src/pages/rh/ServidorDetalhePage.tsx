@@ -362,7 +362,7 @@ export default function ServidorDetalheePage() {
                     }}
                   >
                     <FileDown className="h-4 w-4 mr-2" />
-                    Ficha Cadastral IDJUV
+                    Ficha Cadastral
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
