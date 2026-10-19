@@ -21510,6 +21510,7 @@ export type Database = {
           codigo_interno: string | null
           contato_emergencia_nome: string | null
           contato_emergencia_parentesco: string | null
+          contribui_rpps_origem: boolean
           cpf: string
           created_at: string | null
           created_by: string | null
@@ -21579,6 +21580,8 @@ export type Database = {
           rg_data_emissao: string | null
           rg_orgao_expedidor: string | null
           rg_uf: string | null
+          rpps_origem_fundamento: string | null
+          rpps_origem_inicio: string | null
           sexo: string | null
           situacao: Database["public"]["Enums"]["situacao_funcional"]
           telefone_celular: string | null
@@ -21632,6 +21635,7 @@ export type Database = {
           codigo_interno?: string | null
           contato_emergencia_nome?: string | null
           contato_emergencia_parentesco?: string | null
+          contribui_rpps_origem?: boolean
           cpf: string
           created_at?: string | null
           created_by?: string | null
@@ -21701,6 +21705,8 @@ export type Database = {
           rg_data_emissao?: string | null
           rg_orgao_expedidor?: string | null
           rg_uf?: string | null
+          rpps_origem_fundamento?: string | null
+          rpps_origem_inicio?: string | null
           sexo?: string | null
           situacao?: Database["public"]["Enums"]["situacao_funcional"]
           telefone_celular?: string | null
@@ -21753,6 +21759,7 @@ export type Database = {
           codigo_interno?: string | null
           contato_emergencia_nome?: string | null
           contato_emergencia_parentesco?: string | null
+          contribui_rpps_origem?: boolean
           cpf?: string
           created_at?: string | null
           created_by?: string | null
@@ -21822,6 +21829,8 @@ export type Database = {
           rg_data_emissao?: string | null
           rg_orgao_expedidor?: string | null
           rg_uf?: string | null
+          rpps_origem_fundamento?: string | null
+          rpps_origem_inicio?: string | null
           sexo?: string | null
           situacao?: Database["public"]["Enums"]["situacao_funcional"]
           telefone_celular?: string | null
@@ -24162,6 +24171,14 @@ export type Database = {
       calcular_irrf: {
         Args: { p_base_irrf: number; p_vigencia?: string }
         Returns: number
+      }
+      calcular_irrf_mensal: {
+        Args: {
+          p_deducoes_legais: number
+          p_rendimentos: number
+          p_vigencia?: string
+        }
+        Returns: Json
       }
       calcular_prazo_lai: {
         Args: { p_data_inicio: string; p_tipo_prazo?: string }

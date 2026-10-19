@@ -23,9 +23,9 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
 | — fora de `ui/` | 271 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 100 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 34 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 35 |
 | Linhas de `src/App.tsx` | 1369 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27014 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27031 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -67,13 +67,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 298 |
-| Migração mais recente | `20261019100000_fin_classificadores_fiplan.sql` |
+| Migrações (`supabase/migrations/*.sql`) | 299 |
+| Migração mais recente | `20261019200000_folha_irrf_lei15270_regime_proprio.sql` |
 | Tabelas do schema public (baseline) | 255 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 303 |
+| Funções (baseline) | 304 |
 | — de gatilho (`RETURNS trigger`) | 118 |
-| — demais | 185 |
+| — demais | 186 |
 | Enums (baseline) | 109 |
 | Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1882 |
 | Linhas de `supabase/baseline/rls/mapa.csv` | 255 |

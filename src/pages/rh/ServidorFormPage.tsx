@@ -188,6 +188,9 @@ type FormData = {
   vinculo_externo_forma: string;
   vinculo_externo_ato_id: string | null;
   vinculo_externo_observacoes: string;
+  contribui_rpps_origem: boolean;
+  rpps_origem_fundamento: string;
+  rpps_origem_inicio: string;
   // Vínculo funcional (tipo, cargo, unidade, admissão)
   tipo_servidor: TipoServidor | '';
   cargo_atual_id: string;
@@ -283,6 +286,9 @@ const initialFormData: FormData = {
   vinculo_externo_forma: '',
   vinculo_externo_ato_id: null,
   vinculo_externo_observacoes: '',
+  contribui_rpps_origem: false,
+  rpps_origem_fundamento: '',
+  rpps_origem_inicio: '',
   // Vínculo funcional
   tipo_servidor: '',
   cargo_atual_id: '',
@@ -446,6 +452,9 @@ export default function ServidorFormPage() {
         vinculo_externo_forma: servidor.vinculo_externo_forma || '',
         vinculo_externo_ato_id: servidor.vinculo_externo_ato_id || null,
         vinculo_externo_observacoes: servidor.vinculo_externo_observacoes || '',
+        contribui_rpps_origem: servidor.contribui_rpps_origem || false,
+        rpps_origem_fundamento: servidor.rpps_origem_fundamento || '',
+        rpps_origem_inicio: servidor.rpps_origem_inicio || '',
         // Vínculo funcional
         tipo_servidor: (servidor.tipo_servidor as TipoServidor) || '',
         cargo_atual_id: servidor.cargo_atual_id || '',
@@ -547,6 +556,10 @@ export default function ServidorFormPage() {
         vinculo_externo_forma: data.vinculo_externo_forma || null,
         vinculo_externo_ato_id: data.vinculo_externo_ato_id || null,
         vinculo_externo_observacoes: data.vinculo_externo_observacoes || null,
+        // Previdência: a opção só vale com o vínculo efetivo externo
+        contribui_rpps_origem: data.possui_vinculo_externo && data.contribui_rpps_origem,
+        rpps_origem_fundamento: data.possui_vinculo_externo && data.contribui_rpps_origem ? data.rpps_origem_fundamento.trim() || null : null,
+        rpps_origem_inicio: data.possui_vinculo_externo && data.contribui_rpps_origem ? data.rpps_origem_inicio || null : null,
         // Vínculo funcional
         tipo_servidor: data.tipo_servidor || null,
         cargo_atual_id: data.cargo_atual_id || null,
@@ -638,6 +651,12 @@ export default function ServidorFormPage() {
     if (!isEditing && formData.tipo_servidor === 'cedido_entrada' && !formData.orgao_origem.trim()) {
       setAbaAtiva("vinculo");
       toast.error("Informe o órgão de origem do servidor cedido");
+      return;
+    }
+    if (formData.possui_vinculo_externo && formData.contribui_rpps_origem
+        && (!formData.rpps_origem_fundamento.trim() || !formData.rpps_origem_inicio)) {
+      setAbaAtiva("bancario");
+      toast.error("Informe o fundamento e o início da opção pelo regime próprio de origem");
       return;
     }
     setErros({});
@@ -1647,6 +1666,9 @@ export default function ServidorFormPage() {
                     vinculo_externo_forma: formData.vinculo_externo_forma,
                     vinculo_externo_ato_id: formData.vinculo_externo_ato_id,
                     vinculo_externo_observacoes: formData.vinculo_externo_observacoes,
+                    contribui_rpps_origem: formData.contribui_rpps_origem,
+                    rpps_origem_fundamento: formData.rpps_origem_fundamento,
+                    rpps_origem_inicio: formData.rpps_origem_inicio,
                   }}
                   onChange={(field, value) => updateField(field as keyof FormData, value as string | boolean)}
                 />

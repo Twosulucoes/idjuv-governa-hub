@@ -304,6 +304,23 @@ pós-deploy em
 `bancos_cnab`, `remessas_bancarias`, `retornos_bancarios`,
 `itens_retorno_bancario`, `eventos_esocial`.
 
+Cálculo do INSS e do IRRF (migração `20261019200000_folha_irrf_lei15270_regime_proprio.sql`):
+
+- `calcular_irrf_mensal(rendimentos, deduções legais, data)` devolve base, dedução usada, imposto pela tabela,
+  redução e IRRF. Usa o desconto simplificado quando é maior que as deduções legais e aplica a redução da Lei
+  15.270/2025 sobre os rendimentos. Os valores vêm de `parametros_folha` (`desconto_simplificado_irrf`,
+  `irrf_reducao_limite_isencao`, `irrf_reducao_maxima`, `irrf_reducao_limite`, `irrf_reducao_constante`,
+  `irrf_reducao_coeficiente`); sem eles a parte correspondente não se aplica e a ficha sai com
+  `desconto_simplificado_irrf_nao_configurado` ou `reducao_irrf_nao_configurada`. Sem EXECUTE pela API.
+- `folha_montar_ficha` (mensal): pensão alimentícia calculada antes do IRRF e deduzida da base; sobre o líquido,
+  pensão e IRRF são recalculados até o IRRF parar de mudar. 13º e rescisão seguem com `calcular_irrf` direto.
+- `servidores.contribui_rpps_origem`, `rpps_origem_fundamento` e `rpps_origem_inicio`: com a opção (que exige
+  fundamento e início, constraint `servidores_rpps_origem_fundamentado`), a folha não desconta INSS; vínculo efetivo
+  externo sem a opção marca a ficha com `regime_previdenciario_a_confirmar`.
+- `tabela_inss.aliquota` e `tabela_irrf.aliquota` são fração (constraints `*_aliquota_fracao`, 0 a 1); a migração
+  converte o que estiver gravado em %. `parametros_folha.valor` passou a `numeric(18,6)`.
+- Testes no bloco "FOLHA: cálculo do INSS e do IRRF" de `scripts/db/testar-rls.sql`.
+
 Segurança da folha (migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql`, mesclada
 na PR #63; idempotente, vale tanto para o banco do baseline quanto para o produzido só
 pelas migrações):

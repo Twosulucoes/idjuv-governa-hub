@@ -2050,6 +2050,54 @@ $$;
 
 
 --
+-- Name: calcular_irrf_mensal(numeric, numeric, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.calcular_irrf_mensal(p_rendimentos numeric, p_deducoes_legais numeric, p_vigencia date DEFAULT CURRENT_DATE) RETURNS jsonb
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_rend numeric := greatest(coalesce(p_rendimentos, 0), 0);
+  v_legal numeric := greatest(coalesce(p_deducoes_legais, 0), 0);
+  v_simpl numeric := public.get_parametro_vigente('desconto_simplificado_irrf'::varchar, p_vigencia);
+  v_isencao numeric := public.get_parametro_vigente('irrf_reducao_limite_isencao'::varchar, p_vigencia);
+  v_red_max numeric := public.get_parametro_vigente('irrf_reducao_maxima'::varchar, p_vigencia);
+  v_red_lim numeric := public.get_parametro_vigente('irrf_reducao_limite'::varchar, p_vigencia);
+  v_red_const numeric := public.get_parametro_vigente('irrf_reducao_constante'::varchar, p_vigencia);
+  v_red_coef numeric := public.get_parametro_vigente('irrf_reducao_coeficiente'::varchar, p_vigencia);
+  v_usa_simpl boolean;
+  v_deducao numeric;
+  v_base numeric;
+  v_imposto numeric;
+  v_red numeric := 0;
+  v_red_ok boolean;
+BEGIN
+  v_usa_simpl := coalesce(v_simpl, 0) > v_legal;
+  v_deducao := CASE WHEN v_usa_simpl THEN v_simpl ELSE v_legal END;
+  v_base := greatest(v_rend - v_deducao, 0);
+  v_imposto := public.calcular_irrf(v_base, p_vigencia);
+
+  v_red_ok := v_isencao IS NOT NULL AND v_red_max IS NOT NULL AND v_red_lim IS NOT NULL
+              AND v_red_const IS NOT NULL AND v_red_coef IS NOT NULL;
+  IF v_red_ok THEN
+    IF v_rend <= v_isencao THEN
+      v_red := v_red_max;
+    ELSIF v_rend <= v_red_lim THEN
+      v_red := greatest(v_red_const - v_red_coef * v_rend, 0);
+    END IF;
+    v_red := round(least(v_red, v_imposto), 2);
+  END IF;
+
+  RETURN jsonb_build_object(
+    'rendimentos', round(v_rend, 2), 'deducao', round(v_deducao, 2), 'simplificado', v_usa_simpl,
+    'base', round(v_base, 2), 'imposto', v_imposto, 'reducao', v_red, 'irrf', v_imposto - v_red,
+    'simplificado_configurado', v_simpl IS NOT NULL, 'reducao_configurada', v_red_ok);
+END;
+$$;
+
+
+--
 -- Name: calcular_prazo_lai(date, character varying); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -5533,8 +5581,14 @@ DECLARE
   v_tem_inss boolean := coalesce((p_tabelas ->> 'inss')::boolean, false);
   v_tem_irrf boolean := coalesce((p_tabelas ->> 'irrf')::boolean, false);
   v_ded_cfg numeric := nullif(p_tabelas ->> 'ded_dep', '')::numeric;
+  v_rpps boolean := false;
+  v_rend_irrf numeric := 0; v_irrf_r jsonb; v_irrf_ant numeric; v_iter int := 0; v_pens_itens jsonb := '[]'::jsonb;
+  v_ref_irrf text;
 BEGIN
-  SELECT s.data_admissao, s.banco_codigo, s.banco_conta INTO v_srv FROM public.servidores s WHERE s.id = p_servidor_id;
+  SELECT s.data_admissao, s.banco_codigo, s.banco_conta, s.possui_vinculo_externo, s.contribui_rpps_origem, s.rpps_origem_inicio
+    INTO v_srv FROM public.servidores s WHERE s.id = p_servidor_id;
+  -- opção pelo regime próprio do órgão de origem (efetivo de outro ente em cargo em comissão): sem INSS aqui
+  v_rpps := coalesce(v_srv.contribui_rpps_origem, false) AND coalesce(v_srv.rpps_origem_inicio <= p_d2, true);
   SELECT p.*, coalesce(p.data_exercicio, p.data_nomeacao) AS inicio, coalesce(c.vencimento_base, 0) AS venc
     INTO v_prv
     FROM public.provimentos p JOIN public.cargos c ON c.id = p.cargo_id
@@ -5546,7 +5600,10 @@ BEGIN
   IF v_srv.banco_codigo IS NULL OR v_srv.banco_conta IS NULL THEN
     v_inc := v_inc || jsonb_build_array('sem_dados_bancarios');
   END IF;
-  IF NOT v_tem_inss THEN v_inc := v_inc || jsonb_build_array('tabela_inss_ausente'); END IF;
+  IF NOT v_tem_inss AND NOT v_rpps THEN v_inc := v_inc || jsonb_build_array('tabela_inss_ausente'); END IF;
+  IF coalesce(v_srv.possui_vinculo_externo, false) AND NOT v_rpps THEN
+    v_inc := v_inc || jsonb_build_array('regime_previdenciario_a_confirmar');
+  END IF;
   IF NOT v_tem_irrf THEN v_inc := v_inc || jsonb_build_array('tabela_irrf_ausente'); END IF;
 
   -- lançamentos manuais do servidor (guardados antes de refazer as fichas)
@@ -5635,21 +5692,66 @@ BEGIN
 
     v_liq_dias := v_venc_prop - v_d_falta - v_d_lic - v_d_ces;
     v_base_inss := greatest(v_liq_dias + v_man_prov_inss, 0);
-    IF v_tem_inss THEN v_inss := public.calcular_inss_servidor(v_base_inss, p_d2); END IF;
+    IF v_tem_inss AND NOT v_rpps THEN v_inss := public.calcular_inss_servidor(v_base_inss, p_d2); END IF;
 
     v_qdep := public.count_dependentes_irrf(p_servidor_id, p_d2);
     IF v_qdep > 0 AND v_ded_cfg IS NULL THEN
       v_inc := v_inc || jsonb_build_array('deducao_dependente_nao_configurada');
     END IF;
     v_ded := v_qdep * coalesce(v_ded_cfg, 0);
-    v_base_irrf := greatest(v_liq_dias + v_terco + v_man_prov_irrf - v_inss - v_ded, 0);
-    IF v_tem_irrf THEN v_irrf := public.calcular_irrf(v_base_irrf, p_d2); END IF;
+    v_rend_irrf := greatest(v_liq_dias + v_terco + v_man_prov_irrf, 0);
+
+    -- pensão alimentícia (percentual é número "30" = 30%; base líquida = proventos do mês − faltas − INSS − IRRF).
+    -- A pensão judicial é dedutível do IRRF (Lei 9.250/1995, art. 4º, II) e, sobre o líquido, depende do IRRF:
+    -- calcula pensão e IRRF de novo até o IRRF parar de mudar
+    LOOP
+      v_pensao := 0; v_pens_itens := '[]'::jsonb;
+      FOR v_p IN SELECT * FROM public.pensoes_alimenticias pa
+                  WHERE pa.servidor_id = p_servidor_id AND coalesce(pa.ativo, true) AND pa.data_inicio <= p_d2
+                    AND (pa.data_fim IS NULL OR pa.data_fim >= p_d1) ORDER BY pa.prioridade NULLS LAST LOOP
+        IF lower(v_p.tipo_calculo) LIKE 'perc%' THEN
+          v_base_pensao := CASE WHEN lower(coalesce(v_p.base_calculo, '')) = 'bruto'
+                                THEN v_liq_dias + v_terco + v_man_prov
+                                ELSE greatest(v_liq_dias + v_terco + v_man_prov - v_inss - v_irrf, 0) END;
+          v_val := round(v_base_pensao * coalesce(v_p.percentual, 0) / 100, 2);
+        ELSE
+          v_base_pensao := NULL;
+          v_val := coalesce(v_p.valor_fixo, 0);
+        END IF;
+        v_pensao := v_pensao + v_val;
+        v_pens_itens := v_pens_itens || jsonb_build_array(public.folha_item('Pensão alimentícia — ' || v_p.beneficiario_nome, 'desconto', v_val,
+          NULL, v_base_pensao, CASE WHEN lower(v_p.tipo_calculo) LIKE 'perc%' THEN v_p.percentual END));
+      END LOOP;
+
+      v_irrf_ant := v_irrf;
+      IF v_tem_irrf THEN
+        v_irrf_r := public.calcular_irrf_mensal(v_rend_irrf, v_inss + v_ded + v_pensao, p_d2);
+        v_irrf := (v_irrf_r ->> 'irrf')::numeric;
+      END IF;
+      v_iter := v_iter + 1;
+      EXIT WHEN v_irrf = v_irrf_ant OR v_iter >= 20;
+    END LOOP;
+
+    IF v_tem_irrf THEN
+      v_base_irrf := (v_irrf_r ->> 'base')::numeric;
+      IF NOT (v_irrf_r ->> 'simplificado_configurado')::boolean THEN
+        v_inc := v_inc || jsonb_build_array('desconto_simplificado_irrf_nao_configurado');
+      END IF;
+      IF NOT (v_irrf_r ->> 'reducao_configurada')::boolean THEN
+        v_inc := v_inc || jsonb_build_array('reducao_irrf_nao_configurada');
+      END IF;
+    ELSE
+      v_base_irrf := greatest(v_rend_irrf - v_inss - v_ded - v_pensao, 0);
+    END IF;
 
     IF v_inss > 0 THEN
       v_itens := v_itens || jsonb_build_array(public.folha_item('INSS / previdência do servidor', 'desconto', v_inss, NULL, v_base_inss));
     END IF;
     IF v_irrf > 0 THEN
-      v_itens := v_itens || jsonb_build_array(public.folha_item('IRRF', 'desconto', v_irrf, v_qdep || ' dependente(s)', v_base_irrf));
+      v_ref_irrf := v_qdep || ' dependente(s)'
+        || CASE WHEN (v_irrf_r ->> 'simplificado')::boolean THEN '; desconto simplificado' ELSE '' END
+        || CASE WHEN (v_irrf_r ->> 'reducao')::numeric > 0 THEN '; redução Lei 15.270: ' || (v_irrf_r ->> 'reducao') ELSE '' END;
+      v_itens := v_itens || jsonb_build_array(public.folha_item('IRRF', 'desconto', v_irrf, v_ref_irrf, v_base_irrf));
     END IF;
 
     -- consignações ativas na competência
@@ -5663,22 +5765,7 @@ BEGIN
         (coalesce(v_c.parcelas_pagas, 0) + 1) || '/' || v_c.total_parcelas));
     END LOOP;
 
-    -- pensão alimentícia (percentual é número "30" = 30%; base líquida = proventos do mês − faltas − INSS − IRRF)
-    FOR v_p IN SELECT * FROM public.pensoes_alimenticias pa
-                WHERE pa.servidor_id = p_servidor_id AND coalesce(pa.ativo, true) AND pa.data_inicio <= p_d2
-                  AND (pa.data_fim IS NULL OR pa.data_fim >= p_d1) ORDER BY pa.prioridade NULLS LAST LOOP
-      IF lower(v_p.tipo_calculo) LIKE 'perc%' THEN
-        v_base_pensao := CASE WHEN lower(coalesce(v_p.base_calculo, '')) = 'bruto'
-                              THEN v_liq_dias + v_terco + v_man_prov
-                              ELSE greatest(v_liq_dias + v_terco + v_man_prov - v_inss - v_irrf, 0) END;
-        v_val := round(v_base_pensao * coalesce(v_p.percentual, 0) / 100, 2);
-      ELSE
-        v_val := coalesce(v_p.valor_fixo, 0);
-      END IF;
-      v_pensao := v_pensao + v_val;
-      v_itens := v_itens || jsonb_build_array(public.folha_item('Pensão alimentícia — ' || v_p.beneficiario_nome, 'desconto', v_val,
-        NULL, v_base_pensao, CASE WHEN lower(v_p.tipo_calculo) LIKE 'perc%' THEN v_p.percentual END));
-    END LOOP;
+    v_itens := v_itens || v_pens_itens;
 
     v_prov := v_venc_prop + v_terco + v_abono + v_man_prov;
     v_desc := v_d_falta + v_d_lic + v_d_ces + v_inss + v_irrf + v_consig + v_pensao + v_man_desc;
@@ -5700,7 +5787,7 @@ BEGIN
          AND i.tipo = 'provento';
       IF v_adiant = 0 AND v_avos > 0 THEN v_inc := v_inc || jsonb_build_array('primeira_parcela_do_13_nao_localizada'); END IF;
       v_base_inss := v_v13;
-      IF v_tem_inss THEN v_inss := public.calcular_inss_servidor(v_base_inss, p_d2); END IF;
+      IF v_tem_inss AND NOT v_rpps THEN v_inss := public.calcular_inss_servidor(v_base_inss, p_d2); END IF;
       v_qdep := public.count_dependentes_irrf(p_servidor_id, p_d2);
       IF v_qdep > 0 AND v_ded_cfg IS NULL THEN v_inc := v_inc || jsonb_build_array('deducao_dependente_nao_configurada'); END IF;
       v_ded := v_qdep * coalesce(v_ded_cfg, 0);
@@ -5761,7 +5848,7 @@ BEGIN
       FROM public.fichas_financeiras f JOIN public.itens_ficha_financeira i ON i.ficha_id = f.id
      WHERE f.servidor_id = p_servidor_id AND f.competencia_ano = v_ano AND f.tipo_folha = '13_1a_parcela' AND i.tipo = 'provento';
     v_base_inss := v_v13;
-    IF v_tem_inss THEN v_inss := public.calcular_inss_servidor(v_base_inss, p_d2); END IF;
+    IF v_tem_inss AND NOT v_rpps THEN v_inss := public.calcular_inss_servidor(v_base_inss, p_d2); END IF;
     v_qdep := public.count_dependentes_irrf(p_servidor_id, p_d2);
     IF v_qdep > 0 AND v_ded_cfg IS NULL THEN v_inc := v_inc || jsonb_build_array('deducao_dependente_nao_configurada'); END IF;
     v_ded := v_qdep * coalesce(v_ded_cfg, 0);
@@ -21021,7 +21108,7 @@ CREATE TABLE public.pagamentos (
 CREATE TABLE public.parametros_folha (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     tipo_parametro character varying(50) NOT NULL,
-    valor numeric(15,4) NOT NULL,
+    valor numeric(18,6) NOT NULL,
     vigencia_inicio date NOT NULL,
     vigencia_fim date,
     descricao text,
@@ -22264,6 +22351,10 @@ CREATE TABLE public.servidores (
     ano_fim_primeiro_emprego integer,
     created_by_servidor_id uuid,
     updated_by_servidor_id uuid,
+    contribui_rpps_origem boolean DEFAULT false NOT NULL,
+    rpps_origem_fundamento text,
+    rpps_origem_inicio date,
+    CONSTRAINT servidores_rpps_origem_fundamentado CHECK (((NOT contribui_rpps_origem) OR ((NULLIF(btrim(rpps_origem_fundamento), ''::text) IS NOT NULL) AND (rpps_origem_inicio IS NOT NULL)))),
     CONSTRAINT servidores_sexo_check CHECK ((sexo = ANY (ARRAY['M'::text, 'F'::text, 'O'::text])))
 );
 
@@ -22425,6 +22516,27 @@ COMMENT ON COLUMN public.servidores.codigo_interno IS 'Código interno sequencia
 
 
 --
+-- Name: COLUMN servidores.contribui_rpps_origem; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.servidores.contribui_rpps_origem IS 'Efetivo de outro ente que contribui para o regime próprio de origem: a folha não desconta INSS';
+
+
+--
+-- Name: COLUMN servidores.rpps_origem_fundamento; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.servidores.rpps_origem_fundamento IS 'Ato ou instrução normativa que fundamenta a opção (obrigatório com a opção)';
+
+
+--
+-- Name: COLUMN servidores.rpps_origem_inicio; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.servidores.rpps_origem_inicio IS 'Início da opção (obrigatório com a opção)';
+
+
+--
 -- Name: setores_modulo; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -22568,7 +22680,8 @@ CREATE TABLE public.tabela_inss (
     created_by_servidor_id uuid,
     updated_at timestamp with time zone,
     updated_by uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    CONSTRAINT tabela_inss_aliquota_fracao CHECK (((aliquota >= (0)::numeric) AND (aliquota <= (1)::numeric)))
 );
 
 
@@ -22591,7 +22704,8 @@ CREATE TABLE public.tabela_irrf (
     created_by_servidor_id uuid,
     updated_at timestamp with time zone,
     updated_by uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    CONSTRAINT tabela_irrf_aliquota_fracao CHECK (((aliquota >= (0)::numeric) AND (aliquota <= (1)::numeric)))
 );
 
 

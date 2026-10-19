@@ -294,3 +294,6 @@ REVOKE ALL ON TABLE public.limite_requisicoes_publicas FROM PUBLIC, anon, authen
 REVOKE EXECUTE ON FUNCTION public.limite_publico_consumir(text, integer, text) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.limite_publico_insercao() FROM PUBLIC, anon, authenticated;
 REVOKE INSERT ON public.gestores_escolares FROM anon;
+
+-- ---- folha (migração 20261019200000): IRRF mensal só por dentro de folha_montar_ficha ----
+REVOKE EXECUTE ON FUNCTION public.calcular_irrf_mensal(numeric, numeric, date) FROM PUBLIC, anon, authenticated;

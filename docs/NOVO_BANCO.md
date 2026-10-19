@@ -180,6 +180,9 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   no schema do baseline com os trechos do dump (tabela, função, constraints, índice e policy) e o rótulo novo de
   `orcamento.importar` no catálogo; classe `preservar` no mapa, privilégio de escrita retirado no overlay 40; testes no
   bloco "Financeiro: tabelas do FIPLAN" de `scripts/db/testar-rls.sql`.
+- O cálculo do IRRF pela lei de 2026 e a opção pelo regime próprio de origem (migração `20261019200000`) entraram no
+  schema do baseline regenerado a partir do replay; `calcular_irrf_mensal` sem EXECUTE pela API no overlay 40; testes no
+  bloco "FOLHA: cálculo do INSS e do IRRF" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A trilha `audit_log_licitacoes` segue o sigilo do processo do workflow (classe `trilha` com `extra=sigilo_workflow`
   no mapa, migração `20261015100000`; [detalhe](../supabase/baseline/README.md)).
 - `fotos_vistoria_inventario` é da classe `preservar` do mapa de RLS: as policies vêm da migração

@@ -8,6 +8,7 @@ import { Loader2, Plus, Edit2, Trash2 } from "lucide-react";
 import { useTabelaINSS, useTabelaIRRF, useDeleteFaixaINSS, useDeleteFaixaIRRF } from "@/hooks/useFolhaPagamento";
 import { TabelaINSSForm } from "./TabelaINSSForm";
 import { TabelaIRRFForm } from "./TabelaIRRFForm";
+import { aliquotaEmPercentual } from "@/lib/parametrosFolha";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -161,7 +162,7 @@ export function TabelasImpostosTab() {
                             : formatCurrency(faixa.valor_maximo)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {faixa.aliquota.toFixed(2)}%
+                          {aliquotaEmPercentual(faixa.aliquota).toFixed(2)}%
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           A partir de{" "}
@@ -292,7 +293,7 @@ export function TabelasImpostosTab() {
                             : formatCurrency(faixa.valor_maximo)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {faixa.aliquota.toFixed(1)}%
+                          {aliquotaEmPercentual(faixa.aliquota).toFixed(1)}%
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           {formatCurrency(faixa.parcela_deduzir)}

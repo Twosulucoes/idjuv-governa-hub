@@ -6398,6 +6398,112 @@ BEGIN
   PERFORM pg_temp.nota('FIN (tabelas do FIPLAN): permissão, simulação sem gravar, aplicação e log, correção de nomes (fonte, programa, natureza; natureza provisória nova; fonte de exercício antigo não mexe), filtro de atributos, reaplicação sem alteração, tudo ou nada e escrita direta bloqueada verificados');
 END $$;
 
+-- ---------------------------------------------------------------- FOLHA: cálculo do INSS e do IRRF (migração 20261019200000)
+-- Vetores conferidos contra o hrms_brasil (Lei 9.250/1995, Lei 15.270/2025) e contra o espelho do SIGRH de 09/2026.
+DO $$
+DECLARE
+  r jsonb; cg uuid := 'f1000000-0000-0000-0000-0000000000c1'; s_rpps uuid := 'f1000000-0000-0000-0000-0000000000a1';
+  s_pens uuid := 'f1000000-0000-0000-0000-0000000000a2'; s_ext uuid := 'f1000000-0000-0000-0000-0000000000a3';
+  p_rpps uuid := 'f1000000-0000-0000-0000-0000000000b1'; p_pens uuid := 'f1000000-0000-0000-0000-0000000000b2';
+  p_ext uuid := 'f1000000-0000-0000-0000-0000000000b3';
+  tab jsonb := '{"inss": true, "irrf": true, "ded_dep": 189.59}';
+  x record; v text;
+BEGIN
+  SET LOCAL session_replication_role = replica;   -- semeadura sem os triggers de setor/autoria
+  DELETE FROM public.tabela_inss; DELETE FROM public.tabela_irrf;
+  DELETE FROM public.parametros_folha WHERE tipo_parametro IN ('teto_inss', 'desconto_simplificado_irrf', 'irrf_reducao_limite_isencao',
+    'irrf_reducao_maxima', 'irrf_reducao_limite', 'irrf_reducao_constante', 'irrf_reducao_coeficiente');
+  INSERT INTO public.tabela_inss (vigencia_inicio, faixa_ordem, valor_minimo, valor_maximo, aliquota) VALUES
+    ('2026-01-01', 1, 0, 1621.00, 0.075), ('2026-01-01', 2, 1621.00, 2902.84, 0.09),
+    ('2026-01-01', 3, 2902.84, 4354.27, 0.12), ('2026-01-01', 4, 4354.27, 8475.55, 0.14);
+  INSERT INTO public.tabela_irrf (vigencia_inicio, faixa_ordem, valor_minimo, valor_maximo, aliquota, parcela_deduzir) VALUES
+    ('2026-01-01', 1, 0, 2428.80, 0, 0), ('2026-01-01', 2, 2428.80, 2826.65, 0.075, 182.16),
+    ('2026-01-01', 3, 2826.65, 3751.05, 0.15, 394.16), ('2026-01-01', 4, 3751.05, 4664.68, 0.225, 675.49),
+    ('2026-01-01', 5, 4664.68, NULL, 0.275, 908.73);
+  SET LOCAL session_replication_role = origin;
+
+  -- ===== sem os parâmetros de 2026: só a tabela, e a falta é informada
+  r := public.calcular_irrf_mensal(2871.43, 234.11, '2026-09-30');
+  IF (r ->> 'irrf')::numeric <> 15.64 OR (r ->> 'reducao_configurada')::boolean OR (r ->> 'simplificado_configurado')::boolean THEN
+    PERFORM pg_temp.falha('FOLHA IRRF: sem parâmetros deveria cobrar só pela tabela e avisar (' || r::text || ')');
+  END IF;
+
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, ativo) VALUES
+    ('teto_inss', 8475.55, '2026-01-01', true), ('desconto_simplificado_irrf', 607.20, '2026-01-01', true),
+    ('irrf_reducao_limite_isencao', 5000.00, '2026-01-01', true), ('irrf_reducao_maxima', 312.89, '2026-01-01', true),
+    ('irrf_reducao_limite', 7350.00, '2026-01-01', true), ('irrf_reducao_constante', 978.62, '2026-01-01', true),
+    ('irrf_reducao_coeficiente', 0.133145, '2026-01-01', true);
+  SET LOCAL session_replication_role = origin;
+
+  -- ===== INSS progressivo e IRRF mensal: rendimentos, deduções legais → IRRF
+  IF public.calcular_inss_servidor(24829, '2026-09-30') <> 988.09 THEN
+    PERFORM pg_temp.falha('FOLHA INSS: teto de 2026 deveria dar 988,09 (' || public.calcular_inss_servidor(24829, '2026-09-30') || ')');
+  END IF;
+  FOR x IN SELECT * FROM (VALUES
+      (24829.00, 988.09, 5647.52, false),   -- subsídio com INSS: INSS sai da base
+      (5742.80, 0, 289.57, true),           -- sem INSS: desconto simplificado + redução
+      (5742.80, 605.51, 289.57, true),      -- simplificado vence o INSS
+      (7159.13, 803.79, 813.57, false),     -- redução parcial
+      (4594.25, 444.71, 0.00, true),        -- até R$ 5.000: isento
+      (2871.43, 234.11, 0.00, true)) AS t(rend, ded, esperado, simpl) LOOP
+    r := public.calcular_irrf_mensal(x.rend, x.ded, '2026-09-30');
+    IF (r ->> 'irrf')::numeric <> x.esperado OR (r ->> 'simplificado')::boolean <> x.simpl THEN
+      PERFORM pg_temp.falha(format('FOLHA IRRF: rendimentos %s e deduções %s deveriam dar %s (%s)', x.rend, x.ded, x.esperado, r));
+    END IF;
+  END LOOP;
+
+  -- ===== ficha mensal: opção pelo regime próprio, pensão sobre o líquido e vínculo externo sem opção
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, vencimento_base, quantidade_vagas)
+    VALUES (cg, 'Cargo Folha Teste', 'CNETS-T', 'comissionado', 'comissionado', 9571.34, 3);
+  INSERT INTO public.servidores (id, nome_completo, cpf, situacao, ativo, possui_vinculo_externo, contribui_rpps_origem,
+                                 rpps_origem_fundamento, rpps_origem_inicio) VALUES
+    (s_rpps, 'Folha RPPS Teste', '000.000.f11-01', 'ativo', true, true, true, 'Instrução normativa de teste', '2026-01-01'),
+    (s_pens, 'Folha Pensão Teste', '000.000.f12-02', 'ativo', true, false, false, NULL, NULL),
+    (s_ext, 'Folha Externo Teste', '000.000.f13-03', 'ativo', true, true, false, NULL, NULL);
+  INSERT INTO public.provimentos (id, servidor_id, cargo_id, data_nomeacao, status) VALUES
+    (p_rpps, s_rpps, cg, '2026-01-01', 'ativo'), (p_pens, s_pens, cg, '2026-01-01', 'ativo'), (p_ext, s_ext, cg, '2026-01-01', 'ativo');
+  INSERT INTO public.pensoes_alimenticias (servidor_id, beneficiario_nome, tipo_calculo, percentual, base_calculo, data_inicio, ativo)
+    VALUES (s_pens, 'Beneficiária Teste', 'percentual', 30, 'liquido', '2026-01-01', true);
+  SET LOCAL session_replication_role = origin;
+
+  r := public.folha_montar_ficha(s_rpps, p_rpps, 'mensal', '2026-09-01', '2026-09-30', '[]', tab);
+  IF (r ->> 'valor_inss')::numeric <> 0 OR (r ->> 'valor_irrf')::numeric <> 1556.41 OR r -> 'inconsistencias' ? 'regime_previdenciario_a_confirmar' THEN
+    PERFORM pg_temp.falha('FOLHA ficha: regime próprio de origem deveria zerar o INSS e usar o desconto simplificado no IRRF (' || r::text || ')');
+  END IF;
+  r := public.folha_montar_ficha(s_pens, p_pens, 'mensal', '2026-09-01', '2026-09-30', '[]', tab);
+  SELECT i ->> 'valor' INTO v FROM jsonb_array_elements(r -> 'itens') i WHERE i ->> 'descricao' LIKE 'Pensão alimentícia%';
+  IF (r ->> 'valor_inss')::numeric <> 988.09 OR (r ->> 'valor_irrf')::numeric <> 810.40 OR v IS DISTINCT FROM '2331.86'
+     OR (r ->> 'valor_liquido')::numeric <> 5440.99 THEN
+    PERFORM pg_temp.falha('FOLHA ficha: pensão de 30% do líquido deveria sair da base do IRRF (pensão ' || coalesce(v, 'nula') || ', ' || r::text || ')');
+  END IF;
+  r := public.folha_montar_ficha(s_ext, p_ext, 'mensal', '2026-09-01', '2026-09-30', '[]', tab);
+  IF (r ->> 'valor_inss')::numeric <> 988.09 OR NOT (r -> 'inconsistencias' ? 'regime_previdenciario_a_confirmar') THEN
+    PERFORM pg_temp.falha('FOLHA ficha: vínculo efetivo externo sem a opção deveria descontar INSS e marcar a ficha (' || r::text || ')');
+  END IF;
+
+  -- ===== opção sem fundamento é recusada; alíquota em % é recusada
+  BEGIN
+    UPDATE public.servidores SET rpps_origem_fundamento = NULL WHERE id = s_rpps;
+    PERFORM pg_temp.falha('FOLHA servidores: opção pelo regime próprio sem fundamento aceita');
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    SET LOCAL session_replication_role = replica;
+    INSERT INTO public.tabela_inss (vigencia_inicio, faixa_ordem, valor_minimo, valor_maximo, aliquota) VALUES ('2040-01-01', 1, 0, 1, 7.5);
+    PERFORM pg_temp.falha('FOLHA tabela_inss: alíquota 7,5 (em %) aceita');
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  SET LOCAL session_replication_role = origin;
+  IF has_function_privilege('authenticated', 'public.calcular_irrf_mensal(numeric, numeric, date)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.calcular_irrf_mensal(numeric, numeric, date)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FOLHA calcular_irrf_mensal: executável pela API');
+  END IF;
+
+  PERFORM pg_temp.nota('FOLHA (cálculo): INSS 2026, IRRF com desconto simplificado e redução da Lei 15.270, pensão dedutível sobre o líquido, opção pelo regime próprio de origem com fundamento, vínculo externo sem opção marcado e alíquota em fração verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off
