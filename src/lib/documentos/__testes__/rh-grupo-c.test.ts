@@ -5,7 +5,7 @@ import { renderizarDocumento } from '../core/renderizar';
 import { relatorioAgrupadoPortaria, type RelatorioAgrupadoPortariaData } from '../modelos/rh/agrupadoPortaria';
 import { relatorioContatosEstrategicos, type DadosContatosEstrategicos } from '../modelos/rh/contatosEstrategicos';
 import { relatorioSegundoVinculo, type RelatorioSegundoVinculoData } from '../modelos/rh/segundoVinculo';
-import { relatorioServidoresDiretoria, type DadosServidoresDiretoria } from '../modelos/rh/servidoresDiretoria';
+import { relatorioDiretoriaHierarquia, type DadosDiretoriaHierarquia } from '../modelos/rh/diretoriaHierarquia';
 import { relatorioSituacaoPortaria, type RelatorioSituacaoPortariaData } from '../modelos/rh/situacaoPortaria';
 import { REGISTRO } from '../registro';
 import type { DocumentoModelo } from '../tipos';
@@ -29,7 +29,7 @@ const semLixo = (texto: string) => {
 const servidores = (n: number, prefixo = 'Servidor') =>
   Array.from({ length: n }, (_, i) => ({ nome: `${prefixo} ${i + 1}`, telefone: i % 2 ? '95991234567' : null, cargo: i % 3 ? 'Assessor' : null }));
 
-const diretoria = (n: number): DadosServidoresDiretoria => ({
+const diretoria = (n: number): DadosDiretoriaHierarquia => ({
   carimboArquivo: '2026-10-19-1430',
   diretoria: {
     id: 'd', nome: 'Diretoria de Exemplo', sigla: 'DEX', tipo: 'diretoria', nivel: 1, servidores: servidores(n, 'Diretor'),
@@ -84,12 +84,12 @@ const contatos = (n: number): DadosContatosEstrategicos => ({
 describe('rh grupo C no motor único', () => {
   it('os cinco modelos estão no REGISTRO', () => {
     expect(Object.keys(REGISTRO)).toEqual(
-      expect.arrayContaining(['rh-servidores-diretoria', 'rh-segundo-vinculo', 'rh-situacao-portaria', 'rh-agrupado-portaria', 'rh-contatos-estrategicos']),
+      expect.arrayContaining(['rh-diretoria-hierarquia', 'rh-segundo-vinculo', 'rh-situacao-portaria', 'rh-agrupado-portaria', 'rh-contatos-estrategicos']),
     );
   });
 
   it('servidores da diretoria: hierarquia, colunas, subtotais e unidade vazia', async () => {
-    const { texto, nomeArquivo } = await ler(relatorioServidoresDiretoria, diretoria(3));
+    const { texto, nomeArquivo } = await ler(relatorioDiretoriaHierarquia, diretoria(3));
     expect(nomeArquivo).toBe('servidores-dex-2026-10-19-1430.pdf');
     for (const t of ['RELATÓRIO DE SERVIDORES', 'DEX - Diretoria de Exemplo', 'Total de servidores', 'Nome', 'Telefone', 'Cargo',
       'Diretor 1', '(95) 99123-4567', 'Assessor', 'Subtotal: 3 servidores', 'DEX › DIVEX - Divisão de Exemplo (2 servidores)',
@@ -173,7 +173,7 @@ describe('rh grupo C no motor único', () => {
 
   it('muitas linhas atravessam páginas e repetem o cabeçalho da tabela', async () => {
     const casos = [
-      await ler(relatorioServidoresDiretoria, diretoria(120)),
+      await ler(relatorioDiretoriaHierarquia, diretoria(120)),
       await ler(relatorioSegundoVinculo, vinculos(150)),
       await ler(relatorioSituacaoPortaria, situacao(120, 60)),
       await ler(relatorioAgrupadoPortaria, agrupado(120, 40)),
@@ -197,7 +197,7 @@ describe.skipIf(!saida)('amostras do grupo C para inspeção visual', () => {
     mkdirSync(saida!, { recursive: true });
     const gravar = <D,>(nome: string, modelo: DocumentoModelo<D>, dados: D) =>
       writeFileSync(join(saida!, nome), Buffer.from(renderizarDocumento(modelo, dados, marcaTeste, emissaoTeste).doc.output('arraybuffer')));
-    gravar('rh-servidores-diretoria.pdf', relatorioServidoresDiretoria, diretoria(8));
+    gravar('rh-diretoria-hierarquia.pdf', relatorioDiretoriaHierarquia, diretoria(8));
     gravar('rh-segundo-vinculo.pdf', relatorioSegundoVinculo, vinculos(9));
     gravar('rh-situacao-portaria.pdf', relatorioSituacaoPortaria, situacao(6, 3));
     gravar('rh-agrupado-portaria.pdf', relatorioAgrupadoPortaria, agrupado(5, 2));

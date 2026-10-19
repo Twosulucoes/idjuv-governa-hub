@@ -19,7 +19,7 @@ export interface UnidadeComServidores {
   subordinadas: UnidadeComServidores[];
 }
 
-export interface DadosServidoresDiretoria {
+export interface DadosDiretoriaHierarquia {
   diretoria: UnidadeComServidores;
   /** Carimbo de data do nome do arquivo (ex.: `2026-10-19-1430`). */
   carimboArquivo: string;
@@ -59,8 +59,8 @@ function blocosDaUnidade(u: UnidadeComServidores, caminho: string[]): Bloco[] {
   return [...blocos, ...u.subordinadas.flatMap((sub) => blocosDaUnidade(sub, proximo))];
 }
 
-export const relatorioServidoresDiretoria: DocumentoModelo<DadosServidoresDiretoria> = {
-  tipo: 'rh-servidores-diretoria',
+export const relatorioDiretoriaHierarquia: DocumentoModelo<DadosDiretoriaHierarquia> = {
+  tipo: 'rh-diretoria-hierarquia',
   familia: 'relatorio',
   orientacao: 'retrato',
   titulo: () => 'Relatório de servidores',

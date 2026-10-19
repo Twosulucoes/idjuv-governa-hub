@@ -2,7 +2,7 @@ import { amostraFicha, amostraRelatorio } from './modelos/amostras';
 import { relatorioAgrupadoPortaria } from './modelos/rh/agrupadoPortaria';
 import { relatorioContatosEstrategicos } from './modelos/rh/contatosEstrategicos';
 import { relatorioSegundoVinculo } from './modelos/rh/segundoVinculo';
-import { relatorioServidoresDiretoria } from './modelos/rh/servidoresDiretoria';
+import { relatorioDiretoriaHierarquia } from './modelos/rh/diretoriaHierarquia';
 import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
 import type { DocumentoModelo } from './tipos';
 
@@ -16,7 +16,7 @@ export const REGISTRO = {
   'amostra-relatorio': amostraRelatorio,
   'amostra-ficha': amostraFicha,
   // RH
-  'rh-servidores-diretoria': relatorioServidoresDiretoria,
+  'rh-diretoria-hierarquia': relatorioDiretoriaHierarquia,
   'rh-segundo-vinculo': relatorioSegundoVinculo,
   'rh-situacao-portaria': relatorioSituacaoPortaria,
   'rh-agrupado-portaria': relatorioAgrupadoPortaria,
