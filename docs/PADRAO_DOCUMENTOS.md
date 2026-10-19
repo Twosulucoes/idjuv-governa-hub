@@ -24,7 +24,9 @@
 > (`unidades-ficha-unidade-local`, os blocos de `src/lib/pdf/unidades/` foram apagados) e ficha cadastral do servidor
 > (`rh-ficha-cadastral`). As três cópias da ficha cadastral (`pdfGenerator` e `pdfModelos`, preenchida e em branco)
 > viraram um modelo; a versão em branco é o mesmo modelo sem dados, com linhas para preencher à mão. A Ficha
-> Cadastro Geral (`pdfFichaCadastroGeral.ts`) fica fora: preenche o formulário oficial do governo. Plano:
+> Cadastro Geral (`pdfFichaCadastroGeral.ts`) fica fora: preenche o formulário oficial do governo. LGPD: a ficha
+> preenchida lista dependentes só com nome e parentesco; filiação e cor/raça (que só o antigo modelo em branco de
+> `pdfModelos` pedia, sem nunca imprimir o valor) saíram da ficha. Plano:
 > [`superpowers/plans/2026-10-19-padrao-relatorios-onda2.md`](./superpowers/plans/2026-10-19-padrao-relatorios-onda2.md).
 
 ## 1. Famílias
@@ -76,7 +78,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfLogos.ts` | 81 | `LOGO_ASPECTOS`, `calcularDimensoesLogos`, `LOGO_CONFIG_PADRAO`, `getLogosPDF` | 0 | 5 | Base (a eliminar) | F5 |
 | `src/lib/pdfMemorandoLotacao.ts` | 203 | `generateMemorandoLotacao`, `downloadMemorandoLotacao` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
 | `src/lib/pdfMiniCurriculo.ts` | 453 | `gerarPdfMiniCurriculo` | 2 | 0 | Ficha | migrado na onda 2: `curriculo-mini-curriculo` |
-| `src/lib/pdfModelos.ts` | 1335 | `generateRelacaoDocumentosModelo`, `generateFichaCadastralModelo`, `generateFichaCadastralPreenchida`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoAcumulacaoPreenchida`, `generateDeclaracaoBensModelo`, `generateDeclaracaoBensPreenchida`, `generateTermoDemandaModelo`, `generateOrdemMissaoModelo`, `generateRelatorioViagemModelo`, `generateRequisicaoMaterialModelo`, `generateTermoResponsabilidadeModelo` | 2 | 0 | Misto (dividir por documento) | SEI (termos, declarações; decisão pendente) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`) |
+| `src/lib/pdfModelos.ts` | 1335 | `generateRelacaoDocumentosModelo`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoAcumulacaoPreenchida`, `generateDeclaracaoBensModelo`, `generateDeclaracaoBensPreenchida`, `generateTermoDemandaModelo`, `generateOrdemMissaoModelo`, `generateRelatorioViagemModelo`, `generateRequisicaoMaterialModelo`, `generateTermoResponsabilidadeModelo` | 2 | 0 | Misto (dividir por documento) | SEI (termos, declarações; decisão pendente) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`) |
 | `src/lib/pdfOrganograma.ts` | 650 | `gerarOrganogramaPDF`, `gerarOrganogramaListaPDF` | 2 | 0 | Relatório | F4 |
 | pdfPortarias.ts (removido em 12/10/2026) | 930 | `generatePortariaUnificadaPdf`, `generatePortariaColetivaComTabela`, `generatePortariaNomeacao`, `generatePortariaExoneracao`, `generatePortariaDesignacao` | 2 | 1 | Ato (fora do escopo) | remover / substituir por registro do SEI |
 | `src/lib/pdfRelatorioAgrupadoPortaria.ts` | 298 | `generateRelatorioAgrupadoPortaria` | 1 | 0 | Relatório | migrado na onda 1: `rh-agrupado-portaria` |

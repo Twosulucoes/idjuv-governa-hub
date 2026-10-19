@@ -1013,7 +1013,7 @@ export type FichaCadastralData = Omit<ServidorFichaCadastral, 'dependentes'> & {
 function dependentesDaFicha(json: unknown): DependenteFicha[] {
   if (!Array.isArray(json)) return [];
   return json
-    .filter((d): d is Record<string, unknown> => !!d && typeof d === 'object' && typeof (d as { nome?: unknown }).nome === 'string')
+    .filter((d): d is Record<string, unknown> => !!d && typeof d === 'object' && typeof (d as { nome?: unknown }).nome === 'string' && (d as { nome: string }).nome.trim() !== '')
     .map((d) => ({
       nome: String(d.nome),
       data_nascimento: typeof d.data_nascimento === 'string' ? d.data_nascimento : null,

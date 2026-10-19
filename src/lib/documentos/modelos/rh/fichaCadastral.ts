@@ -7,7 +7,8 @@ import { formatarCPF, formatarData } from './formatos';
 /**
  * Ficha cadastral do servidor: uma só para a versão preenchida (dados do cadastro) e para a em branco
  * (sem `servidor`, rótulos com linha para preencher à mão). Une as três cópias antigas de
- * `pdfGenerator`/`pdfModelos`; imprime só campos que alguma versão preenchida já imprimia (LGPD).
+ * `pdfGenerator`/`pdfModelos`. Dependentes na preenchida saem só com nome e parentesco: CPF e nascimento
+ * (muitas vezes de menores) ficam fora do PDF (LGPD); a em branco mantém as colunas para preencher à mão.
  */
 
 export interface DependenteFicha {
@@ -150,13 +151,11 @@ function dependentes(emBranco: boolean, lista: DependenteFicha[]): Bloco[] {
   return [
     secao({ texto: 'Dependentes' }),
     tabela({
-      colunas,
-      linhas: lista.map((d) => ({
-        nome: d.nome,
-        nascimento: formatarData(d.data_nascimento),
-        cpf: formatarCPF(d.cpf),
-        parentesco: d.parentesco,
-      })),
+      colunas: [
+        { chave: 'nome', titulo: 'Nome', peso: 3 },
+        { chave: 'parentesco', titulo: 'Parentesco', peso: 1.4 },
+      ],
+      linhas: lista.map((d) => ({ nome: d.nome, parentesco: d.parentesco })),
     }),
   ];
 }

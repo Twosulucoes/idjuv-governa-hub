@@ -3,8 +3,8 @@ import type { PreCadastro } from '@/types/preCadastro';
 
 /**
  * Formulário de pré-cadastro (mini-currículo), pelo motor único (`curriculo-mini-curriculo`).
- * Também roda no site institucional (/curriculo, sem usuário logado): o motor é importado sob demanda
- * para o jsPDF ficar num chunk que só baixa quando o candidato pede o PDF.
+ * Também roda no site institucional (/curriculo, sem usuário logado). A página inteira já é carregada sob
+ * demanda no site; o import dinâmico só separa o registro de modelos do chunk da página.
  */
 export async function gerarPdfMiniCurriculo(dados: Partial<PreCadastro>): Promise<void> {
   const { emitirDocumento, baixarDocumento } = await import('@/lib/documentos');

@@ -722,8 +722,14 @@ export default function ServidorFormPage() {
                     <DropdownMenuItem onClick={async () => {
                       if (!(await registrarDocumentoServidor("ficha_cadastral", "Ficha cadastral impressa"))) return;
                       try {
+                        const cargo = cargos.find((c) => c.id === servidor.cargo_atual_id);
+                        const unidade = unidades.find((u) => u.id === servidor.unidade_atual_id);
                         await generateFichaCadastral({
                           ...servidor,
+                          cargo_nome: cargo?.nome,
+                          cargo_sigla: cargo?.sigla,
+                          unidade_nome: unidade?.nome,
+                          unidade_sigla: unidade?.sigla,
                         });
                       } catch (erro) {
                         toast.error(erro instanceof Error ? erro.message : "Não foi possível gerar a ficha cadastral.");

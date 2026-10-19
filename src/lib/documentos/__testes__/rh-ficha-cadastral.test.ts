@@ -121,7 +121,7 @@ describe('ficha cadastral do servidor no motor único', () => {
     expect(t).toContain('Entregue em 01/03/2020');
     expect(t).toContain('Não entregue');
     expect(t).toContain('Dependente 1 de Exemplo');
-    expect(t).toContain('987.654.321-00');
+    expect(t).not.toContain('987.654.321-00'); // CPF de dependente não sai no PDF (LGPD)
     expect(t).toContain('Cidade Sede/XX, 19 de outubro de 2026.');
     expect(t).toContain('Assinatura do(a) servidor(a)');
     expect(t).toContain('Responsável pelo recebimento');
