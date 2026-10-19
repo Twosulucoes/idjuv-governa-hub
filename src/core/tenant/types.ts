@@ -175,6 +175,23 @@ export interface TenantIntegracoes {
   portalTransparenciaUrl?: string;
 }
 
+/**
+ * Padronização dos documentos impressos (PDF). Tudo opcional: ausente = padrão do motor
+ * (`src/lib/documentos`). Normalmente vem do banco (chaves `impressao_*`).
+ */
+export interface TenantImpressao {
+  /** Cor de destaque dos documentos (hex). Ausente: `marca.corPrimariaHex`. */
+  corDestaqueHex?: string;
+  mostrarLogoOrgao?: boolean;
+  mostrarLogoEntidadeSuperior?: boolean;
+  linhaCabecalho?: string;
+  textoRodape?: string;
+  mostrarEmissor?: boolean;
+  tamanhoLetra?: 'compacto' | 'normal' | 'grande';
+  tabelaListrada?: boolean;
+  orientacao?: 'automatica' | 'retrato' | 'paisagem';
+}
+
 export interface TenantFeatures {
   portalPublico: boolean;
   transparenciaLai: boolean;
@@ -255,6 +272,7 @@ export interface TenantConfig {
   contato?: TenantContato;
   legal?: TenantLegal;
   integracoes?: TenantIntegracoes;
+  impressao?: TenantImpressao;
   /** Parâmetros de RH (tabela de diárias etc.). */
   rh?: TenantRH;
   /** Módulos contratados. Subconjunto de MODULES_CONFIG. */

@@ -1,7 +1,7 @@
 import type jsPDF from 'jspdf';
 import { usarTexto } from '../core/pintura';
 import { paraWinAnsi, quebrarEmLinhas } from '../core/texto';
-import { ESPACO, FONTE, NEUTROS, alturaLinha, ptParaMm } from '../core/tokens';
+import { ESPACO, NEUTROS, alturaLinha, ptParaMm } from '../core/tokens';
 import type { Bloco } from '../tipos';
 
 export interface PropsParagrafo {
@@ -38,9 +38,9 @@ export const paragrafo =
   (p: PropsParagrafo): Bloco =>
   (ctx) => {
     const { doc } = ctx;
-    const h = alturaLinha(FONTE.corpo);
+    const h = alturaLinha(ctx.fonte.corpo);
     doc.setFont(ctx.fonteCorpo, p.negrito ? 'bold' : 'normal');
-    doc.setFontSize(FONTE.corpo);
+    doc.setFontSize(ctx.fonte.corpo);
     usarTexto(doc, NEUTROS.texto);
 
     // Normaliza antes de separar: "\r\n" (textarea no Windows) é uma quebra só, não duas.
@@ -51,7 +51,7 @@ export const paragrafo =
       linhas.forEach(({ linha, recuada }, i) => {
         ctx.garantirEspaco(h);
         const x = ctx.esquerda + (recuada ? recuo : 0);
-        const y = ctx.y + ptParaMm(FONTE.corpo);
+        const y = ctx.y + ptParaMm(ctx.fonte.corpo);
         const ultima = i === linhas.length - 1;
         if (p.alinhamento === 'justificado' && !ultima) linhaJustificada(doc, linha, x, y, ctx.largura - (recuada ? recuo : 0));
         else doc.text(linha, x, y);

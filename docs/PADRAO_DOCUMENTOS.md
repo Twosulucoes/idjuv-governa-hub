@@ -6,6 +6,12 @@
 > [`superpowers/specs/2026-10-12-padrao-impressao-documentos-design.md`](./superpowers/specs/2026-10-12-padrao-impressao-documentos-design.md).
 > Plano da F0+F1: [`superpowers/plans/2026-10-12-padrao-impressao-f0-f1.md`](./superpowers/plans/2026-10-12-padrao-impressao-f0-f1.md).
 
+> **Padronização configurável (19/10/2026, onda 0):** cor de destaque, logos, linha extra do cabeçalho, texto do
+> rodapé, emissor, tamanho da letra, tabela listrada e orientação são escolhidos na tela Configuração do cliente
+> ([CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md), seção Impressão de documentos) e chegam ao núcleo como
+> `EstiloImpressao` (`estiloDoTenant`). Ondas seguintes migram os geradores antigos por módulo:
+> [spec](./superpowers/specs/2026-10-19-padrao-relatorios-configuravel-design.md).
+
 ## 1. Famílias
 
 Todo documento pertence a uma família; cada família tem um layout-base.
@@ -127,7 +133,9 @@ chave `jspdfForaDoCore` em `scripts/gate-baseline.json`).
    (acrescente o novo modelo ao arquivo de amostras), `pdftoppm -r 70 -png`, e abra o PNG. Traço fino
    (régua) só se confere em 200 dpi. Para migração de gerador antigo, use
    `node scripts/documentos-comparar.mjs antes.pdf depois.pdf`.
-7. **Use na tela** com `emitirDocumento('<tipo>', dados, { emitidoPor })` e `baixarDocumento(...)`.
+7. **Use na tela** com `emitirDocumento('<tipo>', dados, { emitidoPor })` e `baixarDocumento(...)`. O estilo
+   configurado na tela (letra, zebra, cabeçalho, rodapé, orientação) entra sozinho: o modelo não lê nem repete
+   essas escolhas. Blocos usam `ctx.fonte` (a escala configurada), nunca `FONTE` direto.
 8. **Gate**: `bash scripts/gate.sh` verde.
 
 Se faltar um bloco (ex.: lista numerada, QR), crie em `blocos/`, exporte em `blocos/index.ts` e teste;
@@ -137,12 +145,12 @@ não desenhe direto no `doc` dentro de um modelo.
 
 ```
 src/lib/documentos/
-  tipos.ts            Familia, MarcaImpressao, ContextoDocumento, Bloco, DocumentoModelo
+  tipos.ts            Familia, MarcaImpressao, EstiloImpressao, ContextoDocumento, Bloco, DocumentoModelo
   core/               tokens, texto, pintura, familias, pagina (único `new jsPDF`), moldura, renderizar
   blocos/             titulo, secao, paragrafo, localData, camposChaveValor, tabela, assinaturas, carimbo
-  modelos/            um arquivo declarativo por documento (nenhum por enquanto; o requerimento saiu em 12/10/2026)
+  modelos/            um arquivo declarativo por documento (hoje só `amostras.ts`, da pré-visualização da configuração)
   registro.ts         REGISTRO: única lista de documentos do sistema
-  marca.ts            marcaDoTenant (puro) · logos.ts: carregarLogo (navegador)
+  marca.ts            marcaDoTenant e estiloDoTenant (puros) · logos.ts: carregarLogo (navegador)
   emitir.ts           emitirDocumento / baixarDocumento (casca do navegador)
   __testes__/         lerPdf, fixtures, modelosReferencia e os testes (vitest)
 ```
@@ -151,13 +159,14 @@ src/lib/documentos/
 |---|---|
 | Página | A4; margens 20 mm (laterais), 18 mm (topo), 22 mm (rodapé, inclui a faixa do rodapé); escala de espaço 4 / 8 / 12 / 16 mm |
 | Tipografia | relatório, ficha e comprovante em **Helvetica** (fonte nativa do PDF) |
-| Escala | título 14 pt · seção 11 pt · corpo 10,5 pt · tabela 9 pt · rótulo 8 pt · rodapé 7,5 pt |
+| Escala | normal: título 14 pt · seção 11 pt · corpo 10,5 pt · tabela 9 pt · rótulo 8 pt · rodapé 7,5 pt; compacto e grande: ±1 pt (`ESCALAS` em `core/tokens.ts`; rodapé fixo) |
 | Cor | primária = cor do tenant (se tiver < 4,5:1 sobre branco, cai para o texto neutro); neutros slate |
 | Preto e branco | significado nunca só por cor: zebra leve, réguas, rótulos |
 
 **Cabeçalho:** na 1ª página, logo da entidade superior à esquerda, logo do órgão à direita, nomes e até 2 linhas
 de unidade emissora ao centro, título e protocolo; nas demais, cabeçalho compacto com protocolo.
-**Rodapé (todas as páginas):** sistema, "emitido por … em …" e "Página X de Y"; comprovantes ganham a linha
+**Rodapé (todas as páginas):** sistema (+ texto do rodapé configurado, cortado numa linha), "emitido por … em …"
+(ou só a data, se a configuração esconder o emissor) e "Página X de Y"; comprovantes ganham a linha
 "Documento emitido eletronicamente".
 
 ## 5. Protocolo

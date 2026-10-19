@@ -1,6 +1,6 @@
 import { usarTexto } from '../core/pintura';
 import { ouTraco, quebrarEmLinhas } from '../core/texto';
-import { ALTURA_CABECALHO, ESPACO, FONTE, NEUTROS, PAGINA, alturaLinha, ptParaMm } from '../core/tokens';
+import { ALTURA_CABECALHO, ESPACO, NEUTROS, PAGINA, alturaLinha, ptParaMm } from '../core/tokens';
 import type { Bloco } from '../tipos';
 
 export interface Campo {
@@ -17,14 +17,14 @@ export const camposChaveValor =
     const { doc } = ctx;
     const colunas = p.colunas ?? 2;
     const w = (ctx.largura - FOLGA_ENTRE_COLUNAS * (colunas - 1)) / colunas;
-    const hRotulo = alturaLinha(FONTE.rotulo);
-    const hValor = alturaLinha(FONTE.corpo);
+    const hRotulo = alturaLinha(ctx.fonte.rotulo);
+    const hValor = alturaLinha(ctx.fonte.corpo);
     const capacidadePagina = ctx.limiteInferior - (PAGINA.margemTopo + ALTURA_CABECALHO.demais);
 
     for (let i = 0; i < p.campos.length; i += colunas) {
       const linha = p.campos.slice(i, i + colunas);
       doc.setFont(ctx.fonteCorpo, 'normal');
-      doc.setFontSize(FONTE.corpo);
+      doc.setFontSize(ctx.fonte.corpo);
       const valores = linha.map((c) => quebrarEmLinhas(doc, ouTraco(c.valor), w));
       const altura = hRotulo + Math.max(...valores.map((v) => v.length)) * hValor + ESPACO.sm / 2;
       if (altura > capacidadePagina) {
@@ -32,16 +32,16 @@ export const camposChaveValor =
         linha.forEach((c) => {
           ctx.garantirEspaco(hRotulo + hValor);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(FONTE.rotulo);
+          doc.setFontSize(ctx.fonte.rotulo);
           usarTexto(doc, NEUTROS.textoSuave);
-          doc.text(quebrarEmLinhas(doc, c.rotulo, ctx.largura)[0], ctx.esquerda, ctx.y + ptParaMm(FONTE.rotulo));
+          doc.text(quebrarEmLinhas(doc, c.rotulo, ctx.largura)[0], ctx.esquerda, ctx.y + ptParaMm(ctx.fonte.rotulo));
           ctx.y += hRotulo;
           doc.setFont(ctx.fonteCorpo, 'normal');
-          doc.setFontSize(FONTE.corpo);
+          doc.setFontSize(ctx.fonte.corpo);
           usarTexto(doc, NEUTROS.texto);
           for (const v of quebrarEmLinhas(doc, ouTraco(c.valor), ctx.largura)) {
             ctx.garantirEspaco(hValor);
-            doc.text(v, ctx.esquerda, ctx.y + ptParaMm(FONTE.corpo));
+            doc.text(v, ctx.esquerda, ctx.y + ptParaMm(ctx.fonte.corpo));
             ctx.y += hValor;
           }
         });
@@ -53,14 +53,14 @@ export const camposChaveValor =
       linha.forEach((c, k) => {
         const x = ctx.esquerda + k * (w + FOLGA_ENTRE_COLUNAS);
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(FONTE.rotulo);
+        doc.setFontSize(ctx.fonte.rotulo);
         usarTexto(doc, NEUTROS.textoSuave);
-        doc.text(quebrarEmLinhas(doc, c.rotulo, w)[0], x, ctx.y + ptParaMm(FONTE.rotulo));
+        doc.text(quebrarEmLinhas(doc, c.rotulo, w)[0], x, ctx.y + ptParaMm(ctx.fonte.rotulo));
 
         doc.setFont(ctx.fonteCorpo, 'normal');
-        doc.setFontSize(FONTE.corpo);
+        doc.setFontSize(ctx.fonte.corpo);
         usarTexto(doc, NEUTROS.texto);
-        valores[k].forEach((v, j) => doc.text(v, x, ctx.y + hRotulo + ptParaMm(FONTE.corpo) + j * hValor));
+        valores[k].forEach((v, j) => doc.text(v, x, ctx.y + hRotulo + ptParaMm(ctx.fonte.corpo) + j * hValor));
       });
       ctx.y += altura;
     }

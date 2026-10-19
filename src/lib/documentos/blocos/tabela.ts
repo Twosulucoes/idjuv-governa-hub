@@ -1,6 +1,6 @@
 import { usarPreenchimento, usarTexto, usarTraco } from '../core/pintura';
 import { ouTraco, paraWinAnsi, quebrarEmLinhas } from '../core/texto';
-import { ALTURA_CABECALHO, ESPACO, FONTE, NEUTROS, PAGINA, alturaLinha, corLegivel, ptParaMm } from '../core/tokens';
+import { ALTURA_CABECALHO, ESPACO, NEUTROS, PAGINA, alturaLinha, corLegivel, ptParaMm } from '../core/tokens';
 import type { Bloco } from '../tipos';
 
 export interface ColunaTabela {
@@ -18,13 +18,13 @@ export const tabela =
   (p: { colunas: ColunaTabela[]; linhas: Record<string, Celula>[]; totais?: Record<string, Celula> }): Bloco =>
   (ctx) => {
     const { doc } = ctx;
-    const lh = alturaLinha(FONTE.tabela);
+    const lh = alturaLinha(ctx.fonte.tabela);
     const soma = p.colunas.reduce((s, c) => s + (c.peso ?? 1), 0);
     const larguras = p.colunas.map((c) => (ctx.largura * (c.peso ?? 1)) / soma);
 
     const quebrar = (valor: Celula, i: number, negrito: boolean, vazioComoTraco: boolean): string[] => {
       doc.setFont('helvetica', negrito ? 'bold' : 'normal');
-      doc.setFontSize(FONTE.tabela);
+      doc.setFontSize(ctx.fonte.tabela);
       const texto = vazioComoTraco ? ouTraco(valor) : paraWinAnsi(valor);
       return quebrarEmLinhas(doc, texto, larguras[i] - 2 * PAD);
     };
@@ -32,14 +32,14 @@ export const tabela =
     const xDe = (i: number): number => ctx.esquerda + larguras.slice(0, i).reduce((s, w) => s + w, 0);
     const escrever = (celulas: string[][], negrito: boolean): void => {
       doc.setFont('helvetica', negrito ? 'bold' : 'normal');
-      doc.setFontSize(FONTE.tabela);
+      doc.setFontSize(ctx.fonte.tabela);
       usarTexto(doc, NEUTROS.texto);
       celulas.forEach((linhas, i) => {
         const a = p.colunas[i].alinhamento ?? 'esquerda';
         const x0 = xDe(i);
         const x = a === 'direita' ? x0 + larguras[i] - PAD : a === 'centro' ? x0 + larguras[i] / 2 : x0 + PAD;
         linhas.forEach((l, k) =>
-          doc.text(l, x, ctx.y + PAD + ptParaMm(FONTE.tabela) + k * lh, { align: a === 'esquerda' ? 'left' : a === 'centro' ? 'center' : 'right' }),
+          doc.text(l, x, ctx.y + PAD + ptParaMm(ctx.fonte.tabela) + k * lh, { align: a === 'esquerda' ? 'left' : a === 'centro' ? 'center' : 'right' }),
         );
       });
     };
@@ -73,7 +73,7 @@ export const tabela =
 
     const desenhar = (celulas: string[][], indice: number, negrito: boolean): void => {
       const h = alturaDe(celulas);
-      if (indice % 2 === 1 && !negrito) {
+      if (ctx.estilo.zebra && indice % 2 === 1 && !negrito) {
         usarPreenchimento(doc, NEUTROS.zebra);
         // começa 0,1 mm abaixo para não cobrir a régua da linha anterior
         doc.rect(ctx.esquerda, ctx.y + 0.1, ctx.largura, h - 0.1, 'F');
@@ -116,9 +116,9 @@ export const tabela =
     if (p.linhas.length === 0) {
       ctx.garantirEspaco(lh + 2 * PAD);
       doc.setFont('helvetica', 'italic');
-      doc.setFontSize(FONTE.tabela);
+      doc.setFontSize(ctx.fonte.tabela);
       usarTexto(doc, NEUTROS.textoSuave);
-      doc.text('Nenhum registro encontrado.', ctx.esquerda + PAD, ctx.y + PAD + ptParaMm(FONTE.tabela));
+      doc.text('Nenhum registro encontrado.', ctx.esquerda + PAD, ctx.y + PAD + ptParaMm(ctx.fonte.tabela));
       ctx.y += lh + 2 * PAD;
       regua(ctx.y, false);
     } else {

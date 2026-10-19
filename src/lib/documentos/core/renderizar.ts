@@ -1,19 +1,22 @@
 import type jsPDF from 'jspdf';
 import { titulo } from '../blocos/titulo';
-import type { DocumentoModelo, Emissao, MarcaImpressao } from '../tipos';
+import type { DocumentoModelo, Emissao, EstiloImpressao, MarcaImpressao } from '../tipos';
 import { FAMILIAS } from './familias';
 import { aplicarMoldura } from './moldura';
 import { criarContexto } from './pagina';
+import { ESTILO_PADRAO } from './tokens';
 
-/** Núcleo puro: modelo + dados + marca → PDF. Não toca em tenant, rede nem DOM. */
+/** Núcleo puro: modelo + dados + marca + estilo → PDF. Não toca em tenant, rede nem DOM. */
 export function renderizarDocumento<D>(
   modelo: DocumentoModelo<D>,
   dados: D,
   marca: MarcaImpressao,
   emissao: Emissao,
+  estilo: EstiloImpressao = ESTILO_PADRAO,
 ): { doc: jsPDF; nomeArquivo: string } {
   const familia = FAMILIAS[modelo.familia];
-  const ctx = criarContexto({ marca, orientacao: modelo.orientacao ?? familia.orientacaoPadrao, familia: modelo.familia });
+  const orientacao = estilo.orientacao === 'automatica' ? (modelo.orientacao ?? familia.orientacaoPadrao) : estilo.orientacao;
+  const ctx = criarContexto({ marca, orientacao, familia: modelo.familia, estilo });
 
   titulo({ texto: modelo.titulo(dados), subtitulo: modelo.subtitulo?.(dados) })(ctx);
   for (const bloco of modelo.blocos(dados)) bloco(ctx);

@@ -40,17 +40,20 @@ function cabecalhoCompleto(ctx: ContextoDocumento, o: OpcoesMoldura): void {
   const larguraTexto = largura - 2 * reservado - 6;
   const centro = esquerda + largura / 2;
 
-  const linhas: { texto: string; negrito: boolean }[] = [
+  // A linha extra configurada ocupa uma linha só (cortada): não pode empurrar a unidade emissora para fora do cabeçalho.
+  const linhas: { texto: string; negrito: boolean; umaLinha?: boolean }[] = [
     ...(marca.entidadeSuperior ? [{ texto: marca.entidadeSuperior, negrito: true }] : []),
     { texto: marca.nomeOrgao, negrito: true },
+    ...(ctx.estilo.linhaCabecalho ? [{ texto: ctx.estilo.linhaCabecalho, negrito: false, umaLinha: true }] : []),
     ...(o.unidadeEmissora ?? []).slice(0, 2).map((texto) => ({ texto, negrito: false })),
   ];
   usarTexto(doc, NEUTROS.texto);
   let y = y0 + 3.5;
-  for (const { texto, negrito } of linhas) {
+  for (const { texto, negrito, umaLinha } of linhas) {
     doc.setFont('helvetica', negrito ? 'bold' : 'normal');
     doc.setFontSize(negrito ? 9 : 8);
-    for (const parte of doc.splitTextToSize(paraWinAnsi(texto), larguraTexto) as string[]) {
+    const partes = doc.splitTextToSize(paraWinAnsi(texto), larguraTexto) as string[];
+    for (const parte of umaLinha ? partes.slice(0, 1) : partes) {
       if (y > y0 + 19) break;
       doc.text(parte, centro, y, { align: 'center' });
       y += 3.8;
@@ -90,9 +93,11 @@ function rodape(ctx: ContextoDocumento, o: OpcoesMoldura, pagina: number, total:
     doc.text(paraWinAnsi(`Documento emitido eletronicamente${prot}.`), esquerda, yBase - 2);
   }
   doc.setFont('helvetica', 'normal');
-  const quem = o.emissao.emitidoPor ? ` por ${o.emissao.emitidoPor}` : '';
+  const quem = ctx.estilo.mostrarEmissor && o.emissao.emitidoPor ? ` por ${o.emissao.emitidoPor}` : '';
   doc.text(paraWinAnsi(`Emitido${quem} em ${formatarData(o.emissao.emitidoEm)}`), esquerda, yBase + 4);
-  doc.text(paraWinAnsi(marca.nomeSistema), esquerda, yBase + 8);
+  const linhaSistema = [marca.nomeSistema, ctx.estilo.textoRodape].filter(Boolean).join(' · ');
+  // Uma linha só: texto longo é cortado para não invadir a margem.
+  doc.text((doc.splitTextToSize(paraWinAnsi(linhaSistema), largura) as string[])[0] ?? '', esquerda, yBase + 8);
   doc.text(`Página ${pagina} de ${total}`, esquerda + largura, yBase + 4, { align: 'right' });
 }
 

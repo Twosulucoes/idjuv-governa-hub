@@ -1,6 +1,6 @@
 import { usarTexto, usarTraco } from '../core/pintura';
 import { quebrarEmLinhas } from '../core/texto';
-import { ESPACO, FONTE, NEUTROS, alturaLinha, ptParaMm } from '../core/tokens';
+import { ESPACO, NEUTROS, alturaLinha, ptParaMm } from '../core/tokens';
 import type { Bloco } from '../tipos';
 
 export interface Assinante {
@@ -20,11 +20,11 @@ export const assinaturas =
     const { doc } = ctx;
     const porFileira = p.assinantes.length === 1 ? 1 : 2;
     const w = Math.min(LARGURA_MAX, (ctx.largura - FOLGA * (porFileira - 1)) / porFileira);
-    const h = alturaLinha(FONTE.corpo);
+    const h = alturaLinha(ctx.fonte.corpo);
 
     for (let i = 0; i < p.assinantes.length; i += porFileira) {
       const fileira = p.assinantes.slice(i, i + porFileira);
-      doc.setFontSize(FONTE.corpo);
+      doc.setFontSize(ctx.fonte.corpo);
       doc.setFont(ctx.fonteCorpo, 'bold');
       const nomes = fileira.map((a) => quebrarEmLinhas(doc, a.nome, w));
       doc.setFont(ctx.fonteCorpo, 'normal');
@@ -44,9 +44,9 @@ export const assinaturas =
         usarTexto(doc, NEUTROS.texto);
         let y = ctx.y + ESPACO_PARA_ASSINAR + 1;
         doc.setFont(ctx.fonteCorpo, 'bold');
-        for (const l of nomes[k]) { doc.text(l, centro, y + ptParaMm(FONTE.corpo), { align: 'center' }); y += h; }
+        for (const l of nomes[k]) { doc.text(l, centro, y + ptParaMm(ctx.fonte.corpo), { align: 'center' }); y += h; }
         doc.setFont(ctx.fonteCorpo, 'normal');
-        for (const l of detalhes[k]) { doc.text(l, centro, y + ptParaMm(FONTE.corpo), { align: 'center' }); y += h; }
+        for (const l of detalhes[k]) { doc.text(l, centro, y + ptParaMm(ctx.fonte.corpo), { align: 'center' }); y += h; }
       });
       ctx.y += altura;
     }

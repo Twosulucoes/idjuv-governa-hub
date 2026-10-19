@@ -51,6 +51,29 @@ tenants/_template (neutro, nunca o IDJUV)
   primeira vez, a tela mostra os valores do arquivo e avisa quantos ainda não estão no banco: basta
   conferir e salvar.
 
+## Impressão de documentos (padronização dos PDFs)
+
+Seção **Impressão de documentos** da mesma tela (desde 19/10/2026, onda 0 do
+[desenho do padrão de relatórios](./superpowers/specs/2026-10-19-padrao-relatorios-configuravel-design.md)).
+Vale para **todos** os documentos do motor único (`src/lib/documentos/`, ver
+[PADRAO_DOCUMENTOS.md](./PADRAO_DOCUMENTOS.md)); geradores antigos `src/lib/pdf*.ts` ainda não leem estas
+chaves e passam a respeitá-las conforme migram.
+
+| Chave (`categoria = impressao`) | Valores | Vazio |
+|---|---|---|
+| `impressao_cor_destaque` | `#RRGGBB` | cor da marca; cor sem contraste 4,5:1 vira texto neutro no PDF (a tela avisa) |
+| `impressao_logo_orgao`, `impressao_logo_entidade` | `sim` / `nao` | mostra o logo |
+| `impressao_linha_cabecalho` | texto, até 120 caracteres | sem linha extra |
+| `impressao_texto_rodape` | texto, até 120 caracteres | só o nome do sistema |
+| `impressao_mostrar_emissor` | `sim` / `nao` | mostra "Emitido por…" |
+| `impressao_tamanho_letra` | `compacto` / `normal` / `grande` | normal |
+| `impressao_tabela_listrada` | `sim` / `nao` | listrada |
+| `impressao_orientacao` | `automatica` / `retrato` / `paisagem` | automática (cada documento escolhe) |
+
+A coluna "Vazio" vale quando nem o banco nem o perfil da instalação (`tenants/<slug>`, bloco `impressao`) definem a chave; hoje nenhum perfil define. Valor fora da lista ou cor inválida gravada direto no banco é ignorado ao aplicar (fica o padrão) e aparece como "Padrão" na tela. Os botões
+**Ver relatório de exemplo** e **Ver ficha de exemplo** geram a amostra com o que está no formulário, antes de
+salvar. Nenhuma chave é sigilosa: a leitura pública da tabela não expõe nada novo.
+
 Migração: `supabase/migrations/20261011023500_configuracao_cliente.sql` (leitura pública,
 endereços só http(s), trilha e permissão da tela). Não grava valores: os dados entram pela tela.
 

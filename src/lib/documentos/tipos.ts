@@ -28,6 +28,36 @@ export interface MarcaImpressao {
   logoEntidadeSuperior?: LogoImpressao;
 }
 
+export type EscalaLetra = 'compacto' | 'normal' | 'grande';
+
+/** Tamanhos de letra (pt) de uma escala. */
+export interface EscalaFonte {
+  titulo: number;
+  secao: number;
+  corpo: number;
+  tabela: number;
+  rotulo: number;
+  rodape: number;
+}
+
+/**
+ * Padronização configurada na tela (Configuração do cliente → Impressão de documentos).
+ * Vale para todos os documentos; o núcleo recebe pronta (ver `estiloDoTenant`).
+ */
+export interface EstiloImpressao {
+  escala: EscalaLetra;
+  /** Linhas alternadas com fundo nas tabelas. */
+  zebra: boolean;
+  /** "Emitido por Fulano em…" no rodapé; sem ele, só a data. */
+  mostrarEmissor: boolean;
+  /** `automatica` respeita o modelo (ou a família); as outras forçam todos os documentos. */
+  orientacao: 'automatica' | Orientacao;
+  /** Linha extra abaixo do nome do órgão, na 1ª página. */
+  linhaCabecalho?: string;
+  /** Texto livre no rodapé, ao lado do nome do sistema (endereço, aviso…). */
+  textoRodape?: string;
+}
+
 export interface Emissao {
   emitidoPor?: string;
   emitidoEm: Date;
@@ -37,6 +67,9 @@ export interface Emissao {
 export interface ContextoDocumento {
   doc: jsPDF;
   marca: MarcaImpressao;
+  estilo: EstiloImpressao;
+  /** Tamanhos de letra da escala escolhida no estilo. */
+  fonte: EscalaFonte;
   orientacao: Orientacao;
   familia: Familia;
   fonteCorpo: 'times' | 'helvetica';

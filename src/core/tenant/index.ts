@@ -17,6 +17,7 @@ export type {
   TenantContato,
   TenantLegal,
   TenantIntegracoes,
+  TenantImpressao,
   TenantFeatures,
   TenantRH,
   TenantSistema,
@@ -33,7 +34,7 @@ export type {
 export { TENANT_ATIVO, resolverTenant } from './resolver';
 export { getTenantSnapshot, getTenantSnapshotOuNulo, definirTenant } from './snapshot';
 export { aplicarTema, cssDoTema } from './tema';
-export { fallbackDadosOficiais, aplicarDadosOficiais, CAMPOS_CLIENTE } from './dadosOficiais';
+export { fallbackDadosOficiais, aplicarDadosOficiais, CAMPOS_CLIENTE, COR_HEX } from './dadosOficiais';
 export type { CampoCliente, CategoriaCampoCliente } from './dadosOficiais';
 export { NOME_PRODUTO_PADRAO, nomeDoProduto, nomeDoSistema } from './produto';
 export { getTenantEfetivo, recarregarIdentidadeDoBanco } from './identidadeBanco';
