@@ -503,6 +503,9 @@ identidade textual mora só em `dados_oficiais` (já auditável e já lida pelo 
 pública; `config_institucional` segue como parâmetro do RH. O perfil do tenant virou ponto de
 partida e reserva. Detalhes, e o que ainda falta (logos, cores, textos em páginas e PDFs), em
 [CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md).
+Em 19/10/2026 o `TenantConfig` ganhou o bloco opcional `impressao` (`TenantImpressao`: cor de destaque,
+logos, cabeçalho, rodapé, emissor, letra, tabela, orientação dos PDFs), também alimentado pelas chaves
+`impressao_*` de `dados_oficiais`; ausente, o motor de documentos usa o padrão.
 
 **Fase 0 — CONCLUÍDA.** O que foi entregue:
 
