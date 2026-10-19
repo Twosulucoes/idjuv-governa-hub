@@ -132,6 +132,7 @@ Plano de finalização e entregas fora dele (uma linha por PR):
 - [x] #124 — Usuário técnico (fora do plano): grava os módulos marcados e mostra a senha temporária, como no usuário de servidor; a mensagem de "e-mail enviado" saiu porque nenhum e-mail é enviado; falha ao salvar módulos agora aparece.
 - [x] Usuários (fora do plano): na tela de usuários dá para corrigir o nome e abrir a ficha completa, onde ficam resetar a senha e excluir (antes a ficha não tinha link). O e-mail de acesso não se edita pela tela.
 - [x] Usuários (fora do plano): criar usuário (servidor ou técnico) manda um convite por e-mail, pelo SMTP do Resend, e a pessoa cria a própria senha pelo link; a tela não mostra mais senha temporária. Se o link vencer, "Resetar senha" na ficha continua gerando uma.
+- [x] Usuários (fora do plano): o primeiro acesso pelo link do convite não cai mais em "Nenhum módulo atribuído" antes de os módulos do usuário serem lidos.
 - [x] #121 — Front publicado pelo Coolify (fora do plano): `Dockerfile` na raiz (sistema e site pelo build arg `MODO`) e job `deploy-coolify`; o rsync segue enquanto `COOLIFY_APP_UUID` não existir.
 - [x] #120 — Separação do portal público e do sistema interno (fora do plano): menu do site só com rota pública, telas internas no `ModuleLayout`, build `site` com os formulários públicos.
 - [x] #119 — P12, auditoria de segurança.

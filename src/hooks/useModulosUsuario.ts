@@ -19,6 +19,9 @@ export function useModulosUsuario() {
   const { user, isLoading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [context, setContext] = useState<AccessContext | null>(null);
+  // Usuário cujo contexto já foi lido: quando o login acontece com a tela aberta (ex.: link de convite), há um render
+  // com o usuário novo antes do efeito buscar os módulos, e sem isso a tela decidia "sem módulo" cedo demais.
+  const [carregadoPara, setCarregadoPara] = useState<string | null>(null);
 
   const fetchContext = useCallback(async () => {
     if (!user?.id) {
@@ -40,6 +43,7 @@ export function useModulosUsuario() {
       console.error('[useModulosUsuario] Exceção:', err);
       setContext(null);
     } finally {
+      setCarregadoPara(user.id);
       setLoading(false);
     }
   }, [user?.id]);
@@ -72,7 +76,7 @@ export function useModulosUsuario() {
 
   return {
     modulosAutorizados,
-    loading: authLoading || loading,
+    loading: authLoading || loading || (!!user?.id && carregadoPara !== user.id),
     temAcessoModulo,
     rotaAutorizada,
     refetch: fetchContext,
