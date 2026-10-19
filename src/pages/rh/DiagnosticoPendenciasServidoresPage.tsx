@@ -411,7 +411,7 @@ export default function DiagnosticoPendenciasServidoresPage() {
       metadados: { relatorio: "pendencias_servidores", formato: "pdf", filtro: filtroIncompleto, quantidade: analiseFiltrada.length },
     });
     if (!ok) return;
-    gerarPdfRelatorioPendenciasServidores(analiseFiltrada, stats, filtroTexto);
+    await gerarPdfRelatorioPendenciasServidores(analiseFiltrada, stats, filtroTexto);
   };
 
   return (
