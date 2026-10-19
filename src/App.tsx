@@ -246,6 +246,7 @@ import {
   DashboardInventarioPage,
   BensPatrimoniaisPage,
   BemDetalhePage,
+  BemEditarPage,
   MovimentacoesPatrimonioPage,
   CampanhasInventarioPage,
   CampanhaDetalhePage,
@@ -1077,7 +1078,7 @@ const App = () => (
               } />
               <Route path="/inventario/bens/:id/editar" element={
                 <ProtectedRoute requiredPermissions="patrimonio.criar">
-                  <PlaceholderDetalhePage />
+                  <BemEditarPage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/campanhas/:id" element={

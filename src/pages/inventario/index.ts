@@ -6,6 +6,7 @@
 export { default as DashboardInventarioPage } from './DashboardInventarioPage';
 export { default as BensPatrimoniaisPage } from './BensPatrimoniaisPage';
 export { default as BemDetalhePage } from './BemDetalhePage';
+export { default as BemEditarPage } from './BemEditarPage';
 export { default as MovimentacoesPatrimonioPage } from './MovimentacoesPatrimonioPage';
 export { default as CampanhasInventarioPage } from './CampanhasInventarioPage';
 export { default as CampanhaDetalhePage } from './CampanhaDetalhePage';

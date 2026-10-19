@@ -105,8 +105,10 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   página de detalhe da campanha.
 - Detalhes do patrimônio: `/inventario/movimentacoes/:id`, `/inventario/manutencoes/:id` e
   `/inventario/baixas/:id` (`MovimentacaoDetalhePage`, `ManutencaoDetalhePage`, `BaixaDetalhePage`), abertas
-  pelo "olho" das listas, com as mesmas ações de aprovar/rejeitar/concluir (`patrimonio.tramitar`). As outras
-  rotas de detalhe/edição do inventário ainda usam `PlaceholderDetalhePage`.
+  pelo "olho" das listas, com as mesmas ações de aprovar/rejeitar/concluir (`patrimonio.tramitar`).
+- Edição do bem: `/inventario/bens/:id/editar` (`BemEditarPage`, `patrimonio.criar`). Número de patrimônio,
+  QR e dados de aquisição (valor, data, forma) só o admin altera; a ficha do bem (`BemDetalhePage`) tem abas de
+  manutenções e ocorrências. As rotas de requisição e almoxarifado ainda usam `PlaceholderDetalhePage`.
 
 ## Autenticação
 
