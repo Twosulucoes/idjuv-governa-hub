@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ModuleLayout } from "@/components/layout";
@@ -411,7 +412,12 @@ export default function DiagnosticoPendenciasServidoresPage() {
       metadados: { relatorio: "pendencias_servidores", formato: "pdf", filtro: filtroIncompleto, quantidade: analiseFiltrada.length },
     });
     if (!ok) return;
-    await gerarPdfRelatorioPendenciasServidores(analiseFiltrada, stats, filtroTexto);
+    try {
+      await gerarPdfRelatorioPendenciasServidores(analiseFiltrada, stats, filtroTexto);
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao gerar o relatório");
+    }
   };
 
   return (

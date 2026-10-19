@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ModuleLayout } from "@/components/layout";
@@ -260,7 +261,12 @@ export default function DiagnosticoPendenciasPage() {
       com_obrigatorios: "Pendências obrigatórias",
       completos: "Dados obrigatórios completos",
     }[filtroIncompleto];
-    await gerarPdfRelatorioPendencias(analiseFiltrada, stats, filtroTexto);
+    try {
+      await gerarPdfRelatorioPendencias(analiseFiltrada, stats, filtroTexto);
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao gerar o relatório");
+    }
   };
 
   return (

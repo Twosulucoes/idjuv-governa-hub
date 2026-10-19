@@ -1,8 +1,9 @@
 import { formatCPF } from '@/lib/formatters';
-import { agruparPor, formatarDataISO } from '@/lib/relatoriosRHRegras';
+import { agruparPor } from '@/lib/relatoriosRHRegras';
 import { assinaturas, camposChaveValor, secao, tabela, type ColunaTabela } from '../../blocos';
 import type { Bloco, DocumentoModelo } from '../../tipos';
 import { plural } from './comum';
+import { formatarData } from './formatos';
 
 /** Consolidado mensal de frequência de um servidor (uma linha do relatório geral). */
 export interface FrequenciaServidor {
@@ -202,14 +203,15 @@ export const frequenciaIndividual: DocumentoModelo<DadosFrequenciaIndividual> = 
     tabela({
       colunas: COLUNAS_REGISTROS,
       linhas: d.registros.map((r) => ({
-        data: formatarDataISO(r.data),
+        data: formatarData(r.data),
         dia: r.dia_semana,
         situacao: rotuloSituacao(r.tipo),
         entrada1: r.entrada1,
         saida1: r.saida1,
         entrada2: r.entrada2,
         saida2: r.saida2,
-        observacao: r.observacao,
+        // Observação de atestado/licença pode trazer dado de saúde (LGPD): não sai no PDF.
+        observacao: r.tipo === 'atestado' || r.tipo === 'licenca' ? '' : r.observacao,
       })),
     }),
     assinaturas({ assinantes: [{ nome: d.servidor.nome, cargo: 'Servidor(a)' }, { nome: 'Chefia imediata' }] }),

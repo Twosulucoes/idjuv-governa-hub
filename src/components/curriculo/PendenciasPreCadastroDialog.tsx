@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import {
   Dialog,
@@ -278,7 +279,12 @@ export function PendenciasPreCadastroDialog({
                   com_obrigatorios: "Pendências obrigatórias",
                   completos: "Dados obrigatórios completos",
                 }[filtroIncompleto];
-                await gerarPdfRelatorioPendencias(analiseFiltrada, stats, filtroTexto);
+                try {
+                  await gerarPdfRelatorioPendencias(analiseFiltrada, stats, filtroTexto);
+                } catch (e) {
+                  console.error(e);
+                  toast.error("Erro ao gerar o relatório");
+                }
               }}
               className="gap-2"
             >

@@ -64,7 +64,7 @@ export const relatorioDiretoriaHierarquia: DocumentoModelo<DadosDiretoriaHierarq
   familia: 'relatorio',
   orientacao: 'retrato',
   titulo: () => 'Relatório de servidores',
-  subtitulo: (d) => rotuloUnidade(d.diretoria),
+  subtitulo: (d) => `${rotuloUnidade(d.diretoria)} · Documento interno`,
   nomeArquivo: (d) => `servidores-${(d.diretoria.sigla || 'diretoria').toLowerCase()}-${d.carimboArquivo}.pdf`,
   blocos: (d) => [
     camposChaveValor({

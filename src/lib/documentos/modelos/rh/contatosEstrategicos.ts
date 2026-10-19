@@ -22,7 +22,7 @@ export const relatorioContatosEstrategicos: DocumentoModelo<DadosContatosEstrate
   familia: 'relatorio',
   orientacao: 'retrato',
   titulo: () => 'Relatório de contatos estratégicos',
-  subtitulo: () => 'Servidores com indicação política',
+  subtitulo: () => 'Servidores com indicação política · Documento confidencial',
   nomeArquivo: (d) => `contatos-estrategicos-${d.carimboArquivo}.pdf`,
   blocos: (d) => [
     camposChaveValor({

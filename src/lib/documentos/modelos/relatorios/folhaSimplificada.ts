@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import { tabela } from '../../blocos';
 import type { DocumentoModelo } from '../../tipos';
 
@@ -30,7 +31,7 @@ export const folhaSimplificada: DocumentoModelo<DadosFolhaSimplificada> = {
     [d.subtitulo, d.mesReferencia && `Referência: ${d.mesReferencia}`, `Total de registros: ${d.linhas.length}`]
       .filter(Boolean)
       .join(' · '),
-  nomeArquivo: () => `relatorio_folha_simplificado_${new Date().toISOString().slice(0, 10)}.pdf`,
+  nomeArquivo: () => `relatorio_folha_simplificado_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`,
   blocos: (d) => {
     const total = d.linhas.reduce((s, l) => s + (l.valor || 0), 0);
     return [
