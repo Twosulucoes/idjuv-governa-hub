@@ -20,12 +20,14 @@ export const titulo =
     }
     if (p.subtitulo) {
       doc.setFont(ctx.fonteCorpo, 'normal');
-      doc.setFontSize(10);
+      // Meio ponto abaixo do corpo: 10 pt na escala normal, acompanha a escala configurada.
+      const tamanho = ctx.fonte.corpo - 0.5;
+      doc.setFontSize(tamanho);
       usarTexto(doc, NEUTROS.textoSuave);
       for (const linha of quebrarEmLinhas(doc, p.subtitulo, ctx.largura)) {
-        ctx.garantirEspaco(alturaLinha(10));
-        doc.text(linha, centro, ctx.y + ptParaMm(10), { align: 'center' });
-        ctx.y += alturaLinha(10);
+        ctx.garantirEspaco(alturaLinha(tamanho));
+        doc.text(linha, centro, ctx.y + ptParaMm(tamanho), { align: 'center' });
+        ctx.y += alturaLinha(tamanho);
       }
     }
     ctx.y += ESPACO.md;

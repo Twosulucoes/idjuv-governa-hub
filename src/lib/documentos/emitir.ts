@@ -22,6 +22,7 @@ export async function emitirDocumento<T extends TipoDocumento>(
   opcoes: { emitidoPor?: string; tenant?: TenantConfig } = {},
 ): Promise<DocumentoEmitido> {
   const tenant = opcoes.tenant ?? getTenantSnapshot();
+  // Logos ainda vêm dos arquivos da instalação (não são configuráveis no banco), mesmo com `opcoes.tenant`.
   const [logoDoOrgao, logoDaEntidade] = await Promise.all([
     carregarLogo(logoOrgao('claro')),
     carregarLogo(logoEntidadeSuperior('claro')),

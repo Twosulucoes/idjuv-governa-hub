@@ -89,7 +89,8 @@ const SIM_NAO = [
   { valor: 'nao', rotulo: 'Não' },
 ];
 const simNao = (b: boolean | undefined): string | undefined => (b === undefined ? undefined : b ? 'sim' : 'nao');
-const HEX = /^#[0-9a-f]{6}$/i;
+/** Cor em hex aceita na configuração de impressão (a tela usa a mesma regra). */
+export const COR_HEX = /^#[0-9a-f]{6}$/i;
 
 /** Só aplica valor que está na lista: um texto qualquer no banco não chega ao motor de PDF. */
 function opcao<T extends string>(lista: { valor: string }[], v: string): T | undefined {
@@ -393,7 +394,7 @@ export const CAMPOS_CLIENTE: CampoCliente[] = [
     rotulo: 'Cor de destaque',
     ajuda: 'Em hex, ex.: #1E3A5F. Usada em réguas e títulos de seção. Vazio: cor da marca.',
     ler: (t) => t.impressao?.corDestaqueHex,
-    aplicar: (t, v) => (HEX.test(v) ? impressao(t, { corDestaqueHex: v }) : t),
+    aplicar: (t, v) => (COR_HEX.test(v) ? impressao(t, { corDestaqueHex: v }) : t),
   },
   {
     chave: 'impressao_logo_orgao',

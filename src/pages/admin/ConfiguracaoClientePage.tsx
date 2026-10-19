@@ -31,6 +31,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   CAMPOS_CLIENTE,
+  COR_HEX,
   TENANT_ATIVO,
   fallbackDadosOficiais,
   nomeDoSistema,
@@ -39,6 +40,8 @@ import {
   type CategoriaCampoCliente,
 } from '@/core/tenant';
 import { useConfiguracaoCliente, useSalvarConfiguracaoCliente } from '@/hooks/useConfiguracaoCliente';
+// Funções puras de cor (sem jsPDF): import direto do módulo de tokens, não do índice do motor.
+import { CONTRASTE_MINIMO, contraste, hexParaRGB } from '@/lib/documentos/core/tokens';
 
 const GRUPOS: { categoria: CategoriaCampoCliente; titulo: string; descricao: string }[] = [
   { categoria: 'sistema', titulo: 'Sistema', descricao: 'Nome do produto mostrado na aba do navegador, no menu e no rodapé dos documentos.' },
@@ -52,13 +55,11 @@ const GRUPOS: { categoria: CategoriaCampoCliente; titulo: string; descricao: str
   {
     categoria: 'impressao',
     titulo: 'Impressão de documentos',
-    descricao: 'Padrão de todos os relatórios, fichas e comprovantes em PDF. Campo vazio usa o padrão do sistema.',
+    descricao: 'Padrão de todos os relatórios, fichas e comprovantes em PDF. Campo vazio volta ao padrão da instalação.',
   },
 ];
 
-const HEX = /^#[0-9a-f]{6}$/i;
-/** Contraste mínimo (WCAG AA) da cor de destaque sobre o papel branco; abaixo disso o PDF usa o texto neutro. */
-const CONTRASTE_MINIMO = 4.5;
+
 
 const CNPJ = /^\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}$/;
 const texto = z.string().trim().max(500, 'Use no máximo 500 caracteres');
@@ -87,7 +88,7 @@ function regraDoCatalogo(c: CampoCliente): z.ZodTypeAny | undefined {
     const valores = c.opcoes.map((o) => o.valor);
     return z.string().refine((v) => v === '' || valores.includes(v), 'Escolha uma das opções');
   }
-  if (c.cor) return opcional(z.string().trim().regex(HEX, 'Use o formato #RRGGBB (ex.: #1E3A5F)'));
+  if (c.cor) return opcional(z.string().trim().regex(COR_HEX, 'Use o formato #RRGGBB (ex.: #1E3A5F)'));
   if (c.maximo) return opcional(texto.max(c.maximo, `Use no máximo ${c.maximo} caracteres`));
   return undefined;
 }
@@ -111,26 +112,13 @@ const DO_ARQUIVO = fallbackDadosOficiais(TENANT_ATIVO);
 
 /** Amostra de cor ao lado do campo e aviso quando o PDF não vai usá-la por falta de contraste. */
 function AmostraCor({ valor }: { valor: string }) {
-  const [contraste, setContraste] = useState<number | null>(null);
-  const valida = HEX.test(valor);
-
-  useEffect(() => {
-    if (!valida) return setContraste(null);
-    let ativo = true;
-    void import('@/lib/documentos').then(({ contraste: medir, hexParaRGB }) => {
-      if (ativo) setContraste(medir(hexParaRGB(valor), { r: 255, g: 255, b: 255 }));
-    });
-    return () => {
-      ativo = false;
-    };
-  }, [valor, valida]);
-
-  if (!valida) return null;
+  if (!COR_HEX.test(valor)) return null;
+  const razao = contraste(hexParaRGB(valor), { r: 255, g: 255, b: 255 });
   return (
     <div className="flex items-center gap-2 text-sm">
       {/* Cor escolhida pela pessoa: só existe em tempo de execução, não é token do tema. */}
       <span aria-hidden="true" className="h-5 w-5 shrink-0 rounded border border-border" style={{ backgroundColor: valor }} />
-      {contraste !== null && contraste < CONTRASTE_MINIMO ? (
+      {razao < CONTRASTE_MINIMO ? (
         <span className="flex items-center gap-1 text-warning">
           <AlertTriangle className="h-4 w-4" aria-hidden="true" />
           Cor clara demais para texto no papel: os documentos vão usar cinza escuro no lugar dela.
@@ -151,7 +139,9 @@ export default function ConfiguracaoClientePage() {
   const iniciais = useMemo<Valores>(() => {
     const valores: Valores = { motivo: '' };
     for (const campo of CAMPOS_CLIENTE) {
-      valores[campo.chave] = gravados?.[campo.chave]?.valor ?? DO_ARQUIVO[campo.chave] ?? '';
+      const valor = gravados?.[campo.chave]?.valor ?? DO_ARQUIVO[campo.chave] ?? '';
+      // Valor fora da lista (gravado à mão no banco) aparece como padrão, para não travar o salvamento.
+      valores[campo.chave] = campo.opcoes && !campo.opcoes.some((o) => o.valor === valor) ? '' : valor;
     }
     return valores;
   }, [gravados]);
@@ -172,10 +162,12 @@ export default function ConfiguracaoClientePage() {
   // Pré-visualização: gera a amostra com o que está no formulário, salvo ou não.
   const [previaPdf, setPreviaPdf] = useState<{ url: string; titulo: string; nomeArquivo: string } | null>(null);
   const [gerandoPrevia, setGerandoPrevia] = useState(false);
-  const fecharPrevia = () => {
-    if (previaPdf) URL.revokeObjectURL(previaPdf.url);
-    setPreviaPdf(null);
-  };
+  const fecharPrevia = () => setPreviaPdf(null);
+  // Libera o PDF anterior ao trocar de prévia, ao fechar e ao sair da página.
+  useEffect(() => {
+    if (!previaPdf) return;
+    return () => URL.revokeObjectURL(previaPdf.url);
+  }, [previaPdf]);
   const verExemplo = async (tipo: 'amostra-relatorio' | 'amostra-ficha') => {
     setGerandoPrevia(true);
     try {
@@ -255,6 +247,7 @@ export default function ConfiguracaoClientePage() {
                         <div key={campo.chave} className={campo.longo ? 'space-y-1.5 md:col-span-2' : 'space-y-1.5'}>
                           <Label htmlFor={campo.chave}>{campo.rotulo}</Label>
                           {campo.opcoes ? (
+                            // Select nativo: integra direto com `register` e aceita a opção vazia (o Select do Radix não aceita valor "").
                             <select
                               id={campo.chave}
                               aria-invalid={!!erro}
@@ -262,7 +255,7 @@ export default function ConfiguracaoClientePage() {
                               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                               {...register(campo.chave)}
                             >
-                              <option value="">Padrão do sistema</option>
+                              <option value="">Padrão</option>
                               {campo.opcoes.map((o) => (
                                 <option key={o.valor} value={o.valor}>
                                   {o.rotulo}

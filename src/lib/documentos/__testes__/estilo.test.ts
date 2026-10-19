@@ -30,6 +30,15 @@ describe('estilo de impressão no motor', () => {
     for (const pagina of p) expect(pagina.texto).toContain('Rua Exemplo, 100');
   });
 
+  it('linha extra longa ocupa uma linha só e não tira a unidade emissora do cabeçalho', async () => {
+    const duasUnidades = { ...amostraRelatorio, unidadeEmissora: () => ['DIRETORIA DE EXEMPLO', 'DIVISAO DE EXEMPLO'] };
+    const [p1] = await lerPdf(renderizar({ linhaCabecalho: `Secretaria ${'muito '.repeat(30)}longa` }, duasUnidades).doc);
+    for (const trecho of ['GOVERNO DE TESTE', 'INSTITUTO DE TESTE', 'Secretaria', 'DIRETORIA DE EXEMPLO', 'DIVISAO DE EXEMPLO']) {
+      expect(p1.texto).toContain(trecho);
+    }
+    expect(p1.texto).not.toContain('longa');
+  });
+
   it('esconder o emissor mantém a data e tira o nome', async () => {
     const [com] = await lerPdf(renderizar().doc);
     expect(com.texto).toContain('Emitido por Fulana de Tal');

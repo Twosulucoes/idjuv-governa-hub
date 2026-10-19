@@ -44,9 +44,12 @@ export function contraste(a: RGB, b: RGB): number {
   return (claro + 0.05) / (escuro + 0.05);
 }
 
+/** Contraste mínimo (WCAG AA) para a cor de destaque valer no papel; a tela de configuração avisa abaixo disso. */
+export const CONTRASTE_MINIMO = 4.5;
+
 /** A própria cor se der >= 4,5:1 sobre o fundo; senão o texto neutro. */
 export function corLegivel(cor: RGB, fundo: RGB = NEUTROS.branco): RGB {
-  return contraste(cor, fundo) >= 4.5 ? cor : NEUTROS.texto;
+  return contraste(cor, fundo) >= CONTRASTE_MINIMO ? cor : NEUTROS.texto;
 }
 
 export function hexParaRGB(hex: string): RGB {

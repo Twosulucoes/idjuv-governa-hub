@@ -70,7 +70,7 @@ chaves e passam a respeitá-las conforme migram.
 | `impressao_tabela_listrada` | `sim` / `nao` | listrada |
 | `impressao_orientacao` | `automatica` / `retrato` / `paisagem` | automática (cada documento escolhe) |
 
-Valor fora da lista ou cor inválida gravada direto no banco é ignorado ao aplicar (fica o padrão). Os botões
+A coluna "Vazio" vale quando nem o banco nem o perfil da instalação (`tenants/<slug>`, bloco `impressao`) definem a chave; hoje nenhum perfil define. Valor fora da lista ou cor inválida gravada direto no banco é ignorado ao aplicar (fica o padrão) e aparece como "Padrão" na tela. Os botões
 **Ver relatório de exemplo** e **Ver ficha de exemplo** geram a amostra com o que está no formulário, antes de
 salvar. Nenhuma chave é sigilosa: a leitura pública da tabela não expõe nada novo.
 
