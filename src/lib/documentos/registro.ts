@@ -1,4 +1,9 @@
 import { amostraFicha, amostraRelatorio } from './modelos/amostras';
+import { relatorioAgrupadoPortaria } from './modelos/rh/agrupadoPortaria';
+import { relatorioContatosEstrategicos } from './modelos/rh/contatosEstrategicos';
+import { relatorioSegundoVinculo } from './modelos/rh/segundoVinculo';
+import { relatorioServidoresDiretoria } from './modelos/rh/servidoresDiretoria';
+import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -10,6 +15,12 @@ export const REGISTRO = {
   /** Pré-visualização da tela de configuração de impressão. */
   'amostra-relatorio': amostraRelatorio,
   'amostra-ficha': amostraFicha,
+  // RH
+  'rh-servidores-diretoria': relatorioServidoresDiretoria,
+  'rh-segundo-vinculo': relatorioSegundoVinculo,
+  'rh-situacao-portaria': relatorioSituacaoPortaria,
+  'rh-agrupado-portaria': relatorioAgrupadoPortaria,
+  'rh-contatos-estrategicos': relatorioContatosEstrategicos,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
