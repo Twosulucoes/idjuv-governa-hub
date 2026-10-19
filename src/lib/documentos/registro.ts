@@ -21,6 +21,7 @@ import { relatorioSegundoVinculo } from './modelos/rh/segundoVinculo';
 import { relatorioDiretoriaHierarquia } from './modelos/rh/diretoriaHierarquia';
 import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
 import { fichaUnidadeLocal } from './modelos/unidades/fichaUnidadeLocal';
+import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -63,6 +64,8 @@ export const REGISTRO = {
   'unidades-ficha-unidade-local': fichaUnidadeLocal,
   // RH — ficha cadastral do servidor (preenchida e em branco)
   'rh-ficha-cadastral': fichaCadastral,
+  // Currículo — pré-cadastro do candidato (também no site institucional, em /curriculo)
+  'curriculo-mini-curriculo': fichaMiniCurriculo,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;

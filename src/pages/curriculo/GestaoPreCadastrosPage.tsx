@@ -118,9 +118,12 @@ export default function GestaoPreCadastrosPage() {
     }
   };
 
-  const handleDownloadPdf = (data: PreCadastro) => {
-    const doc = gerarPdfMiniCurriculo(data);
-    doc.save(`pre-cadastro-${data.codigo_acesso}.pdf`);
+  const handleDownloadPdf = async (data: PreCadastro) => {
+    try {
+      await gerarPdfMiniCurriculo(data);
+    } catch {
+      toast.error("Não foi possível gerar o PDF do pré-cadastro.");
+    }
   };
 
   const stats = {

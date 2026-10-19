@@ -167,9 +167,12 @@ export default function MiniCurriculoPage() {
     }
   };
 
-  const handleDownloadPdf = () => {
-    const doc = gerarPdfMiniCurriculo(formData as PreCadastro);
-    doc.save(`pre-cadastro-${formData.codigo_acesso || "rascunho"}.pdf`);
+  const handleDownloadPdf = async () => {
+    try {
+      await gerarPdfMiniCurriculo(formData);
+    } catch {
+      toast.error("Não foi possível gerar o PDF. Tente novamente.");
+    }
   };
 
   const renderStepContent = () => {
