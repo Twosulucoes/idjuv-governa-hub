@@ -4,6 +4,11 @@ import { estruturaOrganizacional } from './modelos/relatorios/estruturaOrganizac
 import { folhaSimplificada } from './modelos/relatorios/folhaSimplificada';
 import { pendenciasPreCadastros } from './modelos/rh/pendenciasPreCadastros';
 import { pendenciasServidores } from './modelos/rh/pendenciasServidores';
+import { fichaHistoricoFuncional } from './modelos/rh/historicoFuncional';
+import { relatorioServidoresDiretoria } from './modelos/rh/servidoresDiretoria';
+import { relatorioServidoresPortarias } from './modelos/rh/servidoresPortarias';
+import { relatorioServidoresVinculo } from './modelos/rh/servidoresVinculo';
+import { relatorioVagasCargo } from './modelos/rh/vagasCargo';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -21,6 +26,12 @@ export const REGISTRO = {
   'relatorios-colunas-dinamicas': relatorioDinamico,
   'relatorios-colunas-dinamicas-paisagem': relatorioDinamicoPaisagem,
   'relatorios-estrutura-organizacional': estruturaOrganizacional,
+  // RH — RelatoriosRHPage
+  'rh-servidores-diretoria': relatorioServidoresDiretoria,
+  'rh-servidores-vinculo': relatorioServidoresVinculo,
+  'rh-historico-funcional': fichaHistoricoFuncional,
+  'rh-vagas-cargo': relatorioVagasCargo,
+  'rh-servidores-portarias': relatorioServidoresPortarias,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;

@@ -4,7 +4,13 @@ import { describe, it } from 'vitest';
 import { renderizarDocumento } from '../core/renderizar';
 import { ESTILO_PADRAO } from '../core/tokens';
 import { amostraFicha, amostraRelatorio } from '../modelos/amostras';
+import { fichaHistoricoFuncional } from '../modelos/rh/historicoFuncional';
+import { relatorioServidoresDiretoria } from '../modelos/rh/servidoresDiretoria';
+import { relatorioServidoresPortarias } from '../modelos/rh/servidoresPortarias';
+import { relatorioServidoresVinculo } from '../modelos/rh/servidoresVinculo';
+import { relatorioVagasCargo } from '../modelos/rh/vagasCargo';
 import { emissaoTeste, marcaTeste } from './fixtures';
+import { dadosDiretoria, dadosHistorico, dadosPortarias, dadosVagas, dadosVinculo } from './fixturesRhGrupoA';
 import { comprovanteReferencia, dadosComprovante, dadosFicha, dadosRelatorio, fichaReferencia, relatorioReferencia } from './modelosReferencia';
 
 // Gera os PDFs de amostra em DOCUMENTOS_AMOSTRAS=<pasta> para inspeção visual (pdftoppm). Sem a variável, não faz nada.
@@ -31,5 +37,16 @@ describe.skipIf(!saida)('amostras para inspeção visual', () => {
     };
     gravar('amostra-relatorio-configurado.pdf', renderizarDocumento(amostraRelatorio, {}, marcaTeste, emissaoTeste, configurado).doc);
     gravar('amostra-ficha.pdf', renderizarDocumento(amostraFicha, { solicitante: 'Fulana' }, marcaTeste, emissaoTeste).doc);
+  });
+
+  it('grava os relatórios do RH (grupo A)', () => {
+    mkdirSync(saida!, { recursive: true });
+    const gravar = (nome: string, doc: { output: (t: 'arraybuffer') => ArrayBuffer }) =>
+      writeFileSync(join(saida!, nome), Buffer.from(doc.output('arraybuffer')));
+    gravar('rh-servidores-diretoria.pdf', renderizarDocumento(relatorioServidoresDiretoria, dadosDiretoria(20), marcaTeste, emissaoTeste).doc);
+    gravar('rh-servidores-vinculo.pdf', renderizarDocumento(relatorioServidoresVinculo, dadosVinculo(20), marcaTeste, emissaoTeste).doc);
+    gravar('rh-historico-funcional.pdf', renderizarDocumento(fichaHistoricoFuncional, dadosHistorico(8), marcaTeste, emissaoTeste).doc);
+    gravar('rh-vagas-cargo.pdf', renderizarDocumento(relatorioVagasCargo, dadosVagas(8), marcaTeste, emissaoTeste).doc);
+    gravar('rh-servidores-portarias.pdf', renderizarDocumento(relatorioServidoresPortarias, dadosPortarias(6), marcaTeste, emissaoTeste).doc);
   });
 });
