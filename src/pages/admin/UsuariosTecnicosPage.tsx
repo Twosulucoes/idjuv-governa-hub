@@ -47,7 +47,6 @@ import {
   Loader2,
   RefreshCw,
   ShieldAlert,
-  Copy,
   AlertTriangle
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -69,24 +68,14 @@ export default function UsuariosTecnicosPage() {
     fullName: '',
     role: 'ti_admin'
   });
-  // Senha temporária do usuário recém-criado: o sistema não envia e-mail, quem cria repassa
-  const [senhaCriada, setSenhaCriada] = useState<string | null>(null);
+  // E-mail para onde foi o convite do usuário recém-criado (ele cria a própria senha pelo link)
+  const [conviteEnviadoPara, setConviteEnviadoPara] = useState<string | null>(null);
 
   const abrirFecharDialogo = (aberto: boolean) => {
-    // Não fecha no meio da criação: a senha chegaria com o diálogo fechado
+    // Não fecha no meio da criação: a confirmação do convite chegaria com o diálogo fechado
     if (!aberto && criarUsuarioTecnico.isPending) return;
     setIsDialogOpen(aberto);
-    setSenhaCriada(null);
-  };
-
-  const copiarSenha = async () => {
-    if (!senhaCriada) return;
-    try {
-      await navigator.clipboard.writeText(senhaCriada);
-      toast.success('Senha copiada.');
-    } catch {
-      toast.error('Não foi possível copiar. Selecione a senha e copie manualmente.');
-    }
+    setConviteEnviadoPara(null);
   };
 
   const handleCreateUser = async () => {
@@ -103,9 +92,10 @@ export default function UsuariosTecnicosPage() {
       return; // o erro já aparece pelo onError do hook
     }
     
+    const emailConvidado = formData.email;
     setFormData({ email: '', fullName: '', role: 'ti_admin' });
-    if (resultado.senhaTemporaria) {
-      setSenhaCriada(resultado.senhaTemporaria);
+    if (resultado.convidado) {
+      setConviteEnviadoPara(emailConvidado);
     } else {
       setIsDialogOpen(false);
     }
@@ -214,23 +204,13 @@ export default function UsuariosTecnicosPage() {
                       </DialogDescription>
                     </DialogHeader>
                   
-                    {senhaCriada ? (
+                    {conviteEnviadoPara ? (
                       <>
                         <div className="space-y-2 py-4" role="status" aria-live="polite">
-                          <Label htmlFor="senha-temporaria">Senha temporária</Label>
-                          <div className="flex items-center gap-2">
-                            <Input id="senha-temporaria" readOnly value={senhaCriada} className="font-mono" />
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              aria-label="Copiar senha"
-                              onClick={copiarSenha}
-                            >
-                              <Copy className="h-4 w-4" aria-hidden="true" />
-                            </Button>
-                          </div>
+                          <p className="font-medium">Convite enviado para {conviteEnviadoPara}</p>
                           <p className="text-caption text-muted-foreground">
-                            Repasse esta senha ao usuário e peça que ele a troque no primeiro acesso. Ela não será exibida novamente.
+                            A pessoa recebe um e-mail com o link para criar a própria senha. O link vale uma vez e por
+                            tempo limitado; se vencer, use Resetar senha na ficha do usuário.
                           </p>
                         </div>
                         <DialogFooter>

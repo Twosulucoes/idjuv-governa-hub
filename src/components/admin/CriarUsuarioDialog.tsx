@@ -24,10 +24,6 @@ import {
   Mail,
   AlertTriangle,
   CheckCircle,
-  Copy,
-  Key,
-  Eye,
-  EyeOff,
   Shield,
   Briefcase,
   Users
@@ -79,10 +75,8 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
   const [selectedModulos, setSelectedModulos] = useState<Modulo[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   
-  // Estado para exibir senha após criação
-  const [senhaGerada, setSenhaGerada] = useState<string | null>(null);
+  // Usuário convidado: a tela de sucesso diz para qual e-mail o convite foi
   const [usuarioCriado, setUsuarioCriado] = useState<{ nome: string; email: string } | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
 
   // Carregar servidores
   const loadServidores = async () => {
@@ -183,9 +177,7 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
     setEmail('');
     setSelectedModulos([]);
     setSearchTerm('');
-    setSenhaGerada(null);
     setUsuarioCriado(null);
-    setShowPassword(false);
     setTecnicoNome('');
     setTecnicoEmail('');
   };
@@ -240,15 +232,9 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
         return;
       }
 
-      setSenhaGerada(resultado.senhaTemporaria);
       setUsuarioCriado({
         nome: selectedServidor.nome_completo,
         email: email
-      });
-      
-      toast({
-        title: "Usuário criado com sucesso!",
-        description: "Copie a senha temporária abaixo."
       });
       
       onSuccess?.();
@@ -288,9 +274,8 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
 
       onSuccess?.();
 
-      // O sistema não envia e-mail: a senha temporária aparece aqui, como no usuário de servidor
-      if (resultado.senhaTemporaria) {
-        setSenhaGerada(resultado.senhaTemporaria);
+      // Convite enviado: a pessoa cria a própria senha pelo link do e-mail
+      if (resultado.convidado) {
         setUsuarioCriado({ nome: tecnicoNome, email: tecnicoEmail });
       } else {
         onOpenChange(false);
@@ -322,16 +307,6 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
 
   const servidoresVisiveis = servidoresFiltrados;
 
-  const copiarSenha = () => {
-    if (senhaGerada) {
-      navigator.clipboard.writeText(senhaGerada);
-      toast({
-        title: "Senha copiada!",
-        description: "A senha foi copiada para a área de transferência."
-      });
-    }
-  };
-
   const modulosDisponiveis = MODULOS.filter(m => m !== 'admin');
 
   const canCreate = tipoUsuario === 'servidor' 
@@ -343,10 +318,10 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {senhaGerada ? (
+            {usuarioCriado ? (
               <>
                 <CheckCircle className="h-5 w-5 text-green-600" />
-                Usuário Criado com Sucesso!
+                Convite enviado
               </>
             ) : (
               <>
@@ -356,22 +331,15 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
             )}
           </DialogTitle>
           <DialogDescription>
-            {senhaGerada 
-              ? 'Copie a senha temporária e informe ao usuário'
+            {usuarioCriado 
+              ? 'O usuário vai receber um e-mail para criar a própria senha'
               : 'Escolha o tipo de usuário e preencha os dados'}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Tela de sucesso com senha */}
-        {senhaGerada && usuarioCriado ? (
+        {/* Tela de sucesso: convite enviado */}
+        {usuarioCriado ? (
           <div className="space-y-6 py-4">
-            <Alert className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800 dark:text-green-200">
-                O usuário foi criado com sucesso. Informe os dados abaixo.
-              </AlertDescription>
-            </Alert>
-
             <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Nome</Label>
@@ -379,47 +347,19 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
               </div>
               
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Email de acesso</Label>
-                <div className="font-medium">{usuarioCriado.email}</div>
-              </div>
-
-              <div className="space-y-2">
                 <Label className="text-muted-foreground flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  Senha temporária
+                  <Mail className="h-4 w-4" />
+                  Convite enviado para
                 </Label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 p-3 bg-background border rounded-md font-mono text-lg">
-                    {showPassword ? senhaGerada : '••••••••••••'}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowPassword(!showPassword)}
-                    title={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={copiarSenha}
-                    title="Copiar senha"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Peça ao usuário que troque esta senha no primeiro acesso.
-                </p>
+                <div className="font-medium">{usuarioCriado.email}</div>
               </div>
             </div>
 
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                <strong>Importante:</strong> Esta senha não será exibida novamente. 
-                Certifique-se de copiá-la antes de fechar esta janela.
+                O link do convite vale uma vez e por tempo limitado. Se a pessoa não receber ou o link vencer,
+                abra a ficha do usuário e use <strong>Resetar senha</strong> para gerar uma senha temporária.
               </AlertDescription>
             </Alert>
           </div>
@@ -621,7 +561,7 @@ export const CriarUsuarioDialog: React.FC<CriarUsuarioDialogProps> = ({
         )}
 
         <DialogFooter>
-          {senhaGerada ? (
+          {usuarioCriado ? (
             <Button onClick={() => onOpenChange(false)}>
               <CheckCircle className="mr-2 h-4 w-4" />
               Fechar
