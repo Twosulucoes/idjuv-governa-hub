@@ -5,6 +5,7 @@
  * aqui para servir a qualquer importador da Central de Importações:
  *
  *   - lerPrimeiraAba      lê a primeira aba e devolve as linhas com o número da linha no Excel
+ *   - lerLinhasDasAbas    todas as linhas de todas as abas como arrays (relatórios com título, ex.: FIPLAN)
  *   - normalizarCabecalho "Nº DOE" → "n_doe" (sem acento, minúsculo, separadores viram _)
  *   - campoDoCabecalho / mapearColunas  cabeçalhos da planilha → chaves do importador, por sinônimos
  *   - paraTexto / paraDataIso  conversão de célula sem deslocar o fuso
@@ -135,13 +136,29 @@ function decodificarTexto(dados: Uint8Array): string {
   }
 }
 
-/** Lê a primeira aba do arquivo (XLSX, XLS ou CSV). */
-export async function lerPrimeiraAba(arquivo: Blob): Promise<PlanilhaLida> {
+async function lerPasta(arquivo: Blob): Promise<XLSX.WorkBook> {
   const dados = new Uint8Array(await arquivo.arrayBuffer());
-  const pasta = ehPlanilhaBinaria(dados)
+  return ehPlanilhaBinaria(dados)
     ? XLSX.read(dados, { type: "array", raw: true })
     : // CSV: decodifica aqui (UTF-8 ou, se falhar, Windows-1252 do Excel) para não estragar os acentos
       XLSX.read(decodificarTexto(dados), { type: "string", raw: true });
+}
+
+/**
+ * Todas as linhas de todas as abas, como arrays de células e na ordem do arquivo (sem tratar a primeira como
+ * cabeçalho). Para relatórios com título e cabeçalho no meio, como as consultas exportadas do FIPLAN.
+ */
+export async function lerLinhasDasAbas(arquivo: Blob): Promise<unknown[][]> {
+  const pasta = await lerPasta(arquivo);
+  if (pasta.SheetNames.length === 0) throw new Error("A planilha não tem nenhuma aba.");
+  return pasta.SheetNames.flatMap((aba) =>
+    XLSX.utils.sheet_to_json<unknown[]>(pasta.Sheets[aba], { header: 1, raw: true, blankrows: false, defval: "" }),
+  );
+}
+
+/** Lê a primeira aba do arquivo (XLSX, XLS ou CSV). */
+export async function lerPrimeiraAba(arquivo: Blob): Promise<PlanilhaLida> {
+  const pasta = await lerPasta(arquivo);
   const aba = pasta.SheetNames[0];
   if (!aba) throw new Error("A planilha não tem nenhuma aba.");
   const folha = pasta.Sheets[aba];

@@ -35,7 +35,8 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
   `DisasterRecoveryPage` (`/admin/disaster-recovery`) é informativa desde o P13: explica o backup diário, o banco
   novo pelo baseline e o front pelo CI, sem baixar arquivo (ver [BACKUP.md](./BACKUP.md)).
 - **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
-  pode usar e o histórico (`importacoes`). Importadores: QDD do FIPLAN e arquivo do banco
+  pode usar e o histórico (`importacoes`). Importadores: QDD do FIPLAN, tabelas do FIPLAN (planilhas "Consultar
+  ..." de função, programa, elemento, subelemento, fonte e finalidade de pagamento) e arquivo do banco
   (OBN600/CNAB 240), do financeiro, e planilha de portarias, do gabinete (com botão "Baixar modelo").
 - **Envio de e-mail e WhatsApp**: `ConfigEnviosPage` (`/admin/envios`, menu "E-mail e WhatsApp"). O
   cliente configura o remetente (SMTP próprio ou Resend), a identidade visual do e-mail e o WhatsApp

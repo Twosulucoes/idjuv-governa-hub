@@ -179,9 +179,15 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
   quando o parser aplicou o padrão); a RPC confere tudo de novo, inclusive matrículas e o que já existe.
   Identifica o servidor só por matrícula (sem CPF). Invalida as chaves de `usePortarias` (`portarias`, `portaria`,
   `portarias-servidor`, a seção da ficha do servidor) e `portarias-para-ato` (`useGestaoLotacao`). Regras de negócio: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-portarias-importar_portarias_planilha).
+- `importadores/classificadoresFiplan.ts` + `classificadoresFiplanParser.ts` — tabelas do FIPLAN (`.xls` das consultas
+  "Consultar ...") → `importar_classificadores_fiplan` (`id` `classificadores_fiplan`, módulo `financeiro`, permissão
+  `orcamento.importar`). Um arquivo por tabela; o parser (função pura, testada com vitest) reconhece a tabela pelo
+  título, acha o cabeçalho, pula o cabeçalho repetido e o aviso "Continua na próxima planilha", exige um exercício só e
+  não guarda coluna que possa ser dado pessoal (responsável, CPF, e-mail, telefone, matrícula). Regras: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#tabelas-do-fiplan-fin_classificadores_fiplan).
 - `planilha.ts` — helpers de planilha compartilhados (mesma lógica da importação do quadro de vagas, que mantém a
   sua cópia): `lerPrimeiraAba`
   (XLSX/XLS/CSV; CSV em UTF-8 ou Windows-1252; devolve cabeçalhos e linhas com o número da linha no Excel),
+  `lerLinhasDasAbas` (todas as linhas de todas as abas como arrays, para relatórios com título e cabeçalho no meio),
   `normalizarCabecalho` (sem acento, minúsculo, `_`), `campoDoCabecalho`/`mapearColunas` (cabeçalho → chave por
   sinônimos; só chaves próprias do mapa, então "constructor"/"__proto__" não casam),
   `cabecalhosIgnorados`, `linhaVazia`, `paraTexto`, `paraDataIso` (série do Excel, `Date`, `dd/mm/aaaa` ou

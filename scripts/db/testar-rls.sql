@@ -5093,7 +5093,9 @@ DECLARE
 BEGIN
   SET LOCAL session_replication_role = origin;
 
-  -- dias úteis: fim de semana
+  -- dias úteis: fim de semana. O teste genérico de catálogo grava em feriados uma linha com data = current_date:
+  -- sem tirá-la, o caso falharia quando o teste rodasse justamente em 19/10/2026 (ela vira feriado na segunda).
+  DELETE FROM public.feriados WHERE data BETWEEN DATE '2026-10-16' AND DATE '2026-10-20';
   d := public.fn_somar_dias_uteis(DATE '2026-10-16', 1);  -- sexta
   IF d IS DISTINCT FROM DATE '2026-10-19' THEN
     PERFORM pg_temp.falha('wf: fn_somar_dias_uteis(sexta 16/10, 1) devia dar 19/10 e deu ' || coalesce(d::text, 'nulo'));
@@ -6264,6 +6266,136 @@ BEGIN
   UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
 
   PERFORM pg_temp.nota('Gabinete (importação de portarias): permissão, simulação sem gravar, aplicação e log, reaplicação sem alteração, casamento do número antigo, soma de servidor, tudo ou nada (matrícula, repetido, PENDENTE, regra de setor), situação do servidor e matrículas antigas só com rh, matrícula ambígua e status_informado verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro: tabelas do FIPLAN (classificadores)
+-- Migração 20261019100000_fin_classificadores_fiplan.sql (spec docs/superpowers/specs/2026-10-19-classificadores-fiplan-design.md):
+--   * fin_classificadores_fiplan: lê quem tem o módulo financeiro; ninguém grava pela API (nem com orcamento.importar);
+--   * importar_classificadores_fiplan: sem o módulo financeiro, sem orcamento.importar ou sem sessão recusa (42501);
+--     anon e PUBLIC sem EXECUTE; tabela desconhecida e lista vazia = 22023;
+--   * simulação não grava; aplicação insere, registra em importacoes e corrige o nome da fonte (mesmos dígitos), do
+--     programa do exercício e da natureza provisória do QDD; reaplicar dá sem_alteracao; código repetido ou fora do
+--     padrão vira erro e a aplicação não grava nada.
+-- Banco anterior à migração: o bloco reprova sem abortar.
+DO $$
+DECLARE
+  u_fin uuid := 'a0000000-0000-0000-0000-0000000007c1';   -- módulo financeiro + orcamento.importar
+  u_lei uuid := 'a0000000-0000-0000-0000-0000000007c2';   -- módulo financeiro sem a permissão
+  u_rhp uuid := 'a0000000-0000-0000-0000-0000000007c3';   -- a permissão no módulo rh, sem o financeiro
+  fn text := 'public.importar_classificadores_fiplan(text, integer, jsonb, jsonb, boolean)';
+  arq text := jsonb_build_object('nome', 'fonte.xls', 'sha256', repeat('cd', 32), 'tamanho', 1024)::text;
+  linhas jsonb; r text; j jsonb; n_imp int; x record;
+BEGIN
+  IF to_regprocedure(fn) IS NULL OR to_regclass('public.fin_classificadores_fiplan') IS NULL THEN
+    PERFORM pg_temp.falha('FIN classificadores: ' || fn || ' ou a tabela não existe');
+    RETURN;
+  END IF;
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_fin, 'cf_fin@teste.invalid'), (u_lei, 'cf_lei@teste.invalid'), (u_rhp, 'cf_rhp@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_fin, u_lei, u_rhp);
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_fin, 'financeiro', '{orcamento.importar}'),
+    (u_lei, 'financeiro', '{}'),
+    (u_rhp, 'rh', '{orcamento.importar}');
+  INSERT INTO public.fin_fontes_recurso (codigo, nome) VALUES ('9.977', 'Fonte 9.977 (importada do QDD, revisar descrição)');
+  INSERT INTO public.fin_programas_orcamentarios (codigo, nome, exercicio) VALUES ('977', 'Programa 977', 2031);
+  INSERT INTO public.fin_naturezas_despesa (codigo, nome) VALUES ('3.3.90.97', 'Natureza 3.3.90.97 (importada do QDD, revisar descrição)');
+
+  -- ===== quem chama
+  IF has_function_privilege('anon', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('FIN classificadores: anon executa ' || fn); END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              WHERE p.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FIN classificadores: PUBLIC executa ' || fn);
+  END IF;
+  linhas := '[{"codigo": "9.977", "nome": "Fonte de teste", "nome_resumido": "FT", "ativo": true, "atributos": {"vinculada": "Não"}}]';
+  FOR x IN SELECT * FROM (VALUES (u_lei, 'sem orcamento.importar'), (u_rhp, 'sem o módulo financeiro'), (NULL::uuid, 'sem sessão')) v(quem, rot) LOOP
+    r := pg_temp.sql_como(x.quem, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''fonte'', 2031, %L::jsonb, NULL, true)', linhas));
+    IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('FIN classificadores: ' || x.rot || ' não recusa (' || r || ')'); END IF;
+  END LOOP;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''rubrica'', 2031, %L::jsonb, NULL, true)', linhas));
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FIN classificadores: tabela desconhecida aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', 'SELECT public.importar_classificadores_fiplan(''fonte'', 2031, ''[]''::jsonb, NULL, true)');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FIN classificadores: lista vazia aceita (' || r || ')'); END IF;
+
+  -- ===== simulação não grava
+  SELECT count(*) INTO n_imp FROM public.importacoes;
+  r := pg_temp.valor_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''fonte'', 2031, %L::jsonb, %L::jsonb, true)::text', linhas, arq));
+  IF left(coalesce(r, ''), 1) <> '{' OR (r::jsonb -> 'totais' ->> 'inserir')::int <> 1 OR r::jsonb ->> 'importacao_id' IS NOT NULL
+     OR r::jsonb -> 'linhas' -> 0 -> 'avisos' ->> 0 !~ 'nome da fonte 9.977' THEN
+    PERFORM pg_temp.falha('FIN classificadores: simulação devolveu ' || left(coalesce(r, 'nulo'), 200));
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.fin_classificadores_fiplan WHERE exercicio = 2031) OR (SELECT count(*) FROM public.importacoes) <> n_imp
+     OR (SELECT nome FROM public.fin_fontes_recurso WHERE codigo = '9.977') <> 'Fonte 9.977 (importada do QDD, revisar descrição)' THEN
+    PERFORM pg_temp.falha('FIN classificadores: a simulação gravou');
+  END IF;
+
+  -- ===== aplicação: grava, registra e corrige os nomes; reaplicar dá sem_alteracao
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''fonte'', 2031, %L::jsonb, %L::jsonb, false)', linhas, arq));
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''programa'', 2031, %L::jsonb, %L::jsonb, false)',
+         '[{"codigo": "977", "nome": "Programa de teste", "ativo": true, "atributos": {}}]', arq));
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''elemento'', 2031, %L::jsonb, %L::jsonb, false)',
+         '[{"codigo": "97", "nome": "ELEMENTO DE TESTE", "ativo": true, "atributos": {}}]', arq));
+  IF (SELECT count(*) FROM public.fin_classificadores_fiplan WHERE exercicio = 2031) <> 3
+     OR (SELECT count(*) FROM public.importacoes WHERE tipo = 'classificadores_fiplan') <> 3 THEN
+    PERFORM pg_temp.falha('FIN classificadores: a aplicação não gravou as 3 tabelas e o log (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  IF (SELECT nome FROM public.fin_fontes_recurso WHERE codigo = '9.977') <> 'Fonte de teste'
+     OR (SELECT nome FROM public.fin_programas_orcamentarios WHERE codigo = '977' AND exercicio = 2031) <> 'Programa de teste'
+     OR (SELECT nome FROM public.fin_naturezas_despesa WHERE codigo = '3.3.90.97') <> 'ELEMENTO DE TESTE' THEN
+    PERFORM pg_temp.falha('FIN classificadores: nomes de fonte, programa ou natureza não corrigidos');
+  END IF;
+  r := pg_temp.valor_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''fonte'', 2031, %L::jsonb, %L::jsonb, true)::text', linhas, arq));
+  IF left(coalesce(r, ''), 1) <> '{' OR (r::jsonb -> 'totais' ->> 'sem_alteracao')::int <> 1 THEN
+    PERFORM pg_temp.falha('FIN classificadores: reimportar não deu sem_alteracao (' || left(coalesce(r, 'nulo'), 200) || ')');
+  END IF;
+
+  -- ===== classificador igual, natureza provisória criada depois (QDD novo): reimportar conta como atualização
+  INSERT INTO public.fin_naturezas_despesa (codigo, nome) VALUES ('3.3.91.97', 'Natureza 3.3.91.97 (importada do QDD, revisar descrição)');
+  r := pg_temp.valor_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''elemento'', 2031, %L::jsonb, %L::jsonb, true)::text',
+         '[{"codigo": "97", "nome": "ELEMENTO DE TESTE", "ativo": true, "atributos": {}}]', arq));
+  IF left(coalesce(r, ''), 1) <> '{' OR (r::jsonb -> 'totais' ->> 'atualizar')::int <> 1 THEN
+    PERFORM pg_temp.falha('FIN classificadores: natureza provisória nova não liberou a reimportação (' || left(coalesce(r, 'nulo'), 200) || ')');
+  END IF;
+  -- fonte de um exercício anterior ao mais recente importado não mexe no nome do cadastro
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''fonte'', 2030, %L::jsonb, %L::jsonb, false)',
+         '[{"codigo": "9.977", "nome": "Nome antigo", "ativo": false, "atributos": {}}]', arq));
+  IF r <> 'ok' OR (SELECT nome FROM public.fin_fontes_recurso WHERE codigo = '9.977') <> 'Fonte de teste'
+     OR NOT (SELECT ativo FROM public.fin_fontes_recurso WHERE codigo = '9.977') THEN
+    PERFORM pg_temp.falha('FIN classificadores: fonte de exercício antigo mudou o cadastro (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  -- atributos pela API direta: dado pessoal e valor que não é texto ficam de fora
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''funcao'', 2031, %L::jsonb, %L::jsonb, false)',
+         '[{"codigo": "97", "nome": "Função de teste", "ativo": true, "atributos": {"cpf_do_responsavel": "000.000.000-00", "x": {"y": 1}, "abrangencia": "Setorial"}}]', arq));
+  IF r <> 'ok' OR (SELECT atributos FROM public.fin_classificadores_fiplan WHERE tipo = 'funcao' AND exercicio = 2031 AND codigo = '97')
+       IS DISTINCT FROM '{"abrangencia": "Setorial"}'::jsonb THEN
+    PERFORM pg_temp.falha('FIN classificadores: atributos com dado pessoal ou não texto gravados (' || coalesce(r, 'nulo') || ')');
+  END IF;
+
+  -- ===== erro de linha: nada gravado
+  SELECT count(*) INTO n_imp FROM public.importacoes;
+  linhas := '[{"codigo": "9.978", "nome": "Nova", "ativo": true, "atributos": {}}, {"codigo": "9978", "nome": "Sem ponto", "ativo": true, "atributos": {}},
+              {"codigo": "9.978", "nome": "Repetida", "ativo": true, "atributos": {}}]';
+  r := pg_temp.valor_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''fonte'', 2031, %L::jsonb, %L::jsonb, true)::text', linhas, arq));
+  IF left(coalesce(r, ''), 1) <> '{' OR jsonb_array_length(r::jsonb -> 'erros') <> 2 THEN
+    PERFORM pg_temp.falha('FIN classificadores: código fora do padrão e repetido não viraram erro (' || left(coalesce(r, 'nulo'), 200) || ')');
+  END IF;
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_classificadores_fiplan(''fonte'', 2031, %L::jsonb, %L::jsonb, false)', linhas, arq));
+  IF r NOT LIKE 'erro:22023%' OR EXISTS (SELECT 1 FROM public.fin_classificadores_fiplan WHERE codigo = '9.978')
+     OR (SELECT count(*) FROM public.importacoes) <> n_imp THEN
+    PERFORM pg_temp.falha('FIN classificadores: aplicação com erro gravou (' || coalesce(r, 'nulo') || ')');
+  END IF;
+
+  -- ===== leitura e escrita direta na tabela
+  r := pg_temp.valor_como(u_lei, 'authenticated', 'SELECT count(*)::text FROM public.fin_classificadores_fiplan WHERE exercicio = 2031');
+  IF r IS DISTINCT FROM '4' THEN PERFORM pg_temp.falha('FIN classificadores: quem tem o módulo financeiro não lê (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_rhp, 'authenticated', 'SELECT count(*)::text FROM public.fin_classificadores_fiplan');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN classificadores: sem o módulo financeiro lê (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', 'INSERT INTO public.fin_classificadores_fiplan (tipo, exercicio, codigo, nome) VALUES (''funcao'', 2031, ''99'', ''x'')');
+  IF r NOT LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN classificadores: INSERT direto pela API aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', 'UPDATE public.fin_classificadores_fiplan SET nome = ''x'' WHERE exercicio = 2031');
+  IF r NOT LIKE 'erro:%' AND r <> 'ok:0' THEN PERFORM pg_temp.falha('FIN classificadores: UPDATE direto pela API aceito (' || r || ')'); END IF;
+
+  PERFORM pg_temp.nota('FIN (tabelas do FIPLAN): permissão, simulação sem gravar, aplicação e log, correção de nomes (fonte, programa, natureza; natureza provisória nova; fonte de exercício antigo não mexe), filtro de atributos, reaplicação sem alteração, tudo ou nada e escrita direta bloqueada verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

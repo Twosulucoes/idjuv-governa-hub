@@ -21,7 +21,7 @@ export function useRestosPagar(filtros?: {
           *,
           empenho:fin_empenhos(
             id, numero, objeto, exercicio, valor_empenhado,
-            fornecedor:fornecedores(id, razao_social, cnpj_cpf),
+            fornecedor:fornecedores(id, razao_social, cpf_cnpj),
             dotacao:fin_dotacoes(id, codigo_dotacao)
           )
         `)
