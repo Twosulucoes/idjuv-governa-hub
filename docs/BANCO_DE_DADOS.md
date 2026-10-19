@@ -1294,6 +1294,17 @@ dos campos alterados). RLS: `SELECT` para quem acessa o módulo da linha (`can_a
 policy de escrita e sem `INSERT/UPDATE/DELETE` para `anon`/`authenticated` — só as RPCs de importação
 gravam. No baseline está como `preservar` em `rls/mapa.csv`.
 
+#### Tabelas do FIPLAN (`fin_classificadores_fiplan`)
+
+Migração `supabase/migrations/20261019100000_fin_classificadores_fiplan.sql`. Spec:
+[`2026-10-19-classificadores-fiplan-design.md`](./superpowers/specs/2026-10-19-classificadores-fiplan-design.md).
+Uma linha por código das tabelas de classificação do FIPLAN e exercício (`tipo`: `funcao`, `programa`, `elemento`,
+`subelemento`, `fonte`, `finalidade_pagamento`; código como o FIPLAN mostra, ex. `39.01`, `1.500`), com as demais
+colunas da planilha em `atributos`. RLS: `SELECT` para quem acessa o módulo financeiro; sem escrita pela API (classe
+`preservar` no mapa, privilégio retirado no overlay 40). Quem grava é `importar_classificadores_fiplan`, que também
+corrige o nome de `fin_fontes_recurso` (mesmos dígitos), de `fin_programas_orcamentarios` do exercício e das
+naturezas com o nome provisório do QDD; nada é criado nesses cadastros nem apagado.
+
 #### Importar portarias (`importar_portarias_planilha`)
 
 Migração `supabase/migrations/20261015120000_gab_importar_portarias.sql`. Spec:
@@ -1443,6 +1454,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   que mudaria; com `false` grava numa transação (cria programa, ação/PAOE, natureza e fonte que faltarem,
   insere/atualiza `fin_dotacoes`, nunca apaga) e registra em `importacoes`. Dotações do antigo import de
   planilha (`natureza.fonte.IDU`) são reconhecidas e migradas para a chave nova.
+- **Tabelas do FIPLAN**: `importar_classificadores_fiplan(p_tipo, p_exercicio, p_linhas, p_arquivo, p_simular)` —
+  `SECURITY DEFINER`, exige perfil ativo, módulo financeiro e `orcamento.importar`; simula ou aplica tudo ou nada
+  (código fora do padrão ou repetido barra a aplicação) e registra em `importacoes` (seção "Tabelas do FIPLAN").
 - **Importação de portarias**: `importar_portarias_planilha(p_linhas, p_arquivo, p_simular)` — `SECURITY DEFINER`,
   exige módulo `gabinete` e `gabinete.portarias.importar`; simula por savepoint e aplica tudo ou nada (seção
   "Importar portarias").

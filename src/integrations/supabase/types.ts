@@ -10255,6 +10255,57 @@ export type Database = {
           },
         ]
       }
+      fin_classificadores_fiplan: {
+        Row: {
+          ativo: boolean
+          atributos: NonNullable<Json>
+          codigo: string
+          created_at: string
+          exercicio: number
+          id: string
+          importacao_id: string | null
+          nome: string
+          nome_resumido: string | null
+          tipo: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          atributos?: NonNullable<Json>
+          codigo: string
+          created_at?: string
+          exercicio: number
+          id?: string
+          importacao_id?: string | null
+          nome: string
+          nome_resumido?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          atributos?: NonNullable<Json>
+          codigo?: string
+          created_at?: string
+          exercicio?: number
+          id?: string
+          importacao_id?: string | null
+          nome?: string
+          nome_resumido?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_classificadores_fiplan_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_contas_bancarias: {
         Row: {
           agencia: string
@@ -24491,6 +24542,16 @@ export type Database = {
           p_linhas: Json
           p_parametros: Json
           p_simular?: boolean
+        }
+        Returns: Json
+      }
+      importar_classificadores_fiplan: {
+        Args: {
+          p_arquivo: Json
+          p_exercicio: number
+          p_linhas: Json
+          p_simular?: boolean
+          p_tipo: string
         }
         Returns: Json
       }

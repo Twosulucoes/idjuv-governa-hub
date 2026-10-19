@@ -79,7 +79,7 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 - [ ] **E-mails do Auth na VPS**: bucket `emails` e override do compose ([EMAILS_AUTH.md](../EMAILS_AUTH.md)).
 - [ ] **Configuração do cliente**: nome definitivo do produto e preencher `/admin/configuracao-cliente` em produção
   ([CONFIGURACAO_CLIENTE.md](../CONFIGURACAO_CLIENTE.md)).
-- [ ] **Permissões a conceder**: `orcamento.importar` (QDD do FIPLAN) e `gabinete.portarias.importar` (planilha de
+- [ ] **Permissões a conceder**: `orcamento.importar` (QDD e tabelas do FIPLAN) e `gabinete.portarias.importar` (planilha de
   portarias) a quem vai importar; importar a planilha de cargos e vagas em `/cargos/vagas`.
 - [ ] **Decisões** D1 a D5 (abaixo).
 
@@ -96,6 +96,10 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 
 ## Backlog fora do plano
 
+- [ ] **Financeiro — planilhas do FIPLAN** (fora do plano, etapa 1 em PR rascunho): tabelas de classificação
+  (função, programa, elemento, subelemento, fonte, finalidade) importadas das consultas do FIPLAN e nomes corrigidos
+  nos cadastros ([spec](../superpowers/specs/2026-10-19-classificadores-fiplan-design.md)). Próximas etapas: credores
+  com o código do FIPLAN em `fornecedores`, NPD (programação financeira mensal), UO/UG na configuração do cliente.
 - [ ] **Design System** (transversal): fases 0 a 2 feitas; fase 3 (RH como piloto) e fase 4 (um módulo por PR, começou
   pelo Patrimônio) em andamento — [spec](../superpowers/specs/2026-10-09-design-system-design.md),
   [plano](../superpowers/plans/2026-10-09-design-system.md).
