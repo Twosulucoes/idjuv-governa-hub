@@ -49,6 +49,8 @@ do código. Mudou algo que muda a contagem? Rode `npm run estado` e commite o ar
 estado do sistema. Fato datado de uma entrega pode ficar, marcado com `<!-- numero-datado -->` na linha ou
 entre `<!-- numero-datado:inicio -->` e `<!-- numero-datado:fim -->`.
 Desde o P03 (tipos do banco gerados das migrações) a baseline do typecheck é 4.
+A baseline `jspdfForaDoCore` cai a cada onda da padronização de PDFs (`docs/PADRAO_DOCUMENTOS.md`): o gerador migrado
+para `src/lib/documentos/` deixa de importar `jspdf`, e a baseline é baixada na mesma PR.
 
 Migração nova exige o `src/integrations/supabase/types.ts` regenerado no mesmo PR:
 `bash scripts/db/gerar-tipos.sh` (Postgres local, ver `docs/BANCO_DE_DADOS.md`). O CI **Tipos do banco**

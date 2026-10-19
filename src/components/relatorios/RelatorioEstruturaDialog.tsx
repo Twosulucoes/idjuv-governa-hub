@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getTenantSnapshot } from "@/core/tenant";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -25,7 +26,7 @@ export function RelatorioEstruturaDialog({
   onOpenChange,
 }: RelatorioEstruturaDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [orgaoSigla, setOrgaoSigla] = useState("IDJuv");
+  const [orgaoSigla, setOrgaoSigla] = useState(() => getTenantSnapshot().identidade.sigla);
 
   // Buscar unidades da estrutura organizacional
   const { data: unidades = [], isLoading } = useQuery({
@@ -70,12 +71,9 @@ export function RelatorioEstruturaDialog({
 
     setLoading(true);
     try {
-      const doc = await generateRelatorioEstruturaPDF(unidades, {
+      await generateRelatorioEstruturaPDF(unidades, {
         orgaoSigla,
       });
-
-      const fileName = `relatorio-estrutura-organizacional-${new Date().toISOString().split("T")[0]}.pdf`;
-      doc.save(fileName);
 
       toast.success("Relatório gerado com sucesso!");
       onOpenChange(false);
@@ -107,7 +105,7 @@ export function RelatorioEstruturaDialog({
               id="orgao-sigla"
               value={orgaoSigla}
               onChange={(e) => setOrgaoSigla(e.target.value.toUpperCase())}
-              placeholder="Ex: IDJUV"
+              placeholder="Ex.: sigla do órgão"
             />
             <p className="text-xs text-muted-foreground">
               Esta sigla será exibida na primeira coluna do relatório
