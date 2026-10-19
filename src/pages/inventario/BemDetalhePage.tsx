@@ -11,7 +11,7 @@ import {
   Package, ArrowLeft, Edit, MapPin, User, Calendar, 
   Hash, Tag, Wrench, FileText, Clock, Building2, 
   DollarSign, QrCode, Shield, Truck,
-  Info, History, Image as ImageIcon, Printer
+  Info, History, Image as ImageIcon, Printer, AlertTriangle, ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
 import type { LucideIcon } from "lucide-react";
@@ -21,7 +21,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, KpiCard, PageHeader, StatusBadge, type TomStatus } from "@/components/design-system";
-import { useBemPatrimonial, useHistoricoPatrimonio } from "@/hooks/usePatrimonio";
+import {
+  useBemPatrimonial, useHistoricoPatrimonio, useManutencoesPatrimonio, useOcorrenciasPatrimonio,
+} from "@/hooks/usePatrimonio";
 import { motion } from "framer-motion";
 import { gerarQrDataUrl, imprimirEtiquetas } from "@/lib/etiquetasPatrimonio";
 
@@ -244,6 +246,100 @@ function TimelineEvent({ evento, isLast }: { evento: any; isLast: boolean }) {
   );
 }
 
+const STATUS_MANUTENCAO: Record<string, { label: string; tom: TomStatus }> = {
+  aberta: { label: "Aberta", tom: "pendente" },
+  em_andamento: { label: "Em andamento", tom: "andamento" },
+  concluida: { label: "Concluída", tom: "sucesso" },
+  cancelada: { label: "Cancelada", tom: "neutro" },
+};
+
+const TIPOS_MANUTENCAO: Record<string, string> = {
+  preventiva: "Preventiva",
+  corretiva: "Corretiva",
+};
+
+const TIPOS_OCORRENCIA: Record<string, string> = {
+  dano: "Dano",
+  extravio: "Extravio",
+  sinistro: "Sinistro",
+};
+
+function ListaCarregando() {
+  return (
+    <div className="space-y-3" aria-busy="true">
+      {[...Array(3)].map((_, i) => (
+        <Skeleton key={i} className="h-14" />
+      ))}
+    </div>
+  );
+}
+
+/** Manutenções do bem; cada linha abre o detalhe da manutenção. */
+function ManutencoesDoBem({ bemId }: { bemId: string }) {
+  const { data: manutencoes, isLoading } = useManutencoesPatrimonio(bemId);
+
+  if (isLoading) return <ListaCarregando />;
+  if (!manutencoes || manutencoes.length === 0) {
+    return <EmptyState icone={Wrench} titulo="Nenhuma manutenção registrada para este bem." className="py-8" />;
+  }
+
+  return (
+    <ul className="divide-y divide-border">
+      {manutencoes.map((man) => {
+        const status = STATUS_MANUTENCAO[man.status ?? ""];
+        return (
+          <li key={man.id}>
+            <Link
+              to={`/inventario/manutencoes/${man.id}`}
+              className="flex items-center gap-3 py-3 px-2 -mx-2 rounded-md hover:bg-muted/50 transition-colors"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate">{man.descricao_problema}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {formatDate(man.data_abertura)} · {TIPOS_MANUTENCAO[man.tipo] ?? rotuloLivre(man.tipo)}
+                </p>
+              </div>
+              <StatusBadge tom={status?.tom ?? "neutro"}>{status?.label ?? rotuloLivre(man.status || "aberta")}</StatusBadge>
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Ocorrências (dano, extravio, sinistro) relatadas para o bem. */
+function OcorrenciasDoBem({ bemId }: { bemId: string }) {
+  const { data: ocorrencias, isLoading } = useOcorrenciasPatrimonio(bemId);
+
+  if (isLoading) return <ListaCarregando />;
+  if (!ocorrencias || ocorrencias.length === 0) {
+    return <EmptyState icone={AlertTriangle} titulo="Nenhuma ocorrência registrada para este bem." className="py-8" />;
+  }
+
+  return (
+    <ul className="divide-y divide-border">
+      {ocorrencias.map((oc) => (
+        <li key={oc.id} className="flex items-start gap-3 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium whitespace-pre-wrap">{oc.relato_detalhado}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {formatDate(oc.data_fato)} · {TIPOS_OCORRENCIA[oc.tipo] ?? rotuloLivre(oc.tipo)}
+            </p>
+            {oc.providencias_adotadas && (
+              <p className="text-xs text-muted-foreground mt-1">Providências: {oc.providencias_adotadas}</p>
+            )}
+          </div>
+          <StatusBadge tom={oc.encaminhamento ? "andamento" : "pendente"}>
+            {oc.encaminhamento ? rotuloLivre(oc.encaminhamento) : "Sem encaminhamento"}
+          </StatusBadge>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function BemDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const { data: bem, isLoading, error } = useBemPatrimonial(id || "");
@@ -362,7 +458,7 @@ export default function BemDetalhePage() {
         {/* Tabs */}
         <section aria-label="Dados do bem">
           <Tabs defaultValue="geral" className="space-y-5">
-            <TabsList className="bg-muted/50 p-1">
+            <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
               <TabsTrigger value="geral" className="text-xs sm:text-sm gap-1.5">
                 <Info className="h-3.5 w-3.5" aria-hidden="true" />
                 Geral
@@ -374,6 +470,14 @@ export default function BemDetalhePage() {
               <TabsTrigger value="historico" className="text-xs sm:text-sm gap-1.5">
                 <History className="h-3.5 w-3.5" aria-hidden="true" />
                 Histórico
+              </TabsTrigger>
+              <TabsTrigger value="manutencoes" className="text-xs sm:text-sm gap-1.5">
+                <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
+                Manutenções
+              </TabsTrigger>
+              <TabsTrigger value="ocorrencias" className="text-xs sm:text-sm gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                Ocorrências
               </TabsTrigger>
               <TabsTrigger value="documentos" className="text-xs sm:text-sm gap-1.5">
                 <FileText className="h-3.5 w-3.5" aria-hidden="true" />
@@ -564,6 +668,32 @@ export default function BemDetalhePage() {
                   ) : (
                     <EmptyState icone={History} titulo="Nenhum evento registrado para este bem." className="py-8" />
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab: Manutenções */}
+            <TabsContent value="manutencoes" className="mt-0">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold">Manutenções</CardTitle>
+                  <CardDescription>Manutenções preventivas e corretivas do bem</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ManutencoesDoBem bemId={bem.id} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab: Ocorrências */}
+            <TabsContent value="ocorrencias" className="mt-0">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold">Ocorrências</CardTitle>
+                  <CardDescription>Danos, extravios e sinistros relatados</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <OcorrenciasDoBem bemId={bem.id} />
                 </CardContent>
               </Card>
             </TabsContent>
