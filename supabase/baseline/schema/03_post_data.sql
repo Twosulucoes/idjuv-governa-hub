@@ -1358,6 +1358,22 @@ ALTER TABLE ONLY public.fin_checklist_ci
 
 
 --
+-- Name: fin_classificadores_fiplan fin_classificadores_fiplan_chave; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_classificadores_fiplan
+    ADD CONSTRAINT fin_classificadores_fiplan_chave UNIQUE (tipo, exercicio, codigo);
+
+
+--
+-- Name: fin_classificadores_fiplan fin_classificadores_fiplan_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_classificadores_fiplan
+    ADD CONSTRAINT fin_classificadores_fiplan_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_contas_bancarias fin_contas_bancarias_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5209,6 +5225,13 @@ CREATE INDEX idx_fin_audit_tabela ON public.fin_audit_log USING btree (tabela_or
 --
 
 CREATE INDEX idx_fin_checklist_ci_solicitacao_id ON public.fin_checklist_ci USING btree (solicitacao_id);
+
+
+--
+-- Name: idx_fin_classificadores_fiplan_importacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_classificadores_fiplan_importacao ON public.fin_classificadores_fiplan USING btree (importacao_id);
 
 
 --
@@ -14681,6 +14704,14 @@ ALTER TABLE ONLY public.fin_checklist_ci
 
 
 --
+-- Name: fin_classificadores_fiplan fin_classificadores_fiplan_importacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_classificadores_fiplan
+    ADD CONSTRAINT fin_classificadores_fiplan_importacao_id_fkey FOREIGN KEY (importacao_id) REFERENCES public.importacoes(id) ON DELETE SET NULL;
+
+
+--
 -- Name: fin_contas_bancarias fin_contas_bancarias_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -18440,6 +18471,19 @@ ALTER TABLE public.fin_audit_log ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.fin_checklist_ci ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_classificadores_fiplan; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_classificadores_fiplan ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_classificadores_fiplan fin_classificadores_fiplan_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY fin_classificadores_fiplan_select ON public.fin_classificadores_fiplan FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ( SELECT public.can_access_module(auth.uid(), 'financeiro'::text) AS can_access_module)));
+
 
 --
 -- Name: fin_contas_bancarias; Type: ROW SECURITY; Schema: public; Owner: -

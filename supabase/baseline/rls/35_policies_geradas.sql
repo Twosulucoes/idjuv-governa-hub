@@ -1703,6 +1703,9 @@ DROP POLICY IF EXISTS "rls_delete" ON public.fin_checklist_ci;
 CREATE POLICY "rls_delete" ON public.fin_checklist_ci FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
 
+-- fin_classificadores_fiplan  [preservar: financeiro]
+-- (nenhuma policy gerada)
+
 -- fin_contas_bancarias  [modulo: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_contas_bancarias;
 CREATE POLICY "rls_select" ON public.fin_contas_bancarias FOR SELECT TO authenticated
