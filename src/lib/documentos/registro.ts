@@ -19,6 +19,7 @@ import { relatorioContatosEstrategicos } from './modelos/rh/contatosEstrategicos
 import { relatorioSegundoVinculo } from './modelos/rh/segundoVinculo';
 import { relatorioDiretoriaHierarquia } from './modelos/rh/diretoriaHierarquia';
 import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
+import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -57,6 +58,8 @@ export const REGISTRO = {
   'rh-situacao-portaria': relatorioSituacaoPortaria,
   'rh-agrupado-portaria': relatorioAgrupadoPortaria,
   'rh-contatos-estrategicos': relatorioContatosEstrategicos,
+  // Currículo — pré-cadastro do candidato (também no site institucional, em /curriculo)
+  'curriculo-mini-curriculo': fichaMiniCurriculo,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
