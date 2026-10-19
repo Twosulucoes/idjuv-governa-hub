@@ -256,6 +256,9 @@ import {
   ManutencoesBensPage,
   BaixasPatrimonioPage,
   PlaceholderDetalhePage,
+  MovimentacaoDetalhePage,
+  ManutencaoDetalhePage,
+  BaixaDetalhePage,
   RelatoriosPatrimonioPage,
   CadastroBemSimplificadoPage,
 } from "./pages/inventario";
@@ -1094,12 +1097,12 @@ const App = () => (
               } />
               <Route path="/inventario/movimentacoes/:id" element={
                 <ProtectedRoute requiredPermissions="patrimonio.tramitar">
-                  <PlaceholderDetalhePage />
+                  <MovimentacaoDetalhePage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/manutencoes/:id" element={
                 <ProtectedRoute requiredPermissions="patrimonio.visualizar">
-                  <PlaceholderDetalhePage />
+                  <ManutencaoDetalhePage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/requisicoes/:id" element={
@@ -1119,7 +1122,7 @@ const App = () => (
               } />
               <Route path="/inventario/baixas/:id" element={
                 <ProtectedRoute requiredPermissions="patrimonio.criar">
-                  <PlaceholderDetalhePage />
+                  <BaixaDetalhePage />
                 </ProtectedRoute>
               } />
               

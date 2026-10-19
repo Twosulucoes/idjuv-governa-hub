@@ -176,6 +176,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - A RPC `importar_portarias_planilha` e a permissão `gabinete.portarias.importar` (migração `20261015120000`) entraram no
   schema do baseline só com os dois trechos do dump (função e linha do catálogo), sem regenerar o resto; testes no bloco
   "Gabinete: importação de portarias" de `scripts/db/testar-rls.sql`.
+- A tabela `fin_classificadores_fiplan` e a RPC `importar_classificadores_fiplan` (migração `20261019100000`) entraram
+  no schema do baseline com os trechos do dump (tabela, função, constraints, índice e policy) e o rótulo novo de
+  `orcamento.importar` no catálogo; classe `preservar` no mapa, privilégio de escrita retirado no overlay 40; testes no
+  bloco "Financeiro: tabelas do FIPLAN" de `scripts/db/testar-rls.sql`.
 - A trilha `audit_log_licitacoes` segue o sigilo do processo do workflow (classe `trilha` com `extra=sigilo_workflow`
   no mapa, migração `20261015100000`; [detalhe](../supabase/baseline/README.md)).
 - `fotos_vistoria_inventario` é da classe `preservar` do mapa de RLS: as policies vêm da migração

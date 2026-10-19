@@ -219,7 +219,7 @@ export function useEmpenhos(filtros?: { status?: string; exercicio?: number }) {
         .select(`
           *,
           dotacao:fin_dotacoes(id, codigo_dotacao, saldo_disponivel),
-          fornecedor:fornecedores(id, razao_social, cnpj_cpf),
+          fornecedor:fornecedores(id, razao_social, cpf_cnpj),
           natureza_despesa:fin_naturezas_despesa(id, codigo, nome),
           fonte_recurso:fin_fontes_recurso(id, codigo, nome)
         `)

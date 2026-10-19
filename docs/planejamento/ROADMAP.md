@@ -34,7 +34,7 @@ do merge; "—" quando não registrada aqui.
 | P11 | 4. Segurança e limpeza | Banco: auditoria de licitações com o papel certo, `search_path` fixo, índices nas FKs de dados, fim do Realtime ([BANCO_DE_DADOS.md](../BANCO_DE_DADOS.md#limpeza-e-desempenho-p11-16102026)) | feito | #118 | 16/10/2026 |
 | P12 | 4. Segurança e limpeza | Auditoria de segurança sem achado crítico ou alto: limite por IP nos formulários públicos, CORS em falha fechada, cabeçalhos de segurança versionados, `xlsx` do CDN da SheetJS ([AUDITORIA_USUARIOS.md](../AUDITORIA_USUARIOS.md#auditoria-de-segurança-p12-17102026)) | feito | #119 | 17/10/2026 |
 | P13 | 4. Documentação com fonte única | `docs/ESTADO_DO_SISTEMA.md` gerado do código (`npm run estado`, guard no gate); guard de número escrito à mão (`npm run check:numeros`); docs obsoletos e `supabase/disaster-recovery/` em `docs/historico/`; tela de Disaster Recovery só informativa; tabelas `backup_*` apagadas ([BANCO_DE_DADOS.md](../BANCO_DE_DADOS.md#limpeza-do-p13-18102026)); este ROADMAP refeito | em andamento | este PR | 18/10/2026 |
-| P14 | 5. Módulos | Patrimônio: telas reais no lugar dos placeholders, relatórios "Em breve", próximas ondas da auditoria | a fazer | | |
+| P14 | 5. Módulos | Patrimônio: telas reais no lugar dos placeholders, relatórios "Em breve", próximas ondas da auditoria (dividido em 11 entregas; entrega 1 feita: detalhe de movimentação, manutenção e baixa) | em andamento | | |
 | P15 | 5. Módulos | Financeiro: detalhe de solicitação e empenho, regra de estorno, leitor OBN600 conferido, homologação da `bb-api` | a fazer | | |
 | P16 | 5. Módulos | Transparência: página LAI sem "em implementação", execução orçamentária completa | a fazer | | |
 | P17 | 5. Módulos | Workflow (SEI): unidades da Lei 2.301/2025 e etapas "(proposta)" confirmadas | a fazer | | |
@@ -79,7 +79,7 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 - [ ] **E-mails do Auth na VPS**: bucket `emails` e override do compose ([EMAILS_AUTH.md](../EMAILS_AUTH.md)).
 - [ ] **Configuração do cliente**: nome definitivo do produto e preencher `/admin/configuracao-cliente` em produção
   ([CONFIGURACAO_CLIENTE.md](../CONFIGURACAO_CLIENTE.md)).
-- [ ] **Permissões a conceder**: `orcamento.importar` (QDD do FIPLAN) e `gabinete.portarias.importar` (planilha de
+- [ ] **Permissões a conceder**: `orcamento.importar` (QDD e tabelas do FIPLAN) e `gabinete.portarias.importar` (planilha de
   portarias) a quem vai importar; importar a planilha de cargos e vagas em `/cargos/vagas`.
 - [ ] **Decisões** D1 a D5 (abaixo).
 
@@ -96,6 +96,10 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 
 ## Backlog fora do plano
 
+- [ ] **Financeiro — planilhas do FIPLAN** (fora do plano, etapa 1 em PR rascunho): tabelas de classificação
+  (função, programa, elemento, subelemento, fonte, finalidade) importadas das consultas do FIPLAN e nomes corrigidos
+  nos cadastros ([spec](../superpowers/specs/2026-10-19-classificadores-fiplan-design.md)). Próximas etapas: credores
+  com o código do FIPLAN em `fornecedores`, NPD (programação financeira mensal), UO/UG na configuração do cliente.
 - [ ] **Design System** (transversal): fases 0 a 2 feitas; fase 3 (RH como piloto) e fase 4 (um módulo por PR, começou
   pelo Patrimônio) em andamento — [spec](../superpowers/specs/2026-10-09-design-system-design.md),
   [plano](../superpowers/plans/2026-10-09-design-system.md).

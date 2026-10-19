@@ -184,6 +184,8 @@ GRANT SELECT, INSERT, DELETE ON public.avisos_leituras TO authenticated;
 REVOKE ALL ON public.envios_log FROM anon, authenticated;
 GRANT SELECT ON public.envios_log TO authenticated;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.importacoes FROM authenticated;
+-- tabelas do FIPLAN (migração 20261019100000): só leitura pela API; escrita pela RPC importar_classificadores_fiplan
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_classificadores_fiplan FROM authenticated;
 -- financeiro: arquivos bancários, reenvio e extrato do BB (migrações 20261011100000 a 20261011100300). As tabelas só
 -- são lidas pela API (escrita pelas RPCs com pagamento.conciliar ou pela service role na Edge Function bb-api);
 -- funções de apoio e de trigger fora da API; registrar_extrato_bb só para a service role.

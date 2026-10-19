@@ -103,6 +103,10 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
 - Inventário de campo: `/inventario/campanhas/:id/painel` (painel com mapa,
   `ProtectedRoute requiredPermissions="patrimonio.visualizar"`), com link na
   página de detalhe da campanha.
+- Detalhes do patrimônio: `/inventario/movimentacoes/:id`, `/inventario/manutencoes/:id` e
+  `/inventario/baixas/:id` (`MovimentacaoDetalhePage`, `ManutencaoDetalhePage`, `BaixaDetalhePage`), abertas
+  pelo "olho" das listas, com as mesmas ações de aprovar/rejeitar/concluir (`patrimonio.tramitar`). As outras
+  rotas de detalhe/edição do inventário ainda usam `PlaceholderDetalhePage`.
 
 ## Autenticação
 

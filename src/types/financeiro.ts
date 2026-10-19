@@ -354,7 +354,7 @@ export interface Empenho {
   created_by?: string | null;
   // Joins
   dotacao?: Dotacao;
-  fornecedor?: { id: string; razao_social: string; cnpj_cpf: string };
+  fornecedor?: { id: string; razao_social: string; cpf_cnpj: string };
   contrato?: { id: string; numero: string };
   natureza_despesa?: NaturezaDespesa;
   fonte_recurso?: FonteRecurso;

@@ -16,5 +16,8 @@ export { default as RequisicoesMaterialPage } from './RequisicoesMaterialPage';
 export { default as ManutencoesBensPage } from './ManutencoesBensPage';
 export { default as BaixasPatrimonioPage } from './BaixasPatrimonioPage';
 export { default as PlaceholderDetalhePage } from './PlaceholderDetalhePage';
+export { default as MovimentacaoDetalhePage } from './MovimentacaoDetalhePage';
+export { default as ManutencaoDetalhePage } from './ManutencaoDetalhePage';
+export { default as BaixaDetalhePage } from './BaixaDetalhePage';
 export { default as RelatoriosPatrimonioPage } from './RelatoriosPatrimonioPage';
 export { default as CadastroBemSimplificadoPage } from '../patrimonio/CadastroBemSimplificadoPage';

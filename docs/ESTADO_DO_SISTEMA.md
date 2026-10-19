@@ -18,14 +18,14 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Páginas (`*Page.tsx` em `src/pages`) | 206 |
-| Componentes (`.tsx` em `src/components`) | 313 |
+| Páginas (`*Page.tsx` em `src/pages`) | 209 |
+| Componentes (`.tsx` em `src/components`) | 314 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 270 |
+| — fora de `ui/` | 271 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 100 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 28 |
-| Linhas de `src/App.tsx` | 1365 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 26953 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 29 |
+| Linhas de `src/App.tsx` | 1368 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27014 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -49,7 +49,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | `governanca/` | 7 |
 | `instituicoes/` | 1 |
 | `integridade/` | 2 |
-| `inventario/` | 14 |
+| `inventario/` | 17 |
 | `mobile/` | 2 |
 | `modulos/` | 12 |
 | `organograma/` | 2 |
@@ -67,16 +67,16 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 297 |
-| Migração mais recente | `20261018100000_remove_tabelas_backup_aposentado.sql` |
-| Tabelas do schema public (baseline) | 254 |
+| Migrações (`supabase/migrations/*.sql`) | 298 |
+| Migração mais recente | `20261019100000_fin_classificadores_fiplan.sql` |
+| Tabelas do schema public (baseline) | 255 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 302 |
+| Funções (baseline) | 303 |
 | — de gatilho (`RETURNS trigger`) | 118 |
-| — demais | 184 |
+| — demais | 185 |
 | Enums (baseline) | 109 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1881 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 254 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1882 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 255 |
 | Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 9 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.
