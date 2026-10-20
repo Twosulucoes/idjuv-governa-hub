@@ -32,6 +32,8 @@ import { relatorioFederacoes, relatorioFederacoesPaisagem } from './modelos/fede
 import { relatorioCargosVagas } from './modelos/cargos/cargosVagas';
 import { quadroCargos } from './modelos/cargos/quadroCargos';
 import { relatorioGovernanca } from './modelos/governanca/relatorioAnual';
+import { organogramaDesenho } from './modelos/organograma/desenho';
+import { organogramaLista } from './modelos/organograma/lista';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -97,6 +99,9 @@ export const REGISTRO = {
   'cargos-quadro-cargos': quadroCargos,
   // Governança — RelatorioGovernancaPage
   'governanca-relatorio-anual': relatorioGovernanca,
+  // Organograma — OrganogramaPage (lista hierárquica e desenho)
+  'organograma-lista': organogramaLista,
+  'organograma-desenho': organogramaDesenho,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
