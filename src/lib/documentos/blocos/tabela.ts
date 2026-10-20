@@ -9,13 +9,21 @@ export interface ColunaTabela {
   /** Largura relativa (padrão 1). */
   peso?: number;
   alinhamento?: 'esquerda' | 'centro' | 'direita';
+  /** Célula vazia fica em branco em vez de "—" (coluna para preencher à mão, como assinatura). */
+  emBranco?: boolean;
 }
 export type Celula = string | number | null | undefined;
 
 const PAD = 1.5;
 
 export const tabela =
-  (p: { colunas: ColunaTabela[]; linhas: Record<string, Celula>[]; totais?: Record<string, Celula> }): Bloco =>
+  (p: {
+    colunas: ColunaTabela[];
+    linhas: Record<string, Celula>[];
+    totais?: Record<string, Celula>;
+    /** Altura mínima (mm) de cada linha de dados — ex.: espaço para assinar à mão. Não vale para cabeçalho e totais. */
+    alturaMinimaLinha?: number;
+  }): Bloco =>
   (ctx) => {
     const { doc } = ctx;
     const lh = alturaLinha(ctx.fonte.tabela);
@@ -25,10 +33,13 @@ export const tabela =
     const quebrar = (valor: Celula, i: number, negrito: boolean, vazioComoTraco: boolean): string[] => {
       doc.setFont('helvetica', negrito ? 'bold' : 'normal');
       doc.setFontSize(ctx.fonte.tabela);
-      const texto = vazioComoTraco ? ouTraco(valor) : paraWinAnsi(valor);
+      const texto = vazioComoTraco && !p.colunas[i].emBranco ? ouTraco(valor) : paraWinAnsi(valor);
       return quebrarEmLinhas(doc, texto, larguras[i] - 2 * PAD);
     };
     const alturaDe = (celulas: string[][]): number => Math.max(...celulas.map((c) => c.length)) * lh + 2 * PAD;
+    /** Altura de uma linha de dados (respeita `alturaMinimaLinha`); totais em negrito ficam com a altura do texto. */
+    const alturaDaLinha = (celulas: string[][], negrito: boolean): number =>
+      negrito ? alturaDe(celulas) : Math.max(alturaDe(celulas), p.alturaMinimaLinha ?? 0);
     const xDe = (i: number): number => ctx.esquerda + larguras.slice(0, i).reduce((s, w) => s + w, 0);
     const escrever = (celulas: string[][], negrito: boolean): void => {
       doc.setFont('helvetica', negrito ? 'bold' : 'normal');
@@ -58,7 +69,7 @@ export const tabela =
     const linhasDe = (celulas: string[][]): number => Math.max(...celulas.map((c) => c.length));
     /** Altura que o cabeçalho precisa deixar livre para a 1ª linha (uma linha alta demais é fatiada: bastam 3 linhas). */
     const reservaPara = (celulas: string[][]): number =>
-      linhasDe(celulas) > capacidade ? 3 * lh + 2 * PAD : alturaDe(celulas);
+      linhasDe(celulas) > capacidade ? 3 * lh + 2 * PAD : alturaDaLinha(celulas, false);
 
     const cabecalho = (reserva: number = lh + 2 * PAD): void => {
       const celulas = p.colunas.map((c, i) => quebrar(c.titulo, i, true, true));
@@ -72,7 +83,7 @@ export const tabela =
     };
 
     const desenhar = (celulas: string[][], indice: number, negrito: boolean): void => {
-      const h = alturaDe(celulas);
+      const h = alturaDaLinha(celulas, negrito);
       if (ctx.estilo.zebra && indice % 2 === 1 && !negrito) {
         usarPreenchimento(doc, NEUTROS.zebra);
         // começa 0,1 mm abaixo para não cobrir a régua da linha anterior
@@ -86,7 +97,7 @@ export const tabela =
     const linha = (valores: Record<string, Celula>, indice: number, negrito = false, vazioComoTraco = true): void => {
       let celulas = celulasDe(valores, negrito, vazioComoTraco);
       if (linhasDe(celulas) <= capacidade) {
-        if (ctx.y + alturaDe(celulas) > ctx.limiteInferior) {
+        if (ctx.y + alturaDaLinha(celulas, negrito) > ctx.limiteInferior) {
           ctx.novaPagina();
           cabecalho();
         }
