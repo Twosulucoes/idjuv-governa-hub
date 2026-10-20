@@ -29,6 +29,15 @@
 > `pdfModelos` pedia, sem nunca imprimir o valor) saíram da ficha. Plano:
 > [`superpowers/plans/2026-10-19-padrao-relatorios-onda2.md`](./superpowers/plans/2026-10-19-padrao-relatorios-onda2.md).
 
+> **Onda 3 (20/10/2026, comprovantes):** contracheque individual e em lote (`folha-contracheque`), folha de frequência
+> individual e em lote por unidade (`rh-folha-frequencia`, um servidor por página com o bloco `quebraPagina`, os 31
+> dias numa página) e os PDFs da reunião (`reunioes-lista-convocados`, `reunioes-lista-presenca`,
+> `reunioes-relatorio`). O bloco `tabela` ganhou opções: `formulario` (letra menor, uma linha por registro, grade e
+> célula vazia em branco, para folha de ponto), `alturaMinimaLinha` (espaço para assinar à mão), `vazioEmBranco` e
+> `emBranco` por coluna. Cidade fixa no código e "GOVERNO DO ESTADO" escrito à mão saíram (vêm do tenant). No lote do
+> contracheque o PIS continua fora. Plano:
+> [`superpowers/plans/2026-10-20-padrao-relatorios-onda3.md`](./superpowers/plans/2026-10-20-padrao-relatorios-onda3.md).
+
 ## 1. Famílias
 
 Todo documento pertence a uma família; cada família tem um layout-base.
@@ -65,13 +74,13 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | blocoResponsavel.ts (removido na onda 2) | 79 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
 | unidades/index.ts (removido na onda 2) | 13 | — | 0 | 0 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
 | `src/lib/pdfCPSI.ts` | 359 | `generateDFD`, `generateETP`, `generateTR` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
-| `src/lib/pdfContracheque.ts` | 447 | `generateContracheque`, `generateContrachequeEmLote` | 4 | 0 | Comprovante | F5 |
+| `src/lib/pdfContracheque.ts` | 33 | `generateContracheque`, `generateContrachequeEmLote` | 4 | 0 | Comprovante | migrado na onda 3: `folha-contracheque` |
 | `src/lib/pdfDeclaracoes.ts` | 219 | `gerarDeclaracaoNaoAcumulacao`, `gerarDeclaracaoBensValores` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI (decisão pendente do dono) |
 | `src/lib/pdfFederacoesModular.ts` | 747 | `isMandatoExpirado`, `gerarFichaFederacaoPDF`, `gerarRelatorioListagemPDF` | 0 | 0 | Ficha + Relatório (dividir) | removido no P10 (código morto) |
 | `src/lib/pdfFichaCadastroGeral.ts` | 380 | `listarCamposPdf`, `gerarFichaCadastroGeral`, `downloadFichaCadastroGeral` | 1 | 0 | Ficha | fica como está: preenche o formulário oficial do governo (pdf-lib) |
 | `src/lib/pdfFichaUnidadeLocal.ts` | 117 | — | 1 | 0 | Ficha | migrado na onda 2: `unidades-ficha-unidade-local` |
-| `src/lib/pdfFrequenciaLote.ts` | 354 | `generateFrequenciaLotePDFInternal`, `generateFrequenciaLotePDF`, `generateFrequenciaLoteBlob` | 1 | 0 | Comprovante | F5 |
-| `src/lib/pdfFrequenciaMensalGenerator.ts` | 921 | `MESES`, `INSTITUICAO`, `BLOCO_ALTURAS`, `LOGO_PROPORCOES`, `LINHAS_TABELA`, `CORES`, `gerarRegistrosDiariosBranco`, `calcularResumoMensal`, `renderizarPaginaFrequencia`, `generateFrequenciaMensalPDF`, `generateFrequenciaMensalBlob` | 2 | 1 | Comprovante | F5 |
+| `src/lib/pdfFrequenciaLote.ts` | 141 | `generateFrequenciaLotePDFInternal`, `generateFrequenciaLotePDF`, `generateFrequenciaLoteBlob` | 1 | 0 | Comprovante | migrado na onda 3: `rh-folha-frequencia` |
+| `src/lib/pdfFrequenciaMensalGenerator.ts` | 234 | `gerarRegistrosDiariosBranco`, `calcularResumoMensal`, `paraFolhaFrequencia`, `localDaSede`, `generateFrequenciaMensalPDF`, `generateFrequenciaMensalBlob` | 2 | 1 | Comprovante | migrado na onda 3: `rh-folha-frequencia` |
 | `src/lib/pdfGenerator.ts` | 2289 | `generateTermoDemanda`, `generateOrdemMissao`, `generateRelatorioViagem`, `generateRequisicaoMaterial`, `generateTermoResponsabilidade`, `generateDocumentNumber`, `generateRelatorioCargos`, `generateRelatorioGovernancaPDF`, `generateFichaCadastral`, `generateDeclaracaoAcumulacao`, `generateDeclaracaoBens`, `generateDeclaracaoResidencia`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoBensModelo` | 14 | 1 | Misto (dividir por documento) | SEI (atos; decisão pendente p/ declarações, requisição de material, relatório de viagem, termo de responsabilidade) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`) |
 | `src/lib/pdfInstitucional.ts` | 656 | `CORES_INSTITUCIONAIS`, `MARGENS`, `TIPOGRAFIA`, `carregarLogos`, `getDimensoesPagina`, `gerarCabecalhoInstitucional`, `gerarRodapeInstitucional`, `adicionarSecao`, `adicionarTituloSecao`, `adicionarCampo`, `adicionarCampoInline`, `verificarQuebraPagina`, `criarDocumentoInstitucional`, `finalizarDocumentoInstitucional` | 0 | 4 | Base (a eliminar) | F5 |
 | `src/lib/pdfListagemUnidades.ts` | 188 | — | 1 | 0 | Relatório | F4 |
@@ -92,7 +101,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfRelatorioFrequencia.ts` | 386 | `generateRelatorioFrequenciaGeral`, `generateRelatorioFrequenciaIndividual` | 2 | 1 | Relatório | migrado na onda 1: `rh-frequencia-geral`, `rh-frequencia-individual` |
 | `src/lib/pdfRelatorioPendencias.ts` | 320 | `gerarPdfRelatorioPendencias` | 2 | 0 | Relatório | migrado na onda 1: `rh-pendencias-pre-cadastros` |
 | `src/lib/pdfRelatorioPendenciasServidores.ts` | 348 | `gerarPdfRelatorioPendenciasServidores` | 1 | 0 | Relatório | migrado na onda 1: `rh-pendencias-servidores` |
-| `src/lib/pdfRelatorioReunioes.ts` | 427 | `gerarPdfListaConvocados`, `gerarPdfListaPresenca`, `gerarPdfRelatorioReuniao` | 1 | 0 | Comprovante (lista de presença/convocados) + Relatório (ata) | F4/F5 |
+| `src/lib/pdfRelatorioReunioes.ts` | 29 | `gerarPdfListaConvocados`, `gerarPdfListaPresenca`, `gerarPdfRelatorioReuniao` | 1 | 0 | Comprovante (lista de presença/convocados) + Relatório (ata) | migrado na onda 3: `reunioes-lista-convocados`, `reunioes-lista-presenca`, `reunioes-relatorio` |
 | `src/lib/pdfRelatorioSegundoVinculo.ts` | 224 | `gerarRelatorioSegundoVinculo` | 1 | 0 | Relatório | migrado na onda 1: `rh-segundo-vinculo` |
 | `src/lib/pdfRelatorioServidoresDiretoria.ts` | 362 | `gerarRelatorioServidoresDiretoria` | 1 | 0 | Relatório | migrado na onda 1: `rh-diretoria-hierarquia` |
 | `src/lib/pdfRelatorioSituacaoPortaria.ts` | 297 | `generateRelatorioSituacaoPortaria` | 1 | 0 | Relatório | migrado na onda 1: `rh-situacao-portaria` |
@@ -117,7 +126,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
   declarações e termos, mais relação de documentos. Candidato a virar o mesmo modelo com `dados` opcionais.
 - `pdfCPSI.ts`: DFD, ETP e TR (documentos de contratação) — atos, feitos no SEI; destino: remover / substituir por registro do SEI.
 - `pdfFederacoesModular.ts` (747 linhas, **0 telas**): ficha de federação (Ficha) e listagem (Relatório); `isMandatoExpirado` é regra de negócio, não de PDF.
-- `pdfRelatorioReunioes.ts`: lista de convocados e de presença (Comprovante) e relatório da reunião (Relatório).
+- `pdfRelatorioReunioes.ts`: lista de convocados e de presença (Comprovante) e relatório da reunião (Relatório); migrados na onda 3.
 - `pdfRelatoriosAfastamentos.ts`: exportava helpers de tabela (`addCabecalhoTabela`, `quebrarComCabecalho`…) além dos relatórios; na onda 1 os helpers foram apagados e o bloco `tabela` os substituiu.
 - `pdfInstitucional.ts` e `pdfTemplate.ts`: bases concorrentes (34 libs importam `pdfTemplate`, 4 `pdfInstitucional`, 5 `pdfLogos`); saem na F5.
 
@@ -164,7 +173,7 @@ não desenhe direto no `doc` dentro de um modelo.
 src/lib/documentos/
   tipos.ts            Familia, MarcaImpressao, EstiloImpressao, ContextoDocumento, Bloco, DocumentoModelo
   core/               tokens, texto, pintura, familias, pagina (único `new jsPDF`), moldura, renderizar
-  blocos/             titulo, secao, paragrafo, localData, camposChaveValor, tabela, assinaturas, carimbo
+  blocos/             titulo, secao, paragrafo, localData, camposChaveValor, tabela, assinaturas, carimbo, quebraPagina
   modelos/            um arquivo declarativo por documento (hoje só `amostras.ts`, da pré-visualização da configuração)
   registro.ts         REGISTRO: única lista de documentos do sistema
   marca.ts            marcaDoTenant e estiloDoTenant (puros) · logos.ts: carregarLogo (navegador)
@@ -199,6 +208,9 @@ exige tabela/RPC com RLS (decisão e spec próprias; fora de escopo desta fase).
   milímetros, vão sozinhos para a página seguinte. Deixou de ser obrigatória (era da F2, cancelada); vale criar
   "manter junto" se uma ficha ou relatório vier a usar assinatura. Hoje `assinaturas` é usado pela
   frequência individual (`rh-frequencia-individual`); `carimbo` é usado pelo comprovante de referência.
+- **Lote com uma parte por página:** o bloco `quebraPagina()` começa a próxima parte (um servidor, uma lista)
+  em página nova; use entre as partes, não antes da primeira. Se a página atual (2ª em diante) ainda está vazia,
+  não faz nada, para não gerar página em branco. Criado na onda 3 (comprovantes em lote).
 - Cabeçalho/rodapé: nome do órgão muito longo no cabeçalho compacto (páginas 2+) pode encostar no protocolo, e `emitidoPor` muito longo no rodapé pode encostar em "Página X de Y"; logo mais largo que 3,2:1 sai achatado (limite de 45 mm de largura com 14 mm de altura). Nenhum tenant atual passa desses limites.
 - `tabela` não valida `colunas` vazio nem `peso <= 0` (erro de programação, lança); rótulo de campo maior que a coluna é cortado na 1ª linha.
 - O logo entra no PDF em resolução total (peso do arquivo); reduzir no canvas é melhoria futura.

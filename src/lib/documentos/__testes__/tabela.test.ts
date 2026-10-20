@@ -53,9 +53,38 @@ describe('tabela', () => {
     expect(p1.itens.filter((i) => i.str === '—')).toHaveLength(0);
   });
 
+  it('formulário: linhas mais baixas, uma linha por registro (corta com "…") e vazio em branco', async () => {
+    const linhas = Array.from({ length: 31 }, (_, i) => ({ nome: i === 0 ? 'Nome muito comprido '.repeat(10) : `Dia ${i + 1}`, matricula: '', valor: '—' }));
+    const [normal] = await lerPdf(gerar([tabela({ colunas, linhas })]));
+    const [form] = await lerPdf(gerar([tabela({ colunas, linhas, formulario: true })]));
+    const y = (pg: typeof form, s: string) => pg.itens.find((i) => i.str === s)!.y;
+    // Mesmas 31 linhas ocupam bem menos altura no formulário (≈ 4,4 mm contra ≈ 7,3 mm por linha).
+    const alturaForm = y(form, 'Dia 2') - y(form, 'Dia 20');
+    const alturaNormal = y(normal, 'Dia 2') - y(normal, 'Dia 20');
+    expect(alturaForm / 18).toBeLessThan(mmParaPt(4.6));
+    expect(alturaForm).toBeLessThan(alturaNormal * 0.65);
+    // Texto longo não quebra: uma linha cortada com reticências, dentro da coluna.
+    const cortado = form.itens.filter((i) => i.str.startsWith('Nome muito comprido'));
+    expect(cortado).toHaveLength(1);
+    expect(cortado[0].str.endsWith('…')).toBe(true);
+    expect(cortado[0].x + cortado[0].largura).toBeLessThan(mmParaPt(20 + (170 * 3) / 5));
+    // Vazio fica em branco (espaço para preencher); "—" explícito continua.
+    expect(form.itens.filter((i) => i.str === '—')).toHaveLength(31);
+    expect(normal.itens.filter((i) => i.str === '—').length).toBeGreaterThan(31);
+  });
+
   it('em paisagem a tabela usa a largura toda', async () => {
     const p = await lerPdf(gerar([tabela({ colunas, linhas: [{ nome: 'A', matricula: '1', valor: '10' }] })], 'paisagem'));
     const valor = p[0].itens.find((i) => i.str === '10')!;
     expect(valor.x + valor.largura).toBeGreaterThan(mmParaPt(250));
+  });
+
+  it('célula vazia sai como "—" por padrão e em branco com vazioEmBranco', async () => {
+    const linhas = [{ nome: 'A', matricula: '', valor: '10' }];
+    const [padrao] = await lerPdf(gerar([tabela({ colunas, linhas })]));
+    expect(padrao.texto).toContain('—');
+    const [branco] = await lerPdf(gerar([tabela({ colunas, linhas, vazioEmBranco: true })]));
+    expect(branco.texto).not.toContain('—');
+    expect(branco.texto).toContain('10');
   });
 });

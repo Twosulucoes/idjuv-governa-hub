@@ -30,6 +30,18 @@ export function paraNomeArquivo(texto: string): string {
 }
 
 /**
+ * Uma linha só que cabe em `largura` (mm), com a fonte e o corpo JÁ definidos no `doc`:
+ * o que passar é cortado e termina em "…" (formulário de linha fixa, onde quebrar empurraria a página).
+ */
+export function cortarEmUmaLinha(doc: jsPDF, texto: string, largura: number): string {
+  const s = paraWinAnsi(texto).replace(/\n/g, ' ');
+  if (doc.getTextWidth(s) <= largura) return s;
+  let atual = s;
+  while (atual.length > 0 && doc.getTextWidth(`${atual}…`) > largura) atual = atual.slice(0, -1);
+  return `${atual.trimEnd()}…`;
+}
+
+/**
  * Quebra em linhas que cabem em `largura` (mm), com a fonte e o corpo JÁ definidos no `doc`.
  * Palavra maior que a largura é cortada por caractere em vez de estourar a margem.
  */

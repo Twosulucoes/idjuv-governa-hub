@@ -13,6 +13,7 @@ import { relatorioVagasCargo } from './modelos/rh/vagasCargo';
 import { relatorioFerias } from './modelos/rh/ferias';
 import { folhaPorRubrica, folhaPorUnidade, resumoFolhasAno } from './modelos/rh/folha';
 import { frequenciaGeral, frequenciaIndividual } from './modelos/rh/frequencia';
+import { folhaFrequencia } from './modelos/rh/folhaFrequencia';
 import { relatorioLicencas } from './modelos/rh/licencas';
 import { relatorioViagens } from './modelos/rh/viagens';
 import { relatorioAgrupadoPortaria } from './modelos/rh/agrupadoPortaria';
@@ -22,6 +23,8 @@ import { relatorioDiretoriaHierarquia } from './modelos/rh/diretoriaHierarquia';
 import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
 import { fichaUnidadeLocal } from './modelos/unidades/fichaUnidadeLocal';
 import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
+import { listaConvocados, listaPresenca, relatorioReuniao } from './modelos/reunioes/reunioes';
+import { contracheque } from './modelos/folha/contracheque';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -54,6 +57,8 @@ export const REGISTRO = {
   'rh-folha-por-rubrica': folhaPorRubrica,
   'rh-frequencia-geral': frequenciaGeral,
   'rh-frequencia-individual': frequenciaIndividual,
+  // RH — folha individual de presença (avulsa e lote da unidade)
+  'rh-folha-frequencia': folhaFrequencia,
   // RH — diretoria, segundo vínculo, portarias e contatos
   'rh-diretoria-hierarquia': relatorioDiretoriaHierarquia,
   'rh-segundo-vinculo': relatorioSegundoVinculo,
@@ -66,6 +71,12 @@ export const REGISTRO = {
   'rh-ficha-cadastral': fichaCadastral,
   // Currículo — pré-cadastro do candidato (também no site institucional, em /curriculo)
   'curriculo-mini-curriculo': fichaMiniCurriculo,
+  // Reuniões — RelatoriosReuniaoDialog
+  'reunioes-lista-convocados': listaConvocados,
+  'reunioes-lista-presenca': listaPresenca,
+  'reunioes-relatorio': relatorioReuniao,
+  // Folha — contracheque do servidor (um ou lote, uma página por servidor)
+  'folha-contracheque': contracheque,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
