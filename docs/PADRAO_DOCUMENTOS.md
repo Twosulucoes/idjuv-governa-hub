@@ -164,7 +164,7 @@ não desenhe direto no `doc` dentro de um modelo.
 src/lib/documentos/
   tipos.ts            Familia, MarcaImpressao, EstiloImpressao, ContextoDocumento, Bloco, DocumentoModelo
   core/               tokens, texto, pintura, familias, pagina (único `new jsPDF`), moldura, renderizar
-  blocos/             titulo, secao, paragrafo, localData, camposChaveValor, tabela, assinaturas, carimbo
+  blocos/             titulo, secao, paragrafo, localData, camposChaveValor, tabela, assinaturas, carimbo, quebraPagina
   modelos/            um arquivo declarativo por documento (hoje só `amostras.ts`, da pré-visualização da configuração)
   registro.ts         REGISTRO: única lista de documentos do sistema
   marca.ts            marcaDoTenant e estiloDoTenant (puros) · logos.ts: carregarLogo (navegador)
@@ -199,6 +199,9 @@ exige tabela/RPC com RLS (decisão e spec próprias; fora de escopo desta fase).
   milímetros, vão sozinhos para a página seguinte. Deixou de ser obrigatória (era da F2, cancelada); vale criar
   "manter junto" se uma ficha ou relatório vier a usar assinatura. Hoje `assinaturas` é usado pela
   frequência individual (`rh-frequencia-individual`); `carimbo` é usado pelo comprovante de referência.
+- **Lote com uma parte por página:** o bloco `quebraPagina()` começa a próxima parte (um servidor, uma lista)
+  em página nova; use entre as partes, não antes da primeira. Se a página atual (2ª em diante) ainda está vazia,
+  não faz nada, para não gerar página em branco. Criado na onda 3 (comprovantes em lote).
 - Cabeçalho/rodapé: nome do órgão muito longo no cabeçalho compacto (páginas 2+) pode encostar no protocolo, e `emitidoPor` muito longo no rodapé pode encostar em "Página X de Y"; logo mais largo que 3,2:1 sai achatado (limite de 45 mm de largura com 14 mm de altura). Nenhum tenant atual passa desses limites.
 - `tabela` não valida `colunas` vazio nem `peso <= 0` (erro de programação, lança); rótulo de campo maior que a coluna é cortado na 1ª linha.
 - O logo entra no PDF em resolução total (peso do arquivo); reduzir no canvas é melhoria futura.
