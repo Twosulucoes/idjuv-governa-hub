@@ -59,8 +59,8 @@ export const ordemMissao: DocumentoModelo<DadosOrdemMissao> = {
 
       secao({ texto: '3. Período e transporte' }),
       ...campos(emBranco, 3, [
-        { rotulo: 'Data/hora de saída', valor: formatarData(f.dataInicio) },
-        { rotulo: 'Data/hora de retorno', valor: formatarData(f.dataFim) },
+        { rotulo: 'Data de saída', valor: formatarData(f.dataInicio) },
+        { rotulo: 'Data de retorno', valor: formatarData(f.dataFim) },
         { rotulo: 'Meio de transporte', valor: f.meioTransporte },
       ]),
 

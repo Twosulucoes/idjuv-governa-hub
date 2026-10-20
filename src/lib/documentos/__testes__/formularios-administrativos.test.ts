@@ -150,7 +150,7 @@ describe('formulários administrativos no motor único', () => {
 
     it('em branco', async () => {
       const t = await ler(ordemMissao, {});
-      for (const r of ['Unidade de lotação', 'Destino (cidade/UF)', 'Objetivo/finalidade', 'Data/hora de saída', 'Meio de transporte', 'Valor unitário (R$)', 'Valor total das diárias (R$)', 'Passagem aérea', 'Ordenador de despesa']) {
+      for (const r of ['Unidade de lotação', 'Destino (cidade/UF)', 'Objetivo/finalidade', 'Data de saída', 'Meio de transporte', 'Valor unitário (R$)', 'Valor total das diárias (R$)', 'Passagem aérea', 'Ordenador de despesa']) {
         expect(t).toContain(r);
       }
       expect(t).toMatch(/\(\s+\) Sim/);

@@ -17,6 +17,7 @@ import {
   Link2,
   ClipboardList,
 } from "lucide-react";
+import { toast } from "sonner";
 import { baixarDeclaracaoAcumulacao, baixarDeclaracaoBens } from "@/lib/declaracoesServidor";
 
 const LINKS_CERTIDOES = [
@@ -59,9 +60,12 @@ export function OrientacoesDocumentosCard() {
   const [isOpen, setIsOpen] = useState(true);
 
   // Modelos em branco (motor único de documentos), para imprimir, preencher e assinar
-  const handleDownloadNaoAcumulacao = () => baixarDeclaracaoAcumulacao();
+  const baixar = (gerar: () => Promise<void>) => () =>
+    gerar().catch(() => toast.error("Não foi possível gerar a declaração. Tente novamente."));
 
-  const handleDownloadBensValores = () => baixarDeclaracaoBens();
+  const handleDownloadNaoAcumulacao = baixar(() => baixarDeclaracaoAcumulacao());
+
+  const handleDownloadBensValores = baixar(() => baixarDeclaracaoBens());
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-6">

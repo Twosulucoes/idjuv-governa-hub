@@ -89,7 +89,7 @@ export function tabelaEmBranco(colunas: ColunaTabela[], quantidade: number): Blo
   });
 }
 
-/** "do IDJUV"/"do órgão": a sigla vem da identidade do tenant, nunca do código. */
+/** "do <SIGLA>"/"do órgão": a sigla vem da identidade do tenant, nunca do código. */
 export const doOrgao = (sigla?: string): string => (sigla?.trim() ? `do ${sigla.trim()}` : 'do órgão');
 
 export const subtituloNumero = (d: DadosFormulario<unknown>): string =>

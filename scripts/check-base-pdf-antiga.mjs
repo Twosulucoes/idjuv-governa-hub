@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Reprova a volta da base antiga de PDF (pdfTemplate, pdfInstitucional, pdfLogos), apagada na onda 5 da P23.
+// Reprova a volta da base antiga de PDF (pdfTemplate, pdfInstitucional, pdfLogos) e dos geradores apagados na onda 5
+// da P23 (pdfModelos, pdfDeclaracoes e os atos do SEI: pdfTermoCessao, pdfCPSI, memorandoDesignacao).
 // Todo PDF nasce como modelo em src/lib/documentos/ (docs/PADRAO_DOCUMENTOS.md). Falha se algum desses arquivos
 // existir em src/ ou se algum arquivo de src/ importar um módulo com esse nome.
 // Uso: node scripts/check-base-pdf-antiga.mjs
@@ -8,8 +9,8 @@ import { join, dirname, relative, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
-const NOMES = ['pdfTemplate', 'pdfInstitucional', 'pdfLogos'];
-const IMPORTA = new RegExp(`(from\\s+|import\\(\\s*|require\\(\\s*)['"][^'"]*/(${NOMES.join('|')})['"]`);
+const NOMES = ['pdfTemplate', 'pdfInstitucional', 'pdfLogos', 'pdfModelos', 'pdfDeclaracoes', 'pdfTermoCessao', 'pdfCPSI', 'memorandoDesignacao'];
+const IMPORTA = new RegExp(`(from\\s+|import\\(\\s*|require\\(\\s*)['"][^'"]*/(${NOMES.join('|')})(\\.tsx?)?['"]`);
 
 function* arquivos(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
