@@ -3337,6 +3337,7 @@ BEGIN
     ('e3000000-0000-0000-0000-0000000000e8', 'e3000000-0000-0000-0000-0000000000f6', 'b0000000-0000-0000-0000-00000000000b', 'S-1200', '{}', 'aceito', '1.2.000000000000000009');
   PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000c1'));
   PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000c2'));
+  PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000c3', 'nsa_inicial', 1200));
   PERFORM pg_temp.seed_row('remessas_bancarias', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000a0',
     'folha_id', 'e3000000-0000-0000-0000-0000000000f2', 'conta_autarquia_id', 'e3000000-0000-0000-0000-0000000000c2',
     'numero_remessa', 41, 'nome_arquivo', 'antiga.rem'));
@@ -3397,6 +3398,11 @@ BEGIN
   IF r IS DISTINCT FROM '3' THEN PERFORM pg_temp.falha('E3 CNAB: 3ª remessa da conta 1 (admin) não veio 3 (' || coalesce(r, 'nulo') || ')'); END IF;
   r := pg_temp.valor_como(u_proc, 'authenticated', format(ins_rem, rm5, ff4, c1, 1, 'gerada'));
   IF r IS DISTINCT FROM '4' THEN PERFORM pg_temp.falha('E3 CNAB: 4ª remessa da conta 1 não veio 4 (' || coalesce(r, 'nulo') || ')'); END IF;
+  -- número inicial da conta (continua a sequência do sistema anterior)
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.get_proximo_numero_remessa(''e3000000-0000-0000-0000-0000000000c3'', 2032)::text');
+  IF r IS DISTINCT FROM '1200' THEN PERFORM pg_temp.falha('E3 CNAB: prévia do número não respeitou o NSA inicial 1200 (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_proc, 'authenticated', format(ins_rem, gen_random_uuid(), ff, 'e3000000-0000-0000-0000-0000000000c3', 1, 'gerada'));
+  IF r IS DISTINCT FROM '1200' THEN PERFORM pg_temp.falha('E3 CNAB: 1ª remessa da conta com NSA inicial 1200 não veio 1200 (' || coalesce(r, 'nulo') || ')'); END IF;
   -- valor e quantidade calculados das fichas (f2: 1000,10 + 2000,20; f3: nenhuma ficha com conta e líquido)
   SELECT to_jsonb(x) INTO j FROM public.remessas_bancarias x WHERE id = rm1;
   IF (j ->> 'valor_total')::numeric IS DISTINCT FROM 3000.30 OR (j ->> 'quantidade_registros')::int IS DISTINCT FROM 2 THEN
@@ -3410,9 +3416,32 @@ BEGIN
   r := pg_temp.sql_como(u_proc, 'authenticated', format(ins_rem, gen_random_uuid(), ff, c1, 1, 'gerada'));
   IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('E3 CNAB: segunda remessa ativa da mesma folha e conta aceita (' || r || ')'); END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indexrelid = to_regclass('public.remessas_bancarias_folha_conta_ativa_uidx') AND i.indisunique
-                    AND pg_get_indexdef(i.indexrelid) LIKE '%(folha_id, conta_autarquia_id) WHERE ((status)::text <> ''cancelada''::text)') THEN
-    PERFORM pg_temp.falha('E3 CNAB: falta o índice único remessas_bancarias_folha_conta_ativa_uidx (folha, conta, ativa)');
+                    AND pg_get_indexdef(i.indexrelid) LIKE '%(folha_id, conta_autarquia_id, tipo_credito) WHERE ((status)::text <> ''cancelada''::text)') THEN
+    PERFORM pg_temp.falha('E3 CNAB: falta o índice único remessas_bancarias_folha_conta_ativa_uidx (folha, conta, tipo, ativa)');
   END IF;
+  -- remessa de pensão alimentícia (migração 20261020090000): na conta 3, ao lado da de servidores da mesma folha; o banco
+  -- soma os descontos de pensão cujo beneficiário tem conta
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.pensoes_alimenticias (servidor_id, beneficiario_nome, beneficiario_cpf, tipo_calculo, valor_fixo, data_inicio,
+                                           banco_codigo, banco_agencia, banco_conta)
+    VALUES (sa, 'Beneficiaria E3', '00000000191', 'valor_fixo', 300.25, '2030-01-01', '237', '1234', '5678-9'),
+           (sa, 'Sem Conta E3', NULL, 'valor_fixo', 50, '2030-01-01', NULL, NULL, NULL);
+  INSERT INTO public.itens_ficha_financeira (ficha_id, descricao, tipo, valor)
+    SELECT f.id, x.d, 'desconto', x.v FROM public.fichas_financeiras f,
+           (VALUES ('Pensão alimentícia — Beneficiaria E3', 300.25), ('Pensão alimentícia — Sem Conta E3', 50.00)) x(d, v)
+     WHERE f.folha_id = ff AND f.servidor_id = sa;
+  SET LOCAL session_replication_role = origin;
+  r := pg_temp.valor_como(u_proc, 'authenticated', format(
+         'INSERT INTO public.remessas_bancarias (folha_id, conta_autarquia_id, numero_remessa, nome_arquivo, status, tipo_credito, valor_total, quantidade_registros) '
+         || 'VALUES (%L, %L, 1, ''pensao.rem'', ''gerada'', ''pensao'', 1, 99) RETURNING valor_total::text || ''/'' || quantidade_registros', ff, 'e3000000-0000-0000-0000-0000000000c3'));
+  IF r IS DISTINCT FROM '300.25/1' THEN
+    PERFORM pg_temp.falha('E3 CNAB: remessa de pensão não somou só a pensão com conta (esperado 300.25/1, veio ' || coalesce(r, 'nulo') || ')');
+  END IF;
+  r := pg_temp.sql_como(u_proc, 'authenticated', format(
+         'INSERT INTO public.remessas_bancarias (folha_id, conta_autarquia_id, numero_remessa, nome_arquivo, status, tipo_credito) VALUES (%L, %L, 1, ''p2.rem'', ''gerada'', ''pensao'')', ff, 'e3000000-0000-0000-0000-0000000000c3'));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('E3 CNAB: segunda remessa de pensão ativa da mesma folha e conta aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('UPDATE public.remessas_bancarias SET tipo_credito = ''pensao'' WHERE id = %L', rm1));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('E3 CNAB: tipo da remessa mudou depois de gerada (' || r || ')'); END IF;
   -- prévia do número: só com o módulo rh
   r := pg_temp.valor_como(u_nenhum, 'authenticated', format('SELECT public.get_proximo_numero_remessa(%L, 2032)::text', c1));
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('E3 CNAB: get_proximo_numero_remessa sem o módulo rh (' || coalesce(r, 'nulo') || ')'); END IF;

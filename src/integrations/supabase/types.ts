@@ -5803,6 +5803,7 @@ export type Database = {
           created_by_servidor_id: string | null
           descricao: string
           id: string
+          nsa_inicial: number | null
           tipo_conta: string | null
           updated_at: string | null
           updated_by: string | null
@@ -5825,6 +5826,7 @@ export type Database = {
           created_by_servidor_id?: string | null
           descricao: string
           id?: string
+          nsa_inicial?: number | null
           tipo_conta?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -5846,6 +5848,7 @@ export type Database = {
           created_by_servidor_id?: string | null
           descricao?: string
           id?: string
+          nsa_inicial?: number | null
           tipo_conta?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -20324,6 +20327,7 @@ export type Database = {
           observacoes: string | null
           quantidade_registros: number | null
           status: string | null
+          tipo_credito: string
           updated_at: string | null
           updated_by: string | null
           updated_by_servidor_id: string | null
@@ -20354,6 +20358,7 @@ export type Database = {
           observacoes?: string | null
           quantidade_registros?: number | null
           status?: string | null
+          tipo_credito?: string
           updated_at?: string | null
           updated_by?: string | null
           updated_by_servidor_id?: string | null
@@ -20383,6 +20388,7 @@ export type Database = {
           observacoes?: string | null
           quantidade_registros?: number | null
           status?: string | null
+          tipo_credito?: string
           updated_at?: string | null
           updated_by?: string | null
           updated_by_servidor_id?: string | null

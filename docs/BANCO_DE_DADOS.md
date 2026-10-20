@@ -629,6 +629,15 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
 - **Uma remessa ativa por folha e conta** — índice único parcial `remessas_bancarias_folha_conta_ativa_uidx
   (folha_id, conta_autarquia_id) WHERE status <> 'cancelada'`: a segunda dá `23505`; para gerar de novo, cancele a
   anterior.
+- **Pensão alimentícia e número inicial** (migração `20261020090000_folha_remessa_pensao_nsa.sql`, em PR rascunho) —
+  `remessas_bancarias.tipo_credito` (`servidores`, o padrão, ou `pensao`; CHECK; fixo depois do INSERT, `RHE02`). Na
+  remessa de pensão, `valor_total` e `quantidade_registros` somam os descontos "Pensão alimentícia — <beneficiário>"
+  das fichas da folha cuja pensão (`pensoes_alimenticias` do servidor da ficha, pelo nome do beneficiário) tem banco,
+  agência e conta; o front monta os créditos pela mesma regra (`creditosPensao`, `src/lib/bancario/pensaoRemessa.ts`)
+  com o banco do cadastro da pensão. O índice `remessas_bancarias_folha_conta_ativa_uidx` (mesmo nome e predicado)
+  passa a ser por folha, conta e tipo. `contas_autarquia.nsa_inicial` (1 a 999999, opcional) continua a numeração do
+  sistema anterior: o número é o maior entre o último da conta + 1 e o inicial; `get_proximo_numero_remessa` segue a
+  mesma regra.
 - **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
   `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez**, depois do INSERT, e só
   por quem: tem o módulo `rh` e `financeiro.folha.processar` (`42501`), **gerou a remessa** (`gerado_por`, fixado pela

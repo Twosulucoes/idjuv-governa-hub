@@ -10,6 +10,9 @@
  *  - sem DELETE pela API: remessa é cancelada com motivo (RPC `cancelar_remessa`); evento do eSocial não se exclui;
  *  - guardar o arquivo (bucket e colunas), baixá-lo de novo e cancelar exigem o módulo rh e
  *    `financeiro.folha.processar` (a tela desabilita para quem não tem);
+ *  - remessa de servidores (líquido das fichas) ou de pensão alimentícia (beneficiários das pensões descontadas,
+ *    migração 20261020090000): o banco soma cada tipo pela sua regra e guarda `tipo_credito`; uma ativa por folha,
+ *    conta e tipo; o número parte de `contas_autarquia.nsa_inicial` quando ele é maior;
  *  - índice único (folha, evento, servidor) em `eventos_esocial`, fora os com status 'erro'/'rejeitado': gerar de
  *    novo não duplica (conflito 23505).
  * Os eventos do eSocial são rascunho: nada é transmitido por este sistema (onda G).
@@ -36,6 +39,8 @@ import {
   type EnderecoPagador,
 } from "@/lib/cnabGenerator";
 import { downloadXml } from "@/lib/esocialXmlGenerator";
+import { isoLocal } from "@/lib/bancario/dataCredito";
+import { creditosPensao, PREFIXO_ITEM_PENSAO, type FichaComPensao, type PensaoCadastro } from "@/lib/bancario/pensaoRemessa";
 import { MSG_FALHA_REGISTRO, registrarEvento, useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 const db = supabase;
@@ -43,7 +48,14 @@ const db = supabase;
 export const BUCKET_REMESSAS_CNAB = "remessas-cnab";
 
 export const MSG_REMESSA_ATIVA =
-  "Já existe remessa ativa desta folha nesta conta; cancele-a antes de gerar outra.";
+  "Já existe remessa ativa deste tipo (servidores ou pensão) desta folha nesta conta; cancele-a antes de gerar outra.";
+
+export type TipoCreditoRemessa = "servidores" | "pensao";
+
+export const ROTULO_TIPO_CREDITO: Record<TipoCreditoRemessa, string> = {
+  servidores: "Servidores",
+  pensao: "Pensão alimentícia",
+};
 
 /**
  * Mensagem do banco para a tela: o texto do RAISE das regras da E3 passa como veio (RHE01 folha não fechada, RHE02
@@ -102,6 +114,7 @@ export interface RemessaComArquivo {
   numero_remessa: number;
   nome_arquivo: string;
   status: string | null;
+  tipo_credito?: string | null;
   arquivo_path?: string | null;
   arquivo_sha256?: string | null;
   motivo_cancelamento?: string | null;
@@ -175,6 +188,42 @@ export function useDadosRemessaCNAB(folhaId: string, habilitado: boolean) {
   return { contas, config, fichas };
 }
 
+/** Descontos de pensão das fichas da folha, uma página (as fichas sem pensão vêm com a lista vazia). */
+const consultaFichasPensao = (folhaId: string, de: number, ate: number) =>
+  supabase
+    .from("fichas_financeiras")
+    .select("id, servidor_id, itens:itens_ficha_financeira(id, descricao, tipo, valor)")
+    .eq("folha_id", folhaId)
+    .eq("itens.tipo", "desconto")
+    .like("itens.descricao", `${PREFIXO_ITEM_PENSAO}%`)
+    .order("id")
+    .range(de, ate);
+
+const consultaPensoes = (de: number, ate: number) =>
+  supabase
+    .from("pensoes_alimenticias")
+    .select("id, servidor_id, beneficiario_nome, beneficiario_cpf, banco_codigo, banco_agencia, banco_conta, banco_tipo_conta")
+    .order("id")
+    .range(de, ate);
+
+/**
+ * Para a remessa de pensão: os descontos de pensão da folha e o cadastro das pensões (banco do beneficiário). Ler as
+ * pensões exige `rh.contracheques.visualizar` ou `financeiro.folha.processar` (RLS).
+ */
+export function useDadosRemessaPensao(folhaId: string, habilitado: boolean) {
+  const fichas = useQuery({
+    queryKey: ["fichas-pensao-remessa", folhaId],
+    queryFn: () => buscarTodasPaginas<FichaComPensao>((de, ate) => consultaFichasPensao(folhaId, de, ate)),
+    enabled: habilitado,
+  });
+  const pensoes = useQuery({
+    queryKey: ["pensoes-alimenticias", "remessa"],
+    queryFn: () => buscarTodasPaginas<PensaoCadastro>(consultaPensoes),
+    enabled: habilitado,
+  });
+  return { fichas, pensoes };
+}
+
 type DadosRemessa = ReturnType<typeof useDadosRemessaCNAB>;
 type ContaRemessa = NonNullable<DadosRemessa["contas"]["data"]>[number];
 type ConfigRemessa = NonNullable<DadosRemessa["config"]["data"]>;
@@ -209,19 +258,14 @@ function enderecoPagador(config: ConfigRemessa): EnderecoPagador {
   };
 }
 
-/** Monta pagador e favorecidos e lista o que falta no cadastro (vazio = pode gerar). */
-export function montarDadosRemessa(
-  config: ConfigRemessa,
-  conta: ContaRemessa,
-  fichas: FichaRemessa[],
-  dataCredito: Date,
-): { empresa: DadosEmpresa; favorecidos: DadosFavorecido[]; faltas: string[] } {
+/** Pagador da remessa: instituição (Configurações da Folha) e conta de débito (Bancos e Contas). */
+function montarEmpresa(config: ConfigRemessa, conta: ContaRemessa): DadosEmpresa {
   const banco = conta.banco as { codigo_banco?: string | null; nome?: string | null } | null;
   const codigoBanco = banco?.codigo_banco ?? "";
   const agencia = separarDigito(conta.agencia);
   const contaPg = separarDigito(conta.conta);
 
-  const empresa: DadosEmpresa = {
+  return {
     cnpj: config.cnpj ?? "",
     razaoSocial: config.razao_social ?? "",
     banco: codigoBanco,
@@ -233,7 +277,16 @@ export function montarDadosRemessa(
     convenio: conta.convenio_pagamento || "",
     endereco: enderecoPagador(config),
   };
+}
 
+/** Monta pagador e favorecidos e lista o que falta no cadastro (vazio = pode gerar). */
+export function montarDadosRemessa(
+  config: ConfigRemessa,
+  conta: ContaRemessa,
+  fichas: FichaRemessa[],
+  dataCredito: Date,
+): { empresa: DadosEmpresa; favorecidos: DadosFavorecido[]; faltas: string[] } {
+  const empresa = montarEmpresa(config, conta);
   const favorecidos: DadosFavorecido[] = fichas.filter(fichaTemBanco).map((f) => {
     const ag = separarDigito(f.banco_agencia);
     const cc = separarDigito(f.banco_conta);
@@ -267,6 +320,29 @@ export function montarDadosRemessa(
   return { empresa, favorecidos, faltas: validarRemessaCNAB(empresa, favorecidos) };
 }
 
+/**
+ * Remessa de pensão: um crédito por desconto de pensão da folha, com o banco do cadastro da pensão. Beneficiário sem
+ * banco ou sem cadastro fica fora (a tela avisa); cadastro em dobro impede gerar.
+ */
+export function montarRemessaPensao(
+  config: ConfigRemessa,
+  conta: ContaRemessa,
+  fichas: FichaComPensao[],
+  pensoes: PensaoCadastro[],
+  dataCredito: Date,
+): { empresa: DadosEmpresa; favorecidos: DadosFavorecido[]; faltas: string[]; semBanco: string[]; semCadastro: string[] } {
+  const empresa = montarEmpresa(config, conta);
+  const c = creditosPensao(fichas, pensoes, dataCredito);
+  const faltas = validarRemessaCNAB(empresa, c.favorecidos, { quem: "beneficiário(s)", dadosDaFicha: false });
+  if (c.duplicados.length) {
+    faltas.push(
+      `pensão cadastrada mais de uma vez para o mesmo servidor e beneficiário: ${c.duplicados.join(", ")}. ` +
+        "Deixe um cadastro com banco por beneficiário (Pensões alimentícias do servidor).",
+    );
+  }
+  return { empresa, favorecidos: c.favorecidos, faltas, semBanco: c.semBanco, semCadastro: c.semCadastro };
+}
+
 export type ResultadoRemessa =
   | { ok: true; numero: number; nomeArquivo: string; quantidade: number; valorTotal: number }
   | { ok: false; mensagem: string };
@@ -274,6 +350,7 @@ export type ResultadoRemessa =
 interface ParamsGerarRemessa {
   folhaId: string;
   contaId: string;
+  tipoCredito: TipoCreditoRemessa;
   competenciaAno: number;
   competenciaMes: number;
   empresa: DadosEmpresa;
@@ -297,7 +374,9 @@ export function useGerarRemessaCNAB() {
       const quantidade = p.favorecidos.length;
       // Soma em centavos inteiros, como no trailer do arquivo
       const valorTotal = p.favorecidos.reduce((soma, f) => soma + Math.round(f.valor * 100), 0) / 100;
-      const nomeArquivo = `CNAB240_${p.competenciaAno}${doisDigitos(p.competenciaMes)}_${carimbo()}.REM`;
+      const prefixo = p.tipoCredito === "pensao" ? "CNAB240_PENSAO" : "CNAB240";
+      const nomeArquivo = `${prefixo}_${p.competenciaAno}${doisDigitos(p.competenciaMes)}_${carimbo()}.REM`;
+      const dataCredito = p.favorecidos[0]?.dataCredito;
 
       // INSERT: o número vem do banco
       const { data: criada, error: erroInsert } = await db
@@ -305,6 +384,7 @@ export function useGerarRemessaCNAB() {
         .insert({
           folha_id: p.folhaId,
           conta_autarquia_id: p.contaId,
+          tipo_credito: p.tipoCredito,
           nome_arquivo: nomeArquivo,
           layout: "CNAB240",
           quantidade_registros: quantidade,
@@ -328,7 +408,8 @@ export function useGerarRemessaCNAB() {
         return !error;
       };
 
-      // O banco calcula valor e quantidade pelas fichas da folha (líquido > 0 com banco, agência e conta). Divergiu do
+      // O banco calcula valor e quantidade pelas fichas da folha (servidores: líquido > 0 com banco, agência e conta;
+      // pensão: descontos de pensão cujo beneficiário tem banco, agência e conta no cadastro). Divergiu do
       // arquivo montado aqui (fichas mudaram, leitura diferente): não sobe nem entrega, cancela e mostra a diferença.
       const centavosBanco = Math.round(Number(remessa.valor_total ?? 0) * 100);
       const centavosArquivo = Math.round(valorTotal * 100);
@@ -402,12 +483,16 @@ export function useGerarRemessaCNAB() {
         acao: "download",
         entidade: "arquivo_cnab",
         entidadeId: p.folhaId,
-        descricao: `Remessa CNAB 240 nº ${remessa.numero_remessa} gerada (${nomeArquivo})`,
+        descricao:
+          `Remessa CNAB 240 nº ${remessa.numero_remessa} (${ROTULO_TIPO_CREDITO[p.tipoCredito].toLowerCase()}) ` +
+          `gerada (${nomeArquivo})`,
         metadados: {
           folha_id: p.folhaId,
           remessa_id: remessa.id,
           numero_remessa: remessa.numero_remessa,
           conta_autarquia_id: p.contaId,
+          tipo_credito: p.tipoCredito,
+          data_credito: dataCredito ? isoLocal(dataCredito) : null,
           nome_arquivo: nomeArquivo,
           quantidade_registros: quantidade,
           valor_total: valorTotal,
@@ -541,6 +626,19 @@ export function useDiaPagamentoFolha(habilitado: boolean) {
         .limit(1);
       if (error) throw error;
       return data?.[0]?.dia_pagamento ?? null;
+    },
+    enabled: habilitado,
+  });
+}
+
+/** Feriados cadastrados (RH), para a data de crédito da remessa cair em dia útil. */
+export function useFeriadosRemessa(habilitado: boolean) {
+  return useQuery({
+    queryKey: ["feriados", "remessa"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("feriados").select("data, recorrente, ativo");
+      if (error) throw error;
+      return data ?? [];
     },
     enabled: habilitado,
   });

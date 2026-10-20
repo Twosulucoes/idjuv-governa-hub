@@ -6963,7 +6963,8 @@ BEGIN
                   OR (auth.uid() IS NOT NULL AND public.can_access_module(auth.uid(), 'rh')), false) THEN
     RAISE EXCEPTION 'get_proximo_numero_remessa: exige o módulo rh' USING ERRCODE = '42501';
   END IF;
-  SELECT COALESCE(MAX(numero_remessa), 0) + 1 INTO v_numero
+  SELECT greatest(COALESCE(MAX(numero_remessa), 0) + 1,
+                  coalesce((SELECT c.nsa_inicial FROM contas_autarquia c WHERE c.id = p_conta_id), 1)) INTO v_numero
   FROM remessas_bancarias
   WHERE conta_autarquia_id = p_conta_id;
 
@@ -11177,19 +11178,36 @@ BEGIN
     NEW.cancelada_por := NULL;
     NEW.motivo_cancelamento := NULL;
     PERFORM pg_advisory_xact_lock(hashtextextended('remessas_bancarias.numero_remessa:' || NEW.conta_autarquia_id::text, 0));
-    SELECT coalesce(max(r.numero_remessa), 0) + 1 INTO NEW.numero_remessa
+    -- o primeiro número pode continuar a sequência do sistema anterior (contas_autarquia.nsa_inicial)
+    SELECT greatest(coalesce(max(r.numero_remessa), 0) + 1,
+                    coalesce((SELECT c.nsa_inicial FROM public.contas_autarquia c WHERE c.id = NEW.conta_autarquia_id), 1))
+      INTO NEW.numero_remessa
       FROM public.remessas_bancarias r WHERE r.conta_autarquia_id = NEW.conta_autarquia_id;
-    SELECT count(*)::integer, coalesce(round(sum(f.valor_liquido), 2), 0)
-      INTO NEW.quantidade_registros, NEW.valor_total
-      FROM public.fichas_financeiras f
-     WHERE f.folha_id = NEW.folha_id AND f.valor_liquido > 0
-       AND coalesce(f.banco_codigo, '') <> '' AND coalesce(f.banco_agencia, '') <> '' AND coalesce(f.banco_conta, '') <> '';
+    IF coalesce(NEW.tipo_credito, 'servidores') = 'pensao' THEN
+      -- pensão alimentícia: um crédito por desconto de pensão da folha cujo beneficiário tem banco, agência e conta
+      -- (a mesma regra de favorecidosPensao em src/hooks/useArquivosFolha.ts)
+      SELECT count(*)::integer, coalesce(round(sum(i.valor), 2), 0)
+        INTO NEW.quantidade_registros, NEW.valor_total
+        FROM public.fichas_financeiras f
+        JOIN public.itens_ficha_financeira i ON i.ficha_id = f.id AND i.tipo = 'desconto' AND i.valor > 0
+        JOIN public.pensoes_alimenticias pa ON pa.servidor_id = f.servidor_id
+                                           AND i.descricao = 'Pensão alimentícia — ' || pa.beneficiario_nome
+       WHERE f.folha_id = NEW.folha_id
+         AND coalesce(pa.banco_codigo, '') <> '' AND coalesce(pa.banco_agencia, '') <> '' AND coalesce(pa.banco_conta, '') <> '';
+    ELSE
+      SELECT count(*)::integer, coalesce(round(sum(f.valor_liquido), 2), 0)
+        INTO NEW.quantidade_registros, NEW.valor_total
+        FROM public.fichas_financeiras f
+       WHERE f.folha_id = NEW.folha_id AND f.valor_liquido > 0
+         AND coalesce(f.banco_codigo, '') <> '' AND coalesce(f.banco_agencia, '') <> '' AND coalesce(f.banco_conta, '') <> '';
+    END IF;
   ELSE
     -- campos que identificam o arquivo gerado
     IF NEW.folha_id IS DISTINCT FROM OLD.folha_id OR NEW.conta_autarquia_id IS DISTINCT FROM OLD.conta_autarquia_id
        OR NEW.numero_remessa IS DISTINCT FROM OLD.numero_remessa OR NEW.valor_total IS DISTINCT FROM OLD.valor_total
-       OR NEW.quantidade_registros IS DISTINCT FROM OLD.quantidade_registros THEN
-      RAISE EXCEPTION 'Remessa %: folha, conta, número, valor e quantidade não mudam depois de gerada', OLD.numero_remessa
+       OR NEW.quantidade_registros IS DISTINCT FROM OLD.quantidade_registros
+       OR NEW.tipo_credito IS DISTINCT FROM OLD.tipo_credito THEN
+      RAISE EXCEPTION 'Remessa %: folha, conta, tipo, número, valor e quantidade não mudam depois de gerada', OLD.numero_remessa
         USING ERRCODE = 'RHE02';
     END IF;
     -- arquivo já gravado não muda nem some
@@ -17164,8 +17182,17 @@ CREATE TABLE public.contas_autarquia (
     created_by uuid,
     created_by_servidor_id uuid,
     updated_by uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    nsa_inicial integer,
+    CONSTRAINT contas_autarquia_nsa_inicial_check CHECK (((nsa_inicial IS NULL) OR ((nsa_inicial >= 1) AND (nsa_inicial <= 999999))))
 );
+
+
+--
+-- Name: COLUMN contas_autarquia.nsa_inicial; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contas_autarquia.nsa_inicial IS 'Primeiro número de remessa (NSA) desta conta; continua a sequência do sistema anterior. Vazio = 1';
 
 
 --
@@ -21837,7 +21864,9 @@ CREATE TABLE public.remessas_bancarias (
     cancelada_em timestamp with time zone,
     cancelada_por uuid,
     motivo_cancelamento text,
-    CONSTRAINT remessas_bancarias_status_check CHECK (((status)::text = ANY ((ARRAY['gerada'::character varying, 'enviada'::character varying, 'processada'::character varying, 'erro'::character varying, 'cancelada'::character varying])::text[])))
+    tipo_credito character varying(20) DEFAULT 'servidores'::character varying NOT NULL,
+    CONSTRAINT remessas_bancarias_status_check CHECK (((status)::text = ANY ((ARRAY['gerada'::character varying, 'enviada'::character varying, 'processada'::character varying, 'erro'::character varying, 'cancelada'::character varying])::text[]))),
+    CONSTRAINT remessas_bancarias_tipo_credito_check CHECK (((tipo_credito)::text = ANY ((ARRAY['servidores'::character varying, 'pensao'::character varying])::text[])))
 );
 
 
@@ -21895,6 +21924,13 @@ COMMENT ON COLUMN public.remessas_bancarias.cancelada_por IS 'Usuário que cance
 --
 
 COMMENT ON COLUMN public.remessas_bancarias.motivo_cancelamento IS 'Motivo informado no cancelamento (obrigatório)';
+
+
+--
+-- Name: COLUMN remessas_bancarias.tipo_credito; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.remessas_bancarias.tipo_credito IS 'servidores (líquido das fichas) ou pensao (beneficiários de pensão alimentícia)';
 
 
 --
