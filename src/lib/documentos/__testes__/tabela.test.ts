@@ -79,12 +79,23 @@ describe('tabela', () => {
     expect(valor.x + valor.largura).toBeGreaterThan(mmParaPt(250));
   });
 
-  it('célula vazia sai como "—" por padrão e em branco com vazioEmBranco', async () => {
+  it('célula vazia sai como "—" por padrão e em branco na coluna emBranco', async () => {
     const linhas = [{ nome: 'A', matricula: '', valor: '10' }];
     const [padrao] = await lerPdf(gerar([tabela({ colunas, linhas })]));
     expect(padrao.texto).toContain('—');
-    const [branco] = await lerPdf(gerar([tabela({ colunas, linhas, vazioEmBranco: true })]));
+    const emBranco = colunas.map((c) => (c.chave === 'matricula' ? { ...c, emBranco: true } : c));
+    const [branco] = await lerPdf(gerar([tabela({ colunas: emBranco, linhas })]));
     expect(branco.texto).not.toContain('—');
     expect(branco.texto).toContain('10');
+  });
+
+  it('alturaMinimaLinha afasta as linhas de dados', async () => {
+    const linhas = [{ nome: 'A', matricula: '1', valor: '1' }, { nome: 'B', matricula: '2', valor: '2' }];
+    const distancia = async (alturaMinimaLinha?: number): Promise<number> => {
+      const [p] = await lerPdf(gerar([tabela({ colunas, linhas, alturaMinimaLinha })]));
+      const y = (s: string) => p.itens.find((i) => i.str === s)!.y;
+      return Math.abs(y('B') - y('A'));
+    };
+    expect(await distancia(15)).toBeGreaterThan((await distancia()) + mmParaPt(5));
   });
 });

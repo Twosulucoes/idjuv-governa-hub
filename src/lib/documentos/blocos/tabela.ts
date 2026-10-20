@@ -9,7 +9,7 @@ export interface ColunaTabela {
   /** Largura relativa (padrão 1). */
   peso?: number;
   alinhamento?: 'esquerda' | 'centro' | 'direita';
-  /** Célula vazia fica em branco em vez de "—" (coluna para preencher à mão, como assinatura). */
+  /** Célula vazia (e título vazio) fica em branco em vez de "—": coluna para preencher à mão ou separador. */
   emBranco?: boolean;
 }
 export type Celula = string | number | null | undefined;
@@ -30,11 +30,6 @@ export interface PropsTabela {
   formulario?: boolean;
   /** Altura mínima (mm) de cada linha de dados — ex.: espaço para assinar à mão. Não vale para cabeçalho e totais. */
   alturaMinimaLinha?: number;
-  /**
-   * Célula vazia (inclusive título de coluna) fica em branco em vez de "—" (ex.: contracheque com proventos e
-   * descontos lado a lado, separados por uma coluna sem título).
-   */
-  vazioEmBranco?: boolean;
 }
 
 export const tabela =
@@ -87,9 +82,8 @@ export const tabela =
       for (let i = 0; i <= p.colunas.length; i++) doc.line(xDe(i), ctx.y, xDe(i), ctx.y + h);
     };
 
-    const tracoNoVazio = !p.vazioEmBranco;
     const topoDemais = PAGINA.margemTopo + ALTURA_CABECALHO.demais;
-    const hCabecalho = alturaDe(p.colunas.map((c, i) => quebrar(c.titulo, i, true, tracoNoVazio)));
+    const hCabecalho = alturaDe(p.colunas.map((c, i) => quebrar(c.titulo, i, true, true)));
     /** Linhas de texto que cabem numa página cheia, já descontado o cabeçalho da tabela. */
     const capacidade = Math.max(1, Math.floor((ctx.limiteInferior - topoDemais - hCabecalho - 2 * PAD_V) / lh));
     const celulasDe = (valores: Record<string, Celula>, negrito: boolean, vazioComoTraco: boolean): string[][] =>
@@ -100,7 +94,7 @@ export const tabela =
       linhasDe(celulas) > capacidade ? 3 * lh + 2 * PAD_V : alturaDaLinha(celulas, false);
 
     const cabecalho = (reserva: number = lh + 2 * PAD_V): void => {
-      const celulas = p.colunas.map((c, i) => quebrar(c.titulo, i, true, tracoNoVazio));
+      const celulas = p.colunas.map((c, i) => quebrar(c.titulo, i, true, true));
       const h = alturaDe(celulas);
       ctx.garantirEspaco(h + reserva); // o cabeçalho nunca fica sozinho no fim da página
       usarPreenchimento(doc, NEUTROS.fundoCabecalhoTabela);
@@ -153,7 +147,7 @@ export const tabela =
       }
     };
 
-    const primeira = p.linhas[0] ? celulasDe(p.linhas[0], false, tracoNoVazio) : undefined;
+    const primeira = p.linhas[0] ? celulasDe(p.linhas[0], false, true) : undefined;
     cabecalho(primeira ? reservaPara(primeira) : lh + 2 * PAD_V);
     if (p.linhas.length === 0) {
       ctx.garantirEspaco(lh + 2 * PAD_V);
@@ -164,7 +158,7 @@ export const tabela =
       ctx.y += lh + 2 * PAD_V;
       regua(ctx.y, false);
     } else {
-      p.linhas.forEach((v, i) => linha(v, i, false, tracoNoVazio));
+      p.linhas.forEach((v, i) => linha(v, i));
     }
     if (p.totais) linha(p.totais, 0, true, false);
     ctx.y += ESPACO.sm;

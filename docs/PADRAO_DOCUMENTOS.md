@@ -33,8 +33,8 @@
 > individual e em lote por unidade (`rh-folha-frequencia`, um servidor por página com o bloco `quebraPagina`, os 31
 > dias numa página) e os PDFs da reunião (`reunioes-lista-convocados`, `reunioes-lista-presenca`,
 > `reunioes-relatorio`). O bloco `tabela` ganhou opções: `formulario` (letra menor, uma linha por registro, grade e
-> célula vazia em branco, para folha de ponto), `alturaMinimaLinha` (espaço para assinar à mão), `vazioEmBranco` e
-> `emBranco` por coluna. Cidade fixa no código e "GOVERNO DO ESTADO" escrito à mão saíram (vêm do tenant). No lote do
+> célula vazia em branco, para folha de ponto), `alturaMinimaLinha` (espaço para assinar à mão) e
+> `emBranco` por coluna (célula vazia sem "—"). O local da linha de data vem de `localDaSede()` ("Cidade/UF" do tenant). Cidade fixa no código e "GOVERNO DO ESTADO" escrito à mão saíram (vêm do tenant). No lote do
 > contracheque o PIS continua fora. Plano:
 > [`superpowers/plans/2026-10-20-padrao-relatorios-onda3.md`](./superpowers/plans/2026-10-20-padrao-relatorios-onda3.md).
 
