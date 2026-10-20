@@ -27,7 +27,7 @@ import {
   totalizarUnidades,
   liquidoBlocos,
 } from "@/lib/relatoriosFolhaRegras";
-import { formatCurrency } from "@/lib/pdfTemplate";
+import { formatCurrency } from "@/lib/formatters";
 import { exportarParaExcel as exportarPlanilhaXlsx } from "@/export/exportExcel";
 import { FiltroAno } from "./FiltroAno";
 import { BotoesExportar, type FormatoExportacao } from "./BotoesExportar";
