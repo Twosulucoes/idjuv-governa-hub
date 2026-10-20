@@ -25,6 +25,9 @@ import { fichaUnidadeLocal } from './modelos/unidades/fichaUnidadeLocal';
 import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
 import { listaConvocados, listaPresenca, relatorioReuniao } from './modelos/reunioes/reunioes';
 import { contracheque } from './modelos/folha/contracheque';
+import { relatorioCargosVagas } from './modelos/cargos/cargosVagas';
+import { quadroCargos } from './modelos/cargos/quadroCargos';
+import { relatorioGovernanca } from './modelos/governanca/relatorioAnual';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -77,6 +80,11 @@ export const REGISTRO = {
   'reunioes-relatorio': relatorioReuniao,
   // Folha — contracheque do servidor (um ou lote, uma página por servidor)
   'folha-contracheque': contracheque,
+  // Cargos — GestaoCargosPage (cargos e vagas) e OrganogramaPage (quadro de cargos com ocupantes)
+  'cargos-relatorio-cargos-vagas': relatorioCargosVagas,
+  'cargos-quadro-cargos': quadroCargos,
+  // Governança — RelatorioGovernancaPage
+  'governanca-relatorio-anual': relatorioGovernanca,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
