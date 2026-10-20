@@ -14938,8 +14938,10 @@ export type Database = {
           created_by_servidor_id: string | null
           data_pagamento: string | null
           descricao_ocorrencia: string | null
+          favorecido_nome: string | null
           ficha_id: string | null
           id: string
+          identificador: string | null
           retorno_id: string
           servidor_id: string | null
           status: string | null
@@ -14956,8 +14958,10 @@ export type Database = {
           created_by_servidor_id?: string | null
           data_pagamento?: string | null
           descricao_ocorrencia?: string | null
+          favorecido_nome?: string | null
           ficha_id?: string | null
           id?: string
+          identificador?: string | null
           retorno_id: string
           servidor_id?: string | null
           status?: string | null
@@ -14973,8 +14977,10 @@ export type Database = {
           created_by_servidor_id?: string | null
           data_pagamento?: string | null
           descricao_ocorrencia?: string | null
+          favorecido_nome?: string | null
           ficha_id?: string | null
           id?: string
+          identificador?: string | null
           retorno_id?: string
           servidor_id?: string | null
           status?: string | null
@@ -20914,59 +20920,80 @@ export type Database = {
       retornos_bancarios: {
         Row: {
           arquivo_nome: string | null
+          arquivo_sha256: string | null
           arquivo_url: string | null
+          convenio: string | null
           created_at: string | null
           created_by: string | null
           created_by_servidor_id: string | null
+          data_arquivo: string | null
           data_processamento: string | null
           detalhes: Json | null
           id: string
+          nsa: number | null
+          previa: boolean
           processado_por: string | null
+          quantidade_agendados: number | null
           quantidade_pagos: number | null
           quantidade_rejeitados: number | null
           remessa_id: string | null
           updated_at: string | null
           updated_by: string | null
           updated_by_servidor_id: string | null
+          valor_agendado: number | null
           valor_pago: number | null
           valor_rejeitado: number | null
         }
         ComputedFields: never
         Insert: {
           arquivo_nome?: string | null
+          arquivo_sha256?: string | null
           arquivo_url?: string | null
+          convenio?: string | null
           created_at?: string | null
           created_by?: string | null
           created_by_servidor_id?: string | null
+          data_arquivo?: string | null
           data_processamento?: string | null
           detalhes?: Json | null
           id?: string
+          nsa?: number | null
+          previa?: boolean
           processado_por?: string | null
+          quantidade_agendados?: number | null
           quantidade_pagos?: number | null
           quantidade_rejeitados?: number | null
           remessa_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
           updated_by_servidor_id?: string | null
+          valor_agendado?: number | null
           valor_pago?: number | null
           valor_rejeitado?: number | null
         }
         Update: {
           arquivo_nome?: string | null
+          arquivo_sha256?: string | null
           arquivo_url?: string | null
+          convenio?: string | null
           created_at?: string | null
           created_by?: string | null
           created_by_servidor_id?: string | null
+          data_arquivo?: string | null
           data_processamento?: string | null
           detalhes?: Json | null
           id?: string
+          nsa?: number | null
+          previa?: boolean
           processado_por?: string | null
+          quantidade_agendados?: number | null
           quantidade_pagos?: number | null
           quantidade_rejeitados?: number | null
           remessa_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
           updated_by_servidor_id?: string | null
+          valor_agendado?: number | null
           valor_pago?: number | null
           valor_rejeitado?: number | null
         }
@@ -25204,6 +25231,10 @@ export type Database = {
           p_nsa_minimo?: number
           p_tipo_servico?: string
         }
+        Returns: Json
+      }
+      registrar_retorno_remessa: {
+        Args: { p_itens: Json; p_remessa_id: string; p_retorno: Json }
         Returns: Json
       }
       responsavel_atual: {

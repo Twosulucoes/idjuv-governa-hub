@@ -328,6 +328,11 @@ migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`;
   `mensagemErroBanco` mostra o texto do `RAISE`
   (RHE01 folha não fechada, RHE02/RHE03, 22023, o 42501 das funções) e a mensagem dos erros do Storage, e esconde a
   recusa da RLS e o `DETAIL`.
+- **Retorno do banco** (migração `20261021090000`): `ImportarRetornoDialog` e `RetornosDaFolha`
+  (`src/components/folha/RetornoRemessa.tsx`) na aba Remessas CNAB; lê o `.ret` com `lerCnab240`, casa com os créditos
+  da remessa (`casarRetorno` em `src/lib/bancario/retornoFolha.ts`, créditos de `creditosRetornoServidores` ou
+  `creditosRetornoPensao`) e grava com `useRegistrarRetorno` (RPC `registrar_retorno_remessa`); lista com
+  `useRetornosFolha`.
 - **Folha fechada:** no detalhe da folha (`/folha/:id`) os botões "Gerar CNAB", "Nova Remessa", "eSocial" e "Gerar
   Eventos" aparecem com fichas, mas ficam desabilitados com a explicação enquanto a folha não está `fechada`; os
   diálogos repetem o aviso. O banco recusa de qualquer forma (RHE01) e a tela mostra o erro.
