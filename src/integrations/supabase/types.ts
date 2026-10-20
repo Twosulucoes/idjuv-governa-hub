@@ -24805,6 +24805,15 @@ export type Database = {
         }
         Returns: Json
       }
+      importar_folha_sigrh: {
+        Args: {
+          p_arquivo: Json
+          p_competencia: Json
+          p_fichas: Json
+          p_simular?: boolean
+        }
+        Returns: Json
+      }
       importar_portarias_planilha: {
         Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
         Returns: Json

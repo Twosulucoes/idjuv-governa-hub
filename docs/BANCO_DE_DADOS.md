@@ -680,6 +680,20 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   A remessa `gerada` passa a `enviada` (com `enviado_em`/`enviado_por`); retorno que não é prévia e não tem agendado a
   deixa `processada`. Quem lê o arquivo e casa cada crédito com a ficha é a tela (`src/lib/bancario/retornoFolha.ts`).
   Testes no bloco "FOLHA: retorno do banco da remessa" de `scripts/db/testar-rls.sql`.
+- <a id="importar-a-folha-do-sigrh-importar_folha_sigrh"></a>**Importar a folha do SIGRH** (migração
+  `20261022090000_folha_importar_sigrh.sql`) — RPC `importar_folha_sigrh(p_competencia, p_fichas, p_arquivo,
+  p_simular DEFAULT true)` (SECURITY DEFINER; perfil ativo, módulo `rh`, `financeiro.folha.processar` e
+  `usuario_pode_fechar_folha`, senão `42501`; só `authenticated`) para os meses pagos pelo SIGRH antes do sistema.
+  Recebe as fichas lidas do espelho no navegador (CPF, função, banco, dependentes e as rubricas com tipo, quantidade,
+  competência do retroativo e valor) e grava, tudo ou nada: a folha mensal da competência (observação e justificativa
+  "Folha histórica importada do SIGRH (arquivo …)"), uma ficha por servidor casado pelo CPF (só dígitos; o cargo e a
+  unidade do provimento vigente no mês, a função como paga no espelho, INSS e IRRF somados das rubricas, base de INSS
+  igual aos proventos de quem descontou INSS), os itens (`origem` `automatico`, rubrica ligada pela descrição, a
+  competência do retroativo na descrição), a parte patronal pela regra do processamento e o fechamento por
+  `fechar_folha`. Recusa a competência futura e lista vazia (`22023`) e a que já tem folha mensal (`23505`); servidor
+  não cadastrado ou CPF em dois cadastros é erro da linha, e com erro nada é gravado; com `p_simular` tudo é desfeito
+  no fim. O log em `importacoes` (`tipo` `folha_sigrh`, `exercicio` = ano) guarda competência, totais e a ficha de
+  cada linha, sem CPF. Testes no bloco "FOLHA: importação da folha do SIGRH" de `scripts/db/testar-rls.sql`.
 - **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
   `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez**, depois do INSERT, e só
   por quem: tem o módulo `rh` e `financeiro.folha.processar` (`42501`), **gerou a remessa** (`gerado_por`, fixado pela

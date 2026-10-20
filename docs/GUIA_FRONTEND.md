@@ -180,6 +180,17 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
   quando o parser aplicou o padrão); a RPC confere tudo de novo, inclusive matrículas e o que já existe.
   Identifica o servidor só por matrícula (sem CPF). Invalida as chaves de `usePortarias` (`portarias`, `portaria`,
   `portarias-servidor`, a seção da ficha do servidor) e `portarias-para-ato` (`useGestaoLotacao`). Regras de negócio: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-portarias-importar_portarias_planilha).
+- `importadores/folhaSigrh.ts` + `folhaSigrhParser.ts` — espelho da folha do SIGRH → `importar_folha_sigrh` (`id`
+  `folha_sigrh`, módulo `rh`, permissão `financeiro.folha.processar`; a RPC também exige poder fechar a folha). Aceita
+  o PDF FPAG10 (Folha Analítica por Funcionário), o PDF "Relatório analítico de conferência de folha" do SIGRH novo e a
+  planilha analítica por evento (`CdNomeacao`, `CPF`, `NmEvento`, `TpEvento`, `Valor`…; o mês e o ano saem do nome do
+  arquivo, e sem ano usa o atual com aviso). O parser (função pura, testada com vitest) separa provento e desconto pela
+  coluna (FPAG10: à direita do título "Desconto"; o número vai para Qtde ou Valor pela borda direita mais próxima, e a
+  rubrica impressa sem valor, como o IRRF isento, não entra), guarda a competência do retroativo ("(202602)"), confere
+  a soma de cada servidor e a do órgão com o total impresso (diferença de um centavo é erro) e junta numa ficha os
+  vínculos do mesmo CPF no mês. Valores em centavos. A prévia mostra o CPF mascarado. Invalida `folhas-pagamento`,
+  `fichas-financeiras`, `contracheques-rh` e `meus-contracheques`. Regras de negócio:
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-a-folha-do-sigrh-importar_folha_sigrh).
 - `importadores/classificadoresFiplan.ts` + `classificadoresFiplanParser.ts` — tabelas do FIPLAN (`.xls` das consultas
   "Consultar ...") → `importar_classificadores_fiplan` (`id` `classificadores_fiplan`, módulo `financeiro`, permissão
   `orcamento.importar`). Um arquivo por tabela; o parser (função pura, testada com vitest) reconhece a tabela pelo

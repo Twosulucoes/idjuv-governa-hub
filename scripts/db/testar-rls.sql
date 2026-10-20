@@ -6860,6 +6860,146 @@ BEGIN
   PERFORM pg_temp.nota('FOLHA (encargos): INSS truncado por faixa só com o parâmetro e na vigência, alíquota em % recusada, folha sem alíquotas com aviso, INSS patronal e RAT por ficha só do regime geral e totais truncados como a guia verificados');
 END $$;
 
+-- ---------------------------------------------------------------- FOLHA: importação da folha do SIGRH (migração 20261022090000)
+--   * importar_folha_sigrh: anon e PUBLIC sem EXECUTE; quem processa a folha mas não pode fechá-la (sem rh.admin) recusa
+--     (42501); competência futura e lista vazia recusadas (22023);
+--   * simulação não grava (nem folha, nem fichas, nem importacoes) e avisa servidor sem provimento no mês;
+--   * CPF desconhecido é erro da linha e a aplicação não grava nada;
+--   * aplicação: folha mensal fechada com a justificativa da importação, uma ficha por servidor (casado pelo CPF
+--     formatado no cadastro), totais, INSS/IRRF somados das rubricas, cargo do provimento e função do espelho,
+--     retroativo com a competência na descrição, rubrica ligada pela descrição; log em importacoes sem CPF;
+--   * competência que já tem folha mensal: recusada (23505).
+CREATE FUNCTION pg_temp.fs_chamar(p_uid uuid, p_comp jsonb, p_fichas jsonb, p_simular boolean) RETURNS text
+LANGUAGE sql AS $$
+  SELECT pg_temp.valor_como(p_uid, 'authenticated', format(
+    'SELECT public.importar_folha_sigrh(%L::jsonb, %L::jsonb, %L::jsonb, %L)::text', p_comp, p_fichas,
+    jsonb_build_object('nome', 'ESPELHO_FPAG10.pdf', 'sha256', repeat('cd', 32), 'tamanho', 4096), p_simular))
+$$;
+
+DO $$
+DECLARE
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000007a1';   -- módulo rh + financeiro.folha.processar + rh.admin
+  u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');   -- processa, não fecha
+  cg uuid := 'f5000000-0000-0000-0000-0000000000c1';
+  s1 uuid := 'f5000000-0000-0000-0000-0000000000a1';      -- com provimento
+  s2 uuid := 'f5000000-0000-0000-0000-0000000000a2';      -- sem provimento
+  rb uuid := 'f5000000-0000-0000-0000-0000000000b1';
+  fn text := 'public.importar_folha_sigrh(jsonb, jsonb, jsonb, boolean)';
+  comp jsonb := '{"ano": 2019, "mes": 3}';
+  fichas jsonb; r text; j jsonb; modo_rh text; fl record; f1 record; n int;
+BEGIN
+  IF to_regprocedure(fn) IS NULL THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: ' || fn || ' não existe');
+    RETURN;
+  END IF;
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'fs_imp@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id = u_imp;
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_imp, 'rh', '{financeiro.folha.processar,rh.admin,rh.contracheques.visualizar}');
+  SELECT modo INTO modo_rh FROM public.regra_lancamento WHERE modulo = 'rh';
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = 'registrar' WHERE modulo = 'rh';
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, vencimento_base, quantidade_vagas)
+    VALUES (cg, 'Cargo SIGRH Teste', 'SIG-T', 'comissionado', 'comissionado', 3578.08, 2);
+  INSERT INTO public.servidores (id, nome_completo, cpf, situacao, ativo) VALUES
+    (s1, 'SIGRH Servidor 1', '000.000.701-01', 'ativo', true),   -- casado só pelos dígitos
+    (s2, 'SIGRH Servidor 2', '00000070202', 'exonerado', false);
+  INSERT INTO public.provimentos (servidor_id, cargo_id, data_nomeacao, status) VALUES (s1, cg, '2019-01-01', 'ativo');
+  INSERT INTO public.rubricas (id, codigo, descricao, tipo, natureza, formula_tipo, vigencia_inicio, ativo)
+    VALUES (rb, 'SIG01', 'Vencimento SIGRH Teste', 'provento', 'remuneratorio', 'valor_fixo', '2019-01-01', true);
+  SET LOCAL session_replication_role = origin;
+
+  fichas := jsonb_build_array(
+    jsonb_build_object('indice', 0, 'cpf', '00000070101', 'nome', 'SERVIDOR UM', 'funcao', 'CHEFE DE NUCLEO',
+      'banco_codigo', '001', 'banco_agencia', '04263', 'banco_conta', '12345X', 'dependentes_ir', 1,
+      'itens', jsonb_build_array(
+        jsonb_build_object('descricao', 'VENCIMENTO SIGRH TESTE', 'tipo', 'provento', 'quantidade', '30,00', 'valor', '3578.08'),
+        jsonb_build_object('descricao', 'DIF DE VENCIMENTO', 'tipo', 'provento', 'competencia', '2019-02', 'valor', '79.99'),
+        jsonb_build_object('descricao', 'INSS', 'tipo', 'desconto', 'quantidade', '12,00', 'valor', '317.95'),
+        jsonb_build_object('descricao', 'IRRF', 'tipo', 'desconto', 'valor', '10.00'))),
+    jsonb_build_object('indice', 1, 'cpf', '00000070202', 'nome', 'SERVIDOR DOIS', 'funcao', 'DIRETOR',
+      'itens', jsonb_build_array(jsonb_build_object('descricao', 'SUBSIDIO', 'tipo', 'provento', 'valor', '1000.00'))));
+
+  -- ===== quem chama
+  IF has_function_privilege('anon', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('FOLHA SIGRH: anon executa ' || fn); END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              WHERE p.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: PUBLIC executa ' || fn);
+  END IF;
+  IF NOT has_function_privilege('authenticated', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('FOLHA SIGRH: authenticated não executa ' || fn); END IF;
+  r := pg_temp.fs_chamar(u_proc, comp, fichas, true);
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: quem processa sem poder fechar a folha importa (' || r || ')'); END IF;
+  r := pg_temp.fs_chamar(u_imp, jsonb_build_object('ano', extract(year FROM current_date + 40)::int,
+                                                    'mes', extract(month FROM current_date + 40)::int), fichas, true);
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: competência futura aceita (' || r || ')'); END IF;
+  r := pg_temp.fs_chamar(u_imp, comp, '[]', true);
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: lista vazia aceita (' || r || ')'); END IF;
+
+  -- ===== simulação: nada gravado, aviso de quem não tem provimento
+  r := pg_temp.fs_chamar(u_imp, comp, fichas, true);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR (j -> 'totais' ->> 'inserir')::int <> 2 OR jsonb_array_length(j -> 'erros') <> 0
+     OR (j -> 'linhas' -> 1 -> 'avisos')::text NOT LIKE '%Sem provimento%' THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: simulação deveria inserir 2 fichas e avisar o servidor sem provimento (' || r || ')');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.folhas_pagamento WHERE competencia_ano = 2019 AND competencia_mes = 3)
+     OR EXISTS (SELECT 1 FROM public.importacoes WHERE tipo = 'folha_sigrh') THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: a simulação gravou');
+  END IF;
+
+  -- ===== CPF desconhecido: erro da linha, nada gravado
+  r := pg_temp.fs_chamar(u_imp, comp, fichas || jsonb_build_array(jsonb_build_object('indice', 2, 'cpf', '99999999999',
+         'nome', 'NAO CADASTRADO', 'itens', jsonb_build_array(jsonb_build_object('descricao', 'SUBSIDIO', 'tipo', 'provento', 'valor', '1.00')))), false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR jsonb_array_length(j -> 'erros') <> 1 OR (j -> 'erros' -> 0 ->> 'indice')::int <> 2
+     OR (j -> 'erros' -> 0 ->> 'mensagem') NOT LIKE 'NAO CADASTRADO: Servidor não cadastrado%' OR r LIKE '%99999999999%' THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: CPF desconhecido deveria ser erro da linha 2, sem devolver o CPF (' || r || ')');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.folhas_pagamento WHERE competencia_ano = 2019 AND competencia_mes = 3) THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: aplicação com erro gravou a folha');
+  END IF;
+
+  -- ===== aplicação
+  r := pg_temp.fs_chamar(u_imp, comp, fichas, false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  SELECT * INTO fl FROM public.folhas_pagamento WHERE competencia_ano = 2019 AND competencia_mes = 3 AND tipo_folha = 'mensal';
+  IF j IS NULL OR j ->> 'importacao_id' IS NULL OR fl.id IS NULL OR fl.status <> 'fechada'
+     OR fl.justificativa_fechamento NOT LIKE 'Folha histórica importada do SIGRH (arquivo ESPELHO_FPAG10.pdf)%'
+     OR fl.fechado_por IS DISTINCT FROM u_imp OR fl.quantidade_servidores <> 2
+     OR fl.total_bruto <> 4658.07 OR fl.total_descontos <> 327.95 OR fl.total_liquido <> 4330.12
+     OR fl.total_inss_servidor <> 317.95 OR fl.total_irrf <> 10.00 THEN
+    PERFORM pg_temp.falha(format('FOLHA SIGRH: aplicação deveria criar a folha fechada com os totais (%s; folha %s)', r, to_jsonb(fl)));
+  END IF;
+  SELECT * INTO f1 FROM public.fichas_financeiras WHERE folha_id = fl.id AND servidor_id = s1;
+  IF f1.id IS NULL OR f1.cargo_id IS DISTINCT FROM cg OR f1.cargo_nome <> 'CHEFE DE NUCLEO' OR f1.total_proventos <> 3658.07
+     OR f1.valor_inss <> 317.95 OR f1.base_inss <> 3658.07 OR f1.valor_irrf <> 10.00 OR f1.valor_liquido <> 3330.12
+     OR f1.banco_conta <> '12345X' OR f1.quantidade_dependentes <> 1 THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: ficha do servidor 1 sem cargo, função, totais ou banco (' || to_jsonb(f1)::text || ')');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.itens_ficha_financeira WHERE ficha_id = f1.id AND descricao = 'DIF DE VENCIMENTO (02/2019)')
+     OR (SELECT rubrica_id FROM public.itens_ficha_financeira WHERE ficha_id = f1.id AND ordem = 1) IS DISTINCT FROM rb
+     OR (SELECT count(*) FROM public.itens_ficha_financeira WHERE ficha_id = f1.id AND origem = 'automatico') <> 4 THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: itens sem a competência do retroativo, sem a rubrica ligada ou fora da origem automatico');
+  END IF;
+  IF (SELECT cargo_id FROM public.fichas_financeiras WHERE folha_id = fl.id AND servidor_id = s2) IS NOT NULL THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: servidor sem provimento ganhou cargo');
+  END IF;
+  SELECT count(*) INTO n FROM public.importacoes
+   WHERE tipo = 'folha_sigrh' AND modulo = 'rh' AND exercicio = 2019 AND (resumo ->> 'fichas')::int = 2
+     AND detalhes::text NOT LIKE '%0000007%' AND resumo::text NOT LIKE '%0000007%';
+  IF n <> 1 THEN PERFORM pg_temp.falha('FOLHA SIGRH: log em importacoes ausente ou com CPF'); END IF;
+
+  -- ===== a mesma competência não entra de novo
+  r := pg_temp.fs_chamar(u_imp, comp, fichas, true);
+  IF r NOT LIKE 'erro:23505%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: competência que já tem folha mensal aceita (' || r || ')'); END IF;
+
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
+  PERFORM pg_temp.nota('FOLHA SIGRH: permissão (processar e fechar), competência futura, simulação sem gravar, CPF desconhecido sem gravar nem devolver o CPF, folha fechada com fichas, itens e totais, log sem CPF e competência repetida verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off
