@@ -13,10 +13,9 @@
 import type jsPDF from 'jspdf';
 import type { DiaNaoUtil } from '@/types/frequencia';
 import type { ServidorComSituacao } from '@/hooks/useServidoresPorUnidade';
-import { emitirDocumento } from '@/lib/documentos/emitir';
+import { emitirDocumento, localDaSede } from '@/lib/documentos';
 import {
   gerarRegistrosDiariosBranco,
-  localDaSede,
   paraFolhaFrequencia,
   type FrequenciaMensalPDFData,
   type ConfigAssinatura,

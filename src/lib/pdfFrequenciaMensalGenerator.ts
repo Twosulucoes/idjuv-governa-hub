@@ -9,8 +9,7 @@
 import type jsPDF from 'jspdf';
 import type { DiaNaoUtil } from '@/types/frequencia';
 import { verificarDoisTurnos } from '@/lib/frequenciaCalculoService';
-import { getTenantSnapshot } from '@/core/tenant';
-import { emitirDocumento } from '@/lib/documentos/emitir';
+import { emitirDocumento, localDaSede } from '@/lib/documentos';
 import type { DiaFolhaFrequencia, ServidorFolhaFrequencia } from '@/lib/documentos/modelos/rh/folhaFrequencia';
 
 // ============================================
@@ -154,12 +153,6 @@ export function calcularResumoMensal(registros: RegistroDiario[], cargaHorariaDi
 // ============================================
 // CONVERSÃO PARA O MODELO DO MOTOR ÚNICO
 // ============================================
-
-/** "Cidade/UF" da sede, do perfil da instituição; vazio se não cadastrado (a linha de data sai para preencher). */
-export function localDaSede(): string | undefined {
-  const { cidade, uf } = getTenantSnapshot().endereco ?? {};
-  return [cidade, uf].filter(Boolean).join('/') || undefined;
-}
 
 /**
  * Dados da tela → uma folha do modelo `rh-folha-frequencia`. Mesma regra da folha antiga: a situação do

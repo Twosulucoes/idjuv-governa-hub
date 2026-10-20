@@ -77,18 +77,21 @@ const referencia = (r: number | null | undefined): string => (r ? NUMERO.format(
 
 // Proventos à esquerda e descontos à direita na mesma linha, como no antigo: metade das linhas de uma
 // tabela única, para o contracheque caber numa página. Pesos em mm da largura útil em retrato (170).
-const COLUNAS_RUBRICAS: ColunaTabela[] = [
-  { chave: 'codP', titulo: 'Cód', peso: 10 },
-  { chave: 'descP', titulo: 'Proventos', peso: 39 },
-  { chave: 'refP', titulo: 'Ref.', peso: 11, alinhamento: 'direita' },
-  { chave: 'valP', titulo: 'Valor (R$)', peso: 23, alinhamento: 'direita' },
-  // Coluna vazia só para separar as duas metades.
-  { chave: 'separador', titulo: '', peso: 4 },
-  { chave: 'codD', titulo: 'Cód', peso: 10 },
-  { chave: 'descD', titulo: 'Descontos', peso: 39 },
-  { chave: 'refD', titulo: 'Ref.', peso: 11, alinhamento: 'direita' },
-  { chave: 'valD', titulo: 'Valor (R$)', peso: 23, alinhamento: 'direita' },
-];
+// Todas em branco quando vazias (`emBranco`): o lado que acabou e o separador não levam "—".
+const COLUNAS_RUBRICAS: ColunaTabela[] = (
+  [
+    { chave: 'codP', titulo: 'Cód', peso: 10 },
+    { chave: 'descP', titulo: 'Proventos', peso: 39 },
+    { chave: 'refP', titulo: 'Ref.', peso: 11, alinhamento: 'direita' },
+    { chave: 'valP', titulo: 'Valor (R$)', peso: 23, alinhamento: 'direita' },
+    // Coluna vazia só para separar as duas metades.
+    { chave: 'separador', titulo: '', peso: 4 },
+    { chave: 'codD', titulo: 'Cód', peso: 10 },
+    { chave: 'descD', titulo: 'Descontos', peso: 39 },
+    { chave: 'refD', titulo: 'Ref.', peso: 11, alinhamento: 'direita' },
+    { chave: 'valD', titulo: 'Valor (R$)', peso: 23, alinhamento: 'direita' },
+  ] satisfies ColunaTabela[]
+).map((c) => ({ ...c, emBranco: true }));
 
 /** Linha i da tabela: i-ésimo provento e i-ésimo desconto (o lado que acabou fica em branco). */
 function linhasRubricas(proventos: RubricaContracheque[], descontos: RubricaContracheque[]) {
@@ -121,7 +124,6 @@ function blocosDaFicha(f: FichaContracheque, competencia: string, lote: boolean)
       colunas: COLUNAS_RUBRICAS,
       linhas: linhasRubricas(proventos, descontos),
       totais: { descP: 'Total de proventos (bruto)', valP: valor(f.total_proventos), descD: 'Total de descontos', valD: valor(f.total_descontos) },
-      vazioEmBranco: true,
     }),
     // O líquido em destaque logo abaixo dos totais, como a faixa do antigo.
     paragrafo({ texto: `VALOR LÍQUIDO: ${moeda(f.valor_liquido)}`, negrito: true }),

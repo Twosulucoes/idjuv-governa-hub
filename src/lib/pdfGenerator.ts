@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 
 import { getTenantSnapshot, nomeDoSistema } from '@/core/tenant';
-import { baixarDocumento, emitirDocumento } from '@/lib/documentos';
+import { baixarDocumento, emitirDocumento, localDaSede } from '@/lib/documentos';
 import type { DependenteFicha, ServidorFichaCadastral } from '@/lib/documentos/modelos/rh/fichaCadastral';
 
 import { nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos } from './pdfTemplate';
@@ -1020,12 +1020,6 @@ function dependentesDaFicha(json: unknown): DependenteFicha[] {
       cpf: typeof d.cpf === 'string' ? d.cpf : null,
       parentesco: typeof d.parentesco === 'string' ? d.parentesco : null,
     }));
-}
-
-/** "Cidade/UF" da sede, do perfil da instituição; vazio se não cadastrado (a ficha deixa a linha para preencher). */
-function localDaSede(): string | undefined {
-  const { cidade, uf } = getTenantSnapshot().endereco ?? {};
-  return [cidade, uf].filter(Boolean).join('/') || undefined;
 }
 
 export const generateFichaCadastral = async (data: FichaCadastralData): Promise<void> => {
