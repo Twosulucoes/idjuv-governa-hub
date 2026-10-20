@@ -20,6 +20,11 @@ const contaSchema = z.object({
   tipo_conta: z.string().min(1, "Tipo é obrigatório"),
   uso_principal: z.string().optional(),
   convenio_pagamento: z.string().optional(),
+  nsa_inicial: z
+    .string()
+    .regex(/^\d{0,6}$/, "Até 6 dígitos")
+    .refine((v) => !v || Number(v) >= 1, "A partir de 1")
+    .optional(),
   codigo_cedente: z.string().optional(),
   codigo_transmissao: z.string().optional(),
   ativo: z.boolean().default(true),
@@ -49,6 +54,7 @@ export function ContaAutarquiaForm({ conta, onSuccess, onCancel }: ContaAutarqui
       tipo_conta: conta?.tipo_conta || "corrente",
       uso_principal: conta?.uso_principal || "",
       convenio_pagamento: conta?.convenio_pagamento || "",
+      nsa_inicial: conta?.nsa_inicial ? String(conta.nsa_inicial) : "",
       codigo_cedente: conta?.codigo_cedente || "",
       codigo_transmissao: conta?.codigo_transmissao || "",
       ativo: conta?.ativo ?? true,
@@ -59,6 +65,7 @@ export function ContaAutarquiaForm({ conta, onSuccess, onCancel }: ContaAutarqui
     saveConta.mutate(
       {
         ...data,
+        nsa_inicial: data.nsa_inicial ? Number(data.nsa_inicial) : null,
         id: conta?.id,
       },
       {
@@ -230,7 +237,28 @@ export function ContaAutarquiaForm({ conta, onSuccess, onCancel }: ContaAutarqui
               <FormControl>
                 <Input {...field} placeholder="Número do convênio com o banco" />
               </FormControl>
-              <FormDescription>Código do convênio para geração de arquivos CNAB</FormDescription>
+              <FormDescription>
+                Código do convênio para geração de arquivos CNAB (no Banco do Brasil, obrigatório para a remessa da
+                folha)
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="nsa_inicial"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Número inicial da remessa (NSA)</FormLabel>
+              <FormControl>
+                <Input {...field} inputMode="numeric" placeholder="1" />
+              </FormControl>
+              <FormDescription>
+                Para continuar a numeração do sistema anterior: a próxima remessa desta conta usa este número se ele for
+                maior que o último gerado aqui.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

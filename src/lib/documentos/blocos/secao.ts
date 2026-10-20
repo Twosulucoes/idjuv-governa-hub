@@ -11,7 +11,8 @@ export const secao =
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(ctx.fonte.secao);
     const linhas = quebrarEmLinhas(doc, p.texto, ctx.largura);
-    ctx.garantirEspaco(ESPACO.sm + linhas.length * alturaLinha(ctx.fonte.secao) + ESPACO.sm + 12);
+    // Reserva para o que vem logo abaixo (cabeçalho de tabela + 1 linha ≈ 14 mm): título de seção nunca fica sozinho no pé da página.
+    ctx.garantirEspaco(ESPACO.sm + linhas.length * alturaLinha(ctx.fonte.secao) + ESPACO.sm + 16);
     ctx.y += ESPACO.sm;
     usarTexto(doc, corLegivel(ctx.marca.corPrimaria));
     for (const linha of linhas) {

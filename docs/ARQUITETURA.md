@@ -169,7 +169,7 @@ relatórios), em `src/lib`:
 - **PDF**: `jspdf` + `pdf-lib` — ~40 geradores (`pdf*.ts`), com base em
   `pdfTemplate.ts`/`pdfLogos.ts`.
 - **Planilhas**: `xlsx` — `src/export/`, `src/lib/exportar*.ts`.
-- **Fiscais/folha**: `cnabGenerator.ts` (remessa bancária CNAB),
+- **Fiscais/folha**: `cnabGenerator.ts` (remessa bancária CNAB; com conta pagadora no BB usa `bancario/folhaBbCnab240.ts`, o leiaute que o banco já aceita da folha),
   `esocialGenerator.ts`/`esocialXmlGenerator.ts` (eSocial).
 
 ## Build, PWA e deploy

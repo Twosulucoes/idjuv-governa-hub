@@ -80,6 +80,8 @@ export interface ContaAutarquia {
   tipo_conta?: string;
   uso_principal?: string;
   convenio_pagamento?: string;
+  /** Primeiro número de remessa (NSA) da conta, para continuar a sequência do sistema anterior. */
+  nsa_inicial?: number | null;
   codigo_cedente?: string;
   codigo_transmissao?: string;
   ativo?: boolean;

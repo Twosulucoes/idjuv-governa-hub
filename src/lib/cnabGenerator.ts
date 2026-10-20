@@ -1,13 +1,16 @@
 /**
  * Gerador de Arquivos CNAB240 para Pagamento de Folha
- * Padrão FEBRABAN 240 genérico (decisão 10 da revisão do RH): sem manual do convênio, os campos que variam por banco
- * estão marcados "conferir no manual do banco".
+ * Conta pagadora no Banco do Brasil: leiaute que o BB já aceita da folha (`bancario/folhaBbCnab240.ts`, conferido byte
+ * a byte com as remessas do SIGRH). Outros bancos: padrão FEBRABAN 240 genérico (decisão 10 da revisão do RH); sem
+ * manual do convênio, os campos que variam por banco estão marcados "conferir no manual do banco".
  *
  * Nada aqui é fixo da instituição: dados do pagador (CNPJ, razão social, endereço) vêm de `config_autarquia` (com o
  * endereço do perfil do tenant como reserva), a conta e o banco de `contas_autarquia`/`bancos_cnab`, e os dados do
  * favorecido da ficha financeira e do cadastro do servidor. Faltou dado obrigatório: `validarRemessaCNAB` lista o que
  * falta e a tela recusa gerar.
  */
+
+import { gerarFolhaBbCnab240, pendenciasFolhaBb } from "@/lib/bancario/folhaBbCnab240";
 
 export interface EnderecoPagador {
   logradouro: string;
@@ -351,8 +354,12 @@ export function formaDoFavorecido(empresa: Pick<DadosEmpresa, "banco">, favoreci
 
 const ORDEM_FORMAS: FormaPagamento[] = ["01", "05", "41"];
 
+/** Conta pagadora no BB usa o leiaute aceito pelo banco; as demais, o FEBRABAN genérico. */
+const pagadorNoBB = (empresa: Pick<DadosEmpresa, "banco">) => padLeft(onlyDigits(empresa.banco), 3) === "001";
+
 // Função principal para gerar arquivo CNAB240
 export function gerarCNAB240(remessa: RemessaCNAB): string {
+  if (pagadorNoBB(remessa.empresa)) return gerarFolhaBbCnab240(remessa);
   const linhas: string[] = [];
   const { empresa, favorecidos } = remessa;
 
@@ -396,26 +403,43 @@ export function gerarCNAB240(remessa: RemessaCNAB): string {
 const listaCurta = (nomes: string[], max = 8) =>
   nomes.length <= max ? nomes.join(", ") : `${nomes.slice(0, max).join(", ")} e mais ${nomes.length - max}`;
 
+export interface OpcoesValidacaoRemessa {
+  /** Como chamar os favorecidos nas mensagens (padrão "servidor(es)"). */
+  quem?: string;
+  /** Os dados bancários vêm da ficha da folha (padrão); false quando vêm do cadastro (pensão alimentícia). */
+  dadosDaFicha?: boolean;
+}
+
 /**
  * Lista o que falta no cadastro para gerar a remessa (vazia = pode gerar). Sem mensagens de CPF ou conta: só o nome
- * do servidor e o campo que falta.
+ * do favorecido e o campo que falta. Pagador no BB: o leiaute do banco (sem endereço nem nome do banco; convênio
+ * obrigatório).
  */
-export function validarRemessaCNAB(empresa: DadosEmpresa, favorecidos: DadosFavorecido[]): string[] {
+export function validarRemessaCNAB(
+  empresa: DadosEmpresa,
+  favorecidos: DadosFavorecido[],
+  opcoes: OpcoesValidacaoRemessa = {},
+): string[] {
+  const quem = opcoes.quem ?? "servidor(es)";
+  const doBB = pagadorNoBB(empresa);
   const faltas: string[] = [];
   if (onlyDigits(empresa.cnpj).length !== 14) faltas.push("CNPJ da instituição (Configurações da Folha)");
   if (!empresa.razaoSocial?.trim()) faltas.push("razão social da instituição (Configurações da Folha)");
   if (onlyDigits(empresa.banco).length !== 3) faltas.push("código do banco da conta pagadora (Bancos e Contas)");
-  if (!empresa.nomeBanco?.trim()) faltas.push("nome do banco da conta pagadora (Bancos e Contas)");
+  // O leiaute do BB escreve o nome do banco fixo e não leva endereço do pagador
+  if (!doBB && !empresa.nomeBanco?.trim()) faltas.push("nome do banco da conta pagadora (Bancos e Contas)");
   if (!onlyDigits(empresa.agencia)) faltas.push("agência da conta pagadora");
   if (!onlyDigits(empresa.conta)) faltas.push("número da conta pagadora");
   if (!empresa.contaDigito?.trim()) faltas.push("dígito da conta pagadora (Bancos e Contas)");
   if ((empresa.contaDigito?.trim().length ?? 0) > 1) faltas.push("dígito da conta pagadora com mais de 1 caractere (Bancos e Contas)");
   if ((empresa.agenciaDigito?.trim().length ?? 0) > 1) faltas.push("dígito da agência pagadora com mais de 1 caractere (Bancos e Contas)");
   const end = empresa.endereco;
-  if (!end.logradouro?.trim()) faltas.push("logradouro da instituição (Configurações da Folha)");
-  if (!end.cidade?.trim()) faltas.push("cidade da instituição (Configurações da Folha)");
-  if (onlyDigits(end.cep ?? "").length !== 8) faltas.push("CEP da instituição, 8 dígitos (Configurações da Folha)");
-  if (!/^[A-Za-z]{2}$/.test(end.uf?.trim() ?? "")) faltas.push("UF da instituição (Configurações da Folha)");
+  if (!doBB) {
+    if (!end.logradouro?.trim()) faltas.push("logradouro da instituição (Configurações da Folha)");
+    if (!end.cidade?.trim()) faltas.push("cidade da instituição (Configurações da Folha)");
+    if (onlyDigits(end.cep ?? "").length !== 8) faltas.push("CEP da instituição, 8 dígitos (Configurações da Folha)");
+    if (!/^[A-Za-z]{2}$/.test(end.uf?.trim() ?? "")) faltas.push("UF da instituição (Configurações da Folha)");
+  }
 
   const porCampo = new Map<string, string[]>();
   const anotar = (campo: string, nome: string) => porCampo.set(campo, [...(porCampo.get(campo) ?? []), nome || "(sem nome)"]);
@@ -433,10 +457,11 @@ export function validarRemessaCNAB(empresa: DadosEmpresa, favorecidos: DadosFavo
     if (!f.contaDigito?.trim()) anotarBanco("dígito da conta (formato 12345-6)", f.nome);
     if ((f.contaDigito?.trim().length ?? 0) > 1) anotarBanco("dígito da conta com mais de 1 caractere", f.nome);
     if ((f.agenciaDigito?.trim().length ?? 0) > 1) anotarBanco("dígito da agência com mais de 1 caractere", f.nome);
-    if (!(f.valor > 0)) anotar("valor líquido", f.nome);
+    if (!(f.valor > 0)) anotar("valor", f.nome);
   }
-  porCampo.forEach((nomes, campo) => faltas.push(`${campo} de ${nomes.length} servidor(es): ${listaCurta(nomes)}`));
-  if (faltaNaFicha) {
+  porCampo.forEach((nomes, campo) => faltas.push(`${campo} de ${nomes.length} ${quem}: ${listaCurta(nomes)}`));
+  if (doBB) faltas.push(...pendenciasFolhaBb({ empresa, favorecidos }));
+  if (faltaNaFicha && opcoes.dadosDaFicha !== false) {
     faltas.push(
       "Os dados bancários dos servidores vêm da ficha financeira desta folha (copiados do cadastro no processamento): " +
         "corrigir o cadastro do servidor não basta, é preciso reabrir a folha, reprocessar e fechar de novo.",

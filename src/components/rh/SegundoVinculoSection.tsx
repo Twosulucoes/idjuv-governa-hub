@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SeletorDocumentoVinculo } from "./SeletorDocumentoVinculo";
-import { Link2, Building2 } from "lucide-react";
+import { Link2, Building2, ShieldCheck } from "lucide-react";
 import {
   VinculoExternoEsfera,
   VinculoExternoSituacao,
@@ -31,6 +31,9 @@ export interface SegundoVinculoData {
   vinculo_externo_forma: string;
   vinculo_externo_ato_id: string | null;
   vinculo_externo_observacoes: string;
+  contribui_rpps_origem: boolean;
+  rpps_origem_fundamento: string;
+  rpps_origem_inicio: string;
 }
 
 interface SegundoVinculoSectionProps {
@@ -194,6 +197,47 @@ export function SegundoVinculoSection({
                 <p className="text-xs text-muted-foreground">
                   Vincule a portaria de cessão, requisição ou licença da Central de Portarias.
                 </p>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Previdência: efetivo de outro ente que contribui para o regime próprio de origem não paga INSS aqui */}
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="contribui_rpps_origem"
+                checked={data.contribui_rpps_origem}
+                onCheckedChange={(v) => onChange("contribui_rpps_origem", v as boolean)}
+                disabled={disabled}
+              />
+              <Label htmlFor="contribui_rpps_origem" className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                Contribui para o regime próprio do órgão de origem (sem desconto de INSS na folha)
+              </Label>
+            </div>
+            {data.contribui_rpps_origem && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <Label>Fundamento (ato ou instrução normativa) *</Label>
+                  <Input
+                    value={data.rpps_origem_fundamento}
+                    onChange={(e) => onChange("rpps_origem_fundamento", e.target.value)}
+                    placeholder="Ex: Instrução Normativa nº 1/2026, art. 3º"
+                    disabled={disabled}
+                    maxLength={300}
+                  />
+                </div>
+                <div>
+                  <Label>Início da opção *</Label>
+                  <Input
+                    type="date"
+                    value={data.rpps_origem_inicio}
+                    onChange={(e) => onChange("rpps_origem_inicio", e.target.value)}
+                    disabled={disabled}
+                  />
+                </div>
               </div>
             )}
           </div>

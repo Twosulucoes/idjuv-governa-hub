@@ -12,6 +12,14 @@
 > `EstiloImpressao` (`estiloDoTenant`). Ondas seguintes migram os geradores antigos por módulo:
 > [spec](./superpowers/specs/2026-10-19-padrao-relatorios-configuravel-design.md).
 
+> **Onda 1 (19/10/2026, relatórios do RH):** os geradores marcados "migrado na onda 1" na tabela do §2 viraram
+> modelos em `src/lib/documentos/modelos/rh/` e `modelos/relatorios/`, registrados no `REGISTRO`. O arquivo
+> antigo ficou só com a função que as telas chamam (`emitirDocumento` + `baixarDocumento`), sem `jspdf`.
+> Ficou de fora do motor, de propósito: cor por célula (status, % de presença, esfera), recuo da hierarquia
+> (vira caminho de siglas no título da seção), logos desenhados à mão e a opção `incluirLogos` das telas, que
+> agora é ignorada (logos seguem a configuração de impressão). Corte por número de caracteres virou quebra de
+> linha. Plano: [`superpowers/plans/2026-10-19-padrao-relatorios-onda1.md`](./superpowers/plans/2026-10-19-padrao-relatorios-onda1.md).
+
 ## 1. Famílias
 
 Todo documento pertence a uma família; cada família tem um layout-base.
@@ -64,25 +72,25 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfModelos.ts` | 1335 | `generateRelacaoDocumentosModelo`, `generateFichaCadastralModelo`, `generateFichaCadastralPreenchida`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoAcumulacaoPreenchida`, `generateDeclaracaoBensModelo`, `generateDeclaracaoBensPreenchida`, `generateTermoDemandaModelo`, `generateOrdemMissaoModelo`, `generateRelatorioViagemModelo`, `generateRequisicaoMaterialModelo`, `generateTermoResponsabilidadeModelo` | 2 | 0 | Misto (dividir por documento) | SEI (termos, declarações; decisão pendente) / F3 / F4 |
 | `src/lib/pdfOrganograma.ts` | 650 | `gerarOrganogramaPDF`, `gerarOrganogramaListaPDF` | 2 | 0 | Relatório | F4 |
 | pdfPortarias.ts (removido em 12/10/2026) | 930 | `generatePortariaUnificadaPdf`, `generatePortariaColetivaComTabela`, `generatePortariaNomeacao`, `generatePortariaExoneracao`, `generatePortariaDesignacao` | 2 | 1 | Ato (fora do escopo) | remover / substituir por registro do SEI |
-| `src/lib/pdfRelatorioAgrupadoPortaria.ts` | 298 | `generateRelatorioAgrupadoPortaria` | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfRelatorioAgrupadoPortaria.ts` | 298 | `generateRelatorioAgrupadoPortaria` | 1 | 0 | Relatório | migrado na onda 1: `rh-agrupado-portaria` |
 | `src/lib/pdfRelatorioArbitros.ts` | 258 | `gerarRelatorioArbitrosPDF` | 1 | 0 | Relatório | F4 |
-| `src/lib/pdfRelatorioAvancado.ts` | 468 | `gerarRelatorioPDF` | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfRelatorioAvancado.ts` | 468 | `gerarRelatorioPDF` | 1 | 0 | Relatório | migrado na onda 1: `relatorios-colunas-dinamicas` (+ `-paisagem`) |
 | `src/lib/pdfRelatorioCargos.ts` | 260 | `gerarRelatorioCargos98PDF` | 1 | 0 | Relatório | F4 |
-| `src/lib/pdfRelatorioContatosEstrategicos.ts` | 268 | `gerarRelatorioContatosEstrategicos` | 1 | 0 | Relatório | F4 |
-| `src/lib/pdfRelatorioEstrutura.ts` | 251 | `generateRelatorioEstruturaPDF` | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfRelatorioContatosEstrategicos.ts` | 268 | `gerarRelatorioContatosEstrategicos` | 1 | 0 | Relatório | migrado na onda 1: `rh-contatos-estrategicos` |
+| `src/lib/pdfRelatorioEstrutura.ts` | 251 | `generateRelatorioEstruturaPDF` | 1 | 0 | Relatório | migrado na onda 1: `relatorios-estrutura-organizacional` |
 | `src/lib/pdfRelatorioFederacoes.ts` | 300 | `gerarRelatorioFederacoesPDF` | 1 | 0 | Relatório | F4 |
-| `src/lib/pdfRelatorioFolhaSimplificado.ts` | 333 | `gerarRelatorioFolhaSimplificado` | 1 | 0 | Relatório | F4 |
-| `src/lib/pdfRelatorioFrequencia.ts` | 386 | `generateRelatorioFrequenciaGeral`, `generateRelatorioFrequenciaIndividual` | 2 | 1 | Relatório | F4 |
-| `src/lib/pdfRelatorioPendencias.ts` | 320 | `gerarPdfRelatorioPendencias` | 2 | 0 | Relatório | F4 |
-| `src/lib/pdfRelatorioPendenciasServidores.ts` | 348 | `gerarPdfRelatorioPendenciasServidores` | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfRelatorioFolhaSimplificado.ts` | 333 | `gerarRelatorioFolhaSimplificado` | 1 | 0 | Relatório | migrado na onda 1: `relatorios-folha-simplificada` |
+| `src/lib/pdfRelatorioFrequencia.ts` | 386 | `generateRelatorioFrequenciaGeral`, `generateRelatorioFrequenciaIndividual` | 2 | 1 | Relatório | migrado na onda 1: `rh-frequencia-geral`, `rh-frequencia-individual` |
+| `src/lib/pdfRelatorioPendencias.ts` | 320 | `gerarPdfRelatorioPendencias` | 2 | 0 | Relatório | migrado na onda 1: `rh-pendencias-pre-cadastros` |
+| `src/lib/pdfRelatorioPendenciasServidores.ts` | 348 | `gerarPdfRelatorioPendenciasServidores` | 1 | 0 | Relatório | migrado na onda 1: `rh-pendencias-servidores` |
 | `src/lib/pdfRelatorioReunioes.ts` | 427 | `gerarPdfListaConvocados`, `gerarPdfListaPresenca`, `gerarPdfRelatorioReuniao` | 1 | 0 | Comprovante (lista de presença/convocados) + Relatório (ata) | F4/F5 |
-| `src/lib/pdfRelatorioSegundoVinculo.ts` | 224 | `gerarRelatorioSegundoVinculo` | 1 | 0 | Relatório | F4 |
-| `src/lib/pdfRelatorioServidoresDiretoria.ts` | 362 | `gerarRelatorioServidoresDiretoria` | 1 | 0 | Relatório | F4 |
-| `src/lib/pdfRelatorioSituacaoPortaria.ts` | 297 | `generateRelatorioSituacaoPortaria` | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfRelatorioSegundoVinculo.ts` | 224 | `gerarRelatorioSegundoVinculo` | 1 | 0 | Relatório | migrado na onda 1: `rh-segundo-vinculo` |
+| `src/lib/pdfRelatorioServidoresDiretoria.ts` | 362 | `gerarRelatorioServidoresDiretoria` | 1 | 0 | Relatório | migrado na onda 1: `rh-diretoria-hierarquia` |
+| `src/lib/pdfRelatorioSituacaoPortaria.ts` | 297 | `generateRelatorioSituacaoPortaria` | 1 | 0 | Relatório | migrado na onda 1: `rh-situacao-portaria` |
 | `src/lib/pdfRelatorioUnidades.ts` | 678 | `generateRelatorioUnidadesPDF`, `downloadRelatorioUnidadesPDF` | 1 | 0 | Relatório | F4 |
-| `src/lib/pdfRelatoriosAfastamentos.ts` | 375 | `addCabecalhoTabela`, `addLinhaTabela`, `quebrarComCabecalho`, `addTituloGrupo`, `addLinhaTotal`, `finalizar`, `gerarRelatorioFerias`, `gerarRelatorioLicencas`, `gerarRelatorioViagens` | 3 | 1 | Relatório | F4 |
-| `src/lib/pdfRelatoriosFolha.ts` | 231 | `gerarResumoFolhasAno`, `gerarFolhaPorUnidade`, `gerarFolhaPorRubrica` | 1 | 0 | Relatório | F4 |
-| `src/lib/pdfRelatoriosRH.ts` | 918 | `generateRelatorioServidoresDiretoria`, `generateRelatorioServidoresVinculo`, `generateRelatorioHistoricoFuncional`, `generateRelatorioVagasCargo`, `generateRelatorioServidoresPortarias` | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfRelatoriosAfastamentos.ts` | 375 | `addCabecalhoTabela`, `addLinhaTabela`, `quebrarComCabecalho`, `addTituloGrupo`, `addLinhaTotal`, `finalizar`, `gerarRelatorioFerias`, `gerarRelatorioLicencas`, `gerarRelatorioViagens` | 3 | 1 | Relatório | migrado na onda 1: `rh-ferias`, `rh-licencas`, `rh-viagens` |
+| `src/lib/pdfRelatoriosFolha.ts` | 231 | `gerarResumoFolhasAno`, `gerarFolhaPorUnidade`, `gerarFolhaPorRubrica` | 1 | 0 | Relatório | migrado na onda 1: `rh-folha-resumo-ano`, `rh-folha-por-unidade`, `rh-folha-por-rubrica` |
+| `src/lib/pdfRelatoriosRH.ts` | 918 | `generateRelatorioServidoresDiretoria`, `generateRelatorioServidoresVinculo`, `generateRelatorioHistoricoFuncional`, `generateRelatorioVagasCargo`, `generateRelatorioServidoresPortarias` | 1 | 0 | Relatório | migrado na onda 1: `rh-servidores-diretoria`, `rh-servidores-vinculo`, `rh-historico-funcional`, `rh-vagas-cargo`, `rh-servidores-portarias` |
 | `src/lib/pdfTemplate.ts` | 878 | `CORES`, `loadImageWithDimensions`, `calculateLogoDimensions`, `loadLogos`, `PAGINA`, `getPageDimensions`, `setColor`, `generateInstitutionalHeader`, `generateInstitutionalFooter`, `addPageNumbers`, `addSectionHeader`, `addSectionTitle`, `addField`, `addFieldWithLine`, `addTextArea`, `addCheckbox`, `addSignatureArea`, `addLocalData`, `addTableHeader`, `addTableRow`, `formatCPF`, `formatDate`, `formatCurrency`, `generateDocumentNumber`, `checkPageBreak`, `VINCULO_LABELS`, `SITUACAO_LABELS`, `CATEGORIA_LABELS`, `cabecalhoOficial`, `nomeOficialDocumentos`, `nomeEntidadeSuperiorDocumentos`, `rodapeOficial` | 2 | 34 | Base (a eliminar) | F5 |
 | `src/lib/pdfTermoAutorizacao.ts` | 210 | `generateTermoAutorizacao` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
 | `src/lib/pdfTermoCessao.ts` | 138 | `generateTermoCessao` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
@@ -101,7 +109,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 - `pdfCPSI.ts`: DFD, ETP e TR (documentos de contratação) — atos, feitos no SEI; destino: remover / substituir por registro do SEI.
 - `pdfFederacoesModular.ts` (747 linhas, **0 telas**): ficha de federação (Ficha) e listagem (Relatório); `isMandatoExpirado` é regra de negócio, não de PDF.
 - `pdfRelatorioReunioes.ts`: lista de convocados e de presença (Comprovante) e relatório da reunião (Relatório).
-- `pdfRelatoriosAfastamentos.ts`: exporta helpers de tabela (`addCabecalhoTabela`, `quebrarComCabecalho`…) além dos relatórios; os helpers serão substituídos pelo bloco `tabela`.
+- `pdfRelatoriosAfastamentos.ts`: exportava helpers de tabela (`addCabecalhoTabela`, `quebrarComCabecalho`…) além dos relatórios; na onda 1 os helpers foram apagados e o bloco `tabela` os substituiu.
 - `pdfInstitucional.ts` e `pdfTemplate.ts`: bases concorrentes (34 libs importam `pdfTemplate`, 4 `pdfInstitucional`, 5 `pdfLogos`); saem na F5.
 
 ### Achados do inventário
@@ -180,8 +188,8 @@ exige tabela/RPC com RLS (decisão e spec próprias; fora de escopo desta fase).
 - Fontes nativas do PDF (Times/Helvetica): caracteres fora do WinAnsi (emoji, `ł`, `ž`, `✓`…) saem como `?`.
 - **Assinatura isolada em página:** os blocos `assinaturas` e `carimbo` são indivisíveis; se faltarem poucos
   milímetros, vão sozinhos para a página seguinte. Deixou de ser obrigatória (era da F2, cancelada); vale criar
-  "manter junto" se uma ficha ou relatório vier a usar assinatura. Hoje `assinaturas` não é usado por nenhum
-  modelo (fica disponível); `carimbo` é usado pelo comprovante de referência.
+  "manter junto" se uma ficha ou relatório vier a usar assinatura. Hoje `assinaturas` é usado pela
+  frequência individual (`rh-frequencia-individual`); `carimbo` é usado pelo comprovante de referência.
 - Cabeçalho/rodapé: nome do órgão muito longo no cabeçalho compacto (páginas 2+) pode encostar no protocolo, e `emitidoPor` muito longo no rodapé pode encostar em "Página X de Y"; logo mais largo que 3,2:1 sai achatado (limite de 45 mm de largura com 14 mm de altura). Nenhum tenant atual passa desses limites.
 - `tabela` não valida `colunas` vazio nem `peso <= 0` (erro de programação, lança); rótulo de campo maior que a coluna é cortado na 1ª linha.
 - O logo entra no PDF em resolução total (peso do arquivo); reduzir no canvas é melhoria futura.

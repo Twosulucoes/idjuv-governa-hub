@@ -304,6 +304,46 @@ pós-deploy em
 `bancos_cnab`, `remessas_bancarias`, `retornos_bancarios`,
 `itens_retorno_bancario`, `eventos_esocial`.
 
+Cálculo do INSS e do IRRF (migração `20261019200000_folha_irrf_lei15270_regime_proprio.sql`):
+
+- `calcular_irrf_mensal(rendimentos, deduções legais, data)` devolve base, dedução usada, imposto pela tabela,
+  redução e IRRF. Usa o desconto simplificado quando é maior que as deduções legais e aplica a redução da Lei
+  15.270/2025 sobre os rendimentos. Os valores vêm de `parametros_folha` (`desconto_simplificado_irrf`,
+  `irrf_reducao_limite_isencao`, `irrf_reducao_maxima`, `irrf_reducao_limite`, `irrf_reducao_constante`,
+  `irrf_reducao_coeficiente`); sem eles a parte correspondente não se aplica e a ficha sai com
+  `desconto_simplificado_irrf_nao_configurado` ou `reducao_irrf_nao_configurada`. Sem EXECUTE pela API.
+- `folha_montar_ficha` (mensal): pensão alimentícia calculada antes do IRRF e deduzida da base; sobre o líquido,
+  pensão e IRRF são recalculados até o IRRF parar de mudar. 13º e rescisão seguem com `calcular_irrf` direto.
+- `servidores.contribui_rpps_origem`, `rpps_origem_fundamento` e `rpps_origem_inicio`: com a opção (que exige
+  fundamento e início, constraint `servidores_rpps_origem_fundamentado`), a folha não desconta INSS; vínculo efetivo
+  externo sem a opção marca a ficha com `regime_previdenciario_a_confirmar`.
+- `tabela_inss.aliquota` e `tabela_irrf.aliquota` são fração (constraints `*_aliquota_fracao`, 0 a 1); a migração
+  converte o que estiver gravado em %. `parametros_folha.valor` passou a `numeric(18,6)`.
+- Testes no bloco "FOLHA: cálculo do INSS e do IRRF" de `scripts/db/testar-rls.sql`.
+
+Atos remuneratórios (migração `20261020100000_folha_atos_remuneratorios.sql`, em PR rascunho):
+
+- `atos_remuneratorios` (tipo, número, datas do ato e da publicação, `vigencia_inicio`, ementa, percentual,
+  processo SEI, link) e `atos_remuneratorios_itens` (alvo `cargo`, `rubrica` ou `parametro`, `valor_novo`,
+  `valor_anterior` gravado ao aplicar; um alvo por item e por ato): classe `permissao` do mapa, o módulo `rh` lê e a
+  escrita exige `financeiro.folha.configurar`. O ato nasce `rascunho`; itens só mudam com o ato em rascunho; aplicado,
+  ato e itens não mudam nem saem (`RHE02`, triggers `ato_remuneratorio_integridade` e
+  `ato_remuneratorio_item_integridade`).
+- `cargo_vencimentos` (classe `trilha`, imutável): vencimento ou subsídio do cargo por vigência, com origem `inicial`
+  (o valor do cadastro antes do primeiro ato, vigente desde 1900-01-01), `ato` ou `cadastro`.
+  `vencimento_cargo_em(cargo, data)` devolve o vigente na data e, sem histórico, `cargos.vencimento_base`. Em cargo com
+  histórico, mudar `cargos.vencimento_base` grava uma linha `cadastro` vigente de hoje (trigger
+  `trg_cargo_vencimento_pelo_cadastro`).
+- `aplicar_ato_remuneratorio(ato)` (`SECURITY DEFINER`, só `authenticated`; exige o módulo `rh` e
+  `financeiro.folha.configurar`, senão `42501`): tudo ou nada. Cargo: linha no histórico e
+  `cargos.vencimento_base` com o valor vigente hoje (ato com vigência futura não muda o cadastro agora). Rubrica: troca
+  `formula_valor` (as rubricas não têm vigência por valor). Parâmetro: fecha a vigência aberta na véspera e cria a nova;
+  recusa (`22023`) quando já há valor com vigência igual ou posterior.
+- `processar_folha_pagamento` e `folha_montar_ficha` leem o vencimento por `vencimento_cargo_em` no último dia da
+  competência; vigência que começa depois do dia 1 marca a ficha com `vencimento_alterado_na_competencia` (o mês sai
+  com o valor novo inteiro). Diferenças de meses já fechados não são calculadas.
+- Testes no bloco "FOLHA: atos remuneratórios" de `scripts/db/testar-rls.sql`.
+
 Segurança da folha (migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql`, mesclada
 na PR #63; idempotente, vale tanto para o banco do baseline quanto para o produzido só
 pelas migrações):
@@ -612,6 +652,15 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
 - **Uma remessa ativa por folha e conta** — índice único parcial `remessas_bancarias_folha_conta_ativa_uidx
   (folha_id, conta_autarquia_id) WHERE status <> 'cancelada'`: a segunda dá `23505`; para gerar de novo, cancele a
   anterior.
+- **Pensão alimentícia e número inicial** (migração `20261020090000_folha_remessa_pensao_nsa.sql`, em PR rascunho) —
+  `remessas_bancarias.tipo_credito` (`servidores`, o padrão, ou `pensao`; CHECK; fixo depois do INSERT, `RHE02`). Na
+  remessa de pensão, `valor_total` e `quantidade_registros` somam os descontos "Pensão alimentícia — <beneficiário>"
+  das fichas da folha cuja pensão (`pensoes_alimenticias` do servidor da ficha, pelo nome do beneficiário) tem banco,
+  agência e conta; o front monta os créditos pela mesma regra (`creditosPensao`, `src/lib/bancario/pensaoRemessa.ts`)
+  com o banco do cadastro da pensão. O índice `remessas_bancarias_folha_conta_ativa_uidx` (mesmo nome e predicado)
+  passa a ser por folha, conta e tipo. `contas_autarquia.nsa_inicial` (1 a 999999, opcional) continua a numeração do
+  sistema anterior: o número é o maior entre o último da conta + 1 e o inicial; `get_proximo_numero_remessa` segue a
+  mesma regra.
 - **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
   `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez**, depois do INSERT, e só
   por quem: tem o módulo `rh` e `financeiro.folha.processar` (`42501`), **gerou a remessa** (`gerado_por`, fixado pela

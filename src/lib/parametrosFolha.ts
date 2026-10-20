@@ -8,11 +8,13 @@
 
 export type UnidadeParametro = "reais" | "percentual" | "sim_nao" | "numero";
 
+export const GRUPOS_PARAMETROS = ["Gerais", "IRRF", "Licenças", "Afastamentos"] as const;
+
 export interface ParametroFolhaDef {
   tipo: string;
   descricao: string;
   unidade: UnidadeParametro;
-  grupo: "Gerais" | "Licenças" | "Afastamentos";
+  grupo: (typeof GRUPOS_PARAMETROS)[number];
 }
 
 const LICENCAS: [string, string][] = [
@@ -48,6 +50,13 @@ export const PARAMETROS_FOLHA: ParametroFolhaDef[] = [
   { tipo: "salario_familia_limite", descricao: "Limite salarial para salário-família", unidade: "reais", grupo: "Gerais" },
   { tipo: "aliquota_fgts", descricao: "Alíquota do FGTS", unidade: "percentual", grupo: "Gerais" },
   { tipo: "margem_consignavel", descricao: "Margem consignável (fração, ex.: 0,35)", unidade: "numero", grupo: "Gerais" },
+  // IRRF mensal: desconto simplificado (substitui as deduções quando é maior) e redução da Lei 15.270/2025
+  { tipo: "desconto_simplificado_irrf", descricao: "Desconto simplificado mensal do IRRF", unidade: "reais", grupo: "IRRF" },
+  { tipo: "irrf_reducao_limite_isencao", descricao: "Redução do IRRF: rendimento até o qual o IR é zerado", unidade: "reais", grupo: "IRRF" },
+  { tipo: "irrf_reducao_maxima", descricao: "Redução do IRRF: valor máximo da redução", unidade: "reais", grupo: "IRRF" },
+  { tipo: "irrf_reducao_limite", descricao: "Redução do IRRF: rendimento a partir do qual não há redução", unidade: "reais", grupo: "IRRF" },
+  { tipo: "irrf_reducao_constante", descricao: "Redução do IRRF: parcela constante da fórmula", unidade: "reais", grupo: "IRRF" },
+  { tipo: "irrf_reducao_coeficiente", descricao: "Redução do IRRF: coeficiente sobre o rendimento (ex.: 0,133145)", unidade: "numero", grupo: "IRRF" },
   ...LICENCAS.map(([t, d]): ParametroFolhaDef => ({
     tipo: `licenca_remunerada_${t}`,
     descricao: `${d}: é remunerada? (1 = sim, 0 = não)`,
@@ -100,4 +109,16 @@ export function formatarValorParametro(tipo: string, valor: number): string {
     default:
       return valor.toString();
   }
+}
+
+/**
+ * Alíquota das tabelas de INSS e IRRF: a tela mostra em % (7,5) e o banco guarda a fração (0,075), que é o que
+ * `calcular_inss_servidor` e `calcular_irrf` multiplicam. O banco recusa alíquota acima de 1 (migração 20261019200000).
+ */
+export function aliquotaEmPercentual(fracao: number | string | null | undefined): number {
+  return Number((Number(fracao ?? 0) * 100).toFixed(4));
+}
+
+export function aliquotaEmFracao(percentual: number | string | null | undefined): number {
+  return Number((Number(percentual ?? 0) / 100).toFixed(6));
 }

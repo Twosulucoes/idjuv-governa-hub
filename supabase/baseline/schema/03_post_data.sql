@@ -150,6 +150,22 @@ ALTER TABLE ONLY public.atas_registro_preco
 
 
 --
+-- Name: atos_remuneratorios_itens atos_remuneratorios_itens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.atos_remuneratorios_itens
+    ADD CONSTRAINT atos_remuneratorios_itens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: atos_remuneratorios atos_remuneratorios_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.atos_remuneratorios
+    ADD CONSTRAINT atos_remuneratorios_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: audit_colunas_sensiveis audit_colunas_sensiveis_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -339,6 +355,14 @@ ALTER TABLE ONLY public.campanhas_inventario_unidades
 
 ALTER TABLE ONLY public.cargo_unidade_compatibilidade
     ADD CONSTRAINT cargo_unidade_compatibilidade_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cargo_vencimentos cargo_vencimentos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cargo_vencimentos
+    ADD CONSTRAINT cargo_vencimentos_pkey PRIMARY KEY (id);
 
 
 --
@@ -3142,6 +3166,13 @@ ALTER TABLE ONLY public.vinculos_servidor
 
 
 --
+-- Name: atos_remuneratorios_itens_alvo_uidx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX atos_remuneratorios_itens_alvo_uidx ON public.atos_remuneratorios_itens USING btree (ato_id, alvo, COALESCE(cargo_id, rubrica_id), COALESCE(tipo_parametro, ''::character varying));
+
+
+--
 -- Name: documentos_portaria_numero_uk; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3335,6 +3366,20 @@ CREATE INDEX idx_atas_registro_preco_fornecedor ON public.atas_registro_preco US
 --
 
 CREATE INDEX idx_atas_registro_preco_processo ON public.atas_registro_preco USING btree (processo_id);
+
+
+--
+-- Name: idx_atos_remuneratorios_itens_ato; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_atos_remuneratorios_itens_ato ON public.atos_remuneratorios_itens USING btree (ato_id);
+
+
+--
+-- Name: idx_atos_remuneratorios_vigencia; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_atos_remuneratorios_vigencia ON public.atos_remuneratorios USING btree (vigencia_inicio DESC);
 
 
 --
@@ -3664,6 +3709,13 @@ CREATE INDEX idx_cargo_unidade_compat_cargo ON public.cargo_unidade_compatibilid
 --
 
 CREATE INDEX idx_cargo_unidade_compatibilidade_unidade_especifica_id ON public.cargo_unidade_compatibilidade USING btree (unidade_especifica_id);
+
+
+--
+-- Name: idx_cargo_vencimentos_cargo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cargo_vencimentos_cargo ON public.cargo_vencimentos USING btree (cargo_id, vigencia_inicio DESC, created_at DESC);
 
 
 --
@@ -7926,7 +7978,7 @@ CREATE UNIQUE INDEX remessas_bancarias_conta_numero_uidx ON public.remessas_banc
 -- Name: remessas_bancarias_folha_conta_ativa_uidx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX remessas_bancarias_folha_conta_ativa_uidx ON public.remessas_bancarias USING btree (folha_id, conta_autarquia_id) WHERE ((status)::text <> 'cancelada'::text);
+CREATE UNIQUE INDEX remessas_bancarias_folha_conta_ativa_uidx ON public.remessas_bancarias USING btree (folha_id, conta_autarquia_id, tipo_credito) WHERE ((status)::text <> 'cancelada'::text);
 
 
 --
@@ -7962,6 +8014,20 @@ CREATE TRIGGER audit_adicionais_tempo_servico AFTER INSERT OR DELETE OR UPDATE O
 --
 
 CREATE TRIGGER audit_agrupamento_unidade_vinculo AFTER INSERT OR DELETE OR UPDATE ON public.agrupamento_unidade_vinculo FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: atos_remuneratorios audit_atos_remuneratorios; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_atos_remuneratorios AFTER INSERT OR DELETE OR UPDATE ON public.atos_remuneratorios FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
+
+
+--
+-- Name: atos_remuneratorios_itens audit_atos_remuneratorios_itens; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_atos_remuneratorios_itens AFTER INSERT OR DELETE OR UPDATE ON public.atos_remuneratorios_itens FOR EACH ROW EXECUTE FUNCTION public.fn_audit_trigger('rh');
 
 
 --
@@ -9162,6 +9228,20 @@ CREATE TRIGGER trg_approval_status_history BEFORE UPDATE ON public.approval_requ
 
 
 --
+-- Name: atos_remuneratorios trg_ato_remuneratorio_integridade; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_ato_remuneratorio_integridade BEFORE INSERT OR DELETE OR UPDATE ON public.atos_remuneratorios FOR EACH ROW EXECUTE FUNCTION public.ato_remuneratorio_integridade();
+
+
+--
+-- Name: atos_remuneratorios_itens trg_ato_remuneratorio_item_integridade; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_ato_remuneratorio_item_integridade BEFORE INSERT OR DELETE OR UPDATE ON public.atos_remuneratorios_itens FOR EACH ROW EXECUTE FUNCTION public.ato_remuneratorio_item_integridade();
+
+
+--
 -- Name: fin_liquidacoes trg_atualizar_empenho_liquidacao; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -9411,6 +9491,13 @@ CREATE TRIGGER trg_campanhas_inventario_unidades_autoria BEFORE INSERT ON public
 --
 
 CREATE TRIGGER trg_campanhas_inventario_unidades_updated_at BEFORE UPDATE ON public.campanhas_inventario_unidades FOR EACH ROW EXECUTE FUNCTION public.fn_update_timestamp_parametros();
+
+
+--
+-- Name: cargos trg_cargo_vencimento_pelo_cadastro; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_cargo_vencimento_pelo_cadastro AFTER UPDATE OF vencimento_base ON public.cargos FOR EACH ROW EXECUTE FUNCTION public.cargo_vencimento_pelo_cadastro();
 
 
 --
@@ -10088,6 +10175,15 @@ ALTER TABLE public.audit_logs ENABLE ALWAYS TRIGGER trilha_imutavel;
 
 
 --
+-- Name: cargo_vencimentos trilha_imutavel; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_imutavel BEFORE DELETE OR UPDATE ON public.cargo_vencimentos FOR EACH ROW EXECUTE FUNCTION public.trilha_imutavel('cargo_id', 'cargos');
+
+ALTER TABLE public.cargo_vencimentos ENABLE ALWAYS TRIGGER trilha_imutavel;
+
+
+--
 -- Name: folha_historico_status trilha_imutavel; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -10112,6 +10208,15 @@ ALTER TABLE public.rubricas_historico ENABLE ALWAYS TRIGGER trilha_imutavel;
 CREATE TRIGGER trilha_imutavel_truncate BEFORE TRUNCATE ON public.audit_logs FOR EACH STATEMENT EXECUTE FUNCTION public.trilha_imutavel();
 
 ALTER TABLE public.audit_logs ENABLE ALWAYS TRIGGER trilha_imutavel_truncate;
+
+
+--
+-- Name: cargo_vencimentos trilha_imutavel_truncate; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_imutavel_truncate BEFORE TRUNCATE ON public.cargo_vencimentos FOR EACH STATEMENT EXECUTE FUNCTION public.trilha_imutavel();
+
+ALTER TABLE public.cargo_vencimentos ENABLE ALWAYS TRIGGER trilha_imutavel_truncate;
 
 
 --
@@ -10840,6 +10945,20 @@ CREATE TRIGGER zz_exigir_setor BEFORE INSERT OR DELETE OR UPDATE ON public.agrup
 
 
 --
+-- Name: atos_remuneratorios zz_exigir_setor; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor BEFORE INSERT OR DELETE OR UPDATE ON public.atos_remuneratorios FOR EACH ROW EXECUTE FUNCTION public.exigir_setor();
+
+
+--
+-- Name: atos_remuneratorios_itens zz_exigir_setor; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor BEFORE INSERT OR DELETE OR UPDATE ON public.atos_remuneratorios_itens FOR EACH ROW EXECUTE FUNCTION public.exigir_setor();
+
+
+--
 -- Name: banco_horas zz_exigir_setor; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11400,6 +11519,20 @@ CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.ag
 
 
 --
+-- Name: atos_remuneratorios zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.atos_remuneratorios FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
+-- Name: atos_remuneratorios_itens zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_exigir_setor_fim AFTER INSERT OR DELETE OR UPDATE ON public.atos_remuneratorios_itens FOR EACH STATEMENT EXECUTE FUNCTION public.exigir_setor_fim();
+
+
+--
 -- Name: banco_horas zz_exigir_setor_fim; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11957,6 +12090,20 @@ CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.adicionais_tem
 --
 
 CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.agrupamento_unidade_vinculo FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: atos_remuneratorios zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.atos_remuneratorios FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
+
+
+--
+-- Name: atos_remuneratorios_itens zz_fixar_autoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER zz_fixar_autoria BEFORE INSERT OR UPDATE ON public.atos_remuneratorios_itens FOR EACH ROW EXECUTE FUNCTION public.fixar_autoria();
 
 
 --
@@ -12728,6 +12875,30 @@ ALTER TABLE ONLY public.atas_registro_preco
 
 
 --
+-- Name: atos_remuneratorios_itens atos_remuneratorios_itens_ato_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.atos_remuneratorios_itens
+    ADD CONSTRAINT atos_remuneratorios_itens_ato_id_fkey FOREIGN KEY (ato_id) REFERENCES public.atos_remuneratorios(id) ON DELETE CASCADE;
+
+
+--
+-- Name: atos_remuneratorios_itens atos_remuneratorios_itens_cargo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.atos_remuneratorios_itens
+    ADD CONSTRAINT atos_remuneratorios_itens_cargo_id_fkey FOREIGN KEY (cargo_id) REFERENCES public.cargos(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: atos_remuneratorios_itens atos_remuneratorios_itens_rubrica_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.atos_remuneratorios_itens
+    ADD CONSTRAINT atos_remuneratorios_itens_rubrica_id_fkey FOREIGN KEY (rubrica_id) REFERENCES public.rubricas(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: audit_logs audit_logs_org_unit_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12957,6 +13128,22 @@ ALTER TABLE ONLY public.cargo_unidade_compatibilidade
 
 ALTER TABLE ONLY public.cargo_unidade_compatibilidade
     ADD CONSTRAINT cargo_unidade_compatibilidade_unidade_especifica_id_fkey FOREIGN KEY (unidade_especifica_id) REFERENCES public.estrutura_organizacional(id) ON DELETE CASCADE;
+
+
+--
+-- Name: cargo_vencimentos cargo_vencimentos_ato_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cargo_vencimentos
+    ADD CONSTRAINT cargo_vencimentos_ato_id_fkey FOREIGN KEY (ato_id) REFERENCES public.atos_remuneratorios(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: cargo_vencimentos cargo_vencimentos_cargo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cargo_vencimentos
+    ADD CONSTRAINT cargo_vencimentos_cargo_id_fkey FOREIGN KEY (cargo_id) REFERENCES public.cargos(id) ON DELETE CASCADE;
 
 
 --
@@ -17703,6 +17890,18 @@ ALTER TABLE public.approval_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.atas_registro_preco ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: atos_remuneratorios; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.atos_remuneratorios ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: atos_remuneratorios_itens; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.atos_remuneratorios_itens ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: audit_colunas_sensiveis; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -17875,6 +18074,12 @@ ALTER TABLE public.campanhas_inventario_unidades ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.cargo_unidade_compatibilidade ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: cargo_vencimentos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cargo_vencimentos ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: cargos; Type: ROW SECURITY; Schema: public; Owner: -
@@ -19294,6 +19499,20 @@ CREATE POLICY rls_delete ON public.approval_requests FOR DELETE TO authenticated
 --
 
 CREATE POLICY rls_delete ON public.atas_registro_preco FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: atos_remuneratorios rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.atos_remuneratorios FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: atos_remuneratorios_itens rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.atos_remuneratorios_itens FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
@@ -20859,6 +21078,20 @@ CREATE POLICY rls_insert ON public.approval_requests FOR INSERT TO authenticated
 --
 
 CREATE POLICY rls_insert ON public.atas_registro_preco FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: atos_remuneratorios rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.atos_remuneratorios FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: atos_remuneratorios_itens rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.atos_remuneratorios_itens FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --
@@ -22450,6 +22683,20 @@ CREATE POLICY rls_select ON public.atas_registro_preco FOR SELECT TO authenticat
 
 
 --
+-- Name: atos_remuneratorios rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.atos_remuneratorios FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: atos_remuneratorios_itens rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.atos_remuneratorios_itens FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
 -- Name: audit_colunas_sensiveis rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22556,6 +22803,13 @@ CREATE POLICY rls_select ON public.campanhas_inventario_unidades FOR SELECT TO a
 --
 
 CREATE POLICY rls_select ON public.cargo_unidade_compatibilidade FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: cargo_vencimentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cargo_vencimentos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
 
 
 --
@@ -24111,6 +24365,20 @@ CREATE POLICY rls_update ON public.approval_requests FOR UPDATE TO authenticated
 --
 
 CREATE POLICY rls_update ON public.atas_registro_preco FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
+-- Name: atos_remuneratorios rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.atos_remuneratorios FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
+
+
+--
+-- Name: atos_remuneratorios_itens rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.atos_remuneratorios_itens FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'::text)));
 
 
 --

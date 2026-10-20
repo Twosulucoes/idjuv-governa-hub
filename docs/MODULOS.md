@@ -119,6 +119,12 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
   itens serão apagados pelo reprocessamento (a RPC recria as fichas e não lança consignações).
   Spec: `superpowers/specs/2026-10-09-folha-detalhe-edicao-design.md`; migração complementar
   (13b) pendente na Onda B.
+  Na configuração da folha, a aba **Atos e reajustes** (`AtosRemuneratoriosTab`, `AtoRemuneratorioForm`, dados em
+  `useAtosRemuneratorios.ts`, regras em `src/lib/atosRemuneratorios.ts`) registra a lei, o decreto ou a instrução
+  normativa que muda valores, com o que muda: vencimento ou subsídio do cargo, valor da rubrica ou parâmetro da folha,
+  um a um ou por reajuste percentual dos cargos. Aplicar (com `financeiro.folha.configurar`) grava o valor anterior e
+  a vigência; daí em diante o ato não muda. A folha usa o vencimento do cargo vigente no fim da competência, avisa
+  vigência no meio do mês e não calcula diferenças de meses já fechados.
 - **Currículo/pré-cadastro** (`src/pages/curriculo/`): `MiniCurriculoPage` (público),
   `GestaoPreCadastrosPage`, `DiagnosticoPendenciasPage`.
 

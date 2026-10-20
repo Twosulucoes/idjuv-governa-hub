@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Save, X } from "lucide-react";
 import { useSaveParametro } from "@/hooks/useFolhaPagamento";
-import { PARAMETROS_FOLHA, definicaoParametro, normalizarTipoParametro, unidadeDoParametro } from "@/lib/parametrosFolha";
+import { GRUPOS_PARAMETROS, PARAMETROS_FOLHA, definicaoParametro, normalizarTipoParametro, unidadeDoParametro } from "@/lib/parametrosFolha";
 
 const parametroSchema = z
   .object({
@@ -104,7 +104,7 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {(["Gerais", "Licenças", "Afastamentos"] as const).map((grupo) => (
+                  {GRUPOS_PARAMETROS.map((grupo) => (
                     <SelectGroup key={grupo}>
                       <SelectLabel>{grupo}</SelectLabel>
                       {PARAMETROS_FOLHA.filter((p) => p.grupo === grupo).map((p) => (
@@ -136,7 +136,7 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
             <FormItem>
               <FormLabel>Valor *</FormLabel>
               <FormControl>
-                <Input {...field} type="number" step="0.01" min={0} />
+                <Input {...field} type="number" step={unidadeDoParametro(tipoParametro) === "numero" ? "any" : "0.01"} min={0} />
               </FormControl>
               <FormDescription>
                 {{ reais: "Valor em Reais (R$)", percentual: "Valor em percentual (%)", sim_nao: "1 = remunerado, 0 = sem remuneração", numero: "Valor numérico" }[unidadeDoParametro(tipoParametro)]}
