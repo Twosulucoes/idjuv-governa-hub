@@ -127,6 +127,46 @@ export function useUpdateItemMaterial() {
   });
 }
 
+/** Categorias de material ativas (mesma chave usada no cadastro de item). */
+export function useCategoriasMaterial() {
+  return useQuery({
+    queryKey: ['categorias-material'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categorias_material')
+        .select('id, nome, codigo')
+        .eq('ativo', true)
+        .order('nome');
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/** Requisições em que o item aparece (mais recentes primeiro). */
+export function useRequisicoesDoItem(itemId: string | undefined) {
+  return useQuery({
+    queryKey: ['requisicoes-do-item', itemId],
+    queryFn: async () => {
+      if (!itemId) return [];
+      const { data, error } = await supabase
+        .from('requisicao_itens')
+        .select(`
+          id,
+          quantidade_solicitada,
+          quantidade_atendida,
+          requisicao:requisicoes_material(id, numero, status, data_solicitacao)
+        `)
+        .eq('item_id', itemId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!itemId,
+  });
+}
+
 // ========== ALMOXARIFADOS ==========
 
 export function useAlmoxarifados() {

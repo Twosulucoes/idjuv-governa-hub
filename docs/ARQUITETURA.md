@@ -108,7 +108,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   pelo "olho" das listas, com as mesmas ações de aprovar/rejeitar/concluir (`patrimonio.tramitar`).
 - Edição do bem: `/inventario/bens/:id/editar` (`BemEditarPage`, `patrimonio.criar`). Número de patrimônio,
   QR e dados de aquisição (valor, data, forma) só o admin altera; a ficha do bem (`BemDetalhePage`) tem abas de
-  manutenções e ocorrências. As rotas de requisição e almoxarifado ainda usam `PlaceholderDetalhePage`.
+  manutenções e ocorrências. Item do almoxarifado: `/inventario/almoxarifado/:id` (`ItemMaterialDetalhePage`, `patrimonio.visualizar`) e
+  `/inventario/almoxarifado/:id/editar` (`ItemMaterialEditarPage`, `patrimonio.criar`); o saldo real ainda não
+  existe, e a ficha mostra só os limites de estoque. A rota de detalhe da requisição ainda usa `PlaceholderDetalhePage`.
 
 ## Autenticação
 

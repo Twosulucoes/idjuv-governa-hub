@@ -20,5 +20,7 @@ export { default as PlaceholderDetalhePage } from './PlaceholderDetalhePage';
 export { default as MovimentacaoDetalhePage } from './MovimentacaoDetalhePage';
 export { default as ManutencaoDetalhePage } from './ManutencaoDetalhePage';
 export { default as BaixaDetalhePage } from './BaixaDetalhePage';
+export { default as ItemMaterialDetalhePage } from './ItemMaterialDetalhePage';
+export { default as ItemMaterialEditarPage } from './ItemMaterialEditarPage';
 export { default as RelatoriosPatrimonioPage } from './RelatoriosPatrimonioPage';
 export { default as CadastroBemSimplificadoPage } from '../patrimonio/CadastroBemSimplificadoPage';
