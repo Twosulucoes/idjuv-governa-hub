@@ -14,14 +14,13 @@ import {
 } from "lucide-react";
 import {
   generateFichaCadastralModelo,
-  generateDeclaracaoAcumulacaoModelo,
-  generateDeclaracaoBensModelo,
   generateTermoDemandaModelo,
   generateOrdemMissaoModelo,
   generateRelatorioViagemModelo,
   generateRequisicaoMaterialModelo,
   generateTermoResponsabilidadeModelo,
 } from "@/lib/pdfModelos";
+import { baixarDeclaracaoAcumulacao, baixarDeclaracaoBens, baixarRelacaoDocumentos } from "@/lib/declaracoesServidor";
 import { toast } from "sonner";
 
 interface DocumentoModelo {
@@ -45,12 +44,20 @@ export default function ModelosDocumentosPage() {
       onDownload: generateFichaCadastralModelo,
     },
     {
+      id: "relacao-documentos",
+      titulo: "Relação de Documentos para Cadastro",
+      descricao: "Lista dos documentos pessoais, declarações e comprovantes exigidos para o cadastro funcional.",
+      icon: FileText,
+      categoria: "Cadastro de Servidor",
+      onDownload: baixarRelacaoDocumentos,
+    },
+    {
       id: "declaracao-acumulacao",
       titulo: "Declaração de Não Acumulação de Cargos",
       descricao: "Declaração obrigatória para servidores informando não acumulação ilícita de cargos públicos.",
       icon: FileCheck,
       categoria: "Declarações",
-      onDownload: generateDeclaracaoAcumulacaoModelo,
+      onDownload: () => baixarDeclaracaoAcumulacao(),
     },
     {
       id: "declaracao-bens",
@@ -58,7 +65,7 @@ export default function ModelosDocumentosPage() {
       descricao: "Declaração patrimonial obrigatória para servidores públicos conforme legislação vigente.",
       icon: ClipboardList,
       categoria: "Declarações",
-      onDownload: generateDeclaracaoBensModelo,
+      onDownload: () => baixarDeclaracaoBens(),
     },
     // Documentos de Viagem
     {

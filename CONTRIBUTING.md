@@ -50,7 +50,7 @@ estado do sistema. Fato datado de uma entrega pode ficar, marcado com `<!-- nume
 entre `<!-- numero-datado:inicio -->` e `<!-- numero-datado:fim -->`.
 Desde o P03 (tipos do banco gerados das migrações) a baseline do typecheck é 4.
 A baseline `jspdfForaDoCore` cai a cada onda da padronização de PDFs (`docs/PADRAO_DOCUMENTOS.md`): o gerador migrado
-para `src/lib/documentos/` deixa de importar `jspdf`, e a baseline é baixada na mesma PR. Limpeza (onda 5: relatório de portarias), demais relatórios (onda 4), comprovantes (onda 3), fichas (onda 2) e
+para `src/lib/documentos/` deixa de importar `jspdf`, e a baseline é baixada na mesma PR. Limpeza (onda 5: relatório de portarias, declarações do servidor), demais relatórios (onda 4), comprovantes (onda 3), fichas (onda 2) e
 relatórios do RH (onda 1) já passaram por esse ajuste.
 
 Migração nova exige o `src/integrations/supabase/types.ts` regenerado no mesmo PR:
