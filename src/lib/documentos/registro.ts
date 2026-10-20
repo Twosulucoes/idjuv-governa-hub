@@ -25,6 +25,8 @@ import { fichaUnidadeLocal } from './modelos/unidades/fichaUnidadeLocal';
 import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
 import { listaConvocados, listaPresenca, relatorioReuniao } from './modelos/reunioes/reunioes';
 import { contracheque } from './modelos/folha/contracheque';
+import { organogramaDesenho } from './modelos/organograma/desenho';
+import { organogramaLista } from './modelos/organograma/lista';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -77,6 +79,9 @@ export const REGISTRO = {
   'reunioes-relatorio': relatorioReuniao,
   // Folha — contracheque do servidor (um ou lote, uma página por servidor)
   'folha-contracheque': contracheque,
+  // Organograma — OrganogramaPage (lista hierárquica e desenho)
+  'organograma-lista': organogramaLista,
+  'organograma-desenho': organogramaDesenho,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
