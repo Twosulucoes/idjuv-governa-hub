@@ -54,6 +54,16 @@ describe('secao', () => {
     const pagCorpo = p.findIndex((pg) => pg.texto.includes('corpo da seção'));
     expect(pagSecao).toBe(pagCorpo);
   });
+
+  it('reservaAbaixo leva o título para a página seguinte quando o que vem depois é mais alto', async () => {
+    const encher: Bloco = (ctx) => {
+      ctx.y = ctx.limiteInferior - 30; // cabe título + 16 mm (padrão), não título + 28 mm
+    };
+    const padrao = await lerPdf(gerar([encher, secao({ texto: 'Grupo' })]));
+    expect(padrao.findIndex((pg) => pg.texto.includes('Grupo'))).toBe(0);
+    const reservada = await lerPdf(gerar([encher, secao({ texto: 'Grupo', reservaAbaixo: 28 })]));
+    expect(reservada.findIndex((pg) => pg.texto.includes('Grupo'))).toBe(1);
+  });
 });
 
 describe('localData', () => {
