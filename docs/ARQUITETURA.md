@@ -168,8 +168,8 @@ caches relevantes. Estatísticas de dashboard ficam em `use<Modulo>DashboardStat
 Toda a emissão de PDFs/planilhas/Word acontece **no navegador** (sem servidor de
 relatórios), em `src/lib`:
 
-- **PDF**: `jspdf` + `pdf-lib` — ~40 geradores (`pdf*.ts`), com base em
-  `pdfTemplate.ts`/`pdfLogos.ts`.
+- **PDF**: motor único em `src/lib/documentos/` (`jspdf` só em `core/`); os `pdf*.ts` restantes só chamam o motor
+  ([PADRAO_DOCUMENTOS.md](./PADRAO_DOCUMENTOS.md)). A base antiga (pdfTemplate, pdfLogos) foi apagada na onda 5 da P23.
 - **Planilhas**: `xlsx` — `src/export/`, `src/lib/exportar*.ts`.
 - **Fiscais/folha**: `cnabGenerator.ts` (remessa bancária CNAB; com conta pagadora no BB usa `bancario/folhaBbCnab240.ts`, o leiaute que o banco já aceita da folha),
   `esocialGenerator.ts`/`esocialXmlGenerator.ts` (eSocial).

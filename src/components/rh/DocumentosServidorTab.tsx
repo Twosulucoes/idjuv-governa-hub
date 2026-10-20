@@ -38,7 +38,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { generateFichaCadastralModelo } from "@/lib/pdfModelos";
+import { generateFichaCadastralModelo } from "@/lib/pdfGenerator";
 import { baixarDeclaracaoAcumulacao, baixarDeclaracaoBens } from "@/lib/declaracoesServidor";
 import { abrirArquivoPrivado } from "@/lib/storageArquivos";
 import { abrirArquivoPortaria } from "@/lib/portarias/arquivoPortaria";

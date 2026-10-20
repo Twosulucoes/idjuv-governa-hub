@@ -60,6 +60,7 @@ else
   guard "estado do sistema em dia" node scripts/estado-do-sistema.mjs --checar
 fi
 guard "docs sem contagem escrita à mão" node scripts/check-numeros-docs.mjs
+guard "PDF sem a base antiga (pdfTemplate, pdfInstitucional, pdfLogos)" node scripts/check-base-pdf-antiga.mjs
 
 comparar "typecheck" "$(ts_erros)" typecheck
 comparar "lint" "$(lint_erros)" lint

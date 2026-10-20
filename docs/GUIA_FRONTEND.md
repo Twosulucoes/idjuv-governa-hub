@@ -84,7 +84,7 @@ de chamar `supabase` direto dentro da página.
 
 ## Lib (`src/lib`)
 
-- **PDF** (`pdf*.ts`, ~40): base em `pdfTemplate.ts`/`pdfLogos.ts`/`pdfGenerator.ts`.
+- **PDF**: modelos do motor único em `src/lib/documentos/` ([PADRAO_DOCUMENTOS.md](./PADRAO_DOCUMENTOS.md)); os `pdf*.ts` restantes só chamam o motor.
   Exemplos: `pdfContracheque`, `pdfFrequenciaMensalGenerator`, `pdfPortarias`,
   `pdfOrganograma`, `pdfRelatorioFederacoes`, `pdfRelatoriosRH`,
   `pdfRelatoriosAfastamentos` (férias, licenças, viagens), blocos de unidade em `pdf/`.
