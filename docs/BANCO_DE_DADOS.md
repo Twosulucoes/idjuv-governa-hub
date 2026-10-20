@@ -661,7 +661,16 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   passa a ser por folha, conta e tipo. `contas_autarquia.nsa_inicial` (1 a 999999, opcional) continua a numeração do
   sistema anterior: o número é o maior entre o último da conta + 1 e o inicial; `get_proximo_numero_remessa` segue a
   mesma regra.
-- **Retorno do banco** (migração `20261021090000_folha_retorno_remessa.sql`, em PR rascunho) — RPC
+- **Parte patronal e INSS por faixa** (migração `20261021100000_folha_encargos_patronais.sql`, em PR rascunho) —
+  `processar_folha_pagamento` grava, em cada ficha de quem teve INSS descontado (quem contribui para o regime próprio
+  na origem fica fora), `inss_patronal` e `rat` (base de INSS sem o teto × alíquota, arredondado) e `total_encargos`;
+  na folha, `total_inss_patronal`, `total_rat` (coluna nova) e `total_encargos_patronais` são a soma das bases × a
+  alíquota, truncada no centavo, como a guia do FIPLAN (conferido com as guias patronais de 09/2026). As alíquotas são
+  dados em `parametros_folha`, em fração: `inss_patronal_aliquota` (0,20) e `rat_fap_aliquota` (RAT já ajustado pelo
+  FAP); sem elas a parte sai zero e o processamento avisa. `inss_truncar_por_faixa` = 1 faz `calcular_inss_servidor`
+  truncar cada faixa nos centavos, como o SIGRH (R$ 988,07 no teto, contra R$ 988,09 arredondando a soma). CHECK
+  `parametros_folha_encargos_check` (NOT VALID): alíquota de 0 a 1 e opção 0 ou 1.
+- **Retorno do banco** (migração `20261021090000_folha_retorno_remessa.sql`, PR #141) — RPC
   `registrar_retorno_remessa(p_remessa_id, p_retorno, p_itens)` (SECURITY DEFINER; módulo `rh` e
   `financeiro.folha.processar`, senão `42501`; só `authenticated`): grava em `retornos_bancarios` o arquivo (sha256,
   NSA, data, convênio, `previa`) e os totais agendados, pagos e recusados, e um item por crédito em

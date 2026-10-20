@@ -102,6 +102,7 @@ export interface FolhaPagamento {
   total_liquido?: number;
   total_inss_servidor?: number;
   total_inss_patronal?: number;
+  total_rat?: number;
   total_irrf?: number;
   total_encargos_patronais?: number;
   quantidade_servidores?: number;

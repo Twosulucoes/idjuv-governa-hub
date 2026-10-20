@@ -453,7 +453,7 @@ export default function FolhaDetalhePage() {
 
         {/* Encargos Patronais */}
         {!leituraRestrita && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -472,6 +472,16 @@ export default function FolhaDetalhePage() {
             </CardHeader>
             <CardContent>
               <p className="text-xl font-semibold">{formatCurrency(folha.total_inss_patronal)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                RAT (com FAP)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xl font-semibold">{formatCurrency(folha.total_rat)}</p>
             </CardContent>
           </Card>
           <Card>

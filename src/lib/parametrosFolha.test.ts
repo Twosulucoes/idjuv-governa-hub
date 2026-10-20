@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aliquotaEmFracao, aliquotaEmPercentual, definicaoParametro, unidadeDoParametro } from "./parametrosFolha";
+import { aliquotaEmFracao, aliquotaEmPercentual, definicaoParametro, formatarValorParametro, unidadeDoParametro } from "./parametrosFolha";
 
 describe("alíquota das tabelas de INSS e IRRF", () => {
   it("a tela mostra em % e o banco guarda a fração", () => {
@@ -26,5 +26,15 @@ describe("parâmetros do IRRF mensal", () => {
       expect(definicaoParametro(t)?.grupo).toBe("IRRF");
     }
     expect(unidadeDoParametro("IRRF_REDUCAO_COEFICIENTE")).toBe("numero");
+  });
+});
+
+describe("parâmetros dos encargos patronais", () => {
+  it("alíquotas em fração e a opção do INSS por faixa", () => {
+    expect(definicaoParametro("inss_patronal_aliquota")).toMatchObject({ unidade: "numero", grupo: "Encargos" });
+    expect(definicaoParametro("RAT_FAP_ALIQUOTA")).toMatchObject({ unidade: "numero", grupo: "Encargos" });
+    expect(unidadeDoParametro("inss_truncar_por_faixa")).toBe("sim_nao");
+    expect(formatarValorParametro("inss_truncar_por_faixa", 1)).toBe("Sim");
+    expect(formatarValorParametro("licenca_remunerada_medica", 1)).toBe("Sim (remunerado)");
   });
 });

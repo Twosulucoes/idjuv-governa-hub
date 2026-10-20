@@ -6762,6 +6762,104 @@ BEGIN
   PERFORM pg_temp.nota('RETORNO da remessa: permissão, recusas (sha256, créditos, situação, outra folha, cancelada), prévia enviada, arquivo único e retorno final processada verificados');
 END $$;
 
+-- ---------------------------------------------------------------- FOLHA: parte patronal e INSS por faixa (migração 20261021100000)
+-- Conferido com as guias patronais de 09/2026 no FIPLAN: 20% e 2% da soma das bases, truncados no centavo.
+DO $$
+DECLARE
+  u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');
+  cg uuid := 'f4000000-0000-0000-0000-0000000000c1'; fl uuid := 'f4000000-0000-0000-0000-0000000000f1';
+  s_geral uuid := 'f4000000-0000-0000-0000-0000000000a1'; s_rpps uuid := 'f4000000-0000-0000-0000-0000000000a2';
+  r jsonb; v_base numeric; fg record; fr record; fo record; x record;
+BEGIN
+  -- ===== INSS truncado por faixa (vetores sigrh-* do hrms_brasil): só com o parâmetro
+  IF public.calcular_inss_servidor(24829, '2034-03-31') <> 988.09 THEN
+    PERFORM pg_temp.falha('ENCARGOS INSS: sem o parâmetro deveria arredondar a soma (988,09), deu ' || public.calcular_inss_servidor(24829, '2034-03-31'));
+  END IF;
+  SET LOCAL session_replication_role = replica;
+  DELETE FROM public.parametros_folha WHERE tipo_parametro IN ('inss_truncar_por_faixa', 'inss_patronal_aliquota', 'rat_fap_aliquota');
+  INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, ativo) VALUES ('inss_truncar_por_faixa', 1, '2034-01-01', true);
+  SET LOCAL session_replication_role = origin;
+  FOR x IN SELECT * FROM (VALUES (24829.00, 988.07), (3578.07, 317.95), (2871.43, 234.10)) AS t(base, esperado) LOOP
+    IF public.calcular_inss_servidor(x.base, '2034-03-31') <> x.esperado THEN
+      PERFORM pg_temp.falha(format('ENCARGOS INSS por faixa: base %s deveria dar %s, deu %s', x.base, x.esperado,
+                                   public.calcular_inss_servidor(x.base, '2034-03-31')));
+    END IF;
+  END LOOP;
+  IF public.calcular_inss_servidor(24829, '2033-12-31') <> 988.09 THEN
+    PERFORM pg_temp.falha('ENCARGOS INSS: o parâmetro por faixa vale antes da vigência');
+  END IF;
+
+  -- ===== alíquota em % e opção fora de 0/1 recusadas
+  BEGIN
+    INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, ativo) VALUES ('inss_patronal_aliquota', 20, '2040-01-01', true);
+    PERFORM pg_temp.falha('ENCARGOS parâmetros: alíquota patronal 20 (em %) aceita');
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, ativo) VALUES ('inss_truncar_por_faixa', 2, '2040-01-01', true);
+    PERFORM pg_temp.falha('ENCARGOS parâmetros: inss_truncar_por_faixa = 2 aceito');
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+
+  -- ===== folha sem as alíquotas: patronal zero e aviso
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, vencimento_base, quantidade_vagas)
+    VALUES (cg, 'Cargo Encargos Teste', 'ENC-T', 'comissionado', 'comissionado', 24829.00, 2);
+  INSERT INTO public.servidores (id, nome_completo, cpf, situacao, ativo, possui_vinculo_externo, contribui_rpps_origem,
+                                 rpps_origem_fundamento, rpps_origem_inicio) VALUES
+    (s_geral, 'Encargos Geral Teste', '000.000.f41-01', 'ativo', true, false, false, NULL, NULL),
+    (s_rpps, 'Encargos RPPS Teste', '000.000.f42-02', 'ativo', true, true, true, 'Instrução normativa de teste', '2034-01-01');
+  INSERT INTO public.provimentos (servidor_id, cargo_id, data_nomeacao, status) VALUES
+    (s_geral, cg, '2034-01-01', 'ativo'), (s_rpps, cg, '2034-01-01', 'ativo');
+  INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_folha, status) VALUES (fl, 2034, 3, 'mensal', 'aberta');
+  SET LOCAL session_replication_role = origin;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_proc, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  r := public.processar_folha_pagamento(fl);
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF NOT coalesce((r ->> 'sucesso')::boolean, false) OR NOT (r -> 'avisos')::text LIKE '%inss_patronal_aliquota%'
+     OR NOT (r -> 'avisos')::text LIKE '%rat_fap_aliquota%'
+     OR (SELECT total_encargos_patronais FROM public.folhas_pagamento WHERE id = fl) <> 0 THEN
+    PERFORM pg_temp.falha('ENCARGOS folha: sem alíquotas deveria processar com patronal zero e avisar (' || r::text || ')');
+  END IF;
+
+  -- ===== com 20% e 2%: por ficha de quem contribui para o regime geral; total truncado como a guia
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, ativo) VALUES
+    ('inss_patronal_aliquota', 0.20, '2034-01-01', true), ('rat_fap_aliquota', 0.02, '2034-01-01', true);
+  SET LOCAL session_replication_role = origin;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_proc, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  r := public.processar_folha_pagamento(fl);
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  SELECT * INTO fg FROM public.fichas_financeiras WHERE folha_id = fl AND servidor_id = s_geral;
+  SELECT * INTO fr FROM public.fichas_financeiras WHERE folha_id = fl AND servidor_id = s_rpps;
+  SELECT * INTO fo FROM public.folhas_pagamento WHERE id = fl;
+  SELECT sum(base_inss) INTO v_base FROM public.fichas_financeiras WHERE folha_id = fl AND valor_inss > 0;
+  IF NOT coalesce((r ->> 'sucesso')::boolean, false) OR fg.valor_inss <> 988.07 OR fg.inss_patronal <> 4965.80 OR fg.rat <> 496.58
+     OR fg.total_encargos <> 5462.38 THEN
+    PERFORM pg_temp.falha(format('ENCARGOS ficha: subsídio de 24.829 deveria ter INSS 988,07, patronal 4.965,80 e RAT 496,58 (INSS %s, patronal %s, RAT %s; %s)',
+                                 fg.valor_inss, fg.inss_patronal, fg.rat, r));
+  END IF;
+  IF fr.valor_inss <> 0 OR fr.inss_patronal <> 0 OR fr.rat <> 0 THEN
+    PERFORM pg_temp.falha('ENCARGOS ficha: quem contribui para o regime próprio na origem não tem parte patronal do regime geral');
+  END IF;
+  IF fo.total_inss_patronal <> trunc(v_base * 0.20, 2) OR fo.total_rat <> trunc(v_base * 0.02, 2)
+     OR fo.total_encargos_patronais <> trunc(v_base * 0.20, 2) + trunc(v_base * 0.02, 2) THEN
+    PERFORM pg_temp.falha(format('ENCARGOS folha: totais deveriam ser a soma das bases (%s) × alíquota, truncada (patronal %s, RAT %s, total %s)',
+                                 v_base, fo.total_inss_patronal, fo.total_rat, fo.total_encargos_patronais));
+  END IF;
+
+  SET LOCAL session_replication_role = replica;
+  DELETE FROM public.parametros_folha WHERE tipo_parametro IN ('inss_truncar_por_faixa', 'inss_patronal_aliquota', 'rat_fap_aliquota');
+  SET LOCAL session_replication_role = origin;
+
+  PERFORM pg_temp.nota('FOLHA (encargos): INSS truncado por faixa só com o parâmetro e na vigência, alíquota em % recusada, folha sem alíquotas com aviso, INSS patronal e RAT por ficha só do regime geral e totais truncados como a guia verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off

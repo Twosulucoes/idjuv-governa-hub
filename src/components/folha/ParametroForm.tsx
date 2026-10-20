@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Save, X } from "lucide-react";
 import { useSaveParametro } from "@/hooks/useFolhaPagamento";
-import { GRUPOS_PARAMETROS, PARAMETROS_FOLHA, definicaoParametro, normalizarTipoParametro, unidadeDoParametro } from "@/lib/parametrosFolha";
+import { GRUPOS_PARAMETROS, PARAMETROS_FOLHA, definicaoParametro, ehRemuneracaoSimNao, normalizarTipoParametro, unidadeDoParametro } from "@/lib/parametrosFolha";
 
 const parametroSchema = z
   .object({
@@ -22,7 +22,11 @@ const parametroSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tipo_parametro"], message: "Use letras, números e _ (mínimo 3 caracteres)" });
     }
     if (unidadeDoParametro(d.tipo_parametro) === "sim_nao" && d.valor !== 0 && d.valor !== 1) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["valor"], message: "Use 1 (remunerado) ou 0 (sem remuneração)" });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["valor"],
+        message: ehRemuneracaoSimNao(d.tipo_parametro) ? "Use 1 (remunerado) ou 0 (sem remuneração)" : "Use 1 (sim) ou 0 (não)",
+      });
     }
     if (d.vigencia_fim && d.vigencia_fim < d.vigencia_inicio) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["vigencia_fim"], message: "O fim da vigência não pode ser antes do início" });
@@ -139,7 +143,7 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
                 <Input {...field} type="number" step={unidadeDoParametro(tipoParametro) === "numero" ? "any" : "0.01"} min={0} />
               </FormControl>
               <FormDescription>
-                {{ reais: "Valor em Reais (R$)", percentual: "Valor em percentual (%)", sim_nao: "1 = remunerado, 0 = sem remuneração", numero: "Valor numérico" }[unidadeDoParametro(tipoParametro)]}
+                {{ reais: "Valor em Reais (R$)", percentual: "Valor em percentual (%)", sim_nao: ehRemuneracaoSimNao(tipoParametro) ? "1 = remunerado, 0 = sem remuneração" : "1 = sim, 0 = não", numero: "Valor numérico" }[unidadeDoParametro(tipoParametro)]}
               </FormDescription>
               <FormMessage />
             </FormItem>
