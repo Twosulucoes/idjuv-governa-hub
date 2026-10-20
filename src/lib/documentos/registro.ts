@@ -5,6 +5,7 @@ import { folhaSimplificada } from './modelos/relatorios/folhaSimplificada';
 import { pendenciasPreCadastros } from './modelos/rh/pendenciasPreCadastros';
 import { pendenciasServidores } from './modelos/rh/pendenciasServidores';
 import { fichaHistoricoFuncional } from './modelos/rh/historicoFuncional';
+import { fichaCadastral } from './modelos/rh/fichaCadastral';
 import { relatorioServidoresDiretoria } from './modelos/rh/servidoresDiretoria';
 import { relatorioServidoresPortarias } from './modelos/rh/servidoresPortarias';
 import { relatorioServidoresVinculo } from './modelos/rh/servidoresVinculo';
@@ -19,6 +20,8 @@ import { relatorioContatosEstrategicos } from './modelos/rh/contatosEstrategicos
 import { relatorioSegundoVinculo } from './modelos/rh/segundoVinculo';
 import { relatorioDiretoriaHierarquia } from './modelos/rh/diretoriaHierarquia';
 import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
+import { fichaUnidadeLocal } from './modelos/unidades/fichaUnidadeLocal';
+import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -57,6 +60,12 @@ export const REGISTRO = {
   'rh-situacao-portaria': relatorioSituacaoPortaria,
   'rh-agrupado-portaria': relatorioAgrupadoPortaria,
   'rh-contatos-estrategicos': relatorioContatosEstrategicos,
+  // Unidades locais — RelatoriosCentralPage
+  'unidades-ficha-unidade-local': fichaUnidadeLocal,
+  // RH — ficha cadastral do servidor (preenchida e em branco)
+  'rh-ficha-cadastral': fichaCadastral,
+  // Currículo — pré-cadastro do candidato (também no site institucional, em /curriculo)
+  'curriculo-mini-curriculo': fichaMiniCurriculo,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;

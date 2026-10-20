@@ -22,6 +22,7 @@ import {
   generateRequisicaoMaterialModelo,
   generateTermoResponsabilidadeModelo,
 } from "@/lib/pdfModelos";
+import { toast } from "sonner";
 
 interface DocumentoModelo {
   id: string;
@@ -158,7 +159,13 @@ export default function ModelosDocumentosPage() {
                       {doc.descricao}
                     </CardDescription>
                     <Button 
-                      onClick={doc.onDownload}
+                      onClick={async () => {
+                        try {
+                          await doc.onDownload();
+                        } catch (erro) {
+                          toast.error(erro instanceof Error ? erro.message : "Não foi possível gerar o modelo.");
+                        }
+                      }}
                       className="w-full"
                       variant="outline"
                     >

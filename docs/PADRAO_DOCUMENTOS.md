@@ -20,6 +20,15 @@
 > agora é ignorada (logos seguem a configuração de impressão). Corte por número de caracteres virou quebra de
 > linha. Plano: [`superpowers/plans/2026-10-19-padrao-relatorios-onda1.md`](./superpowers/plans/2026-10-19-padrao-relatorios-onda1.md).
 
+> **Onda 2 (19/10/2026, fichas):** mini-currículo (`curriculo-mini-curriculo`), ficha da unidade local
+> (`unidades-ficha-unidade-local`, os blocos de `src/lib/pdf/unidades/` foram apagados) e ficha cadastral do servidor
+> (`rh-ficha-cadastral`). As três cópias da ficha cadastral (`pdfGenerator` e `pdfModelos`, preenchida e em branco)
+> viraram um modelo; a versão em branco é o mesmo modelo sem dados, com linhas para preencher à mão. A Ficha
+> Cadastro Geral (`pdfFichaCadastroGeral.ts`) fica fora: preenche o formulário oficial do governo. LGPD: a ficha
+> preenchida lista dependentes só com nome e parentesco; filiação e cor/raça (que só o antigo modelo em branco de
+> `pdfModelos` pedia, sem nunca imprimir o valor) saíram da ficha. Plano:
+> [`superpowers/plans/2026-10-19-padrao-relatorios-onda2.md`](./superpowers/plans/2026-10-19-padrao-relatorios-onda2.md).
+
 ## 1. Famílias
 
 Todo documento pertence a uma família; cada família tem um layout-base.
@@ -48,28 +57,28 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | arquivo | linhas | exports | telas | libs | família | fase |
 |---|---|---|---|---|---|---|
 | `src/lib/pdf/rh/memorandoDesignacao.ts` | 181 | `generateMemorandoDesignacao` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
-| `src/lib/pdf/unidades/blocoCedencias.ts` | 108 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | F3 |
-| `src/lib/pdf/unidades/blocoEstrutura.ts` | 90 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | F3 |
-| `src/lib/pdf/unidades/blocoIdentificacao.ts` | 73 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | F3 |
-| `src/lib/pdf/unidades/blocoLocalizacao.ts` | 61 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | F3 |
-| `src/lib/pdf/unidades/blocoPatrimonio.ts` | 137 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | F3 |
-| `src/lib/pdf/unidades/blocoResponsavel.ts` | 79 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | F3 |
-| `src/lib/pdf/unidades/index.ts` | 13 | — | 0 | 0 | Ficha (blocos da ficha de unidade) | F3 |
+| blocoCedencias.ts (removido na onda 2) | 108 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
+| blocoEstrutura.ts (removido na onda 2) | 90 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
+| blocoIdentificacao.ts (removido na onda 2) | 73 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
+| blocoLocalizacao.ts (removido na onda 2) | 61 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
+| blocoPatrimonio.ts (removido na onda 2) | 137 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
+| blocoResponsavel.ts (removido na onda 2) | 79 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
+| unidades/index.ts (removido na onda 2) | 13 | — | 0 | 0 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
 | `src/lib/pdfCPSI.ts` | 359 | `generateDFD`, `generateETP`, `generateTR` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
 | `src/lib/pdfContracheque.ts` | 447 | `generateContracheque`, `generateContrachequeEmLote` | 4 | 0 | Comprovante | F5 |
 | `src/lib/pdfDeclaracoes.ts` | 219 | `gerarDeclaracaoNaoAcumulacao`, `gerarDeclaracaoBensValores` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI (decisão pendente do dono) |
 | `src/lib/pdfFederacoesModular.ts` | 747 | `isMandatoExpirado`, `gerarFichaFederacaoPDF`, `gerarRelatorioListagemPDF` | 0 | 0 | Ficha + Relatório (dividir) | removido no P10 (código morto) |
-| `src/lib/pdfFichaCadastroGeral.ts` | 380 | `listarCamposPdf`, `gerarFichaCadastroGeral`, `downloadFichaCadastroGeral` | 1 | 0 | Ficha | F3 |
-| `src/lib/pdfFichaUnidadeLocal.ts` | 117 | — | 1 | 0 | Ficha | F3 |
+| `src/lib/pdfFichaCadastroGeral.ts` | 380 | `listarCamposPdf`, `gerarFichaCadastroGeral`, `downloadFichaCadastroGeral` | 1 | 0 | Ficha | fica como está: preenche o formulário oficial do governo (pdf-lib) |
+| `src/lib/pdfFichaUnidadeLocal.ts` | 117 | — | 1 | 0 | Ficha | migrado na onda 2: `unidades-ficha-unidade-local` |
 | `src/lib/pdfFrequenciaLote.ts` | 354 | `generateFrequenciaLotePDFInternal`, `generateFrequenciaLotePDF`, `generateFrequenciaLoteBlob` | 1 | 0 | Comprovante | F5 |
 | `src/lib/pdfFrequenciaMensalGenerator.ts` | 921 | `MESES`, `INSTITUICAO`, `BLOCO_ALTURAS`, `LOGO_PROPORCOES`, `LINHAS_TABELA`, `CORES`, `gerarRegistrosDiariosBranco`, `calcularResumoMensal`, `renderizarPaginaFrequencia`, `generateFrequenciaMensalPDF`, `generateFrequenciaMensalBlob` | 2 | 1 | Comprovante | F5 |
-| `src/lib/pdfGenerator.ts` | 2289 | `generateTermoDemanda`, `generateOrdemMissao`, `generateRelatorioViagem`, `generateRequisicaoMaterial`, `generateTermoResponsabilidade`, `generateDocumentNumber`, `generateRelatorioCargos`, `generateRelatorioGovernancaPDF`, `generateFichaCadastral`, `generateDeclaracaoAcumulacao`, `generateDeclaracaoBens`, `generateDeclaracaoResidencia`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoBensModelo` | 14 | 1 | Misto (dividir por documento) | SEI (atos; decisão pendente p/ declarações, requisição de material, relatório de viagem, termo de responsabilidade) / F3 / F4 |
+| `src/lib/pdfGenerator.ts` | 2289 | `generateTermoDemanda`, `generateOrdemMissao`, `generateRelatorioViagem`, `generateRequisicaoMaterial`, `generateTermoResponsabilidade`, `generateDocumentNumber`, `generateRelatorioCargos`, `generateRelatorioGovernancaPDF`, `generateFichaCadastral`, `generateDeclaracaoAcumulacao`, `generateDeclaracaoBens`, `generateDeclaracaoResidencia`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoBensModelo` | 14 | 1 | Misto (dividir por documento) | SEI (atos; decisão pendente p/ declarações, requisição de material, relatório de viagem, termo de responsabilidade) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`) |
 | `src/lib/pdfInstitucional.ts` | 656 | `CORES_INSTITUCIONAIS`, `MARGENS`, `TIPOGRAFIA`, `carregarLogos`, `getDimensoesPagina`, `gerarCabecalhoInstitucional`, `gerarRodapeInstitucional`, `adicionarSecao`, `adicionarTituloSecao`, `adicionarCampo`, `adicionarCampoInline`, `verificarQuebraPagina`, `criarDocumentoInstitucional`, `finalizarDocumentoInstitucional` | 0 | 4 | Base (a eliminar) | F5 |
 | `src/lib/pdfListagemUnidades.ts` | 188 | — | 1 | 0 | Relatório | F4 |
 | `src/lib/pdfLogos.ts` | 81 | `LOGO_ASPECTOS`, `calcularDimensoesLogos`, `LOGO_CONFIG_PADRAO`, `getLogosPDF` | 0 | 5 | Base (a eliminar) | F5 |
 | `src/lib/pdfMemorandoLotacao.ts` | 203 | `generateMemorandoLotacao`, `downloadMemorandoLotacao` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
-| `src/lib/pdfMiniCurriculo.ts` | 453 | `gerarPdfMiniCurriculo` | 2 | 0 | Ficha | F3 |
-| `src/lib/pdfModelos.ts` | 1335 | `generateRelacaoDocumentosModelo`, `generateFichaCadastralModelo`, `generateFichaCadastralPreenchida`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoAcumulacaoPreenchida`, `generateDeclaracaoBensModelo`, `generateDeclaracaoBensPreenchida`, `generateTermoDemandaModelo`, `generateOrdemMissaoModelo`, `generateRelatorioViagemModelo`, `generateRequisicaoMaterialModelo`, `generateTermoResponsabilidadeModelo` | 2 | 0 | Misto (dividir por documento) | SEI (termos, declarações; decisão pendente) / F3 / F4 |
+| `src/lib/pdfMiniCurriculo.ts` | 453 | `gerarPdfMiniCurriculo` | 2 | 0 | Ficha | migrado na onda 2: `curriculo-mini-curriculo` |
+| `src/lib/pdfModelos.ts` | 1335 | `generateRelacaoDocumentosModelo`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoAcumulacaoPreenchida`, `generateDeclaracaoBensModelo`, `generateDeclaracaoBensPreenchida`, `generateTermoDemandaModelo`, `generateOrdemMissaoModelo`, `generateRelatorioViagemModelo`, `generateRequisicaoMaterialModelo`, `generateTermoResponsabilidadeModelo` | 2 | 0 | Misto (dividir por documento) | SEI (termos, declarações; decisão pendente) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`) |
 | `src/lib/pdfOrganograma.ts` | 650 | `gerarOrganogramaPDF`, `gerarOrganogramaListaPDF` | 2 | 0 | Relatório | F4 |
 | pdfPortarias.ts (removido em 12/10/2026) | 930 | `generatePortariaUnificadaPdf`, `generatePortariaColetivaComTabela`, `generatePortariaNomeacao`, `generatePortariaExoneracao`, `generatePortariaDesignacao` | 2 | 1 | Ato (fora do escopo) | remover / substituir por registro do SEI |
 | `src/lib/pdfRelatorioAgrupadoPortaria.ts` | 298 | `generateRelatorioAgrupadoPortaria` | 1 | 0 | Relatório | migrado na onda 1: `rh-agrupado-portaria` |
@@ -116,7 +125,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 
 - **Sem chamador em `src/` (0 telas, 0 libs):** `pdfMemorandoLotacao.ts`, `pdfTermoAutorizacao.ts`, `pdfTermoResponsabilidade.ts`, `pdfFederacoesModular.ts`. Removidos no P10 (16/10/2026), com autorização do dono.
 - **Despachos do Workflow** não aparecem na tabela (não são `src/lib/pdf*`), mas seguem a mesma regra: decisão pendente do dono.
-- **Duplicações:** termo de responsabilidade (3 lugares), ficha cadastral (3), declarações (3).
+- **Duplicações:** termo de responsabilidade (3 lugares), declarações (3); a ficha cadastral (3) virou um modelo na onda 2.
 - **Protocolo:** nenhum gerador imprime número de protocolo hoje (o único, `pdfMemorandoLotacao.ts`, era código morto e saiu no P10).
 
 ## 3. Como criar um documento novo
@@ -196,4 +205,4 @@ exige tabela/RPC com RLS (decisão e spec próprias; fora de escopo desta fase).
 - Não há QR de verificação pública (fase opcional pós-F5).
 - A comparação antes/depois (`scripts/documentos-comparar.mjs`) usa poppler: roda na VPS, não no CI.
 
-<!-- doc-links-absent: src/lib/pdfFederacoesModular.ts, src/lib/pdfMemorandoLotacao.ts, src/lib/pdfTermoAutorizacao.ts, src/lib/pdfTermoResponsabilidade.ts, pdfTermoResponsabilidade.ts, pdfFederacoesModular.ts, pdfMemorandoLotacao.ts, pdfTermoAutorizacao.ts -->
+<!-- doc-links-absent: blocoCedencias.ts, blocoEstrutura.ts, blocoIdentificacao.ts, blocoLocalizacao.ts, blocoPatrimonio.ts, blocoResponsavel.ts, src/lib/pdfFederacoesModular.ts, src/lib/pdfMemorandoLotacao.ts, src/lib/pdfTermoAutorizacao.ts, src/lib/pdfTermoResponsabilidade.ts, pdfTermoResponsabilidade.ts, pdfFederacoesModular.ts, pdfMemorandoLotacao.ts, pdfTermoAutorizacao.ts -->

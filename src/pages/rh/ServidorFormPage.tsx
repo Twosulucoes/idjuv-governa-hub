@@ -715,7 +715,13 @@ export default function ServidorFormPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel>Modelos em Branco</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => generateFichaCadastralModelo()}>
+                <DropdownMenuItem onClick={async () => {
+                  try {
+                    await generateFichaCadastralModelo();
+                  } catch (erro) {
+                    toast.error(erro instanceof Error ? erro.message : "Não foi possível gerar a ficha cadastral.");
+                  }
+                }}>
                   <FileDown className="h-4 w-4 mr-2" />
                   Ficha Cadastral (Modelo)
                 </DropdownMenuItem>
@@ -734,9 +740,19 @@ export default function ServidorFormPage() {
                     <DropdownMenuLabel>Documentos Preenchidos</DropdownMenuLabel>
                     <DropdownMenuItem onClick={async () => {
                       if (!(await registrarDocumentoServidor("ficha_cadastral", "Ficha cadastral impressa"))) return;
-                      generateFichaCadastral({
-                        ...servidor,
-                      });
+                      try {
+                        const cargo = cargos.find((c) => c.id === servidor.cargo_atual_id);
+                        const unidade = unidades.find((u) => u.id === servidor.unidade_atual_id);
+                        await generateFichaCadastral({
+                          ...servidor,
+                          cargo_nome: cargo?.nome,
+                          cargo_sigla: cargo?.sigla,
+                          unidade_nome: unidade?.nome,
+                          unidade_sigla: unidade?.sigla,
+                        });
+                      } catch (erro) {
+                        toast.error(erro instanceof Error ? erro.message : "Não foi possível gerar a ficha cadastral.");
+                      }
                     }}>
                       <FileText className="h-4 w-4 mr-2" />
                       Ficha Cadastral Completa
