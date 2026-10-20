@@ -22,6 +22,7 @@ import { relatorioDiretoriaHierarquia } from './modelos/rh/diretoriaHierarquia';
 import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
 import { fichaUnidadeLocal } from './modelos/unidades/fichaUnidadeLocal';
 import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
+import { contracheque } from './modelos/folha/contracheque';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -66,6 +67,8 @@ export const REGISTRO = {
   'rh-ficha-cadastral': fichaCadastral,
   // Currículo — pré-cadastro do candidato (também no site institucional, em /curriculo)
   'curriculo-mini-curriculo': fichaMiniCurriculo,
+  // Folha — contracheque do servidor (um ou lote, uma página por servidor)
+  'folha-contracheque': contracheque,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;

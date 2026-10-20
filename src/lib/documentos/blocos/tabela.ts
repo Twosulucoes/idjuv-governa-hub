@@ -15,7 +15,16 @@ export type Celula = string | number | null | undefined;
 const PAD = 1.5;
 
 export const tabela =
-  (p: { colunas: ColunaTabela[]; linhas: Record<string, Celula>[]; totais?: Record<string, Celula> }): Bloco =>
+  (p: {
+    colunas: ColunaTabela[];
+    linhas: Record<string, Celula>[];
+    totais?: Record<string, Celula>;
+    /**
+     * Célula vazia (inclusive título de coluna) fica em branco em vez de "—" (ex.: contracheque com proventos e
+     * descontos lado a lado, separados por uma coluna sem título).
+     */
+    vazioEmBranco?: boolean;
+  }): Bloco =>
   (ctx) => {
     const { doc } = ctx;
     const lh = alturaLinha(ctx.fonte.tabela);
@@ -49,8 +58,9 @@ export const tabela =
       doc.line(ctx.esquerda, y, ctx.esquerda + ctx.largura, y);
     };
 
+    const tracoNoVazio = !p.vazioEmBranco;
     const topoDemais = PAGINA.margemTopo + ALTURA_CABECALHO.demais;
-    const hCabecalho = alturaDe(p.colunas.map((c, i) => quebrar(c.titulo, i, true, true)));
+    const hCabecalho = alturaDe(p.colunas.map((c, i) => quebrar(c.titulo, i, true, tracoNoVazio)));
     /** Linhas de texto que cabem numa página cheia, já descontado o cabeçalho da tabela. */
     const capacidade = Math.max(1, Math.floor((ctx.limiteInferior - topoDemais - hCabecalho - 2 * PAD) / lh));
     const celulasDe = (valores: Record<string, Celula>, negrito: boolean, vazioComoTraco: boolean): string[][] =>
@@ -61,7 +71,7 @@ export const tabela =
       linhasDe(celulas) > capacidade ? 3 * lh + 2 * PAD : alturaDe(celulas);
 
     const cabecalho = (reserva: number = lh + 2 * PAD): void => {
-      const celulas = p.colunas.map((c, i) => quebrar(c.titulo, i, true, true));
+      const celulas = p.colunas.map((c, i) => quebrar(c.titulo, i, true, tracoNoVazio));
       const h = alturaDe(celulas);
       ctx.garantirEspaco(h + reserva); // o cabeçalho nunca fica sozinho no fim da página
       usarPreenchimento(doc, NEUTROS.fundoCabecalhoTabela);
@@ -111,7 +121,7 @@ export const tabela =
       }
     };
 
-    const primeira = p.linhas[0] ? celulasDe(p.linhas[0], false, true) : undefined;
+    const primeira = p.linhas[0] ? celulasDe(p.linhas[0], false, tracoNoVazio) : undefined;
     cabecalho(primeira ? reservaPara(primeira) : lh + 2 * PAD);
     if (p.linhas.length === 0) {
       ctx.garantirEspaco(lh + 2 * PAD);
@@ -122,7 +132,7 @@ export const tabela =
       ctx.y += lh + 2 * PAD;
       regua(ctx.y, false);
     } else {
-      p.linhas.forEach((v, i) => linha(v, i));
+      p.linhas.forEach((v, i) => linha(v, i, false, tracoNoVazio));
     }
     if (p.totais) linha(p.totais, 0, true, false);
     ctx.y += ESPACO.sm;
