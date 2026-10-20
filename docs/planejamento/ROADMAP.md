@@ -38,7 +38,7 @@ do merge; "—" quando não registrada aqui.
 | P15 | 5. Módulos | Financeiro: detalhe de solicitação e empenho, regra de estorno, leitor OBN600 conferido, homologação da `bb-api` | a fazer | | |
 | P16 | 5. Módulos | Transparência: página LAI sem "em implementação", execução orçamentária completa | a fazer | | |
 | P17 | 5. Módulos | Workflow (SEI): unidades da Lei 2.301/2025 e etapas "(proposta)" confirmadas | a fazer | | |
-| P18 | 5. Módulos | Governança e Integridade: telas ou fora do menu (D4) | a fazer | | |
+| P18 | 5. Módulos | Governança e Integridade: telas ou fora do menu (D4). Feito: relatório de governança com dados reais (tela e PDF `governanca-relatorio-anual` leem riscos, planos de tratamento, controles, checklists, matriz RACI e denúncias; sem número fixo no código). Falta fonte para capacitações e metas | em andamento | | 20/10/2026 |
 | P19 | 5. Módulos | Programas: admin da seleção gravando no banco (D4) | a fazer | | |
 | P20 | 5. Módulos | Compras, conforme o escopo (D1, D2) | a fazer | | |
 | P21 | 5. Módulos | Contratos, conforme o escopo (D1) | a fazer | | |
