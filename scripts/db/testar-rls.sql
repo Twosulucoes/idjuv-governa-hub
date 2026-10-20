@@ -6653,6 +6653,115 @@ BEGIN
   PERFORM pg_temp.nota('ATOS remuneratórios: permissão, aplicação tudo ou nada, vencimento e parâmetro por vigência, folha pela vigência com marca no meio do mês, imutabilidade e mudança pelo cadastro verificadas');
 END $$;
 
+-- ---------------------------------------------------------------- FOLHA: retorno do banco da remessa (migração 20261021090000)
+DO $$
+DECLARE
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');
+  fl uuid := 'f3000000-0000-0000-0000-0000000000f1'; fo uuid := 'f3000000-0000-0000-0000-0000000000f2';
+  ct uuid := 'f3000000-0000-0000-0000-0000000000c1'; rm uuid := 'f3000000-0000-0000-0000-0000000000a1';
+  rc uuid := 'f3000000-0000-0000-0000-0000000000a2';
+  fa uuid; fb uuid; fx uuid;
+  sha1 text := repeat('a', 64); sha2 text := repeat('b', 64);
+  itens text; r text; j jsonb;
+BEGIN
+  SET LOCAL session_replication_role = replica;   -- semeadura sem os triggers de setor/autoria
+  INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_folha, status) VALUES
+    (fl, 2033, 1, 'mensal', 'fechada'), (fo, 2033, 2, 'mensal', 'fechada');
+  fa := pg_temp.seed_row('fichas_financeiras', jsonb_build_object('folha_id', fl, 'servidor_id', 'b0000000-0000-0000-0000-00000000000a',
+    'valor_liquido', 1000.10, 'banco_codigo', '001', 'banco_agencia', '1234', 'banco_conta', '1111-1'))::uuid;
+  fb := pg_temp.seed_row('fichas_financeiras', jsonb_build_object('folha_id', fl, 'servidor_id', 'b0000000-0000-0000-0000-00000000000b',
+    'valor_liquido', 2000.20, 'banco_codigo', '001', 'banco_agencia', '4321', 'banco_conta', '2222-2'))::uuid;
+  fx := pg_temp.seed_row('fichas_financeiras', jsonb_build_object('folha_id', fo, 'servidor_id', 'b0000000-0000-0000-0000-00000000000a',
+    'valor_liquido', 10, 'banco_codigo', '001', 'banco_agencia', '1234', 'banco_conta', '1111-1'))::uuid;
+  PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', ct));
+  INSERT INTO public.remessas_bancarias (id, folha_id, conta_autarquia_id, numero_remessa, nome_arquivo, status, valor_total, quantidade_registros)
+    VALUES (rm, fl, ct, 7, 'retorno-teste.rem', 'gerada', 3000.30, 2),
+           (rc, fo, ct, 8, 'cancelada-teste.rem', 'cancelada', 10, 1);
+  SET LOCAL session_replication_role = origin;
+
+  itens := jsonb_build_array(
+    jsonb_build_object('ficha_id', fa, 'identificador', left(fa::text, 20), 'favorecido_nome', 'A', 'valor', 1000.10,
+                       'status', 'agendado', 'codigo_ocorrencia', 'BD', 'data_pagamento', '2033-02-01'),
+    jsonb_build_object('ficha_id', fb, 'identificador', left(fb::text, 20), 'favorecido_nome', 'B', 'valor', 2000.20,
+                       'status', 'rejeitado', 'codigo_ocorrencia', 'AT', 'descricao_ocorrencia', 'CPF inválido'))::text;
+
+  -- ===== quem não processa a folha não registra; anon não executa
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('SELECT public.registrar_retorno_remessa(%L, %L, %L)',
+         rm, jsonb_build_object('arquivo_sha256', sha1, 'previa', true), itens));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('RETORNO: o módulo rh sem financeiro.folha.processar registra retorno (' || r || ')'); END IF;
+  IF has_function_privilege('anon', 'public.registrar_retorno_remessa(uuid, jsonb, jsonb)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('RETORNO: registrar_retorno_remessa executável por anon');
+  END IF;
+
+  -- ===== recusas: sem sha256, sem créditos, situação inválida, ficha de outra folha, remessa cancelada
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('SELECT public.registrar_retorno_remessa(%L, %L, %L)',
+         rm, jsonb_build_object('previa', true), itens));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('RETORNO: retorno sem sha256 aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('SELECT public.registrar_retorno_remessa(%L, %L, %L)',
+         rm, jsonb_build_object('arquivo_sha256', sha1), '[]'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('RETORNO: retorno sem créditos aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('SELECT public.registrar_retorno_remessa(%L, %L, %L)',
+         rm, jsonb_build_object('arquivo_sha256', sha1), jsonb_build_array(jsonb_build_object('ficha_id', fa, 'valor', 1, 'status', 'enviado'))));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('RETORNO: situação inválida aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('SELECT public.registrar_retorno_remessa(%L, %L, %L)',
+         rm, jsonb_build_object('arquivo_sha256', sha1), jsonb_build_array(jsonb_build_object('ficha_id', fx, 'valor', 10, 'status', 'pago'))));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('RETORNO: ficha de outra folha aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('SELECT public.registrar_retorno_remessa(%L, %L, %L)',
+         rc, jsonb_build_object('arquivo_sha256', sha1), jsonb_build_array(jsonb_build_object('ficha_id', fx, 'valor', 10, 'status', 'pago'))));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('RETORNO: retorno em remessa cancelada aceito (' || r || ')'); END IF;
+
+  -- ===== prévia: grava retorno e itens, remessa passa a enviada
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_proc, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  j := public.registrar_retorno_remessa(rm, jsonb_build_object('arquivo_sha256', sha1, 'arquivo_nome', 'previa.ret',
+         'nsa', 21, 'data_arquivo', '2033-01-29', 'convenio', '448267', 'previa', true), itens::jsonb);
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF (j ->> 'agendados')::int <> 1 OR (j ->> 'rejeitados')::int <> 1 OR j ->> 'status_remessa' <> 'enviada' THEN
+    PERFORM pg_temp.falha('RETORNO: prévia deveria contar 1 agendado, 1 recusado e deixar a remessa enviada (' || j::text || ')');
+  END IF;
+  IF (SELECT status FROM public.remessas_bancarias WHERE id = rm) <> 'enviada'
+     OR (SELECT enviado_por FROM public.remessas_bancarias WHERE id = rm) IS DISTINCT FROM u_proc THEN
+    PERFORM pg_temp.falha('RETORNO: remessa sem a situação enviada ou sem quem registrou');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.retornos_bancarios WHERE remessa_id = rm AND previa AND nsa = 21
+                    AND quantidade_agendados = 1 AND valor_agendado = 1000.10 AND quantidade_rejeitados = 1
+                    AND valor_rejeitado = 2000.20 AND processado_por = u_proc) THEN
+    PERFORM pg_temp.falha('RETORNO: retorno gravado sem os totais, a prévia ou quem processou');
+  END IF;
+  IF (SELECT servidor_id FROM public.itens_retorno_bancario WHERE ficha_id = fb) IS DISTINCT FROM 'b0000000-0000-0000-0000-00000000000b'::uuid
+     OR (SELECT status FROM public.itens_retorno_bancario WHERE ficha_id = fa) <> 'agendado' THEN
+    PERFORM pg_temp.falha('RETORNO: item sem o servidor da ficha ou sem a situação');
+  END IF;
+
+  -- ===== o mesmo arquivo não entra duas vezes
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('SELECT public.registrar_retorno_remessa(%L, %L, %L)',
+         rm, jsonb_build_object('arquivo_sha256', sha1, 'previa', true), itens));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('RETORNO: o mesmo arquivo entrou duas vezes (' || r || ')'); END IF;
+
+  -- ===== retorno final sem agendado: remessa processada (crédito sem ficha fica registrado sem ficha)
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_proc, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  j := public.registrar_retorno_remessa(rm, jsonb_build_object('arquivo_sha256', sha2, 'previa', false), jsonb_build_array(
+         jsonb_build_object('ficha_id', fa, 'valor', 1000.10, 'status', 'pago', 'codigo_ocorrencia', '00'),
+         jsonb_build_object('identificador', 'fora', 'favorecido_nome', 'X', 'valor', 5, 'status', 'pago')));
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF (j ->> 'pagos')::int <> 2 OR (j ->> 'sem_ficha')::int <> 1 THEN
+    PERFORM pg_temp.falha('RETORNO: retorno final deveria contar 2 pagos e 1 sem ficha (' || j::text || ')');
+  END IF;
+  IF (SELECT status FROM public.remessas_bancarias WHERE id = rm) <> 'processada' THEN
+    PERFORM pg_temp.falha('RETORNO: retorno final sem agendado deveria deixar a remessa processada');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.itens_retorno_bancario i JOIN public.retornos_bancarios t ON t.id = i.retorno_id
+                  WHERE t.arquivo_sha256 = sha2 AND i.ficha_id IS NULL AND i.identificador = 'fora') THEN
+    PERFORM pg_temp.falha('RETORNO: crédito sem ficha não registrado');
+  END IF;
+
+  PERFORM pg_temp.nota('RETORNO da remessa: permissão, recusas (sha256, créditos, situação, outra folha, cancelada), prévia enviada, arquivo único e retorno final processada verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off

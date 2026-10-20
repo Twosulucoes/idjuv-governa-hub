@@ -13,6 +13,9 @@
  *  - remessa de servidores (líquido das fichas) ou de pensão alimentícia (beneficiários das pensões descontadas,
  *    migração 20261020090000): o banco soma cada tipo pela sua regra e guarda `tipo_credito`; uma ativa por folha,
  *    conta e tipo; o número parte de `contas_autarquia.nsa_inicial` quando ele é maior;
+ *  - retorno do banco (migração 20261021090000): a tela lê o .ret e casa cada crédito com a ficha
+ *    (`src/lib/bancario/retornoFolha.ts`); a RPC `registrar_retorno_remessa` grava retorno e itens de uma vez, confere
+ *    que cada ficha é da folha da remessa, recusa o mesmo arquivo duas vezes e atualiza a situação da remessa;
  *  - índice único (folha, evento, servidor) em `eventos_esocial`, fora os com status 'erro'/'rejeitado': gerar de
  *    novo não duplica (conflito 23505).
  * Os eventos do eSocial são rascunho: nada é transmitido por este sistema (onda G).
@@ -22,7 +25,7 @@ import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import type { TablesInsert } from "@/integrations/supabase/types";
+import type { Json, TablesInsert } from "@/integrations/supabase/types";
 import { getTenantSnapshotOuNulo } from "@/core/tenant";
 import { BANCOS } from "@/types/rh";
 import { calcularSha256 } from "@/lib/filaFotosOffline";
@@ -41,6 +44,8 @@ import {
 import { downloadXml } from "@/lib/esocialXmlGenerator";
 import { isoLocal } from "@/lib/bancario/dataCredito";
 import { creditosPensao, PREFIXO_ITEM_PENSAO, type FichaComPensao, type PensaoCadastro } from "@/lib/bancario/pensaoRemessa";
+import type { ResultadoArquivoBancario } from "@/lib/bancario/comum";
+import type { CreditoDaRemessa, RetornoCasado } from "@/lib/bancario/retornoFolha";
 import { MSG_FALHA_REGISTRO, registrarEvento, useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 
 const db = supabase;
@@ -585,6 +590,113 @@ export function useCancelarRemessa() {
     },
     onError: (e: unknown) => {
       toast.error(mensagemErroBanco(e));
+    },
+  });
+}
+
+// ============================================================================
+// Retorno do banco da remessa
+// ============================================================================
+
+/** Créditos da remessa de servidores como o gerador os monta: ficha com banco e líquido, seu número = início do id. */
+export function creditosRetornoServidores(fichas: FichaRemessa[]): CreditoDaRemessa[] {
+  return fichas
+    .filter((f) => fichaTemBanco(f) && Number(f.valor_liquido ?? 0) > 0)
+    .map((f) => ({
+      identificador: f.id.substring(0, 20),
+      ficha_id: f.id,
+      nome: f.servidor?.nome_completo ?? "",
+      cpf: f.servidor?.cpf ?? null,
+      valor: Number(f.valor_liquido ?? 0),
+    }));
+}
+
+/** Créditos da remessa de pensão: um por desconto de pensão com banco (seu número = início do id do item). */
+export function creditosRetornoPensao(fichas: FichaComPensao[], pensoes: PensaoCadastro[]): CreditoDaRemessa[] {
+  const fichaDoItem = new Map(fichas.flatMap((f) => (f.itens ?? []).map((i) => [i.id.substring(0, 20), f.id] as const)));
+  return creditosPensao(fichas, pensoes, new Date()).favorecidos.map((fv) => ({
+    identificador: fv.identificador,
+    ficha_id: fichaDoItem.get(fv.identificador) ?? "",
+    nome: fv.nome,
+    cpf: fv.cpf || null,
+    valor: fv.valor,
+  }));
+}
+
+const consultaRetornosFolha = (folhaId: string) =>
+  supabase
+    .from("retornos_bancarios")
+    .select(
+      `*, remessa:remessas_bancarias!inner(id, folha_id, numero_remessa, tipo_credito),
+       itens:itens_retorno_bancario(id, ficha_id, valor, status, codigo_ocorrencia, descricao_ocorrencia,
+         data_pagamento, favorecido_nome, servidor:servidores(nome_completo))`,
+    )
+    .eq("remessa.folha_id", folhaId)
+    .order("created_at", { ascending: false });
+
+export type RetornoDaFolha = NonNullable<Awaited<ReturnType<typeof consultaRetornosFolha>>["data"]>[number];
+
+/** Retornos do banco registrados nas remessas da folha, o mais novo primeiro, com os créditos. */
+export function useRetornosFolha(folhaId: string | undefined) {
+  return useQuery({
+    queryKey: ["retornos-folha", folhaId],
+    queryFn: async () => {
+      const { data, error } = await consultaRetornosFolha(folhaId as string);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!folhaId,
+  });
+}
+
+interface ParamsRegistrarRetorno {
+  remessaId: string;
+  folhaId: string;
+  arquivo: File;
+  lido: ResultadoArquivoBancario;
+  casado: RetornoCasado;
+  previa: boolean;
+}
+
+/** Grava o retorno pela RPC `registrar_retorno_remessa` (tudo de uma vez; o mesmo arquivo não entra duas vezes). */
+export function useRegistrarRetorno() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: ParamsRegistrarRetorno) => {
+      const sha256 = await calcularSha256(p.arquivo);
+      const { data, error } = await db.rpc("registrar_retorno_remessa", {
+        p_remessa_id: p.remessaId,
+        p_retorno: {
+          arquivo_nome: p.arquivo.name,
+          arquivo_sha256: sha256,
+          nsa: p.lido.cabecalho.sequencial,
+          data_arquivo: p.lido.cabecalho.dataArquivo,
+          convenio: p.lido.cabecalho.convenio,
+          previa: p.previa,
+        },
+        p_itens: p.casado.itens.map((i) => ({
+          ficha_id: i.credito?.ficha_id || null,
+          identificador: i.linha.identificador,
+          favorecido_nome: i.credito?.nome || i.linha.favorecido_nome,
+          valor: i.linha.valor,
+          status: i.situacao,
+          codigo_ocorrencia: i.linha.codigo_retorno,
+          descricao_ocorrencia: i.motivo,
+          data_pagamento: i.linha.data_efetivacao ?? i.linha.data_pagamento,
+        })) as unknown as Json,
+      });
+      if (error) throw error;
+      return data as { agendados: number; pagos: number; rejeitados: number; status_remessa: string };
+    },
+    onSuccess: (r, p) => {
+      queryClient.invalidateQueries({ queryKey: ["remessas-bancarias", p.folhaId] });
+      queryClient.invalidateQueries({ queryKey: ["retornos-folha", p.folhaId] });
+      toast.success(`Retorno registrado: ${r.agendados} agendado(s), ${r.pagos} pago(s), ${r.rejeitados} recusado(s).`);
+    },
+    onError: (e: unknown) => {
+      const erro = e as { code?: string; message?: string } | null;
+      // o mesmo arquivo de novo: a mensagem da RPC diz qual remessa
+      toast.error(erro?.code === "23505" && erro.message ? erro.message : mensagemErroBanco(e));
     },
   });
 }

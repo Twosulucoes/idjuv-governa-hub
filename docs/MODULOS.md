@@ -125,6 +125,11 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
   um a um ou por reajuste percentual dos cargos. Aplicar (com `financeiro.folha.configurar`) grava o valor anterior e
   a vigência; daí em diante o ato não muda. A folha usa o vencimento do cargo vigente no fim da competência, avisa
   vigência no meio do mês e não calcula diferenças de meses já fechados.
+  Na aba **Remessas CNAB** do detalhe da folha, cada remessa recebe o **retorno do banco** (`ImportarRetornoDialog`,
+  `src/components/folha/RetornoRemessa.tsx`; regras em `src/lib/bancario/retornoFolha.ts`): o `.ret` é lido, cada
+  crédito é casado com a ficha pelo seu número da remessa (ou pelo CPF e o valor) e a tela mostra agendados, pagos e
+  recusados com o motivo do banco antes de gravar (`financeiro.folha.processar`). Os retornos gravados aparecem abaixo
+  das remessas, com os recusados de cada um.
 - **Currículo/pré-cadastro** (`src/pages/curriculo/`): `MiniCurriculoPage` (público),
   `GestaoPreCadastrosPage`, `DiagnosticoPendenciasPage`.
 

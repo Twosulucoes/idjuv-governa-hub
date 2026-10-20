@@ -292,7 +292,7 @@ export function useRemessasFolha(folhaId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remessas_bancarias')
-        .select(`*, conta:contas_autarquia(descricao, banco:bancos_cnab(nome))`)
+        .select(`*, conta:contas_autarquia(descricao, convenio_pagamento, banco:bancos_cnab(nome))`)
         .eq('folha_id', folhaId)
         .order('created_at', { ascending: false });
       if (error) throw error;
