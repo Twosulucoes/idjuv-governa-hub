@@ -187,6 +187,8 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   baseline regenerado e no mapa (`atos_remuneratorios` e `atos_remuneratorios_itens` na classe `permissao`,
   `cargo_vencimentos` na `trilha`); privilégios das funções novas no overlay 40; testes no bloco "FOLHA: atos
   remuneratórios" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os vetores de teste da folha comuns com o hrms_brasil (`scripts/db/casos-folha.json`) rodam no teste de RLS, no
+  bloco "FOLHA: vetores comuns": `testar-rls.sh` passa o arquivo ao `psql`, e rodar o `.sql` sem ele reprova.
 - A parte patronal da folha e o INSS truncado por faixa (migração `20261021100000`) entraram no schema do baseline
   regenerado (`folhas_pagamento.total_rat`, CHECK `parametros_folha_encargos_check`, `calcular_inss_servidor` e
   `processar_folha_pagamento` novos, sem mudança de privilégio); testes no bloco "FOLHA: parte patronal e INSS por

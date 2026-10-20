@@ -237,6 +237,10 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
   `importar_classificadores_fiplan` recusa (`42501`) sem `orcamento.importar`, sem o módulo financeiro e sem sessão;
   tabela desconhecida e lista vazia (`22023`); simulação não grava; aplicação grava, registra e corrige nomes de fonte,
   programa e natureza; código repetido ou fora do padrão não grava nada; INSERT/UPDATE direto pela API não passa;
+- vetores comuns com o hrms_brasil (bloco "FOLHA: vetores comuns", `scripts/db/casos-folha.json`, que
+  `testar-rls.sh` passa como `-v casos_folha`): cada caso de INSS (com e sem o truncamento por faixa) e de IRRF dá o
+  valor esperado em `calcular_inss_servidor` e `calcular_irrf_mensal`; férias da CLT e 13º ficam listados como fora
+  do porte; sem o arquivo, o teste reprova;
 - parte patronal e INSS por faixa da folha (migração `20261021100000`, bloco "FOLHA: parte patronal e INSS por faixa"
   de `testar-rls.sql`): INSS truncado por faixa só com `inss_truncar_por_faixa` e na vigência; alíquota em % e opção
   fora de 0/1 recusadas (CHECK `parametros_folha_encargos_check`); folha sem alíquotas processa com patronal zero e

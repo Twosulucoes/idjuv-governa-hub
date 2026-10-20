@@ -120,6 +120,11 @@ Postgres descartável do runner, sem segredo e sem falar com a produção:
    roda o teste de RLS por persona (`scripts/db/testar-rls.sql`) e exige schema, privilégios e storage idênticos
    ao replay.
 
+O mesmo teste confere a folha contra os vetores comuns com o hrms_brasil (`scripts/db/casos-folha.json`, cópia do
+arquivo casos/folha.json do hrms_brasil): `testar-rls.sh` passa o arquivo ao `psql` como variável, e cada caso de INSS e IRRF
+precisa dar os mesmos centavos na função do banco. Mudar o arquivo também dispara o workflow. Caso novo nasce no
+hrms_brasil e é copiado para cá, sem edição.
+
 Na prática, uma migração nova só fica verde se, no mesmo PR, o schema do baseline for regenerado
 (`scripts/db/gerar-baseline.sh`) e toda tabela nova estiver classificada em `supabase/baseline/rls/mapa.csv`
 (tabela fora do mapa reprova no teste de RLS). Passo a passo local em

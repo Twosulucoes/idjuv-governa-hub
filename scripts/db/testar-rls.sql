@@ -6860,6 +6860,56 @@ BEGIN
   PERFORM pg_temp.nota('FOLHA (encargos): INSS truncado por faixa só com o parâmetro e na vigência, alíquota em % recusada, folha sem alíquotas com aviso, INSS patronal e RAT por ficha só do regime geral e totais truncados como a guia verificados');
 END $$;
 
+-- ---------------------------------------------------------------- FOLHA: vetores comuns com o hrms_brasil (scripts/db/casos-folha.json)
+-- Os mesmos casos rodam no hrms_brasil (tests/test_casos.py). testar-rls.sh passa o arquivo em -v casos_folha; INSS e
+-- IRRF usam as tabelas e os parâmetros de 2026 semeados no bloco "FOLHA: cálculo do INSS e do IRRF".
+\if :{?casos_folha}
+SELECT set_config('teste.casos_folha', :'casos_folha', false);
+\else
+SELECT set_config('teste.casos_folha', '', false);
+\endif
+DO $$
+DECLARE
+  v_json text := current_setting('teste.casos_folha', true);
+  c jsonb; e jsonb; r jsonb; v numeric; n_ok int := 0; outras text[] := '{}';
+BEGIN
+  IF coalesce(v_json, '') = '' THEN
+    PERFORM pg_temp.falha('VETORES: scripts/db/casos-folha.json não chegou ao teste (rode por scripts/db/testar-rls.sh)');
+    RETURN;
+  END IF;
+  FOR c IN SELECT jsonb_array_elements(v_json::jsonb -> 'casos') LOOP
+    e := c -> 'entrada';
+    IF c ->> 'regra' = 'inss' THEN
+      SET LOCAL session_replication_role = replica;
+      DELETE FROM public.parametros_folha WHERE tipo_parametro = 'inss_truncar_por_faixa';
+      IF e ->> 'arredondamento' = 'por_faixa' THEN
+        INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, ativo) VALUES ('inss_truncar_por_faixa', 1, '2026-01-01', true);
+      END IF;
+      SET LOCAL session_replication_role = origin;
+      v := public.calcular_inss_servidor((e ->> 'base')::numeric, '2026-09-30');
+      IF v <> (c -> 'esperado' ->> 'inss')::numeric THEN
+        PERFORM pg_temp.falha(format('VETORES %s: INSS %s, esperado %s', c ->> 'id', v, c -> 'esperado' ->> 'inss'));
+      ELSE n_ok := n_ok + 1; END IF;
+    ELSIF c ->> 'regra' = 'irrf' THEN
+      r := public.calcular_irrf_mensal((e ->> 'rendimentos')::numeric,
+             (e ->> 'inss')::numeric + coalesce((e ->> 'dependentes')::int, 0) * 189.59 + coalesce((e ->> 'pensao')::numeric, 0),
+             '2026-09-30');
+      IF (r ->> 'irrf')::numeric <> (c -> 'esperado' ->> 'irrf')::numeric THEN
+        PERFORM pg_temp.falha(format('VETORES %s: IRRF %s, esperado %s (%s)', c ->> 'id', r ->> 'irrf', c -> 'esperado' ->> 'irrf', r));
+      ELSE n_ok := n_ok + 1; END IF;
+    ELSE
+      outras := outras || (c ->> 'id');
+    END IF;
+  END LOOP;
+  SET LOCAL session_replication_role = replica;
+  DELETE FROM public.parametros_folha WHERE tipo_parametro = 'inss_truncar_por_faixa';
+  SET LOCAL session_replication_role = origin;
+  IF n_ok = 0 THEN PERFORM pg_temp.falha('VETORES: nenhum caso de INSS ou IRRF conferido'); END IF;
+
+  PERFORM pg_temp.nota(format('FOLHA (vetores do hrms_brasil): %s casos de INSS e IRRF iguais; fora do porte (férias da CLT e 13º): %s',
+                              n_ok, array_to_string(outras, ', ')));
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off

@@ -1,0 +1,282 @@
+{
+  "origem": "hrms_brasil, hrms_brasil/casos/folha.json (versão 1, commit d3358b9). Não editar aqui: caso novo nasce no hrms_brasil e é copiado.",
+  "versao": 1,
+  "descricao": "Vetores de teste da folha. Cada caso tem a entrada, o resultado esperado em reais (string com 2 casas) e a base legal. Rodam no hrms_brasil (tests/test_casos.py) e devem rodar, com os mesmos valores, em qualquer sistema que porte a regra (por exemplo, a RPC da folha do IDJUV Governa Hub).",
+  "tabelas": {
+    "INSS_2026": "hrms_brasil/folha/tabelas_padrao.py",
+    "IRRF_2026": "hrms_brasil/folha/tabelas_padrao.py"
+  },
+  "casos": [
+    {
+      "id": "inss-salario-minimo",
+      "regra": "inss",
+      "tabela": "INSS_2026",
+      "entrada": {
+        "base": "1621.00"
+      },
+      "esperado": {
+        "inss": "121.58"
+      },
+      "base_legal": "Lei 8.212/91 art. 20; EC 103/2019 art. 28"
+    },
+    {
+      "id": "inss-segunda-faixa",
+      "regra": "inss",
+      "tabela": "INSS_2026",
+      "entrada": {
+        "base": "2500.00"
+      },
+      "esperado": {
+        "inss": "200.69"
+      },
+      "base_legal": "EC 103/2019 art. 28"
+    },
+    {
+      "id": "inss-quarta-faixa",
+      "regra": "inss",
+      "tabela": "INSS_2026",
+      "entrada": {
+        "base": "6000.00"
+      },
+      "esperado": {
+        "inss": "641.51"
+      },
+      "base_legal": "EC 103/2019 art. 28"
+    },
+    {
+      "id": "inss-acima-do-teto",
+      "regra": "inss",
+      "tabela": "INSS_2026",
+      "entrada": {
+        "base": "20000.00"
+      },
+      "esperado": {
+        "inss": "988.09"
+      },
+      "base_legal": "EC 103/2019 art. 28"
+    },
+    {
+      "id": "irrf-isento-pela-reducao",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "5000.00",
+        "inss": "501.51",
+        "dependentes": 0
+      },
+      "esperado": {
+        "irrf": "0.00"
+      },
+      "base_legal": "Lei 15.270/2025"
+    },
+    {
+      "id": "irrf-faixa-de-transicao",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "6000.00",
+        "inss": "641.51",
+        "dependentes": 0
+      },
+      "esperado": {
+        "irrf": "385.10"
+      },
+      "base_legal": "Lei 7.713/88; Lei 15.270/2025"
+    },
+    {
+      "id": "irrf-sem-reducao",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "10000.00",
+        "inss": "988.09",
+        "dependentes": 0
+      },
+      "esperado": {
+        "irrf": "1569.55"
+      },
+      "base_legal": "Lei 7.713/88"
+    },
+    {
+      "id": "irrf-dois-dependentes",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "10000.00",
+        "inss": "988.09",
+        "dependentes": 2
+      },
+      "esperado": {
+        "irrf": "1465.27"
+      },
+      "base_legal": "Lei 9.250/95 art. 4º"
+    },
+    {
+      "id": "ferias-30-dias-clt",
+      "regra": "ferias",
+      "tabela": "INSS_2026+IRRF_2026",
+      "entrada": {
+        "remuneracao": "3000.00",
+        "dias_gozo": 30,
+        "dias_abono": 0
+      },
+      "esperado": {
+        "liquido": "3631.40",
+        "fgts": "320.00"
+      },
+      "base_legal": "CLT art. 129 a 145; CF art. 7º XVII"
+    },
+    {
+      "id": "decimo-terceiro-segunda-parcela",
+      "regra": "decimo_terceiro_2",
+      "tabela": "INSS_2026+IRRF_2026",
+      "entrada": {
+        "remuneracao": "6000.00",
+        "avos": 12,
+        "adiantamento": "3000.00"
+      },
+      "esperado": {
+        "liquido": "1793.64"
+      },
+      "base_legal": "Lei 4.090/62; Lei 4.749/65; VALIDAR IRRF exclusivo"
+    },
+    {
+      "id": "idjuv-inss-cds-ii",
+      "regra": "inss",
+      "tabela": "INSS_2026",
+      "entrada": {
+        "base": "2696.16"
+      },
+      "esperado": {
+        "inss": "218.34"
+      },
+      "base_legal": "EC 103/2019 art. 28; valor do símbolo CDS-II pela Lei estadual 2.301/2025, Anexo I"
+    },
+    {
+      "id": "idjuv-irrf-cnes-iv-zerado-pela-reducao",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "4199.61",
+        "inss": "392.55",
+        "dependentes": 0
+      },
+      "esperado": {
+        "irrf": "0.00"
+      },
+      "base_legal": "Lei 15.270/2025; símbolo CNES-IV pela Lei estadual 2.301/2025, Anexo I"
+    },
+    {
+      "id": "idjuv-irrf-cnes-iii-simplificado-com-reducao",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "5392.29",
+        "inss": "556.44",
+        "dependentes": 0
+      },
+      "esperado": {
+        "irrf": "146.51"
+      },
+      "base_legal": "Lei 7.713/88; Lei 15.270/2025; símbolo CNES-III pela Lei estadual 2.301/2025, Anexo I"
+    },
+    {
+      "id": "idjuv-irrf-subsidio-presidente",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "29211.00",
+        "inss": "988.09",
+        "dependentes": 0
+      },
+      "esperado": {
+        "irrf": "6852.57"
+      },
+      "base_legal": "Lei 7.713/88; subsídio do Presidente pela Lei estadual 2.301/2025, Anexo I"
+    },
+    {
+      "id": "sigrh-inss-teto-por-faixa",
+      "regra": "inss",
+      "tabela": "INSS_2026",
+      "entrada": {
+        "base": "24829.00",
+        "arredondamento": "por_faixa"
+      },
+      "esperado": {
+        "inss": "988.07"
+      },
+      "base_legal": "EC 103/2019 art. 28; convenção de arredondamento do SIGRH/RR conferida no espelho do IDJUV de set/2026"
+    },
+    {
+      "id": "sigrh-inss-cds-i-por-faixa",
+      "regra": "inss",
+      "tabela": "INSS_2026",
+      "entrada": {
+        "base": "3578.07",
+        "arredondamento": "por_faixa"
+      },
+      "esperado": {
+        "inss": "317.95"
+      },
+      "base_legal": "EC 103/2019 art. 28; CDS-I reajustado, espelho do IDJUV de set/2026"
+    },
+    {
+      "id": "sigrh-irrf-subsidio-sem-inss-simplificado",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "24829.00",
+        "inss": "0.00",
+        "dependentes": 0
+      },
+      "esperado": {
+        "irrf": "5752.27"
+      },
+      "base_legal": "Lei 7.713/88; Lei 9.250/95 art. 4º; igual ao SIGRH no espelho do IDJUV de set/2026"
+    },
+    {
+      "id": "sigrh-irrf-cnes-iii-pensao-sem-inss",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "5742.80",
+        "inss": "0.00",
+        "dependentes": 0,
+        "pensao": "827.05"
+      },
+      "esperado": {
+        "irrf": "229.11"
+      },
+      "base_legal": "Lei 9.250/95 art. 4º II; Lei 15.270/2025; igual ao SIGRH no espelho do IDJUV de set/2026"
+    },
+    {
+      "id": "sigrh-irrf-cnes-iii-com-inss",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "5742.80",
+        "inss": "605.49",
+        "dependentes": 0
+      },
+      "esperado": {
+        "irrf": "289.57"
+      },
+      "base_legal": "Lei 9.250/95 art. 4º IV; Lei 15.270/2025. O SIGRH reteve 536,69 no espelho de set/2026, sem abater INSS nem desconto simplificado"
+    },
+    {
+      "id": "sigrh-irrf-cnets-i-inss-e-pensao",
+      "regra": "irrf",
+      "tabela": "IRRF_2026",
+      "entrada": {
+        "rendimentos": "9571.34",
+        "inss": "988.07",
+        "dependentes": 0,
+        "pensao": "1073.26"
+      },
+      "esperado": {
+        "irrf": "1156.52"
+      },
+      "base_legal": "Lei 9.250/95 art. 4º II e IV. O SIGRH reteve 1.428,24 no espelho de set/2026, abatendo só a pensão"
+    }
+  ]
+}
