@@ -175,9 +175,14 @@ export default function RelatorioGovernancaPage() {
           }
           acoes={
             <Button
-              onClick={() => {
-                generateRelatorioGovernancaPDF();
-                toast.success("PDF do Relatório de Governança gerado com sucesso!");
+              onClick={async () => {
+                try {
+                  await generateRelatorioGovernancaPDF();
+                  toast.success("PDF do Relatório de Governança gerado com sucesso!");
+                } catch (error) {
+                  console.error("Erro ao gerar relatório de governança:", error);
+                  toast.error("Erro ao gerar o PDF do Relatório de Governança");
+                }
               }}
             >
               <Download className="w-4 h-4" aria-hidden="true" />

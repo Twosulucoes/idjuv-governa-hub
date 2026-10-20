@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 
 import { getTenantSnapshot, nomeDoSistema } from '@/core/tenant';
 import { baixarDocumento, emitirDocumento, localDaSede } from '@/lib/documentos';
+import type { DadosRelatorioCargosVagas } from '@/lib/documentos/modelos/cargos/cargosVagas';
 import type { DependenteFicha, ServidorFichaCadastral } from '@/lib/documentos/modelos/rh/fichaCadastral';
 
 import { nomeEntidadeSuperiorDocumentos, nomeOficialDocumentos } from './pdfTemplate';
@@ -467,535 +468,68 @@ export const generateDocumentNumber = (prefix: string): string => {
   return `${prefix}${random}/${year}`;
 };
 
-// Interfaces para o Relatório de Cargos
-interface CargoReportItem {
-  nome: string;
-  sigla: string | null;
-  categoria: string;
-  nivel_hierarquico: number | null;
-  quantidade_vagas: number;
-  ocupadas: number;
-  composicao: {
-    unidade_nome: string;
-    unidade_sigla: string | null;
-    quantidade_vagas: number;
-  }[];
-}
+// ============================================================
+// RELATÓRIO DE CARGOS E VAGAS (motor único: modelo `cargos-relatorio-cargos-vagas`)
+// ============================================================
 
-interface RelatorioCargosData {
-  cargos: CargoReportItem[];
-  totalCargos: number;
-  totalVagas: number;
-  totalOcupadas: number;
-  totalVacancia: number;
-  dataGeracao: string;
-}
-
-const CATEGORIA_LABELS_PDF: Record<string, string> = {
-  efetivo: 'Efetivo',
-  comissionado: 'Comissionado',
-  funcao_gratificada: 'Função Gratificada',
-  temporario: 'Temporário',
-  estagiario: 'Estagiário',
+/** Gera e baixa o relatório de cargos e vagas (GestaoCargosPage). */
+export const generateRelatorioCargos = async (data: DadosRelatorioCargosVagas): Promise<void> => {
+  baixarDocumento(await emitirDocumento('cargos-relatorio-cargos-vagas', data));
 };
 
-export const generateRelatorioCargos = (data: RelatorioCargosData): void => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
-  const pageHeight = doc.internal.pageSize.height;
-  
-  // Função para adicionar cabeçalho
-  const addHeader = () => {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 51, 102);
-    doc.text(nomeEntidadeSuperiorDocumentos(), pageWidth / 2, 15, { align: 'center' });
-    doc.text(nomeOficialDocumentos(), pageWidth / 2, 20, { align: 'center' });
-    
-    doc.setLineWidth(0.5);
-    doc.setDrawColor(0, 51, 102);
-    doc.line(20, 25, pageWidth - 20, 25);
-    
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('RELATÓRIO DE CARGOS E VAGAS', pageWidth / 2, 35, { align: 'center' });
-    
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Data de Geração: ${data.dataGeracao}`, pageWidth - 20, 42, { align: 'right' });
-    
-    doc.line(20, 46, pageWidth - 20, 46);
-    
-    return 52;
-  };
-  
-  // Função para adicionar rodapé
-  const addFooter = (pageNum: number, totalPages: number) => {
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Documento gerado pelo ${nomeDoSistema(getTenantSnapshot())}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
-    doc.text(`Página ${pageNum} de ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-  };
-  
-  let y = addHeader();
-  
-  // Resumo Geral
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 51, 102);
-  doc.text('RESUMO GERAL', 20, y);
-  y += 8;
-  
-  doc.setFillColor(240, 245, 250);
-  doc.rect(20, y - 4, pageWidth - 40, 24, 'F');
-  
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  
-  const resumoCol1 = 30;
-  const resumoCol2 = 80;
-  const resumoCol3 = 130;
-  
-  doc.text(`Total de Cargos: ${data.totalCargos}`, resumoCol1, y + 4);
-  doc.text(`Total de Vagas: ${data.totalVagas}`, resumoCol2, y + 4);
-  doc.text(`Vagas Ocupadas: ${data.totalOcupadas}`, resumoCol3, y + 4);
-  
-  doc.setFont('helvetica', 'bold');
-  const vacanciaColor = data.totalVacancia < 0 ? [220, 38, 38] : data.totalVacancia === 0 ? [234, 179, 8] : [34, 197, 94];
-  doc.setTextColor(vacanciaColor[0], vacanciaColor[1], vacanciaColor[2]);
-  doc.text(`Vacância: ${data.totalVacancia}`, resumoCol1, y + 14);
-  
-  doc.setTextColor(0, 0, 0);
-  doc.setFont('helvetica', 'normal');
-  const percentOcupacao = data.totalVagas > 0 ? ((data.totalOcupadas / data.totalVagas) * 100).toFixed(1) : '0';
-  doc.text(`Taxa de Ocupação: ${percentOcupacao}%`, resumoCol2, y + 14);
-  
-  y += 30;
-  
-  // Por categoria
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 51, 102);
-  doc.text('DISTRIBUIÇÃO POR CATEGORIA', 20, y);
-  y += 8;
-  
-  const categorias = ['comissionado', 'efetivo', 'funcao_gratificada', 'temporario', 'estagiario'];
-  categorias.forEach((cat) => {
-    const cargosCategoria = data.cargos.filter(c => c.categoria === cat);
-    const vagasCat = cargosCategoria.reduce((sum, c) => sum + c.quantidade_vagas, 0);
-    const ocupadasCat = cargosCategoria.reduce((sum, c) => sum + c.ocupadas, 0);
-    
-    if (cargosCategoria.length > 0) {
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
-      doc.text(`${CATEGORIA_LABELS_PDF[cat]}: ${cargosCategoria.length} cargos | ${vagasCat} vagas | ${ocupadasCat} ocupadas | ${vagasCat - ocupadasCat} vacância`, 25, y);
-      y += 5;
-    }
-  });
-  
-  y += 8;
-  
-  // Tabela de cargos
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 51, 102);
-  doc.text('DETALHAMENTO POR CARGO', 20, y);
-  y += 8;
-  
-  // Cabeçalho da tabela
-  doc.setFillColor(0, 51, 102);
-  doc.rect(20, y - 4, pageWidth - 40, 8, 'F');
-  
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
-  
-  const colCargo = 22;
-  const colCategoria = 75;
-  const colNivel = 110;
-  const colVagas = 125;
-  const colOcup = 142;
-  const colVac = 158;
-  const colUnidades = 172;
-  
-  doc.text('CARGO', colCargo, y);
-  doc.text('CATEGORIA', colCategoria, y);
-  doc.text('NÍVEL', colNivel, y);
-  doc.text('VAGAS', colVagas, y);
-  doc.text('OCUP.', colOcup, y);
-  doc.text('VAC.', colVac, y);
-  doc.text('UNID.', colUnidades, y);
-  
-  y += 6;
-  
-  doc.setTextColor(0, 0, 0);
-  doc.setFont('helvetica', 'normal');
-  
-  // Ordenar cargos por nível hierárquico
-  const cargosOrdenados = [...data.cargos].sort((a, b) => (a.nivel_hierarquico || 99) - (b.nivel_hierarquico || 99));
-  
-  let pageNum = 1;
-  
-  cargosOrdenados.forEach((cargo, index) => {
-    // Verificar se precisa de nova página
-    if (y > pageHeight - 40) {
-      addFooter(pageNum, Math.ceil(data.cargos.length / 20) + 1);
-      doc.addPage();
-      pageNum++;
-      y = addHeader();
-      
-      // Repetir cabeçalho da tabela
-      doc.setFillColor(0, 51, 102);
-      doc.rect(20, y - 4, pageWidth - 40, 8, 'F');
-      
-      doc.setFontSize(7);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 255, 255);
-      
-      doc.text('CARGO', colCargo, y);
-      doc.text('CATEGORIA', colCategoria, y);
-      doc.text('NÍVEL', colNivel, y);
-      doc.text('VAGAS', colVagas, y);
-      doc.text('OCUP.', colOcup, y);
-      doc.text('VAC.', colVac, y);
-      doc.text('UNID.', colUnidades, y);
-      
-      y += 6;
-      doc.setTextColor(0, 0, 0);
-    }
-    
-    // Linha alternada
-    if (index % 2 === 0) {
-      doc.setFillColor(248, 250, 252);
-      doc.rect(20, y - 3, pageWidth - 40, 6, 'F');
-    }
-    
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    
-    // Nome do cargo (truncar se muito longo)
-    const nomeExibir = cargo.sigla 
-      ? `${cargo.nome.substring(0, 25)}${cargo.nome.length > 25 ? '...' : ''} (${cargo.sigla})`
-      : cargo.nome.substring(0, 35) + (cargo.nome.length > 35 ? '...' : '');
-    doc.text(nomeExibir, colCargo, y);
-    
-    // Categoria
-    doc.text(CATEGORIA_LABELS_PDF[cargo.categoria] || cargo.categoria, colCategoria, y);
-    
-    // Nível
-    doc.text(cargo.nivel_hierarquico?.toString() || '-', colNivel + 5, y);
-    
-    // Vagas
-    doc.text(cargo.quantidade_vagas.toString(), colVagas + 5, y);
-    
-    // Ocupadas
-    doc.text(cargo.ocupadas.toString(), colOcup + 5, y);
-    
-    // Vacância
-    const vacancia = cargo.quantidade_vagas - cargo.ocupadas;
-    if (vacancia < 0) {
-      doc.setTextColor(220, 38, 38);
-    } else if (vacancia === 0) {
-      doc.setTextColor(234, 179, 8);
-    } else {
-      doc.setTextColor(34, 197, 94);
-    }
-    doc.text(vacancia.toString(), colVac + 5, y);
-    doc.setTextColor(0, 0, 0);
-    
-    // Unidades
-    doc.text(cargo.composicao.length.toString(), colUnidades + 5, y);
-    
-    y += 6;
-    
-    // Mostrar detalhes das unidades se houver
-    if (cargo.composicao.length > 0 && cargo.composicao.length <= 5) {
-      doc.setFontSize(6);
-      doc.setTextColor(100, 100, 100);
-      const unidadesStr = cargo.composicao
-        .map(c => `${c.unidade_sigla || c.unidade_nome.substring(0, 10)}: ${c.quantidade_vagas}`)
-        .join(' | ');
-      doc.text(`   → ${unidadesStr}`, colCargo, y);
-      doc.setTextColor(0, 0, 0);
-      y += 4;
-    }
-  });
-  
-  // Linha final
-  doc.setDrawColor(0, 51, 102);
-  doc.line(20, y, pageWidth - 20, y);
-  
-  // Totalizador
-  y += 6;
-  doc.setFillColor(0, 51, 102);
-  doc.rect(20, y - 4, pageWidth - 40, 8, 'F');
-  
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
-  
-  doc.text('TOTAL', colCargo, y);
-  doc.text(`${data.totalCargos} cargos`, colCategoria, y);
-  doc.text(data.totalVagas.toString(), colVagas + 5, y);
-  doc.text(data.totalOcupadas.toString(), colOcup + 5, y);
-  doc.text(data.totalVacancia.toString(), colVac + 5, y);
-  
-  // Rodapé final
-  addFooter(pageNum, pageNum);
-  
-  doc.save(`Relatorio_Cargos_${new Date().toISOString().split('T')[0]}.pdf`);
-};
+// ============================================================
+// RELATÓRIO ANUAL DE GOVERNANÇA (motor único: modelo `governanca-relatorio-anual`)
+// ============================================================
 
-// Helper function to draw bar chart in PDF
-const drawBarChart = (
-  doc: jsPDF, 
-  data: { label: string; value: number; color: string }[], 
-  x: number, 
-  y: number, 
-  width: number, 
-  height: number, 
-  title: string
-) => {
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 51, 102);
-  doc.text(title, x + width / 2, y, { align: 'center' });
-  
-  const maxValue = Math.max(...data.map(d => d.value));
-  const barWidth = (width - 20) / data.length;
-  const barMaxHeight = height - 25;
-  
-  data.forEach((item, index) => {
-    const barHeight = (item.value / maxValue) * barMaxHeight;
-    const barX = x + 10 + index * barWidth;
-    const barY = y + 10 + (barMaxHeight - barHeight);
-    
-    const [r, g, b] = item.color.match(/\d+/g)?.map(Number) || [59, 130, 246];
-    doc.setFillColor(r, g, b);
-    doc.rect(barX + 2, barY, barWidth - 4, barHeight, 'F');
-    
-    doc.setFontSize(7);
-    doc.setTextColor(0, 0, 0);
-    doc.text(item.value.toString(), barX + barWidth / 2, barY - 2, { align: 'center' });
-    doc.text(item.label.substring(0, 6), barX + barWidth / 2, y + height - 5, { align: 'center' });
+/** Gera e baixa o relatório anual de governança e integridade (RelatorioGovernancaPage). Números fixos, como no original. */
+export const generateRelatorioGovernancaPDF = async (): Promise<void> => {
+  const sigla = getTenantSnapshot().identidade.sigla?.trim() || 'órgão';
+  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const conformidade = [72, 75, 78, 80, 82, 85, 84, 86, 87, 87, 88, 87];
+  const d = await emitirDocumento('governanca-relatorio-anual', {
+    exercicio: '2025',
+    indicadores: [
+      { titulo: 'Conformidade', valor: '87%', meta: '90%' },
+      { titulo: 'Processos', valor: '24', meta: '30' },
+      { titulo: 'Capacitações', valor: '156', meta: '200' },
+      { titulo: 'Riscos mitigados', valor: '18', meta: '22' },
+    ],
+    conformidadeMensal: meses.map((mes, i) => ({ mes, valor: conformidade[i] })),
+    processosPorArea: [
+      { area: 'Compras', quantidade: 8 },
+      { area: 'RH', quantidade: 5 },
+      { area: 'Patrimônio', quantidade: 4 },
+      { area: 'Financeiro', quantidade: 4 },
+      { area: 'Almoxarifado', quantidade: 3 },
+    ],
+    riscos: [
+      { nivel: 'Baixo', quantidade: 12 },
+      { nivel: 'Médio', quantidade: 8 },
+      { nivel: 'Alto', quantidade: 4 },
+      { nivel: 'Crítico', quantidade: 1 },
+    ],
+    acoes: [
+      { titulo: 'Treinamento em Ética', situacao: 'Concluído' },
+      { titulo: 'Código de Conduta', situacao: 'Concluído' },
+      { titulo: 'Mapeamento de Riscos', situacao: 'Em andamento' },
+      { titulo: 'Canal de Denúncias', situacao: 'Concluído' },
+      { titulo: 'Auditoria Interna', situacao: 'Em andamento' },
+    ],
+    resumoExecutivo: [
+      `O ${sigla} alcançou 87% de conformidade em 2025, superando o resultado de 2024.`,
+      'Foram mapeados 24 processos administrativos e 156 servidores capacitados.',
+      'O Canal de Denúncias está operacional com garantia de anonimato.',
+      'A Matriz de Riscos institucional foi aprovada e publicada.',
+    ],
+    anoMetas: '2026',
+    metas: [
+      'Atingir 95% de conformidade nos processos críticos',
+      'Mapear 100% dos processos institucionais (30 processos)',
+      'Capacitar 100% dos servidores em integridade',
+      'Obter certificação ISO 37001 (Antissuborno)',
+    ],
   });
-};
-
-// Helper function to draw indicator card in PDF
-const drawIndicatorCard = (
-  doc: jsPDF, 
-  x: number, 
-  y: number, 
-  width: number, 
-  height: number, 
-  title: string, 
-  value: string, 
-  meta: string, 
-  color: string
-) => {
-  const [r, g, b] = color.match(/\d+/g)?.map(Number) || [59, 130, 246];
-  
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(x, y, width, height, 2, 2, 'F');
-  
-  doc.setFillColor(r, g, b);
-  doc.rect(x, y, 3, height, 'F');
-  
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text(title, x + 8, y + 10);
-  
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(r, g, b);
-  doc.text(value, x + 8, y + 22);
-  
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Meta: ${meta}`, x + 8, y + 29);
-};
-
-export const generateRelatorioGovernancaPDF = (): void => {
-  const doc = new jsPDF();
-  
-  // Header
-  doc.setFillColor(0, 51, 102);
-  doc.rect(0, 0, 210, 28, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('IDJUV - Instituto de Desporto, Juventude e Lazer', 105, 10, { align: 'center' });
-  doc.setFontSize(12);
-  doc.text('Relatório Anual de Governança e Integridade', 105, 18, { align: 'center' });
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Exercício 2025', 105, 25, { align: 'center' });
-  
-  // KPIs Section
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 51, 102);
-  doc.text('Indicadores Principais', 15, 38);
-  
-  drawIndicatorCard(doc, 15, 42, 42, 32, 'Conformidade', '87%', '90%', 'rgb(16, 185, 129)');
-  drawIndicatorCard(doc, 62, 42, 42, 32, 'Processos', '24', '30', 'rgb(59, 130, 246)');
-  drawIndicatorCard(doc, 109, 42, 42, 32, 'Capacitações', '156', '200', 'rgb(139, 92, 246)');
-  drawIndicatorCard(doc, 156, 42, 42, 32, 'Riscos Mitig.', '18', '22', 'rgb(245, 158, 11)');
-  
-  // Conformity Evolution Chart
-  const conformityData = [
-    { label: 'Jan', value: 72, color: 'rgb(59, 130, 246)' },
-    { label: 'Fev', value: 75, color: 'rgb(59, 130, 246)' },
-    { label: 'Mar', value: 78, color: 'rgb(59, 130, 246)' },
-    { label: 'Abr', value: 80, color: 'rgb(59, 130, 246)' },
-    { label: 'Mai', value: 82, color: 'rgb(59, 130, 246)' },
-    { label: 'Jun', value: 85, color: 'rgb(59, 130, 246)' },
-    { label: 'Jul', value: 84, color: 'rgb(59, 130, 246)' },
-    { label: 'Ago', value: 86, color: 'rgb(59, 130, 246)' },
-    { label: 'Set', value: 87, color: 'rgb(59, 130, 246)' },
-    { label: 'Out', value: 87, color: 'rgb(59, 130, 246)' },
-    { label: 'Nov', value: 88, color: 'rgb(59, 130, 246)' },
-    { label: 'Dez', value: 87, color: 'rgb(59, 130, 246)' },
-  ];
-  
-  drawBarChart(doc, conformityData, 15, 85, 85, 55, 'Evolução da Conformidade (%)');
-  
-  let barX = 25;
-  conformityData.forEach((item) => {
-    const barHeight = (item.value / 100) * 35;
-    doc.setFillColor(59, 130, 246);
-    doc.rect(barX, 130 - barHeight, 5, barHeight, 'F');
-    barX += 6;
-  });
-  
-  // Processes by Area
-  const processesData = [
-    { label: 'Compras', value: 8, color: 'rgb(59, 130, 246)' },
-    { label: 'RH', value: 5, color: 'rgb(139, 92, 246)' },
-    { label: 'Patrim.', value: 4, color: 'rgb(16, 185, 129)' },
-    { label: 'Financ.', value: 4, color: 'rgb(245, 158, 11)' },
-    { label: 'Almox.', value: 3, color: 'rgb(239, 68, 68)' },
-  ];
-  
-  drawBarChart(doc, processesData, 110, 85, 85, 55, 'Processos por Área');
-  
-  let procX = 120;
-  processesData.forEach((item) => {
-    const barHeight = (item.value / 10) * 35;
-    const [r, g, b] = item.color.match(/\d+/g)?.map(Number) || [59, 130, 246];
-    doc.setFillColor(r, g, b);
-    doc.rect(procX, 130 - barHeight, 12, barHeight, 'F');
-    doc.setFontSize(6);
-    doc.setTextColor(0, 0, 0);
-    doc.text(item.label, procX + 6, 137, { align: 'center' });
-    procX += 15;
-  });
-  
-  // Risk Matrix
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 51, 102);
-  doc.text('Matriz de Riscos', 55, 150, { align: 'center' });
-  
-  const riscos = [
-    { label: 'Baixo', value: 12, color: [16, 185, 129] },
-    { label: 'Médio', value: 8, color: [245, 158, 11] },
-    { label: 'Alto', value: 4, color: [239, 68, 68] },
-    { label: 'Crítico', value: 1, color: [124, 45, 18] },
-  ];
-  
-  let riskY = 155;
-  riscos.forEach((risco) => {
-    doc.setFillColor(risco.color[0], risco.color[1], risco.color[2]);
-    doc.rect(20, riskY, (risco.value / 15) * 60, 8, 'F');
-    doc.setFontSize(8);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`${risco.label}: ${risco.value}`, 85, riskY + 6);
-    riskY += 12;
-  });
-  
-  // Action Plan
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 51, 102);
-  doc.text('Plano de Ação de Integridade', 155, 150, { align: 'center' });
-  
-  const acoes = [
-    { titulo: 'Treinamento em Ética', status: 'Concluído', cor: [16, 185, 129] },
-    { titulo: 'Código de Conduta', status: 'Concluído', cor: [16, 185, 129] },
-    { titulo: 'Mapeamento Riscos', status: 'Em Andamento', cor: [245, 158, 11] },
-    { titulo: 'Canal Denúncias', status: 'Concluído', cor: [16, 185, 129] },
-    { titulo: 'Auditoria Interna', status: 'Em Andamento', cor: [245, 158, 11] },
-  ];
-  
-  let acaoY = 155;
-  acoes.forEach((acao) => {
-    doc.setFontSize(7);
-    doc.setTextColor(0, 0, 0);
-    doc.text(acao.titulo, 115, acaoY + 5);
-    doc.setFillColor(acao.cor[0], acao.cor[1], acao.cor[2]);
-    doc.circle(190, acaoY + 3, 2, 'F');
-    acaoY += 9;
-  });
-  
-  // Executive Summary
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 51, 102);
-  doc.text('Resumo Executivo', 15, 210);
-  
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(60, 60, 60);
-  
-  const resumo = [
-    'O IDJUV alcançou 87% de conformidade em 2025, superando o resultado de 2024.',
-    'Foram mapeados 24 processos administrativos e 156 servidores capacitados.',
-    'O Canal de Denúncias está operacional com garantia de anonimato.',
-    'A Matriz de Riscos institucional foi aprovada e publicada.',
-  ];
-  
-  let resumoY = 218;
-  resumo.forEach((linha) => {
-    doc.text('• ' + linha, 20, resumoY);
-    resumoY += 6;
-  });
-  
-  // Goals Section
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 51, 102);
-  doc.text('Metas para 2026', 15, 248);
-  
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(60, 60, 60);
-  
-  const metas = [
-    'Atingir 95% de conformidade nos processos críticos',
-    'Mapear 100% dos processos institucionais (30 processos)',
-    'Capacitar 100% dos servidores em integridade',
-    'Obter certificação ISO 37001 (Antissuborno)',
-  ];
-  
-  let metaY = 256;
-  metas.forEach((meta) => {
-    doc.text('• ' + meta, 20, metaY);
-    metaY += 6;
-  });
-  
-  // Footer
-  doc.setFontSize(7);
-  doc.setTextColor(128, 128, 128);
-  doc.text(`Documento gerado pelo ${nomeDoSistema(getTenantSnapshot())}`, 105, 285, { align: 'center' });
-  doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, 290, { align: 'center' });
-  
-  doc.save('Relatorio_Governanca_Integridade_2025.pdf');
+  baixarDocumento(d);
 };
 
 const formatCPFPDF = (cpf: string): string => {

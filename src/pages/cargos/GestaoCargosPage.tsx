@@ -438,38 +438,42 @@ export default function GestaoCargosPage() {
     }).format(value);
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     const totalVagas = cargos.reduce((sum, c) => sum + (c.quantidade_vagas || 0), 0);
     const totalOcupadas = cargos.reduce((sum, c) => sum + c.ocupadas, 0);
     
-    generateRelatorioCargos({
-      cargos: cargos.map(c => ({
-        nome: c.nome,
-        sigla: c.sigla,
-        categoria: c.categoria,
-        nivel_hierarquico: c.nivel_hierarquico,
-        quantidade_vagas: c.quantidade_vagas || 0,
-        ocupadas: c.ocupadas,
-        composicao: c.composicao.map(comp => ({
-          unidade_nome: comp.unidade_nome,
-          unidade_sigla: comp.unidade_sigla,
-          quantidade_vagas: comp.quantidade_vagas,
+    try {
+      await generateRelatorioCargos({
+        cargos: cargos.map(c => ({
+          nome: c.nome,
+          sigla: c.sigla,
+          categoria: c.categoria,
+          nivel_hierarquico: c.nivel_hierarquico,
+          quantidade_vagas: c.quantidade_vagas || 0,
+          ocupadas: c.ocupadas,
+          composicao: c.composicao.map(comp => ({
+            unidade_nome: comp.unidade_nome,
+            unidade_sigla: comp.unidade_sigla,
+            quantidade_vagas: comp.quantidade_vagas,
+          })),
         })),
-      })),
-      totalCargos: cargos.length,
-      totalVagas,
-      totalOcupadas,
-      totalVacancia: totalVagas - totalOcupadas,
-      dataGeracao: new Date().toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-    });
-    
-    toast.success('Relatório PDF gerado com sucesso!');
+        totalCargos: cargos.length,
+        totalVagas,
+        totalOcupadas,
+        totalVacancia: totalVagas - totalOcupadas,
+        dataGeracao: new Date().toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      });
+      toast.success('Relatório PDF gerado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao gerar relatório de cargos:', error);
+      toast.error('Erro ao gerar o relatório de cargos em PDF');
+    }
   };
 
   const colunas: ColunaTabela<CargoComOcupacao>[] = [

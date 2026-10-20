@@ -27,6 +27,9 @@ import { listaConvocados, listaPresenca, relatorioReuniao } from './modelos/reun
 import { contracheque } from './modelos/folha/contracheque';
 import { relatorioArbitros } from './modelos/arbitros/relatorioArbitros';
 import { relatorioFederacoes, relatorioFederacoesPaisagem } from './modelos/federacoes/relatorioFederacoes';
+import { relatorioCargosVagas } from './modelos/cargos/cargosVagas';
+import { quadroCargos } from './modelos/cargos/quadroCargos';
+import { relatorioGovernanca } from './modelos/governanca/relatorioAnual';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -84,6 +87,11 @@ export const REGISTRO = {
   // Federações — CentralRelatoriosFederacoesDialog (retrato ou paisagem, conforme a tela)
   'federacoes-relatorio': relatorioFederacoes,
   'federacoes-relatorio-paisagem': relatorioFederacoesPaisagem,
+  // Cargos — GestaoCargosPage (cargos e vagas) e OrganogramaPage (quadro de cargos com ocupantes)
+  'cargos-relatorio-cargos-vagas': relatorioCargosVagas,
+  'cargos-quadro-cargos': quadroCargos,
+  // Governança — RelatorioGovernancaPage
+  'governanca-relatorio-anual': relatorioGovernanca,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
