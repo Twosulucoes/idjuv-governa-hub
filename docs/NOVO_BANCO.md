@@ -187,6 +187,9 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   baseline regenerado e no mapa (`atos_remuneratorios` e `atos_remuneratorios_itens` na classe `permissao`,
   `cargo_vencimentos` na `trilha`); privilégios das funções novas no overlay 40; testes no bloco "FOLHA: atos
   remuneratórios" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- O retorno do banco da remessa da folha (migração `20261021090000`) entrou no schema do baseline regenerado; o
+  EXECUTE de `registrar_retorno_remessa` só para `authenticated` no overlay 40; testes no bloco "FOLHA: retorno do
+  banco da remessa" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A remessa de pensão alimentícia e o número inicial por conta (migração `20261020090000`) entraram no schema do
   baseline regenerado; sem privilégio novo; testes no bloco da remessa de `scripts/db/testar-rls.sql`
   ([detalhe](./BANCO_DE_DADOS.md)).

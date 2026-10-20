@@ -32,6 +32,7 @@ import {
   Printer,
   History,
   Ban,
+  FileInput,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +47,7 @@ import { PendenciasServidoresDialog } from "@/components/folha/PendenciasServido
 import { GerarRemessaDialog } from "@/components/folha/GerarRemessaDialog";
 import { GerarESocialDialog } from "@/components/folha/GerarESocialDialog";
 import { CancelarRemessaDialog } from "@/components/folha/CancelarRemessaDialog";
+import { ImportarRetornoDialog, RetornosDaFolha, type RemessaParaRetorno } from "@/components/folha/RetornoRemessa";
 import {
   useBaixarEventoESocial,
   useBaixarRemessaGuardada,
@@ -77,6 +79,7 @@ export default function FolhaDetalhePage() {
   const [showESocial, setShowESocial] = useState(false);
   const [fichaDetalheId, setFichaDetalheId] = useState<string | null>(null);
   const [remessaCancelar, setRemessaCancelar] = useState<RemessaComArquivo | null>(null);
+  const [remessaRetorno, setRemessaRetorno] = useState<RemessaParaRetorno | null>(null);
   const [baixandoArquivoId, setBaixandoArquivoId] = useState<string | null>(null);
   const baixarRemessaGuardada = useBaixarRemessaGuardada();
   const baixarEventoESocial = useBaixarEventoESocial();
@@ -828,6 +831,22 @@ export default function FolhaDetalhePage() {
                                     ) : (
                                       <span className="text-xs text-muted-foreground">arquivo não guardado</span>
                                     )}
+                                    {r.status !== "cancelada" && podeProcessarFolha && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title="Registrar o retorno do banco (.ret)"
+                                        onClick={() =>
+                                          setRemessaRetorno({
+                                            ...r,
+                                            convenio: (remessa.conta as { convenio_pagamento?: string | null } | null)
+                                              ?.convenio_pagamento,
+                                          })
+                                        }
+                                      >
+                                        <FileInput className="h-4 w-4" />
+                                      </Button>
+                                    )}
                                     {r.status !== "cancelada" && r.status !== "processada" && podeProcessarFolha && (
                                       <Button
                                         variant="ghost"
@@ -848,6 +867,7 @@ export default function FolhaDetalhePage() {
                     </Table>
                   </div>
                 )}
+                {id && <RetornosDaFolha folhaId={id} />}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1032,6 +1052,10 @@ export default function FolhaDetalhePage() {
       <CancelarRemessaDialog
         remessa={remessaCancelar}
         onOpenChange={(aberto) => !aberto && setRemessaCancelar(null)}
+      />
+      <ImportarRetornoDialog
+        remessa={remessaRetorno}
+        onOpenChange={(aberto) => !aberto && setRemessaRetorno(null)}
       />
       
       <GerarESocialDialog

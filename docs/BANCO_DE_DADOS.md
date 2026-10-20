@@ -661,6 +661,16 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   passa a ser por folha, conta e tipo. `contas_autarquia.nsa_inicial` (1 a 999999, opcional) continua a numeração do
   sistema anterior: o número é o maior entre o último da conta + 1 e o inicial; `get_proximo_numero_remessa` segue a
   mesma regra.
+- **Retorno do banco** (migração `20261021090000_folha_retorno_remessa.sql`, em PR rascunho) — RPC
+  `registrar_retorno_remessa(p_remessa_id, p_retorno, p_itens)` (SECURITY DEFINER; módulo `rh` e
+  `financeiro.folha.processar`, senão `42501`; só `authenticated`): grava em `retornos_bancarios` o arquivo (sha256,
+  NSA, data, convênio, `previa`) e os totais agendados, pagos e recusados, e um item por crédito em
+  `itens_retorno_bancario` (situação `agendado`, `pago` ou `rejeitado`, ocorrência, identificador e nome do favorecido;
+  o servidor vem da ficha). Recusa (`22023`) remessa cancelada, retorno sem sha256 ou sem créditos, situação inválida e
+  ficha de outra folha; o mesmo arquivo na mesma remessa dá `23505` (índice `retornos_bancarios_remessa_arquivo_key`).
+  A remessa `gerada` passa a `enviada` (com `enviado_em`/`enviado_por`); retorno que não é prévia e não tem agendado a
+  deixa `processada`. Quem lê o arquivo e casa cada crédito com a ficha é a tela (`src/lib/bancario/retornoFolha.ts`).
+  Testes no bloco "FOLHA: retorno do banco da remessa" de `scripts/db/testar-rls.sql`.
 - **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
   `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez**, depois do INSERT, e só
   por quem: tem o módulo `rh` e `financeiro.folha.processar` (`42501`), **gerou a remessa** (`gerado_por`, fixado pela

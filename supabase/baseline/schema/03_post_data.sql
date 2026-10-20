@@ -7982,6 +7982,13 @@ CREATE UNIQUE INDEX remessas_bancarias_folha_conta_ativa_uidx ON public.remessas
 
 
 --
+-- Name: retornos_bancarios_remessa_arquivo_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX retornos_bancarios_remessa_arquivo_key ON public.retornos_bancarios USING btree (remessa_id, arquivo_sha256) WHERE (arquivo_sha256 IS NOT NULL);
+
+
+--
 -- Name: uq_bens_patrimoniais_numero_norm; Type: INDEX; Schema: public; Owner: -
 --
 

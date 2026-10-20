@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 212 |
-| Componentes (`.tsx` em `src/components`) | 316 |
+| Componentes (`.tsx` em `src/components`) | 317 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 273 |
+| — fora de `ui/` | 274 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 101 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 49 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 50 |
 | Linhas de `src/App.tsx` | 1371 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27238 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27269 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -67,13 +67,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 301 |
-| Migração mais recente | `20261020100000_folha_atos_remuneratorios.sql` |
+| Migrações (`supabase/migrations/*.sql`) | 302 |
+| Migração mais recente | `20261021090000_folha_retorno_remessa.sql` |
 | Tabelas do schema public (baseline) | 258 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 309 |
+| Funções (baseline) | 310 |
 | — de gatilho (`RETURNS trigger`) | 121 |
-| — demais | 188 |
+| — demais | 189 |
 | Enums (baseline) | 109 |
 | Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1900 |
 | Linhas de `supabase/baseline/rls/mapa.csv` | 258 |

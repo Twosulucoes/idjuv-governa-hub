@@ -308,3 +308,8 @@ REVOKE EXECUTE ON FUNCTION public.aplicar_ato_remuneratorio(uuid) FROM PUBLIC, a
 GRANT EXECUTE ON FUNCTION public.aplicar_ato_remuneratorio(uuid) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.vencimento_cargo_em(uuid, date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.vencimento_cargo_em(uuid, date) TO authenticated;
+
+-- ---- folha (migração 20261021090000): retorno do banco da remessa ----
+-- só para authenticated (a guarda no corpo exige o módulo rh e financeiro.folha.processar)
+REVOKE EXECUTE ON FUNCTION public.registrar_retorno_remessa(uuid, jsonb, jsonb) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.registrar_retorno_remessa(uuid, jsonb, jsonb) TO authenticated;

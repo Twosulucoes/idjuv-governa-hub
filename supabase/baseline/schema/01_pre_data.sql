@@ -11238,6 +11238,120 @@ COMMENT ON FUNCTION public.registrar_remessa_bancaria(p_conta_autarquia_id uuid,
 
 
 --
+-- Name: registrar_retorno_remessa(uuid, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registrar_retorno_remessa(p_remessa_id uuid, p_retorno jsonb, p_itens jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_remessa record;
+  v_sha text := lower(btrim(coalesce(p_retorno->>'arquivo_sha256', '')));
+  v_previa boolean := coalesce((p_retorno->>'previa')::boolean, false);
+  v_retorno_id uuid;
+  v_fora int;
+  v_ag int; v_pg int; v_rj int;
+  v_status text;
+BEGIN
+  IF v_uid IS NULL OR NOT coalesce(public.can_access_module(v_uid, 'rh')
+                                   AND public.has_permission_code(v_uid, 'financeiro.folha.processar'), false) THEN
+    RAISE EXCEPTION 'Registrar o retorno do banco exige o módulo rh e a permissão financeiro.folha.processar'
+      USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_remessa FROM public.remessas_bancarias WHERE id = p_remessa_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Remessa não encontrada' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_remessa.status = 'cancelada' THEN
+    RAISE EXCEPTION 'A remessa % está cancelada: o retorno não é registrado nela', v_remessa.numero_remessa
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_sha !~ '^[0-9a-f]{64}$' THEN
+    RAISE EXCEPTION 'Retorno sem o sha256 do arquivo' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_itens) IS DISTINCT FROM 'array' OR jsonb_array_length(p_itens) = 0 THEN
+    RAISE EXCEPTION 'O retorno não traz créditos' USING ERRCODE = '22023';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.retornos_bancarios WHERE remessa_id = p_remessa_id AND arquivo_sha256 = v_sha) THEN
+    RAISE EXCEPTION 'Este arquivo de retorno já foi registrado na remessa %', v_remessa.numero_remessa
+      USING ERRCODE = '23505';
+  END IF;
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_itens) e
+              WHERE coalesce(e->>'status', '') NOT IN ('agendado', 'pago', 'rejeitado')
+                 OR (e->>'valor') IS NULL OR (e->>'valor')::numeric < 0) THEN
+    RAISE EXCEPTION 'Crédito do retorno com situação ou valor inválido' USING ERRCODE = '22023';
+  END IF;
+  SELECT count(*) INTO v_fora
+    FROM jsonb_array_elements(p_itens) e
+   WHERE nullif(e->>'ficha_id', '') IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM public.fichas_financeiras f
+                      WHERE f.id = (e->>'ficha_id')::uuid AND f.folha_id = v_remessa.folha_id);
+  IF v_fora > 0 THEN
+    RAISE EXCEPTION '% crédito(s) do retorno apontam fichas de outra folha', v_fora USING ERRCODE = '22023';
+  END IF;
+
+  SELECT count(*) FILTER (WHERE e->>'status' = 'agendado'), count(*) FILTER (WHERE e->>'status' = 'pago'),
+         count(*) FILTER (WHERE e->>'status' = 'rejeitado')
+    INTO v_ag, v_pg, v_rj
+    FROM jsonb_array_elements(p_itens) e;
+
+  INSERT INTO public.retornos_bancarios (
+    remessa_id, data_processamento, arquivo_nome, arquivo_sha256, nsa, data_arquivo, convenio, previa,
+    quantidade_pagos, valor_pago, quantidade_rejeitados, valor_rejeitado, quantidade_agendados, valor_agendado,
+    processado_por)
+  SELECT p_remessa_id, public.data_local(), left(nullif(btrim(p_retorno->>'arquivo_nome'), ''), 255), v_sha,
+         (p_retorno->>'nsa')::integer, (p_retorno->>'data_arquivo')::date,
+         left(nullif(btrim(p_retorno->>'convenio'), ''), 20), v_previa,
+         v_pg, coalesce(sum((e->>'valor')::numeric) FILTER (WHERE e->>'status' = 'pago'), 0),
+         v_rj, coalesce(sum((e->>'valor')::numeric) FILTER (WHERE e->>'status' = 'rejeitado'), 0),
+         v_ag, coalesce(sum((e->>'valor')::numeric) FILTER (WHERE e->>'status' = 'agendado'), 0),
+         v_uid
+    FROM jsonb_array_elements(p_itens) e
+  RETURNING id INTO v_retorno_id;
+
+  -- servidor pela ficha (não pelo que a tela mandou)
+  INSERT INTO public.itens_retorno_bancario (
+    retorno_id, ficha_id, servidor_id, valor, status, codigo_ocorrencia, descricao_ocorrencia, data_pagamento,
+    identificador, favorecido_nome)
+  SELECT v_retorno_id, f.id, f.servidor_id, round((e->>'valor')::numeric, 2), e->>'status',
+         left(nullif(btrim(e->>'codigo_ocorrencia'), ''), 10), left(nullif(btrim(e->>'descricao_ocorrencia'), ''), 500),
+         (nullif(e->>'data_pagamento', ''))::date, left(nullif(btrim(e->>'identificador'), ''), 40),
+         left(nullif(btrim(e->>'favorecido_nome'), ''), 120)
+    FROM jsonb_array_elements(p_itens) e
+    LEFT JOIN public.fichas_financeiras f ON f.id = (nullif(e->>'ficha_id', ''))::uuid;
+
+  -- o banco respondeu: a remessa foi enviada; retorno final sem crédito agendado fecha a remessa
+  v_status := v_remessa.status;
+  IF v_status = 'gerada' THEN
+    v_status := 'enviada';
+  END IF;
+  IF NOT v_previa AND v_ag = 0 THEN
+    v_status := 'processada';
+  END IF;
+  UPDATE public.remessas_bancarias
+     SET status = v_status,
+         enviado_em = coalesce(enviado_em, now()),
+         enviado_por = coalesce(enviado_por, v_uid)
+   WHERE id = p_remessa_id;
+
+  RETURN jsonb_build_object('retorno_id', v_retorno_id, 'agendados', v_ag, 'pagos', v_pg, 'rejeitados', v_rj,
+                            'sem_ficha', (SELECT count(*) FROM public.itens_retorno_bancario
+                                           WHERE retorno_id = v_retorno_id AND ficha_id IS NULL),
+                            'status_remessa', v_status);
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION registrar_retorno_remessa(p_remessa_id uuid, p_retorno jsonb, p_itens jsonb); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.registrar_retorno_remessa(p_remessa_id uuid, p_retorno jsonb, p_itens jsonb) IS 'Grava o retorno do banco de uma remessa da folha (arquivo, créditos agendados, pagos e recusados por ficha) e atualiza a situação da remessa. Exige o módulo rh e financeiro.folha.processar. Migração 20261021090000.';
+
+
+--
 -- Name: registrar_transicao_folha(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -20748,8 +20862,24 @@ CREATE TABLE public.itens_retorno_bancario (
     updated_at timestamp with time zone,
     updated_by uuid,
     updated_by_servidor_id uuid,
-    CONSTRAINT itens_retorno_bancario_status_check CHECK (((status)::text = ANY ((ARRAY['pago'::character varying, 'rejeitado'::character varying, 'devolvido'::character varying])::text[])))
+    identificador character varying(40),
+    favorecido_nome text,
+    CONSTRAINT itens_retorno_bancario_status_check CHECK (((status)::text = ANY (ARRAY[('agendado'::character varying)::text, ('pago'::character varying)::text, ('rejeitado'::character varying)::text, ('devolvido'::character varying)::text])))
 );
+
+
+--
+-- Name: COLUMN itens_retorno_bancario.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.itens_retorno_bancario.status IS 'agendado (aceito pelo banco, crédito na data), pago, rejeitado (com a ocorrência) ou devolvido.';
+
+
+--
+-- Name: COLUMN itens_retorno_bancario.identificador; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.itens_retorno_bancario.identificador IS 'Seu número do crédito no arquivo (a remessa do sistema grava o início do id da ficha ou do item de pensão).';
 
 
 --
@@ -22353,8 +22483,30 @@ CREATE TABLE public.retornos_bancarios (
     created_by_servidor_id uuid,
     updated_at timestamp with time zone,
     updated_by uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    arquivo_sha256 text,
+    nsa integer,
+    data_arquivo date,
+    convenio text,
+    previa boolean DEFAULT false NOT NULL,
+    quantidade_agendados integer DEFAULT 0,
+    valor_agendado numeric(15,2) DEFAULT 0,
+    CONSTRAINT retornos_bancarios_arquivo_sha256_check CHECK (((arquivo_sha256 IS NULL) OR (arquivo_sha256 ~ '^[0-9a-f]{64}$'::text)))
 );
+
+
+--
+-- Name: COLUMN retornos_bancarios.arquivo_sha256; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.retornos_bancarios.arquivo_sha256 IS 'sha256 do arquivo de retorno: o mesmo arquivo não entra duas vezes na mesma remessa.';
+
+
+--
+-- Name: COLUMN retornos_bancarios.previa; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.retornos_bancarios.previa IS 'Prévia do banco (créditos aceitos e agendados, antes da data do crédito). Migração 20261021090000.';
 
 
 --
