@@ -2133,6 +2133,7 @@ DECLARE
   v_teto_inss DECIMAL;
   v_faixa_anterior DECIMAL := 0;
   v_valor_faixa DECIMAL;
+  v_truncar boolean := coalesce(public.get_parametro_vigente('inss_truncar_por_faixa'::varchar, p_vigencia), 0) = 1;
   r RECORD;
 BEGIN
   SELECT valor INTO v_teto_inss
@@ -2165,7 +2166,8 @@ BEGIN
       END IF;
       
       IF v_valor_faixa > 0 THEN
-        v_inss_total := v_inss_total + (v_valor_faixa * r.aliquota);
+        v_inss_total := v_inss_total + CASE WHEN v_truncar THEN trunc(v_valor_faixa * r.aliquota, 2)
+                                            ELSE v_valor_faixa * r.aliquota END;
       END IF;
       
       v_faixa_anterior := COALESCE(r.valor_maximo, v_base_restante);
@@ -2175,6 +2177,13 @@ BEGIN
   RETURN ROUND(v_inss_total, 2);
 END;
 $$;
+
+
+--
+-- Name: FUNCTION calcular_inss_servidor(p_base_inss numeric, p_vigencia date); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.calcular_inss_servidor(p_base_inss numeric, p_vigencia date) IS 'INSS progressivo do servidor no regime geral, até teto_inss; com inss_truncar_por_faixa = 1 trunca cada faixa nos centavos, como o SIGRH. Migração 20261021100000.';
 
 
 --
@@ -10143,6 +10152,9 @@ DECLARE
   v_protocolo text;
   v_cedidos int;
   v_inicio timestamptz := clock_timestamp();
+  v_aliq_patronal numeric;
+  v_aliq_rat numeric;
+  v_base_patronal numeric;
 BEGIN
   IF NOT public.has_permission_code(auth.uid(), 'financeiro.folha.processar') THEN
     RAISE EXCEPTION 'Sem permissão para processar a folha' USING ERRCODE = '42501';
@@ -10182,6 +10194,11 @@ BEGIN
   IF NOT v_tem_inss THEN v_avisos := v_avisos || jsonb_build_array('Tabela de INSS/previdência sem vigência em ' || v_d2 || ': o desconto saiu zero'); END IF;
   IF NOT v_tem_irrf THEN v_avisos := v_avisos || jsonb_build_array('Tabela de IRRF sem vigência em ' || v_d2 || ': o desconto saiu zero'); END IF;
   IF v_ded_dep IS NULL THEN v_avisos := v_avisos || jsonb_build_array('Parâmetro deducao_dependente_irrf não configurado: dependentes não foram deduzidos'); END IF;
+  -- parte patronal do regime geral (migração 20261021100000): alíquotas em fração, com vigência
+  v_aliq_patronal := public.get_parametro_vigente('inss_patronal_aliquota'::varchar, v_d2);
+  v_aliq_rat := public.get_parametro_vigente('rat_fap_aliquota'::varchar, v_d2);
+  IF v_aliq_patronal IS NULL THEN v_avisos := v_avisos || jsonb_build_array('Parâmetro inss_patronal_aliquota não configurado: o INSS patronal saiu zero'); END IF;
+  IF v_aliq_rat IS NULL THEN v_avisos := v_avisos || jsonb_build_array('Parâmetro rat_fap_aliquota não configurado: o RAT saiu zero'); END IF;
 
   -- lançamentos manuais das fichas atuais: guardados e devolvidos às fichas novas
   SELECT coalesce(jsonb_agg(jsonb_build_object(
@@ -10281,6 +10298,17 @@ BEGIN
     END IF;
   END IF;
 
+  -- parte patronal: sobre a base de INSS (sem o teto) de quem contribui para o regime geral nesta folha, ou seja,
+  -- de quem teve INSS descontado (quem contribui para o regime próprio na origem fica fora). Por ficha, arredondada;
+  -- o total da folha é a soma das bases vezes a alíquota, truncada no centavo, como a guia.
+  UPDATE public.fichas_financeiras
+     SET inss_patronal = round(base_inss * coalesce(v_aliq_patronal, 0), 2),
+         rat = round(base_inss * coalesce(v_aliq_rat, 0), 2),
+         total_encargos = round(base_inss * coalesce(v_aliq_patronal, 0), 2) + round(base_inss * coalesce(v_aliq_rat, 0), 2)
+   WHERE folha_id = p_folha_id AND valor_inss > 0;
+  SELECT coalesce(sum(base_inss), 0) INTO v_base_patronal
+    FROM public.fichas_financeiras WHERE folha_id = p_folha_id AND valor_inss > 0;
+
   PERFORM set_config('trilha.renovar_decisao', 'folhas_pagamento.processado_por', true);
   UPDATE public.folhas_pagamento
      SET total_bruto = COALESCE((SELECT SUM(total_proventos) FROM public.fichas_financeiras WHERE folha_id = p_folha_id), 0),
@@ -10288,6 +10316,10 @@ BEGIN
          total_liquido = COALESCE((SELECT SUM(valor_liquido) FROM public.fichas_financeiras WHERE folha_id = p_folha_id), 0),
          total_inss_servidor = COALESCE((SELECT SUM(valor_inss) FROM public.fichas_financeiras WHERE folha_id = p_folha_id), 0),
          total_irrf = COALESCE((SELECT SUM(valor_irrf) FROM public.fichas_financeiras WHERE folha_id = p_folha_id), 0),
+         total_inss_patronal = trunc(v_base_patronal * coalesce(v_aliq_patronal, 0), 2),
+         total_rat = trunc(v_base_patronal * coalesce(v_aliq_rat, 0), 2),
+         total_encargos_patronais = trunc(v_base_patronal * coalesce(v_aliq_patronal, 0), 2)
+                                    + trunc(v_base_patronal * coalesce(v_aliq_rat, 0), 2),
          quantidade_servidores = v_count,
          status = 'aberta',
          data_processamento = now(),
@@ -10316,6 +10348,13 @@ EXCEPTION
     RETURN jsonb_build_object('sucesso', false, 'erro', SQLERRM, 'servidores_processados', v_count);
 END;
 $$;
+
+
+--
+-- Name: FUNCTION processar_folha_pagamento(p_folha_id uuid); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.processar_folha_pagamento(p_folha_id uuid) IS 'Processa a folha (mensal, 13º e rescisão): monta as fichas pelo cálculo do banco, devolve os lançamentos manuais e grava os totais, inclusive o INSS patronal e o RAT do regime geral (migração 20261021100000).';
 
 
 --
@@ -20112,10 +20151,32 @@ CREATE TABLE public.folhas_pagamento (
     conferido_em timestamp with time zone,
     created_by_servidor_id uuid,
     updated_by uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    total_rat numeric(15,2) DEFAULT 0
 );
 
 ALTER TABLE ONLY public.folhas_pagamento FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: COLUMN folhas_pagamento.total_encargos_patronais; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.folhas_pagamento.total_encargos_patronais IS 'INSS patronal + RAT da folha. Migração 20261021100000.';
+
+
+--
+-- Name: COLUMN folhas_pagamento.total_inss_patronal; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.folhas_pagamento.total_inss_patronal IS 'INSS patronal: soma das bases de INSS de quem contribui para o regime geral × inss_patronal_aliquota, truncada no centavo (como a guia). Migração 20261021100000.';
+
+
+--
+-- Name: COLUMN folhas_pagamento.total_rat; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.folhas_pagamento.total_rat IS 'RAT ajustado pelo FAP: soma das bases de INSS × rat_fap_aliquota, truncada no centavo. Migração 20261021100000.';
 
 
 --

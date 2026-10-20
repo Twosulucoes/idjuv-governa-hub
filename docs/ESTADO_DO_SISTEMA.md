@@ -25,7 +25,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 101 |
 | Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 50 |
 | Linhas de `src/App.tsx` | 1371 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27269 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27272 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -67,8 +67,8 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 302 |
-| Migração mais recente | `20261021090000_folha_retorno_remessa.sql` |
+| Migrações (`supabase/migrations/*.sql`) | 303 |
+| Migração mais recente | `20261021100000_folha_encargos_patronais.sql` |
 | Tabelas do schema public (baseline) | 258 |
 | Views (baseline) | 18 |
 | Funções (baseline) | 310 |

@@ -2366,6 +2366,14 @@ ALTER TABLE ONLY public.pagamentos
 
 
 --
+-- Name: parametros_folha parametros_folha_encargos_check; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.parametros_folha
+    ADD CONSTRAINT parametros_folha_encargos_check CHECK (((((tipo_parametro)::text <> ALL ((ARRAY['inss_patronal_aliquota'::character varying, 'rat_fap_aliquota'::character varying])::text[])) OR ((valor >= (0)::numeric) AND (valor <= (1)::numeric))) AND (((tipo_parametro)::text <> 'inss_truncar_por_faixa'::text) OR (valor = ANY (ARRAY[(0)::numeric, (1)::numeric]))))) NOT VALID;
+
+
+--
 -- Name: parametros_folha parametros_folha_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
