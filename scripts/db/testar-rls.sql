@@ -90,7 +90,9 @@ INSERT INTO seed_ov VALUES
   -- comissão de inventário, licitação ou fiscalização exige objeto (comissoes_objeto_obrigatorio_check): `outra` não
   ('comissoes', '{"tipo":"outra"}'),
   -- código da vaga em maiúsculas (vagas_cargo_codigo_check, migração 20261012150000)
-  ('vagas_cargo', '{"codigo":"VAGA-TESTE.001"}');
+  ('vagas_cargo', '{"codigo":"VAGA-TESTE.001"}'),
+  -- um alvo por item (atos_remuneratorios_itens_alvo_check, migração 20261020100000)
+  ('atos_remuneratorios_itens', '{"alvo":"parametro","cargo_id":null,"rubrica_id":null,"tipo_parametro":"teste_seed"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -3337,6 +3339,7 @@ BEGIN
     ('e3000000-0000-0000-0000-0000000000e8', 'e3000000-0000-0000-0000-0000000000f6', 'b0000000-0000-0000-0000-00000000000b', 'S-1200', '{}', 'aceito', '1.2.000000000000000009');
   PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000c1'));
   PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000c2'));
+  PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000c3', 'nsa_inicial', 1200));
   PERFORM pg_temp.seed_row('remessas_bancarias', jsonb_build_object('id', 'e3000000-0000-0000-0000-0000000000a0',
     'folha_id', 'e3000000-0000-0000-0000-0000000000f2', 'conta_autarquia_id', 'e3000000-0000-0000-0000-0000000000c2',
     'numero_remessa', 41, 'nome_arquivo', 'antiga.rem'));
@@ -3397,6 +3400,11 @@ BEGIN
   IF r IS DISTINCT FROM '3' THEN PERFORM pg_temp.falha('E3 CNAB: 3ª remessa da conta 1 (admin) não veio 3 (' || coalesce(r, 'nulo') || ')'); END IF;
   r := pg_temp.valor_como(u_proc, 'authenticated', format(ins_rem, rm5, ff4, c1, 1, 'gerada'));
   IF r IS DISTINCT FROM '4' THEN PERFORM pg_temp.falha('E3 CNAB: 4ª remessa da conta 1 não veio 4 (' || coalesce(r, 'nulo') || ')'); END IF;
+  -- número inicial da conta (continua a sequência do sistema anterior)
+  r := pg_temp.valor_como(u_rh, 'authenticated', 'SELECT public.get_proximo_numero_remessa(''e3000000-0000-0000-0000-0000000000c3'', 2032)::text');
+  IF r IS DISTINCT FROM '1200' THEN PERFORM pg_temp.falha('E3 CNAB: prévia do número não respeitou o NSA inicial 1200 (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_proc, 'authenticated', format(ins_rem, gen_random_uuid(), ff, 'e3000000-0000-0000-0000-0000000000c3', 1, 'gerada'));
+  IF r IS DISTINCT FROM '1200' THEN PERFORM pg_temp.falha('E3 CNAB: 1ª remessa da conta com NSA inicial 1200 não veio 1200 (' || coalesce(r, 'nulo') || ')'); END IF;
   -- valor e quantidade calculados das fichas (f2: 1000,10 + 2000,20; f3: nenhuma ficha com conta e líquido)
   SELECT to_jsonb(x) INTO j FROM public.remessas_bancarias x WHERE id = rm1;
   IF (j ->> 'valor_total')::numeric IS DISTINCT FROM 3000.30 OR (j ->> 'quantidade_registros')::int IS DISTINCT FROM 2 THEN
@@ -3410,9 +3418,32 @@ BEGIN
   r := pg_temp.sql_como(u_proc, 'authenticated', format(ins_rem, gen_random_uuid(), ff, c1, 1, 'gerada'));
   IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('E3 CNAB: segunda remessa ativa da mesma folha e conta aceita (' || r || ')'); END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indexrelid = to_regclass('public.remessas_bancarias_folha_conta_ativa_uidx') AND i.indisunique
-                    AND pg_get_indexdef(i.indexrelid) LIKE '%(folha_id, conta_autarquia_id) WHERE ((status)::text <> ''cancelada''::text)') THEN
-    PERFORM pg_temp.falha('E3 CNAB: falta o índice único remessas_bancarias_folha_conta_ativa_uidx (folha, conta, ativa)');
+                    AND pg_get_indexdef(i.indexrelid) LIKE '%(folha_id, conta_autarquia_id, tipo_credito) WHERE ((status)::text <> ''cancelada''::text)') THEN
+    PERFORM pg_temp.falha('E3 CNAB: falta o índice único remessas_bancarias_folha_conta_ativa_uidx (folha, conta, tipo, ativa)');
   END IF;
+  -- remessa de pensão alimentícia (migração 20261020090000): na conta 3, ao lado da de servidores da mesma folha; o banco
+  -- soma os descontos de pensão cujo beneficiário tem conta
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.pensoes_alimenticias (servidor_id, beneficiario_nome, beneficiario_cpf, tipo_calculo, valor_fixo, data_inicio,
+                                           banco_codigo, banco_agencia, banco_conta)
+    VALUES (sa, 'Beneficiaria E3', '00000000191', 'valor_fixo', 300.25, '2030-01-01', '237', '1234', '5678-9'),
+           (sa, 'Sem Conta E3', NULL, 'valor_fixo', 50, '2030-01-01', NULL, NULL, NULL);
+  INSERT INTO public.itens_ficha_financeira (ficha_id, descricao, tipo, valor)
+    SELECT f.id, x.d, 'desconto', x.v FROM public.fichas_financeiras f,
+           (VALUES ('Pensão alimentícia — Beneficiaria E3', 300.25), ('Pensão alimentícia — Sem Conta E3', 50.00)) x(d, v)
+     WHERE f.folha_id = ff AND f.servidor_id = sa;
+  SET LOCAL session_replication_role = origin;
+  r := pg_temp.valor_como(u_proc, 'authenticated', format(
+         'INSERT INTO public.remessas_bancarias (folha_id, conta_autarquia_id, numero_remessa, nome_arquivo, status, tipo_credito, valor_total, quantidade_registros) '
+         || 'VALUES (%L, %L, 1, ''pensao.rem'', ''gerada'', ''pensao'', 1, 99) RETURNING valor_total::text || ''/'' || quantidade_registros', ff, 'e3000000-0000-0000-0000-0000000000c3'));
+  IF r IS DISTINCT FROM '300.25/1' THEN
+    PERFORM pg_temp.falha('E3 CNAB: remessa de pensão não somou só a pensão com conta (esperado 300.25/1, veio ' || coalesce(r, 'nulo') || ')');
+  END IF;
+  r := pg_temp.sql_como(u_proc, 'authenticated', format(
+         'INSERT INTO public.remessas_bancarias (folha_id, conta_autarquia_id, numero_remessa, nome_arquivo, status, tipo_credito) VALUES (%L, %L, 1, ''p2.rem'', ''gerada'', ''pensao'')', ff, 'e3000000-0000-0000-0000-0000000000c3'));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('E3 CNAB: segunda remessa de pensão ativa da mesma folha e conta aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_proc, 'authenticated', format('UPDATE public.remessas_bancarias SET tipo_credito = ''pensao'' WHERE id = %L', rm1));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('E3 CNAB: tipo da remessa mudou depois de gerada (' || r || ')'); END IF;
   -- prévia do número: só com o módulo rh
   r := pg_temp.valor_como(u_nenhum, 'authenticated', format('SELECT public.get_proximo_numero_remessa(%L, 2032)::text', c1));
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('E3 CNAB: get_proximo_numero_remessa sem o módulo rh (' || coalesce(r, 'nulo') || ')'); END IF;
@@ -6396,6 +6427,230 @@ BEGIN
   IF r NOT LIKE 'erro:%' AND r <> 'ok:0' THEN PERFORM pg_temp.falha('FIN classificadores: UPDATE direto pela API aceito (' || r || ')'); END IF;
 
   PERFORM pg_temp.nota('FIN (tabelas do FIPLAN): permissão, simulação sem gravar, aplicação e log, correção de nomes (fonte, programa, natureza; natureza provisória nova; fonte de exercício antigo não mexe), filtro de atributos, reaplicação sem alteração, tudo ou nada e escrita direta bloqueada verificados');
+END $$;
+
+-- ---------------------------------------------------------------- FOLHA: cálculo do INSS e do IRRF (migração 20261019200000)
+-- Vetores conferidos contra o hrms_brasil (Lei 9.250/1995, Lei 15.270/2025) e contra o espelho do SIGRH de 09/2026.
+DO $$
+DECLARE
+  r jsonb; cg uuid := 'f1000000-0000-0000-0000-0000000000c1'; s_rpps uuid := 'f1000000-0000-0000-0000-0000000000a1';
+  s_pens uuid := 'f1000000-0000-0000-0000-0000000000a2'; s_ext uuid := 'f1000000-0000-0000-0000-0000000000a3';
+  p_rpps uuid := 'f1000000-0000-0000-0000-0000000000b1'; p_pens uuid := 'f1000000-0000-0000-0000-0000000000b2';
+  p_ext uuid := 'f1000000-0000-0000-0000-0000000000b3';
+  tab jsonb := '{"inss": true, "irrf": true, "ded_dep": 189.59}';
+  x record; v text;
+BEGIN
+  SET LOCAL session_replication_role = replica;   -- semeadura sem os triggers de setor/autoria
+  DELETE FROM public.tabela_inss; DELETE FROM public.tabela_irrf;
+  DELETE FROM public.parametros_folha WHERE tipo_parametro IN ('teto_inss', 'desconto_simplificado_irrf', 'irrf_reducao_limite_isencao',
+    'irrf_reducao_maxima', 'irrf_reducao_limite', 'irrf_reducao_constante', 'irrf_reducao_coeficiente');
+  INSERT INTO public.tabela_inss (vigencia_inicio, faixa_ordem, valor_minimo, valor_maximo, aliquota) VALUES
+    ('2026-01-01', 1, 0, 1621.00, 0.075), ('2026-01-01', 2, 1621.00, 2902.84, 0.09),
+    ('2026-01-01', 3, 2902.84, 4354.27, 0.12), ('2026-01-01', 4, 4354.27, 8475.55, 0.14);
+  INSERT INTO public.tabela_irrf (vigencia_inicio, faixa_ordem, valor_minimo, valor_maximo, aliquota, parcela_deduzir) VALUES
+    ('2026-01-01', 1, 0, 2428.80, 0, 0), ('2026-01-01', 2, 2428.80, 2826.65, 0.075, 182.16),
+    ('2026-01-01', 3, 2826.65, 3751.05, 0.15, 394.16), ('2026-01-01', 4, 3751.05, 4664.68, 0.225, 675.49),
+    ('2026-01-01', 5, 4664.68, NULL, 0.275, 908.73);
+  SET LOCAL session_replication_role = origin;
+
+  -- ===== sem os parâmetros de 2026: só a tabela, e a falta é informada
+  r := public.calcular_irrf_mensal(2871.43, 234.11, '2026-09-30');
+  IF (r ->> 'irrf')::numeric <> 15.64 OR (r ->> 'reducao_configurada')::boolean OR (r ->> 'simplificado_configurado')::boolean THEN
+    PERFORM pg_temp.falha('FOLHA IRRF: sem parâmetros deveria cobrar só pela tabela e avisar (' || r::text || ')');
+  END IF;
+
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, ativo) VALUES
+    ('teto_inss', 8475.55, '2026-01-01', true), ('desconto_simplificado_irrf', 607.20, '2026-01-01', true),
+    ('irrf_reducao_limite_isencao', 5000.00, '2026-01-01', true), ('irrf_reducao_maxima', 312.89, '2026-01-01', true),
+    ('irrf_reducao_limite', 7350.00, '2026-01-01', true), ('irrf_reducao_constante', 978.62, '2026-01-01', true),
+    ('irrf_reducao_coeficiente', 0.133145, '2026-01-01', true);
+  SET LOCAL session_replication_role = origin;
+
+  -- ===== INSS progressivo e IRRF mensal: rendimentos, deduções legais → IRRF
+  IF public.calcular_inss_servidor(24829, '2026-09-30') <> 988.09 THEN
+    PERFORM pg_temp.falha('FOLHA INSS: teto de 2026 deveria dar 988,09 (' || public.calcular_inss_servidor(24829, '2026-09-30') || ')');
+  END IF;
+  FOR x IN SELECT * FROM (VALUES
+      (24829.00, 988.09, 5647.52, false),   -- subsídio com INSS: INSS sai da base
+      (5742.80, 0, 289.57, true),           -- sem INSS: desconto simplificado + redução
+      (5742.80, 605.51, 289.57, true),      -- simplificado vence o INSS
+      (7159.13, 803.79, 813.57, false),     -- redução parcial
+      (4594.25, 444.71, 0.00, true),        -- até R$ 5.000: isento
+      (2871.43, 234.11, 0.00, true)) AS t(rend, ded, esperado, simpl) LOOP
+    r := public.calcular_irrf_mensal(x.rend, x.ded, '2026-09-30');
+    IF (r ->> 'irrf')::numeric <> x.esperado OR (r ->> 'simplificado')::boolean <> x.simpl THEN
+      PERFORM pg_temp.falha(format('FOLHA IRRF: rendimentos %s e deduções %s deveriam dar %s (%s)', x.rend, x.ded, x.esperado, r));
+    END IF;
+  END LOOP;
+
+  -- ===== ficha mensal: opção pelo regime próprio, pensão sobre o líquido e vínculo externo sem opção
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, vencimento_base, quantidade_vagas)
+    VALUES (cg, 'Cargo Folha Teste', 'CNETS-T', 'comissionado', 'comissionado', 9571.34, 3);
+  INSERT INTO public.servidores (id, nome_completo, cpf, situacao, ativo, possui_vinculo_externo, contribui_rpps_origem,
+                                 rpps_origem_fundamento, rpps_origem_inicio) VALUES
+    (s_rpps, 'Folha RPPS Teste', '000.000.f11-01', 'ativo', true, true, true, 'Instrução normativa de teste', '2026-01-01'),
+    (s_pens, 'Folha Pensão Teste', '000.000.f12-02', 'ativo', true, false, false, NULL, NULL),
+    (s_ext, 'Folha Externo Teste', '000.000.f13-03', 'ativo', true, true, false, NULL, NULL);
+  INSERT INTO public.provimentos (id, servidor_id, cargo_id, data_nomeacao, status) VALUES
+    (p_rpps, s_rpps, cg, '2026-01-01', 'ativo'), (p_pens, s_pens, cg, '2026-01-01', 'ativo'), (p_ext, s_ext, cg, '2026-01-01', 'ativo');
+  INSERT INTO public.pensoes_alimenticias (servidor_id, beneficiario_nome, tipo_calculo, percentual, base_calculo, data_inicio, ativo)
+    VALUES (s_pens, 'Beneficiária Teste', 'percentual', 30, 'liquido', '2026-01-01', true);
+  SET LOCAL session_replication_role = origin;
+
+  r := public.folha_montar_ficha(s_rpps, p_rpps, 'mensal', '2026-09-01', '2026-09-30', '[]', tab);
+  IF (r ->> 'valor_inss')::numeric <> 0 OR (r ->> 'valor_irrf')::numeric <> 1556.41 OR r -> 'inconsistencias' ? 'regime_previdenciario_a_confirmar' THEN
+    PERFORM pg_temp.falha('FOLHA ficha: regime próprio de origem deveria zerar o INSS e usar o desconto simplificado no IRRF (' || r::text || ')');
+  END IF;
+  r := public.folha_montar_ficha(s_pens, p_pens, 'mensal', '2026-09-01', '2026-09-30', '[]', tab);
+  SELECT i ->> 'valor' INTO v FROM jsonb_array_elements(r -> 'itens') i WHERE i ->> 'descricao' LIKE 'Pensão alimentícia%';
+  IF (r ->> 'valor_inss')::numeric <> 988.09 OR (r ->> 'valor_irrf')::numeric <> 810.40 OR v IS DISTINCT FROM '2331.86'
+     OR (r ->> 'valor_liquido')::numeric <> 5440.99 THEN
+    PERFORM pg_temp.falha('FOLHA ficha: pensão de 30% do líquido deveria sair da base do IRRF (pensão ' || coalesce(v, 'nula') || ', ' || r::text || ')');
+  END IF;
+  r := public.folha_montar_ficha(s_ext, p_ext, 'mensal', '2026-09-01', '2026-09-30', '[]', tab);
+  IF (r ->> 'valor_inss')::numeric <> 988.09 OR NOT (r -> 'inconsistencias' ? 'regime_previdenciario_a_confirmar') THEN
+    PERFORM pg_temp.falha('FOLHA ficha: vínculo efetivo externo sem a opção deveria descontar INSS e marcar a ficha (' || r::text || ')');
+  END IF;
+
+  -- ===== opção sem fundamento é recusada; alíquota em % é recusada
+  BEGIN
+    UPDATE public.servidores SET rpps_origem_fundamento = NULL WHERE id = s_rpps;
+    PERFORM pg_temp.falha('FOLHA servidores: opção pelo regime próprio sem fundamento aceita');
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    SET LOCAL session_replication_role = replica;
+    INSERT INTO public.tabela_inss (vigencia_inicio, faixa_ordem, valor_minimo, valor_maximo, aliquota) VALUES ('2040-01-01', 1, 0, 1, 7.5);
+    PERFORM pg_temp.falha('FOLHA tabela_inss: alíquota 7,5 (em %) aceita');
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  SET LOCAL session_replication_role = origin;
+  IF has_function_privilege('authenticated', 'public.calcular_irrf_mensal(numeric, numeric, date)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.calcular_irrf_mensal(numeric, numeric, date)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FOLHA calcular_irrf_mensal: executável pela API');
+  END IF;
+
+  PERFORM pg_temp.nota('FOLHA (cálculo): INSS 2026, IRRF com desconto simplificado e redução da Lei 15.270, pensão dedutível sobre o líquido, opção pelo regime próprio de origem com fundamento, vínculo externo sem opção marcado e alíquota em fração verificados');
+END $$;
+
+-- ---------------------------------------------------------------- FOLHA: atos remuneratórios (migração 20261020100000)
+DO $$
+DECLARE
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_cfg uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.configurar');
+  cg uuid := 'f2000000-0000-0000-0000-0000000000c1'; sv uuid := 'f2000000-0000-0000-0000-0000000000a1';
+  pv uuid := 'f2000000-0000-0000-0000-0000000000b1'; at uuid := 'f2000000-0000-0000-0000-0000000000d1';
+  at2 uuid := 'f2000000-0000-0000-0000-0000000000d2';
+  tab jsonb := '{"inss": true, "irrf": true, "ded_dep": 189.59}';
+  r text; j jsonb; n int; v numeric;
+BEGIN
+  SET LOCAL session_replication_role = replica;   -- semeadura sem os triggers de setor/autoria
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, vencimento_base, quantidade_vagas)
+    VALUES (cg, 'Cargo Reajuste Teste', 'CDS-RT', 'comissionado', 'comissionado', 1000.00, 1);
+  INSERT INTO public.servidores (id, nome_completo, cpf, situacao, ativo) VALUES (sv, 'Folha Reajuste Teste', '000.000.f21-01', 'ativo', true);
+  INSERT INTO public.provimentos (id, servidor_id, cargo_id, data_nomeacao, status) VALUES (pv, sv, cg, '2026-01-01', 'ativo');
+  DELETE FROM public.parametros_folha WHERE tipo_parametro = 'teste_reajuste';
+  INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, ativo) VALUES ('teste_reajuste', 10, '2026-01-01', true);
+  INSERT INTO public.atos_remuneratorios (id, tipo_ato, numero, data_ato, vigencia_inicio, ementa, percentual)
+    VALUES (at, 'lei', '9.999/2026', '2026-09-10', '2026-09-15', 'Reajuste de teste', 6.5);
+  INSERT INTO public.atos_remuneratorios_itens (ato_id, alvo, cargo_id, valor_novo) VALUES (at, 'cargo', cg, 1065);
+  INSERT INTO public.atos_remuneratorios_itens (ato_id, alvo, tipo_parametro, valor_novo) VALUES (at, 'parametro', 'teste_reajuste', 12);
+  SET LOCAL session_replication_role = origin;
+
+  -- ===== quem não configura a folha não cria nem aplica
+  r := pg_temp.sql_como(u_rh, 'authenticated', format(
+    'INSERT INTO public.atos_remuneratorios (tipo_ato, numero, data_ato, vigencia_inicio, ementa) VALUES (%L, %L, %L, %L, %L)',
+    'decreto', '1/2026', '2026-10-01', '2026-10-01', 'teste'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('ATOS: o módulo rh sem financeiro.folha.configurar cria ato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('SELECT public.aplicar_ato_remuneratorio(%L)', at));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('ATOS: o módulo rh sem financeiro.folha.configurar aplica ato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format(
+    'INSERT INTO public.atos_remuneratorios (tipo_ato, numero, data_ato, vigencia_inicio, ementa, status, aplicado_em) VALUES (%L, %L, %L, %L, %L, %L, now())',
+    'decreto', '1/2026', '2026-10-01', '2026-10-01', 'teste', 'aplicado'));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('ATOS: ato nasce aplicado sem a RPC (' || r || ')'); END IF;
+
+  -- ===== aplicar (persistente, como quem configura a folha)
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_cfg, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  j := public.aplicar_ato_remuneratorio(at);
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF (j ->> 'cargos')::int <> 1 OR (j ->> 'parametros')::int <> 1 THEN
+    PERFORM pg_temp.falha('ATOS: aplicar deveria contar 1 cargo e 1 parâmetro (' || j::text || ')');
+  END IF;
+  IF public.vencimento_cargo_em(cg, '2026-09-14') <> 1000 OR public.vencimento_cargo_em(cg, '2026-09-15') <> 1065 THEN
+    PERFORM pg_temp.falha(format('ATOS: vencimento pela vigência (antes %s, depois %s)',
+      public.vencimento_cargo_em(cg, '2026-09-14'), public.vencimento_cargo_em(cg, '2026-09-15')));
+  END IF;
+  IF (SELECT vencimento_base FROM public.cargos WHERE id = cg) <> 1065 THEN
+    PERFORM pg_temp.falha('ATOS: cargos.vencimento_base deveria mostrar o valor vigente hoje');
+  END IF;
+  IF (SELECT valor_anterior FROM public.atos_remuneratorios_itens WHERE ato_id = at AND alvo = 'cargo') <> 1000
+     OR (SELECT valor_anterior FROM public.atos_remuneratorios_itens WHERE ato_id = at AND alvo = 'parametro') <> 10 THEN
+    PERFORM pg_temp.falha('ATOS: valor anterior dos itens não gravado');
+  END IF;
+  IF public.get_parametro_vigente('teste_reajuste'::varchar, '2026-09-14') <> 10 OR public.get_parametro_vigente('teste_reajuste'::varchar, '2026-09-15') <> 12
+     OR (SELECT vigencia_fim FROM public.parametros_folha WHERE tipo_parametro = 'teste_reajuste' AND valor = 10) <> '2026-09-14' THEN
+    PERFORM pg_temp.falha('ATOS: parâmetro deveria fechar a vigência anterior na véspera e abrir a nova');
+  END IF;
+  IF (SELECT status FROM public.atos_remuneratorios WHERE id = at) <> 'aplicado'
+     OR (SELECT aplicado_por FROM public.atos_remuneratorios WHERE id = at) IS DISTINCT FROM u_cfg THEN
+    PERFORM pg_temp.falha('ATOS: ato aplicado sem status ou sem quem aplicou');
+  END IF;
+
+  -- ===== a folha lê a vigência e marca reajuste no meio do mês
+  j := public.folha_montar_ficha(sv, pv, 'mensal', '2026-08-01', '2026-08-31', '[]', tab);
+  IF (j ->> 'vencimento_base')::numeric <> 1000 OR j -> 'inconsistencias' ? 'vencimento_alterado_na_competencia' THEN
+    PERFORM pg_temp.falha('ATOS: folha de agosto deveria sair com o valor antigo (' || j::text || ')');
+  END IF;
+  j := public.folha_montar_ficha(sv, pv, 'mensal', '2026-09-01', '2026-09-30', '[]', tab);
+  IF (j ->> 'vencimento_base')::numeric <> 1065 OR NOT (j -> 'inconsistencias' ? 'vencimento_alterado_na_competencia') THEN
+    PERFORM pg_temp.falha('ATOS: folha de setembro deveria sair com o valor novo e marcada (' || j::text || ')');
+  END IF;
+
+  -- ===== aplicado não muda, não sai, não reaplica; histórico imutável
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('UPDATE public.atos_remuneratorios SET ementa = %L WHERE id = %L', 'outra', at));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('ATOS: ato aplicado mudou (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('DELETE FROM public.atos_remuneratorios WHERE id = %L', at));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('ATOS: ato aplicado saiu (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('UPDATE public.atos_remuneratorios_itens SET valor_novo = 1 WHERE ato_id = %L', at));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('ATOS: item de ato aplicado mudou (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('SELECT public.aplicar_ato_remuneratorio(%L)', at));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('ATOS: ato reaplicado (' || r || ')'); END IF;
+  BEGIN
+    UPDATE public.cargo_vencimentos SET valor = 1 WHERE cargo_id = cg;
+    PERFORM pg_temp.falha('ATOS: histórico do vencimento alterado');
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format(
+    'INSERT INTO public.cargo_vencimentos (cargo_id, valor, vigencia_inicio, origem) VALUES (%L, 1, %L, %L)', cg, '2026-01-01', 'cadastro'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('ATOS: cargo_vencimentos gravado pela API (' || r || ')'); END IF;
+
+  -- ===== cargo com histórico: mudar o cadastro vale de hoje em diante
+  UPDATE public.cargos SET vencimento_base = 1100 WHERE id = cg;
+  SELECT count(*) INTO n FROM public.cargo_vencimentos WHERE cargo_id = cg AND origem = 'cadastro' AND valor = 1100;
+  IF n <> 1 OR public.vencimento_cargo_em(cg, public.data_local()) <> 1100 OR public.vencimento_cargo_em(cg, '2026-09-30') <> 1065 THEN
+    PERFORM pg_temp.falha('ATOS: mudança do cadastro do cargo deveria entrar no histórico a partir de hoje');
+  END IF;
+
+  -- ===== parâmetro com vigência posterior já gravada: recusa
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.atos_remuneratorios (id, tipo_ato, numero, data_ato, vigencia_inicio, ementa)
+    VALUES (at2, 'decreto', '8/2026', '2026-08-01', '2026-08-01', 'Retroativo de teste');
+  INSERT INTO public.atos_remuneratorios_itens (ato_id, alvo, tipo_parametro, valor_novo) VALUES (at2, 'parametro', 'teste_reajuste', 11);
+  SET LOCAL session_replication_role = origin;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('SELECT public.aplicar_ato_remuneratorio(%L)', at2));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('ATOS: parâmetro com vigência posterior já gravada deveria recusar (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('DELETE FROM public.atos_remuneratorios WHERE id = %L', at2));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('ATOS: rascunho deveria sair com os itens (' || r || ')'); END IF;
+
+  IF has_function_privilege('anon', 'public.aplicar_ato_remuneratorio(uuid)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('ATOS: aplicar_ato_remuneratorio executável por anon');
+  END IF;
+
+  PERFORM pg_temp.nota('ATOS remuneratórios: permissão, aplicação tudo ou nada, vencimento e parâmetro por vigência, folha pela vigência com marca no meio do mês, imutabilidade e mudança pelo cadastro verificadas');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

@@ -187,15 +187,25 @@ function trailerArquivo(lotes: number, registros: number): string {
 
 const ehBB = (banco: string) => zeros(digitos(banco), 3) === BANCO_BB;
 
-/** O que este leiaute não cobre (vazio = pode gerar). Mensagens sem CPF nem conta: só o nome do servidor. */
-export function pendenciasFolhaBb(r: Pick<RemessaCNAB, "favorecidos">): string[] {
+/**
+ * O que este leiaute não cobre (vazio = pode gerar). Mensagens sem CPF nem conta: só o nome do favorecido.
+ * Com a empresa, confere também o convênio de pagamento (o BB identifica o pagador por ele).
+ */
+export function pendenciasFolhaBb(r: Pick<RemessaCNAB, "favorecidos"> & { empresa?: Pick<RemessaCNAB["empresa"], "convenio"> }): string[] {
+  const pendencias: string[] = [];
+  if (r.empresa) {
+    const convenio = digitos(r.empresa.convenio);
+    if (!/[1-9]/.test(convenio)) pendencias.push("convênio de pagamento da conta pagadora no BB (Bancos e Contas)");
+    else if (convenio.length > 20) pendencias.push("convênio de pagamento da conta pagadora com mais de 20 dígitos (Bancos e Contas)");
+  }
   const poupancaBb = r.favorecidos.filter((f) => ehBB(f.banco) && f.tipoConta === "CP").map((f) => f.nome || "(sem nome)");
-  return poupancaBb.length
-    ? [
-        `conta poupança no BB de ${poupancaBb.length} servidor(es): ${poupancaBb.join(", ")}. O leiaute aceito hoje pelo ` +
-          "banco só tem crédito em conta corrente; troque a conta no cadastro ou confirme a forma de poupança com o BB.",
-      ]
-    : [];
+  if (poupancaBb.length) {
+    pendencias.push(
+      `conta poupança no BB de ${poupancaBb.length} favorecido(s): ${poupancaBb.join(", ")}. O leiaute aceito hoje pelo ` +
+        "banco só tem crédito em conta corrente; troque a conta no cadastro ou confirme a forma de poupança com o BB.",
+    );
+  }
+  return pendencias;
 }
 
 /** Gera o arquivo: lote 0001 com os créditos no BB e lote 0002 com os de outros bancos, na ordem da lista. */

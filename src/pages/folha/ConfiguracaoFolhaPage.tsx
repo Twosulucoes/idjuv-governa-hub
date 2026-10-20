@@ -2,12 +2,13 @@ import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Calculator, Landmark, Settings, FileText, Percent } from "lucide-react";
+import { Building2, Calculator, Landmark, Settings, FileText, Percent, Scale } from "lucide-react";
 import { ConfigAutarquiaTab } from "@/components/folha/ConfigAutarquiaTab";
 import { RubricasTab } from "@/components/folha/RubricasTab";
 import { ParametrosTab } from "@/components/folha/ParametrosTab";
 import { TabelasImpostosTab } from "@/components/folha/TabelasImpostosTab";
 import { BancosContasTab } from "@/components/folha/BancosContasTab";
+import { AtosRemuneratoriosTab } from "@/components/folha/AtosRemuneratoriosTab";
 
 export default function ConfiguracaoFolhaPage() {
   const [activeTab, setActiveTab] = useState("autarquia");
@@ -23,7 +24,7 @@ export default function ConfiguracaoFolhaPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="autarquia" className="gap-2">
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">Autarquia</span>
@@ -35,6 +36,10 @@ export default function ConfiguracaoFolhaPage() {
             <TabsTrigger value="parametros" className="gap-2">
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Parâmetros</span>
+            </TabsTrigger>
+            <TabsTrigger value="atos" className="gap-2">
+              <Scale className="h-4 w-4" />
+              <span className="hidden sm:inline">Atos e reajustes</span>
             </TabsTrigger>
             <TabsTrigger value="impostos" className="gap-2">
               <Percent className="h-4 w-4" />
@@ -56,6 +61,10 @@ export default function ConfiguracaoFolhaPage() {
 
           <TabsContent value="parametros">
             <ParametrosTab />
+          </TabsContent>
+
+          <TabsContent value="atos">
+            <AtosRemuneratoriosTab />
           </TabsContent>
 
           <TabsContent value="impostos">

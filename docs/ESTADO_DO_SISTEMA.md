@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 210 |
-| Componentes (`.tsx` em `src/components`) | 314 |
+| Componentes (`.tsx` em `src/components`) | 316 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 271 |
-| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 100 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 34 |
+| — fora de `ui/` | 273 |
+| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 101 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 38 |
 | Linhas de `src/App.tsx` | 1369 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27014 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27238 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -67,16 +67,16 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 298 |
-| Migração mais recente | `20261019100000_fin_classificadores_fiplan.sql` |
-| Tabelas do schema public (baseline) | 255 |
+| Migrações (`supabase/migrations/*.sql`) | 301 |
+| Migração mais recente | `20261020100000_folha_atos_remuneratorios.sql` |
+| Tabelas do schema public (baseline) | 258 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 303 |
-| — de gatilho (`RETURNS trigger`) | 118 |
-| — demais | 185 |
+| Funções (baseline) | 309 |
+| — de gatilho (`RETURNS trigger`) | 121 |
+| — demais | 188 |
 | Enums (baseline) | 109 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1882 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 255 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1900 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 258 |
 | Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 9 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.

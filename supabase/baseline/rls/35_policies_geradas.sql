@@ -176,6 +176,36 @@ DROP POLICY IF EXISTS "rls_delete" ON public.atas_registro_preco;
 CREATE POLICY "rls_delete" ON public.atas_registro_preco FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
 
+-- atos_remuneratorios  [permissao: rh]
+DROP POLICY IF EXISTS "rls_select" ON public.atos_remuneratorios;
+CREATE POLICY "rls_select" ON public.atos_remuneratorios FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')));
+DROP POLICY IF EXISTS "rls_insert" ON public.atos_remuneratorios;
+CREATE POLICY "rls_insert" ON public.atos_remuneratorios FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+DROP POLICY IF EXISTS "rls_update" ON public.atos_remuneratorios;
+CREATE POLICY "rls_update" ON public.atos_remuneratorios FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.atos_remuneratorios;
+CREATE POLICY "rls_delete" ON public.atos_remuneratorios FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+
+-- atos_remuneratorios_itens  [permissao: rh]
+DROP POLICY IF EXISTS "rls_select" ON public.atos_remuneratorios_itens;
+CREATE POLICY "rls_select" ON public.atos_remuneratorios_itens FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')));
+DROP POLICY IF EXISTS "rls_insert" ON public.atos_remuneratorios_itens;
+CREATE POLICY "rls_insert" ON public.atos_remuneratorios_itens FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+DROP POLICY IF EXISTS "rls_update" ON public.atos_remuneratorios_itens;
+CREATE POLICY "rls_update" ON public.atos_remuneratorios_itens FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.atos_remuneratorios_itens;
+CREATE POLICY "rls_delete" ON public.atos_remuneratorios_itens FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
+
 -- audit_colunas_sensiveis  [catalogo_admin]
 DROP POLICY IF EXISTS "rls_select" ON public.audit_colunas_sensiveis;
 CREATE POLICY "rls_select" ON public.audit_colunas_sensiveis FOR SELECT TO authenticated
@@ -404,6 +434,11 @@ CREATE POLICY "rls_update" ON public.cargo_unidade_compatibilidade FOR UPDATE TO
   WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
 DROP POLICY IF EXISTS "rls_delete" ON public.cargo_unidade_compatibilidade;
 CREATE POLICY "rls_delete" ON public.cargo_unidade_compatibilidade FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'rh')));
+
+-- cargo_vencimentos  [trilha: rh]
+DROP POLICY IF EXISTS "rls_select" ON public.cargo_vencimentos;
+CREATE POLICY "rls_select" ON public.cargo_vencimentos FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
 -- cargos  [catalogo: rh]

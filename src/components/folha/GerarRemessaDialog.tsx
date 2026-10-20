@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Download, AlertTriangle, CheckCircle2, Lock } from "lucide-react";
 import { toast } from "sonner";
@@ -10,9 +11,17 @@ import {
   faltaFichas,
   fichaTemBanco,
   montarDadosRemessa,
+  montarRemessaPensao,
+  ROTULO_TIPO_CREDITO,
   useDadosRemessaCNAB,
+  useDadosRemessaPensao,
+  useDiaPagamentoFolha,
+  useFeriadosRemessa,
   useGerarRemessaCNAB,
+  type TipoCreditoRemessa,
 } from "@/hooks/useArquivosFolha";
+import { conjuntoFeriados, dataCreditoPadrao, deIso, problemaDataCredito } from "@/lib/bancario/dataCredito";
+import { creditosPensao } from "@/lib/bancario/pensaoRemessa";
 
 interface GerarRemessaDialogProps {
   open: boolean;
@@ -38,6 +47,8 @@ export function GerarRemessaDialog({
   quantidadeServidores,
 }: GerarRemessaDialogProps) {
   const [contaSelecionada, setContaSelecionada] = useState<string>("");
+  const [tipo, setTipo] = useState<TipoCreditoRemessa>("servidores");
+  const [dataCredito, setDataCredito] = useState<string>("");
   const [gerando, setGerando] = useState(false);
   const [faltas, setFaltas] = useState<string[]>([]);
   const [resultado, setResultado] = useState<{ sucesso: boolean; mensagem: string; arquivo?: string } | null>(null);
@@ -47,10 +58,57 @@ export function GerarRemessaDialog({
   const todasFichas = qFichas.data;
   // Só entra quem tem líquido a receber
   const fichas = todasFichas?.filter((f) => (f.valor_liquido ?? 0) > 0);
-  const carregando = qContas.isLoading || qConfig.isLoading || qFichas.isLoading;
-  const erroConsulta = qContas.isError || qConfig.isError || qFichas.isError;
-  const leituraIncompleta = todasFichas ? faltaFichas(todasFichas.length, quantidadeServidores) : null;
+  const ehPensao = tipo === "pensao";
+  const { fichas: qFichasPensao, pensoes: qPensoes } = useDadosRemessaPensao(folhaId, open && ehPensao);
+  const qDiaPagamento = useDiaPagamentoFolha(open);
+  const qFeriados = useFeriadosRemessa(open);
+  const carregando =
+    qContas.isLoading ||
+    qConfig.isLoading ||
+    qFichas.isLoading ||
+    qDiaPagamento.isLoading ||
+    qFeriados.isLoading ||
+    (ehPensao && (qFichasPensao.isLoading || qPensoes.isLoading));
+  const erroConsulta =
+    qContas.isError ||
+    qConfig.isError ||
+    qFichas.isError ||
+    qFeriados.isError ||
+    (ehPensao && (qFichasPensao.isError || qPensoes.isError));
+  const lidas = ehPensao ? qFichasPensao.data?.length : todasFichas?.length;
+  const leituraIncompleta = lidas !== undefined ? faltaFichas(lidas, quantidadeServidores) : null;
   const gerarRemessa = useGerarRemessaCNAB();
+
+  // Data de crédito: sugere o dia de pagamento da competência (dia útil, a partir de amanhã); quem gera pode trocar
+  const feriados = useMemo(
+    () => conjuntoFeriados(qFeriados.data ?? [], [competenciaAno, competenciaAno + 1]),
+    [qFeriados.data, competenciaAno],
+  );
+  const sugestaoData = useMemo(
+    () =>
+      dataCreditoPadrao({
+        ano: competenciaAno,
+        mes: competenciaMes,
+        diaPagamento: qDiaPagamento.data,
+        hoje: new Date(),
+        feriados,
+      }),
+    [competenciaAno, competenciaMes, qDiaPagamento.data, feriados],
+  );
+  const carregouData = open && !qDiaPagamento.isLoading && !qFeriados.isLoading;
+  useEffect(() => {
+    if (carregouData && !dataCredito) setDataCredito(sugestaoData);
+  }, [carregouData, dataCredito, sugestaoData]);
+  const problemaData = dataCredito ? problemaDataCredito(dataCredito, new Date(), feriados) : null;
+
+  // Prévia da pensão: quantos créditos e quem fica fora (sem banco ou sem cadastro)
+  const previaPensao = useMemo(
+    () =>
+      ehPensao && qFichasPensao.data && qPensoes.data
+        ? creditosPensao(qFichasPensao.data, qPensoes.data, new Date())
+        : null,
+    [ehPensao, qFichasPensao.data, qPensoes.data],
+  );
 
   const handleGerar = async () => {
     if (!folhaFechada) {
@@ -59,6 +117,12 @@ export function GerarRemessaDialog({
     }
     if (!contaSelecionada || !config || !fichas || !todasFichas) {
       toast.error("Selecione uma conta e verifique os dados");
+      return;
+    }
+    const credito = deIso(dataCredito);
+    const problema = problemaDataCredito(dataCredito, new Date(), feriados);
+    if (!credito || problema) {
+      setResultado({ sucesso: false, mensagem: problema ?? "Informe a data de crédito." });
       return;
     }
     if (leituraIncompleta) {
@@ -75,17 +139,30 @@ export function GerarRemessaDialog({
     setFaltas([]);
     setResultado(null);
 
-    if (!fichas.some(fichaTemBanco)) {
-      setResultado({ sucesso: false, mensagem: "Nenhum servidor com dados bancários completos encontrado." });
-      return;
+    let montada: ReturnType<typeof montarDadosRemessa>;
+    if (ehPensao) {
+      if (!qFichasPensao.data || !qPensoes.data) {
+        toast.error("Aguarde a leitura das pensões da folha");
+        return;
+      }
+      montada = montarRemessaPensao(config, contaInfo, qFichasPensao.data, qPensoes.data, credito);
+      if (montada.favorecidos.length === 0 && montada.faltas.length === 0) {
+        setResultado({
+          sucesso: false,
+          mensagem: "Nenhum desconto de pensão alimentícia com beneficiário e banco cadastrados nesta folha.",
+        });
+        return;
+      }
+    } else {
+      if (!fichas.some(fichaTemBanco)) {
+        setResultado({ sucesso: false, mensagem: "Nenhum servidor com dados bancários completos encontrado." });
+        return;
+      }
+      montada = montarDadosRemessa(config, contaInfo, fichas, credito);
     }
 
-    // Data de crédito: D+2 da geração (conferir no manual do banco o prazo do convênio)
-    const dataCredito = new Date();
-    dataCredito.setDate(dataCredito.getDate() + 2);
-
     // Faltou dado obrigatório no cadastro: recusa e diz qual
-    const { empresa, favorecidos, faltas: pendentes } = montarDadosRemessa(config, contaInfo, fichas, dataCredito);
+    const { empresa, favorecidos, faltas: pendentes } = montada;
     if (pendentes.length > 0) {
       setFaltas(pendentes);
       return;
@@ -96,6 +173,7 @@ export function GerarRemessaDialog({
       const r = await gerarRemessa({
         folhaId,
         contaId: contaSelecionada,
+        tipoCredito: tipo,
         competenciaAno,
         competenciaMes,
         empresa,
@@ -108,7 +186,10 @@ export function GerarRemessaDialog({
       }
       setResultado({
         sucesso: true,
-        mensagem: `Remessa nº ${r.numero} gerada e guardada. ${r.quantidade} pagamentos totalizando R$ ${r.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.`,
+        mensagem:
+          `Remessa nº ${r.numero} (${ROTULO_TIPO_CREDITO[tipo].toLowerCase()}) gerada e guardada. ${r.quantidade} ` +
+          `pagamentos totalizando R$ ${r.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}, crédito em ` +
+          `${credito.toLocaleDateString("pt-BR")}. Envie pelo Gerenciador Financeiro.`,
         arquivo: r.nomeArquivo,
       });
       toast.success("Arquivo CNAB gerado com sucesso!");
@@ -129,12 +210,18 @@ export function GerarRemessaDialog({
       setResultado(null);
       setFaltas([]);
       setContaSelecionada("");
+      setTipo("servidores");
+      setDataCredito("");
       onOpenChange(false);
     }
   };
 
   // Verificar pré-requisitos
-  const servidoresSemBanco = fichas?.filter((f) => !fichaTemBanco(f)).length || 0;
+  const servidoresSemBanco = ehPensao ? 0 : fichas?.filter((f) => !fichaTemBanco(f)).length || 0;
+  const pensaoFora = previaPensao ? [...previaPensao.semBanco, ...previaPensao.semCadastro] : [];
+  const quantidadePagamentos = ehPensao
+    ? (previaPensao?.favorecidos.length ?? 0)
+    : (fichas?.length ?? 0) - servidoresSemBanco;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -200,6 +287,18 @@ export function GerarRemessaDialog({
                 </Alert>
               )}
 
+              {pensaoFora.length > 0 && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Atenção</AlertTitle>
+                  <AlertDescription>
+                    {pensaoFora.length} pensão(ões) descontada(s) na folha sem banco ou sem cadastro do beneficiário não
+                    entram neste arquivo: {pensaoFora.join(", ")}. Complete o banco na pensão do servidor antes de gerar,
+                    ou pague essas pensões por outro meio.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {faltas.length > 0 && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
@@ -214,6 +313,43 @@ export function GerarRemessaDialog({
                   </AlertDescription>
                 </Alert>
               )}
+
+              <div className="space-y-2">
+                <Label>Créditos</Label>
+                <Select
+                  value={tipo}
+                  onValueChange={(v) => {
+                    setTipo(v as TipoCreditoRemessa);
+                    setFaltas([]);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="servidores">{ROTULO_TIPO_CREDITO.servidores} (líquido da folha)</SelectItem>
+                    <SelectItem value="pensao">{ROTULO_TIPO_CREDITO.pensao} (beneficiários)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="data-credito-remessa">Data do crédito</Label>
+                <Input
+                  id="data-credito-remessa"
+                  type="date"
+                  value={dataCredito}
+                  onChange={(e) => {
+                    setDataCredito(e.target.value);
+                    setResultado(null);
+                  }}
+                />
+                <p className={problemaData ? "text-sm text-destructive" : "text-xs text-muted-foreground"}>
+                  {problemaData ??
+                    "Sugerida pelo dia de pagamento da folha, em dia útil. O banco credita nesta data se o arquivo " +
+                      "for enviado e autorizado antes, no prazo do convênio."}
+                </p>
+              </div>
 
               <div className="space-y-2">
                 <Label>Conta para Débito</Label>
@@ -238,10 +374,10 @@ export function GerarRemessaDialog({
                 </Select>
               </div>
 
-              {fichas && fichas.length > 0 && (
+              {(ehPensao ? !!previaPensao : !!fichas?.length) && (
                 <div className="text-sm text-muted-foreground">
                   <p>
-                    Serão gerados <strong>{fichas.length - servidoresSemBanco}</strong>{" "}
+                    Serão gerados <strong>{quantidadePagamentos}</strong>{" "}
                     pagamentos no arquivo. O arquivo fica guardado (com hash) e pode ser baixado de novo na aba
                     Remessas.
                   </p>
@@ -292,6 +428,8 @@ export function GerarRemessaDialog({
                   !!leituraIncompleta ||
                   !folhaFechada ||
                   !contaSelecionada ||
+                  !dataCredito ||
+                  !!problemaData ||
                   !config?.cnpj
                 }
                 title={!folhaFechada ? "Disponível com a folha fechada" : undefined}
