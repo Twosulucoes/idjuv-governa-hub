@@ -237,6 +237,10 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
   `importar_classificadores_fiplan` recusa (`42501`) sem `orcamento.importar`, sem o módulo financeiro e sem sessão;
   tabela desconhecida e lista vazia (`22023`); simulação não grava; aplicação grava, registra e corrige nomes de fonte,
   programa e natureza; código repetido ou fora do padrão não grava nada; INSERT/UPDATE direto pela API não passa;
+- parte patronal e INSS por faixa da folha (migração `20261021100000`, bloco "FOLHA: parte patronal e INSS por faixa"
+  de `testar-rls.sql`): INSS truncado por faixa só com `inss_truncar_por_faixa` e na vigência; alíquota em % e opção
+  fora de 0/1 recusadas (CHECK `parametros_folha_encargos_check`); folha sem alíquotas processa com patronal zero e
+  avisa; INSS patronal e RAT por ficha só de quem contribui para o regime geral; totais da folha truncados como a guia;
 - inventário de campo: `fotos_vistoria_inventario` (INSERT só em nome próprio, UPDATE só do autor ou com
   `patrimonio.tramitar`, DELETE só com `patrimonio.tramitar`, campos de prova imutáveis), no bloco de
   cobertura adicional de `testar-rls.sql`;

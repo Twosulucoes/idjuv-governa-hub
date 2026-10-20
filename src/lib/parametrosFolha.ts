@@ -8,7 +8,7 @@
 
 export type UnidadeParametro = "reais" | "percentual" | "sim_nao" | "numero";
 
-export const GRUPOS_PARAMETROS = ["Gerais", "IRRF", "Licenças", "Afastamentos"] as const;
+export const GRUPOS_PARAMETROS = ["Gerais", "IRRF", "Encargos", "Licenças", "Afastamentos"] as const;
 
 export interface ParametroFolhaDef {
   tipo: string;
@@ -57,6 +57,10 @@ export const PARAMETROS_FOLHA: ParametroFolhaDef[] = [
   { tipo: "irrf_reducao_limite", descricao: "Redução do IRRF: rendimento a partir do qual não há redução", unidade: "reais", grupo: "IRRF" },
   { tipo: "irrf_reducao_constante", descricao: "Redução do IRRF: parcela constante da fórmula", unidade: "reais", grupo: "IRRF" },
   { tipo: "irrf_reducao_coeficiente", descricao: "Redução do IRRF: coeficiente sobre o rendimento (ex.: 0,133145)", unidade: "numero", grupo: "IRRF" },
+  // Parte patronal do regime geral e arredondamento do INSS (migração 20261021100000)
+  { tipo: "inss_patronal_aliquota", descricao: "INSS patronal: alíquota em fração (ex.: 0,20)", unidade: "numero", grupo: "Encargos" },
+  { tipo: "rat_fap_aliquota", descricao: "RAT já ajustado pelo FAP: alíquota em fração (ex.: 0,02)", unidade: "numero", grupo: "Encargos" },
+  { tipo: "inss_truncar_por_faixa", descricao: "INSS do servidor: truncar cada faixa nos centavos, como o SIGRH? (1 = sim, 0 = não)", unidade: "sim_nao", grupo: "Encargos" },
   ...LICENCAS.map(([t, d]): ParametroFolhaDef => ({
     tipo: `licenca_remunerada_${t}`,
     descricao: `${d}: é remunerada? (1 = sim, 0 = não)`,
@@ -98,6 +102,12 @@ export function unidadeDoParametro(tipo: string): UnidadeParametro {
   return "numero";
 }
 
+/** Parâmetros sim/não de licença e afastamento: 1 = remunerado. Os demais sim/não são uma opção do cálculo. */
+export function ehRemuneracaoSimNao(tipo: string): boolean {
+  const t = normalizarTipoParametro(tipo);
+  return t.startsWith("licenca_remunerada_") || t.startsWith("afastamento_remunerado_");
+}
+
 export function formatarValorParametro(tipo: string, valor: number): string {
   switch (unidadeDoParametro(tipo)) {
     case "reais":
@@ -105,6 +115,7 @@ export function formatarValorParametro(tipo: string, valor: number): string {
     case "percentual":
       return `${valor}%`;
     case "sim_nao":
+      if (!ehRemuneracaoSimNao(tipo)) return valor === 1 ? "Sim" : valor === 0 ? "Não" : String(valor);
       return valor === 1 ? "Sim (remunerado)" : valor === 0 ? "Não (sem remuneração)" : String(valor);
     default:
       return valor.toString();

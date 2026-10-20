@@ -187,6 +187,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   baseline regenerado e no mapa (`atos_remuneratorios` e `atos_remuneratorios_itens` na classe `permissao`,
   `cargo_vencimentos` na `trilha`); privilégios das funções novas no overlay 40; testes no bloco "FOLHA: atos
   remuneratórios" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- A parte patronal da folha e o INSS truncado por faixa (migração `20261021100000`) entraram no schema do baseline
+  regenerado (`folhas_pagamento.total_rat`, CHECK `parametros_folha_encargos_check`, `calcular_inss_servidor` e
+  `processar_folha_pagamento` novos, sem mudança de privilégio); testes no bloco "FOLHA: parte patronal e INSS por
+  faixa" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - O retorno do banco da remessa da folha (migração `20261021090000`) entrou no schema do baseline regenerado; o
   EXECUTE de `registrar_retorno_remessa` só para `authenticated` no overlay 40; testes no bloco "FOLHA: retorno do
   banco da remessa" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).

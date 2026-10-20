@@ -12647,6 +12647,7 @@ export type Database = {
           total_inss_servidor: number | null
           total_irrf: number | null
           total_liquido: number | null
+          total_rat: number | null
           updated_at: string | null
           updated_by: string | null
           updated_by_servidor_id: string | null
@@ -12685,6 +12686,7 @@ export type Database = {
           total_inss_servidor?: number | null
           total_irrf?: number | null
           total_liquido?: number | null
+          total_rat?: number | null
           updated_at?: string | null
           updated_by?: string | null
           updated_by_servidor_id?: string | null
@@ -12722,6 +12724,7 @@ export type Database = {
           total_inss_servidor?: number | null
           total_irrf?: number | null
           total_liquido?: number | null
+          total_rat?: number | null
           updated_at?: string | null
           updated_by?: string | null
           updated_by_servidor_id?: string | null
