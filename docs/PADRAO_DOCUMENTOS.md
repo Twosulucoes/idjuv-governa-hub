@@ -48,6 +48,16 @@
 > Cores por tipo/status e "(VAGO)" colorido viraram texto. Plano:
 > [`superpowers/plans/2026-10-20-padrao-relatorios-onda4.md`](./superpowers/plans/2026-10-20-padrao-relatorios-onda4.md).
 
+> **Onda 5 (20/10/2026, limpeza):** o relatório de portarias da Central de Portarias
+> (`src/components/portarias/RelatorioPortariasDialog.tsx`, que desenhava o PDF com `jsPDF` dentro do componente)
+> virou `portarias-relatorio` (retrato) e `portarias-relatorio-paisagem` (a tela escolhe paisagem acima de 6
+> colunas). Filtro, ordenação, agrupamento e formatação ficam em `src/lib/relatorioPortarias.ts`; o diálogo mantém
+> título, subtítulo, agrupamento (status, categoria, unidade, mês, nº de servidores), colunas, filtros, ordenação,
+> resumo por status e subtotal/total geral. Texto que o antigo cortava (título, ementa, unidade, cargo) quebra
+> linha; a categoria sai com o rótulo, não com o código; agrupamento, ordenação e filtros aplicados passam a ser
+> impressos. O interruptor "Incluir logos" saiu: cabeçalho e logos vêm do motor (identidade do tenant), e o
+> subtítulo padrão com o nome do órgão escrito à mão também.
+
 ## 1. Famílias
 
 Todo documento pertence a uma família; cada família tem um layout-base.
@@ -124,6 +134,9 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfTermoCessao.ts` | 138 | `generateTermoCessao` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
 | `src/lib/pdfTermoResponsabilidade.ts` | 181 | `generateTermoResponsabilidade` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
 | portariaPdf.ts (removido em 12/10/2026) | 150 | `buildPortariaPdfDoc`, `savePortariaPdf` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
+
+Fora de `src/lib` (não entrou na medição acima): `src/components/portarias/RelatorioPortariasDialog.tsx`, relatório
+de portarias desenhado no próprio componente; migrado na onda 5: `portarias-relatorio`, `portarias-relatorio-paisagem`.
 
 ### Documentos dentro de arquivos multiuso
 
