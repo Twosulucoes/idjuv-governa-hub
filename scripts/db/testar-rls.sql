@@ -6862,7 +6862,8 @@ END $$;
 
 -- ---------------------------------------------------------------- FOLHA: importação da folha do SIGRH (migração 20261022090000)
 --   * importar_folha_sigrh: anon e PUBLIC sem EXECUTE; quem processa a folha mas não pode fechá-la (sem rh.admin) recusa
---     (42501); competência futura e lista vazia recusadas (22023);
+--     (42501); competência futura, mês corrente e lista vazia recusados (22023); sem alíquotas patronais, aviso;
+--   * base de INSS sem o provento cuja rubrica cadastrada não incide (ajuste da migração 20261022100000);
 --   * simulação não grava (nem folha, nem fichas, nem importacoes) e avisa servidor sem provimento no mês;
 --   * CPF desconhecido é erro da linha e a aplicação não grava nada;
 --   * aplicação: folha mensal fechada com a justificativa da importação, uma ficha por servidor (casado pelo CPF
@@ -6907,8 +6908,9 @@ BEGIN
     (s1, 'SIGRH Servidor 1', '000.000.701-01', 'ativo', true),   -- casado só pelos dígitos
     (s2, 'SIGRH Servidor 2', '00000070202', 'exonerado', false);
   INSERT INTO public.provimentos (servidor_id, cargo_id, data_nomeacao, status) VALUES (s1, cg, '2019-01-01', 'ativo');
-  INSERT INTO public.rubricas (id, codigo, descricao, tipo, natureza, formula_tipo, vigencia_inicio, ativo)
-    VALUES (rb, 'SIG01', 'Vencimento SIGRH Teste', 'provento', 'remuneratorio', 'valor_fixo', '2019-01-01', true);
+  INSERT INTO public.rubricas (id, codigo, descricao, tipo, natureza, formula_tipo, vigencia_inicio, ativo, incide_inss) VALUES
+    (rb, 'SIG01', 'Vencimento SIGRH Teste', 'provento', 'remuneratorio', 'valor_fixo', '2019-01-01', true, true),
+    (gen_random_uuid(), 'SIG02', 'Diaria SIGRH Teste', 'provento', 'indenizatorio', 'valor_fixo', '2019-01-01', true, false);
   SET LOCAL session_replication_role = origin;
 
   fichas := jsonb_build_array(
@@ -6917,6 +6919,7 @@ BEGIN
       'itens', jsonb_build_array(
         jsonb_build_object('descricao', 'VENCIMENTO SIGRH TESTE', 'tipo', 'provento', 'quantidade', '30,00', 'valor', '3578.08'),
         jsonb_build_object('descricao', 'DIF DE VENCIMENTO', 'tipo', 'provento', 'competencia', '2019-02', 'valor', '79.99'),
+        jsonb_build_object('descricao', 'DIARIA SIGRH TESTE', 'tipo', 'provento', 'valor', '100.00'),
         jsonb_build_object('descricao', 'INSS', 'tipo', 'desconto', 'quantidade', '12,00', 'valor', '317.95'),
         jsonb_build_object('descricao', 'IRRF', 'tipo', 'desconto', 'valor', '10.00'))),
     jsonb_build_object('indice', 1, 'cpf', '00000070202', 'nome', 'SERVIDOR DOIS', 'funcao', 'DIRETOR',
@@ -6934,6 +6937,9 @@ BEGIN
   r := pg_temp.fs_chamar(u_imp, jsonb_build_object('ano', extract(year FROM current_date + 40)::int,
                                                     'mes', extract(month FROM current_date + 40)::int), fichas, true);
   IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: competência futura aceita (' || r || ')'); END IF;
+  r := pg_temp.fs_chamar(u_imp, jsonb_build_object('ano', extract(year FROM current_date)::int,
+                                                    'mes', extract(month FROM current_date)::int), fichas, true);
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: mês corrente (ainda não pago) aceito (' || r || ')'); END IF;
   r := pg_temp.fs_chamar(u_imp, comp, '[]', true);
   IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: lista vazia aceita (' || r || ')'); END IF;
 
@@ -6941,7 +6947,8 @@ BEGIN
   r := pg_temp.fs_chamar(u_imp, comp, fichas, true);
   j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
   IF j IS NULL OR (j -> 'totais' ->> 'inserir')::int <> 2 OR jsonb_array_length(j -> 'erros') <> 0
-     OR (j -> 'linhas' -> 1 -> 'avisos')::text NOT LIKE '%Sem provimento%' THEN
+     OR (j -> 'linhas' -> 1 -> 'avisos')::text NOT LIKE '%Sem provimento%'
+     OR (j -> 'linhas' -> 0 -> 'avisos')::text NOT LIKE '%parte patronal da folha sai zero%' THEN
     PERFORM pg_temp.falha('FOLHA SIGRH: simulação deveria inserir 2 fichas e avisar o servidor sem provimento (' || r || ')');
   END IF;
   IF EXISTS (SELECT 1 FROM public.folhas_pagamento WHERE competencia_ano = 2019 AND competencia_mes = 3)
@@ -6968,19 +6975,19 @@ BEGIN
   IF j IS NULL OR j ->> 'importacao_id' IS NULL OR fl.id IS NULL OR fl.status <> 'fechada'
      OR fl.justificativa_fechamento NOT LIKE 'Folha histórica importada do SIGRH (arquivo ESPELHO_FPAG10.pdf)%'
      OR fl.fechado_por IS DISTINCT FROM u_imp OR fl.quantidade_servidores <> 2
-     OR fl.total_bruto <> 4658.07 OR fl.total_descontos <> 327.95 OR fl.total_liquido <> 4330.12
+     OR fl.total_bruto <> 4758.07 OR fl.total_descontos <> 327.95 OR fl.total_liquido <> 4430.12
      OR fl.total_inss_servidor <> 317.95 OR fl.total_irrf <> 10.00 THEN
     PERFORM pg_temp.falha(format('FOLHA SIGRH: aplicação deveria criar a folha fechada com os totais (%s; folha %s)', r, to_jsonb(fl)));
   END IF;
   SELECT * INTO f1 FROM public.fichas_financeiras WHERE folha_id = fl.id AND servidor_id = s1;
-  IF f1.id IS NULL OR f1.cargo_id IS DISTINCT FROM cg OR f1.cargo_nome <> 'CHEFE DE NUCLEO' OR f1.total_proventos <> 3658.07
-     OR f1.valor_inss <> 317.95 OR f1.base_inss <> 3658.07 OR f1.valor_irrf <> 10.00 OR f1.valor_liquido <> 3330.12
+  IF f1.id IS NULL OR f1.cargo_id IS DISTINCT FROM cg OR f1.cargo_nome <> 'CHEFE DE NUCLEO' OR f1.total_proventos <> 3758.07
+     OR f1.valor_inss <> 317.95 OR f1.base_inss <> 3658.07 OR f1.valor_irrf <> 10.00 OR f1.valor_liquido <> 3430.12
      OR f1.banco_conta <> '12345X' OR f1.quantidade_dependentes <> 1 THEN
     PERFORM pg_temp.falha('FOLHA SIGRH: ficha do servidor 1 sem cargo, função, totais ou banco (' || to_jsonb(f1)::text || ')');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM public.itens_ficha_financeira WHERE ficha_id = f1.id AND descricao = 'DIF DE VENCIMENTO (02/2019)')
      OR (SELECT rubrica_id FROM public.itens_ficha_financeira WHERE ficha_id = f1.id AND ordem = 1) IS DISTINCT FROM rb
-     OR (SELECT count(*) FROM public.itens_ficha_financeira WHERE ficha_id = f1.id AND origem = 'automatico') <> 4 THEN
+     OR (SELECT count(*) FROM public.itens_ficha_financeira WHERE ficha_id = f1.id AND origem = 'automatico') <> 5 THEN
     PERFORM pg_temp.falha('FOLHA SIGRH: itens sem a competência do retroativo, sem a rubrica ligada ou fora da origem automatico');
   END IF;
   IF (SELECT cargo_id FROM public.fichas_financeiras WHERE folha_id = fl.id AND servidor_id = s2) IS NOT NULL THEN

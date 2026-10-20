@@ -86,12 +86,14 @@ interface VinculoLido {
 
 const NUMERO_BR = /^-?[\d.]*\d(,\d+)?$/;
 
-/** "3.578,08" → 357808; "1073,42" → 107342; 2010 → 201000. `null` se não for número. */
+/** "3.578,08" → 357808; "1073,42" → 107342; "1234.56" → 123456; 2010 → 201000. `null` se não for número. */
 export function paraCentavos(valor: unknown): number | null {
   if (typeof valor === "number") return Number.isFinite(valor) ? Math.round(valor * 100) : null;
   const texto = String(valor ?? "").trim().replace(/^R\$\s*/, "");
   if (!texto || !NUMERO_BR.test(texto)) return null;
-  const n = Number(texto.replace(/\./g, "").replace(",", "."));
+  // "1234.56" (texto com ponto decimal, como uma planilha exportada pode trazer) não é milhar: "1.234" tem 3 dígitos
+  const decimalComPonto = /^-?\d+\.\d{1,2}$/.test(texto);
+  const n = Number(decimalComPonto ? texto : texto.replace(/\./g, "").replace(",", "."));
   return Number.isFinite(n) ? Math.round(n * 100) : null;
 }
 
@@ -256,7 +258,9 @@ function montarResultado(
 // FPAG10 (PDF)
 // ---------------------------------------------------------------------------------------------------------
 
-const IGNORAR_FPAG10 = /^(INSTITUTO|Folha|Provento|=+|-+|Emiss|Página|\d{2}\.\d{2}$)/;
+// Cabeçalho de página e a linha da lotação ("01.94  <nome do órgão>"); o nome do órgão sozinho não tem número e
+// não vira rubrica
+const IGNORAR_FPAG10 = /^(Folha|Provento|=+|-+|Emiss|Página|\d{2}\.\d{2}$)/;
 
 /** Borda direita dos títulos "Qtde" e "Valor" de uma das metades (proventos ou descontos). */
 interface ColunasMetade {

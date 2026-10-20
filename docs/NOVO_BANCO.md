@@ -188,7 +188,7 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `cargo_vencimentos` na `trilha`); privilégios das funções novas no overlay 40; testes no bloco "FOLHA: atos
   remuneratórios" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A importação da folha do SIGRH (migração `20261022090000`) entrou no schema do baseline regenerado
-  (`importar_folha_sigrh`); o EXECUTE só para `authenticated` no overlay 40; testes no bloco "FOLHA: importação da
+  (`importar_folha_sigrh`, com os ajustes da revisão na `20261022100000`); o EXECUTE só para `authenticated` no overlay 40; testes no bloco "FOLHA: importação da
   folha do SIGRH" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A parte patronal da folha e o INSS truncado por faixa (migração `20261021100000`) entraram no schema do baseline
   regenerado (`folhas_pagamento.total_rat`, CHECK `parametros_folha_encargos_check`, `calcular_inss_servidor` e
