@@ -61,7 +61,7 @@ export function ExportOrganogramaDialog({
               >
                 <Network className="h-6 w-6" />
                 <span className="text-xs">Organograma Visual</span>
-                <span className="text-[10px] text-muted-foreground">(A3 Paisagem)</span>
+                <span className="text-[10px] text-muted-foreground">(A4 Paisagem)</span>
               </Button>
               <Button
                 variant={tipoExport === 'lista' ? 'default' : 'outline'}

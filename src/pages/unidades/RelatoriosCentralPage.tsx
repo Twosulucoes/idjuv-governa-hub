@@ -315,7 +315,7 @@
          tipo: u.tipo_unidade,
          municipio: u.municipio,
          status: u.status,
-         chefe: u.chefe_atual_nome || '⚠ SEM RESPONSÁVEL',
+         chefe: u.chefe_atual_nome || 'SEM RESPONSÁVEL',
          capacidade: u.capacidade || undefined,
        }));
  

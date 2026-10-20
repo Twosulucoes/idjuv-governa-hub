@@ -22,9 +22,18 @@ import { relatorioSegundoVinculo } from './modelos/rh/segundoVinculo';
 import { relatorioDiretoriaHierarquia } from './modelos/rh/diretoriaHierarquia';
 import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
 import { fichaUnidadeLocal } from './modelos/unidades/fichaUnidadeLocal';
+import { listagemUnidades } from './modelos/unidades/listagemUnidades';
+import { relatorioUnidadesLocais } from './modelos/unidades/relatorioUnidadesLocais';
 import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
 import { listaConvocados, listaPresenca, relatorioReuniao } from './modelos/reunioes/reunioes';
 import { contracheque } from './modelos/folha/contracheque';
+import { relatorioArbitros } from './modelos/arbitros/relatorioArbitros';
+import { relatorioFederacoes, relatorioFederacoesPaisagem } from './modelos/federacoes/relatorioFederacoes';
+import { relatorioCargosVagas } from './modelos/cargos/cargosVagas';
+import { quadroCargos } from './modelos/cargos/quadroCargos';
+import { relatorioGovernanca } from './modelos/governanca/relatorioAnual';
+import { organogramaDesenho } from './modelos/organograma/desenho';
+import { organogramaLista } from './modelos/organograma/lista';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -67,6 +76,9 @@ export const REGISTRO = {
   'rh-contatos-estrategicos': relatorioContatosEstrategicos,
   // Unidades locais — RelatoriosCentralPage
   'unidades-ficha-unidade-local': fichaUnidadeLocal,
+  'unidades-listagem': listagemUnidades,
+  // Unidades locais — RelatoriosUnidadesLocaisPage (lista, detalhado e resumo)
+  'unidades-relatorio-unidades-locais': relatorioUnidadesLocais,
   // RH — ficha cadastral do servidor (preenchida e em branco)
   'rh-ficha-cadastral': fichaCadastral,
   // Currículo — pré-cadastro do candidato (também no site institucional, em /curriculo)
@@ -77,6 +89,19 @@ export const REGISTRO = {
   'reunioes-relatorio': relatorioReuniao,
   // Folha — contracheque do servidor (um ou lote, uma página por servidor)
   'folha-contracheque': contracheque,
+  // Árbitros — AdminRelatorios (lista simples ou agrupada por modalidade)
+  'arbitros-relatorio-cadastro': relatorioArbitros,
+  // Federações — CentralRelatoriosFederacoesDialog (retrato ou paisagem, conforme a tela)
+  'federacoes-relatorio': relatorioFederacoes,
+  'federacoes-relatorio-paisagem': relatorioFederacoesPaisagem,
+  // Cargos — GestaoCargosPage (cargos e vagas) e OrganogramaPage (quadro de cargos com ocupantes)
+  'cargos-relatorio-cargos-vagas': relatorioCargosVagas,
+  'cargos-quadro-cargos': quadroCargos,
+  // Governança — RelatorioGovernancaPage
+  'governanca-relatorio-anual': relatorioGovernanca,
+  // Organograma — OrganogramaPage (lista hierárquica e desenho)
+  'organograma-lista': organogramaLista,
+  'organograma-desenho': organogramaDesenho,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;

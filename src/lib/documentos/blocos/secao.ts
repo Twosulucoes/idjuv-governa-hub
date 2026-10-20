@@ -5,14 +5,18 @@ import type { Bloco } from '../tipos';
 
 /** Título de seção com régua. Reserva espaço para a primeira linha do que vem depois (evita título órfão). */
 export const secao =
-  (p: { texto: string }): Bloco =>
+  (p: {
+    texto: string;
+    /** Espaço (mm) reservado para o que vem logo abaixo; padrão 16 (cabeçalho de tabela + 1 linha). Tabela de cabeçalho alto pede mais. */
+    reservaAbaixo?: number;
+  }): Bloco =>
   (ctx) => {
     const { doc } = ctx;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(ctx.fonte.secao);
     const linhas = quebrarEmLinhas(doc, p.texto, ctx.largura);
     // Reserva para o que vem logo abaixo (cabeçalho de tabela + 1 linha ≈ 14 mm): título de seção nunca fica sozinho no pé da página.
-    ctx.garantirEspaco(ESPACO.sm + linhas.length * alturaLinha(ctx.fonte.secao) + ESPACO.sm + 16);
+    ctx.garantirEspaco(ESPACO.sm + linhas.length * alturaLinha(ctx.fonte.secao) + ESPACO.sm + (p.reservaAbaixo ?? 16));
     ctx.y += ESPACO.sm;
     usarTexto(doc, corLegivel(ctx.marca.corPrimaria));
     for (const linha of linhas) {
