@@ -13,6 +13,7 @@ import { relatorioVagasCargo } from './modelos/rh/vagasCargo';
 import { relatorioFerias } from './modelos/rh/ferias';
 import { folhaPorRubrica, folhaPorUnidade, resumoFolhasAno } from './modelos/rh/folha';
 import { frequenciaGeral, frequenciaIndividual } from './modelos/rh/frequencia';
+import { folhaFrequencia } from './modelos/rh/folhaFrequencia';
 import { relatorioLicencas } from './modelos/rh/licencas';
 import { relatorioViagens } from './modelos/rh/viagens';
 import { relatorioAgrupadoPortaria } from './modelos/rh/agrupadoPortaria';
@@ -54,6 +55,8 @@ export const REGISTRO = {
   'rh-folha-por-rubrica': folhaPorRubrica,
   'rh-frequencia-geral': frequenciaGeral,
   'rh-frequencia-individual': frequenciaIndividual,
+  // RH — folha individual de presença (avulsa e lote da unidade)
+  'rh-folha-frequencia': folhaFrequencia,
   // RH — diretoria, segundo vínculo, portarias e contatos
   'rh-diretoria-hierarquia': relatorioDiretoriaHierarquia,
   'rh-segundo-vinculo': relatorioSegundoVinculo,
