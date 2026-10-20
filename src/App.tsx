@@ -66,7 +66,6 @@ import OrdemMissaoPage from "./pages/formularios/OrdemMissaoPage";
 import RelatorioViagemPage from "./pages/formularios/RelatorioViagemPage";
 import RequisicaoMaterialPage from "./pages/formularios/RequisicaoMaterialPage";
 import TermoResponsabilidadePage from "./pages/formularios/TermoResponsabilidadePage";
-import CPSIPage from "./pages/formularios/CPSIPage";
 import PortariasPage from "./pages/governanca/PortariasPage";
 import RelatorioGovernancaPage from "./pages/governanca/RelatorioGovernancaPage";
 import BolsaAtletaPage from "./pages/programas/BolsaAtletaPage";
@@ -1137,7 +1136,6 @@ const App = () => (
               <Route path="/formularios/relatorio-viagem" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><RelatorioViagemPage /></ProtectedRoute>} />
               <Route path="/formularios/requisicao-material" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><RequisicaoMaterialPage /></ProtectedRoute>} />
               <Route path="/formularios/termo-responsabilidade" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><TermoResponsabilidadePage /></ProtectedRoute>} />
-              <Route path="/formularios/cpsi" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><CPSIPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* MANUAIS - Apenas autenticação */}

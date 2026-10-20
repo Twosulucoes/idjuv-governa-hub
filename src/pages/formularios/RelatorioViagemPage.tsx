@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
-import { generateRelatorioViagem, generateDocumentNumber } from '@/lib/pdfGenerator';
+import { baixarRelatorioViagem, numeroDoFormulario } from '@/lib/formulariosAdministrativos';
 
 const relatorioViagemSchema = z.object({
   servidor: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
@@ -54,9 +54,9 @@ const RelatorioViagemPage = () => {
     setIsGenerating(true);
     
     try {
-      const numero = generateDocumentNumber('RV');
+      const numero = numeroDoFormulario('RV');
       
-      generateRelatorioViagem({
+      await baixarRelatorioViagem({
         servidor: data.servidor,
         cargo: data.cargo,
         matricula: data.matricula,

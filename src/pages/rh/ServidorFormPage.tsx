@@ -47,13 +47,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { 
   generateFichaCadastral,
-  generateDeclaracaoAcumulacao,
-  generateDeclaracaoBens,
-  generateDeclaracaoResidencia,
   generateFichaCadastralModelo,
-  generateDeclaracaoAcumulacaoModelo,
-  generateDeclaracaoBensModelo
 } from "@/lib/pdfGenerator";
+import { baixarDeclaracao, type DeclaranteServidor, type TipoDeclaracao } from "@/lib/declaracoesServidor";
 import { toast } from "sonner";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { 
@@ -362,6 +358,23 @@ export default function ServidorFormPage() {
       return data;
     },
   });
+
+  // Declarações (motor único): sem declarante sai o modelo em branco
+  const declarante = (): DeclaranteServidor | undefined =>
+    servidor
+      ? {
+          ...servidor,
+          cargo_nome: cargos.find((c) => c.id === servidor.cargo_atual_id)?.nome,
+          unidade_nome: unidades.find((u) => u.id === servidor.unidade_atual_id)?.nome,
+        }
+      : undefined;
+  const gerarDeclaracao = async (tipo: TipoDeclaracao, dados?: DeclaranteServidor) => {
+    try {
+      await baixarDeclaracao(tipo, dados);
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível gerar a declaração.");
+    }
+  };
 
   // Preencher form com dados do servidor
   useEffect(() => {
@@ -725,11 +738,11 @@ export default function ServidorFormPage() {
                   <FileDown className="h-4 w-4 mr-2" />
                   Ficha Cadastral (Modelo)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => generateDeclaracaoAcumulacaoModelo()}>
+                <DropdownMenuItem onClick={() => gerarDeclaracao("declaracoes-acumulacao")}>
                   <FileDown className="h-4 w-4 mr-2" />
                   Declaração de Acumulação (Modelo)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => generateDeclaracaoBensModelo()}>
+                <DropdownMenuItem onClick={() => gerarDeclaracao("declaracoes-bens")}>
                   <FileDown className="h-4 w-4 mr-2" />
                   Declaração de Bens (Modelo)
                 </DropdownMenuItem>
@@ -759,46 +772,23 @@ export default function ServidorFormPage() {
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={async () => {
                       if (!(await registrarDocumentoServidor("declaracao_acumulacao", "Declaração de acumulação impressa"))) return;
-                      generateDeclaracaoAcumulacao({
-                        nome_completo: servidor.nome_completo,
-                        cpf: servidor.cpf,
-                        rg: servidor.rg,
-                        rg_orgao_expedidor: servidor.rg_orgao_expedidor,
-                        acumula_cargo: servidor.acumula_cargo || false,
-                        acumulo_descricao: servidor.acumulo_descricao,
-                      });
+                      // Como antes: sem registro de acúmulo no cadastro, sai marcado "não acumulo"
+                      const d = declarante();
+                      await gerarDeclaracao("declaracoes-acumulacao", d && { ...d, acumula_cargo: d.acumula_cargo || false });
                     }}>
                       <FileText className="h-4 w-4 mr-2" />
                       Declaração de Acumulação
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={async () => {
                       if (!(await registrarDocumentoServidor("declaracao_bens", "Declaração de bens impressa"))) return;
-                      generateDeclaracaoBens({
-                        nome_completo: servidor.nome_completo,
-                        cpf: servidor.cpf,
-                        rg: servidor.rg,
-                        rg_orgao_expedidor: servidor.rg_orgao_expedidor,
-                        data_admissao: servidor.data_admissao,
-                      });
+                      await gerarDeclaracao("declaracoes-bens", declarante());
                     }}>
                       <FileText className="h-4 w-4 mr-2" />
                       Declaração de Bens
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={async () => {
                       if (!(await registrarDocumentoServidor("declaracao_residencia", "Declaração de residência impressa"))) return;
-                      generateDeclaracaoResidencia({
-                        nome_completo: servidor.nome_completo,
-                        cpf: servidor.cpf,
-                        rg: servidor.rg,
-                        rg_orgao_expedidor: servidor.rg_orgao_expedidor,
-                        endereco_logradouro: servidor.endereco_logradouro,
-                        endereco_numero: servidor.endereco_numero,
-                        endereco_complemento: servidor.endereco_complemento,
-                        endereco_bairro: servidor.endereco_bairro,
-                        endereco_cidade: servidor.endereco_cidade,
-                        endereco_uf: servidor.endereco_uf,
-                        endereco_cep: servidor.endereco_cep,
-                      });
+                      await gerarDeclaracao("declaracoes-residencia", declarante());
                     }}>
                       <FileText className="h-4 w-4 mr-2" />
                       Declaração de Residência

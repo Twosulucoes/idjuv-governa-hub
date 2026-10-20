@@ -34,6 +34,16 @@ import { quadroCargos } from './modelos/cargos/quadroCargos';
 import { relatorioGovernanca } from './modelos/governanca/relatorioAnual';
 import { organogramaDesenho } from './modelos/organograma/desenho';
 import { organogramaLista } from './modelos/organograma/lista';
+import { relatorioPortarias, relatorioPortariasPaisagem } from './modelos/portarias/relatorioPortarias';
+import { declaracaoAcumulacao } from './modelos/declaracoes/acumulacao';
+import { declaracaoBens } from './modelos/declaracoes/bens';
+import { declaracaoResidencia } from './modelos/declaracoes/residencia';
+import { relacaoDocumentos } from './modelos/declaracoes/relacaoDocumentos';
+import { termoDemanda } from './modelos/formularios/termoDemanda';
+import { ordemMissao } from './modelos/formularios/ordemMissao';
+import { relatorioViagem } from './modelos/formularios/relatorioViagem';
+import { requisicaoMaterial } from './modelos/formularios/requisicaoMaterial';
+import { termoResponsabilidade } from './modelos/formularios/termoResponsabilidade';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -102,6 +112,20 @@ export const REGISTRO = {
   // Organograma — OrganogramaPage (lista hierárquica e desenho)
   'organograma-lista': organogramaLista,
   'organograma-desenho': organogramaDesenho,
+  // Portarias — RelatorioPortariasDialog (Central de Portarias; paisagem quando a tela marca muitas colunas)
+  'portarias-relatorio': relatorioPortarias,
+  'portarias-relatorio-paisagem': relatorioPortariasPaisagem,
+  // Declarações do servidor (preenchidas e em branco) e relação de documentos do cadastro — RH e portal do mini-currículo
+  'declaracoes-acumulacao': declaracaoAcumulacao,
+  'declaracoes-bens': declaracaoBens,
+  'declaracoes-residencia': declaracaoResidencia,
+  'declaracoes-relacao-documentos': relacaoDocumentos,
+  // Formulários administrativos — páginas de /formularios (preenchidos) e Modelos de documentos (em branco)
+  'formularios-termo-demanda': termoDemanda,
+  'formularios-ordem-missao': ordemMissao,
+  'formularios-relatorio-viagem': relatorioViagem,
+  'formularios-requisicao-material': requisicaoMaterial,
+  'formularios-termo-responsabilidade': termoResponsabilidade,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;

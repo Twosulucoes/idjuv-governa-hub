@@ -485,7 +485,7 @@ verificável isoladamente (`bun run lint && bun run build`).
 | **1. Build e metadados** | `.env` estendido, `vite.config.ts` sem literais, `index.html` com placeholders, ícones por tenant | Título, manifest e favicon trocam por env | Baixo |
 | **2. Marca na UI** | `<Logo>` genérico substitui `LogoIdjuv`; Header, Footer, Sidebar, PortalFooter, ReportHeader consomem `useTenant()`; tema injetado do banco | UI 100% sem marca fixa | Baixo |
 | **3. Identidade institucional** | Consolidar `config_institucional`/`config_autarquia`/`dados_oficiais`; remover `FALLBACK_DATA`; e-mails, telefones, URLs e redes sociais para config | Nenhum dado do IDJUV no bundle | Médio |
-| **4. Documentos** | `cabecalhoOficial`/`rodapeOficial` no `pdfTemplate.ts`; refatorar os 38 geradores + `wordPortarias` + `report.styles`; unificar as 3 paletas | Documentos com a marca do tenant | Médio (volume) |
+| **4. Documentos** | `cabecalhoOficial`/`rodapeOficial` no pdfTemplate (hoje: cabeçalho e rodapé do motor único `src/lib/documentos/`); refatorar os 38 geradores + `wordPortarias` + `report.styles`; unificar as 3 paletas | Documentos com a marca do tenant | Médio (volume) |
 | **5. Modelos de ato e normas** | Tabela `modelos_atos` + renderizador de placeholders; páginas de governança via CMS; seeds do IDJUV | Portarias de qualquer órgão | **Alto** (jurídico — validar com o cliente) |
 | **6. Módulos e verticais** | `modulosHabilitados()`, guard `<ModuloHabilitado>`, extração da vertical esporte | Venda de core sem vertical | Médio |
 | **7. Enums e schema** | Migração de `ALTER TYPE ... RENAME VALUE` e colunas; regenerar types | Schema neutro | **Alto** (banco em produção) |

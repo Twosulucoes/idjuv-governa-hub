@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
-import { generateTermoDemanda, generateDocumentNumber } from '@/lib/pdfGenerator';
+import { baixarTermoDemanda, numeroDoFormulario } from '@/lib/formulariosAdministrativos';
 
 const termoDemandaSchema = z.object({
   solicitante: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
@@ -54,9 +54,11 @@ const TermoDemandaPage = () => {
     setIsGenerating(true);
     
     try {
-      const numero = generateDocumentNumber('TD');
+      const numero = numeroDoFormulario('TD');
       
-      generateTermoDemanda({
+      // Prioridade sai pelo nome ('Alta'), não pelo código do select.
+      const prioridade = prioridades.find((p) => p.value === data.prioridade)?.label.split(' - ')[0] ?? data.prioridade;
+      await baixarTermoDemanda({
         solicitante: data.solicitante,
         cargo: data.cargo,
         setor: data.setor,
@@ -65,7 +67,7 @@ const TermoDemandaPage = () => {
         quantidade: data.quantidade,
         valorEstimado: data.valorEstimado,
         prazoEntrega: data.prazoEntrega,
-        prioridade: data.prioridade,
+        prioridade,
         observacoes: data.observacoes || '',
       }, numero);
       

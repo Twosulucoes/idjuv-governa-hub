@@ -111,6 +111,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   manutenções e ocorrências. Item do almoxarifado: `/inventario/almoxarifado/:id` (`ItemMaterialDetalhePage`, `patrimonio.visualizar`) e
   `/inventario/almoxarifado/:id/editar` (`ItemMaterialEditarPage`, `patrimonio.criar`); o saldo real ainda não
   existe, e a ficha mostra só os limites de estoque. A rota de detalhe da requisição ainda usa `PlaceholderDetalhePage`.
+- Formulários: a rota `/formularios/cpsi` (tela CPSI, que gerava DFD/ETP/TR) saiu na onda 5 do P23; esses atos são
+  feitos no SEI e o sistema só registra o ciclo.
 
 ## Autenticação
 
@@ -166,8 +168,8 @@ caches relevantes. Estatísticas de dashboard ficam em `use<Modulo>DashboardStat
 Toda a emissão de PDFs/planilhas/Word acontece **no navegador** (sem servidor de
 relatórios), em `src/lib`:
 
-- **PDF**: `jspdf` + `pdf-lib` — ~40 geradores (`pdf*.ts`), com base em
-  `pdfTemplate.ts`/`pdfLogos.ts`.
+- **PDF**: motor único em `src/lib/documentos/` (`jspdf` só em `core/`); os `pdf*.ts` restantes só chamam o motor
+  ([PADRAO_DOCUMENTOS.md](./PADRAO_DOCUMENTOS.md)). A base antiga (pdfTemplate, pdfLogos) foi apagada na onda 5 da P23.
 - **Planilhas**: `xlsx` — `src/export/`, `src/lib/exportar*.ts`.
 - **Fiscais/folha**: `cnabGenerator.ts` (remessa bancária CNAB; com conta pagadora no BB usa `bancario/folhaBbCnab240.ts`, o leiaute que o banco já aceita da folha),
   `esocialGenerator.ts`/`esocialXmlGenerator.ts` (eSocial).

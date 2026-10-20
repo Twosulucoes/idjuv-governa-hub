@@ -12,16 +12,15 @@ import {
   FileCheck,
   AlertTriangle
 } from "lucide-react";
+import { generateFichaCadastralModelo } from "@/lib/pdfGenerator";
+import { baixarDeclaracaoAcumulacao, baixarDeclaracaoBens, baixarRelacaoDocumentos } from "@/lib/declaracoesServidor";
 import {
-  generateFichaCadastralModelo,
-  generateDeclaracaoAcumulacaoModelo,
-  generateDeclaracaoBensModelo,
-  generateTermoDemandaModelo,
-  generateOrdemMissaoModelo,
-  generateRelatorioViagemModelo,
-  generateRequisicaoMaterialModelo,
-  generateTermoResponsabilidadeModelo,
-} from "@/lib/pdfModelos";
+  baixarOrdemMissao,
+  baixarRelatorioViagem,
+  baixarRequisicaoMaterial,
+  baixarTermoDemanda,
+  baixarTermoResponsabilidade,
+} from "@/lib/formulariosAdministrativos";
 import { toast } from "sonner";
 
 interface DocumentoModelo {
@@ -45,12 +44,20 @@ export default function ModelosDocumentosPage() {
       onDownload: generateFichaCadastralModelo,
     },
     {
+      id: "relacao-documentos",
+      titulo: "Relação de Documentos para Cadastro",
+      descricao: "Lista dos documentos pessoais, declarações e comprovantes exigidos para o cadastro funcional.",
+      icon: FileText,
+      categoria: "Cadastro de Servidor",
+      onDownload: baixarRelacaoDocumentos,
+    },
+    {
       id: "declaracao-acumulacao",
       titulo: "Declaração de Não Acumulação de Cargos",
       descricao: "Declaração obrigatória para servidores informando não acumulação ilícita de cargos públicos.",
       icon: FileCheck,
       categoria: "Declarações",
-      onDownload: generateDeclaracaoAcumulacaoModelo,
+      onDownload: () => baixarDeclaracaoAcumulacao(),
     },
     {
       id: "declaracao-bens",
@@ -58,7 +65,7 @@ export default function ModelosDocumentosPage() {
       descricao: "Declaração patrimonial obrigatória para servidores públicos conforme legislação vigente.",
       icon: ClipboardList,
       categoria: "Declarações",
-      onDownload: generateDeclaracaoBensModelo,
+      onDownload: () => baixarDeclaracaoBens(),
     },
     // Documentos de Viagem
     {
@@ -67,7 +74,7 @@ export default function ModelosDocumentosPage() {
       descricao: "Autorização para deslocamento de servidor a serviço do Instituto.",
       icon: Plane,
       categoria: "Viagens e Diárias",
-      onDownload: generateOrdemMissaoModelo,
+      onDownload: () => baixarOrdemMissao(),
     },
     {
       id: "relatorio-viagem",
@@ -75,7 +82,7 @@ export default function ModelosDocumentosPage() {
       descricao: "Relatório obrigatório após conclusão de viagem a serviço.",
       icon: FileText,
       categoria: "Viagens e Diárias",
-      onDownload: generateRelatorioViagemModelo,
+      onDownload: () => baixarRelatorioViagem(),
     },
     // Documentos Administrativos
     {
@@ -84,7 +91,7 @@ export default function ModelosDocumentosPage() {
       descricao: "Solicitação formal de produtos ou serviços para atendimento de demandas do setor.",
       icon: ClipboardList,
       categoria: "Administrativo",
-      onDownload: generateTermoDemandaModelo,
+      onDownload: () => baixarTermoDemanda(),
     },
     {
       id: "requisicao-material",
@@ -92,7 +99,7 @@ export default function ModelosDocumentosPage() {
       descricao: "Solicitação de materiais ao almoxarifado do Instituto.",
       icon: Package,
       categoria: "Administrativo",
-      onDownload: generateRequisicaoMaterialModelo,
+      onDownload: () => baixarRequisicaoMaterial(),
     },
     {
       id: "termo-responsabilidade",
@@ -100,7 +107,7 @@ export default function ModelosDocumentosPage() {
       descricao: "Termo de responsabilidade sobre bens patrimoniais sob a guarda do servidor.",
       icon: Briefcase,
       categoria: "Patrimônio",
-      onDownload: generateTermoResponsabilidadeModelo,
+      onDownload: () => baixarTermoResponsabilidade(),
     },
   ];
 

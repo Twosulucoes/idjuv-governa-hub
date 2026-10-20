@@ -13,12 +13,15 @@ const ESPACO_PARA_ASSINAR = 14;
 const FOLGA = 12;
 const LARGURA_MAX = 80;
 
-/** Linhas de assinatura, no máximo 2 por fileira, centralizadas. Cada fileira é indivisível. */
+/**
+ * Linhas de assinatura centralizadas, 2 por fileira (ou `porFileira`: 3 cabem numa fileira só, como no
+ * formulário com solicitante, chefia e almoxarifado). Cada fileira é indivisível.
+ */
 export const assinaturas =
-  (p: { assinantes: Assinante[] }): Bloco =>
+  (p: { assinantes: Assinante[]; porFileira?: 2 | 3 }): Bloco =>
   (ctx) => {
     const { doc } = ctx;
-    const porFileira = p.assinantes.length === 1 ? 1 : 2;
+    const porFileira = Math.min(p.assinantes.length, p.porFileira ?? 2);
     const w = Math.min(LARGURA_MAX, (ctx.largura - FOLGA * (porFileira - 1)) / porFileira);
     const h = alturaLinha(ctx.fonte.corpo);
 

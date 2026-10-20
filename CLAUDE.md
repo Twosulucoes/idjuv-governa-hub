@@ -209,8 +209,8 @@ docs/        # Documentação viva (índice em docs/README.md; contagens em docs
 
 ### Geração de documentos
 - **PDF novo nasce em `src/lib/documentos/`** (modelo declarativo + blocos; ver `docs/PADRAO_DOCUMENTOS.md`
-  e o skill `novo-documento-idjuv`). Os geradores antigos `src/lib/pdf*.ts` (jsPDF/pdf-lib) são migrados por fases; o gate impede `import` novo de `jspdf` fora de
-  `src/lib/documentos/core/`. Há um `pdfTemplate.ts`/`pdfLogos.ts` base legado. Exportações de planilha em `src/export/`
+  e o skill `novo-documento-idjuv`). Os `src/lib/pdf*.ts` que restam são só funções finas que as telas chamam (P23, ondas 0 a 5); o gate impede `import` de `jspdf` fora de
+  `src/lib/documentos/core/` e a volta da base antiga (pdfTemplate, pdfInstitucional, pdfLogos, apagadas na onda 5). Exportações de planilha em `src/export/`
   e `src/lib/exportar*.ts` (xlsx). Geradores fiscais: `cnabGenerator.ts`,
   `esocialGenerator.ts`, `esocialXmlGenerator.ts`.
 - **Ato formal é do SEI:** o sistema não redige portaria, memorando, termo, requerimento nem DFD/ETP/TR; só

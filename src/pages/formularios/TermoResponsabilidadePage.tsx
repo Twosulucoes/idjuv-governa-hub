@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
-import { generateTermoResponsabilidade, generateDocumentNumber } from '@/lib/pdfGenerator';
+import { baixarTermoResponsabilidade, numeroDoFormulario } from '@/lib/formulariosAdministrativos';
 
 const termoResponsabilidadeSchema = z.object({
   servidor: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
@@ -47,9 +47,9 @@ const TermoResponsabilidadePage = () => {
     setIsGenerating(true);
     
     try {
-      const numero = generateDocumentNumber('TR');
+      const numero = numeroDoFormulario('TR');
       
-      generateTermoResponsabilidade({
+      await baixarTermoResponsabilidade({
         servidor: data.servidor,
         cargo: data.cargo,
         matricula: data.matricula,

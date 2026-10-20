@@ -17,7 +17,8 @@ import {
   Link2,
   ClipboardList,
 } from "lucide-react";
-import { gerarDeclaracaoNaoAcumulacao, gerarDeclaracaoBensValores } from "@/lib/pdfDeclaracoes";
+import { toast } from "sonner";
+import { baixarDeclaracaoAcumulacao, baixarDeclaracaoBens } from "@/lib/declaracoesServidor";
 
 const LINKS_CERTIDOES = [
   {
@@ -58,15 +59,13 @@ const DOCUMENTOS_NECESSARIOS = [
 export function OrientacoesDocumentosCard() {
   const [isOpen, setIsOpen] = useState(true);
 
-  const handleDownloadNaoAcumulacao = async () => {
-    const doc = await gerarDeclaracaoNaoAcumulacao();
-    doc.save("declaracao-nao-acumulacao-cargos.pdf");
-  };
+  // Modelos em branco (motor único de documentos), para imprimir, preencher e assinar
+  const baixar = (gerar: () => Promise<void>) => () =>
+    gerar().catch(() => toast.error("Não foi possível gerar a declaração. Tente novamente."));
 
-  const handleDownloadBensValores = async () => {
-    const doc = await gerarDeclaracaoBensValores();
-    doc.save("declaracao-bens-valores.pdf");
-  };
+  const handleDownloadNaoAcumulacao = baixar(() => baixarDeclaracaoAcumulacao());
+
+  const handleDownloadBensValores = baixar(() => baixarDeclaracaoBens());
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-6">
