@@ -111,6 +111,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   manutenções e ocorrências. Item do almoxarifado: `/inventario/almoxarifado/:id` (`ItemMaterialDetalhePage`, `patrimonio.visualizar`) e
   `/inventario/almoxarifado/:id/editar` (`ItemMaterialEditarPage`, `patrimonio.criar`); o saldo real ainda não
   existe, e a ficha mostra só os limites de estoque. A rota de detalhe da requisição ainda usa `PlaceholderDetalhePage`.
+- Formulários: a rota `/formularios/cpsi` (tela CPSI, que gerava DFD/ETP/TR) saiu na onda 5 do P23; esses atos são
+  feitos no SEI e o sistema só registra o ciclo.
 
 ## Autenticação
 

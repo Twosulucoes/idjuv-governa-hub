@@ -16,19 +16,16 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
-import { Plus, Building2, Loader2, FileDown } from "lucide-react";
+import { Plus, Building2, Loader2 } from "lucide-react";
 import {
   TipoAtoNomeacao,
   TIPO_ATO_LABELS,
   STATUS_NOMEACAO_LABELS,
   STATUS_NOMEACAO_COLORS,
 } from "@/types/unidadesLocais";
-import { generateMemorandoDesignacao } from "@/lib/pdf/rh/memorandoDesignacao";
 
 interface DesignacoesUnidadeTabProps {
   servidorId: string;
-  servidorNome: string;
 }
 
 interface Designacao {
@@ -54,21 +51,11 @@ interface UnidadeLocal {
   municipio: string;
 }
 
-export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesUnidadeTabProps) {
+export function DesignacoesUnidadeTab({ servidorId }: DesignacoesUnidadeTabProps) {
   const [designacoes, setDesignacoes] = useState<Designacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const { registrarAntes } = useRegistrarEvento();
-  // Trilha: memorando registrado antes de gerar o PDF (sem registro, sem arquivo)
-  const registrarMemorando = (designacaoId: string | null) =>
-    registrarAntes({
-      acao: "download",
-      entidade: "nomeacoes_chefe_unidade",
-      entidadeId: designacaoId,
-      descricao: "Memorando de designação de chefia impresso",
-      metadados: { servidor_id: servidorId, documento: "memorando_designacao", formato: "pdf" },
-    });
   const [unidades, setUnidades] = useState<UnidadeLocal[]>([]);
   const [selectedUnidade, setSelectedUnidade] = useState<string>("");
 
@@ -133,7 +120,7 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
     try {
       const { data: userData } = await supabase.auth.getUser();
 
-      const { data: criada, error } = await supabase.from("nomeacoes_chefe_unidade").insert({
+      const { error } = await supabase.from("nomeacoes_chefe_unidade").insert({
         unidade_local_id: selectedUnidade,
         servidor_id: servidorId,
         cargo: "Chefe de Unidade Local",
@@ -146,27 +133,11 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
         status: "ativo",
         observacoes: formData.observacoes.trim() || null,
         created_by: userData.user?.id,
-      }).select("id").single();
+      });
 
       if (error) throw error;
 
-      // Gerar memorando PDF
-      const unidadeSelecionada = unidades.find(u => u.id === selectedUnidade);
-      const memorandoLiberado = !!unidadeSelecionada && (await registrarMemorando(criada?.id ?? null));
-      if (unidadeSelecionada && memorandoLiberado) {
-        generateMemorandoDesignacao({
-          servidorNome,
-          cargo: "Chefe de Unidade Local",
-          unidadeNome: unidadeSelecionada.nome_unidade,
-          unidadeMunicipio: unidadeSelecionada.municipio,
-          tipoAto: formData.ato_nomeacao_tipo,
-          numeroAto: formData.ato_numero,
-          dataPublicacao: formData.ato_data_publicacao,
-          dataInicio: formData.data_inicio,
-        });
-      }
-
-      toast.success(memorandoLiberado ? "Designação registrada com sucesso! Memorando gerado." : "Designação registrada com sucesso!");
+      toast.success("Designação registrada. O ato é emitido no SEI.");
       setShowForm(false);
       resetForm();
       loadDesignacoes();
@@ -188,20 +159,6 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
       ato_doe_data: "",
       data_inicio: "",
       observacoes: "",
-    });
-  }
-
-  async function handleDownloadMemorando(designacao: Designacao) {
-    if (!(await registrarMemorando(designacao.id))) return;
-    generateMemorandoDesignacao({
-      servidorNome,
-      cargo: designacao.cargo,
-      unidadeNome: designacao.unidade?.nome_unidade || "Unidade",
-      unidadeMunicipio: designacao.unidade?.municipio || "",
-      tipoAto: designacao.ato_nomeacao_tipo,
-      numeroAto: designacao.ato_numero,
-      dataPublicacao: designacao.ato_data_publicacao,
-      dataInicio: designacao.data_inicio,
     });
   }
 
@@ -236,7 +193,6 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
                   <TableHead>Ato</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[80px]">Memorando</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -270,11 +226,6 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
                       <Badge className={STATUS_NOMEACAO_COLORS[d.status as keyof typeof STATUS_NOMEACAO_COLORS]}>
                         {STATUS_NOMEACAO_LABELS[d.status as keyof typeof STATUS_NOMEACAO_LABELS]}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => handleDownloadMemorando(d)} title="Baixar Memorando">
-                        <FileDown className="h-4 w-4" />
-                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

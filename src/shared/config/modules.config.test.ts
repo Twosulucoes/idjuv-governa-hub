@@ -22,7 +22,6 @@ const TRANSVERSAIS = [
   "/formularios/termo-demanda",
   "/formularios/requisicao-material",
   "/formularios/termo-responsabilidade",
-  "/formularios/cpsi",
   "/manuais",
   "/manuais/compras",
   "/manuais/diarias",

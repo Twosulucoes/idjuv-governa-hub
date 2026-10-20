@@ -11,20 +11,20 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Arquivo | Total | Protegidas | Públicas | Redirecionamentos | Curinga |
 |---|---:|---:|---:|---:|---:|
-| `src/App.tsx` (sistema) | 250 | 200 | 34 | 15 | 1 |
+| `src/App.tsx` (sistema) | 249 | 199 | 34 | 15 | 1 |
 | `src/AppSite.tsx` (site) | 32 | 0 | 29 | 2 | 1 |
 
 ## Código do front
 
 | Item | Quantidade |
 |---|---:|
-| Páginas (`*Page.tsx` em `src/pages`) | 212 |
+| Páginas (`*Page.tsx` em `src/pages`) | 211 |
 | Componentes (`.tsx` em `src/components`) | 317 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
 | — fora de `ui/` | 274 |
-| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 101 |
+| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 100 |
 | Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 51 |
-| Linhas de `src/App.tsx` | 1371 |
+| Linhas de `src/App.tsx` | 1369 |
 | Linhas de `src/integrations/supabase/types.ts` (gerado) | 27272 |
 
 ### Páginas por pasta de `src/pages`
@@ -44,7 +44,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | `federacoes/` | 3 |
 | `financeiro/` | 14 |
 | `folha/` | 4 |
-| `formularios/` | 6 |
+| `formularios/` | 5 |
 | `gabinete/` | 1 |
 | `governanca/` | 7 |
 | `instituicoes/` | 1 |
@@ -106,4 +106,4 @@ Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.
 | `gabinete` | Gabinete | 7 | 0 |
 | `patrimonio_mobile` | Patrimônio Mobile | 1 | 1 |
 | `arbitros` | Árbitros | 1 | 1 |
-| — | sem módulo (transversais e públicas gerais) | 17 | 13 |
+| — | sem módulo (transversais e públicas gerais) | 16 | 13 |

@@ -341,8 +341,8 @@ relatório de viagem. O item "Workflow RH" saiu do menu no P09 (não havia tela)
 ## Formulários institucionais
 
 `src/pages/formularios/`: `TermoDemandaPage`, `OrdemMissaoPage`,
-`RelatorioViagemPage`, `RequisicaoMaterialPage`, `TermoResponsabilidadePage`,
-`CPSIPage` (com assistente de IA via Edge Function `cpsi-ai-assistant`).
+`RelatorioViagemPage`, `RequisicaoMaterialPage`, `TermoResponsabilidadePage`. A tela CPSI (DFD/ETP/TR) saiu na
+onda 5 do P23: esses atos são feitos no SEI.
 
 ## Portal público (sem login)
 

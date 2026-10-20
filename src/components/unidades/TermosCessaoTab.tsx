@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, FileText, Loader2, Download, Eye } from "lucide-react";
+import { Plus, FileText, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -34,7 +34,6 @@ import {
   AgendaUnidade,
   STATUS_TERMO_LABELS,
 } from "@/types/unidadesLocais";
-import { generateTermoCessao } from "@/lib/pdfTermoCessao";
 
 interface TermosCessaoTabProps {
   unidadeId: string;
@@ -140,7 +139,7 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
 
       if (error) throw error;
 
-      toast.success("Termo de cessão gerado com sucesso!");
+      toast.success("Termo de cessão registrado. O documento é emitido no SEI.");
       setShowForm(false);
       setSelectedReserva("");
       loadTermos();
@@ -150,46 +149,6 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
       toast.error(error.message || "Erro ao gerar termo");
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleDownloadPDF(termo: TermoCessao) {
-    try {
-      // Buscar dados completos
-      const { data: unidade } = await supabase
-        .from("unidades_locais")
-        .select("*")
-        .eq("id", unidadeId)
-        .single();
-
-      let chefeNome = "";
-      if (termo.chefe_responsavel_id) {
-        const { data: nomeacao } = await supabase
-          .from("nomeacoes_chefe_unidade")
-          .select(`
-            *,
-            servidor:servidores(nome_completo)
-          `)
-          .eq("id", termo.chefe_responsavel_id)
-          .single();
-        chefeNome = (nomeacao as any)?.servidor?.nome_completo || "";
-      }
-
-      await generateTermoCessao({
-        numero: `${termo.numero_termo}/${termo.ano}`,
-        unidade: unidade?.nome_unidade || "",
-        municipio: unidade?.municipio || "",
-        cessionario: termo.cessionario_nome,
-        cessionarioDocumento: termo.cessionario_documento || "",
-        finalidade: termo.finalidade,
-        periodoInicio: format(parseISO(termo.periodo_inicio), "dd/MM/yyyy HH:mm"),
-        periodoFim: format(parseISO(termo.periodo_fim), "dd/MM/yyyy HH:mm"),
-        chefeResponsavel: chefeNome,
-        dataEmissao: termo.data_emissao ? format(parseISO(termo.data_emissao), "dd/MM/yyyy") : "",
-      });
-    } catch (error) {
-      console.error("Erro ao gerar PDF:", error);
-      toast.error("Erro ao gerar PDF");
     }
   }
 
@@ -212,7 +171,7 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
         </h3>
         <Button onClick={() => setShowForm(true)} disabled={reservasAprovadas.length === 0}>
           <Plus className="mr-2 h-4 w-4" />
-          Gerar Termo
+          Registrar Termo
         </Button>
       </div>
 
@@ -235,7 +194,6 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
                   <TableHead>Finalidade</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[100px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -259,16 +217,6 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
                         {STATUS_TERMO_LABELS[termo.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDownloadPDF(termo)}
-                        title="Baixar PDF"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -277,13 +225,13 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
         </CardContent>
       </Card>
 
-      {/* Dialog de Geração de Termo */}
+      {/* Dialog de registro do termo */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Gerar Termo de Cessão</DialogTitle>
+            <DialogTitle>Registrar Termo de Cessão</DialogTitle>
             <DialogDescription>
-              Selecione uma reserva aprovada para gerar o termo de cessão
+              Selecione uma reserva aprovada para registrar o termo de cessão (o documento é emitido no SEI)
             </DialogDescription>
           </DialogHeader>
 
@@ -347,7 +295,7 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
               </Button>
               <Button onClick={handleGerarTermo} disabled={saving || !selectedReserva}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Gerar Termo
+                Registrar Termo
               </Button>
             </div>
           </div>

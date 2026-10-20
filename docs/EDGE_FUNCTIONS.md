@@ -27,7 +27,7 @@ Aposentada no P06 (2026-10-15): `backup-offsite` (backup antigo em JSON para out
 | `enviar-notificacao` | Disparos pela configuração de envio da instância. Hoje só a ação `teste` (exige `admin.envios.configurar`). |
 | `download-frequencia` | Devolve URL assinada (1 h) do arquivo de um pacote de frequência do bucket privado `frequencias`, ou só os dados do pacote (`action=info`). Exige o módulo `rh` e `rh.frequencia.visualizar` (ver abaixo). |
 | `database-schema` | Inspeciona o schema do banco (apoia a tela `DatabaseSchemaPage`). |
-| `cpsi-ai-assistant` | Assistente de IA para o formulário CPSI (`CPSIPage`). |
+| `cpsi-ai-assistant` | Assistente de IA do antigo formulário CPSI. A tela saiu na onda 5 do P23 (DFD/ETP/TR são do SEI); a função segue publicada sem chamador no front até a decisão D2 do roadmap. |
 | `bb-api` | APIs de leitura do Banco do Brasil: `status` da conexão, `extrato` (API Extratos v2, grava em `fin_extrato_lancamentos`) e `validar-conta` (API Validação de Contas v1). Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
 
 ### Envio de e-mail e WhatsApp (`_shared/envio`)

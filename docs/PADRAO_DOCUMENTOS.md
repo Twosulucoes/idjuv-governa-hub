@@ -85,7 +85,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 
 | arquivo | linhas | exports | telas | libs | família | fase |
 |---|---|---|---|---|---|---|
-| `src/lib/pdf/rh/memorandoDesignacao.ts` | 181 | `generateMemorandoDesignacao` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
+| pdf/rh/memorandoDesignacao.ts (removido na onda 5 (ato do SEI)) | 181 | `generateMemorandoDesignacao` | 1 | 0 | Ato (fora do escopo) | removido na onda 5 (ato do SEI): a designação continua registrada na aba do servidor |
 | blocoCedencias.ts (removido na onda 2) | 108 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
 | blocoEstrutura.ts (removido na onda 2) | 90 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
 | blocoIdentificacao.ts (removido na onda 2) | 73 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
@@ -93,7 +93,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | blocoPatrimonio.ts (removido na onda 2) | 137 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
 | blocoResponsavel.ts (removido na onda 2) | 79 | — | 0 | 1 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
 | unidades/index.ts (removido na onda 2) | 13 | — | 0 | 0 | Ficha (blocos da ficha de unidade) | migrado na onda 2: `unidades-ficha-unidade-local` |
-| `src/lib/pdfCPSI.ts` | 359 | `generateDFD`, `generateETP`, `generateTR` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
+| pdfCPSI.ts (removido na onda 5 (ato do SEI)) | 359 | `generateDFD`, `generateETP`, `generateTR` | 1 | 0 | Ato (fora do escopo) | removido na onda 5 (ato do SEI), com a tela CPSI e a rota `/formularios/cpsi` |
 | `src/lib/pdfContracheque.ts` | 33 | `generateContracheque`, `generateContrachequeEmLote` | 4 | 0 | Comprovante | migrado na onda 3: `folha-contracheque` |
 | `src/lib/pdfDeclaracoes.ts` | 219 | `gerarDeclaracaoNaoAcumulacao`, `gerarDeclaracaoBensValores` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI (decisão pendente do dono) |
 | `src/lib/pdfFederacoesModular.ts` | 747 | `isMandatoExpirado`, `gerarFichaFederacaoPDF`, `gerarRelatorioListagemPDF` | 0 | 0 | Ficha + Relatório (dividir) | removido no P10 (código morto) |
@@ -131,7 +131,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfRelatoriosRH.ts` | 918 | `generateRelatorioServidoresDiretoria`, `generateRelatorioServidoresVinculo`, `generateRelatorioHistoricoFuncional`, `generateRelatorioVagasCargo`, `generateRelatorioServidoresPortarias` | 1 | 0 | Relatório | migrado na onda 1: `rh-servidores-diretoria`, `rh-servidores-vinculo`, `rh-historico-funcional`, `rh-vagas-cargo`, `rh-servidores-portarias` |
 | `src/lib/pdfTemplate.ts` | 878 | `CORES`, `loadImageWithDimensions`, `calculateLogoDimensions`, `loadLogos`, `PAGINA`, `getPageDimensions`, `setColor`, `generateInstitutionalHeader`, `generateInstitutionalFooter`, `addPageNumbers`, `addSectionHeader`, `addSectionTitle`, `addField`, `addFieldWithLine`, `addTextArea`, `addCheckbox`, `addSignatureArea`, `addLocalData`, `addTableHeader`, `addTableRow`, `formatCPF`, `formatDate`, `formatCurrency`, `generateDocumentNumber`, `checkPageBreak`, `VINCULO_LABELS`, `SITUACAO_LABELS`, `CATEGORIA_LABELS`, `cabecalhoOficial`, `nomeOficialDocumentos`, `nomeEntidadeSuperiorDocumentos`, `rodapeOficial` | 2 | 34 | Base (a eliminar) | F5 |
 | `src/lib/pdfTermoAutorizacao.ts` | 210 | `generateTermoAutorizacao` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
-| `src/lib/pdfTermoCessao.ts` | 138 | `generateTermoCessao` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
+| pdfTermoCessao.ts (removido na onda 5 (ato do SEI)) | 138 | `generateTermoCessao` | 1 | 0 | Ato (fora do escopo) | removido na onda 5 (ato do SEI): o termo continua registrado na aba da unidade |
 | `src/lib/pdfTermoResponsabilidade.ts` | 181 | `generateTermoResponsabilidade` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
 | portariaPdf.ts (removido em 12/10/2026) | 150 | `buildPortariaPdfDoc`, `savePortariaPdf` | 1 | 0 | Ato (fora do escopo) | remover / substituir por registro do SEI |
 
@@ -147,7 +147,7 @@ de portarias desenhado no próprio componente; migrado na onda 5: `portarias-rel
   `generateTermoResponsabilidade` duplica `pdfTermoResponsabilidade.ts` e as `*Modelo` duplicam `pdfModelos.ts`.
 - `pdfModelos.ts` (1.335 linhas, 2 telas): versões em branco (`*Modelo`) e preenchidas (`*Preenchida`) de ficha cadastral,
   declarações e termos, mais relação de documentos. Candidato a virar o mesmo modelo com `dados` opcionais.
-- `pdfCPSI.ts`: DFD, ETP e TR (documentos de contratação) — atos, feitos no SEI; destino: remover / substituir por registro do SEI.
+- pdfCPSI.ts: DFD, ETP e TR (documentos de contratação) — atos, feitos no SEI; removido na onda 5 (ato do SEI), junto com a tela CPSI.
 - `pdfFederacoesModular.ts` (747 linhas, **0 telas**): ficha de federação (Ficha) e listagem (Relatório); `isMandatoExpirado` é regra de negócio, não de PDF.
 - `pdfRelatorioReunioes.ts`: lista de convocados e de presença (Comprovante) e relatório da reunião (Relatório); migrados na onda 3.
 - `pdfRelatoriosAfastamentos.ts`: exportava helpers de tabela (`addCabecalhoTabela`, `quebrarComCabecalho`…) além dos relatórios; na onda 1 os helpers foram apagados e o bloco `tabela` os substituiu.
