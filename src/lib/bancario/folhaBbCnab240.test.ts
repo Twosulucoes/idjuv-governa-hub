@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gerarFolhaBbCnab240, pendenciasFolhaBb, textoFolhaBb } from "@/lib/bancario/folhaBbCnab240";
-import { gerarCNAB240, type DadosEmpresa, type DadosFavorecido, type RemessaCNAB } from "@/lib/cnabGenerator";
+import { gerarCNAB240, validarRemessaCNAB, type DadosEmpresa, type DadosFavorecido, type RemessaCNAB } from "@/lib/cnabGenerator";
 
 // Dados fictícios. A estrutura de cada linha esperada (tudo fora dos campos de dados) é a das remessas que o BB aceitou
 // da folha da instituição em 08/2026; o gerador reproduziu essas remessas byte a byte (só a data inexistente 31/09 foi
@@ -67,6 +67,28 @@ describe("gerarFolhaBbCnab240", () => {
     expect(pendenciasFolhaBb({ favorecidos: poupanca })).toHaveLength(1);
     expect(() => gerarFolhaBbCnab240({ ...remessa, favorecidos: poupanca })).toThrow(/poupança/);
     expect(pendenciasFolhaBb({ favorecidos: [favorecido({ banco: "237", tipoConta: "CP" })] })).toEqual([]);
+  });
+
+  it("exige o convênio do pagador no BB", () => {
+    expect(pendenciasFolhaBb({ empresa: { convenio: "" }, favorecidos })).toEqual([
+      "convênio de pagamento da conta pagadora no BB (Bancos e Contas)",
+    ]);
+    expect(pendenciasFolhaBb({ empresa: { convenio: "000" }, favorecidos })).toHaveLength(1);
+    expect(pendenciasFolhaBb({ empresa: { convenio: "1".repeat(21) }, favorecidos })[0]).toMatch(/20 dígitos/);
+    expect(pendenciasFolhaBb({ empresa, favorecidos })).toEqual([]);
+    expect(() => gerarFolhaBbCnab240({ ...remessa, empresa: { ...empresa, convenio: "" } })).toThrow(/convênio/);
+  });
+
+  it("no BB não pede endereço nem nome do banco do pagador, que o leiaute não leva", () => {
+    const semEndereco = { ...empresa, nomeBanco: "", endereco: { logradouro: "", cidade: "", cep: "", uf: "" } };
+    expect(validarRemessaCNAB(semEndereco, favorecidos)).toEqual([]);
+    expect(validarRemessaCNAB({ ...semEndereco, banco: "237" }, favorecidos)).toContain(
+      "nome do banco da conta pagadora (Bancos e Contas)",
+    );
+    const semCpf = [favorecido({ ...favorecidos[0], cpf: "" })];
+    expect(validarRemessaCNAB(empresa, semCpf, { quem: "beneficiário(s)", dadosDaFicha: false })).toEqual([
+      `CPF de 1 beneficiário(s): ${favorecidos[0].nome}`,
+    ]);
   });
 
   it("leva o identificador do crédito no seu número", () => {

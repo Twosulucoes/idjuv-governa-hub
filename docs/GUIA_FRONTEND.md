@@ -40,7 +40,8 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useVinculosServidor`, `useGestaoLotacao`,
   `useDesignacoes`, `useComissoes` (comissões e membros), `useFrequencia`, `useFrequenciaPacotes`,
   `useParametrizacoesFrequencia`, `useGerarFrequenciaPDF`, `useFolhaPagamento`,
-  `useFolhaCalculos`, `useFechamentoFolha`, `useContracheque`,
+  `useFolhaCalculos`, `useFechamentoFolha`, `useAtosRemuneratorios` (atos que mudam valores da folha e a RPC
+  `aplicar_ato_remuneratorio`), `useContracheque`,
   `useRelatorios`, `usePortarias`, `usePreCadastro`.
 - **Financeiro**: `useFinanceiro` (inclui `useResumoOrcamentario`, `useUltimaImportacaoQdd`,
   `useCriarSolicitacao`, `useCriarContaBancaria`), `useAlteracoesOrcamentarias` (inclui

@@ -49,6 +49,7 @@ import { CancelarRemessaDialog } from "@/components/folha/CancelarRemessaDialog"
 import {
   useBaixarEventoESocial,
   useBaixarRemessaGuardada,
+  ROTULO_TIPO_CREDITO,
   type RemessaComArquivo,
 } from "@/hooks/useArquivosFolha";
 import { FichaFinanceiraDialog } from "@/components/folha/FichaFinanceiraDialog";
@@ -730,6 +731,7 @@ export default function FolhaDetalhePage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Nº Remessa</TableHead>
+                          <TableHead>Créditos</TableHead>
                           <TableHead>Conta</TableHead>
                           <TableHead>Data Geração</TableHead>
                           <TableHead className="text-right">Registros</TableHead>
@@ -743,6 +745,11 @@ export default function FolhaDetalhePage() {
                           <TableRow key={remessa.id}>
                             <TableCell className="font-mono">
                               {remessa.numero_remessa}
+                            </TableCell>
+                            <TableCell>
+                              {remessa.tipo_credito === "pensao"
+                                ? ROTULO_TIPO_CREDITO.pensao
+                                : ROTULO_TIPO_CREDITO.servidores}
                             </TableCell>
                             <TableCell>
                               {(remessa.conta as any)?.banco?.nome || "-"} - {(remessa.conta as any)?.descricao || "-"}

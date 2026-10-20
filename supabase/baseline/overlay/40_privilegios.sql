@@ -294,3 +294,17 @@ REVOKE ALL ON TABLE public.limite_requisicoes_publicas FROM PUBLIC, anon, authen
 REVOKE EXECUTE ON FUNCTION public.limite_publico_consumir(text, integer, text) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.limite_publico_insercao() FROM PUBLIC, anon, authenticated;
 REVOKE INSERT ON public.gestores_escolares FROM anon;
+
+-- ---- folha (migração 20261019200000): IRRF mensal só por dentro de folha_montar_ficha ----
+REVOKE EXECUTE ON FUNCTION public.calcular_irrf_mensal(numeric, numeric, date) FROM PUBLIC, anon, authenticated;
+
+-- ---- folha (migração 20261020100000): atos remuneratórios ----
+-- triggers só por dentro; aplicar_ato_remuneratorio só para authenticated (a guarda no corpo exige o módulo rh e
+-- financeiro.folha.configurar); vencimento_cargo_em roda como quem chama (RLS de cargo_vencimentos vale)
+REVOKE EXECUTE ON FUNCTION public.ato_remuneratorio_integridade() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.ato_remuneratorio_item_integridade() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.cargo_vencimento_pelo_cadastro() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.aplicar_ato_remuneratorio(uuid) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.aplicar_ato_remuneratorio(uuid) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.vencimento_cargo_em(uuid, date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.vencimento_cargo_em(uuid, date) TO authenticated;
