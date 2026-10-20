@@ -37,7 +37,9 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
 - **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
   pode usar e o histórico (`importacoes`). Importadores: QDD do FIPLAN, tabelas do FIPLAN (planilhas "Consultar
   ..." de função, programa, elemento, subelemento, fonte e finalidade de pagamento) e arquivo do banco
-  (OBN600/CNAB 240), do financeiro, e planilha de portarias, do gabinete (com botão "Baixar modelo").
+  (OBN600/CNAB 240), do financeiro, planilha de portarias, do gabinete (com botão "Baixar modelo"), e o espelho da
+  folha do SIGRH (PDF FPAG10, relatório analítico de conferência ou planilha analítica), da folha, que grava a folha
+  mensal já paga, com a ficha de cada servidor, e a deixa fechada.
 - **Envio de e-mail e WhatsApp**: `ConfigEnviosPage` (`/admin/envios`, menu "E-mail e WhatsApp"). O
   cliente configura o remetente (SMTP próprio ou Resend), a identidade visual do e-mail e o WhatsApp
   oficial (Meta Cloud API, templates por uso), grava as credenciais (só escrita, no Vault), envia teste

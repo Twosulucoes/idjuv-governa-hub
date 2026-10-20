@@ -89,7 +89,7 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
   `docs/GUIA_FRONTEND.md` (Importação de dados). A rota usa a própria `PERMISSOES_IMPORTACAO` e o item de menu repete a mesma lista
-  (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`); `src/lib/importacao/registro.test.ts`
+  (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`); `src/lib/importacao/registro.test.ts`
   reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha".
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"
   requiredPermissions="pagamento.conciliar"`); `/financeiro/pagamentos/:id` abre o detalhe real do pagamento

@@ -6,6 +6,7 @@
 import type { Importador } from "./types";
 import { importadorArquivoBancario } from "./importadores/arquivoBancario";
 import { importadorClassificadoresFiplan } from "./importadores/classificadoresFiplan";
+import { importadorFolhaSigrh } from "./importadores/folhaSigrh";
 import { importadorPortariasPlanilha } from "./importadores/portariasPlanilha";
 import { importadorQddFiplan } from "./importadores/qddFiplan";
 
@@ -17,6 +18,7 @@ export const IMPORTADORES: Importador<unknown>[] = [
   generico(importadorClassificadoresFiplan),
   generico(importadorArquivoBancario),
   generico(importadorPortariasPlanilha),
+  generico(importadorFolhaSigrh),
 ];
 
 export function obterImportador(id: string): Importador<unknown> | undefined {

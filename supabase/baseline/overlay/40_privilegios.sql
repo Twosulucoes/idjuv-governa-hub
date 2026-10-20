@@ -313,3 +313,8 @@ GRANT EXECUTE ON FUNCTION public.vencimento_cargo_em(uuid, date) TO authenticate
 -- só para authenticated (a guarda no corpo exige o módulo rh e financeiro.folha.processar)
 REVOKE EXECUTE ON FUNCTION public.registrar_retorno_remessa(uuid, jsonb, jsonb) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.registrar_retorno_remessa(uuid, jsonb, jsonb) TO authenticated;
+
+-- ---- folha (migração 20261022090000): importação da folha histórica do SIGRH ----
+-- só para authenticated (a guarda no corpo exige o módulo rh, financeiro.folha.processar e poder fechar a folha)
+REVOKE ALL ON FUNCTION public.importar_folha_sigrh(jsonb, jsonb, jsonb, boolean) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.importar_folha_sigrh(jsonb, jsonb, jsonb, boolean) TO authenticated;
