@@ -7953,6 +7953,9 @@ DECLARE
   v_pv record;
   v_ficha_id uuid;
   v_prov numeric;
+  v_base numeric;
+  v_rubrica uuid;
+  v_incide boolean;
   v_desc numeric;
   v_inss numeric;
   v_irrf numeric;
@@ -7997,9 +8000,9 @@ BEGIN
   END IF;
   v_d1 := make_date(v_ano, v_mes, 1);
   v_d2 := (v_d1 + interval '1 month - 1 day')::date;
-  IF v_d1 > CURRENT_DATE THEN
-    RAISE EXCEPTION 'A competência %/% ainda não chegou: só se importa folha já paga.', lpad(v_mes::text, 2, '0'), v_ano
-      USING ERRCODE = '22023';
+  IF v_d1 >= date_trunc('month', CURRENT_DATE)::date THEN
+    RAISE EXCEPTION 'A competência %/% não está encerrada: só se importa folha de mês anterior ao atual.',
+      lpad(v_mes::text, 2, '0'), v_ano USING ERRCODE = '22023';
   END IF;
 
   IF jsonb_typeof(p_fichas) IS DISTINCT FROM 'array' OR jsonb_array_length(p_fichas) NOT BETWEEN 1 AND 3000 THEN
@@ -8058,7 +8061,7 @@ BEGIN
         END IF;
 
         SELECT min(s.id::text)::uuid, count(*) INTO v_srv, v_qtd_srv FROM public.servidores s
-         WHERE regexp_replace(COALESCE(s.cpf, ''), '[^0-9]', '', 'g') <> ''
+         WHERE char_length(regexp_replace(COALESCE(s.cpf, ''), '[^0-9]', '', 'g')) BETWEEN 1 AND 11
            AND lpad(regexp_replace(s.cpf, '[^0-9]', '', 'g'), 11, '0') = v_cpf;
         IF v_qtd_srv = 0 THEN
           RAISE EXCEPTION 'Servidor não cadastrado no sistema (procurado pelo CPF): cadastre-o antes de importar.'
@@ -8097,7 +8100,7 @@ BEGIN
           true, now(), false)
         RETURNING id INTO v_ficha_id;
 
-        v_prov := 0; v_desc := 0; v_inss := 0; v_irrf := 0; v_ordem := 0;
+        v_prov := 0; v_base := 0; v_desc := 0; v_inss := 0; v_irrf := 0; v_ordem := 0;
         FOR v_item IN SELECT e FROM jsonb_array_elements(v_ficha->'itens') e LOOP
           v_ordem := v_ordem + 1;
           v_tipo := v_item->>'tipo';
@@ -8111,18 +8114,22 @@ BEGIN
           v_valor := (v_item->>'valor')::numeric;
           v_comp := CASE WHEN COALESCE(v_item->>'competencia', '') ~ '^20\d{2}-(0[1-9]|1[0-2])$'
                          THEN substr(v_item->>'competencia', 6, 2) || '/' || substr(v_item->>'competencia', 1, 4) END;
+          v_rubrica := NULL; v_incide := NULL;
+          SELECT r.id, r.incide_inss INTO v_rubrica, v_incide FROM public.rubricas r
+           WHERE upper(btrim(r.descricao)) = upper(v_descricao) AND r.tipo::text = v_tipo AND r.ativo
+           ORDER BY r.vigencia_inicio DESC LIMIT 1;
           INSERT INTO public.itens_ficha_financeira (ficha_id, rubrica_id, descricao, tipo, valor, referencia, ordem, origem)
           VALUES (
             v_ficha_id,
-            (SELECT r.id FROM public.rubricas r
-              WHERE upper(btrim(r.descricao)) = upper(v_descricao) AND r.tipo::text = v_tipo AND r.ativo
-              ORDER BY r.vigencia_inicio DESC LIMIT 1),
+            v_rubrica,
             v_descricao || COALESCE(' (' || v_comp || ')', ''),
             v_tipo, v_valor,
             nullif(left(btrim(COALESCE(v_item->>'quantidade', '')), 40), ''),
             v_ordem, 'automatico');
           IF v_tipo = 'provento' THEN
             v_prov := v_prov + v_valor;
+            -- rubrica cadastrada que não incide INSS (diária, indenização) fica fora da base; a não cadastrada entra
+            IF v_incide IS DISTINCT FROM false THEN v_base := v_base + v_valor; END IF;
           ELSE
             v_desc := v_desc + v_valor;
             IF upper(v_descricao) LIKE 'INSS%' THEN v_inss := v_inss + v_valor; END IF;
@@ -8130,12 +8137,12 @@ BEGIN
           END IF;
         END LOOP;
 
-        -- base de INSS: o espelho não informa a incidência; nas folhas de cargo em comissão todo provento incide,
-        -- então a base é o total de proventos de quem teve INSS descontado (é sobre ela que sai a parte patronal)
+        -- base de INSS: o espelho não informa a incidência. Vale a da rubrica cadastrada com a mesma descrição; sem
+        -- rubrica, o provento entra (nas folhas de cargo em comissão todo provento incide). Só de quem descontou INSS.
         UPDATE public.fichas_financeiras
            SET total_proventos = v_prov, total_descontos = v_desc, valor_liquido = v_prov - v_desc,
                valor_inss = v_inss, valor_irrf = v_irrf,
-               base_inss = CASE WHEN v_inss > 0 THEN v_prov ELSE 0 END
+               base_inss = CASE WHEN v_inss > 0 THEN v_base ELSE 0 END
          WHERE id = v_ficha_id;
 
         v_n := v_n + 1;
@@ -8201,6 +8208,11 @@ BEGIN
   END;
 
   v_totais := jsonb_build_object('inserir', v_n, 'atualizar', 0, 'sem_alteracao', 0);
+  -- como no processamento: sem as alíquotas, a parte patronal sai zero; avisa na primeira linha
+  IF (v_aliq_patronal IS NULL OR v_aliq_rat IS NULL) AND jsonb_array_length(v_linhas_res) > 0 THEN
+    v_linhas_res := jsonb_set(v_linhas_res, '{0,avisos}', COALESCE(v_linhas_res -> 0 -> 'avisos', '[]'::jsonb) ||
+      to_jsonb('Parâmetros inss_patronal_aliquota ou rat_fap_aliquota sem vigência no mês: a parte patronal da folha sai zero.'::text));
+  END IF;
 
   IF NOT p_simular AND jsonb_array_length(v_erros) = 0 THEN
     INSERT INTO public.importacoes
@@ -8227,7 +8239,7 @@ $_$;
 -- Name: FUNCTION importar_folha_sigrh(p_competencia jsonb, p_fichas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.importar_folha_sigrh(p_competencia jsonb, p_fichas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa a folha mensal histórica do SIGRH (fichas e rubricas por servidor, casado pelo CPF) e a fecha; p_simular = true só calcula; tudo ou nada; recusa competência que já tem folha mensal. Exige módulo rh, financeiro.folha.processar e poder fechar a folha. Migração 20261022090000.';
+COMMENT ON FUNCTION public.importar_folha_sigrh(p_competencia jsonb, p_fichas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa a folha mensal histórica do SIGRH (fichas e rubricas por servidor, casado pelo CPF) e a fecha; p_simular = true só calcula; tudo ou nada; recusa competência que já tem folha mensal. Exige módulo rh, financeiro.folha.processar e poder fechar a folha. Migrações 20261022090000 e 20261022100000.';
 
 
 --

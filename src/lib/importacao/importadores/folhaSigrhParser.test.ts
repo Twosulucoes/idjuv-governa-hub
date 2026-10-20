@@ -36,6 +36,8 @@ describe("paraCentavos", () => {
     expect(paraCentavos("1073,42")).toBe(107342);
     expect(paraCentavos(2010)).toBe(201000);
     expect(paraCentavos("R$ 471.243,00")).toBe(47124300);
+    expect(paraCentavos("1234.56")).toBe(123456);
+    expect(paraCentavos("1.234")).toBe(123400);
     expect(paraCentavos("INSS")).toBeNull();
     expect(paraCentavos("")).toBeNull();
   });

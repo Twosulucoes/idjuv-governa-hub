@@ -237,9 +237,10 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
   `importar_classificadores_fiplan` recusa (`42501`) sem `orcamento.importar`, sem o módulo financeiro e sem sessão;
   tabela desconhecida e lista vazia (`22023`); simulação não grava; aplicação grava, registra e corrige nomes de fonte,
   programa e natureza; código repetido ou fora do padrão não grava nada; INSERT/UPDATE direto pela API não passa;
-- importação da folha do SIGRH (migração `20261022090000`, bloco "FOLHA: importação da folha do SIGRH" de
+- importação da folha do SIGRH (migrações `20261022090000` e `20261022100000`, bloco "FOLHA: importação da folha do SIGRH" de
   `testar-rls.sql`): anon e PUBLIC sem EXECUTE; quem processa a folha sem poder fechá-la recusa (`42501`); competência
-  futura e lista vazia (`22023`); simulação não grava e avisa servidor sem provimento; CPF desconhecido é erro da linha,
+  futura, mês corrente e lista vazia (`22023`); simulação não grava e avisa servidor sem provimento e falta das
+  alíquotas patronais; provento de rubrica que não incide INSS fora da base; CPF desconhecido é erro da linha,
   sem gravar nem devolver o CPF; aplicação cria a folha fechada com fichas, itens e totais e o log sem CPF; competência
   que já tem folha mensal recusada (`23505`);
 - parte patronal e INSS por faixa da folha (migração `20261021100000`, bloco "FOLHA: parte patronal e INSS por faixa"

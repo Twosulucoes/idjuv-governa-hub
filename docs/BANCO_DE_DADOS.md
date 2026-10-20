@@ -688,12 +688,15 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   competência do retroativo e valor) e grava, tudo ou nada: a folha mensal da competência (observação e justificativa
   "Folha histórica importada do SIGRH (arquivo …)"), uma ficha por servidor casado pelo CPF (só dígitos; o cargo e a
   unidade do provimento vigente no mês, a função como paga no espelho, INSS e IRRF somados das rubricas, base de INSS
-  igual aos proventos de quem descontou INSS), os itens (`origem` `automatico`, rubrica ligada pela descrição, a
+  igual aos proventos de quem descontou INSS, menos os de rubrica cadastrada que não incide INSS; `base_irrf` e a
+  dedução de dependentes ficam vazias, porque o espelho não as traz), os itens (`origem` `automatico`, rubrica ligada pela descrição, a
   competência do retroativo na descrição), a parte patronal pela regra do processamento e o fechamento por
-  `fechar_folha`. Recusa a competência futura e lista vazia (`22023`) e a que já tem folha mensal (`23505`); servidor
+  `fechar_folha`. Recusa o mês corrente e o futuro (só mês encerrado) e lista vazia (`22023`) e a que já tem folha mensal (`23505`); servidor
   não cadastrado ou CPF em dois cadastros é erro da linha, e com erro nada é gravado; com `p_simular` tudo é desfeito
   no fim. O log em `importacoes` (`tipo` `folha_sigrh`, `exercicio` = ano) guarda competência, totais e a ficha de
-  cada linha, sem CPF. Testes no bloco "FOLHA: importação da folha do SIGRH" de `scripts/db/testar-rls.sql`.
+  cada linha, sem CPF. Sem as alíquotas patronais no mês, avisa que a parte patronal sai zero. Ajustes da revisão na
+  migração `20261022100000` (mês corrente, CPF do cadastro com mais de 11 dígitos não casa, base de INSS, aviso das
+  alíquotas). Testes no bloco "FOLHA: importação da folha do SIGRH" de `scripts/db/testar-rls.sql`.
 - **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
   `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez**, depois do INSERT, e só
   por quem: tem o módulo `rh` e `financeiro.folha.processar` (`42501`), **gerou a remessa** (`gerado_por`, fixado pela
