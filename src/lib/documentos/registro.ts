@@ -34,6 +34,7 @@ import { quadroCargos } from './modelos/cargos/quadroCargos';
 import { relatorioGovernanca } from './modelos/governanca/relatorioAnual';
 import { organogramaDesenho } from './modelos/organograma/desenho';
 import { organogramaLista } from './modelos/organograma/lista';
+import { relatorioPortarias, relatorioPortariasPaisagem } from './modelos/portarias/relatorioPortarias';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -102,6 +103,9 @@ export const REGISTRO = {
   // Organograma — OrganogramaPage (lista hierárquica e desenho)
   'organograma-lista': organogramaLista,
   'organograma-desenho': organogramaDesenho,
+  // Portarias — RelatorioPortariasDialog (Central de Portarias; paisagem quando a tela marca muitas colunas)
+  'portarias-relatorio': relatorioPortarias,
+  'portarias-relatorio-paisagem': relatorioPortariasPaisagem,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
