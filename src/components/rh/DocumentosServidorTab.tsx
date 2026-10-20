@@ -38,11 +38,8 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import {
-  generateFichaCadastralModelo,
-  generateDeclaracaoAcumulacaoModelo,
-  generateDeclaracaoBensModelo,
-} from "@/lib/pdfModelos";
+import { generateFichaCadastralModelo } from "@/lib/pdfModelos";
+import { baixarDeclaracaoAcumulacao, baixarDeclaracaoBens } from "@/lib/declaracoesServidor";
 import { abrirArquivoPrivado } from "@/lib/storageArquivos";
 import { abrirArquivoPortaria } from "@/lib/portarias/arquivoPortaria";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
@@ -62,8 +59,8 @@ function extensaoPermitida(nome: string): string | null {
 // Tipos de documento disponíveis para requerimento
 const TIPOS_REQUERIMENTO = [
   { value: "ficha_cadastral", label: "Ficha Cadastral", gerador: generateFichaCadastralModelo },
-  { value: "declaracao_acumulacao", label: "Declaração de Não Acumulação de Cargos", gerador: generateDeclaracaoAcumulacaoModelo },
-  { value: "declaracao_bens", label: "Declaração de Bens e Valores", gerador: generateDeclaracaoBensModelo },
+  { value: "declaracao_acumulacao", label: "Declaração de Não Acumulação de Cargos", gerador: () => baixarDeclaracaoAcumulacao() },
+  { value: "declaracao_bens", label: "Declaração de Bens e Valores", gerador: () => baixarDeclaracaoBens() },
   { value: "requerimento_ferias", label: "Requerimento de Férias", gerador: null },
   { value: "requerimento_licenca", label: "Requerimento de Licença", gerador: null },
   { value: "requerimento_geral", label: "Requerimento Geral", gerador: null },
