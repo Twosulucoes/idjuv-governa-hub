@@ -35,6 +35,11 @@ import { relatorioGovernanca } from './modelos/governanca/relatorioAnual';
 import { organogramaDesenho } from './modelos/organograma/desenho';
 import { organogramaLista } from './modelos/organograma/lista';
 import { relatorioPortarias, relatorioPortariasPaisagem } from './modelos/portarias/relatorioPortarias';
+import { termoDemanda } from './modelos/formularios/termoDemanda';
+import { ordemMissao } from './modelos/formularios/ordemMissao';
+import { relatorioViagem } from './modelos/formularios/relatorioViagem';
+import { requisicaoMaterial } from './modelos/formularios/requisicaoMaterial';
+import { termoResponsabilidade } from './modelos/formularios/termoResponsabilidade';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -106,6 +111,12 @@ export const REGISTRO = {
   // Portarias — RelatorioPortariasDialog (Central de Portarias; paisagem quando a tela marca muitas colunas)
   'portarias-relatorio': relatorioPortarias,
   'portarias-relatorio-paisagem': relatorioPortariasPaisagem,
+  // Formulários administrativos — páginas de /formularios (preenchidos) e Modelos de documentos (em branco)
+  'formularios-termo-demanda': termoDemanda,
+  'formularios-ordem-missao': ordemMissao,
+  'formularios-relatorio-viagem': relatorioViagem,
+  'formularios-requisicao-material': requisicaoMaterial,
+  'formularios-termo-responsabilidade': termoResponsabilidade,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;

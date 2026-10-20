@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
-import { generateOrdemMissao, generateDocumentNumber } from '@/lib/pdfGenerator';
+import { baixarOrdemMissao, numeroDoFormulario } from '@/lib/formulariosAdministrativos';
 import { toUpperCase } from '@/lib/formatters';
 
 const ordemMissaoSchema = z.object({
@@ -56,9 +56,9 @@ const OrdemMissaoPage = () => {
     setIsGenerating(true);
     
     try {
-      const numero = generateDocumentNumber('OM');
+      const numero = numeroDoFormulario('OM');
       
-      generateOrdemMissao({
+      await baixarOrdemMissao({
         servidor: data.servidor,
         cargo: data.cargo,
         matricula: data.matricula,
@@ -66,7 +66,8 @@ const OrdemMissaoPage = () => {
         objetivo: data.objetivo,
         dataInicio: data.dataInicio,
         dataFim: data.dataFim,
-        meioTransporte: data.meioTransporte,
+        // Meio de transporte sai pelo nome, não pelo código do select.
+        meioTransporte: meiosTransporte.find((t) => t.value === data.meioTransporte)?.label ?? data.meioTransporte,
         diarias: data.diarias,
         valorDiarias: data.valorDiarias,
         observacoes: data.observacoes || '',

@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
-import { generateRequisicaoMaterial, generateDocumentNumber } from '@/lib/pdfGenerator';
+import { baixarRequisicaoMaterial, numeroDoFormulario } from '@/lib/formulariosAdministrativos';
 
 const requisicaoMaterialSchema = z.object({
   solicitante: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
@@ -47,15 +47,16 @@ const RequisicaoMaterialPage = () => {
     setIsGenerating(true);
     
     try {
-      const numero = generateDocumentNumber('RM');
+      const numero = numeroDoFormulario('RM');
       
-      generateRequisicaoMaterial({
+      await baixarRequisicaoMaterial({
         solicitante: data.solicitante,
         cargo: data.cargo,
         setor: data.setor,
         itens: data.itens,
         justificativa: data.justificativa,
-        urgencia: data.urgencia,
+        // Urgência sai pelo nome ('Normal'), não pelo código do select.
+        urgencia: urgencias.find((u) => u.value === data.urgencia)?.label.split(' - ')[0] ?? data.urgencia,
         observacoes: data.observacoes || '',
       }, numero);
       

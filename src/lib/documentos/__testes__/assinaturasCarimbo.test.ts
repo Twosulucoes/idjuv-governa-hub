@@ -39,6 +39,14 @@ describe('assinaturas', () => {
     const [p1] = await lerPdf(gerar([assinaturas({ assinantes: [{ nome: 'A1' }, { nome: 'B2' }, { nome: 'C3' }] })]));
     for (const n of ['A1', 'B2', 'C3']) expect(p1.texto).toContain(n);
   });
+
+  it('porFileira 3: as três assinaturas na mesma linha, da esquerda para a direita', async () => {
+    const [p1] = await lerPdf(gerar([assinaturas({ assinantes: [{ nome: 'A1' }, { nome: 'B2' }, { nome: 'C3' }], porFileira: 3 })]));
+    const [a, b, c] = ['A1', 'B2', 'C3'].map((n) => p1.itens.find((i) => i.str === n)!);
+    expect(Math.abs(a.y - c.y)).toBeLessThan(1);
+    expect(b.x).toBeGreaterThan(a.x);
+    expect(c.x).toBeGreaterThan(b.x);
+  });
 });
 
 describe('carimbo', () => {

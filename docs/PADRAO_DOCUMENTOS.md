@@ -57,6 +57,17 @@
 > linha; a categoria sai com o rótulo, não com o código; agrupamento, ordenação e filtros aplicados passam a ser
 > impressos. O interruptor "Incluir logos" saiu: cabeçalho e logos vêm do motor (identidade do tenant), e o
 > subtítulo padrão com o nome do órgão escrito à mão também.
+>
+> **Onda 5, formulários administrativos (grupo B):** termo de demanda, ordem de missão, relatório de viagem,
+> requisição de material e termo de responsabilidade patrimonial viraram um modelo cada em
+> `src/lib/documentos/modelos/formularios/` (`formularios-termo-demanda`, `formularios-ordem-missao`, `formularios-relatorio-viagem`, `formularios-requisicao-material`, `formularios-termo-responsabilidade`). O preenchido (páginas de
+> `/formularios`) e o em branco (Modelos de documentos do RH) são o mesmo modelo: sem `preenchido`, os campos saem
+> com linha para preencher, as escolhas (prioridade, urgência, passagem aérea) com "(   )" e materiais/bens numa
+> tabela vazia. As cópias de `pdfGenerator` e `pdfModelos` foram apagadas; as telas chamam
+> `src/lib/formulariosAdministrativos.ts`. Cidade fixa, "IDJUV" nas declarações (vira a sigla do tenant) e o
+> setor fixo da ordem de missão e do relatório de viagem saíram; local e data vêm de `localDaSede()`. O bloco
+> `assinaturas` ganhou `porFileira: 3` (três assinaturas numa linha). O relatório de viagem em branco ocupa duas
+> páginas; os demais, uma.
 
 ## 1. Famílias
 
@@ -101,13 +112,13 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfFichaUnidadeLocal.ts` | 117 | — | 1 | 0 | Ficha | migrado na onda 2: `unidades-ficha-unidade-local` |
 | `src/lib/pdfFrequenciaLote.ts` | 141 | `generateFrequenciaLotePDFInternal`, `generateFrequenciaLotePDF`, `generateFrequenciaLoteBlob` | 1 | 0 | Comprovante | migrado na onda 3: `rh-folha-frequencia` |
 | `src/lib/pdfFrequenciaMensalGenerator.ts` | 234 | `gerarRegistrosDiariosBranco`, `calcularResumoMensal`, `paraFolhaFrequencia`, `localDaSede`, `generateFrequenciaMensalPDF`, `generateFrequenciaMensalBlob` | 2 | 1 | Comprovante | migrado na onda 3: `rh-folha-frequencia` |
-| `src/lib/pdfGenerator.ts` | 1075 | `generateTermoDemanda`, `generateOrdemMissao`, `generateRelatorioViagem`, `generateRequisicaoMaterial`, `generateTermoResponsabilidade`, `generateDocumentNumber`, `generateRelatorioCargos`, `generateRelatorioGovernancaPDF`, `generateFichaCadastral`, `generateDeclaracaoAcumulacao`, `generateDeclaracaoBens`, `generateDeclaracaoResidencia`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoBensModelo` | 14 | 1 | Misto (dividir por documento) | SEI (atos; decisão pendente p/ declarações, requisição de material, relatório de viagem, termo de responsabilidade) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`); relatórios de cargos e de governança migrados na onda 4 |
+| `src/lib/pdfGenerator.ts` | 1075 | `generateTermoDemanda`, `generateOrdemMissao`, `generateRelatorioViagem`, `generateRequisicaoMaterial`, `generateTermoResponsabilidade`, `generateDocumentNumber`, `generateRelatorioCargos`, `generateRelatorioGovernancaPDF`, `generateFichaCadastral`, `generateDeclaracaoAcumulacao`, `generateDeclaracaoBens`, `generateDeclaracaoResidencia`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoBensModelo` | 14 | 1 | Misto (dividir por documento) | SEI (atos; decisão pendente p/ declarações) / F3 / F4; termo de demanda, ordem de missão, relatório de viagem, requisição de material e termo de responsabilidade migrados na onda 5: `formularios-termo-demanda`, `formularios-ordem-missao`, `formularios-relatorio-viagem`, `formularios-requisicao-material`, `formularios-termo-responsabilidade`; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`); relatórios de cargos e de governança migrados na onda 4 |
 | `src/lib/pdfInstitucional.ts` | 656 | `CORES_INSTITUCIONAIS`, `MARGENS`, `TIPOGRAFIA`, `carregarLogos`, `getDimensoesPagina`, `gerarCabecalhoInstitucional`, `gerarRodapeInstitucional`, `adicionarSecao`, `adicionarTituloSecao`, `adicionarCampo`, `adicionarCampoInline`, `verificarQuebraPagina`, `criarDocumentoInstitucional`, `finalizarDocumentoInstitucional` | 0 | 4 | Base (a eliminar) | F5 |
 | `src/lib/pdfListagemUnidades.ts` | 15 | `generateListagemUnidades` | 1 | 0 | Relatório | migrado na onda 4: `unidades-listagem` |
 | `src/lib/pdfLogos.ts` | 81 | `LOGO_ASPECTOS`, `calcularDimensoesLogos`, `LOGO_CONFIG_PADRAO`, `getLogosPDF` | 0 | 5 | Base (a eliminar) | F5 |
 | `src/lib/pdfMemorandoLotacao.ts` | 203 | `generateMemorandoLotacao`, `downloadMemorandoLotacao` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
 | `src/lib/pdfMiniCurriculo.ts` | 453 | `gerarPdfMiniCurriculo` | 2 | 0 | Ficha | migrado na onda 2: `curriculo-mini-curriculo` |
-| `src/lib/pdfModelos.ts` | 1335 | `generateRelacaoDocumentosModelo`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoAcumulacaoPreenchida`, `generateDeclaracaoBensModelo`, `generateDeclaracaoBensPreenchida`, `generateTermoDemandaModelo`, `generateOrdemMissaoModelo`, `generateRelatorioViagemModelo`, `generateRequisicaoMaterialModelo`, `generateTermoResponsabilidadeModelo` | 2 | 0 | Misto (dividir por documento) | SEI (termos, declarações; decisão pendente) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`) |
+| `src/lib/pdfModelos.ts` | 1335 | `generateRelacaoDocumentosModelo`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoAcumulacaoPreenchida`, `generateDeclaracaoBensModelo`, `generateDeclaracaoBensPreenchida`, `generateTermoDemandaModelo`, `generateOrdemMissaoModelo`, `generateRelatorioViagemModelo`, `generateRequisicaoMaterialModelo`, `generateTermoResponsabilidadeModelo` | 2 | 0 | Misto (dividir por documento) | SEI (declarações; decisão pendente) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`); modelos em branco dos formulários administrativos migrados na onda 5 (mesmos tipos `formularios-*` do preenchido) |
 | `src/lib/pdfOrganograma.ts` | 108 | `gerarOrganogramaPDF`, `gerarOrganogramaListaPDF` | 2 | 0 | Relatório | migrado na onda 4: `organograma-lista`, `organograma-desenho` |
 | pdfPortarias.ts (removido em 12/10/2026) | 930 | `generatePortariaUnificadaPdf`, `generatePortariaColetivaComTabela`, `generatePortariaNomeacao`, `generatePortariaExoneracao`, `generatePortariaDesignacao` | 2 | 1 | Ato (fora do escopo) | remover / substituir por registro do SEI |
 | `src/lib/pdfRelatorioAgrupadoPortaria.ts` | 298 | `generateRelatorioAgrupadoPortaria` | 1 | 0 | Relatório | migrado na onda 1: `rh-agrupado-portaria` |
