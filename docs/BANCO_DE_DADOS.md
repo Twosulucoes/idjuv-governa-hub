@@ -321,6 +321,29 @@ Cálculo do INSS e do IRRF (migração `20261019200000_folha_irrf_lei15270_regim
   converte o que estiver gravado em %. `parametros_folha.valor` passou a `numeric(18,6)`.
 - Testes no bloco "FOLHA: cálculo do INSS e do IRRF" de `scripts/db/testar-rls.sql`.
 
+Atos remuneratórios (migração `20261020100000_folha_atos_remuneratorios.sql`, em PR rascunho):
+
+- `atos_remuneratorios` (tipo, número, datas do ato e da publicação, `vigencia_inicio`, ementa, percentual,
+  processo SEI, link) e `atos_remuneratorios_itens` (alvo `cargo`, `rubrica` ou `parametro`, `valor_novo`,
+  `valor_anterior` gravado ao aplicar; um alvo por item e por ato): classe `permissao` do mapa, o módulo `rh` lê e a
+  escrita exige `financeiro.folha.configurar`. O ato nasce `rascunho`; itens só mudam com o ato em rascunho; aplicado,
+  ato e itens não mudam nem saem (`RHE02`, triggers `ato_remuneratorio_integridade` e
+  `ato_remuneratorio_item_integridade`).
+- `cargo_vencimentos` (classe `trilha`, imutável): vencimento ou subsídio do cargo por vigência, com origem `inicial`
+  (o valor do cadastro antes do primeiro ato, vigente desde 1900-01-01), `ato` ou `cadastro`.
+  `vencimento_cargo_em(cargo, data)` devolve o vigente na data e, sem histórico, `cargos.vencimento_base`. Em cargo com
+  histórico, mudar `cargos.vencimento_base` grava uma linha `cadastro` vigente de hoje (trigger
+  `trg_cargo_vencimento_pelo_cadastro`).
+- `aplicar_ato_remuneratorio(ato)` (`SECURITY DEFINER`, só `authenticated`; exige o módulo `rh` e
+  `financeiro.folha.configurar`, senão `42501`): tudo ou nada. Cargo: linha no histórico e
+  `cargos.vencimento_base` com o valor vigente hoje (ato com vigência futura não muda o cadastro agora). Rubrica: troca
+  `formula_valor` (as rubricas não têm vigência por valor). Parâmetro: fecha a vigência aberta na véspera e cria a nova;
+  recusa (`22023`) quando já há valor com vigência igual ou posterior.
+- `processar_folha_pagamento` e `folha_montar_ficha` leem o vencimento por `vencimento_cargo_em` no último dia da
+  competência; vigência que começa depois do dia 1 marca a ficha com `vencimento_alterado_na_competencia` (o mês sai
+  com o valor novo inteiro). Diferenças de meses já fechados não são calculadas.
+- Testes no bloco "FOLHA: atos remuneratórios" de `scripts/db/testar-rls.sql`.
+
 Segurança da folha (migração `supabase/migrations/20261010070000_onda_b_folha_rls_permissao.sql`, mesclada
 na PR #63; idempotente, vale tanto para o banco do baseline quanto para o produzido só
 pelas migrações):

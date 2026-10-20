@@ -903,6 +903,153 @@ export type Database = {
           },
         ]
       }
+      atos_remuneratorios: {
+        Row: {
+          aplicado_em: string | null
+          aplicado_por: string | null
+          created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
+          data_ato: string
+          data_publicacao: string | null
+          ementa: string
+          id: string
+          link_publicacao: string | null
+          numero: string
+          observacoes: string | null
+          percentual: number | null
+          processo_sei: string | null
+          status: string
+          tipo_ato: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
+          vigencia_inicio: string
+        }
+        ComputedFields: never
+        Insert: {
+          aplicado_em?: string | null
+          aplicado_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          data_ato: string
+          data_publicacao?: string | null
+          ementa: string
+          id?: string
+          link_publicacao?: string | null
+          numero: string
+          observacoes?: string | null
+          percentual?: number | null
+          processo_sei?: string | null
+          status?: string
+          tipo_ato: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          aplicado_em?: string | null
+          aplicado_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          data_ato?: string
+          data_publicacao?: string | null
+          ementa?: string
+          id?: string
+          link_publicacao?: string | null
+          numero?: string
+          observacoes?: string | null
+          percentual?: number | null
+          processo_sei?: string | null
+          status?: string
+          tipo_ato?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: []
+      }
+      atos_remuneratorios_itens: {
+        Row: {
+          alvo: string
+          ato_id: string
+          cargo_id: string | null
+          created_at: string | null
+          created_by: string | null
+          created_by_servidor_id: string | null
+          id: string
+          observacao: string | null
+          rubrica_id: string | null
+          tipo_parametro: string | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_servidor_id: string | null
+          valor_anterior: number | null
+          valor_novo: number
+        }
+        ComputedFields: never
+        Insert: {
+          alvo: string
+          ato_id: string
+          cargo_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          id?: string
+          observacao?: string | null
+          rubrica_id?: string | null
+          tipo_parametro?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+          valor_anterior?: number | null
+          valor_novo: number
+        }
+        Update: {
+          alvo?: string
+          ato_id?: string
+          cargo_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          created_by_servidor_id?: string | null
+          id?: string
+          observacao?: string | null
+          rubrica_id?: string | null
+          tipo_parametro?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_servidor_id?: string | null
+          valor_anterior?: number | null
+          valor_novo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atos_remuneratorios_itens_ato_id_fkey"
+            columns: ["ato_id"]
+            isOneToOne: false
+            referencedRelation: "atos_remuneratorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atos_remuneratorios_itens_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atos_remuneratorios_itens_rubrica_id_fkey"
+            columns: ["rubrica_id"]
+            isOneToOne: false
+            referencedRelation: "rubricas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_colunas_sensiveis: {
         Row: {
           coluna: string
@@ -2348,6 +2495,55 @@ export type Database = {
             columns: ["unidade_especifica_id"]
             isOneToOne: false
             referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cargo_vencimentos: {
+        Row: {
+          ato_id: string | null
+          cargo_id: string
+          created_at: string
+          id: string
+          origem: string
+          registrado_por: string | null
+          valor: number
+          vigencia_inicio: string
+        }
+        ComputedFields: never
+        Insert: {
+          ato_id?: string | null
+          cargo_id: string
+          created_at?: string
+          id?: string
+          origem: string
+          registrado_por?: string | null
+          valor: number
+          vigencia_inicio: string
+        }
+        Update: {
+          ato_id?: string | null
+          cargo_id?: string
+          created_at?: string
+          id?: string
+          origem?: string
+          registrado_por?: string | null
+          valor?: number
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargo_vencimentos_ato_id_fkey"
+            columns: ["ato_id"]
+            isOneToOne: false
+            referencedRelation: "atos_remuneratorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargo_vencimentos_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
             referencedColumns: ["id"]
           },
         ]
@@ -24154,6 +24350,7 @@ export type Database = {
           nome: string
         }[]
       }
+      aplicar_ato_remuneratorio: { Args: { p_ato_id: string }; Returns: Json }
       arbitro_cpf_cadastrado: { Args: { p_cpf: string }; Returns: boolean }
       atualizar_codigos_unidades_locais: {
         Args: Record<PropertyKey, never>
@@ -25266,6 +25463,10 @@ export type Database = {
       usuario_tem_permissao_financeira: {
         Args: { p_permissao: string; p_user_id: string }
         Returns: boolean
+      }
+      vencimento_cargo_em: {
+        Args: { p_cargo_id: string; p_data: string }
+        Returns: number
       }
       verificar_conflito_agenda: {
         Args: {

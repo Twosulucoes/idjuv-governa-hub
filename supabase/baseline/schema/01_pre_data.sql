@@ -1668,6 +1668,100 @@ $$;
 
 
 --
+-- Name: aplicar_ato_remuneratorio(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.aplicar_ato_remuneratorio(p_ato_id uuid) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_ato record;
+  v_item record;
+  v_vig date;
+  v_ant numeric;
+  v_hoje date := public.data_local();
+  v_ident text;
+  v_cargos int := 0; v_rubricas int := 0; v_parametros int := 0;
+BEGIN
+  IF v_uid IS NULL OR NOT coalesce(public.can_access_module(v_uid, 'rh')
+                                   AND public.has_permission_code(v_uid, 'financeiro.folha.configurar'), false) THEN
+    RAISE EXCEPTION 'Aplicar ato remuneratório exige o módulo rh e a permissão financeiro.folha.configurar'
+      USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_ato FROM public.atos_remuneratorios WHERE id = p_ato_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Ato remuneratório não encontrado' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_ato.status <> 'rascunho' THEN
+    RAISE EXCEPTION 'O ato % % já foi aplicado', v_ato.tipo_ato, v_ato.numero USING ERRCODE = 'RHE02';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.atos_remuneratorios_itens WHERE ato_id = p_ato_id) THEN
+    RAISE EXCEPTION 'O ato não tem itens: informe o que ele muda (cargo, rubrica ou parâmetro)' USING ERRCODE = '22023';
+  END IF;
+  v_vig := v_ato.vigencia_inicio;
+  v_ident := initcap(replace(v_ato.tipo_ato, '_', ' ')) || ' ' || v_ato.numero;
+  PERFORM set_config('ato.aplicar', p_ato_id::text, true);
+
+  FOR v_item IN SELECT * FROM public.atos_remuneratorios_itens WHERE ato_id = p_ato_id ORDER BY alvo, created_at, id
+                FOR UPDATE LOOP
+    IF v_item.alvo = 'cargo' THEN
+      PERFORM 1 FROM public.cargos WHERE id = v_item.cargo_id FOR UPDATE;
+      v_ant := public.vencimento_cargo_em(v_item.cargo_id, v_vig - 1);
+      -- primeira vez: o valor do cadastro vira o ponto de partida do histórico
+      IF NOT EXISTS (SELECT 1 FROM public.cargo_vencimentos WHERE cargo_id = v_item.cargo_id) THEN
+        INSERT INTO public.cargo_vencimentos (cargo_id, valor, vigencia_inicio, origem, registrado_por)
+        SELECT c.id, coalesce(c.vencimento_base, 0), '1900-01-01'::date, 'inicial', v_uid
+          FROM public.cargos c WHERE c.id = v_item.cargo_id;
+      END IF;
+      INSERT INTO public.cargo_vencimentos (cargo_id, valor, vigencia_inicio, ato_id, origem, registrado_por)
+      VALUES (v_item.cargo_id, round(v_item.valor_novo, 2), v_vig, p_ato_id, 'ato', v_uid);
+      UPDATE public.cargos SET vencimento_base = public.vencimento_cargo_em(id, v_hoje)
+       WHERE id = v_item.cargo_id AND vencimento_base IS DISTINCT FROM public.vencimento_cargo_em(id, v_hoje);
+      v_cargos := v_cargos + 1;
+    ELSIF v_item.alvo = 'rubrica' THEN
+      SELECT formula_valor INTO v_ant FROM public.rubricas WHERE id = v_item.rubrica_id FOR UPDATE;
+      UPDATE public.rubricas SET formula_valor = v_item.valor_novo WHERE id = v_item.rubrica_id;
+      v_rubricas := v_rubricas + 1;
+    ELSE
+      IF EXISTS (SELECT 1 FROM public.parametros_folha
+                  WHERE tipo_parametro = lower(btrim(v_item.tipo_parametro)) AND coalesce(ativo, true)
+                    AND vigencia_inicio >= v_vig) THEN
+        RAISE EXCEPTION 'O parâmetro % já tem valor com vigência a partir de %: confira antes de aplicar o ato',
+          v_item.tipo_parametro, to_char(v_vig, 'DD/MM/YYYY') USING ERRCODE = '22023';
+      END IF;
+      v_ant := nullif(public.get_parametro_vigente(v_item.tipo_parametro::text, v_vig - 1), 0);
+      UPDATE public.parametros_folha SET vigencia_fim = v_vig - 1
+       WHERE tipo_parametro = lower(btrim(v_item.tipo_parametro)) AND coalesce(ativo, true)
+         AND vigencia_inicio < v_vig AND (vigencia_fim IS NULL OR vigencia_fim >= v_vig);
+      INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, descricao, observacoes, ativo)
+      SELECT v_item.tipo_parametro, v_item.valor_novo, v_vig,
+             coalesce((SELECT p.descricao FROM public.parametros_folha p
+                        WHERE p.tipo_parametro = lower(btrim(v_item.tipo_parametro)) AND p.descricao IS NOT NULL
+                        ORDER BY p.vigencia_inicio DESC LIMIT 1), v_item.tipo_parametro),
+             v_ident, true;
+      v_parametros := v_parametros + 1;
+    END IF;
+    UPDATE public.atos_remuneratorios_itens SET valor_anterior = v_ant WHERE id = v_item.id;
+  END LOOP;
+
+  UPDATE public.atos_remuneratorios SET status = 'aplicado', aplicado_em = now(), aplicado_por = v_uid WHERE id = p_ato_id;
+  PERFORM set_config('ato.aplicar', '', true);
+  RETURN jsonb_build_object('ato_id', p_ato_id, 'cargos', v_cargos, 'rubricas', v_rubricas, 'parametros', v_parametros,
+                            'vigencia_inicio', v_vig);
+END;
+$$;
+
+
+--
+-- Name: FUNCTION aplicar_ato_remuneratorio(p_ato_id uuid); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.aplicar_ato_remuneratorio(p_ato_id uuid) IS 'Aplica o ato remuneratório em rascunho, tudo ou nada: vencimento do cargo no histórico por vigência, valor da rubrica, nova vigência do parâmetro; grava o valor anterior de cada item. Exige o módulo rh e financeiro.folha.configurar. Migração 20261020100000.';
+
+
+--
 -- Name: arbitro_cpf_cadastrado(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1684,6 +1778,73 @@ BEGIN
     SELECT 1
     FROM public.cadastro_arbitros
     WHERE regexp_replace(coalesce(cpf, ''), '\D', '', 'g') = regexp_replace(p_cpf, '\D', '', 'g'));
+END;
+$$;
+
+
+--
+-- Name: ato_remuneratorio_integridade(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.ato_remuneratorio_integridade() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_aplicando boolean;
+  v_carimbo text[] := ARRAY['updated_at', 'updated_by', 'updated_by_servidor_id'];
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.status <> 'rascunho' OR NEW.aplicado_em IS NOT NULL OR NEW.aplicado_por IS NOT NULL THEN
+      RAISE EXCEPTION 'Ato remuneratório nasce em rascunho: aplique com aplicar_ato_remuneratorio' USING ERRCODE = 'RHE02';
+    END IF;
+    RETURN NEW;
+  END IF;
+  v_aplicando := coalesce(current_setting('ato.aplicar', true), '') = OLD.id::text;
+  IF OLD.status = 'aplicado' THEN
+    IF TG_OP = 'DELETE' OR (to_jsonb(NEW) - v_carimbo) IS DISTINCT FROM (to_jsonb(OLD) - v_carimbo) THEN
+      RAISE EXCEPTION 'O ato % % já foi aplicado e não muda nem sai: registre outro ato para corrigir',
+        OLD.tipo_ato, OLD.numero USING ERRCODE = 'RHE02';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'UPDATE' AND NOT v_aplicando
+     AND (NEW.status <> 'rascunho' OR NEW.aplicado_em IS NOT NULL OR NEW.aplicado_por IS NOT NULL) THEN
+    RAISE EXCEPTION 'Aplicar o ato só pela RPC aplicar_ato_remuneratorio' USING ERRCODE = 'RHE02';
+  END IF;
+  RETURN CASE TG_OP WHEN 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+
+
+--
+-- Name: ato_remuneratorio_item_integridade(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.ato_remuneratorio_item_integridade() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_ato record;
+  v_id uuid := CASE TG_OP WHEN 'DELETE' THEN OLD.ato_id ELSE NEW.ato_id END;
+BEGIN
+  SELECT id, status, tipo_ato, numero INTO v_ato FROM public.atos_remuneratorios WHERE id = v_id;
+  -- ato apagado (cascata de rascunho): o item sai junto
+  IF NOT FOUND AND TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  IF TG_OP = 'UPDATE' AND NEW.ato_id IS DISTINCT FROM OLD.ato_id THEN
+    RAISE EXCEPTION 'O item não muda de ato' USING ERRCODE = 'RHE02';
+  END IF;
+  IF v_ato.status <> 'rascunho' THEN
+    RAISE EXCEPTION 'O ato % % já foi aplicado: os itens não mudam', v_ato.tipo_ato, v_ato.numero USING ERRCODE = 'RHE02';
+  END IF;
+  -- valor anterior é do banco: gravado ao aplicar
+  IF TG_OP <> 'DELETE' AND coalesce(current_setting('ato.aplicar', true), '') <> NEW.ato_id::text THEN
+    NEW.valor_anterior := NULL;
+  END IF;
+  RETURN CASE TG_OP WHEN 'DELETE' THEN OLD ELSE NEW END;
 END;
 $$;
 
@@ -2353,6 +2514,28 @@ $$;
 --
 
 COMMENT ON FUNCTION public.cancelar_remessa_bancaria(p_id uuid) IS 'Cancela (apaga) uma reserva de remessa de reenvio não confirmada e libera os movimentos. Autor da reserva ou administrador; exige pagamento.conciliar.';
+
+
+--
+-- Name: cargo_vencimento_pelo_cadastro(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.cargo_vencimento_pelo_cadastro() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF coalesce(current_setting('ato.aplicar', true), '') <> '' THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.vencimento_base IS DISTINCT FROM OLD.vencimento_base
+     AND EXISTS (SELECT 1 FROM public.cargo_vencimentos WHERE cargo_id = NEW.id) THEN
+    INSERT INTO public.cargo_vencimentos (cargo_id, valor, vigencia_inicio, origem, registrado_por)
+    VALUES (NEW.id, coalesce(NEW.vencimento_base, 0), public.data_local(), 'cadastro', auth.uid());
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
 
 --
@@ -5589,11 +5772,16 @@ BEGIN
     INTO v_srv FROM public.servidores s WHERE s.id = p_servidor_id;
   -- opção pelo regime próprio do órgão de origem (efetivo de outro ente em cargo em comissão): sem INSS aqui
   v_rpps := coalesce(v_srv.contribui_rpps_origem, false) AND coalesce(v_srv.rpps_origem_inicio <= p_d2, true);
-  SELECT p.*, coalesce(p.data_exercicio, p.data_nomeacao) AS inicio, coalesce(c.vencimento_base, 0) AS venc
+  SELECT p.*, coalesce(p.data_exercicio, p.data_nomeacao) AS inicio, public.vencimento_cargo_em(c.id, p_d2) AS venc
     INTO v_prv
     FROM public.provimentos p JOIN public.cargos c ON c.id = p.cargo_id
    WHERE p.id = p_provimento_id;
   v_venc := v_prv.venc;
+  -- reajuste com vigência no meio da competência: o mês sai com o valor novo inteiro; a conferência decide a proporção
+  IF EXISTS (SELECT 1 FROM public.cargo_vencimentos cv
+              WHERE cv.cargo_id = v_prv.cargo_id AND cv.vigencia_inicio > p_d1 AND cv.vigencia_inicio <= p_d2) THEN
+    v_inc := v_inc || jsonb_build_array('vencimento_alterado_na_competencia');
+  END IF;
   v_ini := v_prv.inicio;
   v_fim := coalesce(v_prv.data_encerramento, p_d2);
 
@@ -8636,7 +8824,7 @@ BEGIN
                       'itens_ficha_financeira', 'itens_retorno_bancario', 'lancamentos_folha', 'parametros_folha',
                       'pensoes_alimenticias', 'remessas_bancarias', 'rubricas', 'tabela_inss', 'tabela_irrf',
                       'retornos_bancarios', 'exportacoes_folha', 'viagens_diarias', 'contas_autarquia', 'config_autarquia',
-                      'config_institucional')
+                      'config_institucional', 'atos_remuneratorios', 'atos_remuneratorios_itens')
       THEN ARRAY['rh', 'financeiro']
     WHEN p_tabela = 'documentos' THEN ARRAY['rh', 'workflow', 'gabinete', 'governanca', 'admin']
     WHEN p_tabela IN ('historico_funcional', 'pre_cadastros', 'provimentos') THEN ARRAY['rh', 'gabinete']
@@ -10010,7 +10198,7 @@ BEGIN
   FOR v_srv IN
     SELECT s.id, s.nome_completo, s.banco_codigo, s.banco_nome, s.banco_agencia, s.banco_conta, s.banco_tipo_conta,
            pv.id AS provimento_id, pv.cargo_id, pv.unidade_id, c.nome AS cargo_nome,
-           coalesce(c.vencimento_base, 0) AS vencimento_base, eo.nome AS unidade_nome, eo.sigla AS unidade_sigla
+           public.vencimento_cargo_em(c.id, v_d2) AS vencimento_base, eo.nome AS unidade_nome, eo.sigla AS unidade_sigla
       FROM public.servidores s
       JOIN LATERAL (
         SELECT p.* FROM public.provimentos p
@@ -13993,6 +14181,30 @@ $$;
 
 
 --
+-- Name: vencimento_cargo_em(uuid, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.vencimento_cargo_em(p_cargo_id uuid, p_data date) RETURNS numeric
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT coalesce(
+    (SELECT v.valor FROM public.cargo_vencimentos v
+      WHERE v.cargo_id = p_cargo_id AND v.vigencia_inicio <= p_data
+      ORDER BY v.vigencia_inicio DESC, v.created_at DESC, v.id DESC LIMIT 1),
+    (SELECT c.vencimento_base FROM public.cargos c WHERE c.id = p_cargo_id),
+    0);
+$$;
+
+
+--
+-- Name: FUNCTION vencimento_cargo_em(p_cargo_id uuid, p_data date); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.vencimento_cargo_em(p_cargo_id uuid, p_data date) IS 'Vencimento ou subsídio do cargo vigente na data (cargo_vencimentos; sem histórico, cargos.vencimento_base). Migração 20261020100000.';
+
+
+--
 -- Name: verificar_autorizacao_presidencia_ascom(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -15149,6 +15361,90 @@ CREATE TABLE public.atas_registro_preco (
 
 
 --
+-- Name: atos_remuneratorios; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.atos_remuneratorios (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tipo_ato character varying(30) NOT NULL,
+    numero text NOT NULL,
+    data_ato date NOT NULL,
+    data_publicacao date,
+    vigencia_inicio date NOT NULL,
+    ementa text NOT NULL,
+    percentual numeric(9,4),
+    processo_sei text,
+    link_publicacao text,
+    observacoes text,
+    status character varying(20) DEFAULT 'rascunho'::character varying NOT NULL,
+    aplicado_em timestamp with time zone,
+    aplicado_por uuid,
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone DEFAULT now(),
+    updated_by uuid,
+    updated_by_servidor_id uuid,
+    CONSTRAINT atos_remuneratorios_aplicado_check CHECK ((((status)::text = 'aplicado'::text) = (aplicado_em IS NOT NULL))),
+    CONSTRAINT atos_remuneratorios_ementa_check CHECK ((btrim(ementa) <> ''::text)),
+    CONSTRAINT atos_remuneratorios_numero_check CHECK ((btrim(numero) <> ''::text)),
+    CONSTRAINT atos_remuneratorios_percentual_check CHECK (((percentual IS NULL) OR ((percentual >= ('-100'::integer)::numeric) AND (percentual <= (1000)::numeric)))),
+    CONSTRAINT atos_remuneratorios_status_check CHECK (((status)::text = ANY ((ARRAY['rascunho'::character varying, 'aplicado'::character varying])::text[]))),
+    CONSTRAINT atos_remuneratorios_tipo_check CHECK (((tipo_ato)::text = ANY ((ARRAY['lei'::character varying, 'lei_complementar'::character varying, 'decreto'::character varying, 'portaria'::character varying, 'resolucao'::character varying, 'instrucao_normativa'::character varying, 'outro'::character varying])::text[])))
+);
+
+ALTER TABLE ONLY public.atos_remuneratorios FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: TABLE atos_remuneratorios; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.atos_remuneratorios IS 'Atos que mudam valores da folha (reajuste de vencimento, subsídio, rubrica ou parâmetro). Rascunho até aplicar_ato_remuneratorio; aplicado, não muda nem sai. Migração 20261020100000.';
+
+
+--
+-- Name: COLUMN atos_remuneratorios.percentual; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.atos_remuneratorios.percentual IS 'Percentual do reajuste geral, quando houver (registro; os valores aplicados são os dos itens)';
+
+
+--
+-- Name: atos_remuneratorios_itens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.atos_remuneratorios_itens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    ato_id uuid NOT NULL,
+    alvo character varying(20) NOT NULL,
+    cargo_id uuid,
+    rubrica_id uuid,
+    tipo_parametro character varying(50),
+    valor_anterior numeric(18,6),
+    valor_novo numeric(18,6) NOT NULL,
+    observacao text,
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    created_by_servidor_id uuid,
+    updated_at timestamp with time zone DEFAULT now(),
+    updated_by uuid,
+    updated_by_servidor_id uuid,
+    CONSTRAINT atos_remuneratorios_itens_alvo_check CHECK (((((alvo)::text = 'cargo'::text) AND (cargo_id IS NOT NULL) AND (rubrica_id IS NULL) AND (tipo_parametro IS NULL)) OR (((alvo)::text = 'rubrica'::text) AND (rubrica_id IS NOT NULL) AND (cargo_id IS NULL) AND (tipo_parametro IS NULL)) OR (((alvo)::text = 'parametro'::text) AND (btrim((COALESCE(tipo_parametro, ''::character varying))::text) <> ''::text) AND (cargo_id IS NULL) AND (rubrica_id IS NULL)))),
+    CONSTRAINT atos_remuneratorios_itens_valor_check CHECK ((valor_novo >= (0)::numeric))
+);
+
+ALTER TABLE ONLY public.atos_remuneratorios_itens FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: TABLE atos_remuneratorios_itens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.atos_remuneratorios_itens IS 'O que cada ato remuneratório muda: vencimento/subsídio do cargo, valor da rubrica ou parâmetro da folha. valor_anterior é gravado por aplicar_ato_remuneratorio. Migração 20261020100000.';
+
+
+--
 -- Name: audit_colunas_sensiveis; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -15680,6 +15976,34 @@ CREATE TABLE public.cargo_unidade_compatibilidade (
 --
 
 COMMENT ON TABLE public.cargo_unidade_compatibilidade IS 'Compatibilidade cargo/unidade conforme lei do IDJuv';
+
+
+--
+-- Name: cargo_vencimentos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cargo_vencimentos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    cargo_id uuid NOT NULL,
+    valor numeric(12,2) NOT NULL,
+    vigencia_inicio date NOT NULL,
+    ato_id uuid,
+    origem character varying(20) NOT NULL,
+    registrado_por uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT cargo_vencimentos_ato_check CHECK ((((origem)::text = 'ato'::text) = (ato_id IS NOT NULL))),
+    CONSTRAINT cargo_vencimentos_origem_check CHECK (((origem)::text = ANY ((ARRAY['inicial'::character varying, 'ato'::character varying, 'cadastro'::character varying])::text[]))),
+    CONSTRAINT cargo_vencimentos_valor_check CHECK ((valor >= (0)::numeric))
+);
+
+ALTER TABLE ONLY public.cargo_vencimentos FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: TABLE cargo_vencimentos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.cargo_vencimentos IS 'Vencimento ou subsídio de cada cargo por vigência: vale do início até a vigência seguinte. inicial = valor do cadastro antes do primeiro ato; ato = aplicar_ato_remuneratorio; cadastro = mudança de cargos.vencimento_base. Imutável. Migração 20261020100000.';
 
 
 --

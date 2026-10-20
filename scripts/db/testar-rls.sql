@@ -90,7 +90,9 @@ INSERT INTO seed_ov VALUES
   -- comissão de inventário, licitação ou fiscalização exige objeto (comissoes_objeto_obrigatorio_check): `outra` não
   ('comissoes', '{"tipo":"outra"}'),
   -- código da vaga em maiúsculas (vagas_cargo_codigo_check, migração 20261012150000)
-  ('vagas_cargo', '{"codigo":"VAGA-TESTE.001"}');
+  ('vagas_cargo', '{"codigo":"VAGA-TESTE.001"}'),
+  -- um alvo por item (atos_remuneratorios_itens_alvo_check, migração 20261020100000)
+  ('atos_remuneratorios_itens', '{"alvo":"parametro","cargo_id":null,"rubrica_id":null,"tipo_parametro":"teste_seed"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -6531,6 +6533,124 @@ BEGIN
   END IF;
 
   PERFORM pg_temp.nota('FOLHA (cálculo): INSS 2026, IRRF com desconto simplificado e redução da Lei 15.270, pensão dedutível sobre o líquido, opção pelo regime próprio de origem com fundamento, vínculo externo sem opção marcado e alíquota em fração verificados');
+END $$;
+
+-- ---------------------------------------------------------------- FOLHA: atos remuneratórios (migração 20261020100000)
+DO $$
+DECLARE
+  u_rh uuid := (SELECT uid FROM persona WHERE nome='mod_rh');
+  u_cfg uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.configurar');
+  cg uuid := 'f2000000-0000-0000-0000-0000000000c1'; sv uuid := 'f2000000-0000-0000-0000-0000000000a1';
+  pv uuid := 'f2000000-0000-0000-0000-0000000000b1'; at uuid := 'f2000000-0000-0000-0000-0000000000d1';
+  at2 uuid := 'f2000000-0000-0000-0000-0000000000d2';
+  tab jsonb := '{"inss": true, "irrf": true, "ded_dep": 189.59}';
+  r text; j jsonb; n int; v numeric;
+BEGIN
+  SET LOCAL session_replication_role = replica;   -- semeadura sem os triggers de setor/autoria
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, vencimento_base, quantidade_vagas)
+    VALUES (cg, 'Cargo Reajuste Teste', 'CDS-RT', 'comissionado', 'comissionado', 1000.00, 1);
+  INSERT INTO public.servidores (id, nome_completo, cpf, situacao, ativo) VALUES (sv, 'Folha Reajuste Teste', '000.000.f21-01', 'ativo', true);
+  INSERT INTO public.provimentos (id, servidor_id, cargo_id, data_nomeacao, status) VALUES (pv, sv, cg, '2026-01-01', 'ativo');
+  DELETE FROM public.parametros_folha WHERE tipo_parametro = 'teste_reajuste';
+  INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, ativo) VALUES ('teste_reajuste', 10, '2026-01-01', true);
+  INSERT INTO public.atos_remuneratorios (id, tipo_ato, numero, data_ato, vigencia_inicio, ementa, percentual)
+    VALUES (at, 'lei', '9.999/2026', '2026-09-10', '2026-09-15', 'Reajuste de teste', 6.5);
+  INSERT INTO public.atos_remuneratorios_itens (ato_id, alvo, cargo_id, valor_novo) VALUES (at, 'cargo', cg, 1065);
+  INSERT INTO public.atos_remuneratorios_itens (ato_id, alvo, tipo_parametro, valor_novo) VALUES (at, 'parametro', 'teste_reajuste', 12);
+  SET LOCAL session_replication_role = origin;
+
+  -- ===== quem não configura a folha não cria nem aplica
+  r := pg_temp.sql_como(u_rh, 'authenticated', format(
+    'INSERT INTO public.atos_remuneratorios (tipo_ato, numero, data_ato, vigencia_inicio, ementa) VALUES (%L, %L, %L, %L, %L)',
+    'decreto', '1/2026', '2026-10-01', '2026-10-01', 'teste'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('ATOS: o módulo rh sem financeiro.folha.configurar cria ato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_rh, 'authenticated', format('SELECT public.aplicar_ato_remuneratorio(%L)', at));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('ATOS: o módulo rh sem financeiro.folha.configurar aplica ato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format(
+    'INSERT INTO public.atos_remuneratorios (tipo_ato, numero, data_ato, vigencia_inicio, ementa, status, aplicado_em) VALUES (%L, %L, %L, %L, %L, %L, now())',
+    'decreto', '1/2026', '2026-10-01', '2026-10-01', 'teste', 'aplicado'));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('ATOS: ato nasce aplicado sem a RPC (' || r || ')'); END IF;
+
+  -- ===== aplicar (persistente, como quem configura a folha)
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_cfg, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  j := public.aplicar_ato_remuneratorio(at);
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF (j ->> 'cargos')::int <> 1 OR (j ->> 'parametros')::int <> 1 THEN
+    PERFORM pg_temp.falha('ATOS: aplicar deveria contar 1 cargo e 1 parâmetro (' || j::text || ')');
+  END IF;
+  IF public.vencimento_cargo_em(cg, '2026-09-14') <> 1000 OR public.vencimento_cargo_em(cg, '2026-09-15') <> 1065 THEN
+    PERFORM pg_temp.falha(format('ATOS: vencimento pela vigência (antes %s, depois %s)',
+      public.vencimento_cargo_em(cg, '2026-09-14'), public.vencimento_cargo_em(cg, '2026-09-15')));
+  END IF;
+  IF (SELECT vencimento_base FROM public.cargos WHERE id = cg) <> 1065 THEN
+    PERFORM pg_temp.falha('ATOS: cargos.vencimento_base deveria mostrar o valor vigente hoje');
+  END IF;
+  IF (SELECT valor_anterior FROM public.atos_remuneratorios_itens WHERE ato_id = at AND alvo = 'cargo') <> 1000
+     OR (SELECT valor_anterior FROM public.atos_remuneratorios_itens WHERE ato_id = at AND alvo = 'parametro') <> 10 THEN
+    PERFORM pg_temp.falha('ATOS: valor anterior dos itens não gravado');
+  END IF;
+  IF public.get_parametro_vigente('teste_reajuste'::varchar, '2026-09-14') <> 10 OR public.get_parametro_vigente('teste_reajuste'::varchar, '2026-09-15') <> 12
+     OR (SELECT vigencia_fim FROM public.parametros_folha WHERE tipo_parametro = 'teste_reajuste' AND valor = 10) <> '2026-09-14' THEN
+    PERFORM pg_temp.falha('ATOS: parâmetro deveria fechar a vigência anterior na véspera e abrir a nova');
+  END IF;
+  IF (SELECT status FROM public.atos_remuneratorios WHERE id = at) <> 'aplicado'
+     OR (SELECT aplicado_por FROM public.atos_remuneratorios WHERE id = at) IS DISTINCT FROM u_cfg THEN
+    PERFORM pg_temp.falha('ATOS: ato aplicado sem status ou sem quem aplicou');
+  END IF;
+
+  -- ===== a folha lê a vigência e marca reajuste no meio do mês
+  j := public.folha_montar_ficha(sv, pv, 'mensal', '2026-08-01', '2026-08-31', '[]', tab);
+  IF (j ->> 'vencimento_base')::numeric <> 1000 OR j -> 'inconsistencias' ? 'vencimento_alterado_na_competencia' THEN
+    PERFORM pg_temp.falha('ATOS: folha de agosto deveria sair com o valor antigo (' || j::text || ')');
+  END IF;
+  j := public.folha_montar_ficha(sv, pv, 'mensal', '2026-09-01', '2026-09-30', '[]', tab);
+  IF (j ->> 'vencimento_base')::numeric <> 1065 OR NOT (j -> 'inconsistencias' ? 'vencimento_alterado_na_competencia') THEN
+    PERFORM pg_temp.falha('ATOS: folha de setembro deveria sair com o valor novo e marcada (' || j::text || ')');
+  END IF;
+
+  -- ===== aplicado não muda, não sai, não reaplica; histórico imutável
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('UPDATE public.atos_remuneratorios SET ementa = %L WHERE id = %L', 'outra', at));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('ATOS: ato aplicado mudou (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('DELETE FROM public.atos_remuneratorios WHERE id = %L', at));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('ATOS: ato aplicado saiu (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('UPDATE public.atos_remuneratorios_itens SET valor_novo = 1 WHERE ato_id = %L', at));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('ATOS: item de ato aplicado mudou (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('SELECT public.aplicar_ato_remuneratorio(%L)', at));
+  IF r NOT LIKE 'erro:RHE02:%' THEN PERFORM pg_temp.falha('ATOS: ato reaplicado (' || r || ')'); END IF;
+  BEGIN
+    UPDATE public.cargo_vencimentos SET valor = 1 WHERE cargo_id = cg;
+    PERFORM pg_temp.falha('ATOS: histórico do vencimento alterado');
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format(
+    'INSERT INTO public.cargo_vencimentos (cargo_id, valor, vigencia_inicio, origem) VALUES (%L, 1, %L, %L)', cg, '2026-01-01', 'cadastro'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('ATOS: cargo_vencimentos gravado pela API (' || r || ')'); END IF;
+
+  -- ===== cargo com histórico: mudar o cadastro vale de hoje em diante
+  UPDATE public.cargos SET vencimento_base = 1100 WHERE id = cg;
+  SELECT count(*) INTO n FROM public.cargo_vencimentos WHERE cargo_id = cg AND origem = 'cadastro' AND valor = 1100;
+  IF n <> 1 OR public.vencimento_cargo_em(cg, public.data_local()) <> 1100 OR public.vencimento_cargo_em(cg, '2026-09-30') <> 1065 THEN
+    PERFORM pg_temp.falha('ATOS: mudança do cadastro do cargo deveria entrar no histórico a partir de hoje');
+  END IF;
+
+  -- ===== parâmetro com vigência posterior já gravada: recusa
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.atos_remuneratorios (id, tipo_ato, numero, data_ato, vigencia_inicio, ementa)
+    VALUES (at2, 'decreto', '8/2026', '2026-08-01', '2026-08-01', 'Retroativo de teste');
+  INSERT INTO public.atos_remuneratorios_itens (ato_id, alvo, tipo_parametro, valor_novo) VALUES (at2, 'parametro', 'teste_reajuste', 11);
+  SET LOCAL session_replication_role = origin;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('SELECT public.aplicar_ato_remuneratorio(%L)', at2));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('ATOS: parâmetro com vigência posterior já gravada deveria recusar (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_cfg, 'authenticated', format('DELETE FROM public.atos_remuneratorios WHERE id = %L', at2));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('ATOS: rascunho deveria sair com os itens (' || r || ')'); END IF;
+
+  IF has_function_privilege('anon', 'public.aplicar_ato_remuneratorio(uuid)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('ATOS: aplicar_ato_remuneratorio executável por anon');
+  END IF;
+
+  PERFORM pg_temp.nota('ATOS remuneratórios: permissão, aplicação tudo ou nada, vencimento e parâmetro por vigência, folha pela vigência com marca no meio do mês, imutabilidade e mudança pelo cadastro verificadas');
 END $$;
 
 -- ---------------------------------------------------------------- resumo
