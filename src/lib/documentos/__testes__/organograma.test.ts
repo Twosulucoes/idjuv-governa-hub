@@ -167,6 +167,27 @@ describe('organograma no motor único', () => {
     expect(texto).toContain('(continuação de DU)');
     for (let i = 0; i < 30; i++) expect(texto).toContain(`N${String(i).padStart(2, '0')}`);
   });
+
+  it('desenho: cadeia de 15 níveis e nome enorme continuam dentro da página', async () => {
+    const funda: DadosOrganogramaDesenho = {
+      exibirNomesServidores: true, exibirQuantidadeServidores: true, exibirLegenda: false,
+      unidades: Array.from({ length: 15 }, (_, i) => ({
+        id: `u${i}`, superiorId: i ? `u${i - 1}` : undefined, nivel: i + 1, tipo: 'Núcleo', quantidadeServidores: 1,
+        nome: i === 3 ? 'Unidade de nome muito longo '.repeat(150) : `Unidade ${i}`, sigla: i === 3 ? undefined : `U${i}`,
+      })),
+    };
+    const { paginas, texto } = await ler(organogramaDesenho, funda);
+    for (let i = 4; i < 15; i++) expect(texto).toContain(`U${i}`);
+    expect(texto).toContain('…');
+    for (const p of paginas) {
+      for (const i of p.itens) {
+        expect(i.x).toBeGreaterThanOrEqual(0);
+        expect(i.x + i.largura).toBeLessThanOrEqual(p.largura);
+        expect(i.y).toBeGreaterThanOrEqual(0);
+        expect(i.y).toBeLessThanOrEqual(p.altura);
+      }
+    }
+  });
 });
 
 // Amostras para inspeção visual: DOCUMENTOS_AMOSTRAS=<pasta>.

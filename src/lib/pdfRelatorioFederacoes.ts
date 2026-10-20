@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatarData } from '@/lib/documentos/modelos/rh/formatos';
 import type {
   ConfiguracaoRelatorioFederacao,
   CampoRelatorioFederacao,
@@ -17,11 +17,8 @@ function formatarValor(valor: unknown, campo: CampoRelatorioFederacao): string {
 
   switch (campo.tipo) {
     case 'data':
-      try {
-        return format(new Date(valor as string), 'dd/MM/yyyy', { locale: ptBR });
-      } catch {
-        return String(valor);
-      }
+      // Lê só a data ("aaaa-mm-dd"): new Date() trataria como UTC e mostraria o dia anterior no fuso do Brasil.
+      return formatarData(String(valor));
     case 'badge':
       if (campo.id === 'status') {
         // Verifica se é status de federação ou de evento

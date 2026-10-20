@@ -31,6 +31,10 @@ const LARGURA_MINIMA_COLUNA = 45;
 const ENTRE_COLUNAS = 5;
 /** Recuo de cada nível dentro da coluna. */
 const RECUO = 4;
+/** O recuo para no 4º nível: hierarquia mais funda (ou cadastro errado) não espreme a caixa até sumir. */
+const recuo = (prof: number): number => Math.min(prof, 4) * RECUO;
+/** Linhas no máximo por parte da caixa (nome, tipo, responsável); o resto vira "…" e a caixa nunca passa da página. */
+const MAX_LINHAS = 4;
 /** Espaço à esquerda da coluna para a linha que desce do topo. */
 const ESPINHA = 3;
 const ENTRE_CAIXAS = 2.2;
@@ -70,7 +74,9 @@ function medirCaixa(ctx: ContextoDocumento, u: UnidadeOrganogramaDesenho, largur
   const parte = (texto: string, tamanho: number, estilo: 'bold' | 'normal' | 'italic'): void => {
     doc.setFont('helvetica', estilo);
     doc.setFontSize(tamanho);
-    partes.push({ linhas: quebrarEmLinhas(doc, texto, util), tamanho, estilo });
+    const linhas = quebrarEmLinhas(doc, texto, util);
+    if (linhas.length > MAX_LINHAS) linhas.splice(MAX_LINHAS - 1, Infinity, cortarEmUmaLinha(doc, `${linhas.slice(MAX_LINHAS - 1).join(' ')} …`, util));
+    partes.push({ linhas, tamanho, estilo });
   };
   parte(rotuloUnidade(u), tamTitulo, 'bold');
   parte([u.tipo, d.exibirQuantidadeServidores ? `${u.quantidadeServidores} serv.` : ''].filter(Boolean).join(' · '), tamDetalhe, 'normal');
@@ -111,7 +117,7 @@ function textoLegenda(d: DadosOrganogramaDesenho): string {
     'a sigla (ou o nome) da unidade',
     'o tipo',
     ...(d.exibirQuantidadeServidores ? ['a quantidade de servidores lotados na própria unidade'] : []),
-    ...(d.exibirNomesServidores ? ['em itálico, o responsável ou o primeiro lotado (+N: demais lotados)'] : []),
+    ...(d.exibirNomesServidores ? ['em itálico, o responsável ou, sem responsável, o primeiro lotado (+N: demais lotados)'] : []),
   ];
   const ultimo = conteudo.pop();
   const porTipo = new Map<string, number>();
@@ -167,7 +173,7 @@ const diagrama =
     // 1) Linhas de cada pilha, já medidas na largura do seu nível.
     const linhas: Linha[] = [];
     const achatar = (no: No, prof: number, pai: number | null): Linha[] => {
-      const l: Linha = { id: linhas.length, no, prof, pai, caixa: medirCaixa(ctx, no.unidade, wCol - ESPINHA - prof * RECUO, d) };
+      const l: Linha = { id: linhas.length, no, prof, pai, caixa: medirCaixa(ctx, no.unidade, wCol - ESPINHA - recuo(prof), d) };
       linhas.push(l);
       return [l, ...no.filhos.flatMap((f) => achatar(f, prof + 1, l.id))];
     };
@@ -187,14 +193,19 @@ const diagrama =
       const alturaPilha = pilha.reduce((s, l) => s + l.caixa.altura + ENTRE_CAIXAS, 0);
       // Pilha que cabe inteira numa coluna nova não é partida.
       if (usado > 0 && usado + alturaPilha > capacidade(paginas.length - 1) && alturaPilha <= capacidade(1)) fechar();
+      let colocados = 0;
       for (const l of pilha) {
         if (usado > 0 && usado + l.caixa.altura > capacidade(paginas.length - 1)) {
           fechar();
-          coluna.continuacao = rotuloUnidade(item.unidade);
-          usado = hContinuacao;
+          // Só é continuação se parte da pilha já ficou na coluna anterior.
+          if (colocados > 0) {
+            coluna.continuacao = rotuloUnidade(item.unidade);
+            usado = hContinuacao;
+          }
         }
         coluna.itens.push({ linha: l, y: usado });
         usado += l.caixa.altura + ENTRE_CAIXAS;
+        colocados++;
       }
     }
     if (coluna.itens.length) fechar();
@@ -235,16 +246,16 @@ const diagrama =
           doc.text(cortarEmUmaLinha(doc, `(continuação de ${c.continuacao})`, wCol), xCol(i), yColunas + ptParaMm(tamDetalhe));
         }
         for (const { linha: l, y } of c.itens) {
-          const x = xCol(i) + ESPINHA + l.prof * RECUO;
+          const x = xCol(i) + ESPINHA + recuo(l.prof);
           const yAbs = yColunas + y;
-          desenharCaixa(ctx, l.caixa, x, yAbs, wCol - ESPINHA - l.prof * RECUO, false);
+          desenharCaixa(ctx, l.caixa, x, yAbs, wCol - ESPINHA - recuo(l.prof), false);
           posicao.set(l.id, { pagina: p, coluna: i, y: yAbs, altura: l.caixa.altura });
           const meio = yAbs + l.caixa.altura / 2;
           if (l.pai === null) {
             if (raiz) linha(ctx, xCol(i) + 1, meio, x, meio);
           } else {
             const pai = posicao.get(l.pai);
-            const espinha = xCol(i) + ESPINHA + (l.prof - 1) * RECUO + 1.5;
+            const espinha = xCol(i) + ESPINHA + recuo(l.prof - 1) + 1.5;
             const desde = pai && pai.pagina === p && pai.coluna === i ? pai.y + pai.altura : yColunas + (c.continuacao ? hContinuacao - 0.5 : 0);
             linha(ctx, espinha, desde, espinha, meio);
             linha(ctx, espinha, meio, x, meio);
