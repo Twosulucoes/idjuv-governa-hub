@@ -22,6 +22,8 @@ import { relatorioSegundoVinculo } from './modelos/rh/segundoVinculo';
 import { relatorioDiretoriaHierarquia } from './modelos/rh/diretoriaHierarquia';
 import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
 import { fichaUnidadeLocal } from './modelos/unidades/fichaUnidadeLocal';
+import { listagemUnidades } from './modelos/unidades/listagemUnidades';
+import { relatorioUnidadesLocais } from './modelos/unidades/relatorioUnidadesLocais';
 import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
 import { listaConvocados, listaPresenca, relatorioReuniao } from './modelos/reunioes/reunioes';
 import { contracheque } from './modelos/folha/contracheque';
@@ -67,6 +69,9 @@ export const REGISTRO = {
   'rh-contatos-estrategicos': relatorioContatosEstrategicos,
   // Unidades locais — RelatoriosCentralPage
   'unidades-ficha-unidade-local': fichaUnidadeLocal,
+  'unidades-listagem': listagemUnidades,
+  // Unidades locais — RelatoriosUnidadesLocaisPage (lista, detalhado e resumo)
+  'unidades-relatorio-unidades-locais': relatorioUnidadesLocais,
   // RH — ficha cadastral do servidor (preenchida e em branco)
   'rh-ficha-cadastral': fichaCadastral,
   // Currículo — pré-cadastro do candidato (também no site institucional, em /curriculo)
