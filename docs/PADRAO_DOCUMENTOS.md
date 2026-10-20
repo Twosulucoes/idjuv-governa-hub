@@ -38,6 +38,16 @@
 > contracheque o PIS continua fora. Plano:
 > [`superpowers/plans/2026-10-20-padrao-relatorios-onda3.md`](./superpowers/plans/2026-10-20-padrao-relatorios-onda3.md).
 
+> **Onda 4 (20/10/2026, demais relatórios):** unidades locais (`unidades-relatorio-unidades-locais`: lista, ficha por
+> unidade e resumo) e listagem de unidades (`unidades-listagem`); cargos e vagas (`cargos-relatorio-cargos-vagas`),
+> quadro de cargos (`cargos-quadro-cargos`) e relatório anual de governança (`governanca-relatorio-anual`, os
+> gráficos viraram tabelas com os mesmos números); árbitros (`arbitros-relatorio-cadastro`) e federações
+> (`federacoes-relatorio`, `federacoes-relatorio-paisagem`); organograma em lista (`organograma-lista`) e desenhado
+> (`organograma-desenho`, A4 paisagem com bloco próprio de diagrama; o que não cabe vai para a página seguinte
+> repetindo o topo). O bloco `secao` ganhou `reservaAbaixo` (mm livres exigidos abaixo do título, padrão 16).
+> Cores por tipo/status e "(VAGO)" colorido viraram texto. Plano:
+> [`superpowers/plans/2026-10-20-padrao-relatorios-onda4.md`](./superpowers/plans/2026-10-20-padrao-relatorios-onda4.md).
+
 ## 1. Famílias
 
 Todo documento pertence a uma família; cada família tem um layout-base.
@@ -81,22 +91,22 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfFichaUnidadeLocal.ts` | 117 | — | 1 | 0 | Ficha | migrado na onda 2: `unidades-ficha-unidade-local` |
 | `src/lib/pdfFrequenciaLote.ts` | 141 | `generateFrequenciaLotePDFInternal`, `generateFrequenciaLotePDF`, `generateFrequenciaLoteBlob` | 1 | 0 | Comprovante | migrado na onda 3: `rh-folha-frequencia` |
 | `src/lib/pdfFrequenciaMensalGenerator.ts` | 234 | `gerarRegistrosDiariosBranco`, `calcularResumoMensal`, `paraFolhaFrequencia`, `localDaSede`, `generateFrequenciaMensalPDF`, `generateFrequenciaMensalBlob` | 2 | 1 | Comprovante | migrado na onda 3: `rh-folha-frequencia` |
-| `src/lib/pdfGenerator.ts` | 2289 | `generateTermoDemanda`, `generateOrdemMissao`, `generateRelatorioViagem`, `generateRequisicaoMaterial`, `generateTermoResponsabilidade`, `generateDocumentNumber`, `generateRelatorioCargos`, `generateRelatorioGovernancaPDF`, `generateFichaCadastral`, `generateDeclaracaoAcumulacao`, `generateDeclaracaoBens`, `generateDeclaracaoResidencia`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoBensModelo` | 14 | 1 | Misto (dividir por documento) | SEI (atos; decisão pendente p/ declarações, requisição de material, relatório de viagem, termo de responsabilidade) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`) |
+| `src/lib/pdfGenerator.ts` | 1075 | `generateTermoDemanda`, `generateOrdemMissao`, `generateRelatorioViagem`, `generateRequisicaoMaterial`, `generateTermoResponsabilidade`, `generateDocumentNumber`, `generateRelatorioCargos`, `generateRelatorioGovernancaPDF`, `generateFichaCadastral`, `generateDeclaracaoAcumulacao`, `generateDeclaracaoBens`, `generateDeclaracaoResidencia`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoBensModelo` | 14 | 1 | Misto (dividir por documento) | SEI (atos; decisão pendente p/ declarações, requisição de material, relatório de viagem, termo de responsabilidade) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`); relatórios de cargos e de governança migrados na onda 4 |
 | `src/lib/pdfInstitucional.ts` | 656 | `CORES_INSTITUCIONAIS`, `MARGENS`, `TIPOGRAFIA`, `carregarLogos`, `getDimensoesPagina`, `gerarCabecalhoInstitucional`, `gerarRodapeInstitucional`, `adicionarSecao`, `adicionarTituloSecao`, `adicionarCampo`, `adicionarCampoInline`, `verificarQuebraPagina`, `criarDocumentoInstitucional`, `finalizarDocumentoInstitucional` | 0 | 4 | Base (a eliminar) | F5 |
-| `src/lib/pdfListagemUnidades.ts` | 188 | — | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfListagemUnidades.ts` | 15 | `generateListagemUnidades` | 1 | 0 | Relatório | migrado na onda 4: `unidades-listagem` |
 | `src/lib/pdfLogos.ts` | 81 | `LOGO_ASPECTOS`, `calcularDimensoesLogos`, `LOGO_CONFIG_PADRAO`, `getLogosPDF` | 0 | 5 | Base (a eliminar) | F5 |
 | `src/lib/pdfMemorandoLotacao.ts` | 203 | `generateMemorandoLotacao`, `downloadMemorandoLotacao` | 0 | 0 | Ato (fora do escopo) | removido no P10 (código morto) |
 | `src/lib/pdfMiniCurriculo.ts` | 453 | `gerarPdfMiniCurriculo` | 2 | 0 | Ficha | migrado na onda 2: `curriculo-mini-curriculo` |
 | `src/lib/pdfModelos.ts` | 1335 | `generateRelacaoDocumentosModelo`, `generateFichaCadastralModelo`, `generateDeclaracaoAcumulacaoModelo`, `generateDeclaracaoAcumulacaoPreenchida`, `generateDeclaracaoBensModelo`, `generateDeclaracaoBensPreenchida`, `generateTermoDemandaModelo`, `generateOrdemMissaoModelo`, `generateRelatorioViagemModelo`, `generateRequisicaoMaterialModelo`, `generateTermoResponsabilidadeModelo` | 2 | 0 | Misto (dividir por documento) | SEI (termos, declarações; decisão pendente) / F3 / F4; ficha cadastral migrada na onda 2 (`rh-ficha-cadastral`) |
-| `src/lib/pdfOrganograma.ts` | 650 | `gerarOrganogramaPDF`, `gerarOrganogramaListaPDF` | 2 | 0 | Relatório | F4 |
+| `src/lib/pdfOrganograma.ts` | 108 | `gerarOrganogramaPDF`, `gerarOrganogramaListaPDF` | 2 | 0 | Relatório | migrado na onda 4: `organograma-lista`, `organograma-desenho` |
 | pdfPortarias.ts (removido em 12/10/2026) | 930 | `generatePortariaUnificadaPdf`, `generatePortariaColetivaComTabela`, `generatePortariaNomeacao`, `generatePortariaExoneracao`, `generatePortariaDesignacao` | 2 | 1 | Ato (fora do escopo) | remover / substituir por registro do SEI |
 | `src/lib/pdfRelatorioAgrupadoPortaria.ts` | 298 | `generateRelatorioAgrupadoPortaria` | 1 | 0 | Relatório | migrado na onda 1: `rh-agrupado-portaria` |
-| `src/lib/pdfRelatorioArbitros.ts` | 258 | `gerarRelatorioArbitrosPDF` | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfRelatorioArbitros.ts` | 40 | `gerarRelatorioArbitrosPDF` | 1 | 0 | Relatório | migrado na onda 4: `arbitros-relatorio-cadastro` |
 | `src/lib/pdfRelatorioAvancado.ts` | 468 | `gerarRelatorioPDF` | 1 | 0 | Relatório | migrado na onda 1: `relatorios-colunas-dinamicas` (+ `-paisagem`) |
-| `src/lib/pdfRelatorioCargos.ts` | 260 | `gerarRelatorioCargos98PDF` | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfRelatorioCargos.ts` | 31 | `gerarRelatorioCargos98PDF` | 1 | 0 | Relatório | migrado na onda 4: `cargos-quadro-cargos` |
 | `src/lib/pdfRelatorioContatosEstrategicos.ts` | 268 | `gerarRelatorioContatosEstrategicos` | 1 | 0 | Relatório | migrado na onda 1: `rh-contatos-estrategicos` |
 | `src/lib/pdfRelatorioEstrutura.ts` | 251 | `generateRelatorioEstruturaPDF` | 1 | 0 | Relatório | migrado na onda 1: `relatorios-estrutura-organizacional` |
-| `src/lib/pdfRelatorioFederacoes.ts` | 300 | `gerarRelatorioFederacoesPDF` | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfRelatorioFederacoes.ts` | 82 | `gerarRelatorioFederacoesPDF` | 1 | 0 | Relatório | migrado na onda 4: `federacoes-relatorio`, `federacoes-relatorio-paisagem` |
 | `src/lib/pdfRelatorioFolhaSimplificado.ts` | 333 | `gerarRelatorioFolhaSimplificado` | 1 | 0 | Relatório | migrado na onda 1: `relatorios-folha-simplificada` |
 | `src/lib/pdfRelatorioFrequencia.ts` | 386 | `generateRelatorioFrequenciaGeral`, `generateRelatorioFrequenciaIndividual` | 2 | 1 | Relatório | migrado na onda 1: `rh-frequencia-geral`, `rh-frequencia-individual` |
 | `src/lib/pdfRelatorioPendencias.ts` | 320 | `gerarPdfRelatorioPendencias` | 2 | 0 | Relatório | migrado na onda 1: `rh-pendencias-pre-cadastros` |
@@ -105,7 +115,7 @@ relatório de viagem, termo de responsabilidade patrimonial, despachos do Workfl
 | `src/lib/pdfRelatorioSegundoVinculo.ts` | 224 | `gerarRelatorioSegundoVinculo` | 1 | 0 | Relatório | migrado na onda 1: `rh-segundo-vinculo` |
 | `src/lib/pdfRelatorioServidoresDiretoria.ts` | 362 | `gerarRelatorioServidoresDiretoria` | 1 | 0 | Relatório | migrado na onda 1: `rh-diretoria-hierarquia` |
 | `src/lib/pdfRelatorioSituacaoPortaria.ts` | 297 | `generateRelatorioSituacaoPortaria` | 1 | 0 | Relatório | migrado na onda 1: `rh-situacao-portaria` |
-| `src/lib/pdfRelatorioUnidades.ts` | 678 | `generateRelatorioUnidadesPDF`, `downloadRelatorioUnidadesPDF` | 1 | 0 | Relatório | F4 |
+| `src/lib/pdfRelatorioUnidades.ts` | 23 | `downloadRelatorioUnidadesPDF` | 1 | 0 | Relatório | migrado na onda 4: `unidades-relatorio-unidades-locais` |
 | `src/lib/pdfRelatoriosAfastamentos.ts` | 375 | `addCabecalhoTabela`, `addLinhaTabela`, `quebrarComCabecalho`, `addTituloGrupo`, `addLinhaTotal`, `finalizar`, `gerarRelatorioFerias`, `gerarRelatorioLicencas`, `gerarRelatorioViagens` | 3 | 1 | Relatório | migrado na onda 1: `rh-ferias`, `rh-licencas`, `rh-viagens` |
 | `src/lib/pdfRelatoriosFolha.ts` | 231 | `gerarResumoFolhasAno`, `gerarFolhaPorUnidade`, `gerarFolhaPorRubrica` | 1 | 0 | Relatório | migrado na onda 1: `rh-folha-resumo-ano`, `rh-folha-por-unidade`, `rh-folha-por-rubrica` |
 | `src/lib/pdfRelatoriosRH.ts` | 918 | `generateRelatorioServidoresDiretoria`, `generateRelatorioServidoresVinculo`, `generateRelatorioHistoricoFuncional`, `generateRelatorioVagasCargo`, `generateRelatorioServidoresPortarias` | 1 | 0 | Relatório | migrado na onda 1: `rh-servidores-diretoria`, `rh-servidores-vinculo`, `rh-historico-funcional`, `rh-vagas-cargo`, `rh-servidores-portarias` |
