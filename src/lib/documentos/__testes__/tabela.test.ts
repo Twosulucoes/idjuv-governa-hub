@@ -58,4 +58,13 @@ describe('tabela', () => {
     const valor = p[0].itens.find((i) => i.str === '10')!;
     expect(valor.x + valor.largura).toBeGreaterThan(mmParaPt(250));
   });
+
+  it('célula vazia sai como "—" por padrão e em branco com vazioEmBranco', async () => {
+    const linhas = [{ nome: 'A', matricula: '', valor: '10' }];
+    const [padrao] = await lerPdf(gerar([tabela({ colunas, linhas })]));
+    expect(padrao.texto).toContain('—');
+    const [branco] = await lerPdf(gerar([tabela({ colunas, linhas, vazioEmBranco: true })]));
+    expect(branco.texto).not.toContain('—');
+    expect(branco.texto).toContain('10');
+  });
 });

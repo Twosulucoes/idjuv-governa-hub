@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { motivoBloqueioEdicao, podeEditarFicha } from "@/lib/folhaFichaRegras";
 import { MESES, type ItemFichaFinanceira } from "@/types/folha";
 import { generateContracheque } from "@/lib/pdfContracheque";
+import { toast } from "sonner";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { ItemFichaFormDialog } from "./ItemFichaFormDialog";
 import { ConsignacoesFichaTab } from "./ConsignacoesFichaTab";
@@ -166,6 +167,7 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
       });
     } catch (error) {
       console.error("Erro ao gerar contracheque:", error);
+      toast.error("Erro ao gerar contracheque");
     } finally {
       setGerando(false);
     }

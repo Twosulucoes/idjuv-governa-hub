@@ -23,6 +23,7 @@ import { relatorioSituacaoPortaria } from './modelos/rh/situacaoPortaria';
 import { fichaUnidadeLocal } from './modelos/unidades/fichaUnidadeLocal';
 import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
 import { listaConvocados, listaPresenca, relatorioReuniao } from './modelos/reunioes/reunioes';
+import { contracheque } from './modelos/folha/contracheque';
 import type { DocumentoModelo } from './tipos';
 
 /**
@@ -71,6 +72,8 @@ export const REGISTRO = {
   'reunioes-lista-convocados': listaConvocados,
   'reunioes-lista-presenca': listaPresenca,
   'reunioes-relatorio': relatorioReuniao,
+  // Folha — contracheque do servidor (um ou lote, uma página por servidor)
+  'folha-contracheque': contracheque,
 } as const satisfies Record<string, DocumentoModelo<never>>;
 
 export type TipoDocumento = keyof typeof REGISTRO;
