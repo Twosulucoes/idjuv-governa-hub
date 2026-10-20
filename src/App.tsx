@@ -260,6 +260,8 @@ import {
   MovimentacaoDetalhePage,
   ManutencaoDetalhePage,
   BaixaDetalhePage,
+  ItemMaterialDetalhePage,
+  ItemMaterialEditarPage,
   RelatoriosPatrimonioPage,
   CadastroBemSimplificadoPage,
 } from "./pages/inventario";
@@ -1113,12 +1115,12 @@ const App = () => (
               } />
               <Route path="/inventario/almoxarifado/:id" element={
                 <ProtectedRoute requiredPermissions="patrimonio.visualizar">
-                  <PlaceholderDetalhePage />
+                  <ItemMaterialDetalhePage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/almoxarifado/:id/editar" element={
                 <ProtectedRoute requiredPermissions="patrimonio.criar">
-                  <PlaceholderDetalhePage />
+                  <ItemMaterialEditarPage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/baixas/:id" element={

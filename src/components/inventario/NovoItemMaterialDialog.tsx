@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateItemMaterial } from "@/hooks/useAlmoxarifado";
+import { UNIDADES_MEDIDA } from "@/components/inventario/unidadesMedida";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
@@ -51,21 +52,6 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
-
-const UNIDADES_MEDIDA = [
-  { value: "UN", label: "Unidade" },
-  { value: "CX", label: "Caixa" },
-  { value: "PC", label: "Pacote" },
-  { value: "KG", label: "Quilograma" },
-  { value: "L", label: "Litro" },
-  { value: "M", label: "Metro" },
-  { value: "M2", label: "Metro Quadrado" },
-  { value: "RL", label: "Rolo" },
-  { value: "FR", label: "Frasco" },
-  { value: "TB", label: "Tubo" },
-  { value: "GL", label: "Galão" },
-  { value: "SC", label: "Saco" },
-];
 
 interface NovoItemMaterialDialogProps {
   open: boolean;
