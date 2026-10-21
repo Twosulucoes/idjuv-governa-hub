@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
+import { getTenantSnapshotOuNulo } from '@/core/tenant';
+import { comIdentidadeDoCliente } from '@/lib/identidadeConfigAutarquia';
 import {
   calcularTotaisFicha,
   calcularTotaisFolha,
@@ -711,6 +713,7 @@ export function useSaveDependenteIRRF() {
 // Em src/hooks/useArquivosFolha.ts (onda E3): um evento por folha e servidor, sem exclusão.
 
 // ============== CONFIG AUTARQUIA ==============
+/** Configuração da folha; razão social, CNPJ, endereço e contato vêm da Configuração do cliente (dados_oficiais). */
 export function useConfigAutarquia() {
   return useQuery({
     queryKey: ['config-autarquia'],
@@ -719,6 +722,7 @@ export function useConfigAutarquia() {
       if (error && error.code !== 'PGRST116') throw error;
       return data;
     },
+    select: (config) => comIdentidadeDoCliente(config, getTenantSnapshotOuNulo()),
   });
 }
 

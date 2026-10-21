@@ -237,6 +237,10 @@ Decisão recomendada:
 | `config_autarquia` | Mantida como **extensão fiscal/contábil** (eSocial, CRC, regime tributário). Vira 1:1 com `config_institucional` via FK |
 | `dados_oficiais` | Mantida como **registro auditável** de dados legais (tem `lei_referencia`, `documento_url`, `bloqueado`, histórico de alteração). É o lugar certo para CNPJ, lei de criação, dirigente |
 
+Passo dado em 2026-10-21: a identidade que `config_autarquia` repetia (razão social, CNPJ, endereço, contato,
+dirigente) passou a ser lida de `dados_oficiais` pela folha, pelo eSocial e pelos arquivos do banco; a tela da Folha
+ficou só com a parte fiscal/contábil (ver [CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md)).
+
 Não duplicar: um campo mora em exatamente uma tabela. Uma view
 `v_identidade_institucional` reúne tudo para leitura.
 

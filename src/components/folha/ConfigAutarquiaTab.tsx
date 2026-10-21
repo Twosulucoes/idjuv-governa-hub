@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -7,14 +8,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, Building2, Server } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, ExternalLink, Loader2, Save, Building2, Server } from "lucide-react";
+import { useTenant } from "@/core/tenant";
 import { useConfigAutarquia, useSaveConfigAutarquia } from "@/hooks/useFolhaPagamento";
-import { UFS } from "@/types/rh";
+import { identidadeDoCliente } from "@/lib/identidadeConfigAutarquia";
 
 const configSchema = z.object({
-  razao_social: z.string().min(3, "Razão social é obrigatória"),
-  nome_fantasia: z.string().optional(),
-  cnpj: z.string().min(14, "CNPJ inválido"),
   natureza_juridica: z.string().optional(),
   // O banco guarda o código IBGE com 7 dígitos (varchar(7)); ex.: Boa Vista = 1400100
   codigo_municipio: z
@@ -23,19 +23,7 @@ const configSchema = z.object({
     .regex(/^(\d{7})?$/, "O código IBGE tem 7 números, sem ponto nem traço (ex.: 1400100)")
     .optional(),
   regime_tributario: z.string().optional(),
-  endereco_logradouro: z.string().optional(),
-  endereco_numero: z.string().max(30).optional(),
-  endereco_complemento: z.string().optional(),
-  endereco_bairro: z.string().optional(),
-  endereco_cidade: z.string().optional(),
-  endereco_uf: z.string().optional(),
-  endereco_cep: z.string().max(9, "CEP com até 9 caracteres (ex.: 69301-000)").optional(),
-  telefone: z.string().max(30).optional(),
-  email_institucional: z.string().email("E-mail inválido").optional().or(z.literal("")),
-  site: z.string().optional(),
-  responsavel_legal: z.string().optional(),
   cpf_responsavel: z.string().optional(),
-  cargo_responsavel: z.string().optional(),
   responsavel_contabil: z.string().optional(),
   cpf_contabil: z.string().optional(),
   crc_contabil: z.string().max(30).optional(),
@@ -46,31 +34,38 @@ const configSchema = z.object({
 type ConfigFormData = z.infer<typeof configSchema>;
 
 export function ConfigAutarquiaTab() {
+  const tenant = useTenant();
   const { data: config, isLoading } = useConfigAutarquia();
   const saveConfig = useSaveConfigAutarquia();
+  const identidade = identidadeDoCliente(tenant, config);
+  const endereco = [
+    identidade.endereco_logradouro,
+    identidade.endereco_numero,
+    identidade.endereco_complemento,
+    identidade.endereco_bairro,
+    [identidade.endereco_cidade, identidade.endereco_uf].filter(Boolean).join("/"),
+    identidade.endereco_cep,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const itensIdentidade: [string, string | null][] = [
+    ["Razão social", identidade.razao_social],
+    ["CNPJ", identidade.cnpj],
+    ["Nome curto", identidade.nome_fantasia],
+    ["Endereço", endereco],
+    ["Telefone", identidade.telefone],
+    ["E-mail", identidade.email_institucional],
+    ["Site", identidade.site],
+    ["Dirigente", [identidade.responsavel_legal, identidade.cargo_responsavel].filter(Boolean).join(", ")],
+  ];
 
   const form = useForm<ConfigFormData>({
     resolver: zodResolver(configSchema),
     defaultValues: {
-      razao_social: "",
-      nome_fantasia: "",
-      cnpj: "",
       natureza_juridica: "",
       codigo_municipio: "",
       regime_tributario: "",
-      endereco_logradouro: "",
-      endereco_numero: "",
-      endereco_complemento: "",
-      endereco_bairro: "",
-      endereco_cidade: "",
-      endereco_uf: "",
-      endereco_cep: "",
-      telefone: "",
-      email_institucional: "",
-      site: "",
-      responsavel_legal: "",
       cpf_responsavel: "",
-      cargo_responsavel: "",
       responsavel_contabil: "",
       cpf_contabil: "",
       crc_contabil: "",
@@ -82,25 +77,10 @@ export function ConfigAutarquiaTab() {
   useEffect(() => {
     if (config) {
       form.reset({
-        razao_social: config.razao_social || "",
-        nome_fantasia: config.nome_fantasia || "",
-        cnpj: config.cnpj || "",
         natureza_juridica: config.natureza_juridica || "",
         codigo_municipio: config.codigo_municipio || "",
         regime_tributario: config.regime_tributario || "",
-        endereco_logradouro: config.endereco_logradouro || "",
-        endereco_numero: config.endereco_numero || "",
-        endereco_complemento: config.endereco_complemento || "",
-        endereco_bairro: config.endereco_bairro || "",
-        endereco_cidade: config.endereco_cidade || "",
-        endereco_uf: config.endereco_uf || "",
-        endereco_cep: config.endereco_cep || "",
-        telefone: config.telefone || "",
-        email_institucional: config.email_institucional || "",
-        site: config.site || "",
-        responsavel_legal: config.responsavel_legal || "",
         cpf_responsavel: config.cpf_responsavel || "",
-        cargo_responsavel: config.cargo_responsavel || "",
         responsavel_contabil: config.responsavel_contabil || "",
         cpf_contabil: config.cpf_contabil || "",
         crc_contabil: config.crc_contabil || "",
@@ -113,6 +93,10 @@ export function ConfigAutarquiaTab() {
   const onSubmit = (data: ConfigFormData) => {
     saveConfig.mutate({
       ...data,
+      // Razão social e CNPJ são obrigatórios na tabela: vão com os da Configuração do cliente. O resto da
+      // identidade não é mais gravado aqui (quem lê usa `comIdentidadeDoCliente`).
+      razao_social: identidade.razao_social,
+      cnpj: identidade.cnpj,
       id: config?.id,
       ativo: true,
     });
@@ -129,66 +113,69 @@ export function ConfigAutarquiaTab() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Dados da Autarquia */}
+        {/* Identidade da instituição: só leitura, vem da Configuração do cliente */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1.5">
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Dados da instituição
+                </CardTitle>
+                <CardDescription>
+                  Razão social, CNPJ, endereço, contato e dirigente ficam num lugar só: a Configuração do cliente. A
+                  folha, o eSocial e os arquivos do banco usam esses dados.
+                </CardDescription>
+              </div>
+              <Button asChild variant="outline" size="sm" className="shrink-0">
+                <Link to="/admin/configuracao-cliente">
+                  <ExternalLink className="mr-2 h-4 w-4" aria-hidden />
+                  Editar na Configuração do cliente
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {(!identidade.razao_social || !identidade.cnpj) && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" aria-hidden />
+                <AlertDescription>
+                  Falta {!identidade.razao_social ? "o nome oficial" : "o CNPJ"} na Configuração do cliente.
+                </AlertDescription>
+              </Alert>
+            )}
+            <dl className="grid gap-4 text-sm md:grid-cols-2 lg:grid-cols-3">
+              {itensIdentidade.map(([rotulo, valor]) => (
+                <div key={rotulo} className="min-w-0">
+                  <dt className="text-muted-foreground">{rotulo}</dt>
+                  <dd className="break-words font-medium">{valor || "—"}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
+
+        {/* Dados da folha e do eSocial */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              Dados da Autarquia
+              Dados para a folha e o eSocial
             </CardTitle>
             <CardDescription>
-              Informações básicas da instituição para folha de pagamento e eSocial
+              O que só a folha de pagamento e o eSocial usam
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <FormField
-              control={form.control}
-              name="razao_social"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Razão Social *</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Nome oficial da autarquia" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
-            <FormField
-              control={form.control}
-              name="cnpj"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>CNPJ *</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="00.000.000/0000-00" maxLength={18} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
-            <FormField
-              control={form.control}
-              name="nome_fantasia"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome Fantasia</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Nome popular" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
               name="natureza_juridica"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Natureza Jurídica</FormLabel>
+                  <FormLabel>Natureza jurídica (código do eSocial)</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -247,195 +234,16 @@ export function ConfigAutarquiaTab() {
           </CardContent>
         </Card>
 
-        {/* Endereço */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Endereço</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <FormField
-              control={form.control}
-              name="endereco_cep"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>CEP</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="00000-000" maxLength={9} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="endereco_logradouro"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Logradouro</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Rua, Avenida, etc." />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="endereco_numero"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Nº" maxLength={30} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="endereco_complemento"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Complemento</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Sala, andar, etc." />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="endereco_bairro"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Bairro</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Bairro" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="endereco_cidade"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cidade</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Cidade" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="endereco_uf"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>UF</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="UF" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {UFS.map((uf) => (
-                        <SelectItem key={uf} value={uf}>
-                          {uf}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Contato */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Contato</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
-            <FormField
-              control={form.control}
-              name="telefone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Telefone</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="(00) 0000-0000" maxLength={30} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="email_institucional"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail Institucional</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="email" placeholder="contato@orgao.gov.br" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="site"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Site</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="https://www.orgao.gov.br" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
         {/* Responsáveis */}
         <Card>
           <CardHeader>
             <CardTitle>Responsáveis</CardTitle>
             <CardDescription>
-              Informações necessárias para assinaturas e envio ao eSocial
+              CPF do dirigente e contador, para assinaturas e envio ao eSocial (o nome e o cargo do dirigente vêm da
+              Configuração do cliente)
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-3">
-            <FormField
-              control={form.control}
-              name="responsavel_legal"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Responsável Legal</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Nome completo" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
@@ -451,19 +259,6 @@ export function ConfigAutarquiaTab() {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="cargo_responsavel"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cargo do Responsável</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Presidente, Diretor, etc." />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}

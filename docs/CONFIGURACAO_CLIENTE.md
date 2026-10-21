@@ -51,6 +51,22 @@ tenants/_template (neutro, nunca o IDJUV)
   primeira vez, a tela mostra os valores do arquivo e avisa quantos ainda não estão no banco: basta
   conferir e salvar.
 
+## Folha, eSocial e arquivos do banco usam os mesmos dados
+
+Decisão de 2026-10-21, a pedido do dono do produto ("por que tem dois lugares para os dados da autarquia?"). A aba
+**Autarquia** da Configuração da Folha (`config_autarquia`) repetia razão social, CNPJ, endereço, contato e dirigente.
+Agora esses dados se cadastram só aqui, na Configuração do cliente:
+
+- A aba da Folha mostra a identidade só para leitura, com o link para esta tela, e edita apenas o que é da folha e do
+  eSocial: natureza jurídica (código do eSocial), regime tributário, código IBGE do município, CPF do dirigente,
+  responsável contábil (nome, CPF e CRC) e os parâmetros do eSocial.
+- Quem lê `config_autarquia` (eSocial, CNAB da folha, remessa de pagamentos pelo Gestão MAX) passa por
+  `comIdentidadeDoCliente` (`src/lib/identidadeConfigAutarquia.ts`): vale o valor da Configuração do cliente; o que
+  estiver vazio aqui cai no que já estava gravado na Folha. O endereço vem inteiro de um lado só.
+- Ao salvar a aba da Folha, razão social e CNPJ da Configuração do cliente são gravados em `config_autarquia` (são
+  obrigatórios na tabela); as outras colunas de identidade ficam como estavam e só servem de reserva. Sem mudança de
+  banco.
+
 ## Impressão de documentos (padronização dos PDFs)
 
 Seção **Impressão de documentos** da mesma tela (desde 19/10/2026, onda 0 do
