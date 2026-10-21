@@ -1,17 +1,18 @@
 /**
  * InstagramFeed - Componente para exibir feed do Instagram
  * 
- * Nota: A API oficial do Instagram requer aprovação do Facebook.
- * Este componente usa um embed do Instagram ou dados mockados para preview.
- * Para produção, será necessário configurar a API oficial.
+ * Nota: A API oficial do Instagram requer aprovação do Facebook. Sem posts
+ * reais (prop `posts`), a seção mostra só o convite para seguir o perfil —
+ * nada de post de exemplo, que pareceria publicação da instituição.
  */
 
 import { useState } from "react";
 import { urlSegura } from "@/lib/urlSegura";
 import { motion } from "framer-motion";
-import { Instagram, ExternalLink, Heart, MessageCircle, Image } from "lucide-react";
+import { Instagram, ExternalLink, Heart, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useIdentidade } from "@/core/tenant";
 
 interface InstagramPost {
   id: string;
@@ -29,66 +30,15 @@ interface InstagramFeedProps {
   maxPosts?: number;
 }
 
-// Posts de exemplo - serão substituídos por dados reais da API
-const MOCK_POSTS: InstagramPost[] = [
-  {
-    id: "1",
-    imageUrl: "https://images.unsplash.com/photo-1461896836934- voices-0c0e05b7-9eb1-4e3a-b9cb-8e0e8c36c3c8?w=400",
-    caption: "Abertas as inscrições para as Seleções Estudantis 2026! 🏆 #IDJUV #Esporte",
-    likes: 245,
-    comments: 18,
-    permalink: "#"
-  },
-  {
-    id: "2",
-    imageUrl: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400",
-    caption: "Jogos Escolares de Roraima em grande estilo! 🎯 #JER2026",
-    likes: 189,
-    comments: 12,
-    permalink: "#"
-  },
-  {
-    id: "3",
-    imageUrl: "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400",
-    caption: "Atletas roraimenses brilhando nas competições nacionais! 🌟 #TalentoRR",
-    likes: 312,
-    comments: 24,
-    permalink: "#"
-  },
-  {
-    id: "4",
-    imageUrl: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=400",
-    caption: "Treinamento intensivo no Ginásio Hélio Campos 💪 #PreparaçãoTotal",
-    likes: 156,
-    comments: 9,
-    permalink: "#"
-  },
-  {
-    id: "5",
-    imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400",
-    caption: "Basquete 3x3 nas seletivas estaduais! 🏀 #Basket3x3",
-    likes: 278,
-    comments: 21,
-    permalink: "#"
-  },
-  {
-    id: "6",
-    imageUrl: "https://images.unsplash.com/photo-1560089000-7433a4ebbd64?w=400",
-    caption: "Esports em ascensão! Torneio estadual de e-games 🎮 #EsportsRR",
-    likes: 423,
-    comments: 45,
-    permalink: "#"
-  },
-];
-
 export function InstagramFeed({ 
   username, 
-  posts = MOCK_POSTS,
+  posts = [],
   className,
   maxPosts = 6
 }: InstagramFeedProps) {
   const [hoveredPost, setHoveredPost] = useState<string | null>(null);
 
+  const { nomeCurto } = useIdentidade();
   const displayPosts = posts.slice(0, maxPosts);
 
   return (
@@ -109,11 +59,12 @@ export function InstagramFeed({
             Siga-nos no Instagram
           </h2>
           <p className="text-base text-muted-foreground max-w-2xl mx-auto">
-            Acompanhe as últimas novidades, eventos e conquistas do esporte roraimense
+            Acompanhe as últimas novidades, eventos e conquistas do {nomeCurto}
           </p>
         </motion.div>
 
-        {/* Grid de Posts */}
+        {/* Grid de Posts (só com posts reais) */}
+        {displayPosts.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {displayPosts.map((post, index) => (
             <motion.a
@@ -163,6 +114,7 @@ export function InstagramFeed({
             </motion.a>
           ))}
         </div>
+        )}
 
         {/* CTA */}
         <motion.div

@@ -4,6 +4,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { useIdentidade } from "@/core/tenant";
 
 const integridadeItems = [
   {
@@ -34,6 +35,8 @@ const integridadeItems = [
 ];
 
 export default function IntegridadePage() {
+  const { sigla } = useIdentidade();
+
   return (
     <MainLayout>
       {/* Cabeçalho */}
@@ -66,7 +69,7 @@ export default function IntegridadePage() {
             <div className="bg-muted/50 rounded-xl p-6 mb-8">
               <h2 className="font-serif text-xl font-bold mb-3">Compromisso com a Integridade</h2>
               <p className="text-muted-foreground leading-relaxed">
-                O IDJUV está comprometido com os mais altos padrões de ética e integridade 
+                O {sigla} está comprometido com os mais altos padrões de ética e integridade 
                 na gestão pública. Esta seção reúne instrumentos e canais para garantir a 
                 conformidade com princípios constitucionais e prevenir irregularidades.
               </p>
@@ -87,7 +90,7 @@ export default function IntegridadePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  O Canal de Denúncias do IDJUV garante sigilo absoluto e oferece opção de 
+                  O Canal de Denúncias do {sigla} garante sigilo absoluto e oferece opção de 
                   denúncia anônima. Todas as comunicações são tratadas de acordo com a LGPD 
                   e protocolos de integridade.
                 </p>

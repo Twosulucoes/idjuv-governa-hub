@@ -3,11 +3,13 @@ import { Shield, FileText, Building2, Users, BookOpen, BarChart3, Network, Layer
 import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { useTenant } from "@/core/tenant";
 
 const governancaItems = [
   {
     title: "Lei de Criação",
-    description: "Lei nº 2.301/2025 - Criação do IDJuv como autarquia estadual",
+    // Descrição montada com a lei do cadastro da instituição (ver GovernancaPage)
+    description: "",
     icon: FileText,
     href: "/governanca/lei-criacao",
   },
@@ -57,6 +59,14 @@ const governancaItems = [
 ];
 
 export default function GovernancaPage() {
+  const { identidade: { sigla }, legal } = useTenant();
+  const descricaoLei = legal?.leiCriacao
+    ? `${legal.leiCriacao} - Criação do ${sigla}`
+    : `Norma de criação do ${sigla}`;
+  const itens = governancaItems.map((item) =>
+    item.href === "/governanca/lei-criacao" ? { ...item, description: descricaoLei } : item,
+  );
+
   return (
     <ModuleLayout module="governanca">
       <div className="max-w-4xl mx-auto">
@@ -69,7 +79,7 @@ export default function GovernancaPage() {
             <div>
               <h1 className="font-serif text-3xl font-bold">Governança</h1>
               <p className="text-muted-foreground mt-1">
-                Estrutura normativa e organizacional do IDJUV
+                Estrutura normativa e organizacional do {sigla}
               </p>
             </div>
           </div>
@@ -77,9 +87,9 @@ export default function GovernancaPage() {
 
         {/* Introdução */}
         <div className="bg-muted/50 rounded-xl p-6 mb-8">
-          <h2 className="font-serif text-xl font-bold mb-3">Sobre a Governança do IDJUV</h2>
+          <h2 className="font-serif text-xl font-bold mb-3">Sobre a Governança do {sigla}</h2>
           <p className="text-muted-foreground leading-relaxed">
-            A governança do IDJUV está estruturada em conformidade com os princípios da 
+            A governança do {sigla} está estruturada em conformidade com os princípios da 
             Administração Pública, garantindo transparência, legalidade, impessoalidade, 
             moralidade e eficiência em todas as ações institucionais. Esta seção reúne 
             todos os documentos normativos e estruturais da autarquia.
@@ -91,7 +101,7 @@ export default function GovernancaPage() {
         {/* Grid de documentos */}
         <h2 className="font-serif text-2xl font-bold mb-6">Documentos e Normativas</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {governancaItems.map((item) => (
+          {itens.map((item) => (
             <Link key={item.href} to={item.href}>
               <Card className="h-full hover:shadow-lg transition-all hover:border-primary group">
                 <CardHeader className="flex flex-row items-start gap-4">
