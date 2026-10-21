@@ -199,7 +199,11 @@ de portarias desenhado no próprio componente; migrado na onda 5: `portarias-rel
 
 Regra: **nenhum PDF novo fora de `src/lib/documentos/`**. O gate conta `import` de `jspdf` (valor, não tipo)
 fora de `core/` e de `__testes__/`, e não deixa a contagem subir (`scripts/check-jspdf-fora-do-core.mjs`,
-chave `jspdfForaDoCore` em `scripts/gate-baseline.json`).
+chave `jspdfForaDoCore` em `scripts/gate-baseline.json`). O mesmo vale para as outras portas de impressão: `window.print()`, classe `print:` do
+Tailwind, `@media print`/`@page` e outra biblioteca de PDF (pdf-lib, html2canvas, react-to-print, pdfmake, @react-pdf)
+fora de `src/lib/documentos/` (`scripts/check-impressao-fora-do-core.mjs`, chave `impressaoForaDoCore`). Ainda
+imprimem por conta própria, à espera de modelo: `src/lib/etiquetasPatrimonio.ts`, `src/lib/pdfFichaCadastroGeral.ts`
+(pdf-lib) e o botão Imprimir de `src/pages/organograma/OrganogramaPage.tsx`; ao migrar um deles, baixe a baseline.
 
 1. **Escolha a família** (§1): tabela = relatório; rótulo/valor de uma pessoa ou coisa = ficha; documento de
    conferência de valores = comprovante. **Ato formal do órgão** (portaria, memorando, termo, requerimento,

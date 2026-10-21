@@ -96,6 +96,9 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 
 ## Backlog fora do plano
 
+- [ ] **Impressão só pelo motor** (transversal): guard `impressaoForaDoCore` no gate (21/10/2026) conta `window.print`,
+  `print:`, `@media print` e pdf-lib fora de `src/lib/documentos/`. Falta migrar para modelo do motor as etiquetas de
+  patrimônio, a ficha cadastral geral (pdf-lib) e o Imprimir do organograma ([PADRAO_DOCUMENTOS.md](../PADRAO_DOCUMENTOS.md) §3).
 - [ ] **Financeiro — planilhas do FIPLAN** (fora do plano, etapa 1 em PR rascunho): tabelas de classificação
   (função, programa, elemento, subelemento, fonte, finalidade) importadas das consultas do FIPLAN e nomes corrigidos
   nos cadastros ([spec](../superpowers/specs/2026-10-19-classificadores-fiplan-design.md)). Próximas etapas: credores

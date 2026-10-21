@@ -23,7 +23,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
 | — fora de `ui/` | 275 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 105 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 58 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 59 |
 | Linhas de `src/App.tsx` | 1369 |
 | Linhas de `src/integrations/supabase/types.ts` (gerado) | 27296 |
 

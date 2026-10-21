@@ -24,6 +24,7 @@
     "estado:checar": "node scripts/estado-do-sistema.mjs --checar",
     "check:cor-crua": "node scripts/check-cor-crua.mjs --arquivos",
     "check:jspdf": "node scripts/check-jspdf-fora-do-core.mjs --arquivos",
+    "check:impressao": "node scripts/check-impressao-fora-do-core.mjs --arquivos",
     "gate": "bash scripts/gate.sh",
     "prompt": "node scripts/prompt.mjs",
     "emails:gerar": "bun scripts/emails/gerar-templates-email.ts",
