@@ -229,6 +229,7 @@ export function ContaAutarquiaForm({ conta, onSuccess, onCancel }: ContaAutarqui
                     <SelectItem value="ferias">Férias</SelectItem>
                     <SelectItem value="decimo">13º Salário</SelectItem>
                     <SelectItem value="rescisao">Rescisões</SelectItem>
+                    <SelectItem value="pagamentos">Pagamentos do Financeiro</SelectItem>
                     <SelectItem value="geral">Uso Geral</SelectItem>
                   </SelectContent>
                 </Select>

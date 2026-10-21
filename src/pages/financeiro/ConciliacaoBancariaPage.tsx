@@ -33,6 +33,7 @@ import { ConciliarMovimentoDialog } from "@/components/financeiro/conciliacao/Co
 import { CorrigirContaDialog } from "@/components/financeiro/conciliacao/CorrigirContaDialog";
 import { GerarRemessaDialog } from "@/components/financeiro/conciliacao/GerarRemessaDialog";
 import { RemessaObnPagamentos } from "@/components/financeiro/conciliacao/RemessaObnPagamentos";
+import { BancosContasTab } from "@/components/folha/BancosContasTab";
 import { RemessasGeradas } from "@/components/financeiro/conciliacao/RemessasGeradas";
 import { SituacaoMovimentoBadge } from "@/components/financeiro/conciliacao/movimentoUi";
 import {
@@ -256,6 +257,7 @@ export default function ConciliacaoBancariaPage() {
           <TabsList className="flex h-auto flex-wrap justify-start">
             <TabsTrigger value="movimentos">Movimentos</TabsTrigger>
             <TabsTrigger value="remessa">Remessa OBN600</TabsTrigger>
+            <TabsTrigger value="contas">Contas pagadoras</TabsTrigger>
             <TabsTrigger value="recusados">Recusados ({contagem.recusados})</TabsTrigger>
             <TabsTrigger value="bb">Banco do Brasil (API)</TabsTrigger>
           </TabsList>
@@ -299,8 +301,12 @@ export default function ConciliacaoBancariaPage() {
           </TabsContent>
 
           <TabsContent value="remessa" className="space-y-3">
-            <RemessaObnPagamentos exercicio={exercicio} />
+            <RemessaObnPagamentos exercicio={exercicio} aoAbrirContas={() => setAba("contas")} />
             <RemessasGeradas />
+          </TabsContent>
+
+          <TabsContent value="contas">
+            <BancosContasTab />
           </TabsContent>
 
           <TabsContent value="recusados" className="space-y-3">

@@ -96,7 +96,13 @@ const colunas: ColunaTabela<PagamentoParaRemessa>[] = [
   },
 ];
 
-export function RemessaObnPagamentos({ exercicio }: { exercicio: number }) {
+interface Props {
+  exercicio: number;
+  /** Leva à aba "Contas pagadoras", onde ficam o código do cliente, a UG e a gestão */
+  aoAbrirContas?: () => void;
+}
+
+export function RemessaObnPagamentos({ exercicio, aoAbrirContas }: Props) {
   const { data, isLoading, isError, refetch } = usePagamentosParaRemessa(exercicio);
   const [selecao, setSelecao] = useState<{ pagamentos: PagamentoParaRemessa[]; limpar: () => void } | null>(null);
 
@@ -106,6 +112,16 @@ export function RemessaObnPagamentos({ exercicio }: { exercicio: number }) {
         Selecione os pagamentos e gere o arquivo de ordens bancárias (OBN600) para enviar ao Banco do Brasil. Cada
         pagamento vira uma OB com o número do pagamento; quando o retorno do banco for importado, o pagamento é baixado
         como pago ou recusado. Fatura e guia com código de barras ficam fora.
+        {aoAbrirContas && (
+          <>
+            {" "}
+            A conta pagadora e o código do cliente no BB ficam na aba{" "}
+            <Button variant="link" className="h-auto p-0 text-sm" onClick={aoAbrirContas}>
+              Contas pagadoras
+            </Button>
+            .
+          </>
+        )}
       </p>
       <DataTable
         rotulo="Pagamentos para a remessa OBN600"
@@ -146,6 +162,7 @@ export function RemessaObnPagamentos({ exercicio }: { exercicio: number }) {
         onOpenChange={(v) => !v && setSelecao(null)}
         pagamentos={selecao?.pagamentos ?? []}
         onGerado={() => selecao?.limpar()}
+        aoAbrirContas={aoAbrirContas}
       />
     </div>
   );

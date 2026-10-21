@@ -31,7 +31,8 @@ diferença aceita: espaços sobrando em nome e endereço são retirados. Posiç�
 Migração `20261024090000_fin_remessa_obn600.sql` (detalhe em [BANCO_DE_DADOS.md](../../BANCO_DE_DADOS.md)):
 
 1. `contas_autarquia` ganha `obn_codigo_cliente`, `obn_unidade_gestora` e `obn_gestao` (dado do cliente fica no
-   banco, nunca no código), editáveis em Configurações da Folha → Bancos.
+   banco, nunca no código), editáveis na aba **Contas pagadoras** da Conciliação bancária (o mesmo cadastro de Configurações da Folha → Bancos:
+   uma conta só, usada pela folha e pelos pagamentos do Financeiro).
 2. `registrar_remessa_obn600` monta as OBs no servidor a partir dos pagamentos programados/autorizados, reserva o nº
    da remessa e os pagamentos (`fin_pagamentos.remessa_bancaria_id`).
 3. `confirmar_remessa_bancaria` grava o hash e o nº da OB em `identificador_transacao`; o retorno casa por ele.
@@ -54,6 +55,9 @@ o pagamento numa remessa, de mudar valor, favorecido, conta e nº da OB: o que f
 Conciliação bancária ganha a aba **Remessa OBN600**: lista os pagamentos do exercício que ainda não saíram, mostra o
 que falta (CPF/CNPJ, conta), e o usuário seleciona e gera. O arquivo só é baixado depois de confirmado no banco. A
 lista "Arquivos gerados" mostra as duas espécies de arquivo e baixa de novo conferindo o SHA-256.
+A aba **Contas pagadoras** mostra o cadastro de contas da instituição (`contas_autarquia`) dentro do Financeiro, para
+que quem gera a remessa não precise passar pela Folha; a permissão é a da própria Conciliação (`pagamento.conciliar`),
+e a escrita segue as policies da tabela (módulo Financeiro ou RH).
 
 ## Fora desta entrega
 
