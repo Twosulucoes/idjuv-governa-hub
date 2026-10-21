@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json, TablesInsert } from "@/integrations/supabase/types";
 import { getTenantSnapshotOuNulo } from "@/core/tenant";
+import { comIdentidadeDoCliente } from "@/lib/identidadeConfigAutarquia";
 import { BANCOS } from "@/types/rh";
 import { calcularSha256 } from "@/lib/filaFotosOffline";
 import { descreverErroBanco } from "@/lib/folhaFichaRegras";
@@ -181,6 +182,8 @@ export function useDadosRemessaCNAB(folhaId: string, habilitado: boolean) {
       if (error && error.code !== "PGRST116") throw error;
       return data;
     },
+    // Razão social, CNPJ e endereço: os da Configuração do cliente
+    select: (cfg) => comIdentidadeDoCliente(cfg, getTenantSnapshotOuNulo()),
     enabled: habilitado,
   });
 
@@ -238,8 +241,8 @@ export const fichaTemBanco = (f: Pick<FichaRemessa, "banco_codigo" | "banco_agen
   !!(f.banco_codigo && f.banco_agencia && f.banco_conta);
 
 /**
- * Endereço do pagador: o de `config_autarquia` (Configurações da Folha); se o logradouro não estiver lá, o do perfil
- * do tenant inteiro (sem misturar as duas fontes).
+ * Endereço do pagador: o da Configuração do cliente, já aplicado em `config` (`comIdentidadeDoCliente`); se não
+ * houver logradouro em nenhum dos dois, o do perfil do tenant inteiro (sem misturar as fontes).
  */
 function enderecoPagador(config: ConfigRemessa): EnderecoPagador {
   if (config.endereco_logradouro?.trim()) {

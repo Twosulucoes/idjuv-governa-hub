@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getTenantSnapshotOuNulo } from "@/core/tenant";
+import { comIdentidadeDoCliente } from "@/lib/identidadeConfigAutarquia";
 import { calcularSha256 } from "@/lib/importacao/arquivo";
 import {
   gerarGestaoMaxCnab240,
@@ -221,8 +222,8 @@ export interface DadosPagador {
 }
 
 /**
- * CNPJ, nome e endereço do pagador: de `config_autarquia` (Configurações da Folha); endereço sem logradouro lá
- * cai no perfil do tenant inteiro, como na remessa da folha.
+ * CNPJ, nome e endereço do pagador: os da Configuração do cliente (`comIdentidadeDoCliente`), com o que estiver
+ * vazio lá completado por `config_autarquia`; sem linha na Folha, o perfil do tenant.
  */
 export function useDadosPagador() {
   return useQuery({
@@ -232,8 +233,10 @@ export function useDadosPagador() {
       if (error && error.code !== "PGRST116") throw error;
       return data;
     },
-    select: (config): DadosPagador => {
+    select: (linha): DadosPagador => {
       const tenant = getTenantSnapshotOuNulo();
+      // Razão social, CNPJ e endereço: os da Configuração do cliente
+      const config = comIdentidadeDoCliente(linha, tenant);
       const temEndereco = !!config?.endereco_logradouro?.trim();
       const t = tenant?.endereco;
       return {
