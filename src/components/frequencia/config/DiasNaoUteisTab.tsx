@@ -15,6 +15,8 @@ import type { DiaNaoUtil, TipoDiaNaoUtil, EsferaDiaNaoUtil } from "@/types/frequ
 import { TIPO_DIA_NAO_UTIL_LABELS, ESFERA_DIA_NAO_UTIL_LABELS } from "@/types/frequencia";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useTenant } from "@/core/tenant";
+import { ufDaSede } from "@/lib/rotulosInstituicao";
 
 const tipoOptions: TipoDiaNaoUtil[] = [
   'feriado_nacional', 'feriado_estadual', 'feriado_municipal',
@@ -57,6 +59,7 @@ export function DiasNaoUteisTab() {
   const anoAtual = new Date().getFullYear();
   const [ano, setAno] = useState(anoAtual);
   const [filtroEsfera, setFiltroEsfera] = useState<string>('todas');
+  const ufPadrao = ufDaSede(useTenant().endereco?.uf);
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   
   const { data: dias, isLoading } = useDiasNaoUteis(ano);
@@ -72,7 +75,7 @@ export function DiasNaoUteisTab() {
       nome: '',
       tipo: 'feriado_nacional',
       esfera: 'nacional',
-      uf: 'RR',
+      uf: ufPadrao || undefined,
       conta_frequencia: false,
       exige_compensacao: false,
       recorrente: false,
@@ -377,11 +380,11 @@ export function DiasNaoUteisTab() {
                   <div className="space-y-2">
                     <Label>UF</Label>
                     <Select
-                      value={editando.uf || 'RR'}
+                      value={editando.uf || ufPadrao}
                       onValueChange={(v) => setEditando({ ...editando, uf: v })}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Selecione a UF" />
                       </SelectTrigger>
                       <SelectContent>
                         {UF_OPTIONS.map((uf) => (

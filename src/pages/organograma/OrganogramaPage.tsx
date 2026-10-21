@@ -28,7 +28,8 @@ import UnidadeDetailPanel from '@/components/organograma/UnidadeDetailPanel';
 import { UnidadeOrganizacional, LABELS_UNIDADE } from '@/types/organograma';
 import { AdminOnly } from '@/components/auth';
 import { gerarOrganogramaPDF, gerarOrganogramaListaPDF, OrganogramaConfig } from '@/lib/pdfOrganograma';
-import { gerarRelatorioCargos98PDF } from '@/lib/pdfRelatorioCargos';
+import { gerarRelatorioCargosPDF } from '@/lib/pdfRelatorioCargos';
+import { useTenant } from '@/core/tenant';
 import { ExportOrganogramaDialog } from '@/components/organograma/ExportOrganogramaDialog';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -39,6 +40,8 @@ export default function OrganogramaPage() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingCargos, setIsExportingCargos] = useState(false);
+  const { identidade, legal } = useTenant();
+  const leiCriacao = legal?.leiCriacao?.trim();
 
   // Estatísticas
   const totalUnidades = unidades.length;
@@ -85,8 +88,8 @@ export default function OrganogramaPage() {
     window.print();
   };
 
-  // Exportar relatório dos 98 cargos
-  const handleExportarCargos98 = async () => {
+  // Exportar relatório do quadro de cargos (total calculado de composicao_cargos)
+  const handleExportarCargos = async () => {
     setIsExportingCargos(true);
     try {
       // Buscar dados completos dos cargos com servidores
@@ -153,12 +156,11 @@ export default function OrganogramaPage() {
         }
       });
 
-      await gerarRelatorioCargos98PDF(dadosCargos, {
+      await gerarRelatorioCargosPDF(dadosCargos, {
         titulo: 'QUADRO DE CARGOS COMISSIONADOS',
-        subtitulo: 'Lei nº 2.301/2025 - 98 Cargos do IDJUV'
       });
 
-      toast.success('Relatório de 98 cargos exportado com sucesso!');
+      toast.success(`Relatório do quadro de cargos (${dadosCargos.length}) exportado com sucesso!`);
     } catch (error) {
       console.error('Erro ao exportar cargos:', error);
       toast.error('Erro ao exportar relatório de cargos');
@@ -213,7 +215,7 @@ export default function OrganogramaPage() {
               Organograma Institucional
             </h1>
             <p className="text-muted-foreground mt-1">
-              Estrutura organizacional do IDJUV - Instituto de Desporto, Juventude e Lazer
+              Estrutura organizacional{identidade.nomeOficial ? ` do(a) ${identidade.nomeOficial}` : ''}
             </p>
           </div>
           <div className="flex gap-2">
@@ -237,7 +239,7 @@ export default function OrganogramaPage() {
             <Button 
               variant="secondary" 
               size="sm" 
-              onClick={handleExportarCargos98}
+              onClick={handleExportarCargos}
               disabled={isExportingCargos}
             >
               {isExportingCargos ? (
@@ -245,7 +247,7 @@ export default function OrganogramaPage() {
               ) : (
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
               )}
-              98 Cargos
+              Quadro de Cargos
             </Button>
             <AdminOnly>
               <Button 
@@ -440,27 +442,28 @@ export default function OrganogramaPage() {
           </TabsContent>
         </Tabs>
 
-        {/* Rodapé com referência legal */}
-        <Card className="mt-8 bg-muted/30 border-dashed">
-          <CardContent className="py-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-sm text-muted-foreground">
-              <div>
-                <p className="font-medium text-foreground">Base Legal</p>
-                <p>
-                  Estrutura definida conforme <strong>Lei nº 2.301, de 29 de dezembro de 2025</strong>
-                </p>
+        {/* Rodapé com referência legal (lei de criação do cadastro da instituição; sem lei, não aparece) */}
+        {leiCriacao && (
+          <Card className="mt-8 bg-muted/30 border-dashed">
+            <CardContent className="py-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-sm text-muted-foreground">
+                <div>
+                  <p className="font-medium text-foreground">Base Legal</p>
+                  <p>
+                    Estrutura definida conforme <strong>{leiCriacao}</strong>
+                  </p>
+                </div>
+                {identidade.nomeOficial && (
+                  <div className="text-right">
+                    <p className="text-xs">
+                      Dispõe sobre a criação do(a) {identidade.nomeOficial}
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="text-right">
-                <p className="text-xs">
-                  Dispõe sobre a criação do Instituto de Desporto, Juventude e Lazer do Estado de Roraima – IDJuv
-                </p>
-                <p className="text-xs mt-1">
-                  Governador: Antonio Denarium
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Dialog de Exportação */}
         <ExportOrganogramaDialog

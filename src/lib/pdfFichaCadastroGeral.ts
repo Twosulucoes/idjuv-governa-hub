@@ -1,6 +1,7 @@
 import { PDFDocument, PDFForm } from "pdf-lib";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { localDaSede } from "@/lib/documentos";
 import type { Servidor, Dependente } from "@/types/rh";
 import { SEGAD_ESTADO_CIVIL, SEGAD_TIPO_PCD, SEGAD_RACA_COR } from "@/types/rh";
 
@@ -148,7 +149,8 @@ export async function gerarFichaCadastroGeral(dados: DadosCompletos): Promise<Ui
   const form = pdfDoc.getForm();
 
   const dataAtual = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-  const dataLocalTexto = `Boa Vista-RR, ${dataAtual}`;
+  const local = localDaSede();
+  const dataLocalTexto = local ? `${local}, ${dataAtual}` : dataAtual;
   const nomeUpper = servidor.nome_completo?.toUpperCase() || "";
   const cpfFormatado = formatCPF(servidor.cpf);
   const cargoNome = cargo?.nome?.toUpperCase() || "";

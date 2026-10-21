@@ -30,6 +30,8 @@ import { useCessoesServidor, useEncerrarCessao } from "@/hooks/useServidorComple
 import { CessaoForm } from "./CessaoForm";
 import { RetornoCessaoForm } from "./RetornoCessaoForm";
 import { type Cessao } from "@/types/servidor";
+import { useIdentidade } from "@/core/tenant";
+import { orgaoEmTexto } from "@/lib/rotulosInstituicao";
 
 interface Props {
   servidorId: string;
@@ -38,6 +40,7 @@ interface Props {
 
 export function CessoesSection({ servidorId, servidorNome }: Props) {
   const [showCessaoForm, setShowCessaoForm] = useState(false);
+  const orgao = orgaoEmTexto(useIdentidade().sigla);
   const [showRetornoForm, setShowRetornoForm] = useState(false);
   const [selectedCessao, setSelectedCessao] = useState<Cessao | null>(null);
 
@@ -74,7 +77,7 @@ export function CessoesSection({ servidorId, servidorNome }: Props) {
           ) : cessoes.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">
               Nenhuma cessão registrada. Utilize esta seção para registrar servidores cedidos de outros órgãos (Entrada) 
-              ou servidores do IDJuv cedidos para outros órgãos (Saída).
+              ou servidores do {orgao} cedidos para outros órgãos (Saída).
             </p>
           ) : (
             <Table>

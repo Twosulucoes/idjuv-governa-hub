@@ -24,6 +24,8 @@ import { Loader2, ArrowLeftRight } from "lucide-react";
 import { useCreateCessao } from "@/hooks/useServidorCompleto";
 import { TIPOS_ATO, TIPOS_ONUS } from "@/types/servidor";
 import { UppercaseInput, UppercaseTextarea } from "@/components/ui/masked-input";
+import { useIdentidade } from "@/core/tenant";
+import { orgaoEmTexto } from "@/lib/rotulosInstituicao";
 
 interface Props {
   servidorId: string;
@@ -36,6 +38,7 @@ export function CessaoForm({ servidorId, servidorNome, open, onOpenChange }: Pro
   const createCessao = useCreateCessao();
   
   const [tipo, setTipo] = useState<'entrada' | 'saida'>('entrada');
+  const orgao = orgaoEmTexto(useIdentidade().sigla);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   
@@ -243,10 +246,10 @@ export function CessaoForm({ servidorId, servidorNome, open, onOpenChange }: Pro
                 </div>
               </div>
 
-              <h4 className="font-medium text-sm text-muted-foreground pt-4">Lotação no IDJuv</h4>
+              <h4 className="font-medium text-sm text-muted-foreground pt-4">Lotação no {orgao}</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Unidade de Lotação no IDJuv</Label>
+                  <Label>Unidade de Lotação no {orgao}</Label>
                   <Select value={unidadeIdjuvId} onValueChange={setUnidadeIdjuvId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a unidade" />
@@ -261,7 +264,7 @@ export function CessaoForm({ servidorId, servidorNome, open, onOpenChange }: Pro
                   </Select>
                 </div>
                   <div>
-                    <Label>Função Exercida no IDJuv</Label>
+                    <Label>Função Exercida no {orgao}</Label>
                     <UppercaseInput
                       value={funcaoExercidaIdjuv}
                       onChange={(value) => setFuncaoExercidaIdjuv(value)}

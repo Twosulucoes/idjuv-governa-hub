@@ -187,11 +187,11 @@ describe('cargos e governança no motor único', () => {
 
   it('as funções das telas mandam os dados ao motor com o tipo certo', async () => {
     const { generateRelatorioCargos, generateRelatorioGovernancaPDF } = await import('@/lib/pdfGenerator');
-    const { gerarRelatorioCargos98PDF } = await import('@/lib/pdfRelatorioCargos');
+    const { gerarRelatorioCargosPDF } = await import('@/lib/pdfRelatorioCargos');
     emitidos.length = 0;
     await generateRelatorioCargos(cargosVagas(3));
     await generateRelatorioGovernancaPDF();
-    await gerarRelatorioCargos98PDF(quadro(4).vagas);
+    await gerarRelatorioCargosPDF(quadro(4).vagas);
     expect(emitidos.map((e) => e.tipo)).toEqual(['cargos-relatorio-cargos-vagas', 'governanca-relatorio-anual', 'cargos-quadro-cargos']);
 
     // Os dados montados pelas funções renderizam sem lixo e com o que o antigo imprimia.
@@ -203,6 +203,8 @@ describe('cargos e governança no motor único', () => {
     semLixo(gov.texto);
     const q = emitidos[2].dados as DadosQuadroCargos;
     expect(q.titulo).toBe('QUADRO DE CARGOS COMISSIONADOS');
+    // Subtítulo padrão: lei de criação do cadastro (se houver) + total de vagas recebidas.
+    expect(q.subtitulo).toMatch(/(^|- )4 cargos$/);
     expect(q.agruparPorUnidade).toBe(true);
     expect(q.dataGeracao).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });

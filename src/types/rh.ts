@@ -4,6 +4,7 @@
 
 import type { Database } from '@/integrations/supabase/types';
 import type { CategoriaCargo } from '@/core/tenant';
+import { ufDaSede } from '@/lib/rotulosInstituicao';
 
 // Re-exportar tipos de servidor
 export * from './servidor';
@@ -191,7 +192,8 @@ export type VinculoExternoForma =
 
 export const VINCULO_EXTERNO_ESFERA_LABELS: Record<VinculoExternoEsfera, string> = {
   federal: 'Federal (União)',
-  estadual_rr: 'Estadual (Roraima)',
+  // Código `estadual_rr` é do banco; o rótulo usa a UF da sede cadastrada.
+  get estadual_rr() { const uf = ufDaSede(); return uf ? `Estadual (${uf})` : 'Estadual (Estado da sede)'; },
   estadual_outro: 'Estadual (Outro Estado)',
   municipal: 'Municipal',
 };

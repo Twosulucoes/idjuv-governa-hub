@@ -2,6 +2,8 @@
 // TIPOS PARA SISTEMA AVANÇADO DE RELATÓRIOS
 // ================================================================
 
+import { orgaoEmTexto } from '@/lib/rotulosInstituicao';
+
 // Tipos de relatório disponíveis
 export type TipoRelatorio = 
   | 'portarias'
@@ -293,8 +295,8 @@ export const FILTROS_SERVIDORES: FiltroRelatorio[] = [
     label: 'Tipo de Servidor',
     tipo: 'multiselect',
     opcoes: [
-      { value: 'efetivo_idjuv', label: 'Efetivo IDJUV' },
-      { value: 'comissionado_idjuv', label: 'Comissionado IDJUV' },
+      { value: 'efetivo_idjuv', get label() { return `Efetivo do ${orgaoEmTexto()}`; } },
+      { value: 'comissionado_idjuv', get label() { return `Comissionado do ${orgaoEmTexto()}`; } },
       { value: 'cedido_entrada', label: 'Cedido (Entrada)' },
       { value: 'cedido_saida', label: 'Cedido (Saída)' },
     ],
