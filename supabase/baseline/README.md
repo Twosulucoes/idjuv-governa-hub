@@ -272,6 +272,10 @@ de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termo
 `doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
 `ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
 
+A migração `20261024090000_fin_remessa_obn600.sql` (remessa OBN600 dos pagamentos) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`; o `02_dados_catalogo.sql` não muda). Sem tabela nova: `rls/mapa.csv` sem
+mudança; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de `scripts/db/testar-rls.sql`.
+
 Em 2026-10-18 (P13, migração `20261018100000_remove_tabelas_backup_aposentado.sql`), as tabelas `backup_config`,
 `backup_history` e `backup_integrity_checks` e os enums `backup_status` e `backup_type` (do backup antigo, aposentado
 no P06) saíram do schema do baseline e do `rls/mapa.csv`.

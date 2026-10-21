@@ -1034,6 +1034,34 @@ Todas idempotentes.
   - `cancelar_remessa_bancaria(p_id uuid) → jsonb` (`id`, `nsa`, `movimentos_liberados`): só reserva não confirmada,
     pelo autor ou por um administrador; **apaga** a linha (a trilha `fin_audit_log` guarda) e limpa `remessa_id` dos
     movimentos. Se era a última remessa da conta, o NSA volta a ficar livre; senão, o número fica pulado.
+- **Remessa OBN600 dos pagamentos** (`20261024090000_fin_remessa_obn600.sql`, spec
+  [`2026-10-21-financeiro-remessa-obn600-design.md`](./superpowers/specs/2026-10-21-financeiro-remessa-obn600-design.md)):
+  o sistema gera o arquivo de ordens bancárias (crédito em conta) que hoje sai do sistema estadual. Colunas novas:
+  `contas_autarquia.obn_codigo_cliente` (até 9 dígitos, header 059-067), `obn_unidade_gestora` (até 6) e `obn_gestao`
+  (até 5), com CHECK de dígitos (vazias = a conta não gera OBN600); `fin_remessas_bancarias.layout` aceita `obn600`, com
+  `pagamentos uuid[]` (ordem das OBs) e `parametros jsonb` (`{unidade_gestora, gestao}`); `convenio` guarda o código do
+  cliente e `nsa` o nº da remessa (até 99999); `fin_pagamentos.remessa_bancaria_id` (FK `ON DELETE SET NULL`) aponta a
+  reserva ou a remessa em que o pagamento saiu.
+  - `registrar_remessa_obn600(p_conta_autarquia_id uuid, p_pagamentos uuid[], p_data_pagamento date,
+    p_sequencial_minimo integer DEFAULT NULL) → jsonb` (formato de `fin_remessa_bancaria_json`, sem o hash): o
+    **servidor** monta as OBs (`pagamento_id`, `pagamento_numero`, `relacao`, `numero_ob`, `nome`, `documento`,
+    `banco`, `agencia`, `agencia_dv`, `conta`, `conta_dv`, `valor` = `valor_liquido`, `endereco`, `municipio`, `cep`,
+    `uf`) com o favorecido do fornecedor e a conta do pagamento (vazia, a do fornecedor; agência até 4 dígitos e conta
+    até 9, DV depois do hífen). Nº da OB = exercício + sequência do pagamento (`OP-000123` de 2026 → `02026000123`);
+    relação = exercício + nº da remessa + tipo (`31` outro banco, `32` BB); OBs ordenadas por tipo. Recusa (`22023`)
+    conta sem os dados do OBN600, lista vazia/repetida/acima de 999, data fora de [ontem, hoje + 60], pagamento que
+    não esteja programado/autorizado, estornado, sem favorecido com CPF/CNPJ, sem conta válida, fora da numeração
+    `OP-` ou já em outra remessa (confirmada, ou reservada por outra pessoa). Numeração e reaproveitamento da reserva
+    do mesmo usuário como no reenvio (`p_sequencial_minimo` só na primeira OBN600 da conta).
+  - `confirmar_remessa_bancaria` (versão final nesta migração) também confirma a OBN600: confere que os pagamentos
+    seguem reservados e programados/autorizados e grava o nº da OB em `fin_pagamentos.identificador_transacao`
+    (devolve `pagamentos_marcados`). É por ele que `importar_arquivo_bancario` casa a OB do retorno com o pagamento e
+    dá a baixa. `cancelar_remessa_bancaria` também limpa `remessa_bancaria_id` (devolve `pagamentos_liberados`);
+    `fin_remessa_bancaria_json` passa a devolver `layout` e `parametros`.
+  - `fin_pagamentos_proteger_baixa` (versão final): pela API (`anon`/`authenticated`, admin inclusive) o pagamento não
+    nasce com `remessa_bancaria_id`, não muda `remessa_bancaria_id` e, numa remessa (reservada ou enviada), não muda
+    `valor_bruto`, `valor_retencoes`, `fornecedor_id`, `banco_favorecido`, `agencia_favorecido`, `conta_favorecido`
+    nem `identificador_transacao` (`42501`). Observações e status (salvo a baixa) seguem editáveis.
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver
@@ -1065,7 +1093,8 @@ Todas idempotentes.
   interno (sem EXECUTE para a API). Erros: `42501` sem permissão; `22023` dado inválido; `P0002` registro inexistente.
 - **No baseline**: `schema/` regenerado, as três tabelas como `preservar` no `rls/mapa.csv`, REVOKE/GRANT no
   `overlay/40_privilegios.sql` e testes no bloco "Financeiro: FIPLAN, arquivos bancários e extrato do BB" de
-  `scripts/db/testar-rls.sql`.
+  `scripts/db/testar-rls.sql`. A remessa OBN600 (`20261024090000`) tem o bloco "Financeiro: remessa OBN600 dos
+  pagamentos".
 
 ### Patrimônio e inventário
 `bens_patrimoniais`, `movimentacoes_bem`, `movimentacoes_patrimonio`,

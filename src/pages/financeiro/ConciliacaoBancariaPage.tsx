@@ -3,6 +3,8 @@
  *
  * Abas:
  *  - Movimentos: pagamentos vistos nos arquivos do banco (OBN600/CNAB 240), importação e conciliação manual;
+ *  - Remessa OBN600: pagamentos programados/autorizados que ainda não saíram, para gerar o arquivo de ordens
+ *    bancárias (o retorno importado em Movimentos dá a baixa pelo nº da OB);
  *  - Recusados: correção de banco/agência/conta (gravada no banco), arquivo de reenvio no leiaute do BB Gestão MAX
  *    e lista dos arquivos gerados (baixar de novo conferindo o SHA-256, cancelar reserva sem arquivo);
  *  - Banco do Brasil (API): situação da conexão e importação de extrato.
@@ -30,6 +32,7 @@ import { BancoDoBrasilApiPainel } from "@/components/financeiro/conciliacao/Banc
 import { ConciliarMovimentoDialog } from "@/components/financeiro/conciliacao/ConciliarMovimentoDialog";
 import { CorrigirContaDialog } from "@/components/financeiro/conciliacao/CorrigirContaDialog";
 import { GerarRemessaDialog } from "@/components/financeiro/conciliacao/GerarRemessaDialog";
+import { RemessaObnPagamentos } from "@/components/financeiro/conciliacao/RemessaObnPagamentos";
 import { RemessasGeradas } from "@/components/financeiro/conciliacao/RemessasGeradas";
 import { SituacaoMovimentoBadge } from "@/components/financeiro/conciliacao/movimentoUi";
 import {
@@ -230,7 +233,7 @@ export default function ConciliacaoBancariaPage() {
         <PageHeader
           migalhas={[{ rotulo: "Financeiro", href: "/financeiro" }, { rotulo: "Conciliação bancária" }]}
           titulo="Conciliação bancária"
-          descricao="Remessas e retornos do banco, reenvio de recusados e extratos do Banco do Brasil."
+          descricao="Remessa de ordens bancárias, retornos do banco, reenvio de recusados e extratos do Banco do Brasil."
           acoes={
             <div className="flex flex-col gap-2 sm:flex-row">
               <SeletorExercicio />
@@ -252,6 +255,7 @@ export default function ConciliacaoBancariaPage() {
         <Tabs value={aba} onValueChange={setAba} className="space-y-4">
           <TabsList className="flex h-auto flex-wrap justify-start">
             <TabsTrigger value="movimentos">Movimentos</TabsTrigger>
+            <TabsTrigger value="remessa">Remessa OBN600</TabsTrigger>
             <TabsTrigger value="recusados">Recusados ({contagem.recusados})</TabsTrigger>
             <TabsTrigger value="bb">Banco do Brasil (API)</TabsTrigger>
           </TabsList>
@@ -292,6 +296,11 @@ export default function ConciliacaoBancariaPage() {
                 </Button>
               )}
             />
+          </TabsContent>
+
+          <TabsContent value="remessa" className="space-y-3">
+            <RemessaObnPagamentos exercicio={exercicio} />
+            <RemessasGeradas />
           </TabsContent>
 
           <TabsContent value="recusados" className="space-y-3">

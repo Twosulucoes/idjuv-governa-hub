@@ -18,12 +18,21 @@ import {
   type PagadorGestaoMax,
   type RemessaGestaoMax,
 } from "@/lib/bancario/gestaoMaxCnab240";
+import {
+  gerarObn600Remessa,
+  nomeArquivoObn600,
+  validarRemessaObn600,
+  type RemessaObn600,
+} from "@/lib/bancario/obn600Remessa";
 import type {
   ContaPagadora,
+  ContaPagadoraObn,
   FiltroSituacaoMovimento,
   LancamentoExtrato,
   MovimentoBancario,
+  PagamentoParaRemessa,
   RemessaBancaria,
+  RemessaObnRegistrada,
   RemessaRegistrada,
   ResultadoExtratoBB,
   ResultadoValidacaoConta,
@@ -444,6 +453,7 @@ export function useCancelarRemessaBancaria() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["fin_movimentos_bancarios"] }),
+        queryClient.invalidateQueries({ queryKey: ["fin_pagamentos"] }),
         queryClient.invalidateQueries({ queryKey: ["fin_remessas_bancarias"] }),
       ]);
       toast.success("Reserva cancelada", { description: "Os créditos voltam a poder ser reenviados." });
@@ -455,17 +465,24 @@ export function useCancelarRemessaBancaria() {
 /**
  * "Baixar novamente": lê o retrato (`obter_remessa_bancaria`), gera o arquivo de novo e só baixa se o SHA-256 for o
  * registrado, usando o tipo de pagamento BB (98/30) gravado na reserva. Se não bater (dados do pagador mudaram,
- * por exemplo), avisa e não baixa.
+ * por exemplo), avisa e não baixa. A OBN600 sai só do retrato (não usa os dados do pagador).
  */
 export function useBaixarRemessaNovamente() {
   return useMutation({
-    mutationFn: async ({ remessaId, pagador }: { remessaId: string; pagador: DadosPagador }) => {
+    mutationFn: async ({ remessaId, pagador }: { remessaId: string; pagador: DadosPagador | undefined }) => {
       const { data, error } = await supabase.rpc("obter_remessa_bancaria", { p_id: remessaId });
       if (error) throw error;
-      const remessa = data as unknown as RemessaRegistrada;
-      if (!remessa?.arquivo_sha256) throw new Error("Esta remessa não foi confirmada: não há arquivo registrado.");
-      const arquivo = await montarArquivo(remessa, pagador, remessa.tipo_servico);
-      if (arquivo.sha256 === remessa.arquivo_sha256) {
+      const lida = data as unknown as RemessaRegistrada | RemessaObnRegistrada;
+      if (!lida?.arquivo_sha256) throw new Error("Esta remessa não foi confirmada: não há arquivo registrado.");
+      let arquivo: { blob: Blob; sha256: string; nome: string };
+      if (lida.layout === "obn600") {
+        arquivo = await montarArquivoObn600(lida as RemessaObnRegistrada);
+      } else {
+        if (!pagador) throw new Error("Dados do pagador não carregados.");
+        const remessa = lida as RemessaRegistrada;
+        arquivo = await montarArquivo(remessa, pagador, remessa.tipo_servico);
+      }
+      if (arquivo.sha256 === lida.arquivo_sha256) {
         baixarArquivo(arquivo.blob, arquivo.nome);
         return arquivo.nome;
       }
@@ -476,6 +493,155 @@ export function useBaixarRemessaNovamente() {
     },
     onSuccess: (nome) => toast.success(`Arquivo ${nome} baixado`, { description: "Conferido com o registrado." }),
     onError: async (e) => toast.error("Não foi possível baixar de novo", { description: await mensagemErro(e) }),
+  });
+}
+
+// ===========================================
+// REMESSA OBN600 (ordens bancárias dos pagamentos)
+// ===========================================
+
+/** Contas pagadoras ativas com código do cliente, UG e gestão do OBN600. */
+export function useContasPagadorasObn() {
+  return useQuery({
+    queryKey: ["contas-autarquia", "obn600"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contas_autarquia")
+        .select("id, descricao, agencia, agencia_digito, conta, conta_digito, obn_codigo_cliente, obn_unidade_gestora, obn_gestao")
+        .eq("ativo", true)
+        .not("obn_codigo_cliente", "is", null)
+        .order("descricao");
+      if (error) throw error;
+      return ((data ?? []) as unknown as ContaPagadoraObn[]).filter(
+        (c) => c.obn_codigo_cliente?.trim() && c.obn_unidade_gestora?.trim() && c.obn_gestao?.trim(),
+      );
+    },
+  });
+}
+
+/** Pagamentos programados ou autorizados do exercício que ainda não saíram numa remessa OBN600. */
+export function usePagamentosParaRemessa(exercicio: number) {
+  return useQuery({
+    queryKey: ["fin_pagamentos", exercicio, "remessa_obn600"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fin_pagamentos")
+        .select(
+          "id, numero, exercicio, data_pagamento, valor_liquido, status, banco_favorecido, agencia_favorecido, " +
+            "conta_favorecido, remessa_bancaria_id, " +
+            "fornecedor:fornecedores(razao_social, cpf_cnpj, banco_codigo, agencia, conta)",
+        )
+        .eq("exercicio", exercicio)
+        .in("status", ["programado", "autorizado"])
+        .eq("estornado", false)
+        .is("remessa_bancaria_id", null)
+        .order("data_pagamento", { ascending: true })
+        .order("numero");
+      if (error) throw error;
+      return (data ?? []) as unknown as PagamentoParaRemessa[];
+    },
+  });
+}
+
+/** Monta o OBN600 só a partir do retrato devolvido pelo banco; a hora vem de `data_geracao` (fuso do navegador). */
+async function montarArquivoObn600(remessa: RemessaObnRegistrada) {
+  const dataGeracao = new Date(remessa.data_geracao);
+  const dados: RemessaObn600 = {
+    pagador: {
+      codigoCliente: remessa.convenio,
+      unidadeGestora: remessa.parametros?.unidade_gestora ?? "",
+      gestao: remessa.parametros?.gestao ?? "",
+      agencia: remessa.agencia,
+      agenciaDigito: remessa.agencia_digito ?? "",
+      conta: remessa.conta,
+      contaDigito: remessa.conta_digito ?? "",
+    },
+    sequencial: remessa.nsa,
+    dataGeracao,
+    ordens: (remessa.creditos ?? []).map((o) => ({
+      relacao: o.relacao,
+      numeroOb: o.numero_ob,
+      data: remessa.data_pagamento,
+      nome: o.nome ?? "",
+      documento: o.documento ?? "",
+      banco: o.banco ?? "",
+      agencia: o.agencia ?? "",
+      agencia_dv: o.agencia_dv ?? "",
+      conta: o.conta ?? "",
+      conta_dv: o.conta_dv ?? "",
+      valor: Number(o.valor),
+      endereco: o.endereco,
+      municipio: o.municipio,
+      cep: o.cep,
+      uf: o.uf,
+    })),
+  };
+  const faltas = validarRemessaObn600(dados);
+  if (faltas.length) throw new Error(`Faltam dados para o arquivo: ${faltas.join("; ")}.`);
+  const arquivo = gerarObn600Remessa(dados);
+  // Arquivo do banco em Latin-1: o texto já sai só em ASCII (sem acento), então os bytes são os mesmos
+  const blob = new Blob([arquivo.conteudo], { type: "text/plain" });
+  return {
+    blob,
+    sha256: await calcularSha256(blob),
+    nome: nomeArquivoObn600(dataGeracao, remessa.nsa),
+    quantidade: arquivo.quantidade,
+    valorTotalCentavos: arquivo.valorTotalCentavos,
+  };
+}
+
+export interface GerarRemessaObnInput {
+  contaId: string;
+  pagamentoIds: string[];
+  /** Data das OBs (YYYY-MM-DD) */
+  dataPagamento: string;
+  /** Nº da primeira remessa desta conta (continua a numeração de hoje); null segue a do sistema */
+  sequencialMinimo: number | null;
+}
+
+/**
+ * Reserva o nº da remessa e os pagamentos (`registrar_remessa_obn600`), gera o OBN600 a partir do retrato,
+ * confirma com o SHA-256 (`confirmar_remessa_bancaria`, que grava o nº da OB em cada pagamento) e só então baixa o
+ * arquivo. Falha depois da reserva vira `ErroRemessaReservada`, para a tela oferecer o cancelamento.
+ */
+export function useGerarRemessaObn600() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: GerarRemessaObnInput) => {
+      const { data, error } = await supabase.rpc("registrar_remessa_obn600", {
+        p_conta_autarquia_id: input.contaId,
+        p_pagamentos: input.pagamentoIds,
+        p_data_pagamento: input.dataPagamento,
+        p_sequencial_minimo: input.sequencialMinimo ?? undefined,
+      });
+      if (error) throw error;
+      const remessa = data as unknown as RemessaObnRegistrada;
+
+      try {
+        const arquivo = await montarArquivoObn600(remessa);
+        const { error: erroConfirmar } = await supabase.rpc("confirmar_remessa_bancaria", {
+          p_id: remessa.id,
+          p_sha256: arquivo.sha256,
+        });
+        if (erroConfirmar) throw erroConfirmar;
+        baixarArquivo(arquivo.blob, arquivo.nome);
+        return { nome: arquivo.nome, nsa: remessa.nsa, quantidade: arquivo.quantidade };
+      } catch (e) {
+        throw new ErroRemessaReservada(await mensagemErro(e), remessa.id, remessa.nsa);
+      }
+    },
+    onSuccess: async (r) => {
+      toast.success(`Arquivo ${r.nome} gerado`, {
+        description: `${r.quantidade} ordem(ns) bancária(s), remessa nº ${r.nsa}. Envie o arquivo ao banco.`,
+      });
+    },
+    onError: async (e) => toast.error("O arquivo não foi gerado", { description: await mensagemErro(e) }),
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["fin_pagamentos"] }),
+        queryClient.invalidateQueries({ queryKey: ["fin_remessas_bancarias"] }),
+      ]);
+    },
   });
 }
 

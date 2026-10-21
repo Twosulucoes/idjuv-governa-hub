@@ -84,6 +84,10 @@ export interface ContaAutarquia {
   nsa_inicial?: number | null;
   codigo_cedente?: string;
   codigo_transmissao?: string;
+  /** Ordem bancária (OBN600): código do cliente no BB, UG e gestão; vazios = a conta não gera OBN600 */
+  obn_codigo_cliente?: string | null;
+  obn_unidade_gestora?: string | null;
+  obn_gestao?: string | null;
   ativo?: boolean;
   created_at?: string;
   updated_at?: string;
