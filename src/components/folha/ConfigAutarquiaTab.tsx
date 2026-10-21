@@ -16,7 +16,12 @@ const configSchema = z.object({
   nome_fantasia: z.string().optional(),
   cnpj: z.string().min(14, "CNPJ inválido"),
   natureza_juridica: z.string().optional(),
-  codigo_municipio: z.string().max(10).optional(),
+  // O banco guarda o código IBGE com 7 dígitos (varchar(7)); ex.: Boa Vista = 1400100
+  codigo_municipio: z
+    .string()
+    .trim()
+    .regex(/^(\d{7})?$/, "O código IBGE tem 7 números, sem ponto nem traço (ex.: 1400100)")
+    .optional(),
   regime_tributario: z.string().optional(),
   endereco_logradouro: z.string().optional(),
   endereco_numero: z.string().max(30).optional(),
@@ -24,7 +29,7 @@ const configSchema = z.object({
   endereco_bairro: z.string().optional(),
   endereco_cidade: z.string().optional(),
   endereco_uf: z.string().optional(),
-  endereco_cep: z.string().optional(),
+  endereco_cep: z.string().max(9, "CEP com até 9 caracteres (ex.: 69301-000)").optional(),
   telefone: z.string().max(30).optional(),
   email_institucional: z.string().email("E-mail inválido").optional().or(z.literal("")),
   site: z.string().optional(),
@@ -233,7 +238,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>Código IBGE Município</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="1400100" maxLength={10} />
+                    <Input {...field} placeholder="1400100" inputMode="numeric" maxLength={7} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -255,7 +260,7 @@ export function ConfigAutarquiaTab() {
                 <FormItem>
                   <FormLabel>CEP</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="00000-000" maxLength={10} />
+                    <Input {...field} placeholder="00000-000" maxLength={9} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
