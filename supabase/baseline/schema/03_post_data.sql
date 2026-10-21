@@ -21968,7 +21968,7 @@ CREATE POLICY rls_insert ON public.form_field_config FOR INSERT TO authenticated
 -- Name: fornecedores rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.fornecedores FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+CREATE POLICY rls_insert ON public.fornecedores FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
 
 
 --
@@ -22790,7 +22790,7 @@ CREATE POLICY rls_select ON public.banco_horas FOR SELECT TO authenticated USING
 -- Name: bancos_cnab rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.bancos_cnab FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text));
+CREATE POLICY rls_select ON public.bancos_cnab FOR SELECT TO authenticated USING (public.is_active_user());
 
 
 --
@@ -23611,7 +23611,7 @@ CREATE POLICY rls_select ON public.form_field_config FOR SELECT TO authenticated
 -- Name: fornecedores rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.fornecedores FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+CREATE POLICY rls_select ON public.fornecedores FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
 
 
 --
@@ -25255,7 +25255,7 @@ CREATE POLICY rls_update ON public.form_field_config FOR UPDATE TO authenticated
 -- Name: fornecedores rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.fornecedores FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+CREATE POLICY rls_update ON public.fornecedores FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text) OR public.can_access_module(auth.uid(), 'financeiro'::text)));
 
 
 --

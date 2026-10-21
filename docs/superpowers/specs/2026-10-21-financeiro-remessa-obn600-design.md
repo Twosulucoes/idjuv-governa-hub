@@ -58,6 +58,9 @@ lista "Arquivos gerados" mostra as duas espécies de arquivo e baixa de novo con
 A aba **Contas pagadoras** mostra o cadastro de contas da instituição (`contas_autarquia`) dentro do Financeiro, para
 que quem gera a remessa não precise passar pela Folha; a permissão é a da própria Conciliação (`pagamento.conciliar`),
 e a escrita segue as policies da tabela (módulo Financeiro ou RH).
+Os favorecidos (tabela `fornecedores`) se cadastram em **Financeiro → Favorecidos** (migração `20261025090000`: o
+Financeiro lê, cadastra e edita, sem apagar), com o banco escolhido na lista `bancos_cnab`, que vem preenchida; a tela
+recusa agência e conta fora da regra do arquivo. Financeiro → Contas Bancárias (tesouraria) aponta para as duas telas.
 
 ## Fora desta entrega
 

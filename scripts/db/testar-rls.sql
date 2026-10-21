@@ -602,7 +602,9 @@ BEGIN
         END IF;
       END LOOP;
       -- módulo alheio não vê nem escreve
-      outro := (SELECT x FROM unnest(ARRAY['financeiro','rh','compras','patrimonio']) x WHERE x <> ALL (mods) LIMIT 1);
+      -- (o módulo do coletor também não conta como alheio)
+      outro := (SELECT x FROM unnest(ARRAY['financeiro','rh','compras','patrimonio']) x
+                WHERE x <> ALL (mods) AND x IS DISTINCT FROM (pg_temp.coletor_de(m.classe, m.extra))[1] LIMIT 1);
       u_mod := (SELECT uid FROM persona WHERE nome = 'mod_' || outro);
       IF m.classe <> 'catalogo' AND m.anon <> 'select' AND coalesce(ok_seed, false) AND pg_temp.sel(u_mod, 'authenticated', m.tabela) > 0 THEN
         PERFORM pg_temp.falha(m.tabela || ': módulo alheio (' || outro || ') enxerga linhas');

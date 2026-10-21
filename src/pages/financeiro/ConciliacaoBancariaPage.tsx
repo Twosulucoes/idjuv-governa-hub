@@ -12,7 +12,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertOctagon,
   Banknote,
@@ -159,7 +159,12 @@ export default function ConciliacaoBancariaPage() {
   const { data, isLoading, isError, refetch } = useMovimentosBancarios(exercicio);
   const movimentos = useMemo(() => data ?? [], [data]);
 
-  const [aba, setAba] = useState("movimentos");
+  // ?aba=contas abre direto numa aba (link de Financeiro → Contas Bancárias)
+  const [params] = useSearchParams();
+  const [aba, setAba] = useState(() => {
+    const pedida = params.get("aba") ?? "";
+    return ["movimentos", "remessa", "contas", "recusados", "bb"].includes(pedida) ? pedida : "movimentos";
+  });
   const [filtro, setFiltro] = useState<FiltroSituacaoMovimento>("todos");
   const [importarAberto, setImportarAberto] = useState(false);
   const [importando, setImportando] = useState(false);

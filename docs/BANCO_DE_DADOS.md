@@ -1062,6 +1062,13 @@ Todas idempotentes.
     nasce com `remessa_bancaria_id`, não muda `remessa_bancaria_id` e, numa remessa (reservada ou enviada), não muda
     `valor_bruto`, `valor_retencoes`, `fornecedor_id`, `banco_favorecido`, `agencia_favorecido`, `conta_favorecido`
     nem `identificador_transacao` (`42501`). Observações e status (salvo a baixa) seguem editáveis.
+- **Favorecidos e lista de bancos** (`20261025090000_fin_favorecidos_bancos.sql`; só policies e dados, sem coluna nova):
+  `fornecedores` ganha `coletor=financeiro:select|insert|update` no `rls/mapa.csv`, então o Financeiro lê, cadastra e
+  edita os favorecidos (tela Financeiro → Favorecidos) sem apagar, que segue com Compras e Contratos. `bancos_cnab`
+  passa de `modulo` a `catalogo` (qualquer usuário ativo lê, o RH escreve) e recebe 19 bancos pelo código FEBRABAN
+  (`ON CONFLICT (codigo_banco) DO NOTHING`, então não mexe em banco já cadastrado); entrou nas `SEMENTES` do
+  `scripts/db/gerar-baseline.sh`. A tela valida agência e conta com as mesmas regras de `registrar_remessa_obn600`
+  (`src/lib/bancario/favorecido.ts`).
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver

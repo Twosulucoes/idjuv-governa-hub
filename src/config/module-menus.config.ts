@@ -145,6 +145,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "sub-empenhos", label: "Sub-Empenhos", icon: FileText, route: "/financeiro/sub-empenhos" },
       { id: "restos-a-pagar", label: "Restos a Pagar", icon: FileText, route: "/financeiro/restos-a-pagar" },
       { id: "adiantamentos", label: "Adiantamentos", icon: Send, route: "/financeiro/adiantamentos" },
+      { id: "favorecidos", label: "Favorecidos", icon: Users, route: "/financeiro/favorecidos", permission: "orcamento.criar" },
       { id: "contas", label: "Contas Bancárias", icon: Building2, route: "/financeiro/contas-bancarias" },
       { id: "conciliacao", label: "Conciliação Bancária", icon: ArrowLeftRight, route: "/financeiro/conciliacao", permission: "pagamento.conciliar" },
       { id: "relatorios", label: "Relatórios", icon: BarChart3, route: "/financeiro/relatorios" },

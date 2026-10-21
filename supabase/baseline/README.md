@@ -39,7 +39,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | # | Arquivo | O que faz | Origem |
 |---|---|---|---|
 | 1 | `schema/01_pre_data.sql` | tipos, funções, tabelas, views | **gerado** (`scripts/db/gerar-baseline.sh`) |
-| 2 | `schema/02_dados_catalogo.sql` | 23 tabelas de catálogo/parâmetros (972 linhas; `processo_modelos`, `processo_modelo_etapas` e `processo_modelo_checklist` (modelos de fluxo do workflow, migração `20261013100000`); `audit_colunas_sensiveis` entrou na E1, `rh.contracheques.visualizar` e seus 2 papéis na E3; `regra_lancamento` (um modo por módulo: `rh` em `registrar`, os demais `desligado`), `rh.comissoes.gerenciar` e o papel `admin` na regra de setor, migração `20261011020000`, que tira o `manager`) | **gerado** |
+| 2 | `schema/02_dados_catalogo.sql` | 24 tabelas de catálogo/parâmetros (972 linhas; `bancos_cnab` (lista de bancos, migração `20261025090000`); `processo_modelos`, `processo_modelo_etapas` e `processo_modelo_checklist` (modelos de fluxo do workflow, migração `20261013100000`); `audit_colunas_sensiveis` entrou na E1, `rh.contracheques.visualizar` e seus 2 papéis na E3; `regra_lancamento` (um modo por módulo: `rh` em `registrar`, os demais `desligado`), `rh.comissoes.gerenciar` e o papel `admin` na regra de setor, migração `20261011020000`, que tira o `manager`) | **gerado** |
 | 3 | `schema/03_post_data.sql` | constraints, índices, triggers, RLS ligado, policies do replay | **gerado** |
 | 4 | `overlay/10_funcoes_acesso.sql` | `is_admin_user`, `is_admin_atual`, `has_permission_code`, `meu_servidor_id` exigem perfil **ativo**; fim dos stubs “acesso total”; alias `usuario_eh_admin`; `eh_meu_servidor(uuid)` (B2: "este servidor é o do usuário?", por vínculo ou, sem vínculo, por CPF); `eh_meu_arquivo_frequencia(text)` e `eh_minha_pasta_servidor(text)` (B3: o objeto do storage é do servidor do usuário?) | à mão |
 | 5 | `overlay/12_protecao_profiles.sql` | trigger: quem não é admin não muda `is_active`, `servidor_id`, bloqueio, tipo, CPF, e-mail; policies de `profiles` sem duplicatas | à mão |
@@ -125,7 +125,8 @@ Outras classes:
 - `coletor=<módulo>:<ops>` (classes `modulo` e `permissao`): dá ao módulo de um app de campo **só** as operações listadas
   (`select`, `insert` e `update`, separadas por `|`; DELETE nunca), por OU nas policies dessas operações e sem código de
   permissão. O módulo do coletor não pode estar na coluna `modulos` (lá teria tudo). É assim que o app de coleta do
-  patrimônio (`patrimonio_mobile`) lê e cadastra bens e coletas, só pede baixa e movimentação, muda a situação da unidade na
+  patrimônio (`patrimonio_mobile`) lê e cadastra bens e coletas (e, fora do app de campo, o Financeiro lê, cadastra e
+  edita `fornecedores` com `coletor=financeiro:select|insert|update`, migração `20261025090000`), só pede baixa e movimentação, muda a situação da unidade na
   vistoria e só lê unidades e campanhas; as demais tabelas do patrimônio são só do módulo `patrimonio`. `testar-rls.sql`
   confere cada operação com a persona `mod_<módulo>` (as listadas passam, as outras são negadas).
 - `catalogo`: aceita `escrita=<código>[|<código>...]` (dos contornos): a escrita exige o módulo **e** um dos

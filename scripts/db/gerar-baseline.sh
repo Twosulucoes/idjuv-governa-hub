@@ -25,12 +25,13 @@ SAIDA=supabase/baseline/schema
 
 # Tabelas cujas linhas (vindas das migrações) são catálogo/parâmetro (audit_colunas_sensiveis: máscara LGPD da
 # trilha, migração 20261011000000; regra_lancamento: modo da regra de setor por módulo, migração 20261011020000;
-# processo_modelos, processo_modelo_etapas e processo_modelo_checklist: modelos de fluxo do workflow, migração 20261013100000).
+# processo_modelos, processo_modelo_etapas e processo_modelo_checklist: modelos de fluxo do workflow, migração 20261013100000;
+# bancos_cnab: lista de bancos (código FEBRABAN), migração 20261025090000).
 # NÃO entram: servidores e
 # vinculos_servidor (74 nomes de pessoas, CPF placeholder — migração 20260110184920), audit_logs, portal_diretoria,
 # contatos_eventos_esportivos, debitos_tecnicos e config_paginas_historico (conteúdo operacional).
 SEMENTES=(
-  audit_colunas_sensiveis categorias_noticias_eventos cms_categorias config_agrupamento_unidades
+  audit_colunas_sensiveis bancos_cnab categorias_noticias_eventos cms_categorias config_agrupamento_unidades
   config_menu_publico config_paginas_publicas dias_nao_uteis fin_fontes_recurso
   fin_naturezas_despesa fin_parametros fin_plano_contas form_field_config
   modelos_mensagem_reuniao module_access_scopes module_permissions_catalog module_settings
@@ -39,7 +40,9 @@ SEMENTES=(
 )
 
 mkdir -p "$SAIDA"
-COMUM=(-U "$SUPER" -d "$DB" --schema=public --no-owner --no-privileges --no-tablespaces)
+# rh_protocolo_seq_AAAA nasce sob demanda (migração que grava em tabela com trilha): não é schema.
+COMUM=(-U "$SUPER" -d "$DB" --schema=public --no-owner --no-privileges --no-tablespaces
+       --exclude-table='public.rh_protocolo_seq_*')
 
 # pg_dump >= 16.10 emite `\restrict <token aleatório>`: é meta-comando só do psql e muda a cada
 # execução. O arquivo gerado é confiável e versionado, então as linhas são removidas. A criação do
