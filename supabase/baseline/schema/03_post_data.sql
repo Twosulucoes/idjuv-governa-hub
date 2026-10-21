@@ -1398,6 +1398,30 @@ ALTER TABLE ONLY public.fin_classificadores_fiplan
 
 
 --
+-- Name: fin_conciliacao_itens fin_conciliacao_itens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_conciliacao_itens
+    ADD CONSTRAINT fin_conciliacao_itens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fin_conciliacoes_mensais fin_conciliacoes_mensais_conta_competencia_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_conciliacoes_mensais
+    ADD CONSTRAINT fin_conciliacoes_mensais_conta_competencia_key UNIQUE (conta_bancaria_id, competencia);
+
+
+--
+-- Name: fin_conciliacoes_mensais fin_conciliacoes_mensais_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_conciliacoes_mensais
+    ADD CONSTRAINT fin_conciliacoes_mensais_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_contas_bancarias fin_contas_bancarias_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5292,6 +5316,20 @@ CREATE INDEX idx_fin_checklist_ci_solicitacao_id ON public.fin_checklist_ci USIN
 --
 
 CREATE INDEX idx_fin_classificadores_fiplan_importacao ON public.fin_classificadores_fiplan USING btree (importacao_id);
+
+
+--
+-- Name: idx_fin_conciliacao_itens_conciliacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_conciliacao_itens_conciliacao ON public.fin_conciliacao_itens USING btree (conciliacao_id, situacao);
+
+
+--
+-- Name: idx_fin_conciliacao_itens_origem; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_conciliacao_itens_origem ON public.fin_conciliacao_itens USING btree (item_origem_id);
 
 
 --
@@ -9667,6 +9705,20 @@ CREATE TRIGGER trg_fin_alteracoes_bloquear_exclusao_confirmada BEFORE DELETE ON 
 --
 
 CREATE TRIGGER trg_fin_alteracoes_proteger_situacao_fiplan BEFORE INSERT OR UPDATE ON public.fin_alteracoes_orcamentarias FOR EACH ROW EXECUTE FUNCTION public.fin_alteracoes_proteger_situacao_fiplan();
+
+
+--
+-- Name: fin_conciliacao_itens trg_fin_conciliacao_itens_proteger; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_fin_conciliacao_itens_proteger BEFORE INSERT OR DELETE OR UPDATE ON public.fin_conciliacao_itens FOR EACH ROW EXECUTE FUNCTION public.fin_conciliacao_proteger();
+
+
+--
+-- Name: fin_conciliacoes_mensais trg_fin_conciliacoes_mensais_proteger; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_fin_conciliacoes_mensais_proteger BEFORE INSERT OR DELETE OR UPDATE ON public.fin_conciliacoes_mensais FOR EACH ROW EXECUTE FUNCTION public.fin_conciliacao_proteger();
 
 
 --
@@ -14928,6 +14980,30 @@ ALTER TABLE ONLY public.fin_classificadores_fiplan
 
 
 --
+-- Name: fin_conciliacao_itens fin_conciliacao_itens_conciliacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_conciliacao_itens
+    ADD CONSTRAINT fin_conciliacao_itens_conciliacao_id_fkey FOREIGN KEY (conciliacao_id) REFERENCES public.fin_conciliacoes_mensais(id) ON DELETE CASCADE;
+
+
+--
+-- Name: fin_conciliacao_itens fin_conciliacao_itens_item_origem_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_conciliacao_itens
+    ADD CONSTRAINT fin_conciliacao_itens_item_origem_id_fkey FOREIGN KEY (item_origem_id) REFERENCES public.fin_conciliacao_itens(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_conciliacoes_mensais fin_conciliacoes_mensais_conta_bancaria_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_conciliacoes_mensais
+    ADD CONSTRAINT fin_conciliacoes_mensais_conta_bancaria_id_fkey FOREIGN KEY (conta_bancaria_id) REFERENCES public.fin_contas_bancarias(id);
+
+
+--
 -- Name: fin_contas_bancarias fin_contas_bancarias_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -18728,6 +18804,18 @@ CREATE POLICY fin_classificadores_fiplan_select ON public.fin_classificadores_fi
 
 
 --
+-- Name: fin_conciliacao_itens; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_conciliacao_itens ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_conciliacoes_mensais; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_conciliacoes_mensais ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: fin_contas_bancarias; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -20215,6 +20303,13 @@ CREATE POLICY rls_delete ON public.fin_alteracoes_orcamentarias FOR DELETE TO au
 --
 
 CREATE POLICY rls_delete ON public.fin_checklist_ci FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_conciliacao_itens rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_conciliacao_itens FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'::text)));
 
 
 --
@@ -21801,6 +21896,20 @@ CREATE POLICY rls_insert ON public.fin_alteracoes_orcamentarias FOR INSERT TO au
 --
 
 CREATE POLICY rls_insert ON public.fin_checklist_ci FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_conciliacao_itens rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_conciliacao_itens FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'::text)));
+
+
+--
+-- Name: fin_conciliacoes_mensais rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_conciliacoes_mensais FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'::text)));
 
 
 --
@@ -23435,6 +23544,20 @@ CREATE POLICY rls_select ON public.fin_audit_log FOR SELECT TO authenticated USI
 --
 
 CREATE POLICY rls_select ON public.fin_checklist_ci FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_conciliacao_itens rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_conciliacao_itens FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_conciliacoes_mensais rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_conciliacoes_mensais FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
 
 
 --
@@ -25088,6 +25211,20 @@ CREATE POLICY rls_update ON public.fin_alteracoes_orcamentarias FOR UPDATE TO au
 --
 
 CREATE POLICY rls_update ON public.fin_checklist_ci FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_conciliacao_itens rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_conciliacao_itens FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'::text)));
+
+
+--
+-- Name: fin_conciliacoes_mensais rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_conciliacoes_mensais FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'::text)));
 
 
 --

@@ -324,3 +324,15 @@ GRANT EXECUTE ON FUNCTION public.importar_folha_sigrh(jsonb, jsonb, jsonb, boole
 -- fn_bens_proteger_colunas guarda valor, data e forma de aquisição e situação do bem
 REVOKE EXECUTE ON FUNCTION public.fn_atualizar_estatisticas_campanha() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.fn_bens_proteger_colunas() FROM PUBLIC, anon, authenticated;
+
+-- ---- financeiro (migração 20261026090000): conciliação mensal ----
+-- trigger só por dentro; as RPCs só para authenticated (salvar e fechar rodam como quem chama: a RLS vale)
+REVOKE EXECUTE ON FUNCTION public.fin_conciliacao_proteger() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.fin_conciliacao_conferir_anteriores(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fin_conciliacao_conferir_anteriores(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.salvar_conciliacao_mensal(uuid, date, jsonb, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.salvar_conciliacao_mensal(uuid, date, jsonb, jsonb) TO authenticated;
+REVOKE ALL ON FUNCTION public.fechar_conciliacao_mensal(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fechar_conciliacao_mensal(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.reabrir_conciliacao_mensal(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.reabrir_conciliacao_mensal(uuid, text) TO authenticated;

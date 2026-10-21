@@ -27,6 +27,7 @@ import { relatorioUnidadesLocais } from './modelos/unidades/relatorioUnidadesLoc
 import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
 import { listaConvocados, listaPresenca, relatorioReuniao } from './modelos/reunioes/reunioes';
 import { contracheque } from './modelos/folha/contracheque';
+import { conciliacaoMensal } from './modelos/financeiro/conciliacaoMensal';
 import { relatorioArbitros } from './modelos/arbitros/relatorioArbitros';
 import { relatorioFederacoes, relatorioFederacoesPaisagem } from './modelos/federacoes/relatorioFederacoes';
 import { relatorioCargosVagas } from './modelos/cargos/cargosVagas';
@@ -99,6 +100,8 @@ export const REGISTRO = {
   'reunioes-relatorio': relatorioReuniao,
   // Folha — contracheque do servidor (um ou lote, uma página por servidor)
   'folha-contracheque': contracheque,
+  // Financeiro — quadro da conciliação bancária mensal (Conciliação → Fechamento mensal)
+  'financeiro-conciliacao-mensal': conciliacaoMensal,
   // Árbitros — AdminRelatorios (lista simples ou agrupada por modalidade)
   'arbitros-relatorio-cadastro': relatorioArbitros,
   // Federações — CentralRelatoriosFederacoesDialog (retrato ou paisagem, conforme a tela)

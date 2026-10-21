@@ -10514,6 +10514,151 @@ export type Database = {
           },
         ]
       }
+      fin_conciliacao_itens: {
+        Row: {
+          conciliacao_id: string
+          created_at: string
+          data: string
+          documento: string
+          grupo: number | null
+          historico: string
+          id: string
+          item_origem_id: string | null
+          justificativa: string | null
+          lado: string
+          natureza: string
+          nob: string | null
+          origem: string
+          re: string | null
+          regra: string | null
+          situacao: string
+          tipo: string
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          conciliacao_id: string
+          created_at?: string
+          data: string
+          documento?: string
+          grupo?: number | null
+          historico?: string
+          id?: string
+          item_origem_id?: string | null
+          justificativa?: string | null
+          lado: string
+          natureza: string
+          nob?: string | null
+          origem?: string
+          re?: string | null
+          regra?: string | null
+          situacao: string
+          tipo?: string
+          valor: number
+        }
+        Update: {
+          conciliacao_id?: string
+          created_at?: string
+          data?: string
+          documento?: string
+          grupo?: number | null
+          historico?: string
+          id?: string
+          item_origem_id?: string | null
+          justificativa?: string | null
+          lado?: string
+          natureza?: string
+          nob?: string | null
+          origem?: string
+          re?: string | null
+          regra?: string | null
+          situacao?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_conciliacao_itens_conciliacao_id_fkey"
+            columns: ["conciliacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_conciliacoes_mensais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_conciliacao_itens_item_origem_id_fkey"
+            columns: ["item_origem_id"]
+            isOneToOne: false
+            referencedRelation: "fin_conciliacao_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_conciliacoes_mensais: {
+        Row: {
+          arquivos: NonNullable<Json>
+          competencia: string
+          conta_bancaria_id: string
+          created_at: string
+          created_by: string | null
+          fechada_em: string | null
+          fechada_por: string | null
+          id: string
+          observacoes: string | null
+          rendimento_fundo: number
+          saldo_conta: number
+          saldo_fundo: number
+          saldo_razao: number
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          arquivos?: NonNullable<Json>
+          competencia: string
+          conta_bancaria_id: string
+          created_at?: string
+          created_by?: string | null
+          fechada_em?: string | null
+          fechada_por?: string | null
+          id?: string
+          observacoes?: string | null
+          rendimento_fundo?: number
+          saldo_conta?: number
+          saldo_fundo?: number
+          saldo_razao: number
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          arquivos?: NonNullable<Json>
+          competencia?: string
+          conta_bancaria_id?: string
+          created_at?: string
+          created_by?: string | null
+          fechada_em?: string | null
+          fechada_por?: string | null
+          id?: string
+          observacoes?: string | null
+          rendimento_fundo?: number
+          saldo_conta?: number
+          saldo_fundo?: number
+          saldo_razao?: number
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_conciliacoes_mensais_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_contas_bancarias: {
         Row: {
           agencia: string
@@ -24542,6 +24687,7 @@ export type Database = {
       eh_meu_servidor: { Args: { _servidor_id: string }; Returns: boolean }
       eh_minha_pasta_servidor: { Args: { _name: string }; Returns: boolean }
       enviar_folha_conferencia: { Args: { p_folha_id: string }; Returns: Json }
+      fechar_conciliacao_mensal: { Args: { p_id: string }; Returns: undefined }
       fechar_folha: {
         Args: { p_folha_id: string; p_justificativa?: string }
         Returns: Json
@@ -24554,6 +24700,10 @@ export type Database = {
           p_valor: number
         }
         Returns: string
+      }
+      fin_conciliacao_conferir_anteriores: {
+        Args: { p_id: string }
+        Returns: undefined
       }
       fin_marcar_pagamento_pago: {
         Args: { p_data: string; p_pagamento_id: string }
@@ -25227,6 +25377,10 @@ export type Database = {
         Args: { p_justificativa?: string; p_rascunho_id: string }
         Returns: boolean
       }
+      reabrir_conciliacao_mensal: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: undefined
+      }
       reabrir_folha: {
         Args: { p_folha_id: string; p_justificativa: string }
         Returns: Json
@@ -25415,6 +25569,15 @@ export type Database = {
       }
       rh_vaga_ocupante_atual: { Args: { p_vaga_id: string }; Returns: string }
       rh_vaga_situacao: { Args: { p_vaga_id: string }; Returns: string }
+      salvar_conciliacao_mensal: {
+        Args: {
+          p_competencia: string
+          p_conta_bancaria_id: string
+          p_dados: Json
+          p_itens: Json
+        }
+        Returns: string
+      }
       salvar_segredo_envio: {
         Args: { p_canal: string; p_segredo: string }
         Returns: string

@@ -3485,6 +3485,50 @@ $$;
 
 
 --
+-- Name: fechar_conciliacao_mensal(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fechar_conciliacao_mensal(p_id uuid) RETURNS void
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_c public.fin_conciliacoes_mensais%ROWTYPE;
+  v_ajustado numeric(15,2);
+BEGIN
+  SELECT * INTO v_c FROM public.fin_conciliacoes_mensais WHERE id = p_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Conciliação não encontrada.' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_c.situacao = 'fechada' THEN
+    RAISE EXCEPTION 'Conciliação já fechada.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT v_c.saldo_razao
+         - COALESCE(sum(valor) FILTER (WHERE lado = 'contabil' AND natureza = 'debito'), 0)
+         + COALESCE(sum(valor) FILTER (WHERE lado = 'contabil' AND natureza = 'credito'), 0)
+         - COALESCE(sum(valor) FILTER (WHERE lado = 'bancario' AND natureza = 'debito'), 0)
+         + COALESCE(sum(valor) FILTER (WHERE lado = 'bancario' AND natureza = 'credito'), 0)
+    INTO v_ajustado
+    FROM public.fin_conciliacao_itens
+   WHERE conciliacao_id = p_id AND situacao = 'pendente';
+
+  PERFORM public.fin_conciliacao_conferir_anteriores(p_id);
+  IF v_ajustado <> v_c.saldo_conta + v_c.saldo_fundo THEN
+    RAISE EXCEPTION 'O saldo ajustado (%) não bate com o extrato (%): confira as pendências antes de fechar.',
+      v_ajustado, v_c.saldo_conta + v_c.saldo_fundo USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM set_config('idjuv.fechando_conciliacao', p_id::text, true);
+  UPDATE public.fin_conciliacoes_mensais
+     SET situacao = 'fechada', fechada_em = now(), fechada_por = auth.uid()
+   WHERE id = p_id;
+  PERFORM set_config('idjuv.fechando_conciliacao', '', true);
+END;
+$$;
+
+
+--
 -- Name: fechar_folha(uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3696,6 +3740,87 @@ $$;
 --
 
 COMMENT ON FUNCTION public.fin_casar_movimento_pagamento(p_identificador text, p_documento text, p_valor numeric, p_data date) IS 'Uso interno das RPCs de conciliação bancária: devolve o pagamento que casa com o movimento (retorno de reenvio -> pagamento original; senão identificador, ou documento + valor + data a até 5 dias; NULL se nenhum/empate). Fora da API.';
+
+
+--
+-- Name: fin_conciliacao_conferir_anteriores(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_conciliacao_conferir_anteriores(p_id uuid) RETURNS void
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+      FROM public.fin_conciliacao_itens n
+      JOIN public.fin_conciliacoes_mensais m ON m.id = n.conciliacao_id
+      LEFT JOIN public.fin_conciliacao_itens o ON o.id = n.item_origem_id
+      LEFT JOIN public.fin_conciliacoes_mensais c ON c.id = o.conciliacao_id
+     WHERE n.conciliacao_id = p_id AND n.origem = 'anterior'
+       AND (o.id IS NULL OR o.situacao <> 'pendente' OR c.situacao <> 'fechada'
+            OR c.conta_bancaria_id <> m.conta_bancaria_id
+            OR c.competencia <> (m.competencia - interval '1 month')::date)
+  ) OR EXISTS (
+    SELECT 1 FROM public.fin_conciliacao_itens n
+     WHERE n.conciliacao_id = p_id AND n.item_origem_id IS NOT NULL
+     GROUP BY n.item_origem_id HAVING count(*) > 1
+  ) THEN
+    RAISE EXCEPTION 'Pendência anterior que não está em aberto no mês anterior fechado desta conta (ou repetida).'
+      USING ERRCODE = '22023';
+  END IF;
+END;
+$$;
+
+
+--
+-- Name: fin_conciliacao_proteger(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_conciliacao_proteger() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  IF TG_TABLE_NAME = 'fin_conciliacoes_mensais' THEN
+    IF TG_OP = 'INSERT' THEN
+      -- nasce rascunho: fechar é só pela fechar_conciliacao_mensal, que confere o quadro
+      NEW.situacao := 'rascunho';
+      NEW.fechada_em := NULL;
+      NEW.fechada_por := NULL;
+      RETURN NEW;
+    END IF;
+    IF TG_OP = 'UPDATE' THEN
+      NEW.updated_at := now();
+      NEW.updated_by := auth.uid();
+      IF (NEW.situacao, NEW.fechada_em, NEW.fechada_por) IS DISTINCT FROM (OLD.situacao, OLD.fechada_em, OLD.fechada_por)
+         AND OLD.situacao = 'rascunho'
+         AND COALESCE(current_setting('idjuv.fechando_conciliacao', true), '') <> OLD.id::text THEN
+        RAISE EXCEPTION 'Use "Fechar o mês" para fechar a conciliação.' USING ERRCODE = '42501';
+      END IF;
+    END IF;
+    IF TG_OP IN ('UPDATE', 'DELETE') AND OLD.situacao = 'fechada'
+       AND NOT (COALESCE(current_setting('idjuv.reabrindo_conciliacao', true), '') = OLD.id::text
+                AND public.is_admin_user(auth.uid())) THEN
+      RAISE EXCEPTION 'Conciliação de % fechada: peça ao administrador para reabrir.', to_char(OLD.competencia, 'MM/YYYY')
+        USING ERRCODE = '42501';
+    END IF;
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
+
+  v_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.conciliacao_id ELSE NEW.conciliacao_id END;
+  IF EXISTS (SELECT 1 FROM public.fin_conciliacoes_mensais c WHERE c.id = v_id AND c.situacao = 'fechada') THEN
+    RAISE EXCEPTION 'Conciliação fechada: os itens não mudam.' USING ERRCODE = '42501';
+  END IF;
+  IF TG_OP = 'UPDATE' AND OLD.conciliacao_id IS DISTINCT FROM NEW.conciliacao_id
+     AND EXISTS (SELECT 1 FROM public.fin_conciliacoes_mensais c WHERE c.id = OLD.conciliacao_id AND c.situacao = 'fechada') THEN
+    RAISE EXCEPTION 'Conciliação fechada: os itens não mudam.' USING ERRCODE = '42501';
+  END IF;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
 
 
 --
@@ -10824,6 +10949,46 @@ $$;
 
 
 --
+-- Name: reabrir_conciliacao_mensal(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reabrir_conciliacao_mensal(p_id uuid, p_motivo text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_c public.fin_conciliacoes_mensais%ROWTYPE;
+BEGIN
+  IF NOT public.is_admin_user(auth.uid()) THEN
+    RAISE EXCEPTION 'Só o administrador reabre uma conciliação fechada.' USING ERRCODE = '42501';
+  END IF;
+  IF char_length(btrim(COALESCE(p_motivo, ''))) < 5 THEN
+    RAISE EXCEPTION 'Informe o motivo da reabertura.' USING ERRCODE = '22023';
+  END IF;
+  SELECT * INTO v_c FROM public.fin_conciliacoes_mensais WHERE id = p_id FOR UPDATE;
+  IF NOT FOUND OR v_c.situacao <> 'fechada' THEN
+    RAISE EXCEPTION 'Conciliação não está fechada.' USING ERRCODE = '22023';
+  END IF;
+  -- O mês seguinte fechado já carregou as pendências deste: reabrir quebraria a corrente
+  IF EXISTS (
+    SELECT 1 FROM public.fin_conciliacoes_mensais s
+     WHERE s.conta_bancaria_id = v_c.conta_bancaria_id AND s.competencia > v_c.competencia AND s.situacao = 'fechada'
+  ) THEN
+    RAISE EXCEPTION 'Há mês posterior fechado: reabra primeiro o mais recente.' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM set_config('idjuv.reabrindo_conciliacao', p_id::text, true);
+  UPDATE public.fin_conciliacoes_mensais
+     SET situacao = 'rascunho', fechada_em = NULL, fechada_por = NULL,
+         observacoes = left(concat_ws(E'\n', observacoes,
+           'Reaberta em ' || to_char(now() AT TIME ZONE 'America/Boa_Vista', 'DD/MM/YYYY HH24:MI') || ': ' || btrim(p_motivo)), 2000)
+   WHERE id = p_id;
+  PERFORM set_config('idjuv.reabrindo_conciliacao', '', true);
+END;
+$$;
+
+
+--
 -- Name: reabrir_folha(uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -13413,6 +13578,76 @@ BEGIN
       NEW.codigo, to_char(NEW.data_extincao, 'DD/MM/YYYY');
   END IF;
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: salvar_conciliacao_mensal(uuid, date, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.salvar_conciliacao_mensal(p_conta_bancaria_id uuid, p_competencia date, p_dados jsonb, p_itens jsonb) RETURNS uuid
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid;
+  v_situacao text;
+BEGIN
+  IF p_competencia IS NULL OR extract(day FROM p_competencia) <> 1 THEN
+    RAISE EXCEPTION 'Competência deve ser o primeiro dia do mês.' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_itens) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'Itens da conciliação ausentes.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT id, situacao INTO v_id, v_situacao
+    FROM public.fin_conciliacoes_mensais
+   WHERE conta_bancaria_id = p_conta_bancaria_id AND competencia = p_competencia
+   FOR UPDATE;
+  IF v_situacao = 'fechada' THEN
+    RAISE EXCEPTION 'Conciliação de % fechada: peça ao administrador para reabrir.', to_char(p_competencia, 'MM/YYYY')
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF v_id IS NULL THEN
+    INSERT INTO public.fin_conciliacoes_mensais
+      (conta_bancaria_id, competencia, saldo_razao, saldo_conta, saldo_fundo, rendimento_fundo, arquivos, observacoes)
+    VALUES (
+      p_conta_bancaria_id, p_competencia,
+      (p_dados->>'saldo_razao')::numeric,
+      COALESCE((p_dados->>'saldo_conta')::numeric, 0),
+      COALESCE((p_dados->>'saldo_fundo')::numeric, 0),
+      COALESCE((p_dados->>'rendimento_fundo')::numeric, 0),
+      COALESCE(p_dados->'arquivos', '[]'::jsonb),
+      NULLIF(btrim(COALESCE(p_dados->>'observacoes', '')), '')
+    )
+    RETURNING id INTO v_id;
+  ELSE
+    UPDATE public.fin_conciliacoes_mensais
+       SET saldo_razao = (p_dados->>'saldo_razao')::numeric,
+           saldo_conta = COALESCE((p_dados->>'saldo_conta')::numeric, 0),
+           saldo_fundo = COALESCE((p_dados->>'saldo_fundo')::numeric, 0),
+           rendimento_fundo = COALESCE((p_dados->>'rendimento_fundo')::numeric, 0),
+           arquivos = COALESCE(p_dados->'arquivos', '[]'::jsonb),
+           observacoes = NULLIF(btrim(COALESCE(p_dados->>'observacoes', '')), '')
+     WHERE id = v_id;
+    DELETE FROM public.fin_conciliacao_itens WHERE conciliacao_id = v_id;
+  END IF;
+
+  INSERT INTO public.fin_conciliacao_itens
+    (conciliacao_id, lado, natureza, data, documento, tipo, historico, valor, re, nob, origem, item_origem_id,
+     situacao, grupo, regra, justificativa)
+  SELECT v_id, i.lado, i.natureza, i.data, COALESCE(i.documento, ''), COALESCE(i.tipo, ''), COALESCE(i.historico, ''),
+         i.valor, NULLIF(i.re, ''), NULLIF(i.nob, ''), COALESCE(i.origem, 'mes'), i.item_origem_id,
+         i.situacao, i.grupo, NULLIF(i.regra, ''), NULLIF(btrim(COALESCE(i.justificativa, '')), '')
+    FROM jsonb_to_recordset(p_itens) AS i(
+      lado text, natureza text, data date, documento text, tipo text, historico text, valor numeric, re text, nob text,
+      origem text, item_origem_id uuid, situacao text, grupo integer, regra text, justificativa text
+    );
+
+  PERFORM public.fin_conciliacao_conferir_anteriores(v_id);
+  RETURN v_id;
 END;
 $$;
 
@@ -19812,6 +20047,90 @@ COMMENT ON TABLE public.fin_classificadores_fiplan IS 'Tabelas de classificaçã
 --
 
 COMMENT ON COLUMN public.fin_classificadores_fiplan.codigo IS 'Código como o FIPLAN mostra: função 27, programa 030, elemento 39, subelemento 39.01, fonte 1.500, finalidade 0.';
+
+
+--
+-- Name: fin_conciliacao_itens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_conciliacao_itens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    conciliacao_id uuid NOT NULL,
+    lado text NOT NULL,
+    natureza text NOT NULL,
+    data date NOT NULL,
+    documento text DEFAULT ''::text NOT NULL,
+    tipo text DEFAULT ''::text NOT NULL,
+    historico text DEFAULT ''::text NOT NULL,
+    valor numeric(15,2) NOT NULL,
+    re text,
+    nob text,
+    origem text DEFAULT 'mes'::text NOT NULL,
+    item_origem_id uuid,
+    situacao text NOT NULL,
+    grupo integer,
+    regra text,
+    justificativa text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_conciliacao_itens_anterior_check CHECK (((origem = 'anterior'::text) = (item_origem_id IS NOT NULL))),
+    CONSTRAINT fin_conciliacao_itens_casado_check CHECK ((((situacao = 'casado'::text) AND (grupo IS NOT NULL) AND (regra IS NOT NULL)) OR ((situacao = 'pendente'::text) AND (grupo IS NULL) AND (regra IS NULL)))),
+    CONSTRAINT fin_conciliacao_itens_documento_check CHECK ((char_length(documento) <= 60)),
+    CONSTRAINT fin_conciliacao_itens_historico_check CHECK ((char_length(historico) <= 300)),
+    CONSTRAINT fin_conciliacao_itens_justificativa_check CHECK ((char_length(justificativa) <= 500)),
+    CONSTRAINT fin_conciliacao_itens_lado_check CHECK ((lado = ANY (ARRAY['contabil'::text, 'bancario'::text]))),
+    CONSTRAINT fin_conciliacao_itens_manual_check CHECK (((regra IS DISTINCT FROM 'manual'::text) OR (char_length(btrim(justificativa)) > 0))),
+    CONSTRAINT fin_conciliacao_itens_natureza_check CHECK ((natureza = ANY (ARRAY['debito'::text, 'credito'::text]))),
+    CONSTRAINT fin_conciliacao_itens_nob_check CHECK ((nob ~ '^\d{2}\.\d{5}-\d$'::text)),
+    CONSTRAINT fin_conciliacao_itens_origem_check CHECK ((origem = ANY (ARRAY['mes'::text, 'anterior'::text, 'abertura'::text]))),
+    CONSTRAINT fin_conciliacao_itens_re_check CHECK ((re ~ '^\d{2}\.\d{5}-\d$'::text)),
+    CONSTRAINT fin_conciliacao_itens_regra_check CHECK ((regra = ANY (ARRAY['interno'::text, 're'::text, 'ob_cancelada'::text, 'repasse'::text, 'valor_data'::text, 'estorno'::text, 'manual'::text]))),
+    CONSTRAINT fin_conciliacao_itens_situacao_check CHECK ((situacao = ANY (ARRAY['casado'::text, 'pendente'::text]))),
+    CONSTRAINT fin_conciliacao_itens_tipo_check CHECK ((char_length(tipo) <= 10)),
+    CONSTRAINT fin_conciliacao_itens_valor_check CHECK ((valor > (0)::numeric))
+);
+
+
+--
+-- Name: TABLE fin_conciliacao_itens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_conciliacao_itens IS 'Itens da conciliação mensal: lançamentos do razão (contabil) e do extrato (bancario), casados em grupos ou pendentes (as quatro listas do quadro). origem anterior = pendência do mês anterior (item_origem_id); abertura = lançada na implantação.';
+
+
+--
+-- Name: fin_conciliacoes_mensais; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_conciliacoes_mensais (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    conta_bancaria_id uuid NOT NULL,
+    competencia date NOT NULL,
+    saldo_razao numeric(15,2) NOT NULL,
+    saldo_conta numeric(15,2) DEFAULT 0 NOT NULL,
+    saldo_fundo numeric(15,2) DEFAULT 0 NOT NULL,
+    rendimento_fundo numeric(15,2) DEFAULT 0 NOT NULL,
+    situacao text DEFAULT 'rascunho'::text NOT NULL,
+    arquivos jsonb DEFAULT '[]'::jsonb NOT NULL,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    fechada_em timestamp with time zone,
+    fechada_por uuid,
+    CONSTRAINT fin_conciliacoes_mensais_arquivos_check CHECK ((jsonb_typeof(arquivos) = 'array'::text)),
+    CONSTRAINT fin_conciliacoes_mensais_competencia_check CHECK ((EXTRACT(day FROM competencia) = (1)::numeric)),
+    CONSTRAINT fin_conciliacoes_mensais_observacoes_check CHECK ((char_length(observacoes) <= 2000)),
+    CONSTRAINT fin_conciliacoes_mensais_rendimento_fundo_check CHECK ((rendimento_fundo >= (0)::numeric)),
+    CONSTRAINT fin_conciliacoes_mensais_situacao_check CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'fechada'::text])))
+);
+
+
+--
+-- Name: TABLE fin_conciliacoes_mensais; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_conciliacoes_mensais IS 'Conciliação bancária mensal de uma conta (quadro da SEFAZ). Saldo do extrato = saldo_conta + saldo_fundo no último dia do mês. Gravada por salvar_conciliacao_mensal; fechada por fechar_conciliacao_mensal.';
 
 
 --

@@ -199,6 +199,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
   mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- A conciliação mensal (migração `20261026090000`) entrou no mapa (`fin_conciliacoes_mensais` e
+  `fin_conciliacao_itens`, classe `permissao` com `pagamento.conciliar`), no schema do baseline regenerado e no
+  `overlay/40_privilegios.sql` (EXECUTE das RPCs só para `authenticated`; trigger fora da API); testes no bloco
+  "Financeiro: conciliação mensal" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - Os favorecidos e a lista de bancos (migração `20261025090000`) entraram no mapa (`fornecedores` com
   `coletor=financeiro:select|insert|update`; `bancos_cnab` na classe `catalogo`), no schema do baseline regenerado e no
   catálogo (`bancos_cnab` nas `SEMENTES`, 19 bancos). `testar-rls.sql` não escolhe mais o módulo do coletor como

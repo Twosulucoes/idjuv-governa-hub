@@ -275,6 +275,12 @@ de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termo
 `doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
 `ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
 
+A migração `20261026090000_fin_conciliacao_mensal.sql` (conciliação mensal, quadro da SEFAZ) entrou no schema
+regenerado (`01_pre_data.sql` e `03_post_data.sql`; o `02_dados_catalogo.sql` não muda), no `rls/mapa.csv`
+(`fin_conciliacoes_mensais` e `fin_conciliacao_itens`, classe `permissao`, `escrita=pagamento.conciliar`; o cabeçalho
+com `excluir=ninguem`) e no `overlay/40_privilegios.sql`; testes no bloco "Financeiro: conciliação mensal" de
+`scripts/db/testar-rls.sql`, com sementes das duas tabelas em `seed_ov`.
+
 A migração `20261024090000_fin_remessa_obn600.sql` (remessa OBN600 dos pagamentos) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`; o `02_dados_catalogo.sql` não muda). Sem tabela nova: `rls/mapa.csv` sem
 mudança; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de `scripts/db/testar-rls.sql`.

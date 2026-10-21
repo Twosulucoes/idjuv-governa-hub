@@ -99,7 +99,10 @@ INSERT INTO seed_ov VALUES
   -- código da vaga em maiúsculas (vagas_cargo_codigo_check, migração 20261012150000)
   ('vagas_cargo', '{"codigo":"VAGA-TESTE.001"}'),
   -- um alvo por item (atos_remuneratorios_itens_alvo_check, migração 20261020100000)
-  ('atos_remuneratorios_itens', '{"alvo":"parametro","cargo_id":null,"rubrica_id":null,"tipo_parametro":"teste_seed"}');
+  ('atos_remuneratorios_itens', '{"alvo":"parametro","cargo_id":null,"rubrica_id":null,"tipo_parametro":"teste_seed"}'),
+  -- competência no dia 1 e item pendente do próprio mês (migração 20261026090000)
+  ('fin_conciliacoes_mensais', '{"competencia":"2020-01-01","situacao":"rascunho","fechada_em":null,"fechada_por":null}'),
+  ('fin_conciliacao_itens', '{"lado":"bancario","natureza":"debito","valor":1,"situacao":"pendente","origem":"mes","item_origem_id":null,"grupo":null,"regra":null,"re":null,"nob":null}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -4816,6 +4819,121 @@ BEGIN
   END IF;
 
   PERFORM pg_temp.nota('FIN OBN600: permissão, regras de entrada, montagem das OBs no servidor, numeração, reserva/confirmação/cancelamento, trava do pagamento enviado pela API e baixa pelo retorno verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro: conciliação mensal (TRIGGERS LIGADOS)
+-- Migração 20261026090000_fin_conciliacao_mensal.sql (spec docs/superpowers/specs/2026-10-21-financeiro-conciliacao-mensal-design.md):
+--   * RPCs só para authenticated; reabrir é SECURITY DEFINER com search_path; módulo sem pagamento.conciliar não grava;
+--   * competência no dia 1; o mês nasce rascunho (INSERT direto com situacao fechada vira rascunho) e só fecha pela
+--     fechar_conciliacao_mensal, que confere ajustado = conta + fundo (22023 se não bate; UPDATE direto = 42501);
+--   * mês fechado não muda (salvar, itens, cabeçalho, nem o admin pela API; set_config sem ser admin não destranca);
+--   * pendência anterior só de pendente do mês imediatamente anterior fechado da mesma conta, uma vez só;
+--   * reabrir só pelo admin, com motivo, e não com mês posterior fechado; o motivo vai para as observações.
+DO $$
+DECLARE
+  u_conc uuid := 'f1000000-0000-0000-0000-000000000001';
+  u_fin uuid := (SELECT uid FROM persona WHERE nome='mod_financeiro');
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  cb text := 'f2000000-0000-0000-0000-000000000002';
+  salvar text := 'SELECT public.salvar_conciliacao_mensal(%L, %L::date, %L::jsonb, %L::jsonb)::text';
+  dados_ok text := '{"saldo_razao": 1000, "saldo_conta": 1100, "saldo_fundo": 0, "rendimento_fundo": 0}';
+  itens_set text := '[{"lado":"contabil","natureza":"credito","data":"2026-09-20","documento":"00001.0001.26.00090-1","tipo":"NOB","valor":100,"situacao":"pendente"},'
+    '{"lado":"contabil","natureza":"credito","data":"2026-09-10","valor":50,"situacao":"casado","grupo":1,"regra":"valor_data"},'
+    '{"lado":"bancario","natureza":"debito","data":"2026-09-10","valor":50,"situacao":"casado","grupo":1,"regra":"valor_data"}]';
+  r text; f text; set_id uuid; out_id uuid; pend uuid; casado uuid; x record;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOR x IN SELECT unnest(ARRAY['public.salvar_conciliacao_mensal(uuid,date,jsonb,jsonb)', 'public.fechar_conciliacao_mensal(uuid)',
+                               'public.reabrir_conciliacao_mensal(uuid,text)']) AS fn LOOP
+    IF to_regprocedure(x.fn) IS NULL THEN PERFORM pg_temp.falha('FIN CONC: ' || x.fn || ' não existe'); RETURN; END IF;
+    IF has_function_privilege('anon', x.fn, 'EXECUTE') OR NOT has_function_privilege('authenticated', x.fn, 'EXECUTE')
+       OR NOT (SELECT coalesce(proconfig::text, '') ~ 'search_path' FROM pg_proc WHERE oid = x.fn::regprocedure) THEN
+      PERFORM pg_temp.falha('FIN CONC: privilégios ou search_path de ' || x.fn);
+    END IF;
+  END LOOP;
+  IF NOT (SELECT prosecdef FROM pg_proc WHERE oid = 'public.reabrir_conciliacao_mensal(uuid,text)'::regprocedure)
+     OR (SELECT prosecdef FROM pg_proc WHERE oid = 'public.salvar_conciliacao_mensal(uuid,date,jsonb,jsonb)'::regprocedure) THEN
+    PERFORM pg_temp.falha('FIN CONC: salvar deve ser INVOKER (RLS vale) e reabrir DEFINER');
+  END IF;
+
+  -- módulo sem a permissão não grava; competência fora do dia 1 é recusada
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', format(salvar, cb, '2026-09-01', dados_ok, itens_set));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN CONC: módulo sem pagamento.conciliar grava (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(salvar, cb, '2026-09-15', dados_ok, itens_set));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN CONC: competência no dia 15 aceita (' || r || ')'); END IF;
+  -- INSERT direto não nasce fechado
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(
+    'INSERT INTO public.fin_conciliacoes_mensais (conta_bancaria_id, competencia, saldo_razao, situacao, fechada_em) '
+    'VALUES (%L, ''2026-12-01'', 0, ''fechada'', now()) RETURNING situacao || coalesce(fechada_em::text, '''')', cb));
+  IF r <> 'rascunho' THEN PERFORM pg_temp.falha('FIN CONC: INSERT direto nasceu fechado (' || r || ')'); END IF;
+
+  -- setembro: rascunho com o extrato errado não fecha; com o certo fecha
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(salvar, cb, '2026-09-01',
+         '{"saldo_razao": 1000, "saldo_conta": 1000, "saldo_fundo": 0}', itens_set));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN CONC: salvar setembro falhou (' || r || ')'); RETURN; END IF;
+  set_id := r::uuid;
+  r := pg_temp.sql_como(u_conc, 'authenticated', format('UPDATE public.fin_conciliacoes_mensais SET situacao = ''fechada'' WHERE id = %L', set_id));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN CONC: fechou por UPDATE direto (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.fechar_conciliacao_mensal(%L)::text', set_id));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN CONC: fechou com o quadro sem bater (' || r || ')'); END IF;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(salvar, cb, '2026-09-01', dados_ok, itens_set));
+  IF r IS DISTINCT FROM set_id::text OR (SELECT count(*) FROM public.fin_conciliacao_itens WHERE conciliacao_id = set_id) <> 3 THEN
+    PERFORM pg_temp.falha('FIN CONC: salvar de novo não trocou os itens do mesmo mês (' || r || ')');
+  END IF;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.fechar_conciliacao_mensal(%L)::text', set_id));
+  IF r LIKE 'erro:%' OR (SELECT situacao || (fechada_por = u_conc)::text FROM public.fin_conciliacoes_mensais WHERE id = set_id) <> 'fechadatrue' THEN
+    PERFORM pg_temp.falha('FIN CONC: fechar setembro falhou (' || r || ')');
+  END IF;
+
+  -- fechado não muda: salvar, itens, cabeçalho (nem o admin), nem com set_config sem ser admin
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(salvar, cb, '2026-09-01', dados_ok, '[]'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN CONC: salvou mês fechado (' || r || ')'); END IF;
+  FOR x IN SELECT * FROM (VALUES
+      ('item', u_conc, format('UPDATE public.fin_conciliacao_itens SET justificativa = ''x'' WHERE conciliacao_id = %L', set_id)),
+      ('item apagado', u_conc, format('DELETE FROM public.fin_conciliacao_itens WHERE conciliacao_id = %L', set_id)),
+      ('item novo', u_conc, format('INSERT INTO public.fin_conciliacao_itens (conciliacao_id, lado, natureza, data, valor, situacao) VALUES (%L, ''bancario'', ''debito'', ''2026-09-30'', 1, ''pendente'')', set_id)),
+      ('cabeçalho', u_conc, format('UPDATE public.fin_conciliacoes_mensais SET observacoes = ''x'' WHERE id = %L', set_id)),
+      ('cabeçalho pelo admin', u_admin, format('UPDATE public.fin_conciliacoes_mensais SET saldo_conta = 1 WHERE id = %L', set_id)),
+      ('set_config sem ser admin', u_conc, format('WITH s AS (SELECT set_config(''idjuv.reabrindo_conciliacao'', %L, true) v) '
+         'UPDATE public.fin_conciliacoes_mensais SET situacao = ''rascunho'' WHERE id = %L AND EXISTS (SELECT 1 FROM s)', set_id, set_id))
+    ) v(caso, uid, cmd) LOOP
+    r := pg_temp.sql_como(x.uid, 'authenticated', x.cmd);
+    IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha(format('FIN CONC: mês fechado mudou (%s: %s)', x.caso, r)); END IF;
+  END LOOP;
+
+  -- outubro: traz a pendência de setembro; casada, repetida ou de outro mês não
+  SELECT id INTO pend FROM public.fin_conciliacao_itens WHERE conciliacao_id = set_id AND situacao = 'pendente';
+  SELECT id INTO casado FROM public.fin_conciliacao_itens WHERE conciliacao_id = set_id AND situacao = 'casado' LIMIT 1;
+  f := '{"lado":"contabil","natureza":"credito","data":"2026-09-20","valor":100,"situacao":"pendente","origem":"anterior","item_origem_id":"%s"}';
+  FOR x IN SELECT * FROM (VALUES
+      ('item casado', '2026-10-01', '[' || format(f, casado) || ']'),
+      ('repetida', '2026-10-01', '[' || format(f, pend) || ',' || format(f, pend) || ']'),
+      ('pulando um mês', '2026-11-01', '[' || format(f, pend) || ']')) v(caso, comp, itens) LOOP
+    r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(salvar, cb, x.comp, dados_ok, x.itens));
+    IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha(format('FIN CONC: pendência anterior aceita (%s: %s)', x.caso, r)); END IF;
+  END LOOP;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(salvar, cb, '2026-10-01', dados_ok, '[' || format(f, pend) || ']'));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN CONC: pendência de setembro recusada em outubro (' || r || ')'); RETURN; END IF;
+  out_id := r::uuid;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.fechar_conciliacao_mensal(%L)::text', out_id));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN CONC: fechar outubro falhou (' || r || ')'); END IF;
+
+  -- reabrir: só admin, com motivo, do mais recente para trás
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.reabrir_conciliacao_mensal(%L, ''motivo do teste'')::text', out_id));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN CONC: não admin reabriu (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('SELECT public.reabrir_conciliacao_mensal(%L, ''x'')::text', out_id));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN CONC: reabriu sem motivo (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('SELECT public.reabrir_conciliacao_mensal(%L, ''motivo do teste'')::text', set_id));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN CONC: reabriu setembro com outubro fechado (' || r || ')'); END IF;
+  r := pg_temp.fin_valor_como(u_admin, 'authenticated', format('SELECT public.reabrir_conciliacao_mensal(%L, ''motivo do teste'')::text', out_id));
+  IF r LIKE 'erro:%' OR (SELECT situacao FROM public.fin_conciliacoes_mensais WHERE id = out_id) <> 'rascunho'
+     OR (SELECT observacoes FROM public.fin_conciliacoes_mensais WHERE id = out_id) NOT LIKE '%Reaberta em%motivo do teste' THEN
+    PERFORM pg_temp.falha('FIN CONC: admin não reabriu outubro (' || r || ')');
+  END IF;
+  r := pg_temp.fin_valor_como(u_admin, 'authenticated', format('SELECT public.reabrir_conciliacao_mensal(%L, ''motivo do teste'')::text', set_id));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN CONC: admin não reabriu setembro depois de outubro (' || r || ')'); END IF;
+
+  PERFORM pg_temp.nota('FIN CONC: permissão, competência, nascimento em rascunho, fechamento conferido no servidor, trava do mês fechado, corrente de pendências e reabertura pelo admin verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Lançamento por setor (fase 1) (TRIGGERS LIGADOS)
