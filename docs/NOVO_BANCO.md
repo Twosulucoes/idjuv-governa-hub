@@ -215,3 +215,31 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `20261009160000` pelo replay, não do gerador ([detalhe](../supabase/baseline/README.md)).
 - A migração `20260110184920` e o histórico git contêm 74 nomes de servidores (CPF placeholder); o baseline não
   os leva, mas o repositório os mantém até uma decisão sobre limpeza de histórico.
+
+## 9. Ambiente de teste com dados fictícios
+
+Para testar as telas sem tocar na produção, monte **outro** Supabase (no Coolify da VPS, ao lado dos que já rodam)
+pelos passos 3 a 5 e depois encha-o com `supabase/baseline/dados-teste.sql`: uma instituição inventada com unidades,
+cargos, servidores com provimento, lotação e portaria de nomeação publicada, tabelas de INSS e IRRF e parâmetros da
+folha de exemplo, frequência de setembro fechada, férias, licenças, viagens, bens, almoxarifado, fornecedores,
+licitações, contratos, programa, ação e dotações do orçamento, solicitações e empenhos, riscos, demandas da ASCOM,
+notícias, programas, federações, árbitros, escolas com gestores e reuniões. Nomes, CPFs, CNPJs e e-mails
+(`@exemplo.test`) são inventados.
+
+```bash
+# depois do aplicar.sh (passo 4) e do bootstrap-admin.sql com o e-mail do login de teste (passo 5)
+PGPASSWORD='...' psql "postgresql://postgres@127.0.0.1:5432/postgres" \
+  -v confirmo=banco_de_teste -v email='login-de-teste@exemplo.test' -f supabase/baseline/dados-teste.sql
+```
+
+- **Travas:** sem `-v confirmo=banco_de_teste` o script não roda, e ele recusa banco que já tenha servidor, fornecedor
+  ou bem (a produção tem). Uma transação só: se algo falhar, nada fica gravado.
+- `email` liga o login de teste ao servidor fictício "Usuário de Teste" (lotado no RH), para as telas que pedem
+  servidor vinculado.
+- A folha de **setembro/2026** processa sem inconsistência (conferido num banco do baseline com o shim, como o
+  login de teste); **outubro** fica sem frequência, para testar o lançamento.
+- O front de teste é outra aplicação do Coolify com o mesmo `Dockerfile` e o `.env` apontando para o Supabase de
+  teste (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` dele). Ela não entra no `deploy-front.yml`: o
+  CI publica só a produção.
+- `solicitacoes_sic` fica sem exemplo: o trigger `registrar_historico_lai` lê uma coluna que a tabela não tem e
+  recusa o INSERT (pendência no [ROADMAP](./planejamento/ROADMAP.md#backlog-fora-do-plano)).
