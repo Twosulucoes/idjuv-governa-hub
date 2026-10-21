@@ -1096,7 +1096,7 @@ Camadas complementares:
 ### Exemplo: patrimônio e unidades (P14, entrega 4)
 
 - Rotas: editar bem e item do almoxarifado exigem `patrimonio.editar` (concedida pela migração
-  `20261023090000` a quem já tinha `patrimonio.criar`); listas e detalhes de baixas e movimentações exigem
+  `20261023100000` a quem já tinha `patrimonio.criar`); listas e detalhes de baixas e movimentações exigem
   `patrimonio.visualizar` (aprovar/concluir seguem com `patrimonio.tramitar`, na tela e na RPC); `/unidades`,
   `/unidades/gestao` e `/unidades/:id` exigem `unidades.visualizar`, relatórios `unidades.relatorios.visualizar`
   e cedência `unidades.cedencias.visualizar`. Botões: nova baixa `patrimonio.criar`, nova movimentação

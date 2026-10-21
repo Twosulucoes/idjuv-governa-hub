@@ -1860,7 +1860,7 @@ BEGIN
   END IF;
 END $$;
 
--- ---------------------------------------------------------------- Patrimônio: permissões (P14 entrega 4, migração 20261023090000) (TRIGGERS LIGADOS)
+-- ---------------------------------------------------------------- Patrimônio: permissões (P14 entrega 4, migração 20261023100000) (TRIGGERS LIGADOS)
 -- O app de coleta (mod_patrimonio_mobile) lê e cadastra bem (a foto no próprio INSERT), lê e registra coleta, só pede
 -- baixa e movimentação, muda a situação da unidade na vistoria e não altera nem apaga bem, unidade, almoxarifado ou
 -- campanha; as estatísticas da campanha seguem vindo do trigger (fn_atualizar_estatisticas_campanha, SECURITY DEFINER).

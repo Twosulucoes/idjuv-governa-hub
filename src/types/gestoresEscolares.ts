@@ -3,6 +3,8 @@
  * Jogos Escolares de Roraima
  */
 
+import { orgaoEmTexto } from '@/lib/rotulosInstituicao';
+
 // =====================================================
 // Tipos de Status
 // =====================================================
@@ -24,14 +26,14 @@ export const STATUS_GESTOR_CONFIG: Record<StatusGestor, {
 }> = {
   aguardando: {
     label: 'Aguardando',
-    description: 'Seu pré-cadastro foi recebido e está aguardando processamento pela equipe IDJuv.',
+    get description() { return `Seu pré-cadastro foi recebido e está aguardando processamento pela equipe do ${orgaoEmTexto()}.`; },
     color: 'text-yellow-700',
     bgColor: 'bg-yellow-100',
-    proximoPasso: 'A equipe IDJuv irá cadastrar você no sistema CBDE em breve.',
+    get proximoPasso() { return `A equipe do ${orgaoEmTexto()} irá cadastrar você no sistema CBDE em breve.`; },
   },
   em_processamento: {
     label: 'Em Processamento',
-    description: 'Seu cadastro está sendo processado por um membro da equipe IDJuv.',
+    get description() { return `Seu cadastro está sendo processado por um membro da equipe do ${orgaoEmTexto()}.`; },
     color: 'text-blue-700',
     bgColor: 'bg-blue-100',
     proximoPasso: 'Aguarde o cadastro no sistema CBDE.',
@@ -45,7 +47,7 @@ export const STATUS_GESTOR_CONFIG: Record<StatusGestor, {
   },
   contato_realizado: {
     label: 'Contato Realizado',
-    description: 'A equipe IDJuv entrou em contato com você para confirmar o recebimento do email do CBDE.',
+    get description() { return `A equipe do ${orgaoEmTexto()} entrou em contato com você para confirmar o recebimento do email do CBDE.`; },
     color: 'text-indigo-700',
     bgColor: 'bg-indigo-100',
     proximoPasso: 'Teste seu acesso ao sistema CBDE e confirme com a equipe.',

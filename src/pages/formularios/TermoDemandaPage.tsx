@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
+import { useUnidadesAdministrativas } from '@/hooks/useServidoresPorUnidade';
 import { baixarTermoDemanda, numeroDoFormulario } from '@/lib/formulariosAdministrativos';
 
 const termoDemandaSchema = z.object({
@@ -84,14 +85,9 @@ const TermoDemandaPage = () => {
     }
   };
 
-  const setores = [
-    'Presidência',
-    'DIRAF - Diretoria Administrativa e Financeira',
-    'DIGEP - Diretoria de Gestão de Políticas',
-    'DIJEL - Diretoria de Juventude, Esporte e Lazer',
-    'Assessoria Jurídica',
-    'Controle Interno',
-  ];
+  // Setores vêm da estrutura organizacional cadastrada (não de lista fixa)
+  const { data: unidades = [] } = useUnidadesAdministrativas();
+  const setores = unidades.map((u) => (u.sigla ? `${u.sigla} - ${u.nome}` : u.nome));
 
   const prioridades = [
     { value: 'baixa', label: 'Baixa - Pode aguardar' },

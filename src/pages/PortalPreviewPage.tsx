@@ -4,7 +4,6 @@
 
 import { PortalHeader } from "./portal/components/PortalHeader";
 import { PortalHero } from "./portal/components/PortalHero";
-import { PortalStats } from "./portal/components/PortalStats";
 import { PortalDiretoria } from "./portal/components/PortalDiretoria";
 import { PortalInfrastructure } from "./portal/components/PortalInfrastructure";
 import { PortalPrograms } from "./portal/components/PortalPrograms";
@@ -28,9 +27,6 @@ export default function PortalPreviewPage() {
 
       {/* Hero Section */}
       <PortalHero />
-
-      {/* Stats Section */}
-      <PortalStats />
 
       {/* Diretoria Section - Nova seção com dados do BD */}
       <PortalDiretoria />

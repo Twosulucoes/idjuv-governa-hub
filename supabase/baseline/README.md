@@ -119,7 +119,7 @@ Outras classes:
   eh_meu_servidor(<col>)`). `servidores` usa `coluna=id;excluir=rh.servidores.excluir;sem_autoaprovacao`.
 - `modulo`: aceita `excluir=<código>|admin|ninguem`, `altera=<código>[|<código>...]` (o UPDATE exige o módulo **e** um
   dos códigos; SELECT, INSERT e DELETE seguem por módulo) e `coletor=<módulo>:<ops>` (P14 entrega 4, migração
-  `20261023090000`). `bens_patrimoniais` usa `altera=patrimonio.editar;excluir=admin;coletor=patrimonio_mobile:select|insert`.
+  `20261023100000`). `bens_patrimoniais` usa `altera=patrimonio.editar;excluir=admin;coletor=patrimonio_mobile:select|insert`.
 - `coletor=<módulo>:<ops>` (classes `modulo` e `permissao`): dá ao módulo de um app de campo **só** as operações listadas
   (`select`, `insert` e `update`, separadas por `|`; DELETE nunca), por OU nas policies dessas operações e sem código de
   permissão. O módulo do coletor não pode estar na coluna `modulos` (lá teria tudo). É assim que o app de coleta do
@@ -266,6 +266,11 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
 - RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada (desde 2026-10-12 a lista inclui as 4
   RPCs do pré-cadastro público e `frequencia_competencia_travada`), privilégios padrão, `anon` executando exatamente
   14 funções, campos que o autor não pode escolher nos formulários.
+
+A migração `20261023090000_registro_sei_termo_cessao_designacao.sql` (ciclo do SEI no termo de cessão e na designação
+de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termos_cessao.processo_sei`, `doe_numero`,
+`doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
+`ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
 
 Em 2026-10-18 (P13, migração `20261018100000_remove_tabelas_backup_aposentado.sql`), as tabelas `backup_config`,
 `backup_history` e `backup_integrity_checks` e os enums `backup_status` e `backup_type` (do backup antigo, aposentado

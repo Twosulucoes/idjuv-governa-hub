@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
+import { useUnidadesAdministrativas } from '@/hooks/useServidoresPorUnidade';
 import { baixarRequisicaoMaterial, numeroDoFormulario } from '@/lib/formulariosAdministrativos';
 
 const requisicaoMaterialSchema = z.object({
@@ -73,15 +74,9 @@ const RequisicaoMaterialPage = () => {
     }
   };
 
-  const setores = [
-    'Presidência',
-    'DIRAF - Diretoria Administrativa e Financeira',
-    'DIGEP - Diretoria de Gestão de Políticas',
-    'DIJEL - Diretoria de Juventude, Esporte e Lazer',
-    'Assessoria Jurídica',
-    'Controle Interno',
-    'Almoxarifado',
-  ];
+  // Setores vêm da estrutura organizacional cadastrada (não de lista fixa)
+  const { data: unidades = [] } = useUnidadesAdministrativas();
+  const setores = unidades.map((u) => (u.sigla ? `${u.sigla} - ${u.nome}` : u.nome));
 
   const urgencias = [
     { value: 'normal', label: 'Normal - Prazo regular' },

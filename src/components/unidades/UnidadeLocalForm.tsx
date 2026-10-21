@@ -25,8 +25,10 @@ import {
   NATUREZA_USO_LABELS,
   AREAS_DISPONIVEIS_OPTIONS,
   MUNICIPIOS_RORAIMA,
-  DIRETORIAS_IDJUV,
 } from "@/types/unidadesLocais";
+import { useIdentidade } from "@/core/tenant";
+import { orgaoEmTexto } from "@/lib/rotulosInstituicao";
+import { useUnidadesAdministrativas } from "@/hooks/useServidoresPorUnidade";
 
 interface UnidadeLocalFormProps {
   unidade?: UnidadeLocal | null;
@@ -81,6 +83,15 @@ export function UnidadeLocalForm({ unidade, onSuccess, onCancel }: UnidadeLocalF
   const watchMunicipio = watch("municipio");
   const watchNatureza = watch("natureza_uso");
   const watchDiretoria = watch("diretoria_vinculada");
+  const orgao = orgaoEmTexto(useIdentidade().sigla);
+
+  // Presidência e diretorias vêm da estrutura organizacional cadastrada. A coluna guarda o
+  // nome (texto); um valor antigo que não está mais na estrutura continua como opção.
+  const { data: unidadesEstrutura = [] } = useUnidadesAdministrativas();
+  const diretorias = unidadesEstrutura
+    .filter((u) => u.tipo === "presidencia" || u.tipo === "diretoria")
+    .map((u) => u.nome);
+  if (watchDiretoria && !diretorias.includes(watchDiretoria)) diretorias.push(watchDiretoria);
 
   function toggleArea(area: string) {
     setSelectedAreas((prev) =>
@@ -231,7 +242,7 @@ export function UnidadeLocalForm({ unidade, onSuccess, onCancel }: UnidadeLocalF
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                {DIRETORIAS_IDJUV.map((dir) => (
+                {diretorias.map((dir) => (
                   <SelectItem key={dir} value={dir}>
                     {dir}
                   </SelectItem>
@@ -255,7 +266,7 @@ export function UnidadeLocalForm({ unidade, onSuccess, onCancel }: UnidadeLocalF
           <Input
             id="autoridade_autorizadora"
             {...register("autoridade_autorizadora")}
-            placeholder="Ex: Presidente do IDJuv / Diretor de Esporte"
+            placeholder={`Ex: Presidente do ${orgao} / Diretor de Esporte`}
           />
         </div>
       </div>

@@ -1,10 +1,10 @@
-import { Download } from "lucide-react";
+import { useMemo } from "react";
+import { Grid3X3 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/design-system";
+import { EmptyState, PageHeader } from "@/components/design-system";
 import {
   Table,
   TableBody,
@@ -13,55 +13,53 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useMatrizRaci, type PapelRaci, type TipoPapelRaci } from "@/hooks/useMatrizRaci";
 
-const matrizCompras = [
-  { processo: "Termo de Demanda", PRES: "I", DIRAF: "C", CI: "I", UD: "R", FISC: "I" },
-  { processo: "Análise Orçamentária", PRES: "I", DIRAF: "R", CI: "C", UD: "I", FISC: "I" },
-  { processo: "Autorização", PRES: "A", DIRAF: "I", CI: "C", UD: "I", FISC: "I" },
-  { processo: "Execução Contratual", PRES: "I", DIRAF: "R", CI: "I", UD: "I", FISC: "R" },
-  { processo: "Fiscalização", PRES: "I", DIRAF: "I", CI: "I", UD: "I", FISC: "R" },
-  { processo: "Pagamento", PRES: "I", DIRAF: "R", CI: "C", UD: "I", FISC: "I" },
-];
+// Papéis, processos e atribuições vêm das tabelas matriz_raci_*; só a legenda
+// RACI (o método) fica no código.
+const LEGENDA: Record<TipoPapelRaci, { letra: string; nome: string; descricao: string; cor: string }> = {
+  responsavel: { letra: "R", nome: "Responsável", descricao: "Quem executa a atividade", cor: "bg-primary" },
+  aprovador: { letra: "A", nome: "Aprovador", descricao: "Quem autoriza a atividade", cor: "bg-success" },
+  consultado: { letra: "C", nome: "Consultado", descricao: "Quem é consultado", cor: "bg-info text-info-foreground" },
+  // "I" segue a legenda (fundo neutro), distinto de "R"
+  informado: { letra: "I", nome: "Informado", descricao: "Quem é informado", cor: "bg-muted text-muted-foreground hover:bg-muted" },
+};
+const ORDEM_TIPOS: TipoPapelRaci[] = ["responsavel", "aprovador", "consultado", "informado"];
 
-const matrizDiarias = [
-  { processo: "Solicitação", PRES: "I", DIRAF: "I", CI: "I", UD: "R" },
-  { processo: "Análise", PRES: "I", DIRAF: "R", CI: "C", UD: "I" },
-  { processo: "Autorização", PRES: "A", DIRAF: "I", CI: "I", UD: "I" },
-  { processo: "Pagamento", PRES: "I", DIRAF: "R", CI: "C", UD: "I" },
-  { processo: "Relatório Viagem", PRES: "I", DIRAF: "C", CI: "I", UD: "R" },
-];
-
-const matrizPatrimonio = [
-  { processo: "Tombamento", PRES: "I", DIRAF: "R", CI: "C", UD: "I" },
-  { processo: "Distribuição", PRES: "I", DIRAF: "R", CI: "I", UD: "R" },
-  { processo: "Inventário", PRES: "I", DIRAF: "R", CI: "C", UD: "I" },
-  { processo: "Baixa", PRES: "A", DIRAF: "R", CI: "C", UD: "I" },
-];
-
-const matrizIntegridade = [
-  { processo: "Canal de Denúncias", PRES: "A", DIRAF: "I", CI: "R", UD: "I" },
-  { processo: "Apuração", PRES: "I", DIRAF: "C", CI: "R", UD: "I" },
-  { processo: "Relatório de Integridade", PRES: "A", DIRAF: "I", CI: "R", UD: "I" },
-];
-
-const legendaRaci = [
-  { letra: "R", nome: "Responsável", descricao: "Quem executa a atividade", cor: "bg-primary" },
-  { letra: "A", nome: "Aprovador", descricao: "Quem autoriza a atividade", cor: "bg-success" },
-  { letra: "C", nome: "Consultado", descricao: "Quem é consultado", cor: "bg-info text-info-foreground" },
-  { letra: "I", nome: "Informado", descricao: "Quem é informado", cor: "bg-muted text-muted-foreground hover:bg-muted" },
-];
-
-function getBadgeClass(letra: string) {
-  switch (letra) {
-    case "R": return "bg-primary";
-    case "A": return "bg-success";
-    case "C": return "bg-info text-info-foreground";
-    // "I" segue a legenda (fundo neutro), distinto de "R"
-    default: return "bg-muted text-muted-foreground hover:bg-muted";
-  }
+interface LinhaMatriz {
+  etapa: string;
+  /** papel_id → tipos atribuídos nessa etapa */
+  celulas: Map<string, TipoPapelRaci[]>;
 }
 
 export default function MatrizRaciPage() {
+  const { data, isLoading, isError } = useMatrizRaci();
+
+  // Uma tabela por processo: linhas são as etapas, colunas os papéis com atribuição nele
+  const quadros = useMemo(() => {
+    if (!data) return [];
+    const papelPorId = new Map(data.papeis.map((p) => [p.id, p]));
+    return data.processos.map((processo) => {
+      const linhas = new Map<string, LinhaMatriz>();
+      const papeisUsados = new Set<string>();
+      for (const a of data.atribuicoes) {
+        if (a.processo_id !== processo.id || !papelPorId.has(a.papel_id)) continue;
+        const etapa = a.etapa_processo?.trim() || processo.nome;
+        const linha = linhas.get(etapa) ?? { etapa, celulas: new Map() };
+        const tipos = linha.celulas.get(a.papel_id) ?? [];
+        if (!tipos.includes(a.tipo_papel)) tipos.push(a.tipo_papel);
+        linha.celulas.set(a.papel_id, tipos);
+        linhas.set(etapa, linha);
+        papeisUsados.add(a.papel_id);
+      }
+      const colunas = data.papeis.filter((p) => papeisUsados.has(p.id));
+      return { processo, colunas, linhas: [...linhas.values()] };
+    });
+  }, [data]);
+
+  const papeis: PapelRaci[] = data?.papeis ?? [];
+  const vazia = !isLoading && !isError && quadros.length === 0;
+
   return (
     <ModuleLayout module="governanca">
       <div className="space-y-6">
@@ -74,199 +72,108 @@ export default function MatrizRaciPage() {
         {/* Legenda */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Legenda RACI</CardTitle>
-                <CardDescription>Papéis e responsabilidades por processo</CardDescription>
-              </div>
-              <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" aria-hidden="true" />
-                Baixar PDF
-              </Button>
-            </div>
+            <CardTitle>Legenda RACI</CardTitle>
+            <CardDescription>Papéis e responsabilidades por processo</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {legendaRaci.map((item) => (
-                <div key={item.letra} className="flex items-center gap-3">
-                  <Badge className={item.cor}>{item.letra}</Badge>
-                  <div>
-                    <p className="font-medium text-sm">{item.nome}</p>
-                    <p className="text-xs text-muted-foreground">{item.descricao}</p>
+              {ORDEM_TIPOS.map((tipo) => {
+                const item = LEGENDA[tipo];
+                return (
+                  <div key={tipo} className="flex items-center gap-3">
+                    <Badge className={item.cor}>{item.letra}</Badge>
+                    <div>
+                      <p className="font-medium text-sm">{item.nome}</p>
+                      <p className="text-xs text-muted-foreground">{item.descricao}</p>
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+            {papeis.length > 0 && (
+              <>
+                <Separator className="my-4" />
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                  {papeis.map((p) => (
+                    <div key={p.id} title={p.descricao ?? undefined}>
+                      <strong>{p.codigo}</strong> – {p.nome}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <Separator className="my-4" />
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
-              <div><strong>PRES</strong> – Presidência</div>
-              <div><strong>DIRAF</strong> – Dir. Administrativa</div>
-              <div><strong>CI</strong> – Controle Interno</div>
-              <div><strong>UD</strong> – Unidade Demandante</div>
-              <div><strong>FISC</strong> – Fiscal de Contrato</div>
-            </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        {/* Compras e Contratações */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Compras e contratações (Lei 14.133)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Processo</TableHead>
-                  <TableHead className="text-center">PRES</TableHead>
-                  <TableHead className="text-center">DIRAF</TableHead>
-                  <TableHead className="text-center">CI</TableHead>
-                  <TableHead className="text-center">UD</TableHead>
-                  <TableHead className="text-center">FISC</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {matrizCompras.map((row) => (
-                  <TableRow key={row.processo}>
-                    <TableCell className="font-medium">{row.processo}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.FISC)}>{row.FISC}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {isLoading && <p className="text-sm text-muted-foreground">Carregando a matriz…</p>}
 
-        {/* Diárias e Viagens */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Diárias e viagens</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Processo</TableHead>
-                  <TableHead className="text-center">PRES</TableHead>
-                  <TableHead className="text-center">DIRAF</TableHead>
-                  <TableHead className="text-center">CI</TableHead>
-                  <TableHead className="text-center">UD</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {matrizDiarias.map((row) => (
-                  <TableRow key={row.processo}>
-                    <TableCell className="font-medium">{row.processo}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {isError && (
+          <Card>
+            <EmptyState
+              icone={Grid3X3}
+              titulo="Não foi possível carregar a matriz"
+              descricao="Confira sua permissão no módulo de governança e tente de novo."
+            />
+          </Card>
+        )}
 
-        {/* Patrimônio */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Patrimônio e almoxarifado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Processo</TableHead>
-                  <TableHead className="text-center">PRES</TableHead>
-                  <TableHead className="text-center">DIRAF</TableHead>
-                  <TableHead className="text-center">CI</TableHead>
-                  <TableHead className="text-center">UD</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {matrizPatrimonio.map((row) => (
-                  <TableRow key={row.processo}>
-                    <TableCell className="font-medium">{row.processo}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {vazia && (
+          <Card>
+            <EmptyState
+              icone={Grid3X3}
+              titulo="Nenhum processo na matriz RACI"
+              descricao="A matriz é montada com os papéis, processos e atribuições cadastrados pela governança da instituição. Peça ao administrador do sistema para cadastrá-los; esta página passa a mostrá-los."
+            />
+          </Card>
+        )}
 
-        {/* Integridade */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Integridade e ética</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Processo</TableHead>
-                  <TableHead className="text-center">PRES</TableHead>
-                  <TableHead className="text-center">DIRAF</TableHead>
-                  <TableHead className="text-center">CI</TableHead>
-                  <TableHead className="text-center">UD</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {matrizIntegridade.map((row) => (
-                  <TableRow key={row.processo}>
-                    <TableCell className="font-medium">{row.processo}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.PRES)}>{row.PRES}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.DIRAF)}>{row.DIRAF}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.CI)}>{row.CI}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getBadgeClass(row.UD)}>{row.UD}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {quadros.map(({ processo, colunas, linhas }) => (
+          <Card key={processo.id}>
+            <CardHeader>
+              <CardTitle className="flex flex-wrap items-center gap-2">
+                {processo.nome}
+                {processo.modulo_sistema && (
+                  <Badge variant="outline" className="font-normal">{processo.modulo_sistema}</Badge>
+                )}
+              </CardTitle>
+              {processo.descricao && <CardDescription>{processo.descricao}</CardDescription>}
+            </CardHeader>
+            <CardContent>
+              {linhas.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhuma atribuição cadastrada para este processo.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Etapa</TableHead>
+                      {colunas.map((p) => (
+                        <TableHead key={p.id} className="text-center" title={p.nome}>{p.codigo}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {linhas.map((linha) => (
+                      <TableRow key={linha.etapa}>
+                        <TableCell className="font-medium">{linha.etapa}</TableCell>
+                        {colunas.map((p) => (
+                          <TableCell key={p.id} className="text-center">
+                            <div className="flex justify-center gap-1">
+                              {(linha.celulas.get(p.id) ?? []).map((tipo) => (
+                                <Badge key={tipo} className={LEGENDA[tipo].cor} title={LEGENDA[tipo].nome}>
+                                  {LEGENDA[tipo].letra}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </ModuleLayout>
   );

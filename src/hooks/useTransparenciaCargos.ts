@@ -7,8 +7,10 @@
  * contato nunca saem do servidor. Substitui os antigos public/data/cargos.json e cargos.csv.
  */
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { resumirQuadroCargos } from "@/lib/quadroCargos";
 
 /** Linha devolvida pela RPC (uma por vaga); fora dos tipos gerados. */
 export interface VagaCargoPublico {
@@ -43,4 +45,14 @@ export function useTransparenciaCargos() {
       return (data as unknown as VagaCargoPublico[] | null) ?? [];
     },
   });
+}
+
+/** Resumo do quadro (total, ocupação, custo, por diretoria) calculado das mesmas vagas públicas. */
+export function useResumoQuadroCargos() {
+  const consulta = useTransparenciaCargos();
+  const resumo = useMemo(
+    () => (consulta.data ? resumirQuadroCargos(consulta.data) : null),
+    [consulta.data],
+  );
+  return { ...consulta, resumo };
 }

@@ -3,6 +3,7 @@ import { BookOpen, ShoppingCart, MapPin, Building2, Handshake } from "lucide-rea
 import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { useIdentidade } from "@/core/tenant";
 
 const manuaisItems = [
   {
@@ -32,6 +33,8 @@ const manuaisItems = [
 ];
 
 export default function ManuaisPage() {
+  const { sigla } = useIdentidade();
+
   return (
     <ModuleLayout>
       {/* Cabeçalho */}
@@ -64,7 +67,7 @@ export default function ManuaisPage() {
             <div className="bg-muted/50 rounded-xl p-6 mb-8">
               <h2 className="font-serif text-xl font-bold mb-3">Biblioteca de Manuais</h2>
               <p className="text-muted-foreground leading-relaxed">
-                Os manuais do IDJUV estabelecem procedimentos padronizados para a execução 
+                Os manuais do {sigla} estabelecem procedimentos padronizados para a execução 
                 de atividades administrativas, garantindo conformidade com normas legais e 
                 orientações dos órgãos de controle.
               </p>

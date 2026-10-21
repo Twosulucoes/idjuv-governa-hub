@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { UnidadeOrganizacional, Lotacao } from '@/types/organograma';
 import { useToast } from '@/hooks/use-toast';
@@ -323,4 +324,39 @@ export function useOrganograma() {
     atualizarHierarquia,
     verificarCiclo,
   };
+}
+
+/** Unidade do organograma só com o que a página de estrutura exibe. */
+export type UnidadeEstrutura = Pick<
+  UnidadeOrganizacional,
+  'id' | 'nome' | 'sigla' | 'tipo' | 'nivel' | 'superior_id' | 'descricao' | 'competencias'
+>;
+
+/**
+ * Leitura enxuta da estrutura ativa (`estrutura_organizacional`), sem lotações nem
+ * servidores: base da página "Estrutura organizacional" (siglas, nomes, descrições e
+ * competências cadastradas no organograma, nada fixo no código).
+ */
+export function useEstruturaOrganizacional() {
+  return useQuery({
+    queryKey: ['estrutura-organizacional', 'ativa'],
+    queryFn: async (): Promise<UnidadeEstrutura[]> => {
+      const { data, error } = await supabase
+        .from('estrutura_organizacional')
+        .select('id, nome, sigla, tipo, nivel, superior_id, descricao, competencias')
+        .eq('ativo', true)
+        .order('nivel')
+        .order('ordem')
+        .order('nome');
+      if (error) throw error;
+      return (data ?? []).map((u) => ({
+        ...u,
+        sigla: u.sigla ?? undefined,
+        superior_id: u.superior_id ?? undefined,
+        descricao: u.descricao ?? undefined,
+        competencias: u.competencias ?? undefined,
+        tipo: u.tipo as UnidadeOrganizacional['tipo'],
+      }));
+    },
+  });
 }

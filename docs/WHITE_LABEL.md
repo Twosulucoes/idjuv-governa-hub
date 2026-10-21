@@ -506,6 +506,11 @@ partida e reserva. Detalhes, e o que ainda falta (logos, cores, textos em págin
 Em 19/10/2026 o `TenantConfig` ganhou o bloco opcional `impressao` (`TenantImpressao`: cor de destaque,
 logos, cabeçalho, rodapé, emissor, letra, tabela, orientação dos PDFs), também alimentado pelas chaves
 `impressao_*` de `dados_oficiais`; ausente, o motor de documentos usa o padrão.
+Em 21/10/2026 (P24, fase A) as telas e PDFs que tinham nome, sigla, UF, cidade, vinculação ou lei escritos à mão
+passaram a ler a identidade (`useIdentidade()`/`useTenant()` em componente; `src/lib/rotulosInstituicao.ts` em código
+puro, com texto genérico quando a sigla está vazia). Rótulos em constantes de tipos usam getters, porque a identidade do
+banco chega depois do carregamento do módulo. Valores de enum e nomes de coluna (`efetivo_idjuv`, `unidade_idjuv_id`)
+ficam como estão (§9). Setores, diretorias, RACI, prazos da LAI e quadro de cargos vêm das tabelas próprias.
 
 **Fase 0 — CONCLUÍDA.** O que foi entregue:
 

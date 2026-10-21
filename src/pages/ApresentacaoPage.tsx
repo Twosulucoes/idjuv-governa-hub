@@ -30,7 +30,16 @@ import { useTenant } from '@/core/tenant';
 const { entidadeSuperiorLight: logoGoverno } = getMarcaAssets();
 
 export default function ApresentacaoPage() {
-  const { contato } = useTenant();
+  const { contato, identidade, entidadeSuperior, legal, endereco } = useTenant();
+  // Endereço da sede do cadastro da instituição; linha vazia some
+  const enderecoLinha1 = [
+    [endereco?.logradouro, endereco?.numero].filter(Boolean).join(", "),
+    endereco?.bairro,
+  ].filter(Boolean).join(" - ");
+  const enderecoLinha2 = [
+    [endereco?.cidade, endereco?.uf].filter(Boolean).join(" - "),
+    endereco?.cep,
+  ].filter(Boolean).join(", ");
   const valores = [
     { icon: Heart, titulo: "Compromisso", descricao: "Dedicação integral ao desenvolvimento da juventude roraimense" },
     { icon: Users, titulo: "Inclusão", descricao: "Políticas públicas acessíveis a todos os jovens do estado" },
@@ -134,12 +143,14 @@ export default function ApresentacaoPage() {
         <div className="container mx-auto px-4 py-20 md:py-32 relative z-10">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             <div className="flex-1 text-center lg:text-left animate-fade-in">
-              <BadgeInstitucional variant="highlight" className="mb-6">
-                Governo do Estado de Roraima
-              </BadgeInstitucional>
+              {entidadeSuperior?.nome && (
+                <BadgeInstitucional variant="highlight" className="mb-6">
+                  {entidadeSuperior.nome}
+                </BadgeInstitucional>
+              )}
               
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-                Instituto de Desporto, Juventude e Lazer
+                {identidade.nomeOficial}
               </h1>
               
               <p className="text-xl md:text-2xl opacity-90 mb-8 max-w-2xl">
@@ -181,7 +192,7 @@ export default function ApresentacaoPage() {
         </div>
       </section>
 
-      {/* Sobre o IDJUV */}
+      {/* Sobre a instituição */}
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center mb-16">
@@ -192,9 +203,12 @@ export default function ApresentacaoPage() {
               Quem Somos
             </h2>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              O IDJUV – Instituto de Desporto, Juventude e Lazer é uma autarquia pública estadual 
-              vinculada ao Governo do Estado de Roraima, criada com a missão de desenvolver e 
-              executar políticas públicas voltadas ao esporte, à juventude e ao lazer no estado.
+              O {identidade.sigla} – {identidade.nomeOficial}
+              {identidade.naturezaJuridica ? ` é uma ${identidade.naturezaJuridica.toLowerCase()}` : " é uma instituição pública"}
+              {legal?.vinculacao ? ` vinculada à ${legal.vinculacao}` : ""}
+              {legal?.leiCriacao ? `, criada pela ${legal.leiCriacao}` : ""}
+              , com a missão de desenvolver e executar políticas públicas voltadas ao esporte,
+              à juventude e ao lazer.
             </p>
           </div>
 
@@ -309,8 +323,8 @@ export default function ApresentacaoPage() {
               Programas e Projetos
             </h2>
             <p className="text-lg opacity-90 mt-4 max-w-2xl mx-auto">
-              Conheça algumas das principais iniciativas do IDJUV para o desenvolvimento 
-              da juventude e do esporte em Roraima.
+              Conheça algumas das principais iniciativas do {identidade.sigla} para o desenvolvimento
+              da juventude e do esporte.
             </p>
           </div>
 
@@ -458,6 +472,7 @@ export default function ApresentacaoPage() {
                 <h3 className="text-2xl font-bold text-foreground mb-6">Informações de Contato</h3>
                 
                 <div className="space-y-6">
+                  {(enderecoLinha1 || enderecoLinha2) && (
                   <div className="flex items-start gap-4">
                     <div className="p-3 rounded-full bg-primary/10">
                       <MapPin className="h-6 w-6 text-primary" />
@@ -465,11 +480,13 @@ export default function ApresentacaoPage() {
                     <div>
                       <h4 className="font-semibold text-foreground">Endereço</h4>
                       <p className="text-muted-foreground">
-                        Av. Ville Roy, 4935 - São Pedro<br />
-                        Boa Vista - RR, 69306-665
+                        {enderecoLinha1}
+                        {enderecoLinha1 && enderecoLinha2 && <br />}
+                        {enderecoLinha2}
                       </p>
                     </div>
                   </div>
+                  )}
 
                   <div className="flex items-start gap-4">
                     <div className="p-3 rounded-full bg-primary/10">
@@ -550,11 +567,13 @@ export default function ApresentacaoPage() {
                     <Logo 
                       className="h-16 w-auto"
                     />
-                    <img 
-                      src={logoGoverno} 
-                      alt="Governo de Roraima" 
-                      className="h-16 w-auto rounded object-contain"
-                    />
+                    {logoGoverno && entidadeSuperior && (
+                      <img
+                        src={logoGoverno}
+                        alt={entidadeSuperior.nome}
+                        className="h-16 w-auto rounded object-contain"
+                      />
+                    )}
                   </div>
                 </div>
               </CardContent>

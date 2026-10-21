@@ -20,6 +20,8 @@
  import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
  import { Loader2, Building2, Users, Landmark } from 'lucide-react';
  import { useInstituicoes } from '@/hooks/useInstituicoes';
+ import { useTenant } from '@/core/tenant';
+ import { ufDaSede } from '@/lib/rotulosInstituicao';
  import type { 
    TipoInstituicao, 
    EsferaGoverno, 
@@ -53,7 +55,7 @@
    endereco_complemento: '',
    endereco_bairro: '',
    endereco_cidade: '',
-   endereco_uf: 'RR',
+   endereco_uf: '', // padrão: UF da sede do órgão (definida no componente)
    endereco_cep: '',
    telefone: '',
    email: '',
@@ -75,7 +77,8 @@
    instituicao,
    onSuccess,
  }: InstituicaoFormDialogProps) {
-   const [formData, setFormData] = useState<InstituicaoFormData>(INITIAL_FORM);
+   const ufPadrao = ufDaSede(useTenant().endereco?.uf);
+   const [formData, setFormData] = useState<InstituicaoFormData>({ ...INITIAL_FORM, endereco_uf: ufPadrao });
    const [activeTab, setActiveTab] = useState('dados');
    const { createInstituicao, updateInstituicao, isCreating, isUpdating } = useInstituicoes();
  
@@ -97,7 +100,7 @@
          endereco_complemento: instituicao.endereco_complemento || '',
          endereco_bairro: instituicao.endereco_bairro || '',
          endereco_cidade: instituicao.endereco_cidade || '',
-         endereco_uf: instituicao.endereco_uf || 'RR',
+         endereco_uf: instituicao.endereco_uf || ufPadrao,
          endereco_cep: instituicao.endereco_cep || '',
          telefone: instituicao.telefone || '',
          email: instituicao.email || '',
@@ -113,10 +116,10 @@
          observacoes: instituicao.observacoes || '',
        });
      } else {
-       setFormData(INITIAL_FORM);
+       setFormData({ ...INITIAL_FORM, endereco_uf: ufPadrao });
      }
      setActiveTab('dados');
-   }, [instituicao, open]);
+   }, [instituicao, open, ufPadrao]);
  
    const handleSubmit = async (e: React.FormEvent) => {
      e.preventDefault();
@@ -383,7 +386,7 @@
                    <Input
                      value={formData.endereco_uf}
                      onChange={(e) => updateField('endereco_uf', e.target.value)}
-                     placeholder="RR"
+                     placeholder={ufPadrao || "UF"}
                      maxLength={2}
                    />
                  </div>

@@ -197,7 +197,8 @@ function UnidadeDetalheContent() {
                     Nomeado em: {new Date(chefeAtual.data_inicio).toLocaleDateString("pt-BR")}
                   </p>
                   <p className="text-muted-foreground">
-                    {chefeAtual.ato_nomeacao_tipo.charAt(0).toUpperCase() + chefeAtual.ato_nomeacao_tipo.slice(1)} nº {chefeAtual.ato_numero}
+                    {chefeAtual.ato_nomeacao_tipo.charAt(0).toUpperCase() + chefeAtual.ato_nomeacao_tipo.slice(1)}{" "}
+                    {chefeAtual.ato_numero ? `nº ${chefeAtual.ato_numero}` : "aguardando SEI"}
                   </p>
                 </div>
               </div>

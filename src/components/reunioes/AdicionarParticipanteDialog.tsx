@@ -28,6 +28,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, UserPlus, Building2, Search, User, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useIdentidade } from "@/core/tenant";
+import { orgaoEmTexto } from "@/lib/rotulosInstituicao";
 
 const externoSchema = z.object({
   nome_externo: z.string().min(2, "Nome é obrigatório"),
@@ -51,6 +53,7 @@ export function AdicionarParticipanteDialog({
   onSuccess,
 }: AdicionarParticipanteDialogProps) {
   const [loading, setLoading] = useState(false);
+  const orgao = orgaoEmTexto(useIdentidade().sigla);
   const [tipoParticipante, setTipoParticipante] = useState<"servidor" | "externo">("servidor");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [busca, setBusca] = useState("");
@@ -194,7 +197,7 @@ export function AdicionarParticipanteDialog({
         <DialogHeader>
           <DialogTitle>Adicionar Participantes</DialogTitle>
           <DialogDescription>
-            Selecione servidores do IDJUV ou adicione participante externo
+            Selecione servidores do {orgao} ou adicione participante externo
           </DialogDescription>
         </DialogHeader>
 
