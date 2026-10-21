@@ -199,6 +199,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
   mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os favorecidos e a lista de bancos (migração `20261025090000`) entraram no mapa (`fornecedores` com
+  `coletor=financeiro:select|insert|update`; `bancos_cnab` na classe `catalogo`), no schema do baseline regenerado e no
+  catálogo (`bancos_cnab` nas `SEMENTES`, 19 bancos). `testar-rls.sql` não escolhe mais o módulo do coletor como
+  "módulo alheio", e `validar-baseline.sh`/`gerar-baseline.sh` deixam fora do dump as sequências `rh_protocolo_seq_AAAA`,
+  criadas sob demanda quando uma migração grava em tabela com trilha ([detalhe](./BANCO_DE_DADOS.md)).
 - As permissões do patrimônio e das unidades (P14 entrega 4, migração `20261023100000`) entraram no mapa com os sufixos
   novos `altera=` e `coletor=` do `scripts/db/gerar-rls.mjs` (documentados em `supabase/baseline/README.md`), no schema
   do baseline regenerado (gatilho `trg_bens_proteger_colunas`, `fn_atualizar_estatisticas_campanha` SECURITY DEFINER) e

@@ -306,10 +306,10 @@ DROP POLICY IF EXISTS "rls_delete" ON public.banco_horas;
 CREATE POLICY "rls_delete" ON public.banco_horas FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') AND (public.is_admin_user(auth.uid()) OR servidor_id IS DISTINCT FROM auth.uid()));
 
--- bancos_cnab  [modulo: rh]
+-- bancos_cnab  [catalogo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.bancos_cnab;
 CREATE POLICY "rls_select" ON public.bancos_cnab FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
+  USING (public.is_active_user());
 DROP POLICY IF EXISTS "rls_insert" ON public.bancos_cnab;
 CREATE POLICY "rls_insert" ON public.bancos_cnab FOR INSERT TO authenticated
   WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
@@ -2108,14 +2108,14 @@ DROP POLICY IF EXISTS "comp_module_update" ON public.fornecedores;
 DROP POLICY IF EXISTS "comp_module_write" ON public.fornecedores;
 DROP POLICY IF EXISTS "rls_select" ON public.fornecedores;
 CREATE POLICY "rls_select" ON public.fornecedores FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
+  USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')) OR public.can_access_module(auth.uid(), 'financeiro'));
 DROP POLICY IF EXISTS "rls_insert" ON public.fornecedores;
 CREATE POLICY "rls_insert" ON public.fornecedores FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')) OR public.can_access_module(auth.uid(), 'financeiro'));
 DROP POLICY IF EXISTS "rls_update" ON public.fornecedores;
 CREATE POLICY "rls_update" ON public.fornecedores FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
+  USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')) OR public.can_access_module(auth.uid(), 'financeiro'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')) OR public.can_access_module(auth.uid(), 'financeiro'));
 DROP POLICY IF EXISTS "rls_delete" ON public.fornecedores;
 CREATE POLICY "rls_delete" ON public.fornecedores FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));

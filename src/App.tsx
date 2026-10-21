@@ -230,6 +230,7 @@ import {
   PagamentosPage,
   AdiantamentosPage,
   ContasBancariasPage,
+  FavorecidosPage,
   RelatoriosFinanceiroPage,
   PlaceholderDetalheFinanceiroPage,
   QDDPage,
@@ -1277,6 +1278,11 @@ const App = () => (
               <Route path="/financeiro/contas-bancarias" element={
                 <ProtectedRoute requiredPermissions="orcamento.aprovar">
                   <ContasBancariasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/favorecidos" element={
+                <ProtectedRoute requiredModule="financeiro" requiredPermissions="orcamento.criar">
+                  <FavorecidosPage />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/relatorios" element={

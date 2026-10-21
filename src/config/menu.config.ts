@@ -682,6 +682,14 @@ export const menuConfig: MenuSection[] = [
         priority: 4,
       },
       {
+        id: "fin-favorecidos",
+        label: "Favorecidos",
+        route: "/financeiro/favorecidos",
+        icon: Users,
+        permission: "orcamento.criar",
+        priority: 5,
+      },
+      {
         id: "fin-contas",
         label: "Contas Bancárias",
         labelShort: "Contas",

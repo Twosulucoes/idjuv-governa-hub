@@ -11,20 +11,20 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Arquivo | Total | Protegidas | Públicas | Redirecionamentos | Curinga |
 |---|---:|---:|---:|---:|---:|
-| `src/App.tsx` (sistema) | 249 | 199 | 34 | 15 | 1 |
+| `src/App.tsx` (sistema) | 250 | 200 | 34 | 15 | 1 |
 | `src/AppSite.tsx` (site) | 32 | 0 | 29 | 2 | 1 |
 
 ## Código do front
 
 | Item | Quantidade |
 |---|---:|
-| Páginas (`*Page.tsx` em `src/pages`) | 211 |
-| Componentes (`.tsx` em `src/components`) | 320 |
+| Páginas (`*Page.tsx` em `src/pages`) | 212 |
+| Componentes (`.tsx` em `src/components`) | 321 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 277 |
-| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 105 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 61 |
-| Linhas de `src/App.tsx` | 1369 |
+| — fora de `ui/` | 278 |
+| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 106 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 62 |
+| Linhas de `src/App.tsx` | 1375 |
 | Linhas de `src/integrations/supabase/types.ts` (gerado) | 27330 |
 
 ### Páginas por pasta de `src/pages`
@@ -42,7 +42,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | `curriculo/` | 4 |
 | `eventos/` | 3 |
 | `federacoes/` | 3 |
-| `financeiro/` | 14 |
+| `financeiro/` | 15 |
 | `folha/` | 4 |
 | `formularios/` | 5 |
 | `gabinete/` | 1 |
@@ -67,8 +67,8 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 308 |
-| Migração mais recente | `20261024090000_fin_remessa_obn600.sql` |
+| Migrações (`supabase/migrations/*.sql`) | 309 |
+| Migração mais recente | `20261025090000_fin_favorecidos_bancos.sql` |
 | Tabelas do schema public (baseline) | 258 |
 | Views (baseline) | 18 |
 | Funções (baseline) | 313 |
@@ -94,7 +94,7 @@ Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.
 | `workflow` | Processos | 3 | 0 |
 | `compras` | Compras | 5 | 0 |
 | `contratos` | Contratos | 1 | 0 |
-| `financeiro` | Financeiro | 18 | 0 |
+| `financeiro` | Financeiro | 19 | 0 |
 | `patrimonio` | Patrimônio | 30 | 0 |
 | `governanca` | Governança | 10 | 2 |
 | `integridade` | Integridade | 5 | 1 |

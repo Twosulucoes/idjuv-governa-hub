@@ -115,8 +115,11 @@ else
     # O replay guarda os CHECKs como foram digitados; dump->restore os reescreve para uma forma equivalente
     # (`ANY ((ARRAY[..])::text[])` vira `ANY (ARRAY[(..)::text, ..])`): as linhas de CHECK são reduzidas
     # à forma sem parênteses nem casts antes de comparar.
+    # rh_protocolo_seq_AAAA nasce sob demanda (rh_protocolo_atual) quando uma migração grava em tabela com trilha:
+    # é dado do ano, não schema, e fica fora da comparação.
     dump() {  # dump <banco> <arquivo>
-      pg_dump -U "$SUPER" -d "$1" --schema=public --schema-only --no-owner --no-tablespaces -f "$TMP/bruto.sql" 2>"$TMP/dump.err" \
+      pg_dump -U "$SUPER" -d "$1" --schema=public --schema-only --no-owner --no-tablespaces \
+        --exclude-table='public.rh_protocolo_seq_*' -f "$TMP/bruto.sql" 2>"$TMP/dump.err" \
         && [[ -s "$TMP/bruto.sql" ]] || return 1
       grep -v -E '^(\\restrict|\\unrestrict|-- Dumped)' "$TMP/bruto.sql" \
         | perl -pe 'if (/CONSTRAINT \S+ CHECK/) { s/[()]//g; s/::character varying//g; s/::text\[\]//g; s/::text//g; s/\s+/ /g }' >"$2"

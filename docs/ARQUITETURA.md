@@ -92,7 +92,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`); `src/lib/importacao/registro.test.ts`
   reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha".
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"
-  requiredPermissions="pagamento.conciliar"`); `/financeiro/pagamentos/:id` abre o detalhe real do pagamento
+  requiredPermissions="pagamento.conciliar"`; `?aba=contas` abre direto as contas pagadoras);
+  `/financeiro/favorecidos` (`FavorecidosPage`, `requiredModule="financeiro"`, `requiredPermissions="orcamento.criar"`,
+  a mesma dos empenhos; item "Favorecidos" no menu do Financeiro); `/financeiro/pagamentos/:id` abre o detalhe real do pagamento
   (`orcamento.aprovar`); `/financeiro/orcamento` só redireciona para `/financeiro/qdd`. O ano das telas do
   módulo vai na query `?exercicio=` (ver [MODULOS.md](./MODULOS.md)). `/financeiro` é declarada uma vez só
   (painel do módulo, `FinanceiroDashboardPage`, `requiredModule="financeiro"`).
