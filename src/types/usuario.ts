@@ -2,6 +2,8 @@
 // TIPOS DE USUÁRIO DO SISTEMA
 // ============================================
 
+import { orgaoEmTexto } from '@/lib/rotulosInstituicao';
+
 export type TipoUsuario = 'servidor' | 'tecnico';
 
 export interface UsuarioSistema {
@@ -39,6 +41,6 @@ export const TIPO_USUARIO_LABELS: Record<TipoUsuario, string> = {
 };
 
 export const TIPO_USUARIO_DESCRIPTIONS: Record<TipoUsuario, string> = {
-  servidor: 'Vinculado a um cadastro de servidor público do IDJuv',
+  get servidor() { return `Vinculado a um cadastro de servidor público do ${orgaoEmTexto()}`; },
   tecnico: 'Usuário técnico para manutenção e suporte do sistema'
 };

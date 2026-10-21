@@ -4,6 +4,7 @@
 // ================================================================
 
 import type { Database } from '@/integrations/supabase/types';
+import { orgaoEmTexto } from '@/lib/rotulosInstituicao';
 
 // Tipos de Servidor (princípio estruturante)
 export type TipoServidor =
@@ -38,10 +39,10 @@ export type NaturezaCargo =
   | 'efetivo'
   | 'comissionado';
 
-// Labels para exibição
+// Labels para exibição (sigla do órgão lida na hora do cadastro da instituição)
 export const TIPO_SERVIDOR_LABELS: Record<TipoServidor, string> = {
-  efetivo_idjuv: 'Efetivo do IDJuv',
-  comissionado_idjuv: 'Comissionado do IDJuv',
+  get efetivo_idjuv() { return `Efetivo do ${orgaoEmTexto()}`; },
+  get comissionado_idjuv() { return `Comissionado do ${orgaoEmTexto()}`; },
   cedido_entrada: 'Cedido de Outro Órgão (Entrada)',
   cedido_saida: 'Cedido para Outro Órgão (Saída)',
 };
@@ -70,8 +71,8 @@ export const TIPO_SERVIDOR_COLORS: Record<TipoServidor, string> = {
 };
 
 export const TIPO_VINCULO_LABELS: Record<TipoVinculoFuncional, string> = {
-  efetivo_idjuv: 'Efetivo do IDJuv',
-  comissionado_idjuv: 'Comissionado do IDJuv',
+  get efetivo_idjuv() { return `Efetivo do ${orgaoEmTexto()}`; },
+  get comissionado_idjuv() { return `Comissionado do ${orgaoEmTexto()}`; },
   cedido_entrada: 'Cedido (Entrada)',
   cedido_saida: 'Cedido (Saída)',
 };
@@ -304,7 +305,7 @@ export const REGRAS_TIPO_SERVIDOR: Record<TipoServidor, {
     requereProvimento: true,
     requereOrgaoOrigem: false,
     requereOrgaoDestino: false,
-    descricao: 'Servidor efetivo do quadro permanente do IDJuv',
+    get descricao() { return `Servidor efetivo do quadro permanente do ${orgaoEmTexto()}`; },
   },
   comissionado_idjuv: {
     permiteCargo: true,
@@ -314,7 +315,7 @@ export const REGRAS_TIPO_SERVIDOR: Record<TipoServidor, {
     requereProvimento: true,
     requereOrgaoOrigem: false,
     requereOrgaoDestino: false,
-    descricao: 'Servidor comissionado do IDJuv',
+    get descricao() { return `Servidor comissionado do ${orgaoEmTexto()}`; },
   },
   cedido_entrada: {
     permiteCargo: false,
@@ -324,7 +325,7 @@ export const REGRAS_TIPO_SERVIDOR: Record<TipoServidor, {
     requereProvimento: false,
     requereOrgaoOrigem: true,
     requereOrgaoDestino: false,
-    descricao: 'Servidor cedido de outro órgão para o IDJuv',
+    get descricao() { return `Servidor cedido de outro órgão para o ${orgaoEmTexto()}`; },
   },
   cedido_saida: {
     permiteCargo: true, // Mantém cargo efetivo
@@ -334,7 +335,7 @@ export const REGRAS_TIPO_SERVIDOR: Record<TipoServidor, {
     requereProvimento: false, // Provimento existente fica suspenso
     requereOrgaoOrigem: false,
     requereOrgaoDestino: true,
-    descricao: 'Servidor efetivo do IDJuv cedido para outro órgão',
+    get descricao() { return `Servidor efetivo do ${orgaoEmTexto()} cedido para outro órgão`; },
   },
 };
 

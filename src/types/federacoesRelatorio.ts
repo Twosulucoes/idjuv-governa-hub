@@ -2,6 +2,8 @@
 // TIPOS E CONFIGURAÇÕES PARA RELATÓRIOS DE FEDERAÇÕES
 // ================================================================
 
+import { nomeOficialDoOrgao } from '@/lib/rotulosInstituicao';
+
 export type TipoRelatorioFederacao = 'federacoes' | 'dirigentes' | 'calendario';
 
 export interface CampoRelatorioFederacao {
@@ -309,24 +311,26 @@ export const STATUS_EVENTO_LABELS: Record<string, string> = {
 // CONFIGURAÇÕES PADRÃO
 // ================================================================
 
+// Subtítulo padrão: nome oficial do cadastro da instituição, lido na hora (getter), porque a
+// identidade do banco chega depois do carregamento do módulo.
 export const CONFIG_PADRAO_FEDERACAO: Record<TipoRelatorioFederacao, Partial<ConfiguracaoRelatorioFederacao>> = {
   federacoes: {
     titulo: 'Relatório de Federações Esportivas',
-    subtitulo: 'Instituto de Desenvolvimento da Juventude e do Esporte - IDJuv',
+    get subtitulo() { return nomeOficialDoOrgao(); },
     camposSelecionados: ['sigla', 'nome', 'status', 'presidente_nome', 'telefone', 'email'],
     orientacao: 'paisagem',
     ordenacao: { campo: 'nome', direcao: 'asc' },
   },
   dirigentes: {
     titulo: 'Relatório de Dirigentes das Federações',
-    subtitulo: 'Instituto de Desenvolvimento da Juventude e do Esporte - IDJuv',
+    get subtitulo() { return nomeOficialDoOrgao(); },
     camposSelecionados: ['federacao_sigla', 'cargo', 'nome', 'telefone', 'email'],
     orientacao: 'paisagem',
     ordenacao: { campo: 'federacao_sigla', direcao: 'asc' },
   },
   calendario: {
     titulo: 'Calendário de Competições e Campeonatos',
-    subtitulo: 'Instituto de Desenvolvimento da Juventude e do Esporte - IDJuv',
+    get subtitulo() { return nomeOficialDoOrgao(); },
     camposSelecionados: ['federacao_sigla', 'titulo', 'tipo', 'status', 'data_inicio', 'data_fim', 'cidade'],
     orientacao: 'paisagem',
     ordenacao: { campo: 'data_inicio', direcao: 'asc' },

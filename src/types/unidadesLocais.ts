@@ -417,13 +417,6 @@ export const MUNICIPIOS_RORAIMA = [
   'Uiramutã',
 ];
 
-export const DIRETORIAS_IDJUV = [
-  'Presidência',
-  'Diretoria de Esporte',
-  'Diretoria de Juventude e Lazer',
-  'Diretoria Administrativa e Financeira',
-];
-
 export const TIPOS_DOCUMENTO_CEDENCIA = [
   'Requerimento de Solicitação',
   'Documento de Autorização',

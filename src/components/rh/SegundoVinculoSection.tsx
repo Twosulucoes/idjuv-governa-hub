@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/select";
 import { SeletorDocumentoVinculo } from "./SeletorDocumentoVinculo";
 import { Link2, Building2, ShieldCheck } from "lucide-react";
+import { useIdentidade } from "@/core/tenant";
+import { orgaoEmTexto } from "@/lib/rotulosInstituicao";
 import {
   VinculoExternoEsfera,
   VinculoExternoSituacao,
@@ -47,6 +49,7 @@ export function SegundoVinculoSection({
   onChange,
   disabled = false,
 }: SegundoVinculoSectionProps) {
+  const orgao = orgaoEmTexto(useIdentidade().sigla);
   const requiresDocument =
     data.vinculo_externo_forma === "cessao" ||
     data.vinculo_externo_forma === "requisicao" ||
@@ -159,7 +162,7 @@ export function SegundoVinculoSection({
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-muted-foreground" />
               <Label className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
-                Forma do Vínculo no IDJuv
+                Forma do Vínculo no {orgao}
               </Label>
             </div>
 
@@ -169,7 +172,7 @@ export function SegundoVinculoSection({
               disabled={disabled}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Como este servidor está vinculado ao IDJuv?" />
+                <SelectValue placeholder={`Como este servidor está vinculado ao ${orgao}?`} />
               </SelectTrigger>
               <SelectContent>
                 {(Object.keys(VINCULO_EXTERNO_FORMA_LABELS) as VinculoExternoForma[]).map(
