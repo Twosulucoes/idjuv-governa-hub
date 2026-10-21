@@ -194,6 +194,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - A importação da folha do SIGRH (migração `20261022090000`) entrou no schema do baseline regenerado
   (`importar_folha_sigrh`, com os ajustes da revisão na `20261022100000`); o EXECUTE só para `authenticated` no overlay 40; testes no bloco "FOLHA: importação da
   folha do SIGRH" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- A remessa OBN600 dos pagamentos (migração `20261024090000`) entrou no schema do baseline regenerado (colunas novas
+  em `contas_autarquia`, `fin_remessas_bancarias` e `fin_pagamentos`, `registrar_remessa_obn600` e as versões finais
+  de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
+  mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - As permissões do patrimônio e das unidades (P14 entrega 4, migração `20261023100000`) entraram no mapa com os sufixos
   novos `altera=` e `coletor=` do `scripts/db/gerar-rls.mjs` (documentados em `supabase/baseline/README.md`), no schema
   do baseline regenerado (gatilho `trg_bens_proteger_colunas`, `fn_atualizar_estatisticas_campanha` SECURITY DEFINER) e

@@ -4779,6 +4779,19 @@ BEGIN
   END IF;
   r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(t, cobn, ARRAY[p201], hoje, 'NULL'));
   IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN OBN600: pagamento já enviado aceito de novo (' || left(r, 100) || ')'); END IF;
+  -- pela API (módulo e admin): não tira da remessa nem muda valor/conta/nº da OB de pagamento enviado
+  FOR x IN SELECT * FROM (VALUES ('mod_financeiro', u_fin), ('admin', (SELECT uid FROM persona WHERE nome='admin'))) v(quem, uid) LOOP
+    FOREACH t IN ARRAY ARRAY['remessa_bancaria_id = NULL', 'valor_bruto = 2000', 'conta_favorecido = ''1-1''',
+                             'identificador_transacao = ''X''', 'fornecedor_id = NULL'] LOOP
+      r := pg_temp.sql_como(x.uid, 'authenticated', format('UPDATE public.fin_pagamentos SET %s WHERE id = %L', t, p201));
+      IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha(format('FIN OBN600: %s mudou pagamento enviado pela API (%s: %s)', x.quem, t, r)); END IF;
+    END LOOP;
+    r := pg_temp.sql_como(x.uid, 'authenticated', format('UPDATE public.fin_pagamentos SET remessa_bancaria_id = %L WHERE id = %L', rem, p205));
+    IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha(format('FIN OBN600: %s pôs pagamento numa remessa pela API (%s)', x.quem, r)); END IF;
+    r := pg_temp.sql_como(x.uid, 'authenticated', format('UPDATE public.fin_pagamentos SET observacoes = ''nota'' WHERE id = %L', p201));
+    IF r <> 'ok:1' THEN PERFORM pg_temp.falha(format('FIN OBN600: %s não muda observação de pagamento enviado (%s)', x.quem, r)); END IF;
+  END LOOP;
+  t := 'SELECT public.registrar_remessa_obn600(%L, %L::uuid[], %L::date, %s)::text';
   r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.obter_remessa_bancaria(%L)->>''arquivo_sha256''', rem));
   IF r IS DISTINCT FROM hash_ok THEN PERFORM pg_temp.falha('FIN OBN600: obter_remessa_bancaria sem o hash confirmado (' || r || ')'); END IF;
 
@@ -4800,7 +4813,7 @@ BEGIN
     PERFORM pg_temp.falha('FIN OBN600: retorno não deu baixa no pagamento pelo nº da OB (' || left(r, 160) || ')');
   END IF;
 
-  PERFORM pg_temp.nota('FIN OBN600: permissão, regras de entrada, montagem das OBs no servidor, numeração, reserva/confirmação/cancelamento e baixa pelo retorno verificados');
+  PERFORM pg_temp.nota('FIN OBN600: permissão, regras de entrada, montagem das OBs no servidor, numeração, reserva/confirmação/cancelamento, trava do pagamento enviado pela API e baixa pelo retorno verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Lançamento por setor (fase 1) (TRIGGERS LIGADOS)

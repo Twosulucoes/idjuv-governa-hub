@@ -7,7 +7,9 @@
 --                                   cada OB; ficam no banco, nunca no código)
 --   fin_remessas_bancarias          layout passa a aceitar 'obn600'; + pagamentos (ids, na ordem das OBs) e
 --                                   parametros ({unidade_gestora, gestao}); creditos guarda o RETRATO das OBs.
---   fin_pagamentos                  + remessa_bancaria_id (reserva ou remessa OBN em que o pagamento saiu)
+--   fin_pagamentos                  + remessa_bancaria_id (reserva ou remessa OBN em que o pagamento saiu);
+--                                   fin_pagamentos_proteger_baixa (versão final) tranca pela API a remessa e,
+--                                   numa remessa, valor, favorecido, conta e nº da OB
 --   fin_remessa_bancaria_json       (substitui) devolve também layout, parametros e pagamentos.
 --   registrar_remessa_obn600(...)   o SERVIDOR monta as OBs a partir dos pagamentos (favorecido do fornecedor,
 --                                   conta do pagamento ou do fornecedor), numera relação e OB, reserva o nº da
@@ -114,6 +116,58 @@ CREATE INDEX IF NOT EXISTS idx_fin_pagamentos_remessa_bancaria ON public.fin_pag
 
 COMMENT ON COLUMN public.fin_pagamentos.remessa_bancaria_id IS
   'Remessa OBN600 (fin_remessas_bancarias) em que o pagamento saiu ou está reservado (reserva = remessa sem arquivo_sha256). Gravado só pelas RPCs de remessa.';
+
+
+-- Trigger de proteção (versão final): além da baixa, pela API (anon/authenticated) o pagamento não nasce numa
+-- remessa, não entra nem sai dela (só as RPCs de remessa mexem em remessa_bancaria_id) e, numa remessa, não muda
+-- valor, favorecido, conta nem o nº da OB: o arquivo que foi ao banco tem esses dados. Mesmo nome e privilégios.
+CREATE OR REPLACE FUNCTION public.fin_pagamentos_proteger_baixa()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF current_user IN ('anon', 'authenticated') THEN
+    IF TG_OP = 'INSERT' THEN
+      IF NEW.status::text = 'pago' OR NEW.data_efetivacao IS NOT NULL THEN
+        RAISE EXCEPTION 'Pagamento não nasce pago: a baixa vem do retorno do banco ou da conciliação bancária.'
+          USING ERRCODE = '42501';
+      END IF;
+      IF NEW.remessa_bancaria_id IS NOT NULL THEN
+        RAISE EXCEPTION 'Pagamento não nasce numa remessa bancária: a reserva é da geração da remessa.'
+          USING ERRCODE = '42501';
+      END IF;
+    ELSE
+      IF (NEW.status::text = 'pago' AND OLD.status IS DISTINCT FROM NEW.status)
+         OR NEW.data_efetivacao IS DISTINCT FROM OLD.data_efetivacao THEN
+        RAISE EXCEPTION 'O pagamento % só é baixado (pago/data de efetivação) pelo retorno do banco ou pela conciliação bancária.', OLD.numero
+          USING ERRCODE = '42501';
+      END IF;
+      IF NEW.remessa_bancaria_id IS DISTINCT FROM OLD.remessa_bancaria_id THEN
+        RAISE EXCEPTION 'O pagamento % só entra ou sai de uma remessa bancária pela geração ou pelo cancelamento da remessa.', OLD.numero
+          USING ERRCODE = '42501';
+      END IF;
+      IF OLD.remessa_bancaria_id IS NOT NULL
+         AND (NEW.valor_bruto IS DISTINCT FROM OLD.valor_bruto
+              OR NEW.valor_retencoes IS DISTINCT FROM OLD.valor_retencoes
+              OR NEW.fornecedor_id IS DISTINCT FROM OLD.fornecedor_id
+              OR NEW.banco_favorecido IS DISTINCT FROM OLD.banco_favorecido
+              OR NEW.agencia_favorecido IS DISTINCT FROM OLD.agencia_favorecido
+              OR NEW.conta_favorecido IS DISTINCT FROM OLD.conta_favorecido
+              OR NEW.identificador_transacao IS DISTINCT FROM OLD.identificador_transacao) THEN
+        RAISE EXCEPTION 'O pagamento % está numa remessa bancária: valor, favorecido, conta e nº da OB não mudam mais.', OLD.numero
+          USING ERRCODE = '42501';
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION public.fin_pagamentos_proteger_baixa() IS
+  'Trigger: pela API (anon/authenticated) fin_pagamentos não passa a pago, não nasce pago e não muda data_efetivacao (a baixa é de fin_marcar_pagamento_pago); não entra nem sai de remessa bancária (remessa_bancaria_id é das RPCs de remessa) e, numa remessa, não muda valor, favorecido, conta nem identificador_transacao.';
+
+REVOKE EXECUTE ON FUNCTION public.fin_pagamentos_proteger_baixa() FROM PUBLIC, anon, authenticated;
 
 
 -- ----------------------------------------------------------------------------

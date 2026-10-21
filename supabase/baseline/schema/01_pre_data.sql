@@ -3744,10 +3744,31 @@ BEGIN
         RAISE EXCEPTION 'Pagamento não nasce pago: a baixa vem do retorno do banco ou da conciliação bancária.'
           USING ERRCODE = '42501';
       END IF;
-    ELSIF (NEW.status::text = 'pago' AND OLD.status IS DISTINCT FROM NEW.status)
-       OR NEW.data_efetivacao IS DISTINCT FROM OLD.data_efetivacao THEN
-      RAISE EXCEPTION 'O pagamento % só é baixado (pago/data de efetivação) pelo retorno do banco ou pela conciliação bancária.', OLD.numero
-        USING ERRCODE = '42501';
+      IF NEW.remessa_bancaria_id IS NOT NULL THEN
+        RAISE EXCEPTION 'Pagamento não nasce numa remessa bancária: a reserva é da geração da remessa.'
+          USING ERRCODE = '42501';
+      END IF;
+    ELSE
+      IF (NEW.status::text = 'pago' AND OLD.status IS DISTINCT FROM NEW.status)
+         OR NEW.data_efetivacao IS DISTINCT FROM OLD.data_efetivacao THEN
+        RAISE EXCEPTION 'O pagamento % só é baixado (pago/data de efetivação) pelo retorno do banco ou pela conciliação bancária.', OLD.numero
+          USING ERRCODE = '42501';
+      END IF;
+      IF NEW.remessa_bancaria_id IS DISTINCT FROM OLD.remessa_bancaria_id THEN
+        RAISE EXCEPTION 'O pagamento % só entra ou sai de uma remessa bancária pela geração ou pelo cancelamento da remessa.', OLD.numero
+          USING ERRCODE = '42501';
+      END IF;
+      IF OLD.remessa_bancaria_id IS NOT NULL
+         AND (NEW.valor_bruto IS DISTINCT FROM OLD.valor_bruto
+              OR NEW.valor_retencoes IS DISTINCT FROM OLD.valor_retencoes
+              OR NEW.fornecedor_id IS DISTINCT FROM OLD.fornecedor_id
+              OR NEW.banco_favorecido IS DISTINCT FROM OLD.banco_favorecido
+              OR NEW.agencia_favorecido IS DISTINCT FROM OLD.agencia_favorecido
+              OR NEW.conta_favorecido IS DISTINCT FROM OLD.conta_favorecido
+              OR NEW.identificador_transacao IS DISTINCT FROM OLD.identificador_transacao) THEN
+        RAISE EXCEPTION 'O pagamento % está numa remessa bancária: valor, favorecido, conta e nº da OB não mudam mais.', OLD.numero
+          USING ERRCODE = '42501';
+      END IF;
     END IF;
   END IF;
   RETURN NEW;
@@ -3759,7 +3780,7 @@ $$;
 -- Name: FUNCTION fin_pagamentos_proteger_baixa(); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.fin_pagamentos_proteger_baixa() IS 'Trigger: pela API (anon/authenticated) fin_pagamentos não passa a pago, não nasce pago e não muda data_efetivacao; a baixa é de fin_marcar_pagamento_pago (RPCs de conciliação bancária).';
+COMMENT ON FUNCTION public.fin_pagamentos_proteger_baixa() IS 'Trigger: pela API (anon/authenticated) fin_pagamentos não passa a pago, não nasce pago e não muda data_efetivacao (a baixa é de fin_marcar_pagamento_pago); não entra nem sai de remessa bancária (remessa_bancaria_id é das RPCs de remessa) e, numa remessa, não muda valor, favorecido, conta nem identificador_transacao.';
 
 
 --
