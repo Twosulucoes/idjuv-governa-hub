@@ -7,8 +7,14 @@ import { ChevronDown, Play, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/portal/hero-athletes.jpg";
 import { Logo } from "@/components/ui/Logo";
+import { useTenant } from "@/core/tenant";
 
 export function PortalHero() {
+  // Entidade superior, vinculação, sede e data de criação vêm do cadastro da
+  // instituição (/admin/configuracao-cliente); campo vazio some da tela.
+  const { entidadeSuperior, legal, endereco } = useTenant();
+  const cidadeUf = [endereco?.cidade, endereco?.uf].filter(Boolean).join(" - ");
+  const sede = [endereco?.bairro, cidadeUf].filter(Boolean).join(", ");
   const scrollToContent = () => {
     document.getElementById('programas')?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -84,6 +90,7 @@ export function PortalHero() {
           </motion.div>
 
           {/* Badge */}
+          {entidadeSuperior?.nome && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -91,8 +98,9 @@ export function PortalHero() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm mb-6"
           >
             <Sparkles className="w-4 h-4 text-amber-400" />
-            Governo do Estado de Roraima
+            {entidadeSuperior.nome}
           </motion.div>
+          )}
 
           {/* Title */}
           <motion.h1
@@ -114,24 +122,30 @@ export function PortalHero() {
             transition={{ duration: 0.8, delay: 0.5 }}
             className="text-lg md:text-xl text-white/80 mb-6 max-w-3xl mx-auto leading-relaxed"
           >
-            Autarquia vinculada à Secretaria de Estado da Educação e Desporto (SEED), 
-            promovendo o desenvolvimento esportivo, o lazer e a inclusão social da juventude roraimense.
+            {legal?.vinculacao ? `Vinculada à ${legal.vinculacao}, promovendo` : "Promovendo"}{" "}
+            o desenvolvimento esportivo, o lazer e a inclusão social da juventude.
           </motion.p>
 
           {/* Info Badge */}
+          {(sede || legal?.dataCriacao) && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.6 }}
             className="flex flex-wrap justify-center gap-3 mb-10"
           >
+            {sede && (
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm">
-              📍 Sede: Parque Anauá, Boa Vista
+              📍 Sede: {sede}
             </span>
+            )}
+            {legal?.dataCriacao && (
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm">
-              📅 Criado em 29/12/2025
+              📅 Criado em {legal.dataCriacao}
             </span>
+            )}
           </motion.div>
+          )}
 
           {/* CTA Buttons */}
           <motion.div

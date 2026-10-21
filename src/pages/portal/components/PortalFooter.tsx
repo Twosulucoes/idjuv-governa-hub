@@ -24,6 +24,7 @@ export function PortalFooter() {
     entidadeSuperior,
     identidade: { sigla },
     contato,
+    legal,
   } = useTenant();
 
   // Só entra no rodapé a rede que a instituição declarou ter.
@@ -153,9 +154,11 @@ export function PortalFooter() {
               <div className="bg-white rounded-xl p-4 mb-4">
                 <LogoEntidadeSuperior variant="light" className="h-12 w-auto mx-auto" />
               </div>
-              <p className="text-primary-foreground/70 text-sm text-center">
-                Autarquia vinculada à Secretaria de Estado da Educação e Desporto – SEED
-              </p>
+              {legal?.vinculacao && (
+                <p className="text-primary-foreground/70 text-sm text-center">
+                  Vinculada à {legal.vinculacao}
+                </p>
+              )}
             </motion.div>
           </div>
         </div>

@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ModuleLayout } from '@/components/layout/ModuleLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/design-system';
-import { 
-  Crown, 
-  Users, 
-  ArrowRight, 
-  ChevronDown, 
+import { EmptyState, PageHeader } from '@/components/design-system';
+import {
+  Crown,
+  Users,
+  ArrowRight,
+  ChevronDown,
   Network,
   Scale,
   Briefcase,
@@ -21,123 +21,77 @@ import {
 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { RelatorioEstruturaDialog } from '@/components/relatorios/RelatorioEstruturaDialog';
-import { useIdentidade } from "@/core/tenant";
+import { useTenant } from "@/core/tenant";
+import { useEstruturaOrganizacional, type UnidadeEstrutura } from '@/hooks/useOrganograma';
+import { useResumoQuadroCargos } from '@/hooks/useTransparenciaCargos';
 
-interface Nucleo {
-  sigla: string;
-  nome: string;
+// Tudo o que esta página mostra vem do cadastro: unidades, siglas, descrições e
+// competências de `estrutura_organizacional` (Organograma > Gestão), total de cargos
+// do quadro (`cargos`/`composicao_cargos`) e lei/vinculação do cadastro da instituição.
+
+// Cores das diretorias pela ordem do organograma, sem sigla fixa no código.
+const CORES_DIRETORIA = [
+  { borda: 'border-l-accent', selo: 'bg-accent text-accent-foreground', ponto: 'bg-accent', caixa: 'bg-accent/10 border-accent/20' },
+  { borda: 'border-l-info', selo: 'bg-info text-primary-foreground', ponto: 'bg-info', caixa: 'bg-info/10 border-info/20' },
+  { borda: 'border-l-success', selo: 'bg-success text-success-foreground', ponto: 'bg-success', caixa: 'bg-success/10 border-success/20' },
+];
+
+const rotulo = (u: UnidadeEstrutura) => u.sigla || u.nome;
+
+function ListaFilhos({ unidade, filhos, ponto }: { unidade: UnidadeEstrutura; filhos: UnidadeEstrutura[]; ponto: string }) {
+  return (
+    <div className="pl-4 py-2 space-y-2">
+      {unidade.descricao && <p className="text-xs text-muted-foreground">{unidade.descricao}</p>}
+      {filhos.length > 0 && <p className="text-xs text-muted-foreground mb-2">Unidades vinculadas:</p>}
+      {filhos.map((filho) => (
+        <div key={filho.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className={`w-2 h-2 rounded-full ${ponto}`} />
+          {filho.sigla && <Badge variant="secondary" className="font-mono text-xs">{filho.sigla}</Badge>}
+          <span className="text-xs">{filho.nome}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
-
-interface Divisao {
-  nome: string;
-  descricao: string;
-  nucleos: string[];
-}
-
-interface Diretoria {
-  nome: string;
-  sigla: string;
-  tipo: 'instrumental' | 'programatica';
-  descricao: string;
-  vinculo: string;
-  divisoes: Divisao[];
-}
-
-interface ResumoData {
-  ultima_atualizacao: string;
-  fonte: string;
-  total_cargos: number;
-  estrutura_organizacional: {
-    nivel_superior: { nome: string; descricao: string };
-    assessoramento: { unidades: string[] };
-    execucao_instrumental: { nome: string; divisoes: Divisao[] };
-    execucao_programatica: { nome: string; divisoes: Divisao[] }[];
-  };
-  por_diretoria: Record<string, { quantidade: number; cargos: string[] }>;
-}
-
-// Descrições detalhadas dos vínculos
-const DESCRICOES_VINCULOS = {
-  presidencia: `A Presidência do IDJUV representa o nível de administração superior do Instituto, 
-    sendo responsável pela direção geral, coordenação estratégica e representação institucional. 
-    Todas as unidades de assessoramento e as diretorias estão diretamente vinculadas à Presidência.`,
-  
-  assessoramento: `As unidades de assessoramento são órgãos de apoio direto à Presidência, 
-    responsáveis por funções técnicas especializadas como: assessoria jurídica, controle interno, 
-    comunicação institucional e apoio executivo ao Presidente.`,
-  
-  diraf: `A Diretoria Administrativa e Financeira (DIRAF) é o órgão de execução instrumental, 
-    responsável pela gestão dos meios administrativos e financeiros necessários ao funcionamento do Instituto. 
-    Está diretamente vinculada à Presidência e coordena as atividades de recursos humanos, 
-    contabilidade, patrimônio, tecnologia da informação e gestão documental.`,
-  
-  diesp: `A Diretoria de Esporte (DIESP) é um órgão de execução programática, 
-    responsável pelo planejamento, coordenação e execução das políticas públicas de esporte no Estado. 
-    Está diretamente vinculada à Presidência e coordena programas de esporte comunitário, 
-    alto rendimento, esporte educacional e inclusão através do esporte.`,
-  
-  dijuv: `A Diretoria da Juventude (DIJUV) é um órgão de execução programática, 
-    responsável pelo desenvolvimento e implementação de políticas públicas voltadas à juventude. 
-    Está diretamente vinculada à Presidência e coordena programas de protagonismo juvenil, 
-    empreendedorismo, políticas transversais e articulação com conselhos de juventude.`
-};
-
-// Mapeamento de núcleos com nomes completos conforme Lei nº 2.301/2025
-const NUCLEOS_COMPLETOS: Record<string, string> = {
-  // DIRAF - DiCOF (Divisão de Contabilidade, Orçamento e Finanças)
-  'NuPrO': 'Núcleo de Programação Orçamentária',
-  'NuFI': 'Núcleo de Finanças',
-  'NuCont': 'Núcleo de Contabilidade',
-  // DIRAF - DiAGP (Divisão Administrativa e Gestão Patrimonial)
-  'NuDoc': 'Núcleo de Documentação, Protocolo e Arquivo',
-  'NuPat': 'Núcleo de Patrimônio e Logística',
-  'NuAC': 'Núcleo Administrativo de Contratos e Convênios',
-  // DIRAF - DRH (Divisão de Recursos Humanos)
-  'NuP': 'Núcleo de Pessoal',
-  'NuF': 'Núcleo de Folha de Pagamento',
-  // DIRAF - DiTI (Divisão de Tecnologia da Informação)
-  'NuST': 'Núcleo de Suporte Técnico',
-  'NuProg': 'Núcleo de Programação',
-  // DIESP - DiGEL (Divisão de Gestão de Esporte e Lazer)
-  'NuDeC': 'Núcleo de Desporto Comunitário',
-  'NuPAF': 'Núcleo de Promoção de Atividade Física e Lazer',
-  // DIESP - DiRE (Divisão de Esporte de Alto Rendimento)
-  'NuRE': 'Núcleo de Esporte de Alto Rendimento',
-  'NuGAO': 'Núcleo de Gestão e Apoio às Organizações Esportivas',
-  // DIESP - DiEDE (Divisão de Educação e Desporto Estudantil)
-  'NuED': 'Núcleo de Esporte Educacional',
-  'NuBase': 'Núcleo de Esporte de Base',
-  // DIESP - DiGI (Divisão de Gestão Inclusiva e Qualidade de Vida)
-  'NuInc': 'Núcleo de Esporte, Inclusão Social e Saúde',
-  'NuPar': 'Núcleo de Paradesporto',
-  // DIJUV - DiPP (Divisão de Programas e Projetos)
-  'NAT': 'Núcleo de Ações Temáticas de Políticas da Juventude',
-  'CRJuv': 'Centro de Referência da Juventude',
-  // DIJUV - DAPT (Divisão de Articulação de Políticas Transversais)
-  'NuREL': 'Núcleo de Relações Institucionais e Articulação Regional',
-  'NuPol': 'Núcleo de Políticas de Direitos da Juventude'
-};
 
 export default function EstruturaOrganizacionalPage() {
-  const { sigla } = useIdentidade();
-  const [resumo, setResumo] = useState<ResumoData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { identidade: { sigla, nomeOficial, naturezaJuridica }, legal } = useTenant();
   const [relatorioOpen, setRelatorioOpen] = useState(false);
+  const { data: unidades = [], isLoading } = useEstruturaOrganizacional();
+  const { resumo } = useResumoQuadroCargos();
 
-  useEffect(() => {
-    fetch('/data/resumo.json')
-      .then(res => res.json())
-      .then(data => {
-        setResumo(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Erro ao carregar dados:', err);
-        setLoading(false);
-      });
-  }, []);
+  const estrutura = useMemo(() => {
+    const filhosDe = new Map<string, UnidadeEstrutura[]>();
+    for (const u of unidades) {
+      if (!u.superior_id) continue;
+      const lista = filhosDe.get(u.superior_id) ?? [];
+      lista.push(u);
+      filhosDe.set(u.superior_id, lista);
+    }
+    const porId = new Map(unidades.map((u) => [u.id, u]));
+    const presidencias = unidades.filter((u) => u.tipo === 'presidencia');
+    return {
+      filhosDe: (id: string) => filhosDe.get(id) ?? [],
+      superiorDe: (u: UnidadeEstrutura) => (u.superior_id ? porId.get(u.superior_id) : undefined),
+      presidencias,
+      assessorias: unidades.filter((u) => u.tipo === 'assessoria'),
+      diretorias: unidades.filter((u) => u.tipo === 'diretoria'),
+    };
+  }, [unidades]);
 
-  const getNucleoNome = (sigla: string) => NUCLEOS_COMPLETOS[sigla] || sigla;
+  // Vagas por diretoria: a RPC do quadro devolve a sigla (ou o nome) da diretoria
+  const vagasDe = (u: UnidadeEstrutura) =>
+    resumo?.porDiretoria.find((d) => d.diretoria === rotulo(u))?.quantidade;
+
+  const fonte = resumo?.leis.length ? resumo.leis.join('; ') : legal?.leiCriacao;
+  const tituloSuperior = estrutura.presidencias.map(rotulo).join(', ');
+
+  // Frase de abertura montada só com os campos preenchidos no cadastro da instituição
+  const abertura = [
+    legal?.leiCriacao && `foi criado pela ${legal.leiCriacao}`,
+    naturezaJuridica && `como ${naturezaJuridica.toLowerCase()}`,
+    legal?.vinculacao && `vinculada à ${legal.vinculacao}`,
+  ].filter(Boolean).join(', ');
 
   return (
     <ModuleLayout module="governanca">
@@ -145,7 +99,7 @@ export default function EstruturaOrganizacionalPage() {
         <PageHeader
           migalhas={[{ rotulo: "Governança", href: "/governanca" }, { rotulo: "Estrutura organizacional" }]}
           titulo={`Estrutura organizacional do ${sigla}`}
-          descricao="Instituto de Desporto, Juventude e Lazer do Estado de Roraima"
+          descricao={nomeOficial}
           acoes={
             <>
               <Button variant="outline" asChild>
@@ -163,345 +117,264 @@ export default function EstruturaOrganizacionalPage() {
         />
 
         <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="gap-1">
-            <Scale className="h-3 w-3" aria-hidden="true" />
-            {resumo?.fonte || 'Lei nº 2.301/2025'}
-          </Badge>
-          <Badge variant="secondary" className="gap-1">
-            <Users className="h-3 w-3" aria-hidden="true" />
-            {resumo?.total_cargos || 98} cargos
-          </Badge>
+          {fonte && (
+            <Badge variant="outline" className="gap-1">
+              <Scale className="h-3 w-3" aria-hidden="true" />
+              {fonte}
+            </Badge>
+          )}
+          {!!resumo?.total && (
+            <Badge variant="secondary" className="gap-1">
+              <Users className="h-3 w-3" aria-hidden="true" />
+              {resumo.total} cargos comissionados
+            </Badge>
+          )}
         </div>
 
-        <RelatorioEstruturaDialog 
-          open={relatorioOpen} 
-          onOpenChange={setRelatorioOpen} 
+        <RelatorioEstruturaDialog
+          open={relatorioOpen}
+          onOpenChange={setRelatorioOpen}
         />
 
         {/* Introdução */}
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="pt-6">
-            <p className="text-foreground leading-relaxed">
-              O <strong>Instituto de Desporto, Juventude e Lazer do Estado de Roraima (IDJUV)</strong> foi 
-              criado pela Lei nº 2.301, de 29 de dezembro de 2025, como autarquia especial vinculada à 
-              Secretaria de Estado de Desporto, Juventude e Lazer (SEDJUVEL). O IDJUV possui personalidade 
-              jurídica de direito público, com autonomia administrativa, patrimonial e financeira.
-            </p>
-          </CardContent>
-        </Card>
+        {abertura && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="pt-6">
+              <p className="text-foreground leading-relaxed">
+                O <strong>{nomeOficial} ({sigla})</strong> {abertura}.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Níveis da Estrutura */}
-        <div className="space-y-8">
-          
-          {/* 1. Nível de Administração Superior - Presidência */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                <Crown className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-foreground">Nível de Administração Superior</h2>
-                <p className="text-sm text-muted-foreground">Presidência do IDJUV</p>
-              </div>
-            </div>
-            
-            <Card className="border-l-4 border-l-primary">
-              <CardContent className="pt-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-primary" aria-hidden="true" />
-                      Presidência
-                    </h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      {DESCRICOES_VINCULOS.presidencia}
-                    </p>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando a estrutura…</p>
+        ) : unidades.length === 0 ? (
+          <Card>
+            <EmptyState
+              icone={Network}
+              titulo="Nenhuma unidade cadastrada"
+              descricao="Cadastre presidência, assessorias, diretorias e suas unidades na gestão do organograma; esta página passa a mostrá-las."
+              acao={
+                <Button variant="outline" asChild>
+                  <Link to="/organograma/gestao">Gestão do organograma</Link>
+                </Button>
+              }
+            />
+          </Card>
+        ) : (
+          <div className="space-y-8">
+            {/* 1. Nível de Administração Superior */}
+            {estrutura.presidencias.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+                    <Crown className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
                   </div>
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-sm font-medium text-foreground mb-2">Cargos vinculados:</p>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li className="flex items-center gap-2">
-                        <ArrowRight className="h-3 w-3 text-primary" aria-hidden="true" />
-                        Presidente (Subsídio)
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <ArrowRight className="h-3 w-3 text-primary" aria-hidden="true" />
-                        Secretária da Presidência
-                      </li>
-                    </ul>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Total: {resumo?.por_diretoria?.['Presidência']?.quantidade || 21} cargos
-                    </p>
+                  <div>
+                    <h2 className="text-xl font-bold text-foreground">Nível de Administração Superior</h2>
+                    <p className="text-sm text-muted-foreground">{estrutura.presidencias.map((p) => p.nome).join(', ')}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </section>
 
-          <Separator />
+                {estrutura.presidencias.map((presidencia) => (
+                  <Card key={presidencia.id} className="border-l-4 border-l-primary">
+                    <CardContent className="pt-6">
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div>
+                          <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                            <Briefcase className="h-4 w-4 text-primary" aria-hidden="true" />
+                            {presidencia.nome}
+                          </h3>
+                          {presidencia.descricao && (
+                            <p className="text-muted-foreground text-sm leading-relaxed">{presidencia.descricao}</p>
+                          )}
+                        </div>
+                        {(presidencia.competencias?.length || vagasDe(presidencia) !== undefined) && (
+                          <div className="bg-muted/50 rounded-lg p-4">
+                            {!!presidencia.competencias?.length && (
+                              <>
+                                <p className="text-sm font-medium text-foreground mb-2">Competências:</p>
+                                <ul className="text-sm text-muted-foreground space-y-1">
+                                  {presidencia.competencias.map((c) => (
+                                    <li key={c} className="flex items-center gap-2">
+                                      <ArrowRight className="h-3 w-3 text-primary" aria-hidden="true" />
+                                      {c}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </>
+                            )}
+                            {vagasDe(presidencia) !== undefined && (
+                              <p className="mt-3 text-xs text-muted-foreground">
+                                Total: {vagasDe(presidencia)} cargos
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </section>
+            )}
 
-          {/* 2. Nível de Assessoramento */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <Target className="h-5 w-5 text-secondary-foreground" aria-hidden="true" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-foreground">Nível de Assessoramento</h2>
-                <p className="text-sm text-muted-foreground">Unidades de apoio direto à Presidência</p>
-              </div>
-            </div>
+            {/* 2. Nível de Assessoramento */}
+            {estrutura.assessorias.length > 0 && (
+              <>
+                <Separator />
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                      <Target className="h-5 w-5 text-secondary-foreground" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-foreground">Nível de Assessoramento</h2>
+                      <p className="text-sm text-muted-foreground">Unidades de apoio direto à administração superior</p>
+                    </div>
+                  </div>
 
-            <Card className="border-l-4 border-l-secondary">
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground text-sm leading-relaxed mb-4">
-                  {DESCRICOES_VINCULOS.assessoramento}
-                </p>
-                
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {resumo?.estrutura_organizacional?.assessoramento?.unidades.map((unidade, idx) => (
-                    <div 
-                      key={idx}
-                      className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg"
-                    >
-                      <ChevronDown className="h-4 w-4 text-secondary rotate-[-90deg]" aria-hidden="true" />
-                      <span className="text-sm font-medium">{unidade}</span>
+                  <Card className="border-l-4 border-l-secondary">
+                    <CardContent className="pt-6">
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {estrutura.assessorias.map((unidade) => (
+                          <div
+                            key={unidade.id}
+                            className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg"
+                            title={unidade.descricao}
+                          >
+                            <ChevronDown className="h-4 w-4 text-secondary rotate-[-90deg]" aria-hidden="true" />
+                            <span className="text-sm font-medium">{unidade.nome}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </section>
+              </>
+            )}
+
+            {/* 3. Diretorias */}
+            {estrutura.diretorias.length > 0 && (
+              <>
+                <Separator />
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
+                      <Layers className="h-5 w-5 text-accent-foreground" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-foreground">Diretorias</h2>
+                      <p className="text-sm text-muted-foreground">Unidades de execução e suas divisões</p>
+                    </div>
+                  </div>
+
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    {estrutura.diretorias.map((diretoria, i) => {
+                      const cor = CORES_DIRETORIA[i % CORES_DIRETORIA.length];
+                      const superior = estrutura.superiorDe(diretoria);
+                      const vagas = vagasDe(diretoria);
+                      return (
+                        <Card key={diretoria.id} className={`border-l-4 ${cor.borda}`}>
+                          <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              {diretoria.sigla && <Badge className={cor.selo}>{diretoria.sigla}</Badge>}
+                              {diretoria.nome}
+                            </CardTitle>
+                            {diretoria.descricao && (
+                              <CardDescription className="text-xs">{diretoria.descricao}</CardDescription>
+                            )}
+                          </CardHeader>
+                          <CardContent>
+                            {superior && (
+                              <div className={`mb-4 p-3 rounded-lg border ${cor.caixa}`}>
+                                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                  <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                                  <strong>Vínculo:</strong> Subordinada a {superior.nome}
+                                </p>
+                              </div>
+                            )}
+
+                            <Accordion type="multiple" className="space-y-2">
+                              {estrutura.filhosDe(diretoria.id).map((divisao) => (
+                                <AccordionItem key={divisao.id} value={divisao.id} className="border rounded-lg px-4">
+                                  <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                                    <span className="flex items-center gap-2 text-left">
+                                      {divisao.sigla && <Badge variant="outline" className="font-mono text-xs">{divisao.sigla}</Badge>}
+                                      {divisao.nome}
+                                    </span>
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    <ListaFilhos unidade={divisao} filhos={estrutura.filhosDe(divisao.id)} ponto={cor.ponto} />
+                                  </AccordionContent>
+                                </AccordionItem>
+                              ))}
+                            </Accordion>
+
+                            {vagas !== undefined && (
+                              <p className="mt-4 text-xs text-muted-foreground text-right">
+                                Total: {vagas} cargos nesta diretoria
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Diagrama de vínculos — leitura rápida da hierarquia */}
+        {unidades.length > 0 && (
+          <Card className="bg-muted/30">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Network className="h-5 w-5 text-primary" aria-hidden="true" />
+                Diagrama de vínculos
+              </CardTitle>
+              <CardDescription>Representação visual da hierarquia e subordinação</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col items-center space-y-4">
+                {tituloSuperior && (
+                  <>
+                    <div className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-bold text-center uppercase">
+                      {tituloSuperior}
+                    </div>
+                    <div className="w-px h-6 bg-border" />
+                  </>
+                )}
+
+                {estrutura.assessorias.length > 0 && (
+                  <>
+                    <div className="w-full max-w-3xl">
+                      <div className="text-center text-xs text-muted-foreground mb-2">Assessoramento</div>
+                      <div className="flex justify-center flex-wrap gap-2">
+                        {estrutura.assessorias.map((u) => (
+                          <Badge key={u.id} variant="secondary" className="text-xs">{rotulo(u)}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="w-px h-6 bg-border" />
+                  </>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-3xl">
+                  {estrutura.diretorias.map((d, i) => (
+                    <div key={d.id} className="text-center">
+                      <div className={`px-4 py-2 rounded-lg font-semibold text-sm ${CORES_DIRETORIA[i % CORES_DIRETORIA.length].selo}`}>
+                        {rotulo(d)}
+                      </div>
                     </div>
                   ))}
                 </div>
-
-                <div className="mt-4 p-3 bg-secondary/10 rounded-lg border border-secondary/20">
-                  <p className="text-xs text-muted-foreground flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                    <strong>Vínculo:</strong> Todas as unidades de assessoramento respondem diretamente à Presidência
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          <Separator />
-
-          {/* 3. Nível de Execução Instrumental - DIRAF */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
-                <Layers className="h-5 w-5 text-accent-foreground" aria-hidden="true" />
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-foreground">Nível de Execução Instrumental</h2>
-                <p className="text-sm text-muted-foreground">Gestão administrativa e financeira</p>
-              </div>
-            </div>
-
-            <Card className="border-l-4 border-l-accent">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Badge className="bg-accent text-accent-foreground">DIRAF</Badge>
-                  Diretoria Administrativa e Financeira
-                </CardTitle>
-                <CardDescription>
-                  {DESCRICOES_VINCULOS.diraf}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4 p-3 bg-accent/10 rounded-lg border border-accent/20">
-                  <p className="text-xs text-muted-foreground flex items-center gap-2">
-                    <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                    <strong>Vínculo:</strong> Subordinada diretamente à Presidência do IDJUV
-                  </p>
-                </div>
-
-                <Accordion type="multiple" className="space-y-2">
-                  {resumo?.estrutura_organizacional?.execucao_instrumental?.divisoes.map((divisao, idx) => (
-                    <AccordionItem key={idx} value={`diraf-${idx}`} className="border rounded-lg px-4">
-                      <AccordionTrigger className="text-sm font-medium hover:no-underline">
-                        <span className="flex items-center gap-2">
-                          <Badge variant="outline" className="font-mono text-xs">{divisao.nome}</Badge>
-                          {divisao.descricao}
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="pl-4 py-2 space-y-2">
-                          <p className="text-xs text-muted-foreground mb-2">Núcleos vinculados:</p>
-                          {divisao.nucleos.map((nucleo, nIdx) => (
-                            <div key={nIdx} className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span className="w-2 h-2 rounded-full bg-accent" />
-                              <Badge variant="secondary" className="font-mono text-xs">{nucleo}</Badge>
-                              <span className="text-xs">{getNucleoNome(nucleo)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-
-                <p className="mt-4 text-xs text-muted-foreground text-right">
-                  Total: {resumo?.por_diretoria?.['DIRAF']?.quantidade || 58} cargos nesta diretoria
-                </p>
-              </CardContent>
-            </Card>
-          </section>
-
-          <Separator />
-
-          {/* 4. Nível de Execução Programática - DIESP e DIJUV */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-full bg-highlight flex items-center justify-center">
-                <Target className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-foreground">Nível de Execução Programática</h2>
-                <p className="text-sm text-muted-foreground">Políticas de esporte e juventude</p>
-              </div>
-            </div>
-
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* DIESP */}
-              <Card className="border-l-4 border-l-info">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Badge className="bg-info text-primary-foreground">DIESP</Badge>
-                    Diretoria de Esporte
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    {DESCRICOES_VINCULOS.diesp}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4 p-3 bg-info/10 rounded-lg border border-info/20">
-                    <p className="text-xs text-muted-foreground flex items-center gap-2">
-                      <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                      <strong>Vínculo:</strong> Subordinada à Presidência
-                    </p>
-                  </div>
-
-                  <Accordion type="multiple" className="space-y-2">
-                    {resumo?.estrutura_organizacional?.execucao_programatica?.find(d => d.nome.includes('DIESP'))?.divisoes.map((divisao, idx) => (
-                      <AccordionItem key={idx} value={`diesp-${idx}`} className="border rounded-lg px-4">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
-                          <span className="flex items-center gap-2">
-                            <Badge variant="outline" className="font-mono text-xs">{divisao.nome}</Badge>
-                          </span>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="pl-4 py-2 space-y-2">
-                            <p className="text-xs text-muted-foreground">{divisao.descricao}</p>
-                            {divisao.nucleos.map((nucleo, nIdx) => (
-                              <div key={nIdx} className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span className="w-2 h-2 rounded-full bg-info" />
-                                <Badge variant="secondary" className="font-mono text-xs">{nucleo}</Badge>
-                                <span className="text-xs">{getNucleoNome(nucleo)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                </CardContent>
-              </Card>
-
-              {/* DIJUV */}
-              <Card className="border-l-4 border-l-success">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Badge className="bg-success text-success-foreground">DIJUV</Badge>
-                    Diretoria da Juventude
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    {DESCRICOES_VINCULOS.dijuv}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4 p-3 bg-success/10 rounded-lg border border-success/20">
-                    <p className="text-xs text-muted-foreground flex items-center gap-2">
-                      <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                      <strong>Vínculo:</strong> Subordinada à Presidência
-                    </p>
-                  </div>
-
-                  <Accordion type="multiple" className="space-y-2">
-                    {resumo?.estrutura_organizacional?.execucao_programatica?.find(d => d.nome.includes('DIJUV'))?.divisoes.map((divisao, idx) => (
-                      <AccordionItem key={idx} value={`dijuv-${idx}`} className="border rounded-lg px-4">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
-                          <span className="flex items-center gap-2">
-                            <Badge variant="outline" className="font-mono text-xs">{divisao.nome}</Badge>
-                          </span>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="pl-4 py-2 space-y-2">
-                            <p className="text-xs text-muted-foreground">{divisao.descricao}</p>
-                            {divisao.nucleos.map((nucleo, nIdx) => (
-                              <div key={nIdx} className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span className="w-2 h-2 rounded-full bg-success" />
-                                <Badge variant="secondary" className="font-mono text-xs">{nucleo}</Badge>
-                                <span className="text-xs">{getNucleoNome(nucleo)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-        </div>
-
-        {/* Diagrama de vínculos — leitura rápida da hierarquia */}
-        <Card className="bg-muted/30">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Network className="h-5 w-5 text-primary" aria-hidden="true" />
-              Diagrama de vínculos
-            </CardTitle>
-            <CardDescription>Representação visual da hierarquia e subordinação</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center space-y-4">
-              <div className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-bold text-center">
-                PRESIDÊNCIA
-              </div>
-              <div className="w-px h-6 bg-border" />
-
-              <div className="w-full max-w-3xl">
-                <div className="text-center text-xs text-muted-foreground mb-2">Assessoramento</div>
-                <div className="flex justify-center flex-wrap gap-2">
-                  {['Gabinete', 'Jurídico', 'ASCOM', 'Controle Interno', 'CPL'].map((item) => (
-                    <Badge key={item} variant="secondary" className="text-xs">{item}</Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div className="w-px h-6 bg-border" />
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-3xl">
-                <div className="text-center">
-                  <div className="px-4 py-2 bg-accent text-accent-foreground rounded-lg font-semibold text-sm">
-                    DIRAF
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Instrumental</p>
-                </div>
-                <div className="text-center">
-                  <div className="px-4 py-2 bg-info text-primary-foreground rounded-lg font-semibold text-sm">
-                    DIESP
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Programática</p>
-                </div>
-                <div className="text-center">
-                  <div className="px-4 py-2 bg-success text-success-foreground rounded-lg font-semibold text-sm">
-                    DIJUV
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Programática</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Rodapé legal */}
         <Card className="border-dashed">
@@ -512,7 +385,9 @@ export default function EstruturaOrganizacionalPage() {
                 <div>
                   <p className="font-medium text-foreground">Base legal</p>
                   <p className="text-sm text-muted-foreground">
-                    Lei nº 2.301, de 29 de dezembro de 2025 — dispõe sobre a criação do IDJUV
+                    {legal?.leiCriacao
+                      ? `${legal.leiCriacao} — dispõe sobre a criação do ${sigla}`
+                      : 'Lei de criação não informada no cadastro da instituição'}
                   </p>
                 </div>
               </div>
@@ -531,9 +406,6 @@ export default function EstruturaOrganizacionalPage() {
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              Última atualização: {resumo?.ultima_atualizacao || '29/12/2025'}
-            </p>
           </CardContent>
         </Card>
       </div>
