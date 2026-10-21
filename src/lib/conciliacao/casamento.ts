@@ -16,12 +16,13 @@
 
 import type { ExtratoOfx } from "./ofxBB";
 import { numeroCurto, type RazaoFip630, type RelacaoFip103 } from "./fiplan";
-import type {
-  Casamento,
-  ItemConciliacao,
-  NaturezaConciliacao,
-  QuadroConciliacao,
-  ResultadoConciliacao,
+import {
+  HISTORICO_RENDIMENTO,
+  type Casamento,
+  type ItemConciliacao,
+  type NaturezaConciliacao,
+  type QuadroConciliacao,
+  type ResultadoConciliacao,
 } from "./tipos";
 
 const DIA = 86_400_000;
@@ -87,7 +88,7 @@ export function itensDoMes(
       data: rendimento.data,
       documento: "",
       tipo: "",
-      historico: "RENDIMENTOS APLICAÇÃO FINANCEIRA",
+      historico: HISTORICO_RENDIMENTO,
       valorCentavos: rendimento.valorCentavos,
       origem: "mes",
     });

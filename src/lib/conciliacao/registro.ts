@@ -12,6 +12,7 @@ import type {
   RegraConciliacao,
   ResultadoConciliacao,
 } from "./tipos";
+import { HISTORICO_RENDIMENTO } from "./tipos";
 
 /** Linha de `fin_conciliacao_itens` como a tela lê. */
 export interface ItemGravado {
@@ -148,4 +149,41 @@ export function casarManual(
 
 export function desfazerCasamento(itens: ItemConciliacao[], resultado: ResultadoConciliacao, indice: number): ResultadoConciliacao {
   return resultadoCom(itens, resultado.casamentos.filter((_, i) => i !== indice));
+}
+
+const ehRendimentoDoMes = (i: ItemConciliacao) =>
+  i.origem === "mes" && i.lado === "bancario" && i.natureza === "credito" && !i.documento && i.historico === HISTORICO_RENDIMENTO;
+
+/**
+ * Troca o rendimento do mês (crédito bancário) pelo valor digitado, para o quadro acompanhar o campo depois da
+ * leitura dos arquivos. Rendimento já casado fica como está; zero tira o item.
+ */
+export function comRendimento(
+  itens: ItemConciliacao[],
+  resultado: ResultadoConciliacao,
+  rendimento: { data: string; valorCentavos: number },
+): { itens: ItemConciliacao[]; resultado: ResultadoConciliacao } {
+  const casados = new Set(resultado.casamentos.flatMap((c) => c.itens));
+  const atual = itens.find(ehRendimentoDoMes);
+  if (atual && casados.has(atual.id)) return { itens, resultado };
+  if (atual?.valorCentavos === rendimento.valorCentavos) return { itens, resultado };
+  const semEle = itens.filter((i) => i !== atual);
+  const novos =
+    rendimento.valorCentavos > 0
+      ? [
+          ...semEle,
+          {
+            id: atual?.id ?? "rendimento",
+            lado: "bancario" as const,
+            natureza: "credito" as const,
+            data: rendimento.data,
+            documento: "",
+            tipo: "",
+            historico: HISTORICO_RENDIMENTO,
+            valorCentavos: rendimento.valorCentavos,
+            origem: "mes" as const,
+          },
+        ]
+      : semEle;
+  return { itens: novos, resultado: resultadoCom(novos, resultado.casamentos) };
 }
