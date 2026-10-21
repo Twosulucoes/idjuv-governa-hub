@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/design-system";
 
 export default function TransparenciaPage() {
   const { publicacoes, isLoading } = useTransparenciaPublicacoesPublicas();
-  const { entidadeSuperior, integracoes, identidade } = useTenant();
+  const { entidadeSuperior, integracoes, identidade, legal } = useTenant();
 
   interface ItemTransparencia {
     title: string;
@@ -46,7 +46,7 @@ export default function TransparenciaPage() {
     },
     {
       title: "Patrimônio",
-      description: "Bens patrimoniais e imóveis sob responsabilidade do Instituto",
+      description: `Bens patrimoniais e imóveis sob responsabilidade do ${identidade.sigla}`,
       icon: Package,
       href: "/transparencia/patrimonio",
     },
@@ -238,11 +238,12 @@ export default function TransparenciaPage() {
               )}
             </div>
 
-            {/* Última atualização */}
-            <div className="mt-8 text-center text-sm text-muted-foreground">
-              <p>Dados atualizados em: 29/12/2025</p>
-              <p>Fonte: Lei nº 2.301, de 29 de dezembro de 2025</p>
-            </div>
+            {/* Base legal do cadastro da instituição */}
+            {legal?.leiCriacao && (
+              <div className="mt-8 text-center text-sm text-muted-foreground">
+                <p>Fonte: {legal.leiCriacao}</p>
+              </div>
+            )}
           </div>
         </div>
       </section>

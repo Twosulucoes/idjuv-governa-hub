@@ -1321,6 +1321,28 @@ gravada pelas Edge Functions. No baseline as duas tabelas estão no `rls/mapa.cs
 `unidades_locais`, `agenda_unidade`, `agrupamento_unidade_vinculo`,
 `config_agrupamento_unidades`, `cessoes`, `termos_cessao`, `documentos_cedencia`.
 
+#### Termo de cessão e designação de chefia: ciclo do SEI
+
+Mesma regra das portarias ("ato formal é do SEI", P23): o sistema não gera mais o PDF do termo de cessão nem o
+memorando de designação; só registra e acompanha o ciclo. Migração
+`supabase/migrations/20261023090000_registro_sei_termo_cessao_designacao.sql` (idempotente; só `ADD COLUMN` nulo e
+`DROP NOT NULL`, nenhuma linha antiga muda):
+
+- **`termos_cessao`**: colunas novas `processo_sei` (texto), `doe_numero` (texto) e `doe_data` (data);
+  `numero_termo` passa a aceitar nulo e é o número que o termo recebe no SEI (as linhas antigas guardam o número
+  interno que o sistema gerava); `data_assinatura` já existia. O `status` (enum `status_termo_cessao`, padrão
+  `pendente`) segue o SEI: `pendente` = aguardando SEI (sem número), `emitido` = numerado, aguardando assinatura,
+  `assinado` = com a data da assinatura, `cancelado`. A etapa é calculada na tela (`statusTermoPeloSei`,
+  `src/lib/registroSei.ts`); o banco não tem trigger de ciclo para o termo.
+- **`nomeacoes_chefe_unidade`**: colunas novas `processo_sei` (texto) e `ato_data_assinatura` (data); `ato_numero` e
+  `ato_data_publicacao` passam a aceitar nulo (designação registrada antes do número no SEI fica "aguardando SEI");
+  o DOE continua em `ato_doe_numero`/`ato_doe_data`. O trigger `encerrar_nomeacao_anterior` não muda.
+- **RLS**: sem mudança. As policies `rls_*` das duas tabelas (`termos_cessao`: módulo `patrimonio`;
+  `nomeacoes_chefe_unidade`: `rh` ou `patrimonio`) são por linha e valem para as colunas novas; os privilégios são
+  por tabela.
+- **Front**: hooks `useTermosCessao` e `useDesignacoesChefiaUnidade`; validação do registro (assinatura e DOE só com
+  o número do ato; DOE com número e data juntos) em `src/lib/registroSei.ts`.
+
 ### Esporte: federações, instituições, eventos e árbitros
 `federacoes_esportivas`, `federacao_arbitros`, `federacao_espacos_cedidos`,
 `federacao_parcerias`, `calendario_federacao`, `instituicoes`,

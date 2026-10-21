@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderizarDocumento } from '../core/renderizar';
 import { relatorioCargosVagas, type DadosRelatorioCargosVagas } from '../modelos/cargos/cargosVagas';
 import { quadroCargos, type DadosQuadroCargos } from '../modelos/cargos/quadroCargos';
-import { relatorioGovernanca, type DadosRelatorioGovernanca } from '../modelos/governanca/relatorioAnual';
+import { AVISO_SEM_CADASTRO, relatorioGovernanca, type DadosRelatorioGovernanca } from '../modelos/governanca/relatorioAnual';
 import { REGISTRO } from '../registro';
 import type { DocumentoModelo } from '../tipos';
 import { emissaoTeste, marcaTeste } from './fixtures';
@@ -75,23 +75,24 @@ const quadro = (n: number): DadosQuadroCargos => ({
 });
 
 const governanca = (): DadosRelatorioGovernanca => ({
-  exercicio: '2025',
-  indicadores: [
-    { titulo: 'Conformidade', valor: '87%', meta: '90%' },
-    { titulo: 'Processos', valor: '24', meta: '30' },
+  exercicio: '2026',
+  conformidade: [
+    { nome: 'Checklist de Exemplo TCE', orgao: 'TCE', itens: 10, conformes: 6, parciais: 1, naoConformes: 1, naoAplicaveis: 2, pendentes: 0 },
   ],
-  conformidadeMensal: ['Jan', 'Fev', 'Mar'].map((mes, i) => ({ mes, valor: 70 + i })),
-  processosPorArea: [{ area: 'Almoxarifado', quantidade: 3 }],
-  riscos: [{ nivel: 'Crítico', quantidade: 1 }],
-  acoes: [{ titulo: 'Auditoria Interna', situacao: 'Em andamento' }],
-  resumoExecutivo: ['Resumo de exemplo.'],
-  anoMetas: '2026',
-  metas: ['Meta de exemplo'],
+  processosPorArea: [{ area: 'Compras', quantidade: 3 }],
+  riscosPorNivel: [{ nivel: 'Alto', inerente: 2, residual: 1 }],
+  riscosPorSituacao: [{ situacao: 'Em tratamento', quantidade: 2 }],
+  acoes: [
+    { titulo: 'Ação de Exemplo', situacao: 'Em andamento', percentual: 40, prazo: '30/11/2026' },
+    { titulo: 'Ação sem prazo', situacao: 'Planejado', percentual: null, prazo: null },
+  ],
+  avaliacoesControle: [{ efetividade: 'Efetivo', quantidade: 4 }],
+  denuncias: [{ situacao: 'Em análise', quantidade: 1 }],
 });
 
 const governancaVazia: DadosRelatorioGovernanca = {
-  exercicio: '2025', indicadores: [], conformidadeMensal: [], processosPorArea: [], riscos: [], acoes: [],
-  resumoExecutivo: [], anoMetas: '2026', metas: [],
+  exercicio: '2026', conformidade: [], processosPorArea: [], riscosPorNivel: [], riscosPorSituacao: [], acoes: [],
+  avaliacoesControle: [], denuncias: null,
 };
 
 // ---------- testes ----------
@@ -150,22 +151,37 @@ describe('cargos e governança no motor único', () => {
     semLixo(texto);
   });
 
-  it('governança: indicadores com meta, meses, áreas, riscos, ações com situação, resumo e metas', async () => {
+  it('governança: indicadores calculados do cadastro, conformidade, áreas, riscos, ações, controles e denúncias', async () => {
     const { texto, nomeArquivo } = await ler(relatorioGovernanca, governanca());
-    expect(nomeArquivo).toBe('Relatorio_Governanca_Integridade_2025.pdf');
-    for (const t of ['RELATÓRIO ANUAL DE GOVERNANÇA E INTEGRIDADE', 'Exercício 2025', 'Indicadores principais', 'Resultado',
-      'Meta', '87%', '90%', 'Evolução da conformidade (%)', 'Jan', 'Mar', 'Conformidade (%)', '72', 'Processos por área',
-      'Almoxarifado', 'Matriz de riscos', 'Crítico', 'Plano de ação de integridade', 'Auditoria Interna', 'Em andamento',
-      'Resumo executivo', 'Resumo de exemplo.', 'Metas para 2026', 'Meta de exemplo']) {
+    expect(nomeArquivo).toBe('Relatorio_Governanca_Integridade_2026.pdf');
+    for (const t of ['RELATÓRIO ANUAL DE GOVERNANÇA E INTEGRIDADE', 'Exercício 2026', 'Indicadores principais', 'Resultado',
+      'Conformidade', '6 de 8 itens aplicáveis conformes', 'Conformidade por checklist', 'Checklist de Exemplo TCE',
+      'Processos mapeados por área', 'Compras', 'Matriz de riscos', 'Inerente', 'Residual', 'Em tratamento',
+      'Plano de tratamento de riscos', 'Ação de Exemplo', '40%', '30/11/2026', 'Avaliação de controles internos', 'Efetivo',
+      'Canal de denúncias', 'Em análise', 'Fonte: cadastros do sistema']) {
       expect(texto).toContain(t);
     }
+    expect(texto).toMatch(/Conformidade\s+75%/);
+    // Número inventado do relatório antigo não volta.
+    for (const t of ['87%', 'Exercício 2025', '156', 'Resumo executivo', 'Metas para', 'ISO 37001']) expect(texto).not.toContain(t);
+    expect(texto).not.toContain(AVISO_SEM_CADASTRO);
     semLixo(texto);
   });
 
-  it('governança vazia não imprime lixo', async () => {
+  it('governança sem cadastro: aviso visível e nenhum número nem seção', async () => {
     const { texto } = await ler(relatorioGovernanca, governancaVazia);
-    expect(texto).toContain('Nenhum registro encontrado.');
-    expect(texto).toContain('Nenhum item informado.');
+    expect(texto.replace(/\s+/g, ' ')).toContain(AVISO_SEM_CADASTRO);
+    expect(texto).toContain('Exercício 2026');
+    for (const t of ['Indicadores principais', 'Matriz de riscos', 'Canal de denúncias', '%']) expect(texto).not.toContain(t);
+    semLixo(texto);
+  });
+
+  it('governança parcial: seção sem registro diz "sem dados" e denúncias sem permissão não aparecem', async () => {
+    const { texto } = await ler(relatorioGovernanca, { ...governancaVazia, processosPorArea: [{ area: 'Compras', quantidade: 2 }] });
+    expect(texto).toContain('Sem dados cadastrados no exercício.');
+    expect(texto).toMatch(/Processos mapeados\s+2/);
+    expect(texto).not.toContain('Canal de denúncias');
+    expect(texto).not.toContain(AVISO_SEM_CADASTRO);
     semLixo(texto);
   });
 
@@ -187,22 +203,18 @@ describe('cargos e governança no motor único', () => {
 
   it('as funções das telas mandam os dados ao motor com o tipo certo', async () => {
     const { generateRelatorioCargos, generateRelatorioGovernancaPDF } = await import('@/lib/pdfGenerator');
-    const { gerarRelatorioCargos98PDF } = await import('@/lib/pdfRelatorioCargos');
+    const { gerarRelatorioCargosPDF } = await import('@/lib/pdfRelatorioCargos');
     emitidos.length = 0;
     await generateRelatorioCargos(cargosVagas(3));
-    await generateRelatorioGovernancaPDF();
-    await gerarRelatorioCargos98PDF(quadro(4).vagas);
+    await generateRelatorioGovernancaPDF(governanca());
+    await gerarRelatorioCargosPDF(quadro(4).vagas);
     expect(emitidos.map((e) => e.tipo)).toEqual(['cargos-relatorio-cargos-vagas', 'governanca-relatorio-anual', 'cargos-quadro-cargos']);
 
-    // Os dados montados pelas funções renderizam sem lixo e com o que o antigo imprimia.
-    const gov = await ler(relatorioGovernanca, emitidos[1].dados as DadosRelatorioGovernanca);
-    for (const t of ['Conformidade', 'Riscos mitigados', '156', '200', 'Dez', '88', 'Patrimônio', 'Baixo', '12',
-      'Treinamento em Ética', 'Concluído', 'ISO 37001', 'Metas para 2026']) {
-      expect(gov.texto).toContain(t);
-    }
-    semLixo(gov.texto);
+    expect(emitidos[1].dados).toEqual(governanca());
     const q = emitidos[2].dados as DadosQuadroCargos;
     expect(q.titulo).toBe('QUADRO DE CARGOS COMISSIONADOS');
+    // Subtítulo padrão: lei de criação do cadastro (se houver) + total de vagas recebidas.
+    expect(q.subtitulo).toMatch(/(^|- )4 cargos$/);
     expect(q.agruparPorUnidade).toBe(true);
     expect(q.dataGeracao).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
@@ -218,10 +230,7 @@ describe.skipIf(!saida)('amostras de cargos e governança para inspeção visual
       writeFileSync(join(saida!, nome), Buffer.from(renderizarDocumento(modelo, dados, marcaTeste, emissaoTeste).doc.output('arraybuffer')));
     gravar('cargos-relatorio-cargos-vagas.pdf', relatorioCargosVagas, cargosVagas(40));
     gravar('cargos-quadro-cargos.pdf', quadroCargos, quadro(60));
-    // Governança com os números que a tela imprime.
-    const { generateRelatorioGovernancaPDF } = await import('@/lib/pdfGenerator');
-    emitidos.length = 0;
-    await generateRelatorioGovernancaPDF();
-    gravar('governanca-relatorio-anual.pdf', relatorioGovernanca, emitidos[0].dados as DadosRelatorioGovernanca);
+    gravar('governanca-relatorio-anual.pdf', relatorioGovernanca, governanca());
+    gravar('governanca-relatorio-anual-sem-cadastro.pdf', relatorioGovernanca, governancaVazia);
   });
 });

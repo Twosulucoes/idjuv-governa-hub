@@ -17150,11 +17150,12 @@ export type Database = {
       }
       nomeacoes_chefe_unidade: {
         Row: {
-          ato_data_publicacao: string
+          ato_data_assinatura: string | null
+          ato_data_publicacao: string | null
           ato_doe_data: string | null
           ato_doe_numero: string | null
           ato_nomeacao_tipo: Database["public"]["Enums"]["tipo_ato_nomeacao"]
-          ato_numero: string
+          ato_numero: string | null
           cargo: string
           created_at: string | null
           created_by: string | null
@@ -17164,6 +17165,7 @@ export type Database = {
           documento_nomeacao_url: string | null
           id: string
           observacoes: string | null
+          processo_sei: string | null
           servidor_id: string
           status: Database["public"]["Enums"]["status_nomeacao"]
           unidade_local_id: string
@@ -17173,11 +17175,12 @@ export type Database = {
         }
         ComputedFields: never
         Insert: {
-          ato_data_publicacao: string
+          ato_data_assinatura?: string | null
+          ato_data_publicacao?: string | null
           ato_doe_data?: string | null
           ato_doe_numero?: string | null
           ato_nomeacao_tipo: Database["public"]["Enums"]["tipo_ato_nomeacao"]
-          ato_numero: string
+          ato_numero?: string | null
           cargo?: string
           created_at?: string | null
           created_by?: string | null
@@ -17187,6 +17190,7 @@ export type Database = {
           documento_nomeacao_url?: string | null
           id?: string
           observacoes?: string | null
+          processo_sei?: string | null
           servidor_id: string
           status?: Database["public"]["Enums"]["status_nomeacao"]
           unidade_local_id: string
@@ -17195,11 +17199,12 @@ export type Database = {
           updated_by_servidor_id?: string | null
         }
         Update: {
-          ato_data_publicacao?: string
+          ato_data_assinatura?: string | null
+          ato_data_publicacao?: string | null
           ato_doe_data?: string | null
           ato_doe_numero?: string | null
           ato_nomeacao_tipo?: Database["public"]["Enums"]["tipo_ato_nomeacao"]
-          ato_numero?: string
+          ato_numero?: string | null
           cargo?: string
           created_at?: string | null
           created_by?: string | null
@@ -17209,6 +17214,7 @@ export type Database = {
           documento_nomeacao_url?: string | null
           id?: string
           observacoes?: string | null
+          processo_sei?: string | null
           servidor_id?: string
           status?: Database["public"]["Enums"]["status_nomeacao"]
           unidade_local_id?: string
@@ -22680,14 +22686,17 @@ export type Database = {
           data_emissao: string | null
           documento_assinado_url: string | null
           documento_gerado_url: string | null
+          doe_data: string | null
+          doe_numero: string | null
           finalidade: string
           historico_renovacoes: Json | null
           id: string
           numero_protocolo: string | null
-          numero_termo: string
+          numero_termo: string | null
           observacoes: string | null
           periodo_fim: string
           periodo_inicio: string
+          processo_sei: string | null
           responsabilidades: string | null
           restricoes_uso: string | null
           status: Database["public"]["Enums"]["status_termo_cessao"]
@@ -22718,14 +22727,17 @@ export type Database = {
           data_emissao?: string | null
           documento_assinado_url?: string | null
           documento_gerado_url?: string | null
+          doe_data?: string | null
+          doe_numero?: string | null
           finalidade: string
           historico_renovacoes?: Json | null
           id?: string
           numero_protocolo?: string | null
-          numero_termo: string
+          numero_termo?: string | null
           observacoes?: string | null
           periodo_fim: string
           periodo_inicio: string
+          processo_sei?: string | null
           responsabilidades?: string | null
           restricoes_uso?: string | null
           status?: Database["public"]["Enums"]["status_termo_cessao"]
@@ -22755,14 +22767,17 @@ export type Database = {
           data_emissao?: string | null
           documento_assinado_url?: string | null
           documento_gerado_url?: string | null
+          doe_data?: string | null
+          doe_numero?: string | null
           finalidade?: string
           historico_renovacoes?: Json | null
           id?: string
           numero_protocolo?: string | null
-          numero_termo?: string
+          numero_termo?: string | null
           observacoes?: string | null
           periodo_fim?: string
           periodo_inicio?: string
+          processo_sei?: string | null
           responsabilidades?: string | null
           restricoes_uso?: string | null
           status?: Database["public"]["Enums"]["status_termo_cessao"]

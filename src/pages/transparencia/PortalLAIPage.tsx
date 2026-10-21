@@ -23,11 +23,16 @@ import {
 import { toast } from "sonner";
 import { EmptyState } from "@/components/design-system";
 import { useIdentidade } from "@/core/tenant";
+import { usePrazosLai } from "@/hooks/usePrazosLai";
+import { prazosLaiParaExibicao } from "@/lib/prazosLai";
 
 export default function PortalLAIPage() {
   const [protocolo, setProtocolo] = useState("");
   const [buscando, setBuscando] = useState(false);
   const { sigla } = useIdentidade();
+  // Prazos da parametrização `prazos_lai`; sem ela (vazia ou fechada ao anônimo), o padrão legal
+  const { data: linhasPrazos } = usePrazosLai();
+  const prazos = prazosLaiParaExibicao(linhasPrazos);
 
   const handleConsulta = async () => {
     if (!protocolo.trim()) {
@@ -93,21 +98,21 @@ export default function PortalLAIPage() {
                     <Clock className="w-4 h-4 text-info mt-1" aria-hidden="true" />
                     <div>
                       <p className="font-medium text-foreground">Prazo de resposta</p>
-                      <p>20 dias úteis (prorrogável por +10)</p>
+                      <p>{prazos.resposta}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-warning mt-1" aria-hidden="true" />
                     <div>
                       <p className="font-medium text-foreground">Recurso em 1ª instância</p>
-                      <p>10 dias após resposta</p>
+                      <p>{prazos.recursoPrimeira}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-success mt-1" aria-hidden="true" />
                     <div>
                       <p className="font-medium text-foreground">Recurso em 2ª instância</p>
-                      <p>10 dias após 1ª instância</p>
+                      <p>{prazos.recursoSegunda}</p>
                     </div>
                   </div>
                 </div>

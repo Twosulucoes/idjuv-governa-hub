@@ -28,6 +28,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Signature, Loader2, Star } from "lucide-react";
+import { useIdentidade } from "@/core/tenant";
+import { orgaoEmTexto } from "@/lib/rotulosInstituicao";
 
 interface ConfigAssinatura {
   id: string;
@@ -61,6 +63,8 @@ export function AssinaturaConfigTab() {
   });
 
   const queryClient = useQueryClient();
+  const identidade = useIdentidade();
+  const orgao = orgaoEmTexto(identidade.sigla);
 
   const { data: configs, isLoading } = useQuery({
     queryKey: ["config-assinatura"],
@@ -286,7 +290,7 @@ export function AssinaturaConfigTab() {
                 <Input
                   value={formData.cargo_assinante_1}
                   onChange={(e) => setFormData({ ...formData, cargo_assinante_1: e.target.value })}
-                  placeholder="Ex: Presidente do IDJUV"
+                  placeholder={`Ex: Presidente do ${orgao}`}
                 />
               </div>
             </div>
@@ -318,7 +322,7 @@ export function AssinaturaConfigTab() {
               <Textarea
                 value={formData.texto_rodape}
                 onChange={(e) => setFormData({ ...formData, texto_rodape: e.target.value })}
-                placeholder="Ex: Instituto de Desenvolvimento da Juventude de Roraima"
+                placeholder={`Ex: ${identidade.nomeOficial?.trim() || "Nome oficial do órgão"}`}
                 rows={2}
               />
             </div>

@@ -47,6 +47,14 @@
 > repetindo o topo). O bloco `secao` ganhou `reservaAbaixo` (mm livres exigidos abaixo do título, padrão 16).
 > Cores por tipo/status e "(VAGO)" colorido viraram texto. Plano:
 > [`superpowers/plans/2026-10-20-padrao-relatorios-onda4.md`](./superpowers/plans/2026-10-20-padrao-relatorios-onda4.md).
+>
+> **Relatório de governança com dados reais (20/10/2026):** `governanca-relatorio-anual` deixou de imprimir números
+> fixos no código (exercício, conformidade, processos, capacitações, riscos, ações, resumo executivo e metas). Tela e PDF
+> usam os mesmos dados, montados por `src/lib/relatorioGovernanca.ts` a partir do hook `useRelatorioGovernanca`
+> (checklists de conformidade, matriz RACI, matriz de riscos, planos de tratamento, avaliações de controles internos e,
+> para quem tem `integridade.gerenciar`, canal de denúncias), no exercício escolhido na tela. Seção sem registro sai como
+> "Sem dados cadastrados no exercício."; capacitações, resumo executivo e metas saíram (não há tabela de origem). Sem
+> nenhum cadastro, o PDF traz só o aviso "Dados ilustrativos — sem cadastro de governança", sem números.
 
 > **Onda 5 (20/10/2026, limpeza):** o relatório de portarias da Central de Portarias
 > (`src/components/portarias/RelatorioPortariasDialog.tsx`, que desenhava o PDF com `jsPDF` dentro do componente)

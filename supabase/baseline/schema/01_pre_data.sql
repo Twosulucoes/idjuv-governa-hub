@@ -21846,8 +21846,8 @@ CREATE TABLE public.nomeacoes_chefe_unidade (
     servidor_id uuid NOT NULL,
     cargo text DEFAULT 'Chefe de Unidade Local'::text NOT NULL,
     ato_nomeacao_tipo public.tipo_ato_nomeacao NOT NULL,
-    ato_numero text NOT NULL,
-    ato_data_publicacao date NOT NULL,
+    ato_numero text,
+    ato_data_publicacao date,
     ato_doe_numero text,
     ato_doe_data date,
     data_inicio date NOT NULL,
@@ -21860,8 +21860,38 @@ CREATE TABLE public.nomeacoes_chefe_unidade (
     updated_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
     created_by_servidor_id uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    processo_sei text,
+    ato_data_assinatura date
 );
+
+
+--
+-- Name: COLUMN nomeacoes_chefe_unidade.ato_numero; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.nomeacoes_chefe_unidade.ato_numero IS 'Número do ato no SEI; nulo enquanto aguarda o SEI';
+
+
+--
+-- Name: COLUMN nomeacoes_chefe_unidade.ato_data_publicacao; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.nomeacoes_chefe_unidade.ato_data_publicacao IS 'Data de publicação do ato; nula enquanto não publicado';
+
+
+--
+-- Name: COLUMN nomeacoes_chefe_unidade.processo_sei; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.nomeacoes_chefe_unidade.processo_sei IS 'Número do processo SEI onde o ato de designação foi formalizado';
+
+
+--
+-- Name: COLUMN nomeacoes_chefe_unidade.ato_data_assinatura; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.nomeacoes_chefe_unidade.ato_data_assinatura IS 'Data da assinatura do ato de designação no SEI';
 
 
 --
@@ -23606,7 +23636,7 @@ CREATE TABLE public.termos_cessao (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     agenda_id uuid NOT NULL,
     unidade_local_id uuid NOT NULL,
-    numero_termo text NOT NULL,
+    numero_termo text,
     ano integer NOT NULL,
     cessionario_nome text NOT NULL,
     cessionario_documento text,
@@ -23637,8 +23667,53 @@ CREATE TABLE public.termos_cessao (
     restricoes_uso text,
     termo_responsabilidade_aceito boolean DEFAULT false,
     data_aceite_responsabilidade timestamp with time zone,
-    historico_renovacoes jsonb DEFAULT '[]'::jsonb
+    historico_renovacoes jsonb DEFAULT '[]'::jsonb,
+    processo_sei text,
+    doe_numero text,
+    doe_data date
 );
+
+
+--
+-- Name: COLUMN termos_cessao.numero_termo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.numero_termo IS 'Número do termo no SEI; nulo enquanto aguarda o SEI (linhas registradas antes desta migração guardam o número interno gerado pelo sistema)';
+
+
+--
+-- Name: COLUMN termos_cessao.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.status IS 'pendente = aguardando SEI; emitido = numerado no SEI, aguardando assinatura; assinado; cancelado';
+
+
+--
+-- Name: COLUMN termos_cessao.data_assinatura; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.data_assinatura IS 'Data da assinatura do termo no SEI';
+
+
+--
+-- Name: COLUMN termos_cessao.processo_sei; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.processo_sei IS 'Número do processo SEI onde o termo de cessão foi formalizado';
+
+
+--
+-- Name: COLUMN termos_cessao.doe_numero; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.doe_numero IS 'Número do DOE em que o extrato do termo foi publicado';
+
+
+--
+-- Name: COLUMN termos_cessao.doe_data; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.doe_data IS 'Data do DOE em que o extrato do termo foi publicado';
 
 
 --

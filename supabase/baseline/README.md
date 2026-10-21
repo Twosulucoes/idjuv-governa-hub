@@ -257,6 +257,11 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
   RPCs do pré-cadastro público e `frequencia_competencia_travada`), privilégios padrão, `anon` executando exatamente
   14 funções, campos que o autor não pode escolher nos formulários.
 
+A migração `20261023090000_registro_sei_termo_cessao_designacao.sql` (ciclo do SEI no termo de cessão e na designação
+de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termos_cessao.processo_sei`, `doe_numero`,
+`doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
+`ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
+
 Em 2026-10-18 (P13, migração `20261018100000_remove_tabelas_backup_aposentado.sql`), as tabelas `backup_config`,
 `backup_history` e `backup_integrity_checks` e os enums `backup_status` e `backup_type` (do backup antigo, aposentado
 no P06) saíram do schema do baseline e do `rls/mapa.csv`.
