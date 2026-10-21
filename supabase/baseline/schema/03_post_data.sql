@@ -25352,7 +25352,7 @@ CREATE POLICY rls_update ON public.itens_licitacao FOR UPDATE TO authenticated U
 -- Name: itens_material rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.itens_material FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
+CREATE POLICY rls_update ON public.itens_material FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'patrimonio.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'patrimonio.editar'::text)));
 
 
 --

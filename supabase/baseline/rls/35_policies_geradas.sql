@@ -2388,8 +2388,8 @@ CREATE POLICY "rls_insert" ON public.itens_material FOR INSERT TO authenticated
   WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.itens_material;
 CREATE POLICY "rls_update" ON public.itens_material FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'patrimonio.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'patrimonio.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.itens_material;
 CREATE POLICY "rls_delete" ON public.itens_material FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'patrimonio')));

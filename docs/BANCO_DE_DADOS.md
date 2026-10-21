@@ -1083,7 +1083,7 @@ Todas idempotentes.
   `unidades_locais` e `campanhas_inventario`. Saiu de almoxarifado, estoque, requisições, manutenções, ocorrências,
   conciliações, agenda e histórico. Sufixo `coletor=` do mapa.
 - `bens_patrimoniais`: UPDATE exige `patrimonio.editar` (sufixo `altera=`; a migração concedeu a permissão a quem já tinha
-  `patrimonio.criar`, nas três fontes); DELETE só admin. O gatilho `trg_bens_proteger_colunas` recusa (42501) a troca
+  `patrimonio.criar`, nas três fontes); DELETE só admin. UPDATE em `itens_material` também exige `patrimonio.editar`. O gatilho `trg_bens_proteger_colunas` recusa (42501) a troca
   de `valor_aquisicao`, `data_aquisicao`, `forma_aquisicao` e `situacao` por quem não é admin quando o acesso vem da API
   (`current_user` `authenticated`/`anon`); as funções DEFINER de baixa e movimentação passam.
 - `unidades_locais` escreve com `unidades.gerenciar`; `agenda_unidade`, `termos_cessao` e `documentos_cedencia` com
