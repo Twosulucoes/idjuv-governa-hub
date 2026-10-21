@@ -1741,6 +1741,34 @@ CREATE POLICY "rls_delete" ON public.fin_checklist_ci FOR DELETE TO authenticate
 -- fin_classificadores_fiplan  [preservar: financeiro]
 -- (nenhuma policy gerada)
 
+-- fin_conciliacao_itens  [permissao: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_conciliacao_itens;
+CREATE POLICY "rls_select" ON public.fin_conciliacao_itens FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')));
+DROP POLICY IF EXISTS "rls_insert" ON public.fin_conciliacao_itens;
+CREATE POLICY "rls_insert" ON public.fin_conciliacao_itens FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'));
+DROP POLICY IF EXISTS "rls_update" ON public.fin_conciliacao_itens;
+CREATE POLICY "rls_update" ON public.fin_conciliacao_itens FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.fin_conciliacao_itens;
+CREATE POLICY "rls_delete" ON public.fin_conciliacao_itens FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'));
+
+-- fin_conciliacoes_mensais  [permissao: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_conciliacoes_mensais;
+CREATE POLICY "rls_select" ON public.fin_conciliacoes_mensais FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')));
+DROP POLICY IF EXISTS "rls_insert" ON public.fin_conciliacoes_mensais;
+CREATE POLICY "rls_insert" ON public.fin_conciliacoes_mensais FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'));
+DROP POLICY IF EXISTS "rls_update" ON public.fin_conciliacoes_mensais;
+CREATE POLICY "rls_update" ON public.fin_conciliacoes_mensais FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.fin_conciliacoes_mensais;
+
 -- fin_contas_bancarias  [modulo: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_contas_bancarias;
 CREATE POLICY "rls_select" ON public.fin_contas_bancarias FOR SELECT TO authenticated

@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 212 |
-| Componentes (`.tsx` em `src/components`) | 321 |
+| Componentes (`.tsx` em `src/components`) | 322 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 278 |
-| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 106 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 62 |
+| — fora de `ui/` | 279 |
+| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 107 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 64 |
 | Linhas de `src/App.tsx` | 1375 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27330 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27493 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -67,16 +67,16 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 309 |
-| Migração mais recente | `20261025090000_fin_favorecidos_bancos.sql` |
-| Tabelas do schema public (baseline) | 258 |
+| Migrações (`supabase/migrations/*.sql`) | 310 |
+| Migração mais recente | `20261026090000_fin_conciliacao_mensal.sql` |
+| Tabelas do schema public (baseline) | 260 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 313 |
-| — de gatilho (`RETURNS trigger`) | 122 |
-| — demais | 191 |
+| Funções (baseline) | 318 |
+| — de gatilho (`RETURNS trigger`) | 123 |
+| — demais | 195 |
 | Enums (baseline) | 109 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1900 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 258 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1914 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 260 |
 | Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 9 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.

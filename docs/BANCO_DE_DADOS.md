@@ -1069,6 +1069,25 @@ Todas idempotentes.
   (`ON CONFLICT (codigo_banco) DO NOTHING`, então não mexe em banco já cadastrado); entrou nas `SEMENTES` do
   `scripts/db/gerar-baseline.sh`. A tela valida agência e conta com as mesmas regras de `registrar_remessa_obn600`
   (`src/lib/bancario/favorecido.ts`).
+- **Conciliação mensal (quadro da SEFAZ)** (`20261026090000_fin_conciliacao_mensal.sql`, spec
+  [2026-10-21-financeiro-conciliacao-mensal-design.md](./superpowers/specs/2026-10-21-financeiro-conciliacao-mensal-design.md)):
+  - `fin_conciliacoes_mensais`: uma por conta (`fin_contas_bancarias`) e competência (dia 1, `UNIQUE`); saldo do razão
+    (FIP630), saldo da conta corrente e do fundo no último dia (o extrato do quadro é a soma), rendimento do fundo,
+    nomes dos arquivos lidos, observações, `situacao` `rascunho`/`fechada` e quem fechou;
+  - `fin_conciliacao_itens`: lançamentos do razão (`contabil`) e do extrato (`bancario`) do mês, `casado` (com `grupo`
+    e `regra`: `interno`, `re`, `ob_cancelada`, `repasse`, `valor_data`, `estorno` ou `manual`, este com
+    justificativa) ou `pendente` (as quatro listas). `origem` `anterior` aponta (`item_origem_id`) a pendência do mês
+    anterior fechado; `abertura` é lançada à mão na implantação;
+  - trigger `fin_conciliacao_proteger`: o mês nasce rascunho, só fecha pela RPC e, fechado, nem ele nem os itens mudam
+    (`42501`, admin inclusive pela API);
+  - `salvar_conciliacao_mensal(conta, competência, dados, itens) → uuid` (INVOKER: a RLS vale) grava o rascunho e troca
+    os itens; `fechar_conciliacao_mensal(id)` (INVOKER) recalcula o ajustado no banco e só fecha se for igual a conta +
+    fundo (`22023`); as duas conferem que cada pendência `anterior` é pendente do mês imediatamente anterior fechado da
+    mesma conta, uma vez só; `reabrir_conciliacao_mensal(id, motivo)` (DEFINER) só do admin, com motivo (vai para as
+    observações) e sem mês posterior fechado;
+  - RLS classe `permissao` (`escrita=pagamento.conciliar`; cabeçalho com `excluir=ninguem`); testes no bloco
+    "Financeiro: conciliação mensal" de `scripts/db/testar-rls.sql`. A leitura dos arquivos e o casamento são do
+    navegador (`src/lib/conciliacao/`).
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver

@@ -7,7 +7,8 @@
  *    bancárias (o retorno importado em Movimentos dá a baixa pelo nº da OB);
  *  - Recusados: correção de banco/agência/conta (gravada no banco), arquivo de reenvio no leiaute do BB Gestão MAX
  *    e lista dos arquivos gerados (baixar de novo conferindo o SHA-256, cancelar reserva sem arquivo);
- *  - Banco do Brasil (API): situação da conexão e importação de extrato.
+ *  - Banco do Brasil (API): situação da conexão e importação de extrato;
+ *  - Fechamento mensal: quadro da conciliação da SEFAZ (razão FIP630 × extrato OFX), gravado e fechado por mês.
  * Rota protegida por `pagamento.conciliar`; o banco confere a mesma permissão nas RPCs.
  */
 
@@ -31,6 +32,7 @@ import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { BancoDoBrasilApiPainel } from "@/components/financeiro/conciliacao/BancoDoBrasilApiPainel";
 import { ConciliarMovimentoDialog } from "@/components/financeiro/conciliacao/ConciliarMovimentoDialog";
 import { CorrigirContaDialog } from "@/components/financeiro/conciliacao/CorrigirContaDialog";
+import { FechamentoMensalTab } from "@/components/financeiro/conciliacao/FechamentoMensalTab";
 import { GerarRemessaDialog } from "@/components/financeiro/conciliacao/GerarRemessaDialog";
 import { RemessaObnPagamentos } from "@/components/financeiro/conciliacao/RemessaObnPagamentos";
 import { BancosContasTab } from "@/components/folha/BancosContasTab";
@@ -163,7 +165,7 @@ export default function ConciliacaoBancariaPage() {
   const [params] = useSearchParams();
   const [aba, setAba] = useState(() => {
     const pedida = params.get("aba") ?? "";
-    return ["movimentos", "remessa", "contas", "recusados", "bb"].includes(pedida) ? pedida : "movimentos";
+    return ["movimentos", "remessa", "contas", "recusados", "bb", "mensal"].includes(pedida) ? pedida : "movimentos";
   });
   const [filtro, setFiltro] = useState<FiltroSituacaoMovimento>("todos");
   const [importarAberto, setImportarAberto] = useState(false);
@@ -265,6 +267,7 @@ export default function ConciliacaoBancariaPage() {
             <TabsTrigger value="contas">Contas pagadoras</TabsTrigger>
             <TabsTrigger value="recusados">Recusados ({contagem.recusados})</TabsTrigger>
             <TabsTrigger value="bb">Banco do Brasil (API)</TabsTrigger>
+            <TabsTrigger value="mensal">Fechamento mensal</TabsTrigger>
           </TabsList>
 
           <TabsContent value="movimentos">
@@ -363,6 +366,10 @@ export default function ConciliacaoBancariaPage() {
               )}
             />
             <RemessasGeradas />
+          </TabsContent>
+
+          <TabsContent value="mensal">
+            <FechamentoMensalTab />
           </TabsContent>
 
           <TabsContent value="bb">

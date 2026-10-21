@@ -56,6 +56,12 @@
 > "Sem dados cadastrados no exercício."; capacitações, resumo executivo e metas saíram (não há tabela de origem). Sem
 > nenhum cadastro, o PDF traz só o aviso "Dados ilustrativos — sem cadastro de governança", sem números.
 
+> **Conciliação mensal (21/10/2026, documento novo):** `financeiro-conciliacao-mensal` (relatório, retrato) imprime o
+> quadro da conciliação bancária no formato da SEFAZ (saldo do razão, as quatro listas, ajustado, extrato e diferença),
+> com local e data (`localDaSede()`) e "Feito por"; em página nova, um anexo por lista com data, documento, histórico e
+> valor. Mês em rascunho sai com o aviso "RASCUNHO". Chamado pela aba "Fechamento mensal" da Conciliação; testes em
+> `__testes__/financeiro-conciliacao.test.ts`.
+
 > **Onda 5 (20/10/2026, limpeza):** o relatório de portarias da Central de Portarias
 > (`src/components/portarias/RelatorioPortariasDialog.tsx`, que desenhava o PDF com `jsPDF` dentro do componente)
 > virou `portarias-relatorio` (retrato) e `portarias-relatorio-paisagem` (a tela escolhe paisagem acima de 6
