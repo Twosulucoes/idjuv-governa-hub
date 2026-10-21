@@ -1,5 +1,5 @@
 /**
- * Arquivos de reenvio gerados para o Gestão MAX (`fin_remessas_bancarias`).
+ * Arquivos gerados pelo sistema (`fin_remessas_bancarias`): reenvio para o Gestão MAX e remessas OBN600.
  *  - Confirmados: "Baixar novamente" lê o retrato no banco, gera de novo e só baixa se o SHA-256 conferir.
  *  - Reservas sem arquivo (falha depois da reserva): "Cancelar reserva" libera os créditos para outro reenvio.
  */
@@ -18,7 +18,15 @@ import { dataBR } from "@/lib/bancario/exibicao";
 import { formatCurrency } from "@/lib/formatters";
 import type { RemessaBancaria } from "@/types/conciliacaoBancaria";
 
+const ROTULO_LAYOUT: Record<string, string> = { gestao_max_cnab240: "Gestão MAX", obn600: "OBN600" };
+
 const colunas: ColunaTabela<RemessaBancaria>[] = [
+  {
+    id: "layout",
+    cabecalho: "Arquivo",
+    celula: (r) => <span className="whitespace-nowrap text-xs">{ROTULO_LAYOUT[r.layout] ?? r.layout}</span>,
+    ordenarPor: (r) => r.layout,
+  },
   {
     id: "data",
     cabecalho: "Gerado em",
@@ -27,20 +35,20 @@ const colunas: ColunaTabela<RemessaBancaria>[] = [
   },
   {
     id: "nsa",
-    cabecalho: "NSA",
+    cabecalho: "Nº / NSA",
     celula: (r) => <span className="font-mono">{r.nsa}</span>,
     ordenarPor: (r) => r.nsa,
     buscarPor: (r) => String(r.nsa),
   },
   {
     id: "convenio",
-    cabecalho: "Convênio",
+    cabecalho: "Convênio / cliente",
     celula: (r) => <span className="font-mono">{r.convenio}</span>,
     buscarPor: (r) => r.convenio,
   },
   {
     id: "quantidade",
-    cabecalho: "Créditos",
+    cabecalho: "Pagamentos",
     celula: (r) => <span className="tabular-nums">{r.quantidade}</span>,
     alinhamento: "direita",
   },
@@ -87,7 +95,7 @@ export function RemessasGeradas() {
         Arquivos gerados
       </h2>
       <DataTable
-        rotulo="Arquivos de reenvio gerados"
+        rotulo="Arquivos gerados"
         dados={data ?? []}
         colunas={colunas}
         chaveLinha={(r) => r.id}
@@ -97,7 +105,7 @@ export function RemessasGeradas() {
         vazio={{
           icone: FileClock,
           titulo: "Nenhum arquivo gerado",
-          descricao: "Os arquivos de reenvio aparecem aqui depois de gerados.",
+          descricao: "As remessas OBN600 e os arquivos de reenvio aparecem aqui depois de gerados.",
         }}
         acoesLinha={(r) => {
           const ocupado = emAndamento === r.id;
@@ -105,10 +113,8 @@ export function RemessasGeradas() {
             <Button
               variant="ghost"
               size="sm"
-              disabled={!!emAndamento || !pagador.data}
-              onClick={() =>
-                pagador.data && executar(r.id, () => baixar.mutateAsync({ remessaId: r.id, pagador: pagador.data }))
-              }
+              disabled={!!emAndamento || (r.layout !== "obn600" && !pagador.data)}
+              onClick={() => executar(r.id, () => baixar.mutateAsync({ remessaId: r.id, pagador: pagador.data }))}
             >
               {ocupado ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <FileDown className="h-4 w-4" aria-hidden />}
               Baixar novamente

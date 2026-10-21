@@ -26,6 +26,10 @@ const contaSchema = z.object({
     .refine((v) => !v || Number(v) >= 1, "A partir de 1")
     .optional(),
   codigo_cedente: z.string().optional(),
+  // Ordem bancária (OBN600): vazios = a conta não gera OBN600
+  obn_codigo_cliente: z.string().trim().regex(/^\d{0,9}$/, "Até 9 dígitos").optional(),
+  obn_unidade_gestora: z.string().trim().regex(/^\d{0,6}$/, "Até 6 dígitos").optional(),
+  obn_gestao: z.string().trim().regex(/^\d{0,5}$/, "Até 5 dígitos").optional(),
   codigo_transmissao: z.string().optional(),
   ativo: z.boolean().default(true),
 });
@@ -56,6 +60,9 @@ export function ContaAutarquiaForm({ conta, onSuccess, onCancel }: ContaAutarqui
       convenio_pagamento: conta?.convenio_pagamento || "",
       nsa_inicial: conta?.nsa_inicial ? String(conta.nsa_inicial) : "",
       codigo_cedente: conta?.codigo_cedente || "",
+      obn_codigo_cliente: conta?.obn_codigo_cliente || "",
+      obn_unidade_gestora: conta?.obn_unidade_gestora || "",
+      obn_gestao: conta?.obn_gestao || "",
       codigo_transmissao: conta?.codigo_transmissao || "",
       ativo: conta?.ativo ?? true,
     },
@@ -66,6 +73,9 @@ export function ContaAutarquiaForm({ conta, onSuccess, onCancel }: ContaAutarqui
       {
         ...data,
         nsa_inicial: data.nsa_inicial ? Number(data.nsa_inicial) : null,
+        obn_codigo_cliente: data.obn_codigo_cliente || null,
+        obn_unidade_gestora: data.obn_unidade_gestora || null,
+        obn_gestao: data.obn_gestao || null,
         id: conta?.id,
       },
       {
@@ -263,6 +273,55 @@ export function ContaAutarquiaForm({ conta, onSuccess, onCancel }: ContaAutarqui
             </FormItem>
           )}
         />
+
+        <fieldset className="space-y-3 rounded-lg border p-3">
+          <legend className="px-1 text-sm font-medium">Ordem bancária (OBN600)</legend>
+          <p className="text-xs text-muted-foreground">
+            Preencha só se esta conta gera a remessa de ordens bancárias dos pagamentos. Os números estão no header e
+            nas OBs dos arquivos OBN600 de hoje.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FormField
+              control={form.control}
+              name="obn_codigo_cliente"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Código do cliente no BB</FormLabel>
+                  <FormControl>
+                    <Input {...field} inputMode="numeric" maxLength={9} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="obn_unidade_gestora"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Unidade gestora (UG)</FormLabel>
+                  <FormControl>
+                    <Input {...field} inputMode="numeric" maxLength={6} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="obn_gestao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Gestão</FormLabel>
+                  <FormControl>
+                    <Input {...field} inputMode="numeric" maxLength={5} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </fieldset>
 
         <FormField
           control={form.control}
