@@ -4002,7 +4002,7 @@ COMMENT ON FUNCTION public.fn_atualizar_empenho_pagamento() IS 'Trigger de fin_p
 --
 
 CREATE FUNCTION public.fn_atualizar_estatisticas_campanha() RETURNS trigger
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
 DECLARE
@@ -4668,6 +4668,32 @@ BEGIN
   RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
 END;
 $_$;
+
+
+--
+-- Name: fn_bens_proteger_colunas(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_bens_proteger_colunas() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  -- current_user é o papel da requisição (authenticated/anon) na API; dentro das funções SECURITY DEFINER
+  -- (patrimonio_decidir_baixa, registrar_historico_manutencao...) é o dono da função, e a regra não se aplica.
+  IF current_user IN ('authenticated', 'anon') AND NOT public.is_admin_user(auth.uid()) THEN
+    IF NEW.valor_aquisicao IS DISTINCT FROM OLD.valor_aquisicao
+       OR NEW.data_aquisicao IS DISTINCT FROM OLD.data_aquisicao
+       OR NEW.forma_aquisicao IS DISTINCT FROM OLD.forma_aquisicao
+       OR NEW.situacao IS DISTINCT FROM OLD.situacao
+    THEN
+      RAISE EXCEPTION 'Somente administradores alteram valor, data e forma de aquisição e a situação do bem (a baixa segue o fluxo de baixa)'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
 
 --

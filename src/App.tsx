@@ -815,12 +815,12 @@ const App = () => (
               {/* ============================================ */}
               {/* UNIDADES LOCAIS */}
               {/* ============================================ */}
-              <Route path="/unidades" element={<ProtectedRoute requiredModule="patrimonio"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
-              <Route path="/unidades/gestao" element={<ProtectedRoute requiredModule="patrimonio"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
-              <Route path="/unidades/relatorios" element={<ProtectedRoute requiredModule="patrimonio"><RelatoriosUnidadesLocaisPage /></ProtectedRoute>} />
-               <Route path="/unidades/central-relatorios" element={<ProtectedRoute requiredModule="patrimonio"><RelatoriosCentralPage /></ProtectedRoute>} />
-              <Route path="/unidades/cedencia" element={<ProtectedRoute requiredModule="patrimonio"><RelatoriosCedenciaPage /></ProtectedRoute>} />
-              <Route path="/unidades/:id" element={<ProtectedRoute requiredModule="patrimonio"><UnidadeDetalhePage /></ProtectedRoute>} />
+              <Route path="/unidades" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.visualizar"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
+              <Route path="/unidades/gestao" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.visualizar"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
+              <Route path="/unidades/relatorios" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.relatorios.visualizar"><RelatoriosUnidadesLocaisPage /></ProtectedRoute>} />
+               <Route path="/unidades/central-relatorios" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.relatorios.visualizar"><RelatoriosCentralPage /></ProtectedRoute>} />
+              <Route path="/unidades/cedencia" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.cedencias.visualizar"><RelatoriosCedenciaPage /></ProtectedRoute>} />
+              <Route path="/unidades/:id" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.visualizar"><UnidadeDetalhePage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* RH - Com permissões mapeadas */}
@@ -1036,7 +1036,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/inventario/movimentacoes" element={
-                <ProtectedRoute requiredPermissions="patrimonio.tramitar">
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
                   <MovimentacoesPatrimonioPage />
                 </ProtectedRoute>
               } />
@@ -1061,7 +1061,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/inventario/baixas" element={
-                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
                   <BaixasPatrimonioPage />
                 </ProtectedRoute>
               } />
@@ -1078,7 +1078,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/inventario/bens/:id/editar" element={
-                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                <ProtectedRoute requiredPermissions="patrimonio.editar">
                   <BemEditarPage />
                 </ProtectedRoute>
               } />
@@ -1098,7 +1098,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/inventario/movimentacoes/:id" element={
-                <ProtectedRoute requiredPermissions="patrimonio.tramitar">
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
                   <MovimentacaoDetalhePage />
                 </ProtectedRoute>
               } />
@@ -1118,12 +1118,12 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/inventario/almoxarifado/:id/editar" element={
-                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                <ProtectedRoute requiredPermissions="patrimonio.editar">
                   <ItemMaterialEditarPage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/baixas/:id" element={
-                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
                   <BaixaDetalhePage />
                 </ProtectedRoute>
               } />

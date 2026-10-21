@@ -42,8 +42,10 @@ const TODAS = "todas";
 export default function PainelCampoInventarioPage() {
   const { id } = useParams<{ id: string }>();
   const { hasPermission } = useAuth();
-  // Escrita (situação, inclusão de unidades, KML) exige tramitar; a RLS é a barreira real
+  // Escrita (situação, inclusão de unidades) exige tramitar; a RLS é a barreira real
   const podeEditar = hasPermission("patrimonio.tramitar");
+  // Importar KML grava coordenadas em unidades_locais: exige unidades.gerenciar
+  const podeImportarKml = hasPermission("unidades.gerenciar");
   const { data: campanha, isLoading: carregandoCampanha } = useCampanhaInventario(id);
   const { data: unidades = [], isLoading: carregandoUnidades } = useUnidadesCampanha(id);
   const { data: contagemFotos } = useContagemFotosCampanha(id);
@@ -145,16 +147,16 @@ export default function PainelCampoInventarioPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {podeEditar && (
-                <>
-                  <Button variant="outline" size="sm" onClick={() => setIncluirAberto(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Incluir unidades
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setKmlAberto(true)}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Importar KML
-                  </Button>
-                </>
+                <Button variant="outline" size="sm" onClick={() => setIncluirAberto(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Incluir unidades
+                </Button>
+              )}
+              {podeImportarKml && (
+                <Button variant="outline" size="sm" onClick={() => setKmlAberto(true)}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Importar KML
+                </Button>
               )}
               <Button variant="outline" size="sm" asChild>
                 <Link to={`/inventario/campanhas/${id}`}>
@@ -335,16 +337,14 @@ export default function PainelCampoInventarioPage() {
       </section>
 
       {podeEditar && (
-        <>
-          <IncluirUnidadesCampanhaDialog
-            open={incluirAberto}
-            onOpenChange={setIncluirAberto}
-            campanhaId={id}
-            idsJaIncluidos={unidades.map((u) => u.unidade_local_id)}
-          />
-          <ImportarKmlDialog open={kmlAberto} onOpenChange={setKmlAberto} />
-        </>
+        <IncluirUnidadesCampanhaDialog
+          open={incluirAberto}
+          onOpenChange={setIncluirAberto}
+          campanhaId={id}
+          idsJaIncluidos={unidades.map((u) => u.unidade_local_id)}
+        />
       )}
+      {podeImportarKml && <ImportarKmlDialog open={kmlAberto} onOpenChange={setKmlAberto} />}
     </ModuleLayout>
   );
 }

@@ -67,12 +67,12 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 305 |
-| Migração mais recente | `20261022100000_folha_importar_sigrh_ajustes.sql` |
+| Migrações (`supabase/migrations/*.sql`) | 306 |
+| Migração mais recente | `20261023090000_patrimonio_permissoes_entrega4.sql` |
 | Tabelas do schema public (baseline) | 258 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 311 |
-| — de gatilho (`RETURNS trigger`) | 121 |
+| Funções (baseline) | 312 |
+| — de gatilho (`RETURNS trigger`) | 122 |
 | — demais | 190 |
 | Enums (baseline) | 109 |
 | Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1900 |

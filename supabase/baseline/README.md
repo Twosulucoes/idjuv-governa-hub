@@ -65,7 +65,7 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 
 | Classe | Tabelas | Regra |
 |---|---|---|
-| `modulo` | 155 | módulo(s) do mapa leem e escrevem; admin (papel) também. `extra` aceita `excluir=<código>\|admin\|ninguem` (DELETE com o código, só do admin ou de ninguém pela API) |
+| `modulo` | 155 | módulo(s) do mapa leem e escrevem; admin (papel) também. `extra` aceita `excluir=<código>\|admin\|ninguem` (DELETE com o código, só do admin ou de ninguém pela API), `altera=<código>` (UPDATE com o código) e `coletor=<módulo>:<ops>` (app de campo só com as operações listadas; ver "Outras classes") |
 | `permissao` | 36 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha (B1, `financeiro.folha.processar\|configurar`; migração `20261010070000_onda_b_folha_rls_permissao.sql`) e 12 do RH (B2: férias, licenças, viagens, ponto, frequência, abono, ajuste, justificativa, fechamento, configuração do fechamento, banco de horas e lançamentos; migração `20261010090000_onda_b_rh_permissoes.sql`) e 3 do RH na B3 (`frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`; migração `20261010210000_onda_b_rh_storage.sql`). Na E3 (migração `20261011010100_rh_contracheques_leitura.sql`) entraram `eventos_esocial`, `remessas_bancarias` (as duas com `excluir=ninguem`), `pensoes_alimenticias` e `itens_retorno_bancario`, e `;leitura=` passou a valer em fichas, itens, lançamentos, consignações, pensões, retorno e eSocial. Na regra de setor (migração `20261011020000_lancamento_por_setor.sql`) entraram `comissoes` e `comissoes_membros` (`escrita=rh.comissoes.gerenciar`). As migrações carregam o mesmo SQL gerado |
 | `trilha` | 10 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger). `audit_log_licitacoes` usa `extra=sigilo_workflow`: a linha copiada de uma tabela do processo do workflow só aparece com `wf_pode_ver_processo` ou para o papel admin (migração `20261015100000`, testes "wf trilha" no bloco "Workflow: acompanhamento do SEI" de `scripts/db/testar-rls.sql`) |
 | `proprio_leitura` / `proprio` / `proprio_filho` | 8 / 0 / 0 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20). Desde a B2, `servidores` (posse pela coluna `id`, DELETE com `rh.servidores.excluir`, e nos contornos `sem_autoaprovacao`: ninguém grava a própria ficha), `vinculos_servidor` e `lotacoes` estão aqui; as tabelas do RH que estavam em `proprio`/`proprio_filho` passaram a `permissao` (a última, `documentos_requerimento_servidor`, na B3). As classes `proprio` e `proprio_filho` continuam no gerador, sem tabela |
@@ -107,6 +107,7 @@ Classe `permissao`: `escrita=<c1>[|<c2>...][;<sufixo>]...`, com `escrita=` sempr
 | `;leitura=a\|b` | a leitura pelo módulo exige também um dos códigos: `((<módulos>) AND (hp(a) OR hp(b))) OR <posse>`; a posse continua sem código. na E3, `leitura=rh.contracheques.visualizar\|financeiro.folha.processar` em `fichas_financeiras`, `itens_ficha_financeira`, `lancamentos_folha`, `consignacoes`, `pensoes_alimenticias`, `itens_retorno_bancario` e `eventos_esocial` |
 | `;insere_proprio` | o servidor também insere a linha que é dele (pedido); exige `;proprio` ou `;pai=` |
 | `;sem_autoaprovacao` | INSERT/UPDATE/DELETE pelo caminho da permissão (e o DELETE de `;excluir=<código>`) exigem que a linha **não** seja do usuário logado: `is_admin_user(auth.uid()) OR NOT eh_meu_servidor(<posse>)`. `eh_meu_servidor` confere o vínculo do perfil ou, sem vínculo, o CPF; o papel admin passa. Exige `;proprio` ou `;pai=` |
+| `;coletor=<módulo>:<ops>` | o módulo do app de campo recebe só as operações listadas (`select\|insert\|update`), sem código; ex.: `unidades_locais` (`escrita=unidades.gerenciar;coletor=patrimonio_mobile:select`) |
 | `;posse=usuario` | a coluna de posse (ou o `servidor_id` do pai, com `;pai=`) guarda o id do **usuário** (FK para `profiles(id)`): leitura e inserção próprias usam `<col> = auth.uid() AND is_active_user()`, e `;sem_autoaprovacao` usa `<posse> IS DISTINCT FROM auth.uid()`. Exige `;proprio` ou `;pai=`; `testar-rls.sql` confere que toda coluna de posse com FK para `profiles` o declara |
 
 `;proprio`, `;pai=` e `;filho=` são excludentes (no máximo uma posse).
@@ -116,6 +117,15 @@ Outras classes:
 - `proprio_leitura`: aceita `coluna=<col>`, `excluir=<código>|admin|ninguem` e `sem_autoaprovacao` (este, dos
   contornos: INSERT/UPDATE/DELETE pelo módulo exigem ainda `is_admin_user(auth.uid()) OR NOT
   eh_meu_servidor(<col>)`). `servidores` usa `coluna=id;excluir=rh.servidores.excluir;sem_autoaprovacao`.
+- `modulo`: aceita `excluir=<código>|admin|ninguem`, `altera=<código>[|<código>...]` (o UPDATE exige o módulo **e** um
+  dos códigos; SELECT, INSERT e DELETE seguem por módulo) e `coletor=<módulo>:<ops>` (P14 entrega 4, migração
+  `20261023090000`). `bens_patrimoniais` usa `altera=patrimonio.editar;excluir=admin;coletor=patrimonio_mobile:select|insert`.
+- `coletor=<módulo>:<ops>` (classes `modulo` e `permissao`): dá ao módulo de um app de campo **só** as operações listadas
+  (`select`, `insert` e `update`, separadas por `|`; DELETE nunca), por OU nas policies dessas operações e sem código de
+  permissão. O módulo do coletor não pode estar na coluna `modulos` (lá teria tudo). É assim que o app de coleta do
+  patrimônio (`patrimonio_mobile`) lê e cadastra bens e coletas, só pede baixa e movimentação, muda a situação da unidade na
+  vistoria e só lê unidades e campanhas; as demais tabelas do patrimônio são só do módulo `patrimonio`. `testar-rls.sql`
+  confere cada operação com a persona `mod_<módulo>` (as listadas passam, as outras são negadas).
 - `catalogo`: aceita `escrita=<código>[|<código>...]` (dos contornos): a escrita exige o módulo **e** um dos
   códigos, como na classe `permissao`; a leitura continua para qualquer usuário ativo. `tipos_abono` usa
   `escrita=rh.frequencia.configurar`.

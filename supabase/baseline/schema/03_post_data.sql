@@ -9453,6 +9453,13 @@ CREATE TRIGGER trg_avisos_updated_at BEFORE UPDATE ON public.avisos FOR EACH ROW
 
 
 --
+-- Name: bens_patrimoniais trg_bens_proteger_colunas; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_bens_proteger_colunas BEFORE UPDATE OF valor_aquisicao, data_aquisicao, forma_aquisicao, situacao ON public.bens_patrimoniais FOR EACH ROW EXECUTE FUNCTION public.fn_bens_proteger_colunas();
+
+
+--
 -- Name: fin_adiantamentos trg_bloquear_adiantamento; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -19478,7 +19485,7 @@ CREATE POLICY rls_delete ON public.aditivos_contrato FOR DELETE TO authenticated
 -- Name: agenda_unidade rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.agenda_unidade FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.agenda_unidade FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text)));
 
 
 --
@@ -19492,7 +19499,7 @@ CREATE POLICY rls_delete ON public.agrupamento_unidade_vinculo FOR DELETE TO aut
 -- Name: almoxarifados rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.almoxarifados FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.almoxarifados FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -19555,7 +19562,7 @@ CREATE POLICY rls_delete ON public.avaliacoes_risco FOR DELETE TO authenticated 
 -- Name: baixas_patrimonio rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.baixas_patrimonio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.baixas_patrimonio FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -19576,7 +19583,7 @@ CREATE POLICY rls_delete ON public.bancos_cnab FOR DELETE TO authenticated USING
 -- Name: bens_patrimoniais rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.bens_patrimoniais FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.bens_patrimoniais FOR DELETE TO authenticated USING (public.is_admin_user(auth.uid()));
 
 
 --
@@ -19604,14 +19611,14 @@ CREATE POLICY rls_delete ON public.calendario_federacao FOR DELETE TO authentica
 -- Name: campanhas_inventario rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.campanhas_inventario FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.campanhas_inventario FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: campanhas_inventario_unidades rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.campanhas_inventario_unidades FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.campanhas_inventario_unidades FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -19632,7 +19639,7 @@ CREATE POLICY rls_delete ON public.cargos FOR DELETE TO authenticated USING (pub
 -- Name: categorias_material rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.categorias_material FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.categorias_material FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -19709,7 +19716,7 @@ CREATE POLICY rls_delete ON public.cms_media FOR DELETE TO authenticated USING (
 -- Name: coletas_inventario rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.coletas_inventario FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.coletas_inventario FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -19737,7 +19744,7 @@ CREATE POLICY rls_delete ON public.composicao_cargos FOR DELETE TO authenticated
 -- Name: conciliacoes_inventario rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.conciliacoes_inventario FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.conciliacoes_inventario FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20038,7 +20045,7 @@ CREATE POLICY rls_delete ON public.documentos FOR DELETE TO authenticated USING 
 -- Name: documentos_cedencia rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.documentos_cedencia FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
+CREATE POLICY rls_delete ON public.documentos_cedencia FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text)));
 
 
 --
@@ -20087,7 +20094,7 @@ CREATE POLICY rls_delete ON public.escolas_jer FOR DELETE TO authenticated USING
 -- Name: estoque rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.estoque FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.estoque FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20472,7 +20479,7 @@ CREATE POLICY rls_delete ON public.itens_licitacao FOR DELETE TO authenticated U
 -- Name: itens_material rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.itens_material FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.itens_material FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20546,7 +20553,7 @@ CREATE POLICY rls_delete ON public.lotacoes FOR DELETE TO authenticated USING (p
 -- Name: manutencoes_patrimonio rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.manutencoes_patrimonio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.manutencoes_patrimonio FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20616,21 +20623,21 @@ CREATE POLICY rls_delete ON public.module_settings FOR DELETE TO authenticated U
 -- Name: movimentacoes_bem rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.movimentacoes_bem FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.movimentacoes_bem FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: movimentacoes_estoque rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.movimentacoes_estoque FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.movimentacoes_estoque FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: movimentacoes_patrimonio rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.movimentacoes_patrimonio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.movimentacoes_patrimonio FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20651,7 +20658,7 @@ CREATE POLICY rls_delete ON public.noticias_eventos_esportivos FOR DELETE TO aut
 -- Name: ocorrencias_patrimonio rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.ocorrencias_patrimonio FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.ocorrencias_patrimonio FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20693,7 +20700,7 @@ CREATE POLICY rls_delete ON public.participantes_reuniao FOR DELETE TO authentic
 -- Name: patrimonio_unidade rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.patrimonio_unidade FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.patrimonio_unidade FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20826,14 +20833,14 @@ CREATE POLICY rls_delete ON public.registros_ponto FOR DELETE TO authenticated U
 -- Name: requisicao_itens rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.requisicao_itens FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.requisicao_itens FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: requisicoes_material rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.requisicoes_material FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.requisicoes_material FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -20952,7 +20959,7 @@ CREATE POLICY rls_delete ON public.tabela_irrf FOR DELETE TO authenticated USING
 -- Name: termos_cessao rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.termos_cessao FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
+CREATE POLICY rls_delete ON public.termos_cessao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text)));
 
 
 --
@@ -20966,7 +20973,7 @@ CREATE POLICY rls_delete ON public.tipos_abono FOR DELETE TO authenticated USING
 -- Name: unidades_locais rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.unidades_locais FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_delete ON public.unidades_locais FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'::text)));
 
 
 --
@@ -21057,7 +21064,7 @@ CREATE POLICY rls_insert ON public.aditivos_contrato FOR INSERT TO authenticated
 -- Name: agenda_unidade rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.agenda_unidade FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.agenda_unidade FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text)));
 
 
 --
@@ -21071,7 +21078,7 @@ CREATE POLICY rls_insert ON public.agrupamento_unidade_vinculo FOR INSERT TO aut
 -- Name: almoxarifados rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.almoxarifados FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.almoxarifados FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -21183,14 +21190,14 @@ CREATE POLICY rls_insert ON public.calendario_federacao FOR INSERT TO authentica
 -- Name: campanhas_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.campanhas_inventario FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.campanhas_inventario FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: campanhas_inventario_unidades rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.campanhas_inventario_unidades FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.campanhas_inventario_unidades FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -21211,7 +21218,7 @@ CREATE POLICY rls_insert ON public.cargos FOR INSERT TO authenticated WITH CHECK
 -- Name: categorias_material rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.categorias_material FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.categorias_material FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -21316,7 +21323,7 @@ CREATE POLICY rls_insert ON public.composicao_cargos FOR INSERT TO authenticated
 -- Name: conciliacoes_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.conciliacoes_inventario FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.conciliacoes_inventario FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -21617,7 +21624,7 @@ CREATE POLICY rls_insert ON public.documentos FOR INSERT TO authenticated WITH C
 -- Name: documentos_cedencia rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.documentos_cedencia FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
+CREATE POLICY rls_insert ON public.documentos_cedencia FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text)));
 
 
 --
@@ -21666,7 +21673,7 @@ CREATE POLICY rls_insert ON public.escolas_jer FOR INSERT TO authenticated WITH 
 -- Name: estoque rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.estoque FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.estoque FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22058,7 +22065,7 @@ CREATE POLICY rls_insert ON public.itens_licitacao FOR INSERT TO authenticated W
 -- Name: itens_material rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.itens_material FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.itens_material FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22134,7 +22141,7 @@ CREATE POLICY rls_insert ON public.lotacoes FOR INSERT TO authenticated WITH CHE
 -- Name: manutencoes_patrimonio rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.manutencoes_patrimonio FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.manutencoes_patrimonio FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22204,14 +22211,14 @@ CREATE POLICY rls_insert ON public.module_settings FOR INSERT TO authenticated W
 -- Name: movimentacoes_bem rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.movimentacoes_bem FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.movimentacoes_bem FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: movimentacoes_estoque rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.movimentacoes_estoque FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.movimentacoes_estoque FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22239,7 +22246,7 @@ CREATE POLICY rls_insert ON public.noticias_eventos_esportivos FOR INSERT TO aut
 -- Name: ocorrencias_patrimonio rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.ocorrencias_patrimonio FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.ocorrencias_patrimonio FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22281,7 +22288,7 @@ CREATE POLICY rls_insert ON public.participantes_reuniao FOR INSERT TO authentic
 -- Name: patrimonio_unidade rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.patrimonio_unidade FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.patrimonio_unidade FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22428,14 +22435,14 @@ CREATE POLICY rls_insert ON public.remessas_bancarias FOR INSERT TO authenticate
 -- Name: requisicao_itens rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.requisicao_itens FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.requisicao_itens FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: requisicoes_material rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.requisicoes_material FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.requisicoes_material FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22554,7 +22561,7 @@ CREATE POLICY rls_insert ON public.tabela_irrf FOR INSERT TO authenticated WITH 
 -- Name: termos_cessao rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.termos_cessao FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
+CREATE POLICY rls_insert ON public.termos_cessao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text)));
 
 
 --
@@ -22568,7 +22575,7 @@ CREATE POLICY rls_insert ON public.tipos_abono FOR INSERT TO authenticated WITH 
 -- Name: unidades_locais rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.unidades_locais FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_insert ON public.unidades_locais FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'::text)));
 
 
 --
@@ -22659,7 +22666,7 @@ CREATE POLICY rls_select ON public.aditivos_contrato FOR SELECT TO authenticated
 -- Name: agenda_unidade rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.agenda_unidade FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.agenda_unidade FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22673,7 +22680,7 @@ CREATE POLICY rls_select ON public.agrupamento_unidade_vinculo FOR SELECT TO aut
 -- Name: almoxarifados rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.almoxarifados FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.almoxarifados FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22754,7 +22761,7 @@ CREATE POLICY rls_select ON public.avaliacoes_risco FOR SELECT TO authenticated 
 -- Name: baixas_patrimonio rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.baixas_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.baixas_patrimonio FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22838,7 +22845,7 @@ CREATE POLICY rls_select ON public.cargos FOR SELECT TO authenticated USING (pub
 -- Name: categorias_material rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.categorias_material FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.categorias_material FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -22943,7 +22950,7 @@ CREATE POLICY rls_select ON public.composicao_cargos FOR SELECT TO authenticated
 -- Name: conciliacoes_inventario rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.conciliacoes_inventario FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.conciliacoes_inventario FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -23293,7 +23300,7 @@ CREATE POLICY rls_select ON public.escolas_jer FOR SELECT TO authenticated USING
 -- Name: estoque rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.estoque FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.estoque FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -23680,7 +23687,7 @@ CREATE POLICY rls_select ON public.historico_lai FOR SELECT TO authenticated USI
 -- Name: historico_patrimonio rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.historico_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.historico_patrimonio FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -23738,7 +23745,7 @@ CREATE POLICY rls_select ON public.itens_licitacao FOR SELECT TO authenticated U
 -- Name: itens_material rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.itens_material FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.itens_material FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -23812,7 +23819,7 @@ CREATE POLICY rls_select ON public.lotacoes FOR SELECT TO authenticated USING ((
 -- Name: manutencoes_patrimonio rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.manutencoes_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.manutencoes_patrimonio FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -23882,21 +23889,21 @@ CREATE POLICY rls_select ON public.module_settings FOR SELECT TO authenticated U
 -- Name: movimentacoes_bem rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.movimentacoes_bem FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.movimentacoes_bem FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: movimentacoes_estoque rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.movimentacoes_estoque FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.movimentacoes_estoque FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: movimentacoes_patrimonio rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.movimentacoes_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.movimentacoes_patrimonio FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -23917,7 +23924,7 @@ CREATE POLICY rls_select ON public.noticias_eventos_esportivos FOR SELECT TO aut
 -- Name: ocorrencias_patrimonio rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.ocorrencias_patrimonio FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.ocorrencias_patrimonio FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -23959,7 +23966,7 @@ CREATE POLICY rls_select ON public.participantes_reuniao FOR SELECT TO authentic
 -- Name: patrimonio_unidade rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.patrimonio_unidade FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.patrimonio_unidade FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -24106,14 +24113,14 @@ CREATE POLICY rls_select ON public.remessas_bancarias FOR SELECT TO authenticate
 -- Name: requisicao_itens rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.requisicao_itens FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.requisicao_itens FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: requisicoes_material rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.requisicoes_material FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_select ON public.requisicoes_material FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -24344,7 +24351,7 @@ CREATE POLICY rls_update ON public.aditivos_contrato FOR UPDATE TO authenticated
 -- Name: agenda_unidade rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.agenda_unidade FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.agenda_unidade FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text)));
 
 
 --
@@ -24358,7 +24365,7 @@ CREATE POLICY rls_update ON public.agrupamento_unidade_vinculo FOR UPDATE TO aut
 -- Name: almoxarifados rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.almoxarifados FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.almoxarifados FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -24421,7 +24428,7 @@ CREATE POLICY rls_update ON public.avaliacoes_risco FOR UPDATE TO authenticated 
 -- Name: baixas_patrimonio rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.baixas_patrimonio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.baixas_patrimonio FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -24442,7 +24449,7 @@ CREATE POLICY rls_update ON public.bancos_cnab FOR UPDATE TO authenticated USING
 -- Name: bens_patrimoniais rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.bens_patrimoniais FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.bens_patrimoniais FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'patrimonio.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'patrimonio.editar'::text)));
 
 
 --
@@ -24470,7 +24477,7 @@ CREATE POLICY rls_update ON public.calendario_federacao FOR UPDATE TO authentica
 -- Name: campanhas_inventario rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.campanhas_inventario FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.campanhas_inventario FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -24498,7 +24505,7 @@ CREATE POLICY rls_update ON public.cargos FOR UPDATE TO authenticated USING (pub
 -- Name: categorias_material rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.categorias_material FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.categorias_material FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -24575,7 +24582,7 @@ CREATE POLICY rls_update ON public.cms_media FOR UPDATE TO authenticated USING (
 -- Name: coletas_inventario rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.coletas_inventario FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.coletas_inventario FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -24603,7 +24610,7 @@ CREATE POLICY rls_update ON public.composicao_cargos FOR UPDATE TO authenticated
 -- Name: conciliacoes_inventario rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.conciliacoes_inventario FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.conciliacoes_inventario FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -24904,7 +24911,7 @@ CREATE POLICY rls_update ON public.documentos FOR UPDATE TO authenticated USING 
 -- Name: documentos_cedencia rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.documentos_cedencia FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
+CREATE POLICY rls_update ON public.documentos_cedencia FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text)));
 
 
 --
@@ -24953,7 +24960,7 @@ CREATE POLICY rls_update ON public.escolas_jer FOR UPDATE TO authenticated USING
 -- Name: estoque rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.estoque FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.estoque FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -25345,7 +25352,7 @@ CREATE POLICY rls_update ON public.itens_licitacao FOR UPDATE TO authenticated U
 -- Name: itens_material rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.itens_material FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.itens_material FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -25423,7 +25430,7 @@ CREATE POLICY rls_update ON public.lotacoes FOR UPDATE TO authenticated USING (p
 -- Name: manutencoes_patrimonio rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.manutencoes_patrimonio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.manutencoes_patrimonio FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -25493,21 +25500,21 @@ CREATE POLICY rls_update ON public.module_settings FOR UPDATE TO authenticated U
 -- Name: movimentacoes_bem rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.movimentacoes_bem FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.movimentacoes_bem FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: movimentacoes_estoque rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.movimentacoes_estoque FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.movimentacoes_estoque FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: movimentacoes_patrimonio rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.movimentacoes_patrimonio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.movimentacoes_patrimonio FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -25528,7 +25535,7 @@ CREATE POLICY rls_update ON public.noticias_eventos_esportivos FOR UPDATE TO aut
 -- Name: ocorrencias_patrimonio rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.ocorrencias_patrimonio FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.ocorrencias_patrimonio FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -25570,7 +25577,7 @@ CREATE POLICY rls_update ON public.participantes_reuniao FOR UPDATE TO authentic
 -- Name: patrimonio_unidade rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.patrimonio_unidade FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.patrimonio_unidade FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -25717,14 +25724,14 @@ CREATE POLICY rls_update ON public.remessas_bancarias FOR UPDATE TO authenticate
 -- Name: requisicao_itens rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.requisicao_itens FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.requisicao_itens FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
 -- Name: requisicoes_material rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.requisicoes_material FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.requisicoes_material FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
 
 
 --
@@ -25843,7 +25850,7 @@ CREATE POLICY rls_update ON public.tabela_irrf FOR UPDATE TO authenticated USING
 -- Name: termos_cessao rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.termos_cessao FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
+CREATE POLICY rls_update ON public.termos_cessao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'::text)));
 
 
 --
@@ -25857,7 +25864,7 @@ CREATE POLICY rls_update ON public.tipos_abono FOR UPDATE TO authenticated USING
 -- Name: unidades_locais rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.unidades_locais FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+CREATE POLICY rls_update ON public.unidades_locais FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'::text)));
 
 
 --

@@ -318,3 +318,9 @@ GRANT EXECUTE ON FUNCTION public.registrar_retorno_remessa(uuid, jsonb, jsonb) T
 -- só para authenticated (a guarda no corpo exige o módulo rh, financeiro.folha.processar e poder fechar a folha)
 REVOKE ALL ON FUNCTION public.importar_folha_sigrh(jsonb, jsonb, jsonb, boolean) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.importar_folha_sigrh(jsonb, jsonb, jsonb, boolean) TO authenticated;
+
+-- ---- patrimônio (migração 20261023090000, P14 entrega 4): funções de trigger só por dentro ----
+-- fn_atualizar_estatisticas_campanha virou SECURITY DEFINER (o coletor não altera campanhas_inventario) e
+-- fn_bens_proteger_colunas guarda valor, data e forma de aquisição e situação do bem
+REVOKE EXECUTE ON FUNCTION public.fn_atualizar_estatisticas_campanha() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fn_bens_proteger_colunas() FROM PUBLIC, anon, authenticated;

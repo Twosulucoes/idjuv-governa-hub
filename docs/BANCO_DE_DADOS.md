@@ -1076,6 +1076,21 @@ Todas idempotentes.
 `estoque`, `movimentacoes_estoque`, `categorias_material`, `itens_material`,
 `requisicoes_material`, `requisicao_itens`.
 
+**Permissões (P14 entrega 4, migração `20261023090000_patrimonio_permissoes_entrega4.sql`).**
+
+- O app de coleta (módulo `patrimonio_mobile`) só tem as operações que usa: lê e cadastra bem (com a foto no próprio
+  INSERT), lê e registra coleta, insere baixa e movimentação, lê e atualiza `campanhas_inventario_unidades`, lê
+  `unidades_locais` e `campanhas_inventario`. Saiu de almoxarifado, estoque, requisições, manutenções, ocorrências,
+  conciliações, agenda e histórico. Sufixo `coletor=` do mapa.
+- `bens_patrimoniais`: UPDATE exige `patrimonio.editar` (sufixo `altera=`; a migração concedeu a permissão a quem já tinha
+  `patrimonio.criar`, nas três fontes); DELETE só admin. O gatilho `trg_bens_proteger_colunas` recusa (42501) a troca
+  de `valor_aquisicao`, `data_aquisicao`, `forma_aquisicao` e `situacao` por quem não é admin quando o acesso vem da API
+  (`current_user` `authenticated`/`anon`); as funções DEFINER de baixa e movimentação passam.
+- `unidades_locais` escreve com `unidades.gerenciar`; `agenda_unidade`, `termos_cessao` e `documentos_cedencia` com
+  `unidades.cedencias.gerenciar` (classe `permissao`).
+- `fn_atualizar_estatisticas_campanha` passou a SECURITY DEFINER (`search_path=public`, sem EXECUTE pela API), para a coleta
+  do app continuar atualizando os totais da campanha sem UPDATE em `campanhas_inventario`.
+
 **Número de tombamento e fluxos (auditoria de 10/10/2026).** Migração
 `supabase/migrations/20261010230000_patrimonio_gravacoes_e_tombamento.sql` (aplicada pelo CI no merge):
 

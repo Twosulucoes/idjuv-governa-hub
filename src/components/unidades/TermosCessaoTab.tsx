@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, FileText, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -47,6 +48,9 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedReserva, setSelectedReserva] = useState<string>("");
+  // Registrar termo de cessão exige unidades.cedencias.gerenciar (o banco também valida).
+  const { hasPermission } = useAuth();
+  const podeGerenciar = hasPermission("unidades.cedencias.gerenciar");
 
   useEffect(() => {
     loadTermos();
@@ -169,10 +173,12 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
           <FileText className="h-5 w-5" />
           Termos de Cessão
         </h3>
-        <Button onClick={() => setShowForm(true)} disabled={reservasAprovadas.length === 0}>
-          <Plus className="mr-2 h-4 w-4" />
-          Registrar Termo
-        </Button>
+        {podeGerenciar && (
+          <Button onClick={() => setShowForm(true)} disabled={reservasAprovadas.length === 0}>
+            <Plus className="mr-2 h-4 w-4" />
+            Registrar Termo
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -226,7 +232,7 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
       </Card>
 
       {/* Dialog de registro do termo */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={podeGerenciar && showForm} onOpenChange={setShowForm}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Registrar Termo de Cessão</DialogTitle>

@@ -492,14 +492,9 @@ export default function PatrimonioMobileUnificadoPage() {
         possui_tombamento_externo: operacao === "cadastro_existente" && !!tombamentoAnterior.trim(),
         numero_patrimonio_externo: operacao === "cadastro_existente" ? tombamentoAnterior.trim() || undefined : undefined,
         observacao: observacaoFinal || undefined,
+        // A foto sobe antes e vai no próprio cadastro (o coletor não tem UPDATE em bens).
+        foto_bem_url: fotoUrl || undefined,
       });
-
-      if (fotoUrl && resultado?.id) {
-        await supabase
-          .from("bens_patrimoniais")
-          .update({ foto_bem_url: fotoUrl })
-          .eq("id", resultado.id);
-      }
 
       setResultadoOperacao(resultado.numero_patrimonio);
       setBemEtiqueta({

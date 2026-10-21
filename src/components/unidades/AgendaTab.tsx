@@ -6,6 +6,7 @@ import { AgendaUnidade, StatusAgenda } from "@/types/unidadesLocais";
 import { AgendaCalendar } from "./agenda/AgendaCalendar";
 import { AgendaDayDetail } from "./agenda/AgendaDayDetail";
 import { AgendaReservaForm } from "./agenda/AgendaReservaForm";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   startOfMonth,
   endOfMonth,
@@ -25,6 +26,9 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusAgenda | "todos">("todos");
+  // Reservar a unidade exige unidades.cedencias.gerenciar (o banco também valida).
+  const { hasPermission } = useAuth();
+  const podeGerenciar = hasPermission("unidades.cedencias.gerenciar");
 
   const loadReservas = useCallback(async () => {
     try {
@@ -69,10 +73,12 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
           <Calendar className="h-5 w-5" />
           Agenda de Uso
         </h3>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Reserva
-        </Button>
+        {podeGerenciar && (
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nova Reserva
+          </Button>
+        )}
       </div>
 
       <AgendaCalendar
@@ -96,7 +102,7 @@ export function AgendaTab({ unidadeId, chefeAtualId }: AgendaTabProps) {
       )}
 
       <AgendaReservaForm
-        open={showForm}
+        open={podeGerenciar && showForm}
         onOpenChange={setShowForm}
         unidadeId={unidadeId}
         onSuccess={loadReservas}
