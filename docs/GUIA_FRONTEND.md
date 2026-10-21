@@ -57,6 +57,8 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useConciliacaoBancaria` (movimentos dos arquivos do banco, conciliação manual, reenvio Gestão MAX, detalhe do
   pagamento e chamadas à Edge Function `bb-api`: `useStatusBB`, `useValidarContaBB`, `useImportarExtratoBB`).
   Tipos da conciliação em `src/types/conciliacaoBancaria.ts`.
+  `useFavorecidos` (`useFavorecidos`, `useSalvarFavorecido`): favorecidos da tela Financeiro → Favorecidos (tabela
+  `fornecedores`); agência e conta validadas por `src/lib/bancario/favorecido.ts`, com a regra da remessa OBN600.
 - **Exercício do Financeiro** (`src/hooks/useExercicioFinanceiro.ts`): ano orçamentário compartilhado pelas telas
   do módulo. Lê `?exercicio=` da URL; sem ele, o último ano escolhido no navegador (`localStorage`,
   chave `financeiro:exercicio`); sem nenhum, o ano atual. Faixa: 2024 até o ano seguinte ao atual. Devolve
