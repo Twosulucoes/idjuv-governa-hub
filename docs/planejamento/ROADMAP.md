@@ -126,6 +126,12 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 - [ ] **Admin — usuários técnicos**: o "Perfil de acesso" da tela de usuários técnicos (TI ou Administrador Geral) só
   vai para o `user_metadata` e não grava papel em `user_roles` (decisão de RBAC pendente); convite por e-mail ao criar
   usuário depende do SMTP do Supabase da VPS (hoje quem cria repassa a senha temporária).
+- [ ] **Ambiente de teste** (transversal, PR rascunho): `supabase/baseline/dados-teste.sql` enche um banco do baseline
+  com dados fictícios de todos os módulos e liga o login de teste a um servidor ([NOVO_BANCO.md](../NOVO_BANCO.md#9-ambiente-de-teste-com-dados-fictícios)).
+  Falta subir no Coolify o Supabase e o front de teste.
+- [ ] **LAI — pedido do SIC não grava** (achado ao montar o ambiente de teste): o trigger `registrar_historico_lai` de
+  `solicitacoes_sic` lê `NEW.responsavel_id`, coluna que a tabela não tem, e todo INSERT falha no banco do baseline;
+  conferir na produção e corrigir por migração (cabe no P16).
 - [ ] **Patrimônio — inventário de campo, fases 2–3**: edificações e instalações, relatórios automáticos, conciliação
   com a relação da SEED, importação de planilha; confirmar os termos de uso da Esri World Imagery para uso institucional.
 
