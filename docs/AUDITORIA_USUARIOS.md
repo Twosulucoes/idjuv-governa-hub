@@ -68,7 +68,7 @@ registrados como pendência.
 - ASCOM e documentos usam `getPublicUrl` em buckets privados (o link não abre).
 - As telas públicas da ASCOM só funcionam com login.
 - `requires_password_change` só é aplicado pela tela (`ProtectedRoute`), não no servidor.
-- Nome do cliente em `public/data/resumo.json` e na rota `/portal-preview-idjuv-2026`.
+- Nome do cliente na rota `/portal-preview-idjuv-2026` (o resumo estático de cargos em `public/data/` saiu em 21/10/2026; o total vem do banco).
 - `has_permission_code`, `can_access_module` e `is_admin_user` ainda aceitam o uuid de outro usuário.
 
 **Do dono, no servidor:**

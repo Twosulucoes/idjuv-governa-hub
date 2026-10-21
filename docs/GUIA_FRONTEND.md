@@ -38,7 +38,11 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   Transparência, Workflow, Gestores Escolares).
 - **Governança**: `useRelatorioGovernanca` (relatório anual do exercício escolhido: checklists de conformidade,
   processos da matriz RACI, riscos, plano de tratamento, avaliações de controle e, só com `integridade.gerenciar`,
-  a contagem de denúncias por situação; seção sem registro vem vazia, sem número de exemplo).
+  a contagem de denúncias por situação; seção sem registro vem vazia, sem número de exemplo), `useMatrizRaci`
+  (papéis, processos e atribuições de `matriz_raci_*`), `useEstruturaOrganizacional` (em `useOrganograma.ts`).
+- **Transparência**: `useResumoQuadroCargos` (em `useTransparenciaCargos.ts`; total, custo e divisão por diretoria do
+  quadro, calculados em `src/lib/quadroCargos.ts` a partir da RPC pública `transparencia_cargos_publicos`) e
+  `usePrazosLai` (prazos de `prazos_lai`; sem linha, o padrão legal de `src/lib/prazosLai.ts`).
 - **RH / folha**: `useServidorCompleto`, `useServidoresPorUnidade`,
   `useVinculosServidor`, `useGestaoLotacao`,
   `useDesignacoes`, `useComissoes` (comissões e membros), `useFrequencia`, `useFrequenciaPacotes`,
