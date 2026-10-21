@@ -129,6 +129,11 @@ export function lerRazaoFip630(linhas: LinhaPdf[]): RazaoFip630 {
       lancamentos.push(ultimo);
       continue;
     }
+    // Rodapé da página (data/hora da emissão, usuário, "Página: N de M"): não é histórico
+    if (/P[aá]gina:\s*\d+/i.test(texto)) {
+      ultimo = null;
+      continue;
+    }
     // Continuação do histórico do lançamento anterior (linha só com texto, sem data)
     if (ultimo && !/^(Total|Usu[aá]rio|COORDENADORIA|FIP630|\*|DATA|B\+A)/i.test(texto) && t.every((tr) => centavosDeTextoBR(tr.texto) === null)) {
       ultimo.historico = `${ultimo.historico} ${texto}`.trim();

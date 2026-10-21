@@ -29,6 +29,8 @@ const FIP630: LinhaPdf[] = [
   lanc(70, "02/07", "00001.0001.26.00011-0", "NOB", "Pagamento da LIQ Nº", "0,00", "200,00"),
   lanc(80, "08/07", "99000.0000.26.00500-1", "ARR", "Confirmação de ARR Bancária", "5.000,00", "0,00"),
   linha(1, 85, ["Cta Única do Tesouro", 203]),
+  // rodapé da página logo depois de um lançamento: não entra no histórico
+  linha(1, 87, ["04/08/2026 10:17", 259], ["usuario", 438], ["Página: 1 de", 509], ["2", 561]),
   lanc(90, "10/07", "00001.0000.26.00020-1", "ARR", "Inclusão de Sub-Repasse", "0,00", "700,00"),
   lanc(100, "10/07", "00001.0000.26.00020-1", "ARR", "Inclusão de Sub-Repasse", "700,00", "0,00"),
   lanc(110, "20/07", "00001.0001.26.00012-9", "NOB", "Pagamento do EMP Nº", "0,00", "1.500,00"),
