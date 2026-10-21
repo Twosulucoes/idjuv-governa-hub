@@ -105,12 +105,18 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   página de detalhe da campanha.
 - Detalhes do patrimônio: `/inventario/movimentacoes/:id`, `/inventario/manutencoes/:id` e
   `/inventario/baixas/:id` (`MovimentacaoDetalhePage`, `ManutencaoDetalhePage`, `BaixaDetalhePage`), abertas
-  pelo "olho" das listas, com as mesmas ações de aprovar/rejeitar/concluir (`patrimonio.tramitar`).
-- Edição do bem: `/inventario/bens/:id/editar` (`BemEditarPage`, `patrimonio.criar`). Número de patrimônio,
+  pelo "olho" das listas, com as mesmas ações de aprovar/rejeitar/concluir (`patrimonio.tramitar`). Listas e
+  detalhes de baixas e movimentações exigem só `patrimonio.visualizar`; criar baixa pede `patrimonio.criar` e
+  criar movimentação `patrimonio.tramitar` (botões).
+- Edição do bem: `/inventario/bens/:id/editar` (`BemEditarPage`, `patrimonio.editar`). Número de patrimônio,
   QR e dados de aquisição (valor, data, forma) só o admin altera; a ficha do bem (`BemDetalhePage`) tem abas de
   manutenções e ocorrências. Item do almoxarifado: `/inventario/almoxarifado/:id` (`ItemMaterialDetalhePage`, `patrimonio.visualizar`) e
-  `/inventario/almoxarifado/:id/editar` (`ItemMaterialEditarPage`, `patrimonio.criar`); o saldo real ainda não
+  `/inventario/almoxarifado/:id/editar` (`ItemMaterialEditarPage`, `patrimonio.editar`); o saldo real ainda não
   existe, e a ficha mostra só os limites de estoque. A rota de detalhe da requisição ainda usa `PlaceholderDetalhePage`.
+- Unidades: `/unidades`, `/unidades/gestao` e `/unidades/:id` exigem `unidades.visualizar`; `/unidades/relatorios` e
+  `/unidades/central-relatorios`, `unidades.relatorios.visualizar`; `/unidades/cedencia`, `unidades.cedencias.visualizar`
+  (além do módulo `patrimonio`). Criar/editar unidade e importar KML pedem `unidades.gerenciar`; agenda e termo de
+  cessão, `unidades.cedencias.gerenciar`.
 - Formulários: a rota `/formularios/cpsi` (tela CPSI, que gerava DFD/ETP/TR) saiu na onda 5 do P23; esses atos são
   feitos no SEI e o sistema só registra o ciclo.
 

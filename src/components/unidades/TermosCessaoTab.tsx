@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, FileText, Loader2, Pencil } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import {
@@ -66,6 +67,9 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
   const [showForm, setShowForm] = useState(false);
   const [selectedReserva, setSelectedReserva] = useState<string>("");
   const [sei, setSei] = useState<CamposSei>(CAMPOS_SEI_VAZIOS);
+  // Registrar termo e o registro do SEI exigem unidades.cedencias.gerenciar (o banco também valida).
+  const { hasPermission } = useAuth();
+  const podeGerenciar = hasPermission("unidades.cedencias.gerenciar");
 
   const [editando, setEditando] = useState<TermoCessao | null>(null);
   const [seiEdicao, setSeiEdicao] = useState<CamposSei>(CAMPOS_SEI_VAZIOS);
@@ -140,10 +144,12 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
           <FileText className="h-5 w-5" />
           Termos de Cessão
         </h3>
-        <Button onClick={() => setShowForm(true)} disabled={reservasAprovadas.length === 0}>
-          <Plus className="mr-2 h-4 w-4" />
-          Registrar Termo
-        </Button>
+        {podeGerenciar && (
+          <Button onClick={() => setShowForm(true)} disabled={reservasAprovadas.length === 0}>
+            <Plus className="mr-2 h-4 w-4" />
+            Registrar Termo
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -211,15 +217,17 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => abrirEdicao(termo)}
-                          aria-label="Editar registro do SEI"
-                          title="Editar registro do SEI"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        {podeGerenciar && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => abrirEdicao(termo)}
+                            aria-label="Editar registro do SEI"
+                            title="Editar registro do SEI"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -231,7 +239,7 @@ export function TermosCessaoTab({ unidadeId, chefeNomeacaoId }: TermosCessaoTabP
       </Card>
 
       {/* Dialog de registro do termo */}
-      <Dialog open={showForm} onOpenChange={(aberto) => (aberto ? setShowForm(true) : fecharRegistro())}>
+      <Dialog open={showForm && podeGerenciar} onOpenChange={(aberto) => (aberto ? setShowForm(true) : fecharRegistro())}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Registrar Termo de Cessão</DialogTitle>

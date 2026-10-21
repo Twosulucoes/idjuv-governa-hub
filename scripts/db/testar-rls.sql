@@ -27,6 +27,10 @@
 --                    persona só com o código de escrita fora da lista não leem; a posse continua lendo a linha própria
 --   proprio_leitura  ;coluna=<col>: posse por outra coluna (servidores: id); ;excluir=<código>: DELETE só com o código
 --   excluir=ninguem  (modulo, permissao, proprio_leitura; E3) ninguém apaga pela API, nem o admin
+--   altera=<c>       (modulo; P14 entrega 4) o UPDATE exige o módulo E o código (persona perm_<código>); o módulo sozinho
+--                    lê, insere e não altera
+--   coletor=<m>:<ops> (modulo e permissao; P14 entrega 4) o módulo do app de campo (mod_<m>, fora da coluna modulos) faz SÓ
+--                    as operações listadas (select|insert|update): as outras são negadas, DELETE sempre
 --   fechada          ninguém lê (nem admin)
 --   preservar        profiles e denuncias: testes próprios no bloco "cobertura adicional"
 --   UPDATE/DELETE    por tabela e persona (SET col = DEFAULT, sem WHERE: mede só a policy de UPDATE)
@@ -53,6 +57,9 @@
 --   P12              INSERT público de federações/árbitros só na situação inicial (sem depender do trigger); gestor só
 --                    pela RPC (duplicidade neutra); limite por IP (PT429) nas RPCs e no INSERT público; permissões de
 --                    outro usuário só para o próprio ou o admin; chefe da unidade só com rh/patrimonio
+--   P14 (entrega 4)  app de coleta só com o que usa (coletor=), patrimonio.editar no UPDATE de bem, DELETE de bem só do
+--                    admin, valor/data/forma de aquisição e situação só do admin (42501), estatística da campanha pelo
+--                    trigger SECURITY DEFINER e patrimonio_decidir_baixa ainda baixando o bem
 --
 -- Cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é FALHA. As tabelas temporárias do teste
 -- (mapa, persona, semeado...) são lidas por papéis com SET ROLE, então recebem GRANT explícito.
@@ -331,6 +338,16 @@ $$;
 CREATE FUNCTION pg_temp.codigos_leitura(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE WHEN classe = 'permissao' THEN string_to_array((regexp_match(extra, '(^|;)leitura=([^;]+)'))[2], '|') END
 $$;
+-- altera=a|b (modulo, P14 entrega 4): códigos exigidos, além do módulo, para o UPDATE; NULL se não há
+CREATE FUNCTION pg_temp.codigos_altera(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE WHEN classe = 'modulo' THEN string_to_array((regexp_match(extra, '(^|;)altera=([^;]+)'))[2], '|') END
+$$;
+-- coletor=<módulo>:<ops> (modulo e permissao, P14 entrega 4): {módulo, op1, op2...} (ops em minúsculas); NULL se não há
+CREATE FUNCTION pg_temp.coletor_de(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE WHEN classe IN ('modulo', 'permissao') AND extra ~ '(^|;)coletor=' THEN
+    ARRAY[(regexp_match(extra, '(^|;)coletor=([a-z_0-9]+):'))[2]]
+    || string_to_array((regexp_match(extra, '(^|;)coletor=[a-z_0-9]+:([^;]+)'))[2], '|') END
+$$;
 -- true quando o extra traz o sufixo sem valor (ex.: proprio, insere_proprio, sem_autoaprovacao)
 CREATE FUNCTION pg_temp.tem_sufixo(extra text, sufixo text) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
   SELECT sufixo = ANY (string_to_array(extra, ';'))
@@ -346,6 +363,7 @@ FROM (SELECT c.codigo, unnest(string_to_array(m.modulos, '|')) AS modulo
       FROM mapa m
       CROSS JOIN LATERAL unnest(coalesce(pg_temp.codigos_escrita(m.classe, m.extra), '{}'::text[])
                                 || coalesce(pg_temp.codigos_leitura(m.classe, m.extra), '{}'::text[])
+                                || coalesce(pg_temp.codigos_altera(m.classe, m.extra), '{}'::text[])
                                 || ARRAY[CASE WHEN pg_temp.excluir_de(m.classe, m.extra) NOT IN ('admin', 'ninguem')
                                               THEN pg_temp.excluir_de(m.classe, m.extra) END]) AS c(codigo)
       WHERE c.codigo IS NOT NULL) x
@@ -513,6 +531,7 @@ DECLARE
   -- dono das linhas A/B na coluna de posse (servidor; ou o perfil da persona com ;posse=usuario) e literais das
   -- linhas A/B no teste de ;sem_autoaprovacao
   dono_a text; dono_b text; lit_a text; lit_b text; pai_a text;
+  colet text[];   -- coletor=<m>:<ops> (P14 entrega 4): {módulo, ops...}
   total int := 0;
 BEGIN
   FOR m IN SELECT * FROM mapa WHERE classe NOT IN ('preservar') ORDER BY tabela LOOP
@@ -594,6 +613,20 @@ BEGIN
       -- admin (papel) tem acesso
       IF coalesce(ok_seed, false) AND pg_temp.sel(u_admin, 'authenticated', m.tabela) < 1 THEN
         PERFORM pg_temp.falha(m.tabela || ': papel admin não enxerga a linha');
+      END IF;
+      -- coletor=<m>:<ops> (P14 entrega 4): o módulo do app de campo lê/insere só se a operação está listada
+      colet := pg_temp.coletor_de(m.classe, m.extra);
+      IF colet IS NOT NULL THEN
+        u_mod := (SELECT uid FROM persona WHERE nome = 'mod_' || colet[1]);
+        IF colet[1] = ANY (mods) THEN PERFORM pg_temp.falha(m.tabela || ': o módulo do coletor (' || colet[1] || ') também está na coluna modulos'); END IF;
+        IF coalesce(ok_seed, false) THEN
+          n := pg_temp.sel(u_mod, 'authenticated', m.tabela);
+          IF 'select' = ANY (colet) AND n < 1 THEN PERFORM pg_temp.falha(m.tabela || ': coletor ' || colet[1] || ' não enxerga a linha (select declarado)');
+          ELSIF NOT ('select' = ANY (colet)) AND n > 0 THEN PERFORM pg_temp.falha(m.tabela || ': coletor ' || colet[1] || ' enxerga linhas sem select declarado'); END IF;
+        END IF;
+        r := pg_temp.ins(u_mod, 'authenticated', m.tabela);
+        IF 'insert' = ANY (colet) AND r = 'negado' THEN PERFORM pg_temp.falha(m.tabela || ': coletor ' || colet[1] || ' não consegue INSERT (insert declarado)');
+        ELSIF NOT ('insert' = ANY (colet)) AND r <> 'negado' THEN PERFORM pg_temp.falha(m.tabela || ': coletor ' || colet[1] || ' consegue INSERT sem insert declarado'); END IF;
       END IF;
     END IF;
 
@@ -798,10 +831,13 @@ END $$;
 -- permissao: cada código da lista escrita=; ;excluir=<código>|admin muda só o DELETE (também em proprio_leitura).
 -- ;sem_autoaprovacao: a persona com a permissão e dona da linha A só alcança a linha B (UPDATE e DELETE; com
 -- ;excluir=<código>, o DELETE é medido com a persona desse código).
+-- modulo;altera=<código>: o UPDATE só com a persona do código (o módulo sozinho insere e apaga, salvo excluir=).
+-- coletor=<m>:<ops>: mod_<m> altera só com update na lista e nunca apaga.
 DO $$
 DECLARE
   m record; mods text[]; pers record; autorizado boolean; n int; op text; outro text; checagens int := 0;
   perms text[]; avulsas text[]; excl text; perm_excl text; tem_mod boolean; codigo text; u_perm uuid;
+  perms_alt text[]; colet text[];   -- altera= e coletor= (P14 entrega 4)
   sa uuid := 'b0000000-0000-0000-0000-00000000000a';
   u_a uuid := (SELECT uid FROM persona WHERE nome = 'srv_a');
 BEGIN
@@ -812,10 +848,13 @@ BEGIN
     avulsas := coalesce((SELECT array_agg('perm_avulsa_' || c) FROM unnest(pg_temp.codigos_escrita(m.classe, m.extra)) c), '{}');
     excl := pg_temp.excluir_de(m.classe, m.extra);
     perm_excl := CASE WHEN excl NOT IN ('admin', 'ninguem') THEN 'perm_' || excl END;
+    perms_alt := coalesce((SELECT array_agg('perm_' || c) FROM unnest(pg_temp.codigos_altera(m.classe, m.extra)) c), '{}');
+    colet := pg_temp.coletor_de(m.classe, m.extra);
     FOR pers IN SELECT * FROM persona
                 WHERE nome IN ('admin','admin_inativo','nenhum','inativo','srv_a','srv_inativo','mod_admin','mod_' || outro)
                    OR nome = ANY (SELECT 'mod_' || x FROM unnest(mods) x)
-                   OR nome = ANY (perms) OR nome = ANY (avulsas) OR nome = perm_excl LOOP
+                   OR nome = ANY (perms) OR nome = ANY (avulsas) OR nome = perm_excl
+                   OR nome = ANY (perms_alt) OR nome = 'mod_' || colet[1] LOOP
       -- persona com algum módulo da tabela (mod_<m> ou perm_<código> cujo módulo é da tabela)
       tem_mod := (pers.nome LIKE 'mod_%' AND substr(pers.nome, 5) = ANY (mods))
                  OR EXISTS (SELECT 1 FROM persona_perm pp WHERE pp.nome = pers.nome AND pp.modulos && mods);
@@ -824,9 +863,12 @@ BEGIN
           WHEN m.classe IN ('trilha', 'admin_leitura') THEN false
           WHEN op = 'DELETE' AND excl = 'ninguem' THEN false                 -- E3: ninguém apaga pela API, nem o admin
           WHEN m.classe IN ('admin', 'catalogo_admin', 'proprio_user', 'publico_admin') THEN pers.nome = 'admin'
+          -- coletor=<m>:<ops>: o módulo do app de campo só faz o que está listado (DELETE nunca)
+          WHEN colet IS NOT NULL AND pers.nome = 'mod_' || colet[1] THEN lower(op) = ANY (colet)
           WHEN op = 'DELETE' AND excl = 'admin' THEN pers.nome = 'admin'
           WHEN op = 'DELETE' AND excl IS NOT NULL THEN pers.nome = 'admin' OR pers.nome = perm_excl
           WHEN m.classe = 'permissao' OR cardinality(perms) > 0 THEN pers.nome = 'admin' OR pers.nome = ANY (perms)   -- módulo sozinho e permissão avulsa NÃO alteram nem apagam
+          WHEN op = 'UPDATE' AND cardinality(perms_alt) > 0 THEN pers.nome = 'admin' OR pers.nome = ANY (perms_alt)   -- altera=: só com o código
           ELSE pers.nome = 'admin' OR tem_mod
         END;
         n := CASE op WHEN 'UPDATE' THEN pg_temp.upd(pers.uid, 'authenticated', m.tabela) ELSE pg_temp.del(pers.uid, 'authenticated', m.tabela) END;
@@ -1816,6 +1858,158 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.campanhas_inventario_unidades'::regclass AND NOT tgisinternal AND tgenabled <> 'D') THEN
     PERFORM pg_temp.falha('campanhas_inventario_unidades: falta o trigger de updated_at/updated_by');
   END IF;
+END $$;
+
+-- ---------------------------------------------------------------- Patrimônio: permissões (P14 entrega 4, migração 20261023100000) (TRIGGERS LIGADOS)
+-- O app de coleta (mod_patrimonio_mobile) lê e cadastra bem (a foto no próprio INSERT), lê e registra coleta, só pede
+-- baixa e movimentação, muda a situação da unidade na vistoria e não altera nem apaga bem, unidade, almoxarifado ou
+-- campanha; as estatísticas da campanha seguem vindo do trigger (fn_atualizar_estatisticas_campanha, SECURITY DEFINER).
+-- O UPDATE de bem exige patrimonio.editar; o DELETE, o papel admin; valor, data e forma de aquisição e situação só o
+-- admin muda pela API (fn_bens_proteger_colunas, 42501), e patrimonio_decidir_baixa (SECURITY DEFINER) segue baixando.
+DO $$
+DECLARE
+  u_mob uuid := (SELECT uid FROM persona WHERE nome = 'mod_patrimonio_mobile');
+  u_pat uuid := (SELECT uid FROM persona WHERE nome = 'mod_patrimonio');
+  u_edt uuid := (SELECT uid FROM persona WHERE nome = 'perm_patrimonio.editar');
+  u_admin uuid := (SELECT uid FROM persona WHERE nome = 'admin');
+  u_trm uuid := 'a0000000-0000-0000-0000-0000000000f2';   -- módulo patrimonio + patrimonio.tramitar
+  unid uuid := (SELECT id_a FROM semeado WHERE tabela = 'unidades_locais')::uuid;
+  camp uuid; bem uuid; bem2 uuid; baixa uuid; r text; t text; n int; campo text;
+BEGIN
+  IF u_edt IS NULL THEN PERFORM pg_temp.falha('P14: sem a persona perm_patrimonio.editar (altera= de bens_patrimoniais no mapa?)'); RETURN; END IF;
+  INSERT INTO auth.users (id, email) VALUES (u_trm, 'tramitar-p14@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id = u_trm;
+  INSERT INTO public.user_permissions (user_id, permission) VALUES (u_trm, 'patrimonio.tramitar');
+  INSERT INTO public.user_modules (user_id, module) VALUES (u_trm, 'patrimonio');
+  INSERT INTO public.campanhas_inventario (nome, ano, data_inicio, data_fim)
+    VALUES ('Campanha P14', 2026, current_date, current_date + 30) RETURNING id INTO camp;
+  INSERT INTO public.bens_patrimoniais (descricao, data_aquisicao, valor_aquisicao, unidade_local_id)
+    VALUES ('Bem P14', current_date, 100, unid) RETURNING id INTO bem;
+  INSERT INTO public.bens_patrimoniais (descricao, data_aquisicao, valor_aquisicao, unidade_local_id)
+    VALUES ('Bem P14 sem filhos', current_date, 50, unid) RETURNING id INTO bem2;
+  INSERT INTO public.campanhas_inventario_unidades (campanha_id, unidade_local_id) VALUES (camp, unid);
+
+  -- ===== coletor: bem
+  IF pg_temp.sel(u_mob, 'authenticated', 'bens_patrimoniais') < 1 THEN PERFORM pg_temp.falha('P14: coletor não lê bens'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mob, 'authenticated', format(
+    'INSERT INTO public.bens_patrimoniais (descricao, data_aquisicao, valor_aquisicao, unidade_local_id, situacao, forma_aquisicao, foto_bem_url) '
+    'VALUES (''Cadeira'', current_date, 0, %L, ''ativo'', ''compra'', ''https://x/foto.jpg'') RETURNING numero_patrimonio || ''|'' || foto_bem_url', unid));
+  IF r NOT LIKE 'PAT-%|https://x/foto.jpg' THEN PERFORM pg_temp.falha('P14: coletor não cadastra bem com a foto no INSERT e lê de volta (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format('UPDATE public.bens_patrimoniais SET foto_bem_url = ''x'' WHERE id = %L', bem));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('P14: coletor altera bem (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format('DELETE FROM public.bens_patrimoniais WHERE id = %L', bem2));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('P14: coletor apaga bem (' || r || ')'); END IF;
+
+  -- ===== coletor: coleta (e as estatísticas da campanha, pelo trigger SECURITY DEFINER)
+  r := pg_temp.exec_como(u_mob, 'authenticated', format('INSERT INTO public.coletas_inventario (campanha_id, bem_id) VALUES (%L, %L)', camp, bem));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P14: coletor não registra coleta (' || r || ')'); END IF;
+  IF (SELECT total_conferidos FROM public.campanhas_inventario WHERE id = camp) IS DISTINCT FROM 1 THEN
+    PERFORM pg_temp.falha('P14: coleta do coletor não atualizou total_conferidos da campanha ('
+      || coalesce((SELECT total_conferidos::text FROM public.campanhas_inventario WHERE id = camp), 'NULL') || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_mob, 'authenticated', format('SELECT count(*)::text FROM public.coletas_inventario WHERE campanha_id = %L', camp));
+  IF r <> '1' THEN PERFORM pg_temp.falha('P14: coletor não lê a coleta que registrou (' || r || ')'); END IF;
+
+  -- ===== coletor: pede baixa e movimentação (INSERT sem leitura de volta), não lê nem decide
+  r := pg_temp.sql_como(u_mob, 'authenticated', format(
+    'INSERT INTO public.baixas_patrimonio (bem_id, motivo, justificativa, status) VALUES (%L, ''inservivel'', ''quebrado'', ''solicitada'')', bem));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: coletor não pede baixa (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format(
+    'INSERT INTO public.movimentacoes_patrimonio (bem_id, tipo, motivo, status, unidade_local_origem_id, unidade_local_destino_id) '
+    'VALUES (%L, ''transferencia_interna'', ''via app'', ''pendente'', %L, %L)', bem, unid, unid));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: coletor não pede movimentação (' || r || ')'); END IF;
+  FOREACH t IN ARRAY ARRAY['baixas_patrimonio', 'movimentacoes_patrimonio'] LOOP
+    IF pg_temp.sel(u_mob, 'authenticated', t) > 0 THEN PERFORM pg_temp.falha('P14: coletor lê ' || t); END IF;
+  END LOOP;
+
+  -- ===== coletor: situação da unidade na vistoria (UPDATE sim; INSERT e DELETE não)
+  r := pg_temp.sql_como(u_mob, 'authenticated', format('UPDATE public.campanhas_inventario_unidades SET situacao = ''em_vistoria'' WHERE campanha_id = %L', camp));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: coletor não muda a situação da unidade na campanha (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format('INSERT INTO public.campanhas_inventario_unidades (campanha_id, unidade_local_id) VALUES (%L, %L)', camp, gen_random_uuid()));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('P14: coletor inclui unidade na campanha (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format('DELETE FROM public.campanhas_inventario_unidades WHERE campanha_id = %L', camp));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('P14: coletor apaga unidade da campanha (' || r || ')'); END IF;
+
+  -- ===== coletor: lê mas não altera nem apaga bem, unidade, campanha; almoxarifado nem lê
+  FOREACH t IN ARRAY ARRAY['bens_patrimoniais', 'unidades_locais', 'almoxarifados', 'campanhas_inventario'] LOOP
+    IF pg_temp.upd(u_mob, 'authenticated', t) > 0 THEN PERFORM pg_temp.falha('P14: coletor consegue UPDATE em ' || t); END IF;
+    IF pg_temp.del(u_mob, 'authenticated', t) > 0 THEN PERFORM pg_temp.falha('P14: coletor consegue DELETE em ' || t); END IF;
+  END LOOP;
+  FOREACH t IN ARRAY ARRAY['unidades_locais', 'campanhas_inventario'] LOOP
+    IF pg_temp.sel(u_mob, 'authenticated', t) < 1 THEN PERFORM pg_temp.falha('P14: coletor não lê ' || t); END IF;
+    IF pg_temp.ins(u_mob, 'authenticated', t) <> 'negado' THEN PERFORM pg_temp.falha('P14: coletor insere em ' || t); END IF;
+  END LOOP;
+  -- tabelas que saíram do app de coleta: nada
+  FOREACH t IN ARRAY ARRAY['agenda_unidade', 'almoxarifados', 'categorias_material', 'conciliacoes_inventario', 'estoque',
+                           'historico_patrimonio', 'itens_material', 'manutencoes_patrimonio', 'movimentacoes_bem',
+                           'movimentacoes_estoque', 'ocorrencias_patrimonio', 'patrimonio_unidade', 'requisicao_itens',
+                           'requisicoes_material', 'termos_cessao', 'documentos_cedencia'] LOOP
+    IF pg_temp.sel(u_mob, 'authenticated', t) > 0 THEN PERFORM pg_temp.falha('P14: coletor ainda lê ' || t); END IF;
+    IF pg_temp.ins(u_mob, 'authenticated', t) <> 'negado' THEN PERFORM pg_temp.falha('P14: coletor ainda insere em ' || t); END IF;
+    IF pg_temp.upd(u_mob, 'authenticated', t) > 0 OR pg_temp.del(u_mob, 'authenticated', t) > 0 THEN
+      PERFORM pg_temp.falha('P14: coletor ainda altera/apaga ' || t);
+    END IF;
+  END LOOP;
+  IF pg_temp.sel(u_mob, 'authenticated', 'fotos_vistoria_inventario') < 1 THEN PERFORM pg_temp.falha('P14: coletor perdeu a leitura das fotos da vistoria'); END IF;
+
+  -- ===== sistema: cadastrar pelo módulo; editar com patrimonio.editar; apagar só o admin
+  r := pg_temp.valor_desfeito_como(u_pat, 'authenticated', format(
+    'INSERT INTO public.bens_patrimoniais (descricao, data_aquisicao, valor_aquisicao, unidade_local_id) VALUES (''Mesa'', current_date, 10, %L) RETURNING numero_patrimonio', unid));
+  IF r NOT LIKE 'PAT-%' THEN PERFORM pg_temp.falha('P14: módulo patrimonio sem patrimonio.editar não cadastra bem (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_pat, 'authenticated', format('UPDATE public.bens_patrimoniais SET descricao = ''outra'' WHERE id = %L', bem));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('P14: módulo patrimonio SEM patrimonio.editar altera bem (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_edt, 'authenticated', format('UPDATE public.bens_patrimoniais SET descricao = ''outra'', marca = ''M'' WHERE id = %L', bem));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: quem tem patrimonio.editar não altera a descrição do bem (' || r || ')'); END IF;
+  -- mesmo valor nas colunas protegidas (formulário que manda tudo) passa
+  r := pg_temp.sql_como(u_edt, 'authenticated', format(
+    'UPDATE public.bens_patrimoniais SET valor_aquisicao = valor_aquisicao, data_aquisicao = data_aquisicao, forma_aquisicao = forma_aquisicao, situacao = situacao, descricao = ''x'' WHERE id = %L', bem));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: UPDATE com as colunas protegidas inalteradas recusado (' || r || ')'); END IF;
+  FOREACH campo IN ARRAY ARRAY['valor_aquisicao = 999', 'data_aquisicao = current_date - 1', 'forma_aquisicao = ''doacao''', 'situacao = ''baixado'''] LOOP
+    r := pg_temp.sql_como(u_edt, 'authenticated', format('UPDATE public.bens_patrimoniais SET %s WHERE id = %L', campo, bem));
+    IF r NOT LIKE 'erro:42501:Somente administradores%' THEN PERFORM pg_temp.falha('P14: não-admin com patrimonio.editar muda ' || campo || ' (' || r || ')'); END IF;
+    r := pg_temp.sql_como(u_admin, 'authenticated', format('UPDATE public.bens_patrimoniais SET %s WHERE id = %L', campo, bem));
+    IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: admin não muda ' || campo || ' (' || r || ')'); END IF;
+  END LOOP;
+  FOREACH t IN ARRAY ARRAY['mod_patrimonio', 'perm_patrimonio.editar'] LOOP
+    r := pg_temp.sql_como((SELECT uid FROM persona WHERE nome = t), 'authenticated', format('DELETE FROM public.bens_patrimoniais WHERE id = %L', bem2));
+    IF r <> 'ok:0' THEN PERFORM pg_temp.falha('P14: ' || t || ' apaga bem (' || r || ')'); END IF;
+  END LOOP;
+  -- o admin passa pela RLS; a FK de historico_patrimonio (o cadastro já gravou o evento) segura a exclusão do bem
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('DELETE FROM public.bens_patrimoniais WHERE id = %L', bem2));
+  IF r <> 'ok:1' AND r NOT LIKE 'erro:23503%historico_p%' THEN PERFORM pg_temp.falha('P14: RLS barra o admin de apagar bem (' || r || ')'); END IF;
+
+  -- ===== decisão da baixa (SECURITY DEFINER) continua mudando a situação do bem
+  r := pg_temp.exec_como(u_mob, 'authenticated', format(
+    'INSERT INTO public.baixas_patrimonio (bem_id, motivo, justificativa, status) VALUES (%L, ''perda'', ''sumiu'', ''solicitada'')', bem));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P14: coletor não pede a baixa a decidir (' || r || ')'); END IF;
+  SELECT id INTO baixa FROM public.baixas_patrimonio WHERE bem_id = bem AND motivo = 'perda';
+  r := pg_temp.sql_como(u_pat, 'authenticated', format('SELECT public.patrimonio_decidir_baixa(%L, true)', baixa));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('P14: módulo sem patrimonio.tramitar decide baixa (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_trm, 'authenticated', format('SELECT public.patrimonio_decidir_baixa(%L, true)', baixa));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P14: patrimonio_decidir_baixa falhou para quem tem patrimonio.tramitar (' || r || ')'); END IF;
+  IF (SELECT situacao FROM public.bens_patrimoniais WHERE id = bem) IS DISTINCT FROM 'baixado'
+     OR (SELECT status FROM public.baixas_patrimonio WHERE id = baixa) IS DISTINCT FROM 'aprovada' THEN
+    PERFORM pg_temp.falha('P14: baixa aprovada não baixou o bem (situacao '
+      || coalesce((SELECT situacao FROM public.bens_patrimoniais WHERE id = bem), 'NULL') || ')');
+  END IF;
+
+  -- ===== funções e catálogo
+  IF NOT (SELECT prosecdef FROM pg_proc WHERE oid = 'public.fn_atualizar_estatisticas_campanha()'::regprocedure) THEN
+    PERFORM pg_temp.falha('P14: fn_atualizar_estatisticas_campanha não é SECURITY DEFINER');
+  END IF;
+  FOREACH t IN ARRAY ARRAY['public.fn_atualizar_estatisticas_campanha()', 'public.fn_bens_proteger_colunas()'] LOOP
+    IF has_function_privilege('authenticated', t::regprocedure, 'EXECUTE') OR has_function_privilege('anon', t::regprocedure, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('P14: ' || t || ' executável pela API');
+    END IF;
+  END LOOP;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.bens_patrimoniais'::regclass AND tgname = 'trg_bens_proteger_colunas' AND tgenabled <> 'D') THEN
+    PERFORM pg_temp.falha('P14: falta o trigger trg_bens_proteger_colunas');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.module_permissions_catalog WHERE permission_code = 'patrimonio.editar' AND module_code = 'patrimonio')
+     OR (SELECT count(*) FROM public.role_permissions WHERE permission = 'patrimonio.editar' AND role IN ('admin', 'manager')) <> 2 THEN
+    PERFORM pg_temp.falha('P14: patrimonio.editar fora do catálogo ou sem os papéis admin e manager');
+  END IF;
+  PERFORM pg_temp.nota('P14 (permissões do patrimônio): coletor (bem com foto, coleta e estatística da campanha, pedidos de baixa e movimentação, situação da unidade, sem UPDATE/DELETE, tabelas fora do app), patrimonio.editar, DELETE só admin, colunas protegidas (42501) e decisão da baixa verificados');
 END $$;
 
 -- ---------------------------------------------------------------- RH: permissões e etapas (Onda B / B2) (TRIGGERS LIGADOS)

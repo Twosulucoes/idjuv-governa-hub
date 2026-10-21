@@ -117,9 +117,9 @@ function RequisicoesDoItem({ itemId, unidade }: { itemId: string; unidade: strin
 export default function ItemMaterialDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useItemMaterial(id);
-  // Editar exige patrimonio.criar (mesma permissão da rota de edição; o banco também valida).
+  // Editar exige patrimonio.editar (mesma permissão da rota de edição; o banco também valida).
   const { hasPermission } = useAuth();
-  const podeEditar = hasPermission("patrimonio.criar");
+  const podeEditar = hasPermission("patrimonio.editar");
 
   if (isLoading) return <DetalheCarregando rotulo="Carregando item de material" />;
 

@@ -194,6 +194,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - A importação da folha do SIGRH (migração `20261022090000`) entrou no schema do baseline regenerado
   (`importar_folha_sigrh`, com os ajustes da revisão na `20261022100000`); o EXECUTE só para `authenticated` no overlay 40; testes no bloco "FOLHA: importação da
   folha do SIGRH" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- As permissões do patrimônio e das unidades (P14 entrega 4, migração `20261023100000`) entraram no mapa com os sufixos
+  novos `altera=` e `coletor=` do `scripts/db/gerar-rls.mjs` (documentados em `supabase/baseline/README.md`), no schema
+  do baseline regenerado (gatilho `trg_bens_proteger_colunas`, `fn_atualizar_estatisticas_campanha` SECURITY DEFINER) e
+  no catálogo (`patrimonio.editar` para admin e manager); EXECUTE retirado das duas funções no overlay 40; testes no
+  bloco "Patrimônio: permissões (P14 entrega 4)" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A parte patronal da folha e o INSS truncado por faixa (migração `20261021100000`) entraram no schema do baseline
   regenerado (`folhas_pagamento.total_rat`, CHECK `parametros_folha_encargos_check`, `calcular_inss_servidor` e
   `processar_folha_pagamento` novos, sem mudança de privilégio); testes no bloco "FOLHA: parte patronal e INSS por

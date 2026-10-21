@@ -120,14 +120,16 @@ export default function BaixasPatrimonioPage() {
   // Aprovar/rejeitar exige patrimonio.tramitar (o banco também valida: erro 42501).
   const { hasPermission } = useAuth();
   const podeDecidir = hasPermission("patrimonio.tramitar");
+  // Pedir baixa exige patrimonio.criar; quem só visualiza vê a lista e o detalhe.
+  const podeCriar = hasPermission("patrimonio.criar");
 
   // Verifica se tem ação no URL
   useEffect(() => {
     if (searchParams.get("acao") === "nova") {
-      setDialogNovaBaixaOpen(true);
+      if (podeCriar) setDialogNovaBaixaOpen(true);
       setSearchParams({}, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, podeCriar]);
 
   const { data: baixas, isLoading, isError, refetch } = useBaixasPatrimonio(
     filtroStatus || undefined
@@ -141,10 +143,12 @@ export default function BaixasPatrimonioPage() {
           titulo="Baixas de patrimônio"
           descricao="Desfazimento e baixa de bens"
           acoes={
-            <Button onClick={() => setDialogNovaBaixaOpen(true)}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Nova baixa
-            </Button>
+            podeCriar && (
+              <Button onClick={() => setDialogNovaBaixaOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Nova baixa
+              </Button>
+            )
           }
         />
 

@@ -41,6 +41,7 @@ import { PatrimonioTab } from "@/components/unidades/PatrimonioTab";
 import { AgendaTab } from "@/components/unidades/AgendaTab";
 import { TermosCessaoTab } from "@/components/unidades/TermosCessaoTab";
 import { StatusUnidadeBadge } from "@/components/unidades/StatusUnidadeBadge";
+import { useAuth } from "@/contexts/AuthContext";
 
 function UnidadeDetalheContent() {
   const { id } = useParams<{ id: string }>();
@@ -50,6 +51,9 @@ function UnidadeDetalheContent() {
   const [loading, setLoading] = useState(true);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("dados");
+  // Editar unidade exige unidades.gerenciar (o banco também valida).
+  const { hasPermission } = useAuth();
+  const podeGerenciar = hasPermission("unidades.gerenciar");
 
   useEffect(() => {
     if (id) {
@@ -150,10 +154,12 @@ function UnidadeDetalheContent() {
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 Voltar
               </Button>
-              <Button onClick={() => setShowEditDialog(true)}>
-                <Edit className="h-4 w-4" aria-hidden="true" />
-                Editar unidade
-              </Button>
+              {podeGerenciar && (
+                <Button onClick={() => setShowEditDialog(true)}>
+                  <Edit className="h-4 w-4" aria-hidden="true" />
+                  Editar unidade
+                </Button>
+              )}
             </>
           }
         />

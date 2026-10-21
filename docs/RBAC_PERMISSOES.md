@@ -1093,6 +1093,22 @@ Camadas complementares:
   apagar arquivo no bucket `inventario-evidencias`. Detalhes em
   [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
 
+### Exemplo: patrimônio e unidades (P14, entrega 4)
+
+- Rotas: editar bem e item do almoxarifado exigem `patrimonio.editar` (concedida pela migração
+  `20261023100000` a quem já tinha `patrimonio.criar`); listas e detalhes de baixas e movimentações exigem
+  `patrimonio.visualizar` (aprovar/concluir seguem com `patrimonio.tramitar`, na tela e na RPC); `/unidades`,
+  `/unidades/gestao` e `/unidades/:id` exigem `unidades.visualizar`, relatórios `unidades.relatorios.visualizar`
+  e cedência `unidades.cedencias.visualizar`. Botões: nova baixa `patrimonio.criar`, nova movimentação
+  `patrimonio.tramitar`, criar/editar unidade e importar KML `unidades.gerenciar`, agenda e termo de cessão
+  `unidades.cedencias.gerenciar`.
+- No banco: o app de coleta (módulo `patrimonio_mobile`) só lê e cadastra bem, registra coleta, pede baixa e
+  movimentação e atualiza a situação da unidade na vistoria; UPDATE de bem exige `patrimonio.editar`, DELETE só
+  admin; escrita em `unidades_locais` exige `unidades.gerenciar` e em agenda, termos e documentos de cedência
+  `unidades.cedencias.gerenciar`. Valor, data, forma de aquisição e situação do bem só o admin altera (gatilho
+  `trg_bens_proteger_colunas`; as funções de baixa e movimentação passam). Detalhes em
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+
 ## Rotas públicas
 
 Rotas sob `<PublicPageGuard rota="...">` não exigem login; verificam apenas o

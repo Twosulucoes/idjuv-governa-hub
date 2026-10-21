@@ -123,7 +123,11 @@ export type PermissaoInstitucional =
   // Patrimônio
   | 'patrimonio.visualizar'
   | 'patrimonio.criar'
+  | 'patrimonio.editar'
   | 'patrimonio.tramitar'
+  // Unidades locais
+  | 'unidades.visualizar'
+  | 'unidades.relatorios.visualizar'
   // Governança
   | 'governanca.visualizar'
   | 'governanca.aprovar'
@@ -542,7 +546,7 @@ export const menuConfig: MenuSection[] = [
         label: "Movimentações",
         route: "/inventario/movimentacoes",
         icon: TrendingUp,
-        permission: "patrimonio.tramitar",
+        permission: "patrimonio.visualizar",
         priority: 3,
       },
       {
@@ -582,7 +586,7 @@ export const menuConfig: MenuSection[] = [
         label: "Baixas",
         route: "/inventario/baixas",
         icon: Trash2,
-        permission: "patrimonio.criar",
+        permission: "patrimonio.visualizar",
         priority: 8,
       },
     ],
@@ -935,7 +939,7 @@ export const menuConfig: MenuSection[] = [
         label: "Unidades Locais",
         route: "/unidades",
         icon: MapPin,
-        permission: "patrimonio.visualizar",
+        permission: "unidades.visualizar",
       },
       {
         id: "relatorios-unidades",
@@ -943,7 +947,7 @@ export const menuConfig: MenuSection[] = [
         labelShort: "Relatórios",
         route: "/unidades/central-relatorios",
         icon: BarChart3,
-        permission: "patrimonio.visualizar",
+        permission: "unidades.relatorios.visualizar",
       },
       {
         id: "federacoes",

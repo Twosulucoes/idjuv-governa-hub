@@ -37,6 +37,7 @@ import {
   MUNICIPIOS_RORAIMA,
 } from "@/types/unidadesLocais";
 import { UnidadeLocalForm } from "@/components/unidades/UnidadeLocalForm";
+import { useAuth } from "@/contexts/AuthContext";
 import { StatusUnidadeBadge } from "@/components/unidades/StatusUnidadeBadge";
 
 function GestaoUnidadesLocaisContent() {
@@ -48,6 +49,9 @@ function GestaoUnidadesLocaisContent() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showFormDialog, setShowFormDialog] = useState(false);
   const [editingUnidade, setEditingUnidade] = useState<UnidadeLocal | null>(null);
+  // Criar/editar unidade exige unidades.gerenciar (o banco também valida).
+  const { hasPermission } = useAuth();
+  const podeGerenciar = hasPermission("unidades.gerenciar");
 
   useEffect(() => {
     loadUnidades();
@@ -160,10 +164,12 @@ function GestaoUnidadesLocaisContent() {
           titulo="Unidades locais"
           descricao="Gestão de ginásios, estádios, parques aquáticos e outras unidades esportivas"
           acoes={
-            <Button onClick={handleNewUnidade}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Nova unidade
-            </Button>
+            podeGerenciar && (
+              <Button onClick={handleNewUnidade}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Nova unidade
+              </Button>
+            )
           }
         />
 
