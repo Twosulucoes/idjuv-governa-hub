@@ -36,6 +36,9 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
 - **Dashboards**: `use<Modulo>DashboardStats` (Admin, RH, Financeiro, Patrimônio,
   Compras, Contratos, Comunicação, Governança, Integridade, Programas,
   Transparência, Workflow, Gestores Escolares).
+- **Governança**: `useRelatorioGovernanca` (relatório anual do exercício escolhido: checklists de conformidade,
+  processos da matriz RACI, riscos, plano de tratamento, avaliações de controle e, só com `integridade.gerenciar`,
+  a contagem de denúncias por situação; seção sem registro vem vazia, sem número de exemplo).
 - **RH / folha**: `useServidorCompleto`, `useServidoresPorUnidade`,
   `useVinculosServidor`, `useGestaoLotacao`,
   `useDesignacoes`, `useComissoes` (comissões e membros), `useFrequencia`, `useFrequenciaPacotes`,
