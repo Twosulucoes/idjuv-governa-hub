@@ -94,6 +94,9 @@ O workflow `.github/workflows/migracoes-banco.yml` leva `supabase/migrations/` a
   `supabase_migrations.schema_migrations` vazia ou divergente), em que o push tentaria rodar centenas de
   migrações antigas. Conserto: marcar como aplicadas as que já estão no banco com
   `supabase migration repair --db-url <url pelo túnel> --status applied <versão>...` (de dentro da VPS ou com o mesmo túnel SSH) e rodar de novo.
+- **Fora de ordem:** o push usa `--include-all`, então uma migração com número menor que a última do banco
+  (PRs mergeados fora da ordem) também é aplicada, em vez de travar a fila. Ainda assim, numere a migração nova
+  depois da última da `main`.
 - Por isso toda migração precisa ser segura para rodar sozinha no merge: idempotente quando possível
   (`IF NOT EXISTS`), sem depender de passo manual, com RLS na própria migração.
 - **Conferências depois de aplicar** (só no merge): o job falha, com o banco já alterado, se faltar o que uma
