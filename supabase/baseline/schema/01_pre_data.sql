@@ -2486,6 +2486,7 @@ DECLARE
   v_uid uuid := auth.uid();
   v_rem public.fin_remessas_bancarias%ROWTYPE;
   v_liberados integer := 0;
+  v_pags_liberados integer := 0;
 BEGIN
   IF v_uid IS NULL
      OR NOT COALESCE(public.perfil_ativo_atual()
@@ -2499,11 +2500,11 @@ BEGIN
     RAISE EXCEPTION 'Remessa não encontrada.' USING ERRCODE = 'P0002';
   END IF;
   IF v_rem.arquivo_sha256 IS NOT NULL THEN
-    RAISE EXCEPTION 'A remessa NSA % já foi confirmada (arquivo gerado): não pode ser cancelada.', v_rem.nsa
+    RAISE EXCEPTION 'A remessa nº % já foi confirmada (arquivo gerado): não pode ser cancelada.', v_rem.nsa
       USING ERRCODE = '22023';
   END IF;
   IF v_rem.created_by IS DISTINCT FROM v_uid AND NOT COALESCE(public.is_admin_user(v_uid), false) THEN
-    RAISE EXCEPTION 'Só quem reservou a remessa NSA % (ou um administrador) cancela.', v_rem.nsa USING ERRCODE = '42501';
+    RAISE EXCEPTION 'Só quem reservou a remessa nº % (ou um administrador) cancela.', v_rem.nsa USING ERRCODE = '42501';
   END IF;
 
   UPDATE public.fin_movimentos_bancarios
@@ -2511,9 +2512,15 @@ BEGIN
    WHERE remessa_id = p_id AND reenviado_em IS NULL;
   GET DIAGNOSTICS v_liberados = ROW_COUNT;
 
+  UPDATE public.fin_pagamentos
+     SET remessa_bancaria_id = NULL, updated_at = now()
+   WHERE remessa_bancaria_id = p_id;
+  GET DIAGNOSTICS v_pags_liberados = ROW_COUNT;
+
   DELETE FROM public.fin_remessas_bancarias WHERE id = p_id;
 
-  RETURN jsonb_build_object('id', p_id, 'nsa', v_rem.nsa, 'movimentos_liberados', v_liberados);
+  RETURN jsonb_build_object('id', p_id, 'nsa', v_rem.nsa, 'movimentos_liberados', v_liberados,
+                            'pagamentos_liberados', v_pags_liberados);
 END;
 $$;
 
@@ -2522,7 +2529,7 @@ $$;
 -- Name: FUNCTION cancelar_remessa_bancaria(p_id uuid); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.cancelar_remessa_bancaria(p_id uuid) IS 'Cancela (apaga) uma reserva de remessa de reenvio não confirmada e libera os movimentos. Autor da reserva ou administrador; exige pagamento.conciliar.';
+COMMENT ON FUNCTION public.cancelar_remessa_bancaria(p_id uuid) IS 'Cancela (apaga) uma reserva de remessa não confirmada (reenvio Gestão MAX ou OBN600) e libera os movimentos e pagamentos. Autor da reserva ou administrador; exige pagamento.conciliar.';
 
 
 --
@@ -2785,13 +2792,37 @@ BEGIN
   END IF;
   IF v_rem.arquivo_sha256 IS NOT NULL THEN
     IF v_rem.arquivo_sha256 <> p_sha256 THEN
-      RAISE EXCEPTION 'A remessa NSA % já foi confirmada com outro arquivo.', v_rem.nsa USING ERRCODE = '22023';
+      RAISE EXCEPTION 'A remessa nº % já foi confirmada com outro arquivo.', v_rem.nsa USING ERRCODE = '22023';
     END IF;
     RETURN jsonb_build_object('id', v_rem.id, 'nsa', v_rem.nsa, 'arquivo_sha256', v_rem.arquivo_sha256,
-                              'movimentos_marcados', 0, 'ja_confirmada', true);
+                              'movimentos_marcados', 0, 'pagamentos_marcados', 0, 'ja_confirmada', true);
   END IF;
   IF v_rem.created_by IS DISTINCT FROM v_uid THEN
-    RAISE EXCEPTION 'Só quem gerou a remessa NSA % confirma o arquivo.', v_rem.nsa USING ERRCODE = '42501';
+    RAISE EXCEPTION 'Só quem gerou a remessa nº % confirma o arquivo.', v_rem.nsa USING ERRCODE = '42501';
+  END IF;
+
+  IF v_rem.layout = 'obn600' THEN
+    PERFORM 1 FROM public.fin_pagamentos WHERE id = ANY (v_rem.pagamentos) ORDER BY id FOR UPDATE;
+    SELECT count(*) INTO v_ok
+      FROM public.fin_pagamentos
+     WHERE id = ANY (v_rem.pagamentos) AND remessa_bancaria_id = p_id
+       AND COALESCE(status::text, '') IN ('programado', 'autorizado') AND NOT COALESCE(estornado, false);
+    IF v_ok <> cardinality(v_rem.pagamentos) THEN
+      RAISE EXCEPTION '% pagamento(s) da remessa nº % não estão mais reservados para ela (ou mudaram de situação): gere de novo.',
+        cardinality(v_rem.pagamentos) - v_ok, v_rem.nsa USING ERRCODE = '22023';
+    END IF;
+
+    UPDATE public.fin_remessas_bancarias SET arquivo_sha256 = p_sha256 WHERE id = p_id;
+
+    -- O nº da OB é o que volta no retorno: importar_arquivo_bancario casa a OB com o pagamento por ele.
+    UPDATE public.fin_pagamentos p
+       SET identificador_transacao = o.ob->>'numero_ob', updated_at = now()
+      FROM jsonb_array_elements(v_rem.creditos) AS o(ob)
+     WHERE p.id = (o.ob->>'pagamento_id')::uuid AND p.remessa_bancaria_id = p_id;
+    GET DIAGNOSTICS v_marcados = ROW_COUNT;
+
+    RETURN jsonb_build_object('id', v_rem.id, 'nsa', v_rem.nsa, 'arquivo_sha256', p_sha256,
+                              'movimentos_marcados', 0, 'pagamentos_marcados', v_marcados, 'ja_confirmada', false);
   END IF;
 
   PERFORM 1 FROM public.fin_movimentos_bancarios WHERE id = ANY (v_rem.movimentos) ORDER BY id FOR UPDATE;
@@ -2811,7 +2842,7 @@ BEGIN
   GET DIAGNOSTICS v_marcados = ROW_COUNT;
 
   RETURN jsonb_build_object('id', v_rem.id, 'nsa', v_rem.nsa, 'arquivo_sha256', p_sha256,
-                            'movimentos_marcados', v_marcados, 'ja_confirmada', false);
+                            'movimentos_marcados', v_marcados, 'pagamentos_marcados', 0, 'ja_confirmada', false);
 END;
 $_$;
 
@@ -2820,7 +2851,7 @@ $_$;
 -- Name: FUNCTION confirmar_remessa_bancaria(p_id uuid, p_sha256 text); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.confirmar_remessa_bancaria(p_id uuid, p_sha256 text) IS 'Grava o SHA-256 do arquivo de reenvio gerado e marca os movimentos reservados como reenviados (falha se algum saiu da reserva). Só o autor da reserva. Exige pagamento.conciliar.';
+COMMENT ON FUNCTION public.confirmar_remessa_bancaria(p_id uuid, p_sha256 text) IS 'Grava o SHA-256 do arquivo gerado. Reenvio Gestão MAX: marca os movimentos reservados como reenviados. OBN600: grava o nº da OB nos pagamentos reservados. Falha se algum saiu da reserva. Só o autor da reserva. Exige pagamento.conciliar.';
 
 
 --
@@ -3740,10 +3771,10 @@ CREATE FUNCTION public.fin_remessa_bancaria_json(p_id uuid) RETURNS jsonb
     SET search_path TO 'public'
     AS $$
   SELECT jsonb_build_object(
-    'id', r.id, 'nsa', r.nsa, 'convenio', r.convenio,
+    'id', r.id, 'layout', r.layout, 'nsa', r.nsa, 'convenio', r.convenio,
     'agencia', r.agencia, 'agencia_digito', r.agencia_digito, 'conta', r.conta, 'conta_digito', r.conta_digito,
     'data_geracao', r.data_geracao, 'data_pagamento', r.data_pagamento, 'tipo_servico', r.tipo_servico,
-    'creditos', r.creditos,
+    'parametros', r.parametros, 'creditos', r.creditos,
     'arquivo_sha256', r.arquivo_sha256)
     FROM public.fin_remessas_bancarias r
    WHERE r.id = p_id;
@@ -3754,7 +3785,7 @@ $$;
 -- Name: FUNCTION fin_remessa_bancaria_json(p_id uuid); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.fin_remessa_bancaria_json(p_id uuid) IS 'Uso interno das RPCs de remessa de reenvio: remessa no formato devolvido à tela. Fora da API.';
+COMMENT ON FUNCTION public.fin_remessa_bancaria_json(p_id uuid) IS 'Uso interno das RPCs de remessa (reenvio Gestão MAX e OBN600): remessa no formato devolvido à tela. Fora da API.';
 
 
 --
@@ -11619,6 +11650,220 @@ COMMENT ON FUNCTION public.registrar_remessa_bancaria(p_conta_autarquia_id uuid,
 
 
 --
+-- Name: registrar_remessa_obn600(uuid, uuid[], date, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registrar_remessa_obn600(p_conta_autarquia_id uuid, p_pagamentos uuid[], p_data_pagamento date, p_sequencial_minimo integer DEFAULT NULL::integer) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_conta public.contas_autarquia%ROWTYPE;
+  v_ultima public.fin_remessas_bancarias%ROWTYPE;
+  v_reuso uuid;
+  v_outras boolean;
+  v_pags uuid[] := COALESCE(p_pagamentos, '{}');
+  v_seq integer;
+  v_id uuid;
+  v_ordens jsonb := '[]'::jsonb;
+  v_ordem_pags uuid[] := '{}';
+  v_total numeric(15,2) := 0;
+  r record;
+  v_banco text; v_ag text; v_ag_dv text; v_ct text; v_ct_dv text;
+  v_partes text[];
+  v_doc text;
+  v_num text;
+  v_tipo text;
+  v_endereco text;
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'pagamento.conciliar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para gerar remessa bancária (pagamento.conciliar).' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_data_pagamento IS NULL OR p_data_pagamento < CURRENT_DATE - 1 OR p_data_pagamento > CURRENT_DATE + 60 THEN
+    RAISE EXCEPTION 'Data do pagamento inválida (de hoje a 60 dias à frente).' USING ERRCODE = '22023';
+  END IF;
+  IF p_sequencial_minimo IS NOT NULL AND p_sequencial_minimo NOT BETWEEN 1 AND 99999 THEN
+    RAISE EXCEPTION 'Nº inicial da remessa inválido (1 a 99999).' USING ERRCODE = '22023';
+  END IF;
+  IF cardinality(v_pags) NOT BETWEEN 1 AND 999
+     OR array_position(v_pags, NULL) IS NOT NULL
+     OR cardinality(v_pags) <> (SELECT count(DISTINCT p) FROM unnest(v_pags) p) THEN
+    RAISE EXCEPTION 'Informe de 1 a 999 pagamentos, sem repetição.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_conta FROM public.contas_autarquia WHERE id = p_conta_autarquia_id AND COALESCE(ativo, true);
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Conta pagadora não encontrada ou inativa.' USING ERRCODE = 'P0002';
+  END IF;
+  IF COALESCE(v_conta.obn_codigo_cliente, '') !~ '^\d{1,9}$'
+     OR COALESCE(v_conta.obn_unidade_gestora, '') !~ '^\d{1,6}$'
+     OR COALESCE(v_conta.obn_gestao, '') !~ '^\d{1,5}$' THEN
+    RAISE EXCEPTION 'A conta pagadora não tem código do cliente, UG e gestão do OBN600 cadastrados.' USING ERRCODE = '22023';
+  END IF;
+  IF COALESCE(btrim(v_conta.agencia), '') !~ '^\d{1,4}$' OR COALESCE(btrim(v_conta.conta), '') !~ '^\d{1,9}$' THEN
+    RAISE EXCEPTION 'A conta pagadora precisa de agência (até 4 dígitos) e conta (até 9 dígitos).' USING ERRCODE = '22023';
+  END IF;
+
+  -- Um número de remessa por vez para a mesma conta.
+  PERFORM pg_advisory_xact_lock(hashtext('registrar_remessa_bancaria'), hashtext(p_conta_autarquia_id::text || '|obn600'));
+
+  SELECT * INTO v_ultima FROM public.fin_remessas_bancarias
+   WHERE conta_autarquia_id = p_conta_autarquia_id AND layout = 'obn600'
+   ORDER BY nsa DESC LIMIT 1;
+  IF FOUND AND v_ultima.arquivo_sha256 IS NULL AND v_ultima.created_by = v_uid THEN
+    -- Nova tentativa do mesmo usuário: reaproveita a reserva não confirmada (número e linha).
+    v_reuso := v_ultima.id;
+  END IF;
+  v_outras := EXISTS (SELECT 1 FROM public.fin_remessas_bancarias
+                       WHERE conta_autarquia_id = p_conta_autarquia_id AND layout = 'obn600'
+                         AND id IS DISTINCT FROM v_reuso);
+
+  IF NOT v_outras AND p_sequencial_minimo IS NOT NULL THEN
+    v_seq := p_sequencial_minimo;
+  ELSIF v_reuso IS NOT NULL THEN
+    v_seq := v_ultima.nsa;
+  ELSE
+    v_seq := COALESCE(v_ultima.nsa, 0) + 1;
+  END IF;
+  IF v_seq > 99999 THEN
+    RAISE EXCEPTION 'Numeração de remessa OBN600 esgotada para esta conta.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Trava os pagamentos (ordem fixa evita deadlock).
+  PERFORM 1 FROM public.fin_pagamentos WHERE id = ANY (v_pags) ORDER BY id FOR UPDATE;
+
+  FOR r IN
+    SELECT x.ord, p.*, f.cpf_cnpj AS f_doc, f.razao_social AS f_nome, f.banco_codigo AS f_banco,
+           f.agencia AS f_agencia, f.conta AS f_conta, f.endereco_logradouro, f.endereco_numero,
+           f.endereco_bairro, f.endereco_cidade, f.endereco_uf, f.endereco_cep,
+           rem.arquivo_sha256 AS rem_sha, rem.created_by AS rem_autor, rem.nsa AS rem_nsa
+      FROM unnest(v_pags) WITH ORDINALITY AS x(id, ord)
+      LEFT JOIN public.fin_pagamentos p ON p.id = x.id
+      LEFT JOIN public.fornecedores f ON f.id = p.fornecedor_id
+      LEFT JOIN public.fin_remessas_bancarias rem ON rem.id = p.remessa_bancaria_id
+     ORDER BY x.ord
+  LOOP
+    IF r.numero IS NULL THEN
+      RAISE EXCEPTION 'Pagamento % não encontrado.', r.ord USING ERRCODE = 'P0002';
+    END IF;
+    IF COALESCE(r.status::text, '') NOT IN ('programado', 'autorizado') OR COALESCE(r.estornado, false) THEN
+      RAISE EXCEPTION 'Pagamento % não está programado nem autorizado.', r.numero USING ERRCODE = '22023';
+    END IF;
+    IF r.remessa_bancaria_id IS NOT NULL AND r.remessa_bancaria_id IS DISTINCT FROM v_reuso THEN
+      IF r.rem_sha IS NOT NULL THEN
+        RAISE EXCEPTION 'Pagamento % já saiu na remessa OBN600 nº %.', r.numero, r.rem_nsa USING ERRCODE = '22023';
+      END IF;
+      RAISE EXCEPTION 'Pagamento % está reservado em outra remessa ainda não confirmada (nº %).', r.numero, r.rem_nsa
+        USING ERRCODE = '22023';
+    END IF;
+    IF r.valor_liquido IS NULL OR r.valor_liquido <= 0 THEN
+      RAISE EXCEPTION 'Pagamento % sem valor líquido.', r.numero USING ERRCODE = '22023';
+    END IF;
+    IF r.numero !~ '^OP-\d{1,7}$' OR r.exercicio NOT BETWEEN 2000 AND 2999 THEN
+      RAISE EXCEPTION 'Pagamento % fora da numeração OP-nnnnnn: não dá para montar o nº da OB.', r.numero USING ERRCODE = '22023';
+    END IF;
+
+    v_doc := regexp_replace(COALESCE(r.f_doc, ''), '\D', '', 'g');
+    IF length(v_doc) NOT IN (11, 14) OR NULLIF(btrim(COALESCE(r.f_nome, '')), '') IS NULL THEN
+      RAISE EXCEPTION 'Pagamento % sem favorecido com CPF/CNPJ e nome.', r.numero USING ERRCODE = '22023';
+    END IF;
+
+    -- Conta do pagamento; vazia, a do cadastro do fornecedor. Agência "1234" ou "1234-5"; conta "1111" ou "1111-X".
+    IF NULLIF(btrim(COALESCE(r.conta_favorecido, '')), '') IS NOT NULL THEN
+      v_banco := r.banco_favorecido; v_ag := r.agencia_favorecido; v_ct := r.conta_favorecido;
+    ELSE
+      v_banco := r.f_banco; v_ag := r.f_agencia; v_ct := r.f_conta;
+    END IF;
+    v_banco := lpad(regexp_replace(COALESCE(v_banco, ''), '\D', '', 'g'), 3, '0');
+    v_partes := regexp_match(regexp_replace(COALESCE(v_ag, ''), '[\s.]', '', 'g'), '^(\d{1,4})(?:-([0-9Xx]))?$');
+    v_ag := v_partes[1]; v_ag_dv := upper(COALESCE(v_partes[2], ''));
+    v_partes := regexp_match(regexp_replace(COALESCE(v_ct, ''), '[\s.]', '', 'g'), '^(\d{1,9})(?:-([0-9Xx]))?$');
+    v_ct := v_partes[1]; v_ct_dv := upper(COALESCE(v_partes[2], ''));
+    IF v_banco !~ '^\d{3}$' OR v_banco = '000' OR v_ag IS NULL OR v_ct IS NULL OR v_ct ~ '^0+$' THEN
+      RAISE EXCEPTION 'Pagamento % sem banco, agência (até 4 dígitos) e conta (até 9 dígitos, DV depois do hífen) válidos.', r.numero
+        USING ERRCODE = '22023';
+    END IF;
+
+    v_tipo := CASE WHEN v_banco = '001' THEN '32' ELSE '31' END;
+    v_num := lpad(r.exercicio::text || lpad(substring(r.numero FROM 4), 6, '0'), 11, '0');
+    v_endereco := concat_ws(' - ',
+      NULLIF(concat_ws(', ', NULLIF(btrim(COALESCE(r.endereco_logradouro, '')), ''),
+                             NULLIF(btrim(COALESCE(r.endereco_numero, '')), '')), ''),
+      NULLIF(btrim(COALESCE(r.endereco_bairro, '')), ''));
+
+    v_ordens := v_ordens || jsonb_build_array(jsonb_build_object(
+      'tipo', v_tipo, 'ord', r.ord,
+      'pagamento_id', r.id, 'pagamento_numero', r.numero,
+      'relacao', lpad(r.exercicio::text || lpad(v_seq::text, 5, '0') || v_tipo, 11, '0'),
+      'numero_ob', v_num,
+      'nome', btrim(r.f_nome), 'documento', v_doc,
+      'banco', v_banco, 'agencia', v_ag, 'agencia_dv', v_ag_dv, 'conta', v_ct, 'conta_dv', v_ct_dv,
+      'valor', r.valor_liquido,
+      'endereco', COALESCE(v_endereco, ''), 'municipio', btrim(COALESCE(r.endereco_cidade, '')),
+      'cep', regexp_replace(COALESCE(r.endereco_cep, ''), '\D', '', 'g'),
+      'uf', upper(btrim(COALESCE(r.endereco_uf, '')))));
+    v_total := v_total + r.valor_liquido;
+  END LOOP;
+
+  IF v_total >= 1e13 THEN
+    RAISE EXCEPTION 'Valor total inválido.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Ordem do arquivo: por tipo de OB (uma relação por tipo) e, dentro dele, a ordem pedida.
+  SELECT jsonb_agg(o - 'tipo' - 'ord' ORDER BY o->>'tipo', (o->>'ord')::int),
+         array_agg((o->>'pagamento_id')::uuid ORDER BY o->>'tipo', (o->>'ord')::int)
+    INTO v_ordens, v_ordem_pags
+    FROM jsonb_array_elements(v_ordens) AS e(o);
+
+  IF v_reuso IS NOT NULL THEN
+    UPDATE public.fin_pagamentos
+       SET remessa_bancaria_id = NULL, updated_at = now()
+     WHERE remessa_bancaria_id = v_reuso AND NOT (id = ANY (v_pags));
+    UPDATE public.fin_remessas_bancarias
+       SET nsa = v_seq, convenio = v_conta.obn_codigo_cliente,
+           agencia = btrim(v_conta.agencia), agencia_digito = NULLIF(btrim(COALESCE(v_conta.agencia_digito, '')), ''),
+           conta = btrim(v_conta.conta), conta_digito = NULLIF(btrim(COALESCE(v_conta.conta_digito, '')), ''),
+           data_geracao = now(), data_pagamento = p_data_pagamento,
+           quantidade = cardinality(v_pags), valor_total = v_total, creditos = v_ordens, pagamentos = v_ordem_pags,
+           parametros = jsonb_build_object('unidade_gestora', v_conta.obn_unidade_gestora, 'gestao', v_conta.obn_gestao)
+     WHERE id = v_reuso
+     RETURNING id INTO v_id;
+  ELSE
+    INSERT INTO public.fin_remessas_bancarias
+      (layout, conta_autarquia_id, convenio, agencia, agencia_digito, conta, conta_digito, nsa,
+       data_pagamento, quantidade, valor_total, creditos, pagamentos, parametros, created_by)
+    VALUES
+      ('obn600', p_conta_autarquia_id, v_conta.obn_codigo_cliente,
+       btrim(v_conta.agencia), NULLIF(btrim(COALESCE(v_conta.agencia_digito, '')), ''),
+       btrim(v_conta.conta), NULLIF(btrim(COALESCE(v_conta.conta_digito, '')), ''), v_seq,
+       p_data_pagamento, cardinality(v_pags), v_total, v_ordens, v_ordem_pags,
+       jsonb_build_object('unidade_gestora', v_conta.obn_unidade_gestora, 'gestao', v_conta.obn_gestao), v_uid)
+    RETURNING id INTO v_id;
+  END IF;
+
+  -- Reserva: os pagamentos passam a apontar para esta remessa (o nº da OB só é gravado na confirmação).
+  UPDATE public.fin_pagamentos
+     SET remessa_bancaria_id = v_id, updated_at = now()
+   WHERE id = ANY (v_pags) AND remessa_bancaria_id IS DISTINCT FROM v_id;
+
+  RETURN public.fin_remessa_bancaria_json(v_id) - 'arquivo_sha256';
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION registrar_remessa_obn600(p_conta_autarquia_id uuid, p_pagamentos uuid[], p_data_pagamento date, p_sequencial_minimo integer); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.registrar_remessa_obn600(p_conta_autarquia_id uuid, p_pagamentos uuid[], p_data_pagamento date, p_sequencial_minimo integer) IS 'Monta no servidor as ordens bancárias (OBN600) dos pagamentos escolhidos, numera relação e OB, reserva o nº da remessa e os pagamentos e devolve conta pagadora e OBs. Exige pagamento.conciliar.';
+
+
+--
 -- Name: registrar_retorno_remessa(uuid, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -18003,7 +18248,11 @@ CREATE TABLE public.contas_autarquia (
     updated_by uuid,
     updated_by_servidor_id uuid,
     nsa_inicial integer,
-    CONSTRAINT contas_autarquia_nsa_inicial_check CHECK (((nsa_inicial IS NULL) OR ((nsa_inicial >= 1) AND (nsa_inicial <= 999999))))
+    obn_codigo_cliente character varying(9),
+    obn_unidade_gestora character varying(6),
+    obn_gestao character varying(5),
+    CONSTRAINT contas_autarquia_nsa_inicial_check CHECK (((nsa_inicial IS NULL) OR ((nsa_inicial >= 1) AND (nsa_inicial <= 999999)))),
+    CONSTRAINT contas_autarquia_obn_check CHECK ((((obn_codigo_cliente IS NULL) OR ((obn_codigo_cliente)::text ~ '^\d{1,9}$'::text)) AND ((obn_unidade_gestora IS NULL) OR ((obn_unidade_gestora)::text ~ '^\d{1,6}$'::text)) AND ((obn_gestao IS NULL) OR ((obn_gestao)::text ~ '^\d{1,5}$'::text))))
 );
 
 
@@ -18012,6 +18261,27 @@ CREATE TABLE public.contas_autarquia (
 --
 
 COMMENT ON COLUMN public.contas_autarquia.nsa_inicial IS 'Primeiro número de remessa (NSA) desta conta; continua a sequência do sistema anterior. Vazio = 1';
+
+
+--
+-- Name: COLUMN contas_autarquia.obn_codigo_cliente; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contas_autarquia.obn_codigo_cliente IS 'Código do cliente no BB usado no header da remessa OBN600 (posições 059-067). Vazio = a conta não gera OBN600.';
+
+
+--
+-- Name: COLUMN contas_autarquia.obn_unidade_gestora; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contas_autarquia.obn_unidade_gestora IS 'Unidade gestora emitente das ordens bancárias (OBN600, posições 007-012).';
+
+
+--
+-- Name: COLUMN contas_autarquia.obn_gestao; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contas_autarquia.obn_gestao IS 'Gestão das ordens bancárias (OBN600, posições 013-017).';
 
 
 --
@@ -20156,10 +20426,18 @@ CREATE TABLE public.fin_pagamentos (
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     conta_contabil_debito_id uuid,
-    conta_contabil_credito_id uuid
+    conta_contabil_credito_id uuid,
+    remessa_bancaria_id uuid
 );
 
 ALTER TABLE ONLY public.fin_pagamentos FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: COLUMN fin_pagamentos.remessa_bancaria_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_pagamentos.remessa_bancaria_id IS 'Remessa OBN600 (fin_remessas_bancarias) em que o pagamento saiu ou está reservado (reserva = remessa sem arquivo_sha256). Gravado só pelas RPCs de remessa.';
 
 
 --
@@ -20274,6 +20552,8 @@ CREATE TABLE public.fin_remessas_bancarias (
     movimentos uuid[] DEFAULT '{}'::uuid[] NOT NULL,
     created_by uuid DEFAULT auth.uid(),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    pagamentos uuid[] DEFAULT '{}'::uuid[] NOT NULL,
+    parametros jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT fin_remessas_bancarias_agencia_check CHECK (((char_length(agencia) >= 1) AND (char_length(agencia) <= 10))),
     CONSTRAINT fin_remessas_bancarias_agencia_digito_check CHECK ((char_length(agencia_digito) <= 2)),
     CONSTRAINT fin_remessas_bancarias_arquivo_sha256_check CHECK ((arquivo_sha256 ~ '^[0-9a-f]{64}$'::text)),
@@ -20281,8 +20561,9 @@ CREATE TABLE public.fin_remessas_bancarias (
     CONSTRAINT fin_remessas_bancarias_conta_digito_check CHECK ((char_length(conta_digito) <= 2)),
     CONSTRAINT fin_remessas_bancarias_convenio_check CHECK (((char_length(convenio) >= 1) AND (char_length(convenio) <= 20))),
     CONSTRAINT fin_remessas_bancarias_creditos_check CHECK ((jsonb_typeof(creditos) = 'array'::text)),
-    CONSTRAINT fin_remessas_bancarias_layout_check CHECK ((layout = 'gestao_max_cnab240'::text)),
+    CONSTRAINT fin_remessas_bancarias_layout_check CHECK ((layout = ANY (ARRAY['gestao_max_cnab240'::text, 'obn600'::text]))),
     CONSTRAINT fin_remessas_bancarias_nsa_check CHECK (((nsa >= 1) AND (nsa <= 999999))),
+    CONSTRAINT fin_remessas_bancarias_parametros_check CHECK ((jsonb_typeof(parametros) = 'object'::text)),
     CONSTRAINT fin_remessas_bancarias_quantidade_check CHECK (((quantidade >= 1) AND (quantidade <= 999))),
     CONSTRAINT fin_remessas_bancarias_tipo_servico_check CHECK ((tipo_servico = ANY (ARRAY['98'::text, '30'::text]))),
     CONSTRAINT fin_remessas_bancarias_valor_total_check CHECK ((valor_total > (0)::numeric))
@@ -20293,7 +20574,14 @@ CREATE TABLE public.fin_remessas_bancarias (
 -- Name: TABLE fin_remessas_bancarias; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.fin_remessas_bancarias IS 'Arquivos de reenvio (CNAB240 do BB Gestão MAX) gerados pelo sistema: NSA e créditos montados por registrar_remessa_bancaria, hash gravado por confirmar_remessa_bancaria. arquivo_sha256 nulo = reserva não confirmada (cancelável). Escrita só pelas RPCs.';
+COMMENT ON TABLE public.fin_remessas_bancarias IS 'Arquivos de remessa gerados pelo sistema: reenvio de recusados (CNAB240 do BB Gestão MAX) e ordens bancárias dos pagamentos (OBN600). Retrato montado pelas RPCs registrar_remessa_bancaria/registrar_remessa_obn600, hash gravado por confirmar_remessa_bancaria. arquivo_sha256 nulo = reserva não confirmada (cancelável). Escrita só pelas RPCs.';
+
+
+--
+-- Name: COLUMN fin_remessas_bancarias.convenio; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_remessas_bancarias.convenio IS 'Gestão MAX: convênio de pagamento. OBN600: código do cliente no BB. Cópia de contas_autarquia no momento da remessa.';
 
 
 --
@@ -20314,7 +20602,7 @@ COMMENT ON COLUMN public.fin_remessas_bancarias.tipo_servico IS 'Serviço dos cr
 -- Name: COLUMN fin_remessas_bancarias.creditos; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.fin_remessas_bancarias.creditos IS 'Retrato dos créditos do arquivo: [{movimento_id, pagamento_id, nome, documento, banco, agencia, agencia_dv, conta, conta_dv, valor, seu_numero}], montado pelo servidor.';
+COMMENT ON COLUMN public.fin_remessas_bancarias.creditos IS 'Retrato do arquivo. Gestão MAX: [{movimento_id, pagamento_id, nome, documento, banco, agencia, agencia_dv, conta, conta_dv, valor, seu_numero}]. OBN600: [{pagamento_id, pagamento_numero, relacao, numero_ob, nome, documento, banco, agencia, agencia_dv, conta, conta_dv, valor, endereco, municipio, cep, uf}]. Montado pelo servidor.';
 
 
 --
@@ -20322,6 +20610,20 @@ COMMENT ON COLUMN public.fin_remessas_bancarias.creditos IS 'Retrato dos crédit
 --
 
 COMMENT ON COLUMN public.fin_remessas_bancarias.movimentos IS 'fin_movimentos_bancarios recusados reenviados neste arquivo (mesma ordem de creditos).';
+
+
+--
+-- Name: COLUMN fin_remessas_bancarias.pagamentos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_remessas_bancarias.pagamentos IS 'OBN600: fin_pagamentos da remessa (mesma ordem de creditos).';
+
+
+--
+-- Name: COLUMN fin_remessas_bancarias.parametros; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_remessas_bancarias.parametros IS 'OBN600: {unidade_gestora, gestao} copiados da conta pagadora no momento da remessa.';
 
 
 --

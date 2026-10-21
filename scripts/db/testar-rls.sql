@@ -4664,6 +4664,145 @@ BEGIN
   PERFORM pg_temp.nota('FIN (FIPLAN e banco): FIPLAN (confirmação e trava), importação (remessa/retorno/vazio/data de efetivação), janela de 5 dias, conciliação manual, correção de conta, reserva/confirmação/cancelamento do reenvio, retorno do reenvio, extrato do BB, baixa só pelo banco (empenho/dotação/saldo) e exclusão de alteração confirmada verificados');
 END $$;
 
+-- ---------------------------------------------------------------- Financeiro: remessa OBN600 dos pagamentos
+-- Migração 20261024090000_fin_remessa_obn600.sql (spec docs/superpowers/specs/2026-10-21-financeiro-remessa-obn600-design.md):
+--   * registrar_remessa_obn600: sem pagamento.conciliar = 42501; conta sem código do cliente/UG/gestão, pagamento
+--     sem conta, pago, repetido ou lista vazia = 22023; o servidor monta as OBs (tipo 31 antes de 32, nº da OB =
+--     exercício + sequência do pagamento, relação = exercício + nº da remessa + tipo, conta do pagamento ou do
+--     fornecedor) e reserva os pagamentos; nº inicial só na primeira remessa da conta;
+--   * outro usuário não reserva os mesmos pagamentos nem confirma; confirmar grava o nº da OB em
+--     identificador_transacao; pagamento já enviado não entra de novo; cancelar libera os pagamentos;
+--   * o retorno OBN600 casa a OB com o pagamento pelo nº da OB e dá a baixa.
+SET session_replication_role = replica;
+DO $$
+DECLARE
+  forn_pf text := 'f4000000-0000-0000-0000-000000000001';
+  cb text := 'f2000000-0000-0000-0000-000000000002';
+  emp text := 'f2000000-0000-0000-0000-00000000000b'; liq text := 'f2000000-0000-0000-0000-00000000000f';
+BEGIN
+  PERFORM pg_temp.seed_row('fornecedores', jsonb_build_object('id', forn_pf, 'tipo_pessoa', 'PF',
+    'cpf_cnpj', '111.222.333-44', 'razao_social', 'Credora Fictícia', 'banco_codigo', '001', 'agencia', '0250-X',
+    'conta', '208685-9', 'endereco_logradouro', 'Rua A', 'endereco_numero', '10', 'endereco_bairro', 'Centro',
+    'endereco_cidade', 'Boa Vista', 'endereco_uf', 'rr', 'endereco_cep', '69300-000'));
+  -- 201: conta do cadastro do fornecedor (BB); 202: conta no próprio pagamento (outro banco); 203: sem conta;
+  -- 204: já pago; 205: para o cancelamento
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000201', 'numero', 'OP-000201',
+    'exercicio', 2026, 'fornecedor_id', forn_pf, 'empenho_id', emp, 'liquidacao_id', liq, 'conta_bancaria_id', cb,
+    'valor_bruto', 1000, 'valor_retencoes', 100, 'forma_pagamento', 'ob', 'status', 'programado'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000202', 'numero', 'OP-000202',
+    'exercicio', 2026, 'fornecedor_id', forn_pf, 'empenho_id', emp, 'liquidacao_id', liq, 'conta_bancaria_id', cb,
+    'valor_bruto', 50.25, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'autorizado',
+    'banco_favorecido', '341', 'agencia_favorecido', '6953', 'conta_favorecido', '36003-6'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000203', 'numero', 'OP-000203',
+    'exercicio', 2026, 'fornecedor_id', 'f2000000-0000-0000-0000-000000000001', 'empenho_id', emp, 'liquidacao_id', liq,
+    'conta_bancaria_id', cb, 'valor_bruto', 10, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'programado'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000204', 'numero', 'OP-000204',
+    'exercicio', 2026, 'fornecedor_id', forn_pf, 'empenho_id', emp, 'liquidacao_id', liq, 'conta_bancaria_id', cb,
+    'valor_bruto', 10, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'pago', 'data_efetivacao', '2026-10-01'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000205', 'numero', 'OP-000205',
+    'exercicio', 2026, 'fornecedor_id', forn_pf, 'empenho_id', emp, 'liquidacao_id', liq, 'conta_bancaria_id', cb,
+    'valor_bruto', 20, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'programado'));
+  PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000010',
+    'descricao', 'Conta OBN teste', 'agencia', '1234', 'agencia_digito', '5', 'conta', '67890', 'conta_digito', '1',
+    'obn_codigo_cliente', '123456789', 'obn_unidade_gestora', '000123', 'obn_gestao', '00001'));
+END $$;
+SET session_replication_role = origin;
+DO $$
+DECLARE
+  u_conc uuid := 'f1000000-0000-0000-0000-000000000001'; u_conc2 uuid := 'f1000000-0000-0000-0000-000000000004';
+  u_fin uuid := (SELECT uid FROM persona WHERE nome='mod_financeiro');
+  p201 uuid := 'f4000000-0000-0000-0000-000000000201'; p202 uuid := 'f4000000-0000-0000-0000-000000000202';
+  p203 uuid := 'f4000000-0000-0000-0000-000000000203'; p204 uuid := 'f4000000-0000-0000-0000-000000000204';
+  p205 uuid := 'f4000000-0000-0000-0000-000000000205';
+  cobn text := 'f4000000-0000-0000-0000-000000000010';
+  csem text := 'f2000000-0000-0000-0000-000000000005';  -- conta pagadora sem os dados do OBN600
+  hoje text := current_date::text;
+  t text := 'SELECT public.registrar_remessa_obn600(%L, %L::uuid[], %L::date, %s)::text';
+  r text; j jsonb; x record; rem uuid; hash_ok text := repeat('e', 64);
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF to_regprocedure('public.registrar_remessa_obn600(uuid,uuid[],date,integer)') IS NULL THEN
+    PERFORM pg_temp.falha('FIN OBN600: registrar_remessa_obn600 não existe');
+    RETURN;
+  END IF;
+  IF has_function_privilege('anon', 'public.registrar_remessa_obn600(uuid,uuid[],date,integer)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.registrar_remessa_obn600(uuid,uuid[],date,integer)', 'EXECUTE')
+     OR NOT (SELECT prosecdef AND coalesce(proconfig::text, '') ~ 'search_path' FROM pg_proc
+              WHERE oid = 'public.registrar_remessa_obn600(uuid,uuid[],date,integer)'::regprocedure) THEN
+    PERFORM pg_temp.falha('FIN OBN600: privilégios, SECURITY DEFINER ou search_path de registrar_remessa_obn600');
+  END IF;
+
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', format(t, cobn, ARRAY[p201], hoje, 'NULL'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN OBN600: módulo sem pagamento.conciliar gera remessa (' || left(r, 100) || ')'); END IF;
+  FOR x IN SELECT * FROM (VALUES
+      ('conta sem código do cliente/UG/gestão', csem, ARRAY[p201]::text),
+      ('pagamento sem conta', cobn, ARRAY[p203]::text),
+      ('pagamento já pago', cobn, ARRAY[p204]::text),
+      ('pagamento repetido', cobn, ARRAY[p201, p201]::text),
+      ('lista vazia', cobn, '{}')) v(caso, conta, pags) LOOP
+    r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(t, x.conta, x.pags, hoje, 'NULL'));
+    IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha(format('FIN OBN600: %s aceito (%s)', x.caso, left(r, 100))); END IF;
+  END LOOP;
+
+  -- reserva [201 (BB), 202 (outro banco)] com nº inicial 74466: a OB de outro banco (31) vem antes
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(t, cobn, ARRAY[p201, p202], hoje, '74466'));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN OBN600: reserva falhou (' || r || ')'); r := '{}'; END IF;
+  j := r::jsonb; rem := (j->>'id')::uuid;
+  IF j->>'layout' IS DISTINCT FROM 'obn600' OR (j->>'nsa')::int IS DISTINCT FROM 74466 OR j->>'convenio' IS DISTINCT FROM '123456789'
+     OR j->'parametros' IS DISTINCT FROM '{"gestao": "00001", "unidade_gestora": "000123"}'::jsonb
+     OR jsonb_array_length(COALESCE(j->'creditos', '[]')) <> 2 OR j ? 'arquivo_sha256' THEN
+    PERFORM pg_temp.falha('FIN OBN600: retorno da reserva fora do formato (' || left(r, 300) || ')');
+  END IF;
+  IF j->'creditos'->0 @> jsonb_build_object('pagamento_id', p202, 'numero_ob', '02026000202', 'relacao', '20267446631',
+                                             'banco', '341', 'agencia', '6953', 'agencia_dv', '', 'conta', '36003', 'conta_dv', '6',
+                                             'valor', 50.25, 'documento', '11122233344') IS NOT TRUE
+     OR j->'creditos'->1 @> jsonb_build_object('pagamento_id', p201, 'numero_ob', '02026000201', 'relacao', '20267446632',
+                                             'banco', '001', 'agencia', '0250', 'agencia_dv', 'X', 'conta', '208685', 'conta_dv', '9',
+                                             'valor', 900, 'nome', 'Credora Fictícia', 'endereco', 'Rua A, 10 - Centro',
+                                             'municipio', 'Boa Vista', 'cep', '69300000', 'uf', 'RR') IS NOT TRUE THEN
+    PERFORM pg_temp.falha('FIN OBN600: OBs não montadas pelo servidor como esperado (' || left(j->>'creditos', 400) || ')');
+  END IF;
+  IF (SELECT quantidade || '|' || valor_total FROM public.fin_remessas_bancarias WHERE id = rem) IS DISTINCT FROM '2|950.25'
+     OR (SELECT count(*) FROM public.fin_pagamentos WHERE remessa_bancaria_id = rem) <> 2 THEN
+    PERFORM pg_temp.falha('FIN OBN600: quantidade/valor não calculados no servidor ou pagamentos não reservados');
+  END IF;
+  -- outro usuário: não reserva os mesmos pagamentos nem confirma
+  r := pg_temp.valor_desfeito_como(u_conc2, 'authenticated', format(t, cobn, ARRAY[p201], hoje, 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN OBN600: pagamento reservado por outro usuário entrou noutra remessa (' || left(r, 100) || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc2, 'authenticated', format('SELECT public.confirmar_remessa_bancaria(%L, %L)::text', rem, hash_ok));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN OBN600: outro usuário confirmou a reserva (' || r || ')'); END IF;
+  -- confirmação grava o nº da OB nos pagamentos
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.confirmar_remessa_bancaria(%L, %L)->>''pagamentos_marcados''', rem, hash_ok));
+  IF r <> '2' OR (SELECT identificador_transacao FROM public.fin_pagamentos WHERE id = p201) IS DISTINCT FROM '02026000201'
+     OR (SELECT identificador_transacao FROM public.fin_pagamentos WHERE id = p202) IS DISTINCT FROM '02026000202' THEN
+    PERFORM pg_temp.falha('FIN OBN600: confirmação não gravou o nº da OB nos pagamentos (' || r || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(t, cobn, ARRAY[p201], hoje, 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN OBN600: pagamento já enviado aceito de novo (' || left(r, 100) || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.obter_remessa_bancaria(%L)->>''arquivo_sha256''', rem));
+  IF r IS DISTINCT FROM hash_ok THEN PERFORM pg_temp.falha('FIN OBN600: obter_remessa_bancaria sem o hash confirmado (' || r || ')'); END IF;
+
+  -- nº inicial ignorado depois da primeira remessa; cancelar libera os pagamentos
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(t, cobn, ARRAY[p205], hoje, '500'));
+  IF r LIKE 'erro:%' OR (r::jsonb->>'nsa')::int <> 74467 THEN PERFORM pg_temp.falha('FIN OBN600: próximo nº não é max + 1 (' || left(r, 120) || ')'); r := '{}'; END IF;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.cancelar_remessa_bancaria(%L)->>''pagamentos_liberados''', (r::jsonb->>'id')));
+  IF r <> '1' OR (SELECT remessa_bancaria_id FROM public.fin_pagamentos WHERE id = p205) IS NOT NULL THEN
+    PERFORM pg_temp.falha('FIN OBN600: cancelar não liberou o pagamento (' || r || ')');
+  END IF;
+
+  -- retorno OBN600: a OB 02026000201 paga casa com o pagamento 201 pelo nº da OB e dá a baixa
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.importar_arquivo_bancario(%L::jsonb, %L::jsonb, %L::jsonb, false)::text',
+         '[{"tipo_lancamento":"credito_bb","identificador":"02026000201","favorecido_documento":"11122233344","valor":900,'
+         '"data_pagamento":"' || hoje || '","data_efetivacao":"' || hoje || '","situacao":"pago","codigo_retorno":"01"}]',
+         '{"nome":"OBN600_RET_TESTE.txt","sha256":"' || repeat('f', 64) || '","tamanho":1054}',
+         '{"origem":"obn600","sentido":"retorno","data_arquivo":"' || hoje || '","sequencial_arquivo":"74466"}'));
+  IF r LIKE 'erro:%' OR (SELECT status::text || '|' || data_efetivacao FROM public.fin_pagamentos WHERE id = p201) IS DISTINCT FROM 'pago|' || hoje THEN
+    PERFORM pg_temp.falha('FIN OBN600: retorno não deu baixa no pagamento pelo nº da OB (' || left(r, 160) || ')');
+  END IF;
+
+  PERFORM pg_temp.nota('FIN OBN600: permissão, regras de entrada, montagem das OBs no servidor, numeração, reserva/confirmação/cancelamento e baixa pelo retorno verificados');
+END $$;
+
 -- ---------------------------------------------------------------- Lançamento por setor (fase 1) (TRIGGERS LIGADOS)
 -- Migração 20261011020000_lancamento_por_setor.sql (spec docs/superpowers/specs/2026-10-11-lancamento-por-setor-design.md):
 --   * catálogo: regra_lancamento com rh = registrar e os demais desligado; rh.comissoes.gerenciar só para o papel admin;

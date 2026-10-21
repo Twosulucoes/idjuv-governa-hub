@@ -6000,6 +6000,9 @@ export type Database = {
           descricao: string
           id: string
           nsa_inicial: number | null
+          obn_codigo_cliente: string | null
+          obn_gestao: string | null
+          obn_unidade_gestora: string | null
           tipo_conta: string | null
           updated_at: string | null
           updated_by: string | null
@@ -6023,6 +6026,9 @@ export type Database = {
           descricao: string
           id?: string
           nsa_inicial?: number | null
+          obn_codigo_cliente?: string | null
+          obn_gestao?: string | null
+          obn_unidade_gestora?: string | null
           tipo_conta?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -6045,6 +6051,9 @@ export type Database = {
           descricao?: string
           id?: string
           nsa_inicial?: number | null
+          obn_codigo_cliente?: string | null
+          obn_gestao?: string | null
+          obn_unidade_gestora?: string | null
           tipo_conta?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -11800,6 +11809,7 @@ export type Database = {
           motivo_estorno: string | null
           numero: string
           observacoes: string | null
+          remessa_bancaria_id: string | null
           status: Database["public"]["Enums"]["status_pagamento"] | null
           tipo_conta_favorecido: string | null
           updated_at: string | null
@@ -11837,6 +11847,7 @@ export type Database = {
           motivo_estorno?: string | null
           numero: string
           observacoes?: string | null
+          remessa_bancaria_id?: string | null
           status?: Database["public"]["Enums"]["status_pagamento"] | null
           tipo_conta_favorecido?: string | null
           updated_at?: string | null
@@ -11873,6 +11884,7 @@ export type Database = {
           motivo_estorno?: string | null
           numero?: string
           observacoes?: string | null
+          remessa_bancaria_id?: string | null
           status?: Database["public"]["Enums"]["status_pagamento"] | null
           tipo_conta_favorecido?: string | null
           updated_at?: string | null
@@ -11921,6 +11933,13 @@ export type Database = {
             columns: ["liquidacao_id"]
             isOneToOne: false
             referencedRelation: "fin_liquidacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_pagamentos_remessa_bancaria_id_fkey"
+            columns: ["remessa_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_remessas_bancarias"
             referencedColumns: ["id"]
           },
         ]
@@ -12157,6 +12176,8 @@ export type Database = {
           layout: string
           movimentos: string[]
           nsa: number
+          pagamentos: string[]
+          parametros: NonNullable<Json>
           quantidade: number
           tipo_servico: string
           valor_total: number
@@ -12179,6 +12200,8 @@ export type Database = {
           layout?: string
           movimentos?: string[]
           nsa: number
+          pagamentos?: string[]
+          parametros?: NonNullable<Json>
           quantidade: number
           tipo_servico?: string
           valor_total: number
@@ -12200,6 +12223,8 @@ export type Database = {
           layout?: string
           movimentos?: string[]
           nsa?: number
+          pagamentos?: string[]
+          parametros?: NonNullable<Json>
           quantidade?: number
           tipo_servico?: string
           valor_total?: number
@@ -25257,6 +25282,15 @@ export type Database = {
           p_movimentos: string[]
           p_nsa_minimo?: number
           p_tipo_servico?: string
+        }
+        Returns: Json
+      }
+      registrar_remessa_obn600: {
+        Args: {
+          p_conta_autarquia_id: string
+          p_data_pagamento: string
+          p_pagamentos: string[]
+          p_sequencial_minimo?: number
         }
         Returns: Json
       }

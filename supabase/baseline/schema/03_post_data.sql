@@ -5687,6 +5687,13 @@ CREATE INDEX idx_fin_pagamentos_liquidacao ON public.fin_pagamentos USING btree 
 
 
 --
+-- Name: idx_fin_pagamentos_remessa_bancaria; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_pagamentos_remessa_bancaria ON public.fin_pagamentos USING btree (remessa_bancaria_id);
+
+
+--
 -- Name: idx_fin_pagamentos_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -15406,6 +15413,14 @@ ALTER TABLE ONLY public.fin_pagamentos
 
 ALTER TABLE ONLY public.fin_pagamentos
     ADD CONSTRAINT fin_pagamentos_liquidacao_id_fkey FOREIGN KEY (liquidacao_id) REFERENCES public.fin_liquidacoes(id);
+
+
+--
+-- Name: fin_pagamentos fin_pagamentos_remessa_bancaria_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_pagamentos
+    ADD CONSTRAINT fin_pagamentos_remessa_bancaria_id_fkey FOREIGN KEY (remessa_bancaria_id) REFERENCES public.fin_remessas_bancarias(id) ON DELETE SET NULL;
 
 
 --
