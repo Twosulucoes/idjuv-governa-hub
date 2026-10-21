@@ -1,6 +1,6 @@
 /**
  * Gera a remessa OBN600 (ordens bancárias de crédito em conta) dos pagamentos escolhidos.
- * Código do cliente, UG, gestão e conta pagadora vêm de `contas_autarquia`; o banco reserva o nº da remessa, monta
+ * Código do cliente, UG, gestão e conta pagadora vêm de `contas_autarquia` (aba "Contas pagadoras"); o banco reserva o nº da remessa, monta
  * as OBs (favorecido e conta) e o arquivo sai só desse retrato. Se algo falhar depois da reserva, a tela oferece
  * cancelar a reserva.
  */
@@ -59,9 +59,11 @@ interface Props {
   pagamentos: PagamentoParaRemessa[];
   /** Chamado depois de gerar (para limpar a seleção) */
   onGerado?: () => void;
+  /** Leva à aba "Contas pagadoras" (quando falta cadastrar a conta) */
+  aoAbrirContas?: () => void;
 }
 
-export function GerarRemessaObnDialog({ aberto, onOpenChange, pagamentos, onGerado }: Props) {
+export function GerarRemessaObnDialog({ aberto, onOpenChange, pagamentos, onGerado, aoAbrirContas }: Props) {
   const contas = useContasPagadorasObn();
   const gerar = useGerarRemessaObn600();
   const cancelar = useCancelarRemessaBancaria();
@@ -139,9 +141,21 @@ export function GerarRemessaObnDialog({ aberto, onOpenChange, pagamentos, onGera
           <Alert>
             <AlertCircle className="h-4 w-4" aria-hidden />
             <AlertTitle>Nenhuma conta com os dados do OBN600</AlertTitle>
-            <AlertDescription>
-              Cadastre o código do cliente no BB, a UG e a gestão na conta da instituição (Configurações da Folha →
-              Bancos) e volte aqui.
+            <AlertDescription className="space-y-2">
+              <p>Cadastre o código do cliente no BB, a UG e a gestão na conta da instituição e volte aqui.</p>
+              {aoAbrirContas && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    onOpenChange(false);
+                    aoAbrirContas();
+                  }}
+                >
+                  Abrir contas pagadoras
+                </Button>
+              )}
             </AlertDescription>
           </Alert>
         ) : null}
