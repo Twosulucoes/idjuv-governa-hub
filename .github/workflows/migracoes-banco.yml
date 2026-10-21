@@ -156,11 +156,13 @@ jobs:
           echo "::add-mask::$senha"
           echo "SUPABASE_DB_URL=postgresql://postgres:${senha}@127.0.0.1:54322/postgres" >> "$GITHUB_ENV"
 
+      # --include-all: PRs mergeados fora da ordem dos números deixam pendente uma migração mais antiga que a última do
+      # banco; sem ela o push recusa tudo. A trava abaixo continua valendo para o total de pendentes.
       - name: Simular (dry-run) e conferir a trava
         run: |
           set -o pipefail
           supabase --version
-          supabase db push --db-url "$SUPABASE_DB_URL" --dry-run 2>&1 | tee /tmp/dry-run.log
+          supabase db push --db-url "$SUPABASE_DB_URL" --include-all --dry-run 2>&1 | tee /tmp/dry-run.log
           pendentes=$(grep -oE '[0-9]{14}_[^ ]*\.sql' /tmp/dry-run.log | sort -u || true)
           total=$(printf '%s' "$pendentes" | grep -c . || true)
           {
@@ -176,7 +178,7 @@ jobs:
         id: aplicar
         run: |
           set -o pipefail
-          supabase db push --db-url "$SUPABASE_DB_URL" 2>&1 | tee /tmp/push.log
+          supabase db push --db-url "$SUPABASE_DB_URL" --include-all 2>&1 | tee /tmp/push.log
           echo "### Migrações aplicadas em produção" >> "$GITHUB_STEP_SUMMARY"
 
       # Trilha dos arquivos do RH (migração 20261011000200): sem o privilégio TRIGGER em storage.objects a migração só
