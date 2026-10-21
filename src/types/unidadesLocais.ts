@@ -104,7 +104,7 @@ export interface UnidadeLocal {
     servidor_nome: string;
     cargo: string;
     data_inicio: string;
-    ato_numero: string;
+    ato_numero: string | null;
   };
 }
 
@@ -114,10 +114,13 @@ export interface NomeacaoChefeUnidade {
   servidor_id: string;
   cargo: string;
   ato_nomeacao_tipo: TipoAtoNomeacao;
-  ato_numero: string;
-  ato_data_publicacao: string;
-  ato_doe_numero?: string;
-  ato_doe_data?: string;
+  // Ciclo do ato no SEI (o sistema não redige o ato): nulos enquanto aguarda o SEI
+  processo_sei?: string | null;
+  ato_numero: string | null;
+  ato_data_assinatura?: string | null;
+  ato_data_publicacao: string | null;
+  ato_doe_numero?: string | null;
+  ato_doe_data?: string | null;
   data_inicio: string;
   data_fim?: string;
   status: StatusNomeacao;
@@ -223,7 +226,8 @@ export interface TermoCessao {
   id: string;
   agenda_id: string;
   unidade_local_id: string;
-  numero_termo: string;
+  /** Número do termo no SEI; nulo enquanto aguarda o SEI (registros antigos têm o número interno). */
+  numero_termo: string | null;
   numero_protocolo?: string;
   ano: number;
   tipo_termo?: string;
@@ -250,7 +254,11 @@ export interface TermoCessao {
   documento_gerado_url?: string;
   documento_assinado_url?: string;
   data_emissao?: string;
-  data_assinatura?: string;
+  data_assinatura?: string | null;
+  // Ciclo do termo no SEI
+  processo_sei?: string | null;
+  doe_numero?: string | null;
+  doe_data?: string | null;
   termo_responsabilidade_aceito?: boolean;
   data_aceite_responsabilidade?: string;
   // Histórico
@@ -339,9 +347,10 @@ export const STATUS_AGENDA_COLORS: Record<StatusAgenda, string> = {
   concluido: 'bg-primary text-primary-foreground',
 };
 
+// O termo é feito no SEI: "pendente" = aguardando SEI; "emitido" = numerado no SEI, aguardando assinatura
 export const STATUS_TERMO_LABELS: Record<StatusTermoCessao, string> = {
-  pendente: 'Pendente',
-  emitido: 'Emitido',
+  pendente: 'Aguardando SEI',
+  emitido: 'Numerado no SEI',
   assinado: 'Assinado',
   cancelado: 'Cancelado',
 };
