@@ -45,7 +45,8 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useParametrizacoesFrequencia`, `useGerarFrequenciaPDF`, `useFolhaPagamento`,
   `useFolhaCalculos`, `useFechamentoFolha`, `useAtosRemuneratorios` (atos que mudam valores da folha e a RPC
   `aplicar_ato_remuneratorio`), `useContracheque`,
-  `useRelatorios`, `usePortarias`, `usePreCadastro`.
+  `useRelatorios`, `usePortarias`, `usePreCadastro`, `useDesignacoesChefiaUnidade` (designação de chefia de
+  unidade local, na ficha do servidor: registro e edição do ciclo do ato no SEI).
 - **Financeiro**: `useFinanceiro` (inclui `useResumoOrcamentario`, `useUltimaImportacaoQdd`,
   `useCriarSolicitacao`, `useCriarContaBancaria`), `useAlteracoesOrcamentarias` (inclui
   `useConfirmarAlteracaoFiplan`), `useSubEmpenhos`, `useRestosAPagar`,
@@ -60,7 +61,9 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   (`src/components/financeiro/SeletorExercicio.tsx`). Tela nova do financeiro que filtra por ano deve usar este
   hook, não um `useState` próprio.
 - **Patrimônio**: `usePatrimonio`, `useCadastroLote`, `useCadastroBemSimplificado`,
-  `useMovimentacaoLote`, `useAlmoxarifado`, `useColetaOffline`. Inventário de
+  `useMovimentacaoLote`, `useAlmoxarifado`, `useColetaOffline`, `useTermosCessao` (termos de cessão da unidade
+  local: registro da reserva aprovada e ciclo do SEI; a etapa e a validação ficam em `src/lib/registroSei.ts`, com
+  os campos `CamposAtoSei` compartilhados com a designação). Inventário de
   campo: `useVistoriaInventario` (unidades da campanha, situação, fotos com URL
   assinada, importação de KML), `useFilaFotosVistoria` (fila offline de fotos),
   `useGeolocalizacao` (posição e precisão do GPS); tipos em

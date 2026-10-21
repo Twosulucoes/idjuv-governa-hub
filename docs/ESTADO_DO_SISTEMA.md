@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 211 |
-| Componentes (`.tsx` em `src/components`) | 317 |
+| Componentes (`.tsx` em `src/components`) | 318 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 274 |
-| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 101 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 55 |
+| — fora de `ui/` | 275 |
+| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 103 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 56 |
 | Linhas de `src/App.tsx` | 1369 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27281 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27296 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -67,8 +67,8 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 305 |
-| Migração mais recente | `20261022100000_folha_importar_sigrh_ajustes.sql` |
+| Migrações (`supabase/migrations/*.sql`) | 306 |
+| Migração mais recente | `20261023090000_registro_sei_termo_cessao_designacao.sql` |
 | Tabelas do schema public (baseline) | 258 |
 | Views (baseline) | 18 |
 | Funções (baseline) | 311 |

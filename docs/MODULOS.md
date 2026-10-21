@@ -56,7 +56,9 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
 
 - **Servidores**: `GestaoServidoresPage`, `ServidorFormPage`, `ServidorDetalhePage`,
   `DiagnosticoPendenciasServidoresPage`, `AniversariantesPage`.
-- **Lotação/designação**: `GestaoLotacaoPage`, `GestaoDesignacoesPage`.
+- **Lotação/designação**: `GestaoLotacaoPage`, `GestaoDesignacoesPage`. A designação de chefia de unidade local
+  (aba da ficha do servidor, `DesignacoesUnidadeTab`) registra o ato feito no SEI: tipo, processo SEI, número do ato,
+  assinatura, publicação e DOE, todos completáveis depois (lápis na linha); sem número, "aguardando SEI".
 - **Frequência/ponto**: `GestaoFrequenciaPage`, `ConfiguracaoFrequenciaPage`,
   `ControlePacotesFrequenciaPage`, `ValidacaoFrequenciaPage` (`/rh/frequencia/validacao`:
   fila de abonos com aprovação chefia → RH e rejeição com motivo; grade de fechamento
@@ -246,7 +248,12 @@ Bens, inventário, almoxarifado e unidades.
   `IncluirUnidadesCampanhaDialog`); dados em `useVistoriaInventario`.
 - **Unidades locais** (`src/pages/unidades/`): `GestaoUnidadesLocaisPage`,
   `UnidadeDetalhePage`, `RelatoriosCentralPage`, `RelatoriosUnidadesLocaisPage`,
-  `RelatoriosCedenciaPage` (cessões de espaços).
+  `RelatoriosCedenciaPage` (cessões de espaços). Termo de cessão (aba "Termos de Cessão" do detalhe da unidade,
+  `TermosCessaoTab`): o termo é feito e assinado no SEI; o sistema registra o termo da reserva aprovada com processo
+  SEI, número do termo no SEI, data da assinatura e DOE (todos opcionais na hora do registro) e permite completar
+  ou cancelar depois (lápis na linha). Sem número, a lista mostra "aguardando SEI" e a etapa é "Aguardando SEI";
+  numerado, "Numerado no SEI"; com a assinatura, "Assinado". Termos antigos guardam o número interno que o sistema
+  gerava.
 - **Mobile/PWA** (`src/pages/mobile/`): `PatrimonioMobileUnificadoPage`
   (cadastro + coleta em campo, com leitura de QR via `html5-qrcode` e modo
   offline via `useColetaOffline`), `InstalarAppPage`. O cartão "Vistoria de
