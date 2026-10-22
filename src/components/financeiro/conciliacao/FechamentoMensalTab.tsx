@@ -3,15 +3,17 @@
  *
  * Lê o razão (FIP630), a relação de pagamentos por RE (FIP103, opcional) e o extrato OFX do BB, casa o que
  * corresponde (`@/lib/conciliacao`) junto com as pendências do mês anterior fechado e mostra o quadro e as quatro
- * listas. O OFX não traz o fundo: o rendimento do mês é digitado e o saldo do fundo é o do mês anterior (na
- * implantação, digitado) mais as aplicações, menos os resgates automáticos do OFX, mais o rendimento. O FIP630 e o
- * OFX são conferidos contra a conta escolhida. Casamento manual só de
+ * listas. O OFX não traz o fundo: o rendimento do mês vem do extrato mensal do fundo em PDF (opcional; sem ele, é
+ * digitado) e o saldo do fundo é o do mês anterior (na implantação, o saldo anterior desse extrato ou digitado) mais
+ * as aplicações, menos os resgates automáticos do OFX, mais o rendimento. O FIP630 e o
+ * OFX são conferidos contra a conta escolhida. A IA pode sugerir casamentos para as pendências que sobraram (só as
+ * pendências vão para ela, sem CPF/CNPJ); cada sugestão só entra se o usuário aceitar. Casamento manual só de
  * pendências cujos débitos e créditos somam o mesmo valor, com justificativa. Fechar confere o quadro no banco;
  * reabrir é só do administrador. Spec: docs/superpowers/specs/2026-10-21-financeiro-conciliacao-mensal-design.md
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { FileDown, FileUp, Link2, Loader2, Lock, LockOpen, Plus, Save, Trash2, Unlink } from "lucide-react";
+import { FileDown, FileUp, Link2, Loader2, Lock, LockOpen, Plus, Save, Sparkles, Trash2, Unlink, X } from "lucide-react";
 import { KpiCard, StatusBadge } from "@/components/design-system";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -40,11 +42,14 @@ import {
   useMesConciliacao,
   useReabrirConciliacaoMensal,
   useSalvarConciliacaoMensal,
+  useSugerirCasamentos,
   type ArquivoConciliacao,
 } from "@/hooks/useConciliacaoMensal";
 import { conciliar, itensDoMes, montarQuadro } from "@/lib/conciliacao/casamento";
 import { lerRazaoFip630, lerRelacaoFip103, razaoEhDaConta } from "@/lib/conciliacao/fiplan";
+import { lerExtratoFundoBB } from "@/lib/conciliacao/extratoFundoBB";
 import { lerExtratoOfx, movimentoDoFundo, type MovimentoFundo } from "@/lib/conciliacao/ofxBB";
+import { pedidoDeSugestoes, sugestoesValidas, type SugestaoCasamento } from "@/lib/conciliacao/sugestoes";
 import {
   casarManual,
   comRendimento,
@@ -81,6 +86,9 @@ const LISTAS: { lado: LadoConciliacao; natureza: NaturezaConciliacao; titulo: st
   { lado: "bancario", natureza: "debito", titulo: "Débitos bancários não correspondidos no razão", sinal: "(-)" },
   { lado: "bancario", natureza: "credito", titulo: "Créditos bancários não correspondidos no razão", sinal: "(+)" },
 ];
+
+/** O histórico vai para a IA, com CPF/CNPJ apagados. */
+const HISTORICO_PARA_IA = true;
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -140,10 +148,12 @@ export function FechamentoMensalTab() {
   const { data: dadosMes, isLoading: carregandoMes } = useMesConciliacao(contaId, competencia);
   const salvar = useSalvarConciliacaoMensal();
   const reabrir = useReabrirConciliacaoMensal();
+  const sugerir = useSugerirCasamentos();
 
   const [fip630, setFip630] = useState<File | null>(null);
   const [fip103, setFip103] = useState<File | null>(null);
   const [ofx, setOfx] = useState<File | null>(null);
+  const [extratoFundo, setExtratoFundo] = useState<File | null>(null);
   const [saldoConta, setSaldoConta] = useState("");
   const [saldoFundo, setSaldoFundo] = useState("");
   const [aberturaFundo, setAberturaFundo] = useState("");
@@ -157,6 +167,7 @@ export function FechamentoMensalTab() {
   const [fecharAberto, setFecharAberto] = useState(false);
   const [reabrirAberto, setReabrirAberto] = useState(false);
   const [motivo, setMotivo] = useState("");
+  const [sugestoes, setSugestoes] = useState<SugestaoCasamento[]>([]);
 
   useEffect(() => {
     if (!contaId && contas?.length === 1) setContaId(contas[0].id);
@@ -165,6 +176,7 @@ export function FechamentoMensalTab() {
   // Troca de conta/mês ou recarga: o que está gravado manda (o rascunho continua de onde parou)
   useEffect(() => {
     setSelecionados(new Set());
+    setSugestoes([]);
     if (!dadosMes) {
       setCalculo(null);
       return;
@@ -244,6 +256,8 @@ export function FechamentoMensalTab() {
       const razao = lerRazaoFip630(await lerLinhasPdf(await fip630.arrayBuffer()));
       const relacao = fip103 ? lerRelacaoFip103(await lerLinhasPdf(await fip103.arrayBuffer())) : null;
       const extrato = lerExtratoOfx(await lerTexto(ofx));
+      const fundoPdf = extratoFundo ? lerExtratoFundoBB(await lerLinhasPdf(await extratoFundo.arrayBuffer())) : null;
+      const movimento = movimentoDoFundo(extrato);
 
       const foraDoMes = razao.lancamentos.filter((l) => !l.data.startsWith(mes)).length;
       const extratoForaDoMes = extrato.lancamentos.filter((l) => !l.data.startsWith(mes)).length;
@@ -255,18 +269,21 @@ export function FechamentoMensalTab() {
         extratoForaDoMes && `${extratoForaDoMes} lançamento(s) do extrato fora do mês`,
         contaDiferente && `o extrato é da conta ${extrato.conta}`,
         razaoDeOutraConta && `o FIP630 não é da conta ${[conta.conta, conta.conta_digito].filter(Boolean).join("-")}`,
+        ...(fundoPdf ? avisosDoFundo(fundoPdf, movimento) : []),
       ].filter(Boolean);
       if (avisos.length) toast({ title: "Confira os arquivos", description: `Atenção: ${avisos.join("; ")}.`, variant: "destructive" });
 
-      const doMes = itensDoMes(razao, relacao, extrato, {
-        data: ultimoDia(mes),
-        valorCentavos: centavosRendimento ?? 0,
-      });
+      // Com o extrato do fundo, o rendimento e (na implantação) o saldo do início do mês vêm dele
+      const rendimentoCentavos = fundoPdf ? fundoPdf.total.rendimentoLiquidoCentavos : (centavosRendimento ?? 0);
+      if (fundoPdf) {
+        setRendimento(formatarCentavos(rendimentoCentavos));
+        if (!anterior) setAberturaFundo(formatarCentavos(fundoPdf.total.saldoAnteriorCentavos));
+      }
+      const doMes = itensDoMes(razao, relacao, extrato, { data: ultimoDia(mes), valorCentavos: rendimentoCentavos });
       const antigos = dadosMes.anterior?.situacao === "fechada" ? pendenciasDoMesAnterior(dadosMes.itensAnterior) : [];
       // Na implantação, as pendências de abertura já lançadas continuam
       const abertura = (calculo?.itens ?? []).filter((i) => i.origem === "abertura");
       const itens = [...antigos, ...abertura, ...doMes];
-      const movimento = movimentoDoFundo(extrato);
       setCalculo({
         itens,
         resultado: conciliar(itens),
@@ -280,10 +297,12 @@ export function FechamentoMensalTab() {
             aplicacoes: movimento.aplicacoesCentavos / 100,
             resgates: movimento.resgatesCentavos / 100,
           },
+          ...(extratoFundo ? [{ tipo: "extrato_fundo" as const, nome: extratoFundo.name }] : []),
         ],
         fundo: movimento,
       });
       setSelecionados(new Set());
+      setSugestoes([]);
     } catch (e) {
       toast({ title: "Não foi possível ler os arquivos", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -298,6 +317,48 @@ export function FechamentoMensalTab() {
     if (!calculo || fechado || valorCentavos === null || valorCentavos < 0) return;
     const novo = comRendimento(calculo.itens, calculo.resultado, { data: ultimoDia(mes), valorCentavos });
     if (novo.itens !== calculo.itens) setCalculo({ ...calculo, ...novo });
+  }
+
+  /** O extrato do fundo é da conta e do mês, e bate com o mês anterior gravado e com o movimento do OFX. */
+  function avisosDoFundo(f: ReturnType<typeof lerExtratoFundoBB>, movimento: MovimentoFundo): string[] {
+    const digitos = (x: string) => x.replace(/\D/g, "").replace(/^0+/, "");
+    const numeroConta = conta ? digitos(`${conta.conta}${conta.conta_digito ?? ""}`) : "";
+    const avisos: string[] = [];
+    if (numeroConta && f.conta && digitos(f.conta) !== numeroConta) avisos.push(`o extrato do fundo é da conta ${f.conta}`);
+    if (f.mes !== mes) avisos.push(`o extrato do fundo é de ${f.mes.split("-").reverse().join("/")}`);
+    if (anterior && Math.round(anterior.saldo_fundo * 100) !== f.total.saldoAnteriorCentavos) {
+      avisos.push(
+        `o saldo anterior do extrato do fundo (${formatarCentavos(f.total.saldoAnteriorCentavos)}) não é o do mês anterior gravado (${formatarCentavos(Math.round(anterior.saldo_fundo * 100))})`,
+      );
+    }
+    if (f.total.aplicacoesCentavos !== movimento.aplicacoesCentavos || f.total.resgatesCentavos !== movimento.resgatesCentavos) {
+      avisos.push("as aplicações e os resgates do extrato do fundo não batem com os do OFX");
+    }
+    return avisos;
+  }
+
+  function pedirSugestoes() {
+    if (!calculo) return;
+    const pendentes = calculo.resultado.pendentes;
+    const { pendencias, idDaTela } = pedidoDeSugestoes(pendentes, HISTORICO_PARA_IA);
+    sugerir.mutate(pendencias, {
+      onSuccess: (resposta) => {
+        const validas = sugestoesValidas(pendentes, resposta, idDaTela);
+        setSugestoes(validas);
+        if (!validas.length) toast({ title: "Nenhuma sugestão", description: "A IA não achou casamento claro nas pendências." });
+      },
+    });
+  }
+
+  function aceitarSugestao(s: SugestaoCasamento) {
+    setSugestoes((atual) => atual.filter((x) => x !== s));
+    if (!calculo) return;
+    try {
+      setCalculo({ ...calculo, resultado: casarManual(calculo.itens, calculo.resultado, s.ids, `Sugestão da IA aceita: ${s.motivo}`) });
+      setSelecionados(new Set());
+    } catch (e) {
+      toast({ title: "Não foi possível casar", description: (e as Error).message, variant: "destructive" });
+    }
   }
 
   function alternar(id: string) {
@@ -471,15 +532,23 @@ export function FechamentoMensalTab() {
                 <CardTitle className="text-base">Arquivos e saldos do mês</CardTitle>
                 <CardDescription>
                   FIP630 (razão) e extrato OFX são obrigatórios; o FIP103 liga cada pagamento à sua RE. Saldos do último
-                  dia do mês. O rendimento entra como crédito bancário; o saldo do fundo é calculado com as aplicações
-                  e os resgates do extrato.
+                  dia do mês. O rendimento vem do extrato mensal do fundo (BB: Investimentos → Fundos → Extrato mensal)
+                  ou é digitado, e entra como crédito bancário; o saldo do fundo é calculado com as aplicações e os
+                  resgates do extrato.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <ArquivoCampo id="conc-fip630" rotulo="FIP630 (PDF)" aceita=".pdf" arquivo={fip630} aoEscolher={setFip630} />
                   <ArquivoCampo id="conc-fip103" rotulo="FIP103 (PDF, opcional)" aceita=".pdf" arquivo={fip103} aoEscolher={setFip103} />
                   <ArquivoCampo id="conc-ofx" rotulo="Extrato OFX" aceita=".ofx" arquivo={ofx} aoEscolher={setOfx} />
+                  <ArquivoCampo
+                    id="conc-extrato-fundo"
+                    rotulo="Extrato mensal do fundo (PDF, opcional)"
+                    aceita=".pdf"
+                    arquivo={extratoFundo}
+                    aoEscolher={setExtratoFundo}
+                  />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <ValorCampo id="conc-saldo-conta" rotulo="Saldo da conta corrente" valor={saldoConta} aoMudar={setSaldoConta} />
@@ -576,6 +645,12 @@ export function FechamentoMensalTab() {
                     <LockOpen className="h-4 w-4" aria-hidden /> Reabrir
                   </Button>
                 )}
+                {!fechado && calculo.resultado.pendentes.length >= 2 && (
+                  <Button variant="outline" onClick={pedirSugestoes} disabled={sugerir.isPending}>
+                    {sugerir.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
+                    Sugerir casamentos (IA)
+                  </Button>
+                )}
                 {!fechado && selecionados.size > 0 && (
                   <div className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
                     <span>
@@ -590,6 +665,43 @@ export function FechamentoMensalTab() {
                   </div>
                 )}
               </div>
+
+              {!fechado && sugestoes.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Sugestões da IA ({sugestoes.length})</CardTitle>
+                    <CardDescription>
+                      Confira cada uma. Aceitar casa os itens com o motivo como justificativa; recusar só tira a sugestão.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {sugestoes.map((s) => (
+                      <div key={s.ids.join()} className="flex flex-wrap items-start justify-between gap-2 rounded-md border p-2 text-sm">
+                        <div className="space-y-0.5">
+                          {s.ids.map((id) => {
+                            const i = porId.get(id);
+                            return i ? (
+                              <p key={id} className="text-muted-foreground">
+                                {i.lado === "contabil" ? "Razão" : "Banco"} · {i.natureza === "debito" ? "D" : "C"} · {dataBR(i.data)} ·{" "}
+                                {i.documento || i.historico} · {formatarCentavos(i.valorCentavos)}
+                              </p>
+                            ) : null;
+                          })}
+                          <p className="italic">{s.motivo}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" onClick={() => aceitarSugestao(s)}>
+                            <Link2 className="h-4 w-4" aria-hidden /> Aceitar
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setSugestoes((atual) => atual.filter((x) => x !== s))}>
+                            <X className="h-4 w-4" aria-hidden /> Recusar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
               {LISTAS.map((l) => (
                 <ListaPendencias

@@ -28,6 +28,7 @@ Aposentada no P06 (2026-10-15): `backup-offsite` (backup antigo em JSON para out
 | `download-frequencia` | Devolve URL assinada (1 h) do arquivo de um pacote de frequência do bucket privado `frequencias`, ou só os dados do pacote (`action=info`). Exige o módulo `rh` e `rh.frequencia.visualizar` (ver abaixo). |
 | `database-schema` | Inspeciona o schema do banco (apoia a tela `DatabaseSchemaPage`). |
 | `cpsi-ai-assistant` | Assistente de IA do antigo formulário CPSI. A tela saiu na onda 5 do P23 (DFD/ETP/TR são do SEI); a função segue publicada sem chamador no front até a decisão D2 do roadmap. |
+| `conciliacao-ia-sugestoes` | Sugere casamentos para as pendências da conciliação mensal (aba "Fechamento mensal") pelo Gemini. Não grava nada: a tela mostra cada sugestão e o usuário aceita ou recusa. Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
 | `bb-api` | APIs de leitura do Banco do Brasil: `status` da conexão, `extrato` (API Extratos v2, grava em `fin_extrato_lancamentos`) e `validar-conta` (API Validação de Contas v1). Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
 
 ### Envio de e-mail e WhatsApp (`_shared/envio`)
@@ -77,6 +78,17 @@ Exige sessão, o módulo `compras` e respeita limites: 10.000 caracteres por cam
 16.384 tokens de resposta (com 2.048 de raciocínio) e 30 chamadas por usuário por hora. Resposta cortada pelo
 teto vira erro claro (422). Erros internos não vão para o navegador.
 
+### Sugestão de casamentos da conciliação (`conciliacao-ia-sugestoes`)
+
+Exige sessão, o módulo `financeiro` e `pagamento.conciliar` (a mesma permissão que grava a conciliação, conferida com
+o token do próprio usuário). Recebe só as pendências que sobraram das regras automáticas (até 400, com id curto
+`p0`, `p1`…, data, lado, natureza, tipo, documento, histórico de até 200 caracteres e valor em centavos), apaga CPF e
+CNPJ do histórico (também no navegador, `src/lib/conciliacao/sugestoes.ts`) e pede ao Gemini (`GEMINI_API_KEY`,
+`GEMINI_MODEL`, as mesmas do assistente do CPSI) grupos que se correspondem, em JSON com schema. Devolve só os grupos
+que fecham (débitos = créditos), com ids conhecidos e cada id uma vez; a tela confere de novo e o aceite passa pelo
+casamento manual, com o motivo da IA na justificativa ("Sugestão da IA aceita: …"). Limite: 20 chamadas por usuário
+por hora (cota `conciliacao_ia`), 8.192 tokens de resposta com 4.096 de raciocínio. O log leva só status e tamanho.
+
 ### Convite de reunião (`enviar-convite-reuniao`)
 
 Só o criador da reunião ou um administrador envia, e desde o P12 ele precisa ter também o módulo `gabinete` ou
@@ -98,7 +110,8 @@ As duas funções acima usam a RPC `consumir_cota_uso(usuario, tipo, quantidade,
 paralelo não furam o limite. Só a service role executa.
 
 Desde o P12 a RPC também limita `bb-api` na ação `validar-conta` (60 por usuário por hora, tipo `bb_validar_conta`)
-e o envio de teste de `enviar-notificacao` (20 por usuário por hora, tipo `envio_teste`).
+e o envio de teste de `enviar-notificacao` (20 por usuário por hora, tipo `envio_teste`). A sugestão de casamentos
+da conciliação (`conciliacao-ia-sugestoes`) usa o tipo `conciliacao_ia` (20 por usuário por hora).
 
 Trilha (onda E1, [`BANCO_DE_DADOS.md`](./BANCO_DE_DADOS.md#trilha-de-auditoria-e-servidor-responsável-do-rh--onda-e1)):
 as gravações dessas funções rodam pela service role e entram em `audit_logs` com origem `sistema`, sem autor. Por

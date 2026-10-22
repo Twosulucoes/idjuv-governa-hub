@@ -4,6 +4,8 @@ import { lerExtratoOfx, movimentoDoFundo, referenciaDoChecknum } from "./ofxBB";
 import { lerRazaoFip630, lerRelacaoFip103, numeroCurto, razaoEhDaConta } from "./fiplan";
 import { conciliar, itensDoMes, montarQuadro } from "./casamento";
 import { casarManual, comRendimento, desfazerCasamento, doGravado, paraGravar, pendenciasDoMesAnterior, saldoDoGrupo } from "./registro";
+import { pedidoDeSugestoes, sugestoesValidas } from "./sugestoes";
+import { lerExtratoFundoBB } from "./extratoFundoBB";
 import { centavosDeTextoBR, centavosDeTextoPonto, type ItemConciliacao } from "./tipos";
 
 // Dados fictícios, com a forma dos relatórios do FIPLAN e do OFX do BB.
@@ -250,5 +252,97 @@ describe("gravação e casamento manual", () => {
     expect(casado.pendentes.some((p) => p.id === tarifa.id)).toBe(false);
     const desfeito = desfazerCasamento(comX, casado, casado.casamentos.length - 1);
     expect(desfeito.pendentes.some((p) => p.id === tarifa.id)).toBe(true);
+  });
+});
+
+describe("sugestão de casamentos pela IA", () => {
+  const item = (id: string, lado: ItemConciliacao["lado"], natureza: ItemConciliacao["natureza"], valorCentavos: number, historico = ""): ItemConciliacao => ({
+    id,
+    lado,
+    natureza,
+    data: "2026-07-10",
+    documento: "",
+    tipo: "",
+    historico,
+    valorCentavos,
+    origem: "mes",
+  });
+
+  it("apaga CPF e CNPJ do histórico e troca o id pelo curto", () => {
+    const pendentes = [
+      item("uuid-1", "bancario", "debito", 800, "PIX ENVIADO 123.456.789-09 FULANO"),
+      item("uuid-2", "contabil", "credito", 800, "CNPJ 12.345.678/0001-90 e 12345678000190; NOB 17302.0001.26.00119-1"),
+    ];
+    const { pendencias, idDaTela } = pedidoDeSugestoes(pendentes, true);
+    expect(pendencias.map((p) => p.id)).toEqual(["p0", "p1"]);
+    expect(pendencias[0].historico).toBe("PIX ENVIADO *** FULANO");
+    expect(pendencias[1].historico).toBe("CNPJ *** e ***; NOB 17302.0001.26.00119-1");
+    expect(idDaTela.get("p1")).toBe("uuid-2");
+    expect(pedidoDeSugestoes(pendentes, false).pendencias[0].historico).toBe("");
+  });
+
+  it("só aceita sugestão com ids conhecidos, sem repetir item e com débitos = créditos", () => {
+    const pendentes = [
+      item("a", "bancario", "debito", 800),
+      item("b", "contabil", "credito", 800),
+      item("c", "bancario", "credito", 500),
+      item("d", "contabil", "debito", 300),
+    ];
+    const { idDaTela } = pedidoDeSugestoes(pendentes, true);
+    const validas = sugestoesValidas(
+      pendentes,
+      [
+        { ids: ["p0", "p1"], motivo: " tarifa lançada depois " },
+        { ids: ["p1", "p2"], motivo: "repete o p1" },
+        { ids: ["p2", "p3"], motivo: "não fecha" },
+        { ids: ["p2", "p9"], motivo: "id inventado" },
+        { ids: ["p2"], motivo: "sozinho" },
+        { ids: "p2,p3", motivo: "formato errado" },
+        { ids: ["p2", "p3"], motivo: "" },
+      ],
+      idDaTela,
+    );
+    expect(validas).toEqual([{ ids: ["a", "b"], motivo: "tarifa lançada depois" }]);
+  });
+});
+
+describe("extrato mensal do fundo do BB", () => {
+  // Dados fictícios, na forma do PDF "Consultas - Investimentos Fundos - Mensal".
+  const EXTRATO_FUNDO: LinhaPdf[] = [
+    linha(1, 10, ["Consultas - Investimentos Fundos - Mensal", 100]),
+    linha(1, 20, ["Agência", 20], ["0001-9", 120]),
+    linha(1, 30, ["Conta", 20], ["12345-6 ÓRGÃO EXEMPLO", 120]),
+    linha(1, 40, ["Mês/ano referência", 20], ["MARÇO/2026", 120]),
+    linha(1, 50, ["BB RF CP Automático - CNPJ: 00.000.000/0001-00", 20]),
+    linha(1, 60, ["28/02/2026", 20], ["Saldo anterior", 80], ["1.000,00", 200], ["900,000000", 400]),
+    linha(1, 70, ["31/03/2026", 20], ["Saldo Atual", 80], ["1.512,34", 200]),
+    linha(1, 80, ["Resumo do mês", 20]),
+    linha(1, 90, ["Saldo anterior", 20], ["1.000,00", 200]),
+    linha(1, 100, ["Aplicações (+)", 20], ["800,00", 200]),
+    linha(1, 110, ["Resgates (-)", 20], ["300,00", 200]),
+    linha(1, 120, ["Rendimento Bruto (+)", 20], ["12,34", 200]),
+    linha(1, 130, ["Rendimento Líquido", 20], ["12,34", 200]),
+    linha(1, 140, ["Saldo Atual =", 20], ["1.512,34", 200]),
+    linha(1, 150, ["Disponível p/ Resg =", 20], ["1.512,34", 200]),
+  ];
+
+  it("lê conta, mês e o resumo do mês, com o rendimento líquido", () => {
+    const e = lerExtratoFundoBB(EXTRATO_FUNDO);
+    expect(e).toMatchObject({ agencia: "0001-9", conta: "12345-6", mes: "2026-03" });
+    expect(e.fundos.map((f) => f.fundo)).toEqual(["BB RF CP Automático"]);
+    expect(e.total).toEqual({
+      saldoAnteriorCentavos: 100000,
+      aplicacoesCentavos: 80000,
+      resgatesCentavos: 30000,
+      rendimentoLiquidoCentavos: 1234,
+      saldoAtualCentavos: 151234,
+    });
+  });
+
+  it("recusa outro PDF e resumo que não fecha", () => {
+    expect(() => lerExtratoFundoBB([linha(1, 1, ["FIP630", 16])])).toThrow(/fundos do BB/);
+    const errado = [...EXTRATO_FUNDO];
+    errado[13] = linha(1, 140, ["Saldo Atual =", 20], ["1.512,35", 200]);
+    expect(() => lerExtratoFundoBB(errado)).toThrow(/não fecha/);
   });
 });

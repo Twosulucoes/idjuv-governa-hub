@@ -18,6 +18,9 @@ verify_jwt = true
 [functions.bb-api]
 verify_jwt = true
 
+[functions.conciliacao-ia-sugestoes]
+verify_jwt = true
+
 [functions.cpsi-ai-assistant]
 verify_jwt = true
 
