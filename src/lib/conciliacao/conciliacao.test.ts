@@ -6,6 +6,8 @@ import { conciliar, itensDoMes, montarQuadro } from "./casamento";
 import { casarManual, comRendimento, desfazerCasamento, doGravado, paraGravar, pendenciasDoMesAnterior, saldoDoGrupo } from "./registro";
 import { pedidoDeSugestoes, sugestoesValidas } from "./sugestoes";
 import { lerExtratoFundoBB } from "./extratoFundoBB";
+import { livroDaPlanilha, planilhaDaConciliacao } from "./planilha";
+import * as XLSX from "xlsx";
 import { centavosDeTextoBR, centavosDeTextoPonto, type ItemConciliacao } from "./tipos";
 
 // Dados fictícios, com a forma dos relatórios do FIPLAN e do OFX do BB.
@@ -345,5 +347,64 @@ describe("extrato mensal do fundo do BB", () => {
     const errado = [...EXTRATO_FUNDO];
     errado[13] = linha(1, 140, ["Saldo Atual =", 20], ["1.512,35", 200]);
     expect(() => lerExtratoFundoBB(errado)).toThrow(/não fecha/);
+  });
+});
+
+describe("planilha da conciliação", () => {
+  const item = (id: string, lado: ItemConciliacao["lado"], natureza: ItemConciliacao["natureza"], valorCentavos: number, data: string, historico: string): ItemConciliacao => ({
+    id, lado, natureza, data, documento: `DOC${id}`, tipo: lado === "contabil" ? "NOB" : "", historico, valorCentavos, origem: "mes",
+  });
+  const itens = [
+    item("b1", "bancario", "debito", 50000, "2026-07-05", "PAGAMENTO FORNECEDOR"),
+    item("r1", "contabil", "credito", 50000, "2026-07-04", "NOB FORNECEDOR"),
+    item("r2", "contabil", "debito", 1234, "2026-07-31", "TARIFA EM ABERTO"),
+    item("b2", "bancario", "credito", 999, "2026-07-31", "RENDIMENTOS APLICAÇÃO FINANCEIRA"),
+  ];
+  const resultado = {
+    casamentos: [{ regra: "manual" as const, itens: ["b1", "r1"], justificativa: "mesmo pagamento" }],
+    pendentes: [itens[2], itens[3]],
+  };
+  const quadro = montarQuadro(100000, resultado.pendentes, 99765);
+  const abas = planilhaDaConciliacao({
+    conta: "001 · 1234-5 · 99999-9", competencia: "Julho/2026", fechado: false, geradoEm: "22/10/2026",
+    quadro, saldoContaCentavos: 90000, saldoFundoCentavos: 9765,
+    fundo: { inicioCentavos: 8766, aplicacoesCentavos: 0, resgatesCentavos: 0, rendimentoCentavos: 999, fimCentavos: 9765 },
+    itens, resultado,
+  });
+  const aba = (nome: string) => abas.find((a) => a.nome === nome)!.linhas;
+
+  it("lista cada casamento com os itens, razão primeiro, com regra e justificativa", () => {
+    const linhas = aba("Casamentos");
+    expect(linhas).toHaveLength(3);
+    expect(linhas[1].slice(0, 5)).toEqual([1, "Manual", "mesmo pagamento", "Razão (FIPLAN)", "Crédito"]);
+    expect(linhas[2].slice(0, 5)).toEqual([1, "Manual", "mesmo pagamento", "Banco (extrato)", "Débito"]);
+    expect(linhas[1][9]).toEqual({ reais: 500 });
+  });
+
+  it("separa as pendências nas quatro listas do quadro e mostra a situação de todos os itens", () => {
+    const pend = aba("Pendências");
+    expect(pend.map((l) => l[0])).toEqual([
+      "Lista do quadro",
+      "Débitos contábeis não correspondidos no banco",
+      "Créditos bancários não correspondidos no razão",
+    ]);
+    expect(aba("Todos os itens").slice(1).map((l) => [l[0], l[1]])).toEqual([["Casado", 1], ["Casado", 1], ["Pendente", ""], ["Pendente", ""]]);
+  });
+
+  it("resume o quadro, o fundo e os casamentos por regra", () => {
+    const resumo = aba("Resumo");
+    const valor = (rotulo: string) => resumo.find((l) => l[0] === rotulo)?.slice(1);
+    expect(valor("Saldo ajustado")).toEqual([{ reais: quadro.saldoAjustadoCentavos / 100 }]);
+    expect(valor("Diferença (ajustado − extrato)")).toEqual([{ reais: 0 }]);
+    expect(valor("Saldo no fim do mês")).toEqual([{ reais: 97.65 }]);
+    expect(valor("Itens pendentes")).toEqual([2]);
+    expect(valor("Manual")).toEqual([1, 2, { reais: 500 }]);
+  });
+
+  it("grava dinheiro como número com duas casas no Excel", () => {
+    const folha = livroDaPlanilha(abas).Sheets["Casamentos"];
+    expect(folha["J2"]).toMatchObject({ t: "n", v: 500, z: "#,##0.00" });
+    expect(folha["A2"]).toMatchObject({ t: "n", v: 1 });
+    expect(folha["A2"].z).toBeUndefined();
   });
 });

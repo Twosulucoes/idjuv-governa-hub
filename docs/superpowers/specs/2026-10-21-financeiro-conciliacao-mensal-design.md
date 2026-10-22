@@ -119,6 +119,15 @@ cada sugestão aparece num cartão e o usuário aceita (vira casamento manual co
 justificativa) ou recusa. Permissão `pagamento.conciliar`, cota de 20 pedidos por usuário por hora. Detalhes em
 `docs/EDGE_FUNCTIONS.md`.
 
+### Planilha Excel (entrega seguinte)
+
+Botão "Excel da conciliação" ao lado do PDF do quadro, com o cálculo na tela (rascunho ou mês fechado).
+`src/lib/conciliacao/planilha.ts` monta quatro abas: **Resumo** (conta, competência, situação, o quadro, o fundo no
+mês e os casamentos por regra, com grupos, itens e valor), **Casamentos** (uma linha por lançamento, com o número do
+grupo, a regra e a justificativa; razão antes do banco), **Pendências** (as quatro listas do quadro) e **Todos os
+itens** (casado ou pendente, com o grupo). Dinheiro sai como número com duas casas, para somar e filtrar no Excel. O
+PDF continua sendo o documento do quadro; a planilha é para conferir.
+
 ### Fora desta entrega
 
 - Extrato pela `bb-api` (homologação no P15).
