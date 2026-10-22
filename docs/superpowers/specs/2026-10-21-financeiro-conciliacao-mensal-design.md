@@ -51,8 +51,14 @@ página):
 
 1. Escolhe a conta (`fin_contas_bancarias`) e o mês.
 2. Envia o **FIP630**, o **FIP103** e o **OFX** do mês (lidos no navegador; só os lançamentos vão ao banco).
-3. Digita o **saldo da conta corrente** e o **saldo do fundo** no último dia, e o **rendimento do mês** (decisão
-   "Os dois": nesta entrega digita; a leitura do PDF do extrato vem numa segunda).
+3. Digita o **saldo da conta corrente** no último dia e o **rendimento do mês** (decisão "Os dois": nesta entrega
+   digita; a leitura do PDF do extrato vem numa segunda). O **saldo do fundo** é calculado: saldo do fundo no fim do
+   mês anterior gravado + aplicações ("BB-APLIC") − resgates automáticos do OFX + rendimento. No primeiro mês no
+   sistema o saldo do fundo no início do mês é digitado uma vez. O movimento do fundo fica gravado com o nome do OFX
+   em `arquivos`, para refazer a conta ao reabrir a tela (mês gravado sem ele continua com o saldo digitado). O
+   rendimento mudado depois da leitura troca o crédito bancário do quadro.
+   O FIP630 e o OFX são conferidos contra a conta escolhida (filtro "Número da Conta Corrente contém" e contas
+   correntes listadas no razão; `ACCTID` do OFX): arquivo de outra conta dá aviso.
 4. O sistema traz as **pendências em aberto do mês anterior** e casa tudo (regras abaixo).
 5. A tela mostra o quadro com as quatro listas e o que casou; o usuário casa ou descasa à mão o que sobrar, com
    justificativa.

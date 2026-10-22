@@ -2,7 +2,7 @@
  * Leitores dos relatórios do FIPLAN usados na conciliação mensal, a partir das linhas posicionadas do PDF
  * (`lerLinhasPdf`):
  * - FIP630 (Razão Analítico por Conta/Conta Corrente): lançamentos do mês e o saldo do razão ("Total Geral
- *   Unidade Orçamentária");
+ *   Unidade Orçamentária") e a conta corrente, para conferir se o razão é da conta escolhida;
  * - FIP103 (Relação de Pagamentos BB por RE): a RE de cada NOB. O nome do credor não é lido.
  *
  * Débito e crédito são separados pela coluna: o número que termina antes do início do cabeçalho "CRÉDITO" é
@@ -34,6 +34,22 @@ export interface RazaoFip630 {
   exercicio: number;
   saldoRazaoCentavos: number;
   lancamentos: LancamentoRazao[];
+  /** Critério "Número da Conta Corrente contém …" do relatório (só dígitos), quando houver. */
+  filtroContaCorrente: string | null;
+  /** Contas correntes do FIPLAN listadas no razão (só dígitos): banco, agência e conta com DV no meio. */
+  contasCorrentes: string[];
+}
+
+/**
+ * O razão é da conta bancária `numeroConta` (com o DV, ex.: "10050-1"): o filtro do relatório e cada conta corrente
+ * listada trazem esses dígitos. Sem nenhum dos dois no PDF não há como conferir, e vale.
+ */
+export function razaoEhDaConta(razao: RazaoFip630, numeroConta: string): boolean {
+  const alvo = numeroConta.replace(/\D/g, "").replace(/^0+/, "");
+  if (!alvo) return true;
+  const filtro = razao.filtroContaCorrente?.replace(/^0+/, "");
+  if (filtro && filtro !== alvo) return false;
+  return razao.contasCorrentes.every((cc) => cc.includes(alvo));
 }
 
 interface Colunas {
@@ -60,6 +76,8 @@ export function lerRazaoFip630(linhas: LinhaPdf[]): RazaoFip630 {
   const mEx = /Exerc[ií]cio igual a (\d{4})/i.exec(todo);
   if (!mEx) throw new Error("FIP630 sem o exercício nos critérios.");
   const exercicio = Number(mEx[1]);
+  const filtroContaCorrente = /Conta Corrente cont.{1,2}m\s+(\d+)/i.exec(todo)?.[1] ?? null;
+  const contasCorrentes = new Set<string>();
 
   let colunas: Colunas | null = null;
   let ug = "";
@@ -83,6 +101,12 @@ export function lerRazaoFip630(linhas: LinhaPdf[]): RazaoFip630 {
     const mUg = /^UG (\d{4})/.exec(texto);
     if (mUg) {
       ug = mUg[1];
+      ultimo = null;
+      continue;
+    }
+    const mCc = /^CONTA CORRENTE (\d{10,})/.exec(texto);
+    if (mCc) {
+      contasCorrentes.add(mCc[1]);
       ultimo = null;
       continue;
     }
@@ -142,7 +166,7 @@ export function lerRazaoFip630(linhas: LinhaPdf[]): RazaoFip630 {
     ultimo = null;
   }
   if (saldoRazao === null) throw new Error("FIP630 sem o \"Total Geral Unidade Orçamentária\" (saldo do razão).");
-  return { exercicio, saldoRazaoCentavos: saldoRazao, lancamentos };
+  return { exercicio, saldoRazaoCentavos: saldoRazao, lancamentos, filtroContaCorrente, contasCorrentes: [...contasCorrentes] };
 }
 
 export interface NobFip103 {

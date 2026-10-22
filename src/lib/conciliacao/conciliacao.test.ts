@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { LinhaPdf } from "@/lib/importacao/pdfTexto";
-import { lerExtratoOfx, referenciaDoChecknum } from "./ofxBB";
-import { lerRazaoFip630, lerRelacaoFip103, numeroCurto } from "./fiplan";
+import { lerExtratoOfx, movimentoDoFundo, referenciaDoChecknum } from "./ofxBB";
+import { lerRazaoFip630, lerRelacaoFip103, numeroCurto, razaoEhDaConta } from "./fiplan";
 import { conciliar, itensDoMes, montarQuadro } from "./casamento";
-import { casarManual, desfazerCasamento, doGravado, paraGravar, pendenciasDoMesAnterior, saldoDoGrupo } from "./registro";
+import { casarManual, comRendimento, desfazerCasamento, doGravado, paraGravar, pendenciasDoMesAnterior, saldoDoGrupo } from "./registro";
 import { centavosDeTextoBR, centavosDeTextoPonto, type ItemConciliacao } from "./tipos";
 
 // Dados fictícios, com a forma dos relatórios do FIPLAN e do OFX do BB.
@@ -22,9 +22,11 @@ const lanc = (y: number, data: string, doc: string, tipo: string, hist: string, 
 const FIP630: LinhaPdf[] = [
   linha(1, 10, ["FIP630 - Razão Analítico por Conta/Conta Corrente", 16]),
   linha(1, 20, ["*Exercício igual a 2026", 16]),
+  linha(1, 25, ["Número da Conta Corrente contém 123456", 16]),
   linha(1, 30, ["DATA", 17], ["DOCUMENTO", 64], ["GRU", 147], ["TIPO", 178], ["HISTÓRICO", 244], ["DÉBITO", 353], ["CRÉDITO", 424], ["SALDO", 502], ["D/C", 560]),
   linha(1, 40, ["UG 0001 Exemplo - UG Executora", 16]),
   linha(1, 50, ["CONTA 1.1.1.1.1.19.04.01 CTA ESPECIAL - BB", 16], ["Saldo Anterior da Conta:", 334], ["1.000,00", 511], ["D", 564]),
+  linha(1, 55, ["CONTA CORRENTE 001000100000000001234560000015000000 TIPO CCC:", 16], ["Saldo Anterior da CCC:", 334], ["1.000,00", 511], ["D", 564]),
   lanc(60, "02/07", "00001.0001.26.00010-1", "NOB", "Pagamento da LIQ Nº", "0,00", "100,00"),
   lanc(70, "02/07", "00001.0001.26.00011-0", "NOB", "Pagamento da LIQ Nº", "0,00", "200,00"),
   lanc(80, "08/07", "99000.0000.26.00500-1", "ARR", "Confirmação de ARR Bancária", "5.000,00", "0,00"),
@@ -85,6 +87,15 @@ describe("OFX do BB", () => {
     expect(e.lancamentos[2].nob).toBe("26.00010-1");
   });
 
+  it("soma as aplicações e os resgates automáticos (o movimento do fundo)", () => {
+    expect(movimentoDoFundo(lerExtratoOfx(OFX))).toEqual({ aplicacoesCentavos: 0, resgatesCentavos: 30000 });
+    const comAplicacao = OFX.replace(
+      "</BANKTRANLIST>",
+      `${trn("20260708", "-5000.00", "1972", "BB-APLIC C.PRZ-APL.AUT - BB RF CURTO PRAZO AUTOMÁTICO")}\n</BANKTRANLIST>`,
+    );
+    expect(movimentoDoFundo(lerExtratoOfx(comAplicacao))).toEqual({ aplicacoesCentavos: 500000, resgatesCentavos: 30000 });
+  });
+
   it("só aceita CHECKNUM no formato do BB", () => {
     expect(referenciaDoChecknum("426000151", "EMISSÃO ORDEM BANCÁRIA")).toEqual({ re: "26.00015-1" });
     expect(referenciaDoChecknum("4260008860000", "ORDEM BANC CANCELADA")).toEqual({ nob: "26.00088-6" });
@@ -104,6 +115,16 @@ describe("FIP630 e FIP103", () => {
     expect(r.lancamentos).toHaveLength(7);
     expect(r.lancamentos[0]).toMatchObject({ data: "2026-07-02", natureza: "credito", valorCentavos: 10000, tipo: "NOB", ug: "0001" });
     expect(r.lancamentos[2]).toMatchObject({ natureza: "debito", valorCentavos: 500000, historico: "Confirmação de ARR Bancária Cta Única do Tesouro" });
+  });
+
+  it("confere se o razão é da conta escolhida", () => {
+    const r = lerRazaoFip630(FIP630);
+    expect(r.filtroContaCorrente).toBe("123456");
+    expect(r.contasCorrentes).toEqual(["001000100000000001234560000015000000"]);
+    expect(r.lancamentos[0].historico).toBe("Pagamento da LIQ Nº");
+    expect(razaoEhDaConta(r, "12345-6")).toBe(true);
+    expect(razaoEhDaConta(r, "99999-9")).toBe(false);
+    expect(razaoEhDaConta({ ...r, filtroContaCorrente: null, contasCorrentes: [] }, "99999-9")).toBe(true);
   });
 
   it("recusa outro relatório", () => {
@@ -195,6 +216,20 @@ describe("gravação e casamento manual", () => {
     const proximo = pendenciasDoMesAnterior(linhas);
     expect(proximo.every((p) => p.origem === "anterior" && p.itemOrigemId?.startsWith("id"))).toBe(true);
     expect(paraGravar(proximo, { casamentos: [], pendentes: proximo })[0].item_origem_id).toBe(proximo[0].itemOrigemId);
+  });
+
+  it("o rendimento digitado depois da leitura troca o crédito do quadro", () => {
+    const itens = itensDoMes(razao, rel, extrato, { data: "2026-07-31", valorCentavos: 1234 });
+    const r = conciliar(itens);
+    const valor = (x: { resultado: { pendentes: ItemConciliacao[] } }) =>
+      x.resultado.pendentes.filter((p) => p.historico.startsWith("RENDIMENTOS")).map((p) => p.valorCentavos);
+    const mudou = comRendimento(itens, r, { data: "2026-07-31", valorCentavos: 61751 });
+    expect(valor(mudou)).toEqual([61751]);
+    expect(valor(comRendimento(mudou.itens, mudou.resultado, { data: "2026-07-31", valorCentavos: 0 }))).toEqual([]);
+    const semRendimento = itensDoMes(razao, rel, extrato);
+    expect(valor(comRendimento(semRendimento, conciliar(semRendimento), { data: "2026-07-31", valorCentavos: 500 }))).toEqual([500]);
+    const igual = comRendimento(itens, r, { data: "2026-07-31", valorCentavos: 1234 });
+    expect(igual.itens).toBe(itens);
   });
 
   it("casa à mão só quando débitos e créditos batem, com justificativa, e desfaz", () => {

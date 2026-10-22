@@ -3,7 +3,9 @@
  *
  * Lê o razão (FIP630), a relação de pagamentos por RE (FIP103, opcional) e o extrato OFX do BB, casa o que
  * corresponde (`@/lib/conciliacao`) junto com as pendências do mês anterior fechado e mostra o quadro e as quatro
- * listas. O saldo do fundo e o rendimento do mês são digitados (o OFX não traz o fundo). Casamento manual só de
+ * listas. O OFX não traz o fundo: o rendimento do mês é digitado e o saldo do fundo é o do mês anterior (na
+ * implantação, digitado) mais as aplicações, menos os resgates automáticos do OFX, mais o rendimento. O FIP630 e o
+ * OFX são conferidos contra a conta escolhida. Casamento manual só de
  * pendências cujos débitos e créditos somam o mesmo valor, com justificativa. Fechar confere o quadro no banco;
  * reabrir é só do administrador. Spec: docs/superpowers/specs/2026-10-21-financeiro-conciliacao-mensal-design.md
  */
@@ -41,10 +43,11 @@ import {
   type ArquivoConciliacao,
 } from "@/hooks/useConciliacaoMensal";
 import { conciliar, itensDoMes, montarQuadro } from "@/lib/conciliacao/casamento";
-import { lerRazaoFip630, lerRelacaoFip103 } from "@/lib/conciliacao/fiplan";
-import { lerExtratoOfx } from "@/lib/conciliacao/ofxBB";
+import { lerRazaoFip630, lerRelacaoFip103, razaoEhDaConta } from "@/lib/conciliacao/fiplan";
+import { lerExtratoOfx, movimentoDoFundo, type MovimentoFundo } from "@/lib/conciliacao/ofxBB";
 import {
   casarManual,
+  comRendimento,
   desfazerCasamento,
   doGravado,
   paraGravar,
@@ -107,6 +110,15 @@ interface Calculo {
   resultado: ResultadoConciliacao;
   saldoRazaoCentavos: number;
   arquivos: ArquivoConciliacao[];
+  /** Aplicações e resgates do OFX; null em mês gravado antes de o sistema guardar o movimento (saldo digitado). */
+  fundo: MovimentoFundo | null;
+}
+
+/** Movimento do fundo guardado com o OFX em `arquivos`. */
+function fundoGravado(arquivos: ArquivoConciliacao[]): MovimentoFundo | null {
+  const o = arquivos.find((a) => a.tipo === "ofx");
+  if (!o || o.aplicacoes === undefined || o.resgates === undefined) return null;
+  return { aplicacoesCentavos: Math.round(o.aplicacoes * 100), resgatesCentavos: Math.round(o.resgates * 100) };
 }
 
 async function lerTexto(arquivo: File): Promise<string> {
@@ -134,6 +146,7 @@ export function FechamentoMensalTab() {
   const [ofx, setOfx] = useState<File | null>(null);
   const [saldoConta, setSaldoConta] = useState("");
   const [saldoFundo, setSaldoFundo] = useState("");
+  const [aberturaFundo, setAberturaFundo] = useState("");
   const [rendimento, setRendimento] = useState("");
   const [lendo, setLendo] = useState(false);
   const [calculo, setCalculo] = useState<Calculo | null>(null);
@@ -160,13 +173,23 @@ export function FechamentoMensalTab() {
     setSaldoConta(m ? paraTexto(m.saldo_conta) : "");
     setSaldoFundo(m ? paraTexto(m.saldo_fundo) : "");
     setRendimento(m && m.rendimento_fundo ? paraTexto(m.rendimento_fundo) : "");
+    setAberturaFundo("");
     if (m) {
       const { itens, resultado } = doGravado(dadosMes.itens);
+      const arquivos = (m.arquivos as unknown as ArquivoConciliacao[]) ?? [];
+      const fundo = fundoGravado(arquivos);
+      // Na implantação o saldo de abertura não é gravado: sai do saldo final menos o movimento e o rendimento
+      if (fundo && !dadosMes.anterior) {
+        const abertura =
+          Math.round(m.saldo_fundo * 100) - fundo.aplicacoesCentavos + fundo.resgatesCentavos - Math.round(m.rendimento_fundo * 100);
+        setAberturaFundo(formatarCentavos(abertura));
+      }
       setCalculo({
         itens,
         resultado,
         saldoRazaoCentavos: Math.round(m.saldo_razao * 100),
-        arquivos: (m.arquivos as unknown as ArquivoConciliacao[]) ?? [],
+        arquivos,
+        fundo,
       });
     } else {
       setCalculo(null);
@@ -180,9 +203,23 @@ export function FechamentoMensalTab() {
   const anteriorAberto = !!anterior && anterior.situacao !== "fechada";
 
   const centavosConta = centavosDigitados(saldoConta);
-  const centavosFundo = centavosDigitados(saldoFundo);
   const centavosRendimento = centavosDigitados(rendimento);
-  const valoresOk = centavosConta !== null && centavosFundo !== null && centavosRendimento !== null && centavosRendimento >= 0;
+  // Saldo do fundo no início do mês: o do mês anterior gravado; na implantação, o digitado
+  const centavosInicioFundo = anterior ? Math.round(anterior.saldo_fundo * 100) : centavosDigitados(aberturaFundo);
+  const fundo = calculo?.fundo ?? null;
+  const centavosFundo = fundo
+    ? centavosInicioFundo === null || centavosRendimento === null
+      ? null
+      : centavosInicioFundo + fundo.aplicacoesCentavos - fundo.resgatesCentavos + centavosRendimento
+    : centavosDigitados(saldoFundo);
+  const fundoNegativo = centavosFundo !== null && centavosFundo < 0;
+  const valoresOk =
+    centavosConta !== null &&
+    centavosFundo !== null &&
+    !fundoNegativo &&
+    centavosInicioFundo !== null &&
+    centavosRendimento !== null &&
+    centavosRendimento >= 0;
 
   const quadro = useMemo(
     () =>
@@ -212,10 +249,12 @@ export function FechamentoMensalTab() {
       const extratoForaDoMes = extrato.lancamentos.filter((l) => !l.data.startsWith(mes)).length;
       const digitos = (s: string) => s.replace(/\D/g, "").replace(/^0+/, "");
       const contaDiferente = conta && extrato.conta && !digitos(extrato.conta).startsWith(digitos(conta.conta));
+      const razaoDeOutraConta = conta && !razaoEhDaConta(razao, `${conta.conta}${conta.conta_digito ?? ""}`);
       const avisos = [
         foraDoMes && `${foraDoMes} lançamento(s) do razão fora do mês`,
         extratoForaDoMes && `${extratoForaDoMes} lançamento(s) do extrato fora do mês`,
         contaDiferente && `o extrato é da conta ${extrato.conta}`,
+        razaoDeOutraConta && `o FIP630 não é da conta ${[conta.conta, conta.conta_digito].filter(Boolean).join("-")}`,
       ].filter(Boolean);
       if (avisos.length) toast({ title: "Confira os arquivos", description: `Atenção: ${avisos.join("; ")}.`, variant: "destructive" });
 
@@ -227,6 +266,7 @@ export function FechamentoMensalTab() {
       // Na implantação, as pendências de abertura já lançadas continuam
       const abertura = (calculo?.itens ?? []).filter((i) => i.origem === "abertura");
       const itens = [...antigos, ...abertura, ...doMes];
+      const movimento = movimentoDoFundo(extrato);
       setCalculo({
         itens,
         resultado: conciliar(itens),
@@ -234,8 +274,14 @@ export function FechamentoMensalTab() {
         arquivos: [
           { tipo: "fip630", nome: fip630.name },
           ...(fip103 ? [{ tipo: "fip103" as const, nome: fip103.name }] : []),
-          { tipo: "ofx", nome: ofx.name },
+          {
+            tipo: "ofx",
+            nome: ofx.name,
+            aplicacoes: movimento.aplicacoesCentavos / 100,
+            resgates: movimento.resgatesCentavos / 100,
+          },
         ],
+        fundo: movimento,
       });
       setSelecionados(new Set());
     } catch (e) {
@@ -243,6 +289,15 @@ export function FechamentoMensalTab() {
     } finally {
       setLendo(false);
     }
+  }
+
+  /** O rendimento muda o crédito bancário do quadro também depois de ler os arquivos. */
+  function mudarRendimento(texto: string) {
+    setRendimento(texto);
+    const valorCentavos = centavosDigitados(texto);
+    if (!calculo || fechado || valorCentavos === null || valorCentavos < 0) return;
+    const novo = comRendimento(calculo.itens, calculo.resultado, { data: ultimoDia(mes), valorCentavos });
+    if (novo.itens !== calculo.itens) setCalculo({ ...calculo, ...novo });
   }
 
   function alternar(id: string) {
@@ -273,6 +328,7 @@ export function FechamentoMensalTab() {
       resultado: resultadoCom(itens, calculo?.resultado.casamentos ?? []),
       saldoRazaoCentavos: calculo?.saldoRazaoCentavos ?? 0,
       arquivos: calculo?.arquivos ?? [],
+      fundo: calculo?.fundo ?? null,
     });
   }
 
@@ -415,7 +471,8 @@ export function FechamentoMensalTab() {
                 <CardTitle className="text-base">Arquivos e saldos do mês</CardTitle>
                 <CardDescription>
                   FIP630 (razão) e extrato OFX são obrigatórios; o FIP103 liga cada pagamento à sua RE. Saldos do último
-                  dia do mês. O rendimento entra como crédito bancário ao conciliar.
+                  dia do mês. O rendimento entra como crédito bancário; o saldo do fundo é calculado com as aplicações
+                  e os resgates do extrato.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -426,10 +483,48 @@ export function FechamentoMensalTab() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <ValorCampo id="conc-saldo-conta" rotulo="Saldo da conta corrente" valor={saldoConta} aoMudar={setSaldoConta} />
-                  <ValorCampo id="conc-saldo-fundo" rotulo="Saldo do fundo (aplicação)" valor={saldoFundo} aoMudar={setSaldoFundo} />
-                  <ValorCampo id="conc-rendimento" rotulo="Rendimento do fundo no mês" valor={rendimento} aoMudar={setRendimento} />
+                  <ValorCampo id="conc-rendimento" rotulo="Rendimento do fundo no mês" valor={rendimento} aoMudar={mudarRendimento} />
+                  {!fundo && calculo?.arquivos.some((a) => a.tipo === "ofx") && (
+                    // Mês gravado sem o movimento do fundo: o saldo continua digitado até ler o OFX de novo
+                    <ValorCampo id="conc-saldo-fundo" rotulo="Saldo do fundo (aplicação)" valor={saldoFundo} aoMudar={setSaldoFundo} />
+                  )}
                 </div>
-                {!valoresOk && <p className="text-sm text-destructive">Valor inválido: use o formato 1.234,56.</p>}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {anterior ? (
+                    <ValorFixo
+                      rotulo="Saldo do fundo no início do mês"
+                      valor={formatarCentavos(centavosInicioFundo ?? 0)}
+                      detalhe="Saldo final do mês anterior"
+                    />
+                  ) : (
+                    <ValorCampo
+                      id="conc-abertura-fundo"
+                      rotulo="Saldo do fundo no início do mês"
+                      valor={aberturaFundo}
+                      aoMudar={setAberturaFundo}
+                    />
+                  )}
+                  <ValorFixo
+                    rotulo="Aplicações − resgates"
+                    valor={fundo ? formatarCentavos(fundo.aplicacoesCentavos - fundo.resgatesCentavos) : "—"}
+                    detalhe={
+                      fundo
+                        ? `Aplicações ${formatarCentavos(fundo.aplicacoesCentavos)} · resgates ${formatarCentavos(fundo.resgatesCentavos)}`
+                        : "Sai do extrato OFX ao ler"
+                    }
+                  />
+                  <ValorFixo
+                    rotulo="Saldo do fundo no fim do mês"
+                    valor={fundo && centavosFundo !== null ? formatarCentavos(centavosFundo) : "—"}
+                    detalhe="Confira com o extrato do fundo no BB"
+                  />
+                </div>
+                {fundoNegativo && (
+                  <p className="text-sm text-destructive">
+                    O saldo do fundo ficou negativo: confira o saldo do início do mês e o rendimento.
+                  </p>
+                )}
+                {!valoresOk && !fundoNegativo && <p className="text-sm text-destructive">Valor inválido: use o formato 1.234,56.</p>}
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={lerEConciliar} disabled={!fip630 || !ofx || lendo || anteriorAberto || !valoresOk}>
                     {lendo ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <FileUp className="h-4 w-4" aria-hidden />}
@@ -629,6 +724,16 @@ function ArquivoCampo(p: { id: string; rotulo: string; aceita: string; arquivo: 
       <Label htmlFor={p.id}>{p.rotulo}</Label>
       <Input id={p.id} type="file" accept={p.aceita} onChange={(e) => p.aoEscolher(e.target.files?.[0] ?? null)} />
       {p.arquivo && <p className="truncate text-xs text-muted-foreground">{p.arquivo.name}</p>}
+    </div>
+  );
+}
+
+function ValorFixo(p: { rotulo: string; valor: string; detalhe: string }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-sm font-medium leading-none">{p.rotulo}</p>
+      <p className="flex h-10 items-center rounded-md border bg-muted px-3 text-sm tabular-nums">{p.valor}</p>
+      <p className="text-xs text-muted-foreground">{p.detalhe}</p>
     </div>
   );
 }

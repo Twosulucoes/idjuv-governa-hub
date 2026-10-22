@@ -5,6 +5,9 @@
  * Valores em centavos (inteiro), para somar sem erro de ponto flutuante. Datas em ISO (AAAA-MM-DD).
  */
 
+/** Histórico do crédito bancário que o rendimento do fundo no mês vira (o OFX não traz o rendimento). */
+export const HISTORICO_RENDIMENTO = "RENDIMENTOS APLICAÇÃO FINANCEIRA";
+
 /** Razão do FIPLAN (contábil) ou extrato do banco (bancário). */
 export type LadoConciliacao = "contabil" | "bancario";
 export type NaturezaConciliacao = "debito" | "credito";

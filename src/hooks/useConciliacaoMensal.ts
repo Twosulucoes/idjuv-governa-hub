@@ -16,6 +16,9 @@ export type ConciliacaoMensal = Tables<'fin_conciliacoes_mensais'>;
 export interface ArquivoConciliacao {
   tipo: 'fip630' | 'fip103' | 'ofx';
   nome: string;
+  /** No OFX: aplicações e resgates automáticos do mês (reais), para refazer o saldo do fundo ao reabrir a tela. */
+  aplicacoes?: number;
+  resgates?: number;
 }
 
 export interface DadosConciliacaoMensal {
