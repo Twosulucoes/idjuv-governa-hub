@@ -125,8 +125,11 @@ Botão "Excel da conciliação" ao lado do PDF do quadro, com o cálculo na tela
 `src/lib/conciliacao/planilha.ts` monta quatro abas: **Resumo** (conta, competência, situação, o quadro, o fundo no
 mês e os casamentos por regra, com grupos, itens e valor), **Casamentos** (uma linha por lançamento, com o número do
 grupo, a regra e a justificativa; razão antes do banco), **Pendências** (as quatro listas do quadro) e **Todos os
-itens** (casado ou pendente, com o grupo). Dinheiro sai como número com duas casas, para somar e filtrar no Excel. O
-PDF continua sendo o documento do quadro; a planilha é para conferir.
+itens** (casado ou pendente, com o grupo). Dinheiro sai como número em R$ e a data como data, para somar e filtrar no Excel. A formatação (título e conta no
+alto de cada aba, cabeçalho escuro, bordas, um bloco por casamento com regra, valor e justificativa, total por lista
+de pendências, pendentes em destaque, filtro e cabeçalho fixo, A4) é gravada com o `exceljs`, carregado só ao
+clicar, porque o `xlsx` da SheetJS não grava estilo. O PDF continua sendo o documento do quadro; a planilha é para
+conferir.
 
 ### Fora desta entrega
 

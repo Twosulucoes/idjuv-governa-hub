@@ -481,7 +481,7 @@ export function FechamentoMensalTab() {
       itens: calculo.itens,
       resultado: calculo.resultado,
     });
-    baixarPlanilhaDaConciliacao(abas, `conciliacao-${numeroConta || "conta"}-${mes}.xlsx`);
+    await baixarPlanilhaDaConciliacao(abas, `conciliacao-${numeroConta || "conta"}-${mes}.xlsx`);
   }
 
   return (
