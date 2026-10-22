@@ -3,8 +3,9 @@
  *
  * Lê o razão (FIP630), a relação de pagamentos por RE (FIP103, opcional) e o extrato OFX do BB, casa o que
  * corresponde (`@/lib/conciliacao`) junto com as pendências do mês anterior fechado e mostra o quadro e as quatro
- * listas. O OFX não traz o fundo: o rendimento do mês é digitado e o saldo do fundo é o do mês anterior (na
- * implantação, digitado) mais as aplicações, menos os resgates automáticos do OFX, mais o rendimento. O FIP630 e o
+ * listas. O OFX não traz o fundo: o rendimento do mês vem do extrato mensal do fundo em PDF (opcional; sem ele, é
+ * digitado) e o saldo do fundo é o do mês anterior (na implantação, o saldo anterior desse extrato ou digitado) mais
+ * as aplicações, menos os resgates automáticos do OFX, mais o rendimento. O FIP630 e o
  * OFX são conferidos contra a conta escolhida. A IA pode sugerir casamentos para as pendências que sobraram (só as
  * pendências vão para ela, sem CPF/CNPJ); cada sugestão só entra se o usuário aceitar. Casamento manual só de
  * pendências cujos débitos e créditos somam o mesmo valor, com justificativa. Fechar confere o quadro no banco;
@@ -46,6 +47,7 @@ import {
 } from "@/hooks/useConciliacaoMensal";
 import { conciliar, itensDoMes, montarQuadro } from "@/lib/conciliacao/casamento";
 import { lerRazaoFip630, lerRelacaoFip103, razaoEhDaConta } from "@/lib/conciliacao/fiplan";
+import { lerExtratoFundoBB } from "@/lib/conciliacao/extratoFundoBB";
 import { lerExtratoOfx, movimentoDoFundo, type MovimentoFundo } from "@/lib/conciliacao/ofxBB";
 import { pedidoDeSugestoes, sugestoesValidas, type SugestaoCasamento } from "@/lib/conciliacao/sugestoes";
 import {
@@ -151,6 +153,7 @@ export function FechamentoMensalTab() {
   const [fip630, setFip630] = useState<File | null>(null);
   const [fip103, setFip103] = useState<File | null>(null);
   const [ofx, setOfx] = useState<File | null>(null);
+  const [extratoFundo, setExtratoFundo] = useState<File | null>(null);
   const [saldoConta, setSaldoConta] = useState("");
   const [saldoFundo, setSaldoFundo] = useState("");
   const [aberturaFundo, setAberturaFundo] = useState("");
@@ -253,6 +256,8 @@ export function FechamentoMensalTab() {
       const razao = lerRazaoFip630(await lerLinhasPdf(await fip630.arrayBuffer()));
       const relacao = fip103 ? lerRelacaoFip103(await lerLinhasPdf(await fip103.arrayBuffer())) : null;
       const extrato = lerExtratoOfx(await lerTexto(ofx));
+      const fundoPdf = extratoFundo ? lerExtratoFundoBB(await lerLinhasPdf(await extratoFundo.arrayBuffer())) : null;
+      const movimento = movimentoDoFundo(extrato);
 
       const foraDoMes = razao.lancamentos.filter((l) => !l.data.startsWith(mes)).length;
       const extratoForaDoMes = extrato.lancamentos.filter((l) => !l.data.startsWith(mes)).length;
@@ -264,18 +269,21 @@ export function FechamentoMensalTab() {
         extratoForaDoMes && `${extratoForaDoMes} lançamento(s) do extrato fora do mês`,
         contaDiferente && `o extrato é da conta ${extrato.conta}`,
         razaoDeOutraConta && `o FIP630 não é da conta ${[conta.conta, conta.conta_digito].filter(Boolean).join("-")}`,
+        ...(fundoPdf ? avisosDoFundo(fundoPdf, movimento) : []),
       ].filter(Boolean);
       if (avisos.length) toast({ title: "Confira os arquivos", description: `Atenção: ${avisos.join("; ")}.`, variant: "destructive" });
 
-      const doMes = itensDoMes(razao, relacao, extrato, {
-        data: ultimoDia(mes),
-        valorCentavos: centavosRendimento ?? 0,
-      });
+      // Com o extrato do fundo, o rendimento e (na implantação) o saldo do início do mês vêm dele
+      const rendimentoCentavos = fundoPdf ? fundoPdf.total.rendimentoLiquidoCentavos : (centavosRendimento ?? 0);
+      if (fundoPdf) {
+        setRendimento(formatarCentavos(rendimentoCentavos));
+        if (!anterior) setAberturaFundo(formatarCentavos(fundoPdf.total.saldoAnteriorCentavos));
+      }
+      const doMes = itensDoMes(razao, relacao, extrato, { data: ultimoDia(mes), valorCentavos: rendimentoCentavos });
       const antigos = dadosMes.anterior?.situacao === "fechada" ? pendenciasDoMesAnterior(dadosMes.itensAnterior) : [];
       // Na implantação, as pendências de abertura já lançadas continuam
       const abertura = (calculo?.itens ?? []).filter((i) => i.origem === "abertura");
       const itens = [...antigos, ...abertura, ...doMes];
-      const movimento = movimentoDoFundo(extrato);
       setCalculo({
         itens,
         resultado: conciliar(itens),
@@ -289,6 +297,7 @@ export function FechamentoMensalTab() {
             aplicacoes: movimento.aplicacoesCentavos / 100,
             resgates: movimento.resgatesCentavos / 100,
           },
+          ...(extratoFundo ? [{ tipo: "extrato_fundo" as const, nome: extratoFundo.name }] : []),
         ],
         fundo: movimento,
       });
@@ -308,6 +317,24 @@ export function FechamentoMensalTab() {
     if (!calculo || fechado || valorCentavos === null || valorCentavos < 0) return;
     const novo = comRendimento(calculo.itens, calculo.resultado, { data: ultimoDia(mes), valorCentavos });
     if (novo.itens !== calculo.itens) setCalculo({ ...calculo, ...novo });
+  }
+
+  /** O extrato do fundo é da conta e do mês, e bate com o mês anterior gravado e com o movimento do OFX. */
+  function avisosDoFundo(f: ReturnType<typeof lerExtratoFundoBB>, movimento: MovimentoFundo): string[] {
+    const digitos = (x: string) => x.replace(/\D/g, "").replace(/^0+/, "");
+    const numeroConta = conta ? digitos(`${conta.conta}${conta.conta_digito ?? ""}`) : "";
+    const avisos: string[] = [];
+    if (numeroConta && f.conta && digitos(f.conta) !== numeroConta) avisos.push(`o extrato do fundo é da conta ${f.conta}`);
+    if (f.mes !== mes) avisos.push(`o extrato do fundo é de ${f.mes.split("-").reverse().join("/")}`);
+    if (anterior && Math.round(anterior.saldo_fundo * 100) !== f.total.saldoAnteriorCentavos) {
+      avisos.push(
+        `o saldo anterior do extrato do fundo (${formatarCentavos(f.total.saldoAnteriorCentavos)}) não é o do mês anterior gravado (${formatarCentavos(Math.round(anterior.saldo_fundo * 100))})`,
+      );
+    }
+    if (f.total.aplicacoesCentavos !== movimento.aplicacoesCentavos || f.total.resgatesCentavos !== movimento.resgatesCentavos) {
+      avisos.push("as aplicações e os resgates do extrato do fundo não batem com os do OFX");
+    }
+    return avisos;
   }
 
   function pedirSugestoes() {
@@ -505,15 +532,23 @@ export function FechamentoMensalTab() {
                 <CardTitle className="text-base">Arquivos e saldos do mês</CardTitle>
                 <CardDescription>
                   FIP630 (razão) e extrato OFX são obrigatórios; o FIP103 liga cada pagamento à sua RE. Saldos do último
-                  dia do mês. O rendimento entra como crédito bancário; o saldo do fundo é calculado com as aplicações
-                  e os resgates do extrato.
+                  dia do mês. O rendimento vem do extrato mensal do fundo (BB: Investimentos → Fundos → Extrato mensal)
+                  ou é digitado, e entra como crédito bancário; o saldo do fundo é calculado com as aplicações e os
+                  resgates do extrato.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <ArquivoCampo id="conc-fip630" rotulo="FIP630 (PDF)" aceita=".pdf" arquivo={fip630} aoEscolher={setFip630} />
                   <ArquivoCampo id="conc-fip103" rotulo="FIP103 (PDF, opcional)" aceita=".pdf" arquivo={fip103} aoEscolher={setFip103} />
                   <ArquivoCampo id="conc-ofx" rotulo="Extrato OFX" aceita=".ofx" arquivo={ofx} aoEscolher={setOfx} />
+                  <ArquivoCampo
+                    id="conc-extrato-fundo"
+                    rotulo="Extrato mensal do fundo (PDF, opcional)"
+                    aceita=".pdf"
+                    arquivo={extratoFundo}
+                    aoEscolher={setExtratoFundo}
+                  />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <ValorCampo id="conc-saldo-conta" rotulo="Saldo da conta corrente" valor={saldoConta} aoMudar={setSaldoConta} />

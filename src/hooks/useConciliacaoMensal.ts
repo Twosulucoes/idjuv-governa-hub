@@ -15,7 +15,7 @@ import type { PendenciaParaIa } from '@/lib/conciliacao/sugestoes';
 export type ConciliacaoMensal = Tables<'fin_conciliacoes_mensais'>;
 
 export interface ArquivoConciliacao {
-  tipo: 'fip630' | 'fip103' | 'ofx';
+  tipo: 'fip630' | 'fip103' | 'ofx' | 'extrato_fundo';
   nome: string;
   /** No OFX: aplicações e resgates automáticos do mês (reais), para refazer o saldo do fundo ao reabrir a tela. */
   aplicacoes?: number;

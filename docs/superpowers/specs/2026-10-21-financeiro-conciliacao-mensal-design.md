@@ -101,6 +101,15 @@ arquivos reais fora do repositório. No repositório entra um caso fictício com
   admin reabre, por RPC com motivo). Sem dado pessoal: o histórico é o do razão e do extrato, nunca o nome do
   credor.
 
+### Extrato mensal do fundo em PDF (entrega seguinte)
+
+Quarto arquivo, opcional: o extrato mensal do fundo do BB ("Consultas - Investimentos Fundos - Mensal", em
+Investimentos → Fundos). `src/lib/conciliacao/extratoFundoBB.ts` lê a conta, o mês de referência e o "Resumo do mês"
+de cada fundo (saldo anterior, aplicações, resgates, rendimento líquido, saldo atual; recusa resumo que não fecha) e
+soma os fundos. O rendimento líquido preenche o rendimento do mês; na implantação, o saldo anterior preenche o saldo
+do fundo no início do mês. Avisos: extrato de outra conta ou de outro mês, saldo anterior diferente do mês anterior
+gravado, aplicações e resgates diferentes dos do OFX. Sem o PDF, o rendimento continua digitado.
+
 ### Sugestão de casamentos pela IA (entrega seguinte)
 
 Botão "Sugerir casamentos (IA)" na tela do mês: as pendências que sobraram vão para a Edge Function
@@ -112,7 +121,6 @@ justificativa) ou recusa. Permissão `pagamento.conciliar`, cota de 20 pedidos p
 
 ### Fora desta entrega
 
-- Leitura do PDF do extrato do BB (saldo e rendimento do fundo) — segunda entrega (decisão "Os dois").
 - Extrato pela `bb-api` (homologação no P15).
 - Lançamento de regularização no FIPLAN: o sistema só mostra e documenta; o ato é do FIPLAN/SEFAZ.
 - Outras contas: o desenho vale para qualquer conta, mas a conferência é só a 10050-1.
