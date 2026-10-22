@@ -84,10 +84,16 @@ Exige sessão, o módulo `financeiro` e `pagamento.conciliar` (a mesma permissã
 o token do próprio usuário). Recebe só as pendências que sobraram das regras automáticas (até 400, com id curto
 `p0`, `p1`…, data, lado, natureza, tipo, documento, histórico de até 200 caracteres e valor em centavos), apaga CPF e
 CNPJ do histórico (também no navegador, `src/lib/conciliacao/sugestoes.ts`) e pede ao Gemini (`GEMINI_API_KEY`,
-`GEMINI_MODEL`, as mesmas do assistente do CPSI) grupos que se correspondem, em JSON com schema. Devolve só os grupos
+`GEMINI_MODEL`, as mesmas do assistente do CPSI; sem `GEMINI_MODEL`, usa `gemini-flash-latest`) grupos que se correspondem, em JSON com schema. Devolve só os grupos
 que fecham (débitos = créditos), com ids conhecidos e cada id uma vez; a tela confere de novo e o aceite passa pelo
 casamento manual, com o motivo da IA na justificativa ("Sugestão da IA aceita: …"). Limite: 20 chamadas por usuário
-por hora (cota `conciliacao_ia`), 8.192 tokens de resposta com 4.096 de raciocínio. O log leva só status e tamanho.
+por hora (cota `conciliacao_ia`), 8.192 tokens de resposta com 4.096 de raciocínio. O log leva só status, tamanho e
+contagens (pendências, grupos devolvidos e válidos). Antes da IA, a tela roda a busca de somas no navegador
+(`sugestoesPorSoma`) e só manda para a função o que sobrou.
+
+No self-hosted, `GEMINI_API_KEY` e `GEMINI_MODEL` vão no `.env` do docker compose do Supabase e só valem depois de
+`docker compose up -d functions` (um `docker restart` não relê o `.env`). Chave nova do AI Studio pode receber 404 em
+modelo antigo (`gemini-2.5-flash`): use o apelido `gemini-flash-latest`.
 
 ### Convite de reunião (`enviar-convite-reuniao`)
 

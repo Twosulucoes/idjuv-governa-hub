@@ -116,7 +116,13 @@ Botão "Sugerir casamentos (IA)" na tela do mês: as pendências que sobraram v�
 `conciliacao-ia-sugestoes` (Gemini), com id curto e CPF/CNPJ do histórico apagados. Volta uma lista de grupos com o
 motivo; só ficam os que fecham (débitos = créditos), conferidos na função e de novo no navegador. Nada casa sozinho:
 cada sugestão aparece num cartão e o usuário aceita (vira casamento manual com "Sugestão da IA aceita: <motivo>" na
-justificativa) ou recusa. Permissão `pagamento.conciliar`, cota de 20 pedidos por usuário por hora. Detalhes em
+justificativa) ou recusa. Permissão `pagamento.conciliar`, cota de 20 pedidos por usuário por hora.
+
+Antes da IA, a **busca de somas** (`sugestoesPorSoma`, no navegador): para cada pendência, a maior primeiro, procura
+um, dois ou três lançamentos do outro lado e da natureza oposta, até 31 dias de distância, que somem o mesmo valor no
+centavo; fica a combinação com menos partes e datas mais próximas, avisando se havia outras. Cobre o que a regra
+automática não casa sozinha (partes em datas diferentes, ou mais de um candidato). Aceite como no casamento manual,
+com "Sugestão do sistema aceita: …" na justificativa. Só o que sobra vai para a IA. Detalhes em
 `docs/EDGE_FUNCTIONS.md`.
 
 ### Planilha Excel (entrega seguinte)

@@ -4,7 +4,7 @@ import { lerExtratoOfx, movimentoDoFundo, referenciaDoChecknum } from "./ofxBB";
 import { lerRazaoFip630, lerRelacaoFip103, numeroCurto, razaoEhDaConta } from "./fiplan";
 import { conciliar, itensDoMes, montarQuadro } from "./casamento";
 import { casarManual, comRendimento, desfazerCasamento, doGravado, paraGravar, pendenciasDoMesAnterior, saldoDoGrupo } from "./registro";
-import { pedidoDeSugestoes, sugestoesValidas } from "./sugestoes";
+import { pedidoDeSugestoes, sugestoesPorSoma, sugestoesValidas } from "./sugestoes";
 import { lerExtratoFundoBB } from "./extratoFundoBB";
 import { livroDaPlanilha, planilhaDaConciliacao } from "./planilha";
 import { centavosDeTextoBR, centavosDeTextoPonto, type ItemConciliacao } from "./tipos";
@@ -423,5 +423,48 @@ describe("planilha da conciliação", () => {
     expect(primeiro.getCell(8).numFmt).toContain("R$");
     expect(primeiro.getCell(4).value).toBeInstanceOf(Date);
     expect(Buffer.from(await livro.xlsx.writeBuffer()).subarray(0, 2).toString()).toBe("PK");
+  });
+});
+
+describe("busca de somas", () => {
+  const item = (id: string, lado: ItemConciliacao["lado"], natureza: ItemConciliacao["natureza"], valorCentavos: number, data: string): ItemConciliacao => ({
+    id, lado, natureza, data, documento: id, tipo: "", historico: "", valorCentavos, origem: "mes",
+  });
+
+  it("acha um pagamento do razão pago em duas partes no banco, em datas diferentes", () => {
+    const pendentes = [
+      item("nob", "contabil", "credito", 40892640, "2026-04-10"),
+      item("f1", "bancario", "debito", 39618897, "2026-04-10"),
+      item("f2", "bancario", "debito", 1273743, "2026-04-14"),
+      item("x", "bancario", "debito", 5000, "2026-04-12"),
+    ];
+    const [s, ...resto] = sugestoesPorSoma(pendentes);
+    expect(resto).toEqual([]);
+    expect(s.ids).toEqual(["nob", "f1", "f2"]);
+    expect(s.fonte).toBe("soma");
+    expect(s.motivo).toContain("soma de 2 lançamentos do banco");
+  });
+
+  it("prefere menos partes e as datas mais próximas, e usa cada item uma vez só", () => {
+    const pendentes = [
+      item("r", "contabil", "credito", 51575, "2026-04-20"),
+      item("longe", "bancario", "debito", 51575, "2026-04-02"),
+      item("perto", "bancario", "debito", 51575, "2026-04-23"),
+      item("a", "bancario", "debito", 50000, "2026-04-20"),
+      item("b", "bancario", "debito", 1575, "2026-04-20"),
+    ];
+    const sugestoes = sugestoesPorSoma(pendentes);
+    expect(sugestoes.map((s) => s.ids)).toEqual([["r", "perto"]]);
+    expect(sugestoes[0].motivo).toMatch(/outra\(s\) combinação/);
+  });
+
+  it("não sugere do mesmo lado, da mesma natureza nem fora da janela", () => {
+    const pendentes = [
+      item("r", "contabil", "credito", 1000, "2026-04-01"),
+      item("mesmoLado", "contabil", "debito", 1000, "2026-04-01"),
+      item("mesmaNatureza", "bancario", "credito", 999, "2026-04-01"),
+      item("foraDaJanela", "bancario", "debito", 1000, "2026-06-15"),
+    ];
+    expect(sugestoesPorSoma(pendentes)).toEqual([]);
   });
 });

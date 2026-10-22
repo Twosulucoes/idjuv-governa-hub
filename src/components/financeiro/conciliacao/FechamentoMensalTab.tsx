@@ -6,8 +6,9 @@
  * listas. O OFX não traz o fundo: o rendimento do mês vem do extrato mensal do fundo em PDF (opcional; sem ele, é
  * digitado) e o saldo do fundo é o do mês anterior (na implantação, o saldo anterior desse extrato ou digitado) mais
  * as aplicações, menos os resgates automáticos do OFX, mais o rendimento. O FIP630 e o
- * OFX são conferidos contra a conta escolhida. A IA pode sugerir casamentos para as pendências que sobraram (só as
- * pendências vão para ela, sem CPF/CNPJ); cada sugestão só entra se o usuário aceitar. Casamento manual só de
+ * OFX são conferidos contra a conta escolhida. A busca de somas (no navegador) e depois a IA sugerem casamentos para
+ * as pendências que sobraram (só as pendências vão para a IA, sem CPF/CNPJ); cada sugestão só entra se o usuário
+ * aceitar. Casamento manual só de
  * pendências cujos débitos e créditos somam o mesmo valor, com justificativa. Fechar confere o quadro no banco;
  * reabrir é só do administrador. Spec: docs/superpowers/specs/2026-10-21-financeiro-conciliacao-mensal-design.md
  */
@@ -49,7 +50,7 @@ import { conciliar, itensDoMes, montarQuadro } from "@/lib/conciliacao/casamento
 import { lerRazaoFip630, lerRelacaoFip103, razaoEhDaConta } from "@/lib/conciliacao/fiplan";
 import { lerExtratoFundoBB } from "@/lib/conciliacao/extratoFundoBB";
 import { lerExtratoOfx, movimentoDoFundo, type MovimentoFundo } from "@/lib/conciliacao/ofxBB";
-import { pedidoDeSugestoes, sugestoesValidas, type SugestaoCasamento } from "@/lib/conciliacao/sugestoes";
+import { pedidoDeSugestoes, sugestoesPorSoma, sugestoesValidas, type SugestaoCasamento } from "@/lib/conciliacao/sugestoes";
 import {
   casarManual,
   comRendimento,
@@ -336,15 +337,24 @@ export function FechamentoMensalTab() {
     return avisos;
   }
 
+  /** Primeiro a busca de somas (aqui, sem nada sair do navegador); o que sobrar vai para a IA. */
   function pedirSugestoes() {
     if (!calculo) return;
     const pendentes = calculo.resultado.pendentes;
-    const { pendencias, idDaTela } = pedidoDeSugestoes(pendentes, HISTORICO_PARA_IA);
+    const somas = sugestoesPorSoma(pendentes);
+    setSugestoes(somas);
+    const naSoma = new Set(somas.flatMap((s) => s.ids));
+    const resto = pendentes.filter((p) => !naSoma.has(p.id));
+    const semNada = (ia: number) => {
+      if (!somas.length && !ia) toast({ title: "Nenhuma sugestão", description: "Nem a busca de somas nem a IA acharam casamento claro." });
+    };
+    if (resto.length < 2) return semNada(0);
+    const { pendencias, idDaTela } = pedidoDeSugestoes(resto, HISTORICO_PARA_IA);
     sugerir.mutate(pendencias, {
       onSuccess: (resposta) => {
-        const validas = sugestoesValidas(pendentes, resposta, idDaTela);
-        setSugestoes(validas);
-        if (!validas.length) toast({ title: "Nenhuma sugestão", description: "A IA não achou casamento claro nas pendências." });
+        const validas = sugestoesValidas(resto, resposta, idDaTela).map((s) => ({ ...s, fonte: "ia" as const }));
+        setSugestoes((atual) => [...atual, ...validas]);
+        semNada(validas.length);
       },
     });
   }
@@ -353,7 +363,15 @@ export function FechamentoMensalTab() {
     setSugestoes((atual) => atual.filter((x) => x !== s));
     if (!calculo) return;
     try {
-      setCalculo({ ...calculo, resultado: casarManual(calculo.itens, calculo.resultado, s.ids, `Sugestão da IA aceita: ${s.motivo}`) });
+      setCalculo({
+        ...calculo,
+        resultado: casarManual(
+          calculo.itens,
+          calculo.resultado,
+          s.ids,
+          s.fonte === "soma" ? `Sugestão do sistema aceita: ${s.motivo}` : `Sugestão da IA aceita: ${s.motivo}`,
+        ),
+      });
       setSelecionados(new Set());
     } catch (e) {
       toast({ title: "Não foi possível casar", description: (e as Error).message, variant: "destructive" });
@@ -372,7 +390,9 @@ export function FechamentoMensalTab() {
   function confirmarCasamento() {
     if (!calculo) return;
     try {
-      setCalculo({ ...calculo, resultado: casarManual(calculo.itens, calculo.resultado, [...selecionados], justificativa) });
+      setCalculo({
+        ...calculo,
+        resultado: casarManual(calculo.itens, calculo.resultado, [...selecionados], justificativa) });
       setSelecionados(new Set());
       setCasarAberto(false);
       setJustificativa("");
@@ -690,7 +710,7 @@ export function FechamentoMensalTab() {
                 {!fechado && calculo.resultado.pendentes.length >= 2 && (
                   <Button variant="outline" onClick={pedirSugestoes} disabled={sugerir.isPending}>
                     {sugerir.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
-                    Sugerir casamentos (IA)
+                    Sugerir casamentos
                   </Button>
                 )}
                 {!fechado && selecionados.size > 0 && (
@@ -711,7 +731,7 @@ export function FechamentoMensalTab() {
               {!fechado && sugestoes.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Sugestões da IA ({sugestoes.length})</CardTitle>
+                    <CardTitle className="text-base">Sugestões de casamento ({sugestoes.length})</CardTitle>
                     <CardDescription>
                       Confira cada uma. Aceitar casa os itens com o motivo como justificativa; recusar só tira a sugestão.
                     </CardDescription>
@@ -729,7 +749,9 @@ export function FechamentoMensalTab() {
                               </p>
                             ) : null;
                           })}
-                          <p className="italic">{s.motivo}</p>
+                          <p className="italic">
+                            {s.fonte === "soma" ? "Sistema" : "IA"}: {s.motivo}
+                          </p>
                         </div>
                         <div className="flex gap-1">
                           <Button size="sm" onClick={() => aceitarSugestao(s)}>
