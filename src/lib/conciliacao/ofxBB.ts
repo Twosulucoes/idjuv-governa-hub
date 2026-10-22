@@ -3,7 +3,8 @@
  *
  * O BB exporta OFX 1.02 em SGML (tags sem fechamento) e Windows-1252. Do `CHECKNUM` saem as referências ao FIPLAN:
  * - "EMISSÃO ORDEM BANCÁRIA": `4` + ano (2) + nº da RE com DV (9 dígitos). Ex.: 426000151 = RE 26.00015-1.
- * - "ORDEM BANC CANCELADA": `4` + ano + nº da NOB com DV + `0000` (13 dígitos). Ex.: 4260008860000 = NOB 26.00088-6.
+ * - "ORDEM BANC CANCELADA": `4` + ano + nº da NOB com DV + 4 dígitos (em geral `0000`; já veio
+ *   `0001`), 13 dígitos no total. Ex.: 4260008860000 = NOB 26.00088-6; 4260000710001 = NOB 26.00007-1.
  * Aplicação e resgate automáticos (ida e volta entre a conta e o fundo) vêm marcados em `interno`; somados
  * (`movimentoDoFundo`), dão o movimento do fundo no mês.
  */
@@ -55,7 +56,7 @@ export function referenciaDoChecknum(checknum: string, memo: string): Pick<Lanca
   if (m.startsWith("EMISSAO ORDEM BANCARIA") && /^4\d{8}$/.test(d)) {
     return { re: numeroFiplan(d.slice(1, 3), d.slice(3, 8), d.slice(8, 9)) };
   }
-  if (m.startsWith("ORDEM BANC CANCELADA") && /^4\d{8}0000$/.test(d)) {
+  if (m.startsWith("ORDEM BANC CANCELADA") && /^4\d{12}$/.test(d)) {
     return { nob: numeroFiplan(d.slice(1, 3), d.slice(3, 8), d.slice(8, 9)) };
   }
   return {};

@@ -101,6 +101,7 @@ describe("OFX do BB", () => {
   it("só aceita CHECKNUM no formato do BB", () => {
     expect(referenciaDoChecknum("426000151", "EMISSÃO ORDEM BANCÁRIA")).toEqual({ re: "26.00015-1" });
     expect(referenciaDoChecknum("4260008860000", "ORDEM BANC CANCELADA")).toEqual({ nob: "26.00088-6" });
+    expect(referenciaDoChecknum("4260000710001", "ORDEM BANC CANCELADA")).toEqual({ nob: "26.00007-1" });
     expect(referenciaDoChecknum("1972", "EMISSÃO ORDEM BANCÁRIA")).toEqual({});
   });
 
