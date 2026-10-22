@@ -2,7 +2,7 @@
  * Conciliação bancária mensal (quadro da SEFAZ): meses gravados de uma conta, os itens de um mês, as pendências do mês
  * anterior fechado e as RPCs `salvar_conciliacao_mensal`, `fechar_conciliacao_mensal` (confere o quadro no banco) e
  * `reabrir_conciliacao_mensal` (só o admin). Migração 20261026090000; leitura e escrita pela RLS do módulo financeiro
- * com `pagamento.conciliar`.
+ * com `pagamento.conciliar`. A sugestão de casamentos pela IA chama a Edge Function `conciliacao-ia-sugestoes`.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 import type { ItemGravado, ItemParaGravar } from '@/lib/conciliacao/registro';
+import type { PendenciaParaIa } from '@/lib/conciliacao/sugestoes';
 
 export type ConciliacaoMensal = Tables<'fin_conciliacoes_mensais'>;
 
@@ -136,6 +137,25 @@ export function useReabrirConciliacaoMensal() {
     },
     onError: (error: Error) => {
       toast({ title: 'Erro ao reabrir', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+/** Pede à IA grupos de pendências que se correspondem; devolve a resposta crua (a tela confere com `sugestoesValidas`). */
+export function useSugerirCasamentos() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (pendencias: PendenciaParaIa[]) => {
+      const { data, error } = await supabase.functions.invoke('conciliacao-ia-sugestoes', { body: { pendencias } });
+      if (error) {
+        // Respostas 4xx da função chegam como FunctionsHttpError; a mensagem útil está no corpo.
+        const corpo = await (error as { context?: Response }).context?.json?.().catch(() => null);
+        throw new Error(corpo?.error || error.message || 'Falha ao pedir as sugestões');
+      }
+      return ((data as { sugestoes?: unknown })?.sugestoes ?? []) as { ids: unknown; motivo: unknown }[];
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Não foi possível sugerir casamentos', description: error.message, variant: 'destructive' });
     },
   });
 }

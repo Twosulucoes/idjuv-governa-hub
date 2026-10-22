@@ -5,13 +5,14 @@
  * corresponde (`@/lib/conciliacao`) junto com as pendências do mês anterior fechado e mostra o quadro e as quatro
  * listas. O OFX não traz o fundo: o rendimento do mês é digitado e o saldo do fundo é o do mês anterior (na
  * implantação, digitado) mais as aplicações, menos os resgates automáticos do OFX, mais o rendimento. O FIP630 e o
- * OFX são conferidos contra a conta escolhida. Casamento manual só de
+ * OFX são conferidos contra a conta escolhida. A IA pode sugerir casamentos para as pendências que sobraram (só as
+ * pendências vão para ela, sem CPF/CNPJ); cada sugestão só entra se o usuário aceitar. Casamento manual só de
  * pendências cujos débitos e créditos somam o mesmo valor, com justificativa. Fechar confere o quadro no banco;
  * reabrir é só do administrador. Spec: docs/superpowers/specs/2026-10-21-financeiro-conciliacao-mensal-design.md
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { FileDown, FileUp, Link2, Loader2, Lock, LockOpen, Plus, Save, Trash2, Unlink } from "lucide-react";
+import { FileDown, FileUp, Link2, Loader2, Lock, LockOpen, Plus, Save, Sparkles, Trash2, Unlink, X } from "lucide-react";
 import { KpiCard, StatusBadge } from "@/components/design-system";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -40,11 +41,13 @@ import {
   useMesConciliacao,
   useReabrirConciliacaoMensal,
   useSalvarConciliacaoMensal,
+  useSugerirCasamentos,
   type ArquivoConciliacao,
 } from "@/hooks/useConciliacaoMensal";
 import { conciliar, itensDoMes, montarQuadro } from "@/lib/conciliacao/casamento";
 import { lerRazaoFip630, lerRelacaoFip103, razaoEhDaConta } from "@/lib/conciliacao/fiplan";
 import { lerExtratoOfx, movimentoDoFundo, type MovimentoFundo } from "@/lib/conciliacao/ofxBB";
+import { pedidoDeSugestoes, sugestoesValidas, type SugestaoCasamento } from "@/lib/conciliacao/sugestoes";
 import {
   casarManual,
   comRendimento,
@@ -81,6 +84,9 @@ const LISTAS: { lado: LadoConciliacao; natureza: NaturezaConciliacao; titulo: st
   { lado: "bancario", natureza: "debito", titulo: "Débitos bancários não correspondidos no razão", sinal: "(-)" },
   { lado: "bancario", natureza: "credito", titulo: "Créditos bancários não correspondidos no razão", sinal: "(+)" },
 ];
+
+/** O histórico vai para a IA, com CPF/CNPJ apagados. */
+const HISTORICO_PARA_IA = true;
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -140,6 +146,7 @@ export function FechamentoMensalTab() {
   const { data: dadosMes, isLoading: carregandoMes } = useMesConciliacao(contaId, competencia);
   const salvar = useSalvarConciliacaoMensal();
   const reabrir = useReabrirConciliacaoMensal();
+  const sugerir = useSugerirCasamentos();
 
   const [fip630, setFip630] = useState<File | null>(null);
   const [fip103, setFip103] = useState<File | null>(null);
@@ -157,6 +164,7 @@ export function FechamentoMensalTab() {
   const [fecharAberto, setFecharAberto] = useState(false);
   const [reabrirAberto, setReabrirAberto] = useState(false);
   const [motivo, setMotivo] = useState("");
+  const [sugestoes, setSugestoes] = useState<SugestaoCasamento[]>([]);
 
   useEffect(() => {
     if (!contaId && contas?.length === 1) setContaId(contas[0].id);
@@ -165,6 +173,7 @@ export function FechamentoMensalTab() {
   // Troca de conta/mês ou recarga: o que está gravado manda (o rascunho continua de onde parou)
   useEffect(() => {
     setSelecionados(new Set());
+    setSugestoes([]);
     if (!dadosMes) {
       setCalculo(null);
       return;
@@ -284,6 +293,7 @@ export function FechamentoMensalTab() {
         fundo: movimento,
       });
       setSelecionados(new Set());
+      setSugestoes([]);
     } catch (e) {
       toast({ title: "Não foi possível ler os arquivos", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -298,6 +308,30 @@ export function FechamentoMensalTab() {
     if (!calculo || fechado || valorCentavos === null || valorCentavos < 0) return;
     const novo = comRendimento(calculo.itens, calculo.resultado, { data: ultimoDia(mes), valorCentavos });
     if (novo.itens !== calculo.itens) setCalculo({ ...calculo, ...novo });
+  }
+
+  function pedirSugestoes() {
+    if (!calculo) return;
+    const pendentes = calculo.resultado.pendentes;
+    const { pendencias, idDaTela } = pedidoDeSugestoes(pendentes, HISTORICO_PARA_IA);
+    sugerir.mutate(pendencias, {
+      onSuccess: (resposta) => {
+        const validas = sugestoesValidas(pendentes, resposta, idDaTela);
+        setSugestoes(validas);
+        if (!validas.length) toast({ title: "Nenhuma sugestão", description: "A IA não achou casamento claro nas pendências." });
+      },
+    });
+  }
+
+  function aceitarSugestao(s: SugestaoCasamento) {
+    setSugestoes((atual) => atual.filter((x) => x !== s));
+    if (!calculo) return;
+    try {
+      setCalculo({ ...calculo, resultado: casarManual(calculo.itens, calculo.resultado, s.ids, `Sugestão da IA aceita: ${s.motivo}`) });
+      setSelecionados(new Set());
+    } catch (e) {
+      toast({ title: "Não foi possível casar", description: (e as Error).message, variant: "destructive" });
+    }
   }
 
   function alternar(id: string) {
@@ -576,6 +610,12 @@ export function FechamentoMensalTab() {
                     <LockOpen className="h-4 w-4" aria-hidden /> Reabrir
                   </Button>
                 )}
+                {!fechado && calculo.resultado.pendentes.length >= 2 && (
+                  <Button variant="outline" onClick={pedirSugestoes} disabled={sugerir.isPending}>
+                    {sugerir.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
+                    Sugerir casamentos (IA)
+                  </Button>
+                )}
                 {!fechado && selecionados.size > 0 && (
                   <div className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
                     <span>
@@ -590,6 +630,43 @@ export function FechamentoMensalTab() {
                   </div>
                 )}
               </div>
+
+              {!fechado && sugestoes.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Sugestões da IA ({sugestoes.length})</CardTitle>
+                    <CardDescription>
+                      Confira cada uma. Aceitar casa os itens com o motivo como justificativa; recusar só tira a sugestão.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {sugestoes.map((s) => (
+                      <div key={s.ids.join()} className="flex flex-wrap items-start justify-between gap-2 rounded-md border p-2 text-sm">
+                        <div className="space-y-0.5">
+                          {s.ids.map((id) => {
+                            const i = porId.get(id);
+                            return i ? (
+                              <p key={id} className="text-muted-foreground">
+                                {i.lado === "contabil" ? "Razão" : "Banco"} · {i.natureza === "debito" ? "D" : "C"} · {dataBR(i.data)} ·{" "}
+                                {i.documento || i.historico} · {formatarCentavos(i.valorCentavos)}
+                              </p>
+                            ) : null;
+                          })}
+                          <p className="italic">{s.motivo}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" onClick={() => aceitarSugestao(s)}>
+                            <Link2 className="h-4 w-4" aria-hidden /> Aceitar
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setSugestoes((atual) => atual.filter((x) => x !== s))}>
+                            <X className="h-4 w-4" aria-hidden /> Recusar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
               {LISTAS.map((l) => (
                 <ListaPendencias

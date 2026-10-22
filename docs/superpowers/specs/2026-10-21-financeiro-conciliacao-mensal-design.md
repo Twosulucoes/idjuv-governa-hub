@@ -101,6 +101,15 @@ arquivos reais fora do repositório. No repositório entra um caso fictício com
   admin reabre, por RPC com motivo). Sem dado pessoal: o histórico é o do razão e do extrato, nunca o nome do
   credor.
 
+### Sugestão de casamentos pela IA (entrega seguinte)
+
+Botão "Sugerir casamentos (IA)" na tela do mês: as pendências que sobraram vão para a Edge Function
+`conciliacao-ia-sugestoes` (Gemini), com id curto e CPF/CNPJ do histórico apagados. Volta uma lista de grupos com o
+motivo; só ficam os que fecham (débitos = créditos), conferidos na função e de novo no navegador. Nada casa sozinho:
+cada sugestão aparece num cartão e o usuário aceita (vira casamento manual com "Sugestão da IA aceita: <motivo>" na
+justificativa) ou recusa. Permissão `pagamento.conciliar`, cota de 20 pedidos por usuário por hora. Detalhes em
+`docs/EDGE_FUNCTIONS.md`.
+
 ### Fora desta entrega
 
 - Leitura do PDF do extrato do BB (saldo e rendimento do fundo) — segunda entrega (decisão "Os dois").

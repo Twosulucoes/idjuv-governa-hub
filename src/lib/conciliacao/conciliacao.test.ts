@@ -4,6 +4,7 @@ import { lerExtratoOfx, movimentoDoFundo, referenciaDoChecknum } from "./ofxBB";
 import { lerRazaoFip630, lerRelacaoFip103, numeroCurto, razaoEhDaConta } from "./fiplan";
 import { conciliar, itensDoMes, montarQuadro } from "./casamento";
 import { casarManual, comRendimento, desfazerCasamento, doGravado, paraGravar, pendenciasDoMesAnterior, saldoDoGrupo } from "./registro";
+import { pedidoDeSugestoes, sugestoesValidas } from "./sugestoes";
 import { centavosDeTextoBR, centavosDeTextoPonto, type ItemConciliacao } from "./tipos";
 
 // Dados fictícios, com a forma dos relatórios do FIPLAN e do OFX do BB.
@@ -250,5 +251,56 @@ describe("gravação e casamento manual", () => {
     expect(casado.pendentes.some((p) => p.id === tarifa.id)).toBe(false);
     const desfeito = desfazerCasamento(comX, casado, casado.casamentos.length - 1);
     expect(desfeito.pendentes.some((p) => p.id === tarifa.id)).toBe(true);
+  });
+});
+
+describe("sugestão de casamentos pela IA", () => {
+  const item = (id: string, lado: ItemConciliacao["lado"], natureza: ItemConciliacao["natureza"], valorCentavos: number, historico = ""): ItemConciliacao => ({
+    id,
+    lado,
+    natureza,
+    data: "2026-07-10",
+    documento: "",
+    tipo: "",
+    historico,
+    valorCentavos,
+    origem: "mes",
+  });
+
+  it("apaga CPF e CNPJ do histórico e troca o id pelo curto", () => {
+    const pendentes = [
+      item("uuid-1", "bancario", "debito", 800, "PIX ENVIADO 123.456.789-09 FULANO"),
+      item("uuid-2", "contabil", "credito", 800, "CNPJ 12.345.678/0001-90 e 12345678000190; NOB 17302.0001.26.00119-1"),
+    ];
+    const { pendencias, idDaTela } = pedidoDeSugestoes(pendentes, true);
+    expect(pendencias.map((p) => p.id)).toEqual(["p0", "p1"]);
+    expect(pendencias[0].historico).toBe("PIX ENVIADO *** FULANO");
+    expect(pendencias[1].historico).toBe("CNPJ *** e ***; NOB 17302.0001.26.00119-1");
+    expect(idDaTela.get("p1")).toBe("uuid-2");
+    expect(pedidoDeSugestoes(pendentes, false).pendencias[0].historico).toBe("");
+  });
+
+  it("só aceita sugestão com ids conhecidos, sem repetir item e com débitos = créditos", () => {
+    const pendentes = [
+      item("a", "bancario", "debito", 800),
+      item("b", "contabil", "credito", 800),
+      item("c", "bancario", "credito", 500),
+      item("d", "contabil", "debito", 300),
+    ];
+    const { idDaTela } = pedidoDeSugestoes(pendentes, true);
+    const validas = sugestoesValidas(
+      pendentes,
+      [
+        { ids: ["p0", "p1"], motivo: " tarifa lançada depois " },
+        { ids: ["p1", "p2"], motivo: "repete o p1" },
+        { ids: ["p2", "p3"], motivo: "não fecha" },
+        { ids: ["p2", "p9"], motivo: "id inventado" },
+        { ids: ["p2"], motivo: "sozinho" },
+        { ids: "p2,p3", motivo: "formato errado" },
+        { ids: ["p2", "p3"], motivo: "" },
+      ],
+      idDaTela,
+    );
+    expect(validas).toEqual([{ ids: ["a", "b"], motivo: "tarifa lançada depois" }]);
   });
 });

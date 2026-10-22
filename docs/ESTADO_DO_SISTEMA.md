@@ -77,7 +77,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Enums (baseline) | 109 |
 | Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1914 |
 | Linhas de `supabase/baseline/rls/mapa.csv` | 260 |
-| Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 9 |
+| Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 10 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.
 
