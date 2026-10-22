@@ -159,7 +159,13 @@ export function FechamentoMensalTab() {
   const [aberturaFundo, setAberturaFundo] = useState("");
   const [rendimento, setRendimento] = useState("");
   const [lendo, setLendo] = useState(false);
-  const [calculo, setCalculo] = useState<Calculo | null>(null);
+  const [calculo, setCalculoBruto] = useState<Calculo | null>(null);
+  // Mudança na tela que ainda não foi gravada (os arquivos não ficam guardados: só o resultado, ao salvar)
+  const [alterado, setAlterado] = useState(false);
+  const setCalculo = (c: Calculo | null) => {
+    setCalculoBruto(c);
+    setAlterado(true);
+  };
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [casarAberto, setCasarAberto] = useState(false);
   const [justificativa, setJustificativa] = useState("");
@@ -177,8 +183,9 @@ export function FechamentoMensalTab() {
   useEffect(() => {
     setSelecionados(new Set());
     setSugestoes([]);
+    setAlterado(false);
     if (!dadosMes) {
-      setCalculo(null);
+      setCalculoBruto(null);
       return;
     }
     const m = dadosMes.mes;
@@ -196,7 +203,7 @@ export function FechamentoMensalTab() {
           Math.round(m.saldo_fundo * 100) - fundo.aplicacoesCentavos + fundo.resgatesCentavos - Math.round(m.rendimento_fundo * 100);
         setAberturaFundo(formatarCentavos(abertura));
       }
-      setCalculo({
+      setCalculoBruto({
         itens,
         resultado,
         saldoRazaoCentavos: Math.round(m.saldo_razao * 100),
@@ -204,9 +211,17 @@ export function FechamentoMensalTab() {
         fundo,
       });
     } else {
-      setCalculo(null);
+      setCalculoBruto(null);
     }
   }, [dadosMes]);
+
+  // Fechar ou recarregar a página com o trabalho sem salvar: o navegador pergunta antes
+  useEffect(() => {
+    if (!alterado) return;
+    const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [alterado]);
 
   const conta = contas?.find((c) => c.id === contaId);
   const fechado = dadosMes?.mes?.situacao === "fechada";
@@ -416,7 +431,7 @@ export function FechamentoMensalTab() {
         },
         itens: paraGravar(calculo.itens, calculo.resultado),
       },
-      { onSettled: () => setFecharAberto(false) },
+      { onSuccess: () => setAlterado(false), onSettled: () => setFecharAberto(false) },
     );
   }
 
@@ -621,6 +636,16 @@ export function FechamentoMensalTab() {
                   detalhe={quadro.diferencaCentavos === 0 ? "Quadro fechado" : "Confira as pendências"}
                 />
               </div>
+
+              {alterado && !fechado && (
+                <Alert>
+                  <AlertTitle>Ainda não salvo</AlertTitle>
+                  <AlertDescription>
+                    Os arquivos não ficam guardados, só o resultado. Clique em "Salvar rascunho" antes de sair: ao voltar, o
+                    mês abre como ficou, com as listas e os casamentos, sem subir os arquivos de novo.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="flex flex-wrap items-center gap-2">
                 {!fechado && (
