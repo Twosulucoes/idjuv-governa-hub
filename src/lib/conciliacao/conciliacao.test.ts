@@ -7,7 +7,6 @@ import { casarManual, comRendimento, desfazerCasamento, doGravado, paraGravar, p
 import { pedidoDeSugestoes, sugestoesValidas } from "./sugestoes";
 import { lerExtratoFundoBB } from "./extratoFundoBB";
 import { livroDaPlanilha, planilhaDaConciliacao } from "./planilha";
-import * as XLSX from "xlsx";
 import { centavosDeTextoBR, centavosDeTextoPonto, type ItemConciliacao } from "./tipos";
 
 // Dados fictícios, com a forma dos relatórios do FIPLAN e do OFX do BB.
@@ -372,39 +371,57 @@ describe("planilha da conciliação", () => {
     itens, resultado,
   });
   const aba = (nome: string) => abas.find((a) => a.nome === nome)!.linhas;
+  const dados = (nome: string) => aba(nome).filter((l) => l.papel === "dado");
 
-  it("lista cada casamento com os itens, razão primeiro, com regra e justificativa", () => {
+  it("mostra cada casamento num bloco com a regra e a justificativa, razão antes do banco", () => {
     const linhas = aba("Casamentos");
-    expect(linhas).toHaveLength(3);
-    expect(linhas[1].slice(0, 5)).toEqual([1, "Manual", "mesmo pagamento", "Razão (FIPLAN)", "Crédito"]);
-    expect(linhas[2].slice(0, 5)).toEqual([1, "Manual", "mesmo pagamento", "Banco (extrato)", "Débito"]);
-    expect(linhas[1][9]).toEqual({ reais: 500 });
+    expect(linhas.find((l) => l.papel === "secao")?.celulas).toEqual(["Grupo 1 · Manual · R$ 500,00 · mesmo pagamento"]);
+    const itensDoGrupo = dados("Casamentos");
+    expect(itensDoGrupo.map((l) => l.celulas.slice(0, 3))).toEqual([
+      [1, "Razão (FIPLAN)", "Crédito"],
+      [1, "Banco (extrato)", "Débito"],
+    ]);
+    expect(itensDoGrupo[0].celulas[3]).toEqual({ data: "2026-07-04" });
+    expect(itensDoGrupo[0].celulas[7]).toEqual({ reais: 500 });
   });
 
-  it("separa as pendências nas quatro listas do quadro e mostra a situação de todos os itens", () => {
+  it("separa as pendências nas quatro listas do quadro, com total, e marca os pendentes em todos os itens", () => {
     const pend = aba("Pendências");
-    expect(pend.map((l) => l[0])).toEqual([
-      "Lista do quadro",
-      "Débitos contábeis não correspondidos no banco",
-      "Créditos bancários não correspondidos no razão",
+    expect(pend.filter((l) => l.papel === "secao").map((l) => l.celulas[0])).toEqual([
+      "(-) Débitos contábeis não correspondidos no banco",
+      "(+) Créditos contábeis não correspondidos no banco",
+      "(-) Débitos bancários não correspondidos no razão",
+      "(+) Créditos bancários não correspondidos no razão",
     ]);
-    expect(aba("Todos os itens").slice(1).map((l) => [l[0], l[1]])).toEqual([["Casado", 1], ["Casado", 1], ["Pendente", ""], ["Pendente", ""]]);
+    expect(pend.filter((l) => l.papel === "total").map((l) => l.celulas[6])).toEqual([
+      { reais: 12.34 }, { reais: 0 }, { reais: 0 }, { reais: 9.99 },
+    ]);
+    expect(dados("Todos os itens").map((l) => [l.celulas[0], l.celulas[1], l.destaque])).toEqual([
+      ["Casado", 1, undefined], ["Casado", 1, undefined], ["Pendente", "", "alerta"], ["Pendente", "", "alerta"],
+    ]);
   });
 
   it("resume o quadro, o fundo e os casamentos por regra", () => {
     const resumo = aba("Resumo");
-    const valor = (rotulo: string) => resumo.find((l) => l[0] === rotulo)?.slice(1);
-    expect(valor("Saldo ajustado")).toEqual([{ reais: quadro.saldoAjustadoCentavos / 100 }]);
-    expect(valor("Diferença (ajustado − extrato)")).toEqual([{ reais: 0 }]);
-    expect(valor("Saldo no fim do mês")).toEqual([{ reais: 97.65 }]);
-    expect(valor("Itens pendentes")).toEqual([2]);
-    expect(valor("Manual")).toEqual([1, 2, { reais: 500 }]);
+    const valor = (rotulo: string) => resumo.find((l) => l.celulas[0] === rotulo);
+    expect(valor("Saldo ajustado")?.celulas[1]).toEqual({ reais: quadro.saldoAjustadoCentavos / 100 });
+    expect(valor("Diferença (ajustado − extrato)")).toMatchObject({ celulas: [expect.anything(), { reais: 0 }], destaque: "ok" });
+    expect(valor("Saldo no fim do mês")?.celulas[1]).toEqual({ reais: 97.65 });
+    expect(valor("Itens pendentes")?.celulas[1]).toBe(2);
+    expect(valor("Manual")?.celulas.slice(1)).toEqual([1, 2, { reais: 500 }]);
   });
 
-  it("grava dinheiro como número com duas casas no Excel", () => {
-    const folha = livroDaPlanilha(abas).Sheets["Casamentos"];
-    expect(folha["J2"]).toMatchObject({ t: "n", v: 500, z: "#,##0.00" });
-    expect(folha["A2"]).toMatchObject({ t: "n", v: 1 });
-    expect(folha["A2"].z).toBeUndefined();
+  it("grava no Excel dinheiro em R$, data como data e cabeçalho destacado com filtro", async () => {
+    const livro = await livroDaPlanilha(abas);
+    const folha = livro.getWorksheet("Casamentos")!;
+    const cabecalho = folha.getRow(4);
+    expect(cabecalho.getCell(1).value).toBe("Grupo");
+    expect(cabecalho.getCell(1).font?.bold).toBe(true);
+    expect(folha.autoFilter).toBeTruthy();
+    const primeiro = folha.getRow(6);
+    expect(primeiro.getCell(8).value).toBe(500);
+    expect(primeiro.getCell(8).numFmt).toContain("R$");
+    expect(primeiro.getCell(4).value).toBeInstanceOf(Date);
+    expect(Buffer.from(await livro.xlsx.writeBuffer()).subarray(0, 2).toString()).toBe("PK");
   });
 });
