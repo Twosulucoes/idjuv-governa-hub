@@ -140,7 +140,7 @@ serve(async (req) => {
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada");
-    const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
+    const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest";
 
     const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
       method: "POST",
@@ -189,7 +189,11 @@ serve(async (req) => {
       console.error("Resposta da IA sem JSON:", `(${conteudo.length} caracteres)`);
       return respostaJson(cors, 422, { error: "Não foi possível ler a resposta da IA. Tente novamente." });
     }
-    return respostaJson(cors, 200, { sugestoes: gruposValidos(pendencias, resposta) });
+    const validos = gruposValidos(pendencias, resposta);
+    const devolvidos = (resposta as { sugestoes?: unknown[] })?.sugestoes?.length ?? 0;
+    // Só contagens no log: quantos grupos a IA devolveu e quantos fecharam
+    console.log("conciliacao-ia-sugestoes:", `${pendencias.length} pendências, ${devolvidos} grupos da IA, ${validos.length} válidos`);
+    return respostaJson(cors, 200, { sugestoes: validos });
   } catch (error) {
     console.error("conciliacao-ia-sugestoes:", error instanceof Error ? error.message : "erro");
     return respostaJson(cors, 500, { error: "Erro ao gerar as sugestões" });

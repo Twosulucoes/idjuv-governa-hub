@@ -35,7 +35,7 @@ const oposta = (n: NaturezaConciliacao): NaturezaConciliacao => (n === "debito" 
  * Datas compatíveis: até `limite` dias entre as duas. Com uma pendência antiga (mês anterior ou abertura) o limite
  * não vale para trás: ela pode ser de meses antes, mas não de mais de `limite` dias depois do item do mês.
  */
-const perto = (a: ItemConciliacao, b: ItemConciliacao, limite: number) => {
+export const perto = (a: ItemConciliacao, b: ItemConciliacao, limite: number) => {
   const aAntiga = a.origem !== "mes";
   const bAntiga = b.origem !== "mes";
   if (aAntiga && bAntiga) return true;
