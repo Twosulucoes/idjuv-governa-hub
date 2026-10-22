@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { FileDown, FileUp, Link2, Loader2, Lock, LockOpen, Plus, Save, Sparkles, Trash2, Unlink, X } from "lucide-react";
+import { FileDown, FileSpreadsheet, FileUp, Link2, Loader2, Lock, LockOpen, Plus, Save, Sparkles, Trash2, Unlink, X } from "lucide-react";
 import { KpiCard, StatusBadge } from "@/components/design-system";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -63,29 +63,13 @@ import {
 import {
   centavosDeTextoBR,
   formatarCentavos,
+  LISTAS_PENDENCIAS as LISTAS,
+  ROTULO_REGRA as REGRAS,
   type ItemConciliacao,
   type LadoConciliacao,
   type NaturezaConciliacao,
-  type RegraConciliacao,
   type ResultadoConciliacao,
 } from "@/lib/conciliacao/tipos";
-
-const REGRAS: Record<RegraConciliacao, string> = {
-  interno: "Interno do razão",
-  re: "RE (pagamentos)",
-  ob_cancelada: "OB cancelada",
-  repasse: "Repasse do Tesouro",
-  valor_data: "Valor e data",
-  estorno: "Estorno",
-  manual: "Manual",
-};
-
-const LISTAS: { lado: LadoConciliacao; natureza: NaturezaConciliacao; titulo: string; sinal: string }[] = [
-  { lado: "contabil", natureza: "debito", titulo: "Débitos contábeis não correspondidos no banco", sinal: "(-)" },
-  { lado: "contabil", natureza: "credito", titulo: "Créditos contábeis não correspondidos no banco", sinal: "(+)" },
-  { lado: "bancario", natureza: "debito", titulo: "Débitos bancários não correspondidos no razão", sinal: "(-)" },
-  { lado: "bancario", natureza: "credito", titulo: "Créditos bancários não correspondidos no razão", sinal: "(+)" },
-];
 
 /** O histórico vai para a IA, com CPF/CNPJ apagados. */
 const HISTORICO_PARA_IA = true;
@@ -470,6 +454,36 @@ export function FechamentoMensalTab() {
     baixarDocumento(doc);
   }
 
+  /** Excel com o resumo, os casamentos (qual item com qual), as pendências e todos os itens. */
+  async function baixarExcel() {
+    if (!calculo || !quadro || !conta) return;
+    const { baixarPlanilhaDaConciliacao, planilhaDaConciliacao } = await import("@/lib/conciliacao/planilha");
+    const [ano, m] = mes.split("-").map(Number);
+    const numeroConta = [conta.conta, conta.conta_digito].filter(Boolean).join("-");
+    const abas = planilhaDaConciliacao({
+      conta: [conta.banco_codigo, [conta.agencia, conta.agencia_digito].filter(Boolean).join("-"), numeroConta].join(" · "),
+      competencia: `${MESES[m - 1]}/${ano}`,
+      fechado,
+      geradoEm: new Date().toLocaleString("pt-BR"),
+      quadro,
+      saldoContaCentavos: centavosConta ?? 0,
+      saldoFundoCentavos: centavosFundo ?? 0,
+      fundo:
+        fundo && centavosInicioFundo !== null && centavosFundo !== null
+          ? {
+              inicioCentavos: centavosInicioFundo,
+              aplicacoesCentavos: fundo.aplicacoesCentavos,
+              resgatesCentavos: fundo.resgatesCentavos,
+              rendimentoCentavos: centavosRendimento ?? 0,
+              fimCentavos: centavosFundo,
+            }
+          : null,
+      itens: calculo.itens,
+      resultado: calculo.resultado,
+    });
+    baixarPlanilhaDaConciliacao(abas, `conciliacao-${numeroConta || "conta"}-${mes}.xlsx`);
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -664,6 +678,9 @@ export function FechamentoMensalTab() {
                 {!temRazao && <span className="text-sm text-muted-foreground">Leia os arquivos do mês para salvar.</span>}
                 <Button variant="outline" onClick={baixarPdf} disabled={!temRazao}>
                   <FileDown className="h-4 w-4" aria-hidden /> PDF do quadro
+                </Button>
+                <Button variant="outline" onClick={baixarExcel} disabled={!temRazao || !quadro}>
+                  <FileSpreadsheet className="h-4 w-4" aria-hidden /> Excel da conciliação
                 </Button>
                 {fechado && isSuperAdmin && (
                   <Button variant="outline" onClick={() => setReabrirAberto(true)}>

@@ -18,6 +18,25 @@ export type OrigemItemConciliacao = "mes" | "anterior" | "abertura";
 /** Regra que casou o item (ou o tirou da conta, em `interno`). */
 export type RegraConciliacao = "interno" | "re" | "ob_cancelada" | "repasse" | "valor_data" | "estorno" | "manual";
 
+/** Nome de cada regra na tela, no PDF e na planilha. */
+export const ROTULO_REGRA: Record<RegraConciliacao, string> = {
+  interno: "Interno do razão",
+  re: "RE (pagamentos)",
+  ob_cancelada: "OB cancelada",
+  repasse: "Repasse do Tesouro",
+  valor_data: "Valor e data",
+  estorno: "Estorno",
+  manual: "Manual",
+};
+
+/** As quatro listas do quadro da SEFAZ, na ordem do quadro. */
+export const LISTAS_PENDENCIAS: { lado: LadoConciliacao; natureza: NaturezaConciliacao; titulo: string; sinal: string }[] = [
+  { lado: "contabil", natureza: "debito", titulo: "Débitos contábeis não correspondidos no banco", sinal: "(-)" },
+  { lado: "contabil", natureza: "credito", titulo: "Créditos contábeis não correspondidos no banco", sinal: "(+)" },
+  { lado: "bancario", natureza: "debito", titulo: "Débitos bancários não correspondidos no razão", sinal: "(-)" },
+  { lado: "bancario", natureza: "credito", titulo: "Créditos bancários não correspondidos no razão", sinal: "(+)" },
+];
+
 export interface ItemConciliacao {
   /** Identificador estável dentro do cálculo (no banco, o id da linha). */
   id: string;
