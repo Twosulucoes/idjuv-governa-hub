@@ -239,6 +239,8 @@ import {
   SubEmpenhosPage,
 } from "./pages/financeiro";
 import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage";
+import PcaListaPage from "./pages/compras/PcaListaPage";
+import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
 import PagamentoDetalhePage from "./pages/financeiro/PagamentoDetalhePage";
 
 // Inventário e Patrimônio
@@ -479,6 +481,16 @@ const App = () => (
               <Route path="/financeiro" element={<ProtectedRoute requiredModule="financeiro"><FinanceiroDashboardPage /></ProtectedRoute>} />
               <Route path="/patrimonio" element={<ProtectedRoute requiredModule="patrimonio"><PatrimonioDashboardPage /></ProtectedRoute>} />
               <Route path="/compras" element={<ProtectedRoute requiredModule="compras"><ComprasDashboardPage /></ProtectedRoute>} />
+              <Route path="/compras/pca" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pca.visualizar", "compras.pca.editar"]}>
+                  <PcaListaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compras/pca/:exercicio" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pca.visualizar", "compras.pca.editar"]}>
+                  <PcaPlanoPage />
+                </ProtectedRoute>
+              } />
               <Route path="/contratos" element={<ProtectedRoute requiredModule="contratos"><ContratosDashboardPage /></ProtectedRoute>} />
               <Route path="/workflow" element={<ProtectedRoute requiredModule="workflow"><WorkflowDashboardPage /></ProtectedRoute>} />
               <Route path="/comunicacao" element={<ProtectedRoute requiredModule="comunicacao"><ComunicacaoDashboardPage /></ProtectedRoute>} />
