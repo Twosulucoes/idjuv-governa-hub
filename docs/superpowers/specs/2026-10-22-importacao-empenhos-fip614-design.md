@@ -29,7 +29,7 @@ Cada bloco começa em `Nº PROCESSO: 00000112/26-14` e tem:
 
 | Linha | O que traz |
 |---|---|
-| `PED` | nº do PED, data, dotação completa (`UO.UG.função.subfunção.programa.PAOE.regional.natureza.fonte.acomp.IDU.x`), credor `código - nome` (o nome pode quebrar na linha de baixo) |
+| `PED` | nº do PED, data, dotação (`UO.UG.função.subfunção.programa.PAOE.regional.natureza.fonte.acomp`, cortada antes do IDU), credor `código - nome` (o nome pode quebrar na linha de baixo) |
 | `EMP` | nº, data, valor (coluna EMP/EST) |
 | `LIQ` | nº, data, valor (coluna LIQ/EST) + uma linha "Histórico da Liquidação: …" (truncada) |
 | `NOB` | nº, `P`/`C`, data, valor (coluna NOB/EST) |
@@ -61,8 +61,9 @@ Conferido no exemplo: 170 blocos, um EMP por bloco, 65 processos; a soma dos `TO
 - `origem text NOT NULL DEFAULT 'sistema'` com CHECK (`sistema` | `fiplan`);
 - `credor_codigo_fiplan`, `credor_nome`, `ped_numero`, `ped_data`, `dotacao_fiplan`;
 - `numero` passa de `varchar(20)` para `varchar(30)` (o número do FIPLAN tem 21 caracteres);
-- `fornecedor_id` deixa de ser obrigatório, com CHECK (`origem = 'fiplan' OR fornecedor_id IS NOT NULL`): o
-  empenho feito no sistema continua exigindo favorecido.
+- `processo_fiplan`, `data_referencia_fiplan` e `importacao_id` (a importação que gravou por último);
+- `fornecedor_id` e `dotacao_id` deixam de ser obrigatórios, com CHECK (`origem = 'fiplan' OR` os dois preenchidos):
+  o empenho feito no sistema continua exigindo favorecido e dotação; `origem` não muda depois de gravada.
 
 `fornecedores` ganha `codigo_credor_fiplan` (único quando preenchido), editável na tela de Favorecidos.
 
@@ -77,8 +78,10 @@ RPC `importar_empenhos_fip614(p_exercicio, p_linhas, p_arquivo, p_simular)`, no 
 (`SECURITY DEFINER`, `search_path` fixo, perfil ativo + módulo financeiro + `orcamento.importar`, lock por
 exercício, log em `importacoes`, diff por linha):
 
-- Dotação: casa pelos dígitos de `função…IDU` com o `codigo_dotacao` do QDD. Sem dotação → erro na linha
-  ("importe o QDD do exercício antes").
+- Dotação: o FIP 614 corta a dotação antes do IDU, então casa pelos dígitos de `função…acomp` como prefixo do
+  `codigo_dotacao` do QDD. Um candidato só → liga. Vários (mesma natureza com IDUs diferentes) ou nenhum → fica sem
+  dotação, com aviso na linha; a escolha é feita no detalhe do empenho e a reimportação mantém a escolha enquanto
+  ela continuar entre os candidatos. No exemplo, 18 dos 170 empenhos ficam para escolher.
 - Valores: `valor_empenhado` = EMP; `valor_anulado` = estornos de EMP; `valor_liquidado` = TOTAL LIQ;
   `valor_pago` = TOTAL NOB. Situação calculada (anulado, emitido, parcialmente liquidado, liquidado,
   parcialmente pago, pago).
@@ -93,7 +96,9 @@ exercício, log em `importacoes`, diff por linha):
 - Financeiro → Empenhos: coluna Favorecido mostra o nome do credor do FIPLAN quando não há favorecido ligado;
   selo "FIPLAN" no número.
 - Detalhe do empenho (`/financeiro/empenhos/:id`, hoje um marcador de lugar): cabeçalho com processo, PED,
-  dotação, credor e totais, e a tabela do histórico (LIQ, NOB, estornos).
+  dotação, credor e totais, a escolha da dotação quando há mais de uma candidata, e a tabela do histórico (LIQ, NOB,
+  estornos).
+- Favorecidos: campo "Código do credor no FIPLAN". O empenho já importado liga ao favorecido na próxima importação.
 
 ## Fora desta entrega
 

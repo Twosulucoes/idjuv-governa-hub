@@ -322,14 +322,34 @@ export interface StatusHistorico {
 // EMPENHOS
 // ===========================================
 
+export type OrigemEmpenho = "sistema" | "fiplan";
+
+/** Documento do FIPLAN (FIP 614) no histórico de um empenho importado */
+export interface DocumentoEmpenhoFiplan {
+  id: string;
+  empenho_id: string;
+  ordem: number;
+  tipo: "EMP" | "EST" | "LIQ" | "NOB" | "GCV";
+  numero: string;
+  data: string;
+  pc: "P" | "C" | null;
+  valor_emp: number | null;
+  valor_liq: number | null;
+  valor_nob: number | null;
+  valor_gcv: number | null;
+  historico: string | null;
+}
+
 export interface Empenho {
   id: string;
   numero: string;
   exercicio: number;
   data_empenho: string;
   solicitacao_id?: string | null;
-  dotacao_id: string;
-  fornecedor_id: string;
+  /** Nulo só no empenho do FIPLAN sem dotação única no QDD */
+  dotacao_id: string | null;
+  /** Nulo só no empenho do FIPLAN cujo credor não está ligado a um favorecido */
+  fornecedor_id: string | null;
   contrato_id?: string | null;
   tipo: TipoEmpenho;
   natureza_despesa_id?: string | null;
@@ -352,6 +372,15 @@ export interface Empenho {
   created_at: string;
   updated_at: string;
   created_by?: string | null;
+  /** sistema = emitido aqui; fiplan = importado do FIP 614 */
+  origem: OrigemEmpenho;
+  credor_codigo_fiplan?: string | null;
+  credor_nome?: string | null;
+  ped_numero?: string | null;
+  ped_data?: string | null;
+  dotacao_fiplan?: string | null;
+  processo_fiplan?: string | null;
+  data_referencia_fiplan?: string | null;
   // Joins
   dotacao?: Dotacao;
   fornecedor?: { id: string; razao_social: string; cpf_cnpj: string };

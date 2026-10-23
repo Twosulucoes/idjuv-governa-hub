@@ -102,7 +102,9 @@ INSERT INTO seed_ov VALUES
   ('atos_remuneratorios_itens', '{"alvo":"parametro","cargo_id":null,"rubrica_id":null,"tipo_parametro":"teste_seed"}'),
   -- competência no dia 1 e item pendente do próprio mês (migração 20261026090000)
   ('fin_conciliacoes_mensais', '{"competencia":"2020-01-01","situacao":"rascunho","fechada_em":null,"fechada_por":null}'),
-  ('fin_conciliacao_itens', '{"lado":"bancario","natureza":"debito","valor":1,"situacao":"pendente","origem":"mes","item_origem_id":null,"grupo":null,"regra":null,"re":null,"nob":null}');
+  ('fin_conciliacao_itens', '{"lado":"bancario","natureza":"debito","valor":1,"situacao":"pendente","origem":"mes","item_origem_id":null,"grupo":null,"regra":null,"re":null,"nob":null}'),
+  -- empenho sem favorecido nem dotação só com origem fiplan (fin_empenhos_sistema_vinculos_check, migração 20261027090000)
+  ('fin_empenhos', '{"origem":"fiplan","credor_codigo_fiplan":"2001.00001-1","credor_nome":"Credor Teste"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -7471,6 +7473,165 @@ BEGIN
   PERFORM pg_temp.ls_sistema();
   UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
   PERFORM pg_temp.nota('FOLHA SIGRH: permissão (processar e fechar), competência futura, simulação sem gravar, CPF desconhecido sem gravar nem devolver o CPF, folha fechada com fichas, itens e totais, log sem CPF e competência repetida verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro: empenhos do FIPLAN (FIP 614)
+-- Migração 20261027090000_fin_empenhos_fip614.sql (spec docs/superpowers/specs/2026-10-22-importacao-empenhos-fip614-design.md):
+--   * importar_empenhos_fip614: sem o módulo financeiro, sem orcamento.importar ou sem sessão recusa (42501); anon e
+--     PUBLIC sem EXECUTE; lista vazia = 22023;
+--   * simulação não grava; aplicação cria o empenho com origem fiplan, liga a dotação única e o favorecido pelo código
+--     do FIPLAN, grava o histórico e o log, e NÃO soma na dotação; dotação ambígua fica sem ligação e com aviso;
+--     reaplicar dá sem_alteracao; empenho do sistema com o mesmo número vira erro e nada é gravado;
+--   * o empenho feito no sistema continua somando na dotação e exigindo favorecido e dotação;
+--   * fin_empenho_documentos_fiplan: lê quem tem o módulo financeiro; ninguém grava pela API.
+-- Banco anterior à migração: o bloco reprova sem abortar.
+DO $$
+DECLARE
+  u_fin uuid := 'a0000000-0000-0000-0000-0000000008e1';   -- módulo financeiro + orcamento.importar
+  u_lei uuid := 'a0000000-0000-0000-0000-0000000008e2';   -- módulo financeiro sem a permissão
+  u_rhp uuid := 'a0000000-0000-0000-0000-0000000008e3';   -- a permissão no módulo rh, sem o financeiro
+  d_osc1 uuid := 'f3000000-0000-0000-0000-0000000000d1';
+  d_osc4 uuid := 'f3000000-0000-0000-0000-0000000000d2';
+  d_pas uuid := 'f3000000-0000-0000-0000-0000000000d3';
+  f_cred uuid := 'f3000000-0000-0000-0000-0000000000f1';
+  fn text := 'public.importar_empenhos_fip614(integer, jsonb, jsonb, date, boolean)';
+  arq text := jsonb_build_object('nome', 'fip614.pdf', 'sha256', repeat('ef', 32), 'tamanho', 2048)::text;
+  e1 jsonb; e2 jsonb; linhas jsonb; r text; n_imp int; x record; v_emp uuid;
+BEGIN
+  IF to_regprocedure(fn) IS NULL OR to_regclass('public.fin_empenho_documentos_fiplan') IS NULL THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: ' || fn || ' ou a tabela não existe');
+    RETURN;
+  END IF;
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_fin, 'ef_fin@teste.invalid'), (u_lei, 'ef_lei@teste.invalid'), (u_rhp, 'ef_rhp@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_fin, u_lei, u_rhp);
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_fin, 'financeiro', '{orcamento.importar}'),
+    (u_lei, 'financeiro', '{}'),
+    (u_rhp, 'rh', '{orcamento.importar}');
+  -- QDD de 2031: duas dotações de OSC (IDU diferente) e uma de passagens
+  INSERT INTO public.fin_dotacoes (id, exercicio, codigo_dotacao, valor_inicial, valor_empenhado) VALUES
+    (d_osc1, 2031, '08.244.030.2544.9900.33504100.1.500.0000.Não', 100000, 0),
+    (d_osc4, 2031, '08.244.030.2544.9900.33504100.1.500.0000.ECNI', 100000, 0),
+    (d_pas, 2031, '08.244.030.2544.9900.33903300.1.500.0000.Não', 1000, 1000);
+  INSERT INTO public.fornecedores (id, tipo_pessoa, cpf_cnpj, razao_social, codigo_credor_fiplan)
+    VALUES (f_cred, 'PJ', '00.000.000/0001-91', 'Agência de Teste', '2001.00001-1');
+
+  -- Passagens: R$ 900,00 empenhado, R$ 100,00 estornado, R$ 500,00 liquidado e R$ 300,00 pago
+  e1 := jsonb_build_object('numero', '17302.0001.31.00001-1', 'data_empenho', '2031-03-05', 'processo', '00000107/31-01',
+          'processo_sei', '17302.000107/2031.01', 'convenio', null, 'ped_numero', '17302.0001.31.00008-9', 'ped_data', '2031-03-04',
+          'dotacao', '17302.0001.08.244.030.2544.9900.33903300.1500.000', 'credor_codigo', '2001.00001-1', 'credor_nome', 'AGENCIA DE TESTE',
+          'valor_empenhado', 900, 'valor_anulado', 100,
+          'totais', jsonb_build_object('emp', 800, 'liq', 500, 'nob', 300, 'gcv', 0, 'saldo_liquidar', 300, 'a_pagar', 200),
+          'documentos', jsonb_build_array(
+            jsonb_build_object('tipo', 'EMP', 'numero', '17302.0001.31.00001-1', 'data', '2031-03-05', 'pc', null, 'valores', jsonb_build_object('emp', 900), 'historico', null),
+            jsonb_build_object('tipo', 'LIQ', 'numero', '17302.0001.31.00100-6', 'data', '2031-07-08', 'pc', null, 'valores', jsonb_build_object('liq', 500), 'historico', 'Fatura de teste'),
+            jsonb_build_object('tipo', 'NOB', 'numero', '17302.0001.31.00127-0', 'data', '2031-08-04', 'pc', 'P', 'valores', jsonb_build_object('nob', 300), 'historico', null),
+            jsonb_build_object('tipo', 'EST', 'numero', '17302.0001.31.00002-3', 'data', '2031-08-09', 'pc', null, 'valores', jsonb_build_object('emp', 100), 'historico', null)));
+  -- OSC: duas dotações possíveis (o FIP 614 corta antes do IDU)
+  e2 := jsonb_build_object('numero', '17302.0001.31.00002-1', 'data_empenho', '2031-04-24', 'processo', '00000168/31-61',
+          'processo_sei', '17302.000168/2031.61', 'convenio', 'Fomento nº 01/2031', 'ped_numero', '17302.0001.31.00016-1', 'ped_data', '2031-04-24',
+          'dotacao', '17302.0001.08.244.030.2544.9900.33504100.1500.000', 'credor_codigo', '2025.00002-2', 'credor_nome', 'INSTITUTO DE TESTE',
+          'valor_empenhado', 5000, 'valor_anulado', 0,
+          'totais', jsonb_build_object('emp', 5000, 'liq', 0, 'nob', 0, 'gcv', 0, 'saldo_liquidar', 5000, 'a_pagar', 0),
+          'documentos', jsonb_build_array(
+            jsonb_build_object('tipo', 'EMP', 'numero', '17302.0001.31.00002-1', 'data', '2031-04-24', 'pc', null, 'valores', jsonb_build_object('emp', 5000), 'historico', null)));
+  linhas := jsonb_build_array(e1, e2);
+
+  -- ===== quem chama
+  IF has_function_privilege('anon', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: anon executa ' || fn); END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              WHERE p.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: PUBLIC executa ' || fn);
+  END IF;
+  FOR x IN SELECT * FROM (VALUES (u_lei, 'sem orcamento.importar'), (u_rhp, 'sem o módulo financeiro'), (NULL::uuid, 'sem sessão')) v(quem, rot) LOOP
+    r := pg_temp.sql_como(x.quem, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, NULL, NULL, true)', linhas));
+    IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: ' || x.rot || ' não recusa (' || r || ')'); END IF;
+  END LOOP;
+  r := pg_temp.sql_como(u_fin, 'authenticated', 'SELECT public.importar_empenhos_fip614(2031, ''[]''::jsonb, NULL, NULL, true)');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: lista vazia aceita (' || r || ')'); END IF;
+
+  -- ===== simulação não grava
+  SELECT count(*) INTO n_imp FROM public.importacoes;
+  r := pg_temp.valor_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, %L, true)::text', linhas, arq, '2031-09-30'));
+  IF left(coalesce(r, ''), 1) <> '{' OR (r::jsonb -> 'totais' ->> 'inserir')::int <> 2 OR jsonb_array_length(r::jsonb -> 'erros') <> 0
+     OR r::jsonb -> 'linhas' -> 1 -> 'avisos' ->> 0 !~ '2 dotações possíveis' THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: simulação devolveu ' || left(coalesce(r, 'nulo'), 200));
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.fin_empenhos WHERE exercicio = 2031) OR (SELECT count(*) FROM public.importacoes) <> n_imp THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: a simulação gravou');
+  END IF;
+
+  -- ===== aplicação: grava sem somar na dotação; reaplicar dá sem_alteracao
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, %L, false)', linhas, arq, '2031-09-30'));
+  SELECT id INTO v_emp FROM public.fin_empenhos WHERE exercicio = 2031 AND numero = '17302.0001.31.00001-1';
+  IF r <> 'ok' OR v_emp IS NULL
+     OR (SELECT row(origem, dotacao_id, fornecedor_id, valor_empenhado, valor_anulado, valor_liquidado, valor_pago, saldo_liquidar, status::text, objeto, data_referencia_fiplan)
+           FROM public.fin_empenhos WHERE id = v_emp)
+        IS DISTINCT FROM row('fiplan'::text, d_pas, f_cred, 900.00::numeric(15,2), 100.00::numeric(15,2), 500.00::numeric(15,2), 300.00::numeric(15,2),
+                             300.00::numeric(15,2), 'parcialmente_pago'::text, 'Fatura de teste'::text, '2031-09-30'::date) THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: empenho gravado errado (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  IF (SELECT count(*) FROM public.fin_empenho_documentos_fiplan WHERE empenho_id = v_emp) <> 4
+     OR (SELECT dotacao_id FROM public.fin_empenhos WHERE exercicio = 2031 AND numero = '17302.0001.31.00002-1') IS NOT NULL
+     OR (SELECT count(*) FROM public.importacoes WHERE tipo = 'empenhos_fip614') <> 1 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: histórico, dotação ambígua ou log errados');
+  END IF;
+  IF (SELECT valor_empenhado FROM public.fin_dotacoes WHERE id = d_pas) <> 1000
+     OR (SELECT sum(valor_empenhado) FROM public.fin_dotacoes WHERE id IN (d_osc1, d_osc4)) <> 0 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: empenho do FIPLAN somou na dotação');
+  END IF;
+  r := pg_temp.valor_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, %L, true)::text', linhas, arq, '2031-09-30'));
+  IF left(coalesce(r, ''), 1) <> '{' OR (r::jsonb -> 'totais' ->> 'sem_alteracao')::int <> 2 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: reimportar não deu sem_alteracao (' || left(coalesce(r, 'nulo'), 300) || ')');
+  END IF;
+  -- dotação escolhida à mão entre as candidatas sobrevive à reimportação
+  UPDATE public.fin_empenhos SET dotacao_id = d_osc4 WHERE exercicio = 2031 AND numero = '17302.0001.31.00002-1';
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, %L, false)', linhas, arq, '2031-10-31'));
+  IF r <> 'ok' OR (SELECT dotacao_id FROM public.fin_empenhos WHERE exercicio = 2031 AND numero = '17302.0001.31.00002-1') IS DISTINCT FROM d_osc4 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: reimportar perdeu a dotação escolhida (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  -- a origem não muda
+  BEGIN
+    UPDATE public.fin_empenhos SET origem = 'sistema' WHERE id = v_emp;
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: origem alterada');
+  EXCEPTION WHEN invalid_parameter_value OR check_violation THEN NULL;
+  END;
+
+  -- ===== empenho do sistema: continua somando na dotação e exigindo favorecido e dotação
+  INSERT INTO public.fin_empenhos (numero, exercicio, dotacao_id, fornecedor_id, valor_empenhado, objeto)
+    VALUES ('NE-2031-001', 2031, d_osc1, f_cred, 250, 'Empenho do sistema');
+  IF (SELECT valor_empenhado FROM public.fin_dotacoes WHERE id = d_osc1) <> 250 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: empenho do sistema deixou de somar na dotação');
+  END IF;
+  BEGIN
+    INSERT INTO public.fin_empenhos (numero, exercicio, dotacao_id, valor_empenhado, objeto) VALUES ('NE-2031-002', 2031, d_osc1, 10, 'Sem favorecido');
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: empenho do sistema sem favorecido aceito');
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+
+  -- ===== número de empenho do sistema não é sobrescrito: erro e nada gravado
+  SELECT count(*) INTO n_imp FROM public.importacoes;
+  UPDATE public.fin_empenhos SET numero = '17302.0001.31.00003-0' WHERE numero = 'NE-2031-001';
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, NULL, false)',
+         jsonb_build_array(e1 || jsonb_build_object('numero', '17302.0001.31.00003-0')), arq));
+  IF r NOT LIKE 'erro:22023%' OR (SELECT count(*) FROM public.importacoes) <> n_imp
+     OR (SELECT origem FROM public.fin_empenhos WHERE numero = '17302.0001.31.00003-0') <> 'sistema' THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: empenho do sistema sobrescrito (' || coalesce(r, 'nulo') || ')');
+  END IF;
+
+  -- ===== leitura e escrita direta no histórico
+  r := pg_temp.valor_como(u_lei, 'authenticated', format('SELECT count(*)::text FROM public.fin_empenho_documentos_fiplan WHERE empenho_id = %L', v_emp));
+  IF r IS DISTINCT FROM '4' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: quem tem o módulo financeiro não lê o histórico (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_rhp, 'authenticated', 'SELECT count(*)::text FROM public.fin_empenho_documentos_fiplan');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: sem o módulo financeiro lê o histórico (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('INSERT INTO public.fin_empenho_documentos_fiplan (empenho_id, ordem, tipo, numero, data) VALUES (%L, 9, %L, %L, %L)',
+         v_emp, 'LIQ', '17302.0001.31.00999-9', '2031-01-01'));
+  IF r NOT LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: INSERT direto no histórico aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.fin_empenho_documentos_fiplan SET historico = %L', 'x'));
+  IF r NOT LIKE 'erro:%' AND r <> 'ok:0' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: UPDATE direto no histórico aceito (' || r || ')'); END IF;
+
+  PERFORM pg_temp.nota('FIN (empenhos do FIPLAN): permissão, simulação sem gravar, aplicação sem somar na dotação, favorecido pelo código, dotação ambígua e escolhida à mão, histórico e log, reaplicação sem alteração, origem fixa, empenho do sistema intacto e escrita direta no histórico bloqueada verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

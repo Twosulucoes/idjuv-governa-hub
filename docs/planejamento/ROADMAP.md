@@ -101,8 +101,12 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   patrimônio, a ficha cadastral geral (pdf-lib) e o Imprimir do organograma ([PADRAO_DOCUMENTOS.md](../PADRAO_DOCUMENTOS.md) §3).
 - [ ] **Financeiro — planilhas do FIPLAN** (fora do plano, etapa 1 em PR rascunho): tabelas de classificação
   (função, programa, elemento, subelemento, fonte, finalidade) importadas das consultas do FIPLAN e nomes corrigidos
-  nos cadastros ([spec](../superpowers/specs/2026-10-19-classificadores-fiplan-design.md)). Próximas etapas: credores
-  com o código do FIPLAN em `fornecedores`, NPD (programação financeira mensal), UO/UG na configuração do cliente.
+  nos cadastros ([spec](../superpowers/specs/2026-10-19-classificadores-fiplan-design.md)). Empenhos importados do
+  FIP 614 (PR rascunho, 23/10/2026): empenho, liquidações, NOBs e estornos com o FIPLAN como fonte, código do credor
+  em `fornecedores` e escolha da dotação quando o relatório não traz o IDU
+  ([spec](../superpowers/specs/2026-10-22-importacao-empenhos-fip614-design.md)). Falta testar com o relatório real
+  e confirmar se o FIPLAN exporta o FIP 614 com o IDU. Próximas etapas: NPD (programação financeira mensal), UO/UG
+  na configuração do cliente.
 - [ ] **Design System** (transversal): fases 0 a 2 feitas; fase 3 (RH como piloto) e fase 4 (um módulo por PR, começou
   pelo Patrimônio) em andamento — [spec](../superpowers/specs/2026-10-09-design-system-design.md),
   [plano](../superpowers/plans/2026-10-09-design-system.md).

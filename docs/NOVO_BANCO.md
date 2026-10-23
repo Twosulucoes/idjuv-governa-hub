@@ -183,6 +183,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - O cálculo do IRRF pela lei de 2026 e a opção pelo regime próprio de origem (migração `20261019200000`) entraram no
   schema do baseline regenerado a partir do replay; `calcular_irrf_mensal` sem EXECUTE pela API no overlay 40; testes no
   bloco "FOLHA: cálculo do INSS e do IRRF" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os empenhos do FIPLAN (migração `20261027090000`) entraram no schema do baseline regenerado (colunas novas em
+  `fin_empenhos` e `fornecedores`, tabela `fin_empenho_documentos_fiplan`, gatilhos de saldo e
+  `importar_empenhos_fip614`) e o rótulo novo de `orcamento.importar` no catálogo; classe `preservar` no mapa,
+  escrita retirada no overlay 40; testes no bloco "Financeiro: empenhos do FIPLAN (FIP 614)" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#empenhos-do-fiplan-fip-614)).
 - Os atos remuneratórios e o histórico do vencimento por cargo (migração `20261020100000`) entraram no schema do
   baseline regenerado e no mapa (`atos_remuneratorios` e `atos_remuneratorios_itens` na classe `permissao`,
   `cargo_vencimentos` na `trilha`); privilégios das funções novas no overlay 40; testes no bloco "FOLHA: atos

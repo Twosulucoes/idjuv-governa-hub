@@ -11,6 +11,7 @@ import type {
   Dotacao,
   SolicitacaoDespesa,
   Empenho,
+  DocumentoEmpenhoFiplan,
   Liquidacao,
   Pagamento,
   ContaBancaria,
@@ -292,6 +293,96 @@ export function useCriarEmpenho() {
         description: error.message,
         variant: 'destructive',
       });
+    },
+  });
+}
+
+/** Empenho com dotação, favorecido, natureza e fonte (tela de detalhe). */
+export function useEmpenhoDetalhe(id?: string) {
+  return useQuery({
+    queryKey: ['fin_empenho', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fin_empenhos')
+        .select(`
+          *,
+          dotacao:fin_dotacoes(id, codigo_dotacao, idu, saldo_disponivel),
+          fornecedor:fornecedores(id, razao_social, cpf_cnpj),
+          natureza_despesa:fin_naturezas_despesa(id, codigo, nome),
+          fonte_recurso:fin_fontes_recurso(id, codigo, nome)
+        `)
+        .eq('id', id!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as unknown as Empenho | null;
+    },
+  });
+}
+
+/** LIQ, NOB, GCV e estornos do FIPLAN de um empenho importado do FIP 614, na ordem do relatório. */
+export function useDocumentosEmpenhoFiplan(empenhoId?: string) {
+  return useQuery({
+    queryKey: ['fin_empenho_documentos_fiplan', empenhoId],
+    enabled: !!empenhoId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fin_empenho_documentos_fiplan')
+        .select('*')
+        .eq('empenho_id', empenhoId!)
+        .order('ordem');
+      if (error) throw error;
+      return data as unknown as DocumentoEmpenhoFiplan[];
+    },
+  });
+}
+
+/**
+ * Dotações do QDD em que o empenho do FIPLAN pode cair: mesmos dígitos de função a fonte. O FIP 614 corta a
+ * dotação antes do IDU, então pode haver mais de uma (ex.: recurso livre e emenda na mesma natureza).
+ */
+export function useDotacoesCandidatasEmpenho(empenho?: Pick<Empenho, 'exercicio' | 'dotacao_fiplan' | 'origem'> | null) {
+  const prefixo = empenho?.dotacao_fiplan
+    ? empenho.dotacao_fiplan.split('.').slice(2, 9).join('').replace(/\D/g, '')
+    : '';
+  return useQuery({
+    queryKey: ['fin_dotacoes', empenho?.exercicio, 'candidatas', prefixo],
+    enabled: empenho?.origem === 'fiplan' && prefixo.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fin_dotacoes')
+        .select('id, codigo_dotacao, idu, natureza_despesa_id, fonte_recurso_id, valor_atual, valor_empenhado')
+        .eq('exercicio', empenho!.exercicio);
+      if (error) throw error;
+      return (data ?? []).filter((d) => d.codigo_dotacao.replace(/\D/g, '').startsWith(prefixo));
+    },
+  });
+}
+
+/** Liga o empenho do FIPLAN a uma das dotações candidatas (com a natureza e a fonte dela). */
+export function useDefinirDotacaoEmpenho() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (dados: { empenhoId: string; dotacao: { id: string; natureza_despesa_id: string | null; fonte_recurso_id: string | null } }) => {
+      const { error } = await supabase
+        .from('fin_empenhos')
+        .update({
+          dotacao_id: dados.dotacao.id,
+          natureza_despesa_id: dados.dotacao.natureza_despesa_id,
+          fonte_recurso_id: dados.dotacao.fonte_recurso_id,
+        })
+        .eq('id', dados.empenhoId)
+        .eq('origem', 'fiplan');
+      if (error) throw error;
+    },
+    onSuccess: (_d, dados) => {
+      queryClient.invalidateQueries({ queryKey: ['fin_empenho', dados.empenhoId] });
+      queryClient.invalidateQueries({ queryKey: ['fin_empenhos'] });
+      toast({ title: 'Dotação do empenho definida' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao definir a dotação', description: error.message, variant: 'destructive' });
     },
   });
 }
