@@ -200,6 +200,20 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
   continua). O topo da tela traz os cartões de resumo do exercício (dotação atual, empenhado, saldo disponível)
   e o aviso "Atualizado pelo FIPLAN em <data> · <arquivo>" (ou "Ainda não importado"), lido do último registro
   em `importacoes`. Não há mais "Nova dotação": dotação vem do FIPLAN.
+- **Painel `/financeiro` (execução do exercício)**, calculado no navegador sobre o QDD (`fin_dotacoes`) e o
+  FIP 614 (`fin_empenhos`), sem tabela própria. As contas ficam em `src/lib/financeiro/painelExecucao.ts` (com
+  testes) e os quadros em `src/components/financeiro/painel/`:
+  - faixa com a data da última importação do QDD e do FIP 614 (amarela quando o QDD tem mais de 7 dias);
+  - cartões de autorizado, empenhado, liquidado, pago, saldo para empenhar e reservado (PED). O saldo usa a conta
+    do FIPLAN (autorizado − empenhado − bloqueado − reserva − PED), não a coluna `saldo_disponivel`;
+  - execução por grupo de despesa, com gráfico e tabela;
+  - alertas de saldo: dotações cujo saldo não cobre o resto do ano no ritmo do que já foi liquidado. Os
+    vencimentos e as obrigações patronais contam o 13º;
+  - fila de pagamento por credor: o que falta liquidar e o que já foi liquidado e falta pagar;
+  - as 5 maiores despesas por elemento.
+
+  Para manter o painel em dia, importe o QDD e o FIP 614 toda semana. Spec:
+  [`2026-10-23-painel-financeiro-fiplan-design.md`](./superpowers/specs/2026-10-23-painel-financeiro-fiplan-design.md).
 - **Orçamento saiu do menu.** `OrcamentoPage` foi removida; `/financeiro/orcamento` redireciona para
   `/financeiro/qdd`.
 - **Exercício único no módulo.** O seletor `SeletorExercicio` (hook `useExercicioFinanceiro`, ver
