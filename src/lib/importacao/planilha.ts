@@ -6,6 +6,7 @@
  *
  *   - lerPrimeiraAba      lê a primeira aba e devolve as linhas com o número da linha no Excel
  *   - lerLinhasDasAbas    todas as linhas de todas as abas como arrays (relatórios com título, ex.: FIPLAN)
+ *   - lerAbas             as linhas de cada aba como arrays, pelo nome da aba
  *   - normalizarCabecalho "Nº DOE" → "n_doe" (sem acento, minúsculo, separadores viram _)
  *   - campoDoCabecalho / mapearColunas  cabeçalhos da planilha → chaves do importador, por sinônimos
  *   - paraTexto / paraDataIso  conversão de célula sem deslocar o fuso
@@ -153,6 +154,21 @@ export async function lerLinhasDasAbas(arquivo: Blob): Promise<unknown[][]> {
   if (pasta.SheetNames.length === 0) throw new Error("A planilha não tem nenhuma aba.");
   return pasta.SheetNames.flatMap((aba) =>
     XLSX.utils.sheet_to_json<unknown[]>(pasta.Sheets[aba], { header: 1, raw: true, blankrows: false, defval: "" }),
+  );
+}
+
+/**
+ * Cada aba como linhas de células (arrays, sem tratar a primeira como cabeçalho), pelo nome da aba. Para
+ * planilhas com título antes do cabeçalho e mais de uma aba com papel próprio (ex.: processos e andamento).
+ */
+export async function lerAbas(arquivo: Blob): Promise<Record<string, unknown[][]>> {
+  const pasta = await lerPasta(arquivo);
+  if (pasta.SheetNames.length === 0) throw new Error("A planilha não tem nenhuma aba.");
+  return Object.fromEntries(
+    pasta.SheetNames.map((aba) => [
+      aba,
+      XLSX.utils.sheet_to_json<unknown[]>(pasta.Sheets[aba], { header: 1, raw: true, blankrows: false, defval: "" }),
+    ]),
   );
 }
 

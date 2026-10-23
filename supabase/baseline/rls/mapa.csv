@@ -221,6 +221,7 @@ portarias_servidor,rh,proprio_leitura,alta,RH vê tudo; o servidor lê apenas os
 prazos_lai,transparencia,modulo,alta,,,,
 prazos_processo,workflow,preservar,alta,"sigilo por wf_pode_ver_processo; escrita só por RPC (migração 20261013100100)",,rls_delete|rls_insert|rls_select|rls_update,
 pre_cadastros,rh|gabinete,modulo,alta,,,,
+processo_andamentos,compras,permissao,alta,"andamento dos processos de contratação (linha do tempo do SEI): ler exige compras.processos.visualizar ou editar; gravar exige compras.processos.editar; ninguém apaga pela API (migração 20261029090000)",escrita=compras.processos.editar;excluir=ninguem;leitura=compras.processos.visualizar|compras.processos.editar,,
 processo_checklist_respostas,workflow,preservar,alta,"sigilo por wf_pode_ver_processo; escrita só por RPC (migração 20261013100100)",,,
 processo_modelo_checklist,workflow,permissao,alta,"modelos de fluxo do workflow (migração 20261013100000): o módulo workflow lê; escrita só com workflow.admin (carga inicial por migração)",escrita=workflow.admin,,
 processo_modelo_etapas,workflow,permissao,alta,"modelos de fluxo do workflow (migração 20261013100000): o módulo workflow lê; escrita só com workflow.admin (carga inicial por migração)",escrita=workflow.admin,,

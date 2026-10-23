@@ -89,6 +89,8 @@ export type PermissaoInstitucional =
   | 'compras.tramitar'
   | 'compras.aprovar'
   | 'compras.pca.visualizar'
+  | 'compras.processos.visualizar'
+  | 'compras.processos.editar'
   // Contratos
   | 'contratos.visualizar'
   | 'contratos.criar'
@@ -245,17 +247,17 @@ export const menuConfig: MenuSection[] = [
         children: [
           {
             id: "licitacoes",
-            label: "Licitações",
-            route: "/processos/compras",
+            label: "Processos de contratação",
+            route: "/compras/processos",
             icon: ShoppingCart,
-            permission: "compras.visualizar",
+            permission: "compras.processos.visualizar",
           },
           {
             id: "nova-licitacao",
-            label: "Nova Licitação",
-            route: "/processos/compras?acao=novo",
+            label: "Novo processo",
+            route: "/compras/processos?novo=1",
             icon: FileText,
-            permission: "compras.criar",
+            permission: "compras.processos.editar",
           },
           {
             id: "pca",
@@ -1270,7 +1272,7 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/importacoes",
         icon: Upload,
         // Qualquer permissão de importador (mesma lista de PERMISSOES_IMPORTACAO em src/lib/importacao/registro.ts)
-        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar", "financeiro.folha.processar"],
+        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar", "financeiro.folha.processar", "compras.processos.editar"],
       },
       {
         id: "envios",

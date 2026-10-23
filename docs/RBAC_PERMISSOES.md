@@ -912,6 +912,12 @@ O segundo importador, arquivo do banco (OBN600/CNAB 240), declara `pagamento.con
 `PERMISSOES_IMPORTACAO` junta as permissões de todos os importadores, quem tem só `pagamento.conciliar` também entra
 em `/admin/importacoes`, e lá vê só esse importador.
 
+A planilha de processos de contratação declara `compras.processos.editar` (RPC `importar_processos_planilha`, que
+confere também o módulo `compras`). As telas `/compras/processos` e `/compras/processos/:id` exigem o módulo `compras` e
+`compras.processos.visualizar` ou `compras.processos.editar`; só `editar` cadastra, edita e registra movimentação
+(RLS de `processo_andamentos`). Os dados do processo em `processos_licitatorios` seguem com as policies por módulo
+(`compras` ou `contratos`) que já tinham; apertá-las é mudança de RLS existente e fica para decisão própria.
+
 O terceiro, planilha de portarias, declara `gabinete.portarias.importar` — permissão nova do catálogo do módulo
 `gabinete` (categoria "Portarias", `action_type` `importar`), criada pela migração
 `supabase/migrations/20261015120000_gab_importar_portarias.sql`. A RPC `importar_portarias_planilha` exige perfil

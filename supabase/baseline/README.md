@@ -280,6 +280,12 @@ de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termo
 `doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
 `ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
 
+A migração `20261029090000_compras_processos_andamento.sql` (processos de contratação, entrega 1) entrou no schema
+regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões
+`compras.processos.visualizar`/`editar` e da concessão a `admin` e `manager`, copiadas da regeneração), no
+`rls/mapa.csv` (`processo_andamentos` na classe `permissao`) e no `overlay/40_privilegios.sql`; testes no bloco
+"Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
+
 A migração `20261028090000_compras_pca.sql` (PCA, entrega 1) entrou no schema regenerado (`01_pre_data.sql` e
 `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões `compras.pca.visualizar`/`editar` e da
 concessão a `admin` e `manager`, copiadas da regeneração), no `rls/mapa.csv` (`pca_*` e `cat_*` na classe `permissao`,
