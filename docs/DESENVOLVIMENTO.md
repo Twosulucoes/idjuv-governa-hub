@@ -339,6 +339,10 @@ os cabeçalhos de `deploy/nginx/cabecalhos-seguranca.conf`); domínio e HTTPS fi
 - Domínios no Coolify: `app.idjuv.online` (sistema) e `idjuv.online`/`www` (site), com labels do Traefik editáveis
   (*Container labels → Label management* fora do automático) e `priority=1000` nos roteadores desses domínios, para
   passarem na frente da rota antiga do proxy da VPS. Para voltar ao servidor antigo, tire os domínios dos apps.
+- O `Dockerfile` troca, na CSP de `deploy/nginx/cabecalhos-seguranca.conf`, o host do banco pelo de
+  `VITE_SUPABASE_URL` do build: o mesmo `Dockerfile` serve a produção e o **ambiente de teste** (ambiente `teste` do
+  projeto `idjuv` no Coolify, com Supabase próprio e dados fictícios; [NOVO_BANCO.md](./NOVO_BANCO.md#9-ambiente-de-teste-com-dados-fictícios)).
+  O app de teste não entra no `deploy-front.yml`: é publicado pelo próprio Coolify.
 - Sem `COOLIFY_APP_UUID` nada muda: segue o rsync descrito acima.
 
 ### Deploy das Edge Functions (CI)
