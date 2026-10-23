@@ -199,6 +199,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
   mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- O PCA, entrega 1 (migração `20261027090000`), entrou no mapa (`pca_planos`, `pca_tetos`, `pca_itens` e as `cat_*`,
+  classe `permissao` com `compras.pca.editar`; `pca_historico`, classe `trilha`), no schema do baseline regenerado, no
+  catálogo (as duas permissões e a concessão aos papéis `admin` e `manager`) e no `overlay/40_privilegios.sql`; testes
+  no bloco "Compras: PCA" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A conciliação mensal (migração `20261026090000`) entrou no mapa (`fin_conciliacoes_mensais` e
   `fin_conciliacao_itens`, classe `permissao` com `pagamento.conciliar`), no schema do baseline regenerado e no
   `overlay/40_privilegios.sql` (EXECUTE das RPCs só para `authenticated`; trigger fora da API); testes no bloco

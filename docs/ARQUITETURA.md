@@ -85,6 +85,10 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `requiredPermissions="admin.configuracao_cliente"`): grava a identidade da instituição em
   `dados_oficiais`, que o `TenantProvider` aplica por cima do perfil do tenant. Ver
   [CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md).
+- **PCA (Compras)** em `/compras/pca` e `/compras/pca/:exercicio` (`PcaListaPage`, `PcaPlanoPage`,
+  `requiredModule="compras"` e `compras.pca.visualizar` ou `compras.pca.editar`): itens lançados dos DFDs do SEI e
+  orçamento por ação × fonte; menu em Compras → "Plano de Contratações (PCA)". O catálogo CATMAT/CATSER vem do portal
+  de dados abertos do Compras.gov.br pela Edge Function `catalogo-compras` (o navegador não chama o portal: CORS e CSP).
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
