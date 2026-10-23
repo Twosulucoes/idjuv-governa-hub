@@ -255,6 +255,10 @@ PGPASSWORD='...' psql "postgresql://postgres@127.0.0.1:5432/postgres" \
   -v confirmo=banco_de_teste -v email='login-de-teste@exemplo.test' -f supabase/baseline/dados-teste.sql
 ```
 
+- **Atalho pela VPS:** `bash scripts/db/montar-ambiente-teste.sh <container-do-db-de-teste> <email>` faz tudo de uma vez
+  rodando o `psql` dentro do container (sem expor porta): baseline, login de teste já confirmado no Auth (senha
+  aleatória mostrada só no terminal), `bootstrap-admin.sql` e este script. Recusa o container `supabase-db` (o da
+  produção) e banco com tabela em `public`. No Coolify o container é `supabase-db-<uuid do serviço>`.
 - **Travas:** sem `-v confirmo=banco_de_teste` o script não roda, e ele recusa banco que já tenha servidor, fornecedor
   ou bem (a produção tem). Uma transação só: se algo falhar, nada fica gravado.
 - `email` liga o login de teste ao servidor fictício "Usuário de Teste" (lotado no RH), para as telas que pedem
