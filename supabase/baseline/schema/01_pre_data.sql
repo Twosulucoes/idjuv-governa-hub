@@ -10187,6 +10187,66 @@ $$;
 
 
 --
+-- Name: pca_carimbar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pca_carimbar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF TG_TABLE_NAME = 'pca_planos' THEN
+      NEW.situacao := 'rascunho';
+    END IF;
+    NEW.created_by := COALESCE(auth.uid(), NEW.created_by);
+  ELSE
+    NEW.created_at := OLD.created_at;
+    NEW.created_by := OLD.created_by;
+  END IF;
+  NEW.updated_at := now();
+  NEW.updated_by := auth.uid();
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: pca_registrar_historico(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pca_registrar_historico() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'pca_planos' THEN
+    IF TG_OP = 'INSERT' THEN
+      INSERT INTO public.pca_historico (plano_id, acao, depois, feito_por)
+      VALUES (NEW.id, 'plano_criado', jsonb_build_object('exercicio', NEW.exercicio), auth.uid());
+    ELSIF NEW.situacao IS DISTINCT FROM OLD.situacao THEN
+      INSERT INTO public.pca_historico (plano_id, acao, antes, depois, feito_por)
+      VALUES (NEW.id, 'situacao', jsonb_build_object('situacao', OLD.situacao), jsonb_build_object('situacao', NEW.situacao),
+              auth.uid());
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO public.pca_historico (plano_id, item_id, acao, depois, feito_por)
+    VALUES (NEW.plano_id, NEW.id, 'item_incluido', to_jsonb(NEW), auth.uid());
+  ELSIF to_jsonb(NEW) - ARRAY['updated_at', 'updated_by'] IS DISTINCT FROM to_jsonb(OLD) - ARRAY['updated_at', 'updated_by'] THEN
+    INSERT INTO public.pca_historico (plano_id, item_id, acao, antes, depois, feito_por)
+    VALUES (NEW.plano_id, NEW.id,
+            CASE WHEN NEW.situacao = 'excluido' AND OLD.situacao = 'ativo' THEN 'item_excluido' ELSE 'item_alterado' END,
+            to_jsonb(OLD), to_jsonb(NEW), auth.uid());
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: perfil_ativo_atual(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -17038,6 +17098,102 @@ CREATE TABLE public.cargos (
 
 
 --
+-- Name: cat_material_itens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cat_material_itens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    codigo_item integer NOT NULL,
+    codigo_pdm integer NOT NULL,
+    descricao text NOT NULL,
+    sustentavel boolean DEFAULT false NOT NULL,
+    ativo boolean DEFAULT true NOT NULL,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE cat_material_itens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.cat_material_itens IS 'Itens de material do CATMAT já usados num PCA (gravados sob demanda pela Edge Function catalogo-compras).';
+
+
+--
+-- Name: cat_material_pdms; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cat_material_pdms (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    codigo_pdm integer NOT NULL,
+    nome_pdm text NOT NULL,
+    codigo_classe integer NOT NULL,
+    nome_classe text NOT NULL,
+    codigo_grupo integer NOT NULL,
+    nome_grupo text NOT NULL,
+    ativo boolean DEFAULT true NOT NULL,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE cat_material_pdms; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.cat_material_pdms IS 'PDMs (padrões descritivos de material) do CATMAT, copiados do portal de dados abertos do Compras.gov.br pela Edge Function catalogo-compras.';
+
+
+--
+-- Name: cat_servicos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cat_servicos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    codigo_servico integer NOT NULL,
+    nome_servico text NOT NULL,
+    codigo_classe integer,
+    nome_classe text,
+    codigo_grupo integer,
+    nome_grupo text,
+    codigo_divisao integer,
+    nome_divisao text,
+    codigo_secao integer NOT NULL,
+    nome_secao text NOT NULL,
+    ativo boolean DEFAULT true NOT NULL,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE cat_servicos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.cat_servicos IS 'Serviços do CATSER, copiados do portal de dados abertos do Compras.gov.br pela Edge Function catalogo-compras.';
+
+
+--
+-- Name: cat_sincronizacoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cat_sincronizacoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tipo text NOT NULL,
+    total integer DEFAULT 0 NOT NULL,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL,
+    atualizado_por uuid,
+    CONSTRAINT cat_sincronizacoes_tipo_check CHECK ((tipo = ANY (ARRAY['pdm'::text, 'servico'::text]))),
+    CONSTRAINT cat_sincronizacoes_total_check CHECK ((total >= 0))
+);
+
+
+--
+-- Name: TABLE cat_sincronizacoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.cat_sincronizacoes IS 'Última atualização de cada parte do catálogo CATMAT/CATSER.';
+
+
+--
 -- Name: categorias_material; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -22768,6 +22924,140 @@ CREATE TABLE public.patrimonio_unidade (
     updated_by uuid,
     updated_at timestamp with time zone DEFAULT now()
 );
+
+
+--
+-- Name: pca_historico; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pca_historico (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    plano_id uuid NOT NULL,
+    item_id uuid,
+    acao text NOT NULL,
+    antes jsonb,
+    depois jsonb,
+    motivo text,
+    feito_por uuid DEFAULT auth.uid(),
+    feito_em timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT pca_historico_acao_check CHECK ((acao = ANY (ARRAY['plano_criado'::text, 'situacao'::text, 'item_incluido'::text, 'item_alterado'::text, 'item_excluido'::text])))
+);
+
+
+--
+-- Name: TABLE pca_historico; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pca_historico IS 'Trilha do PCA: criação, mudança de situação e inclusão/alteração/exclusão de itens (gatilho).';
+
+
+--
+-- Name: pca_itens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pca_itens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    plano_id uuid NOT NULL,
+    numero_sei text NOT NULL,
+    setor_id uuid,
+    tipo text NOT NULL,
+    codigo_pdm integer,
+    codigo_servico integer,
+    codigo_item integer,
+    descricao text NOT NULL,
+    unidade_fornecimento text NOT NULL,
+    quantidade numeric(15,3) NOT NULL,
+    valor_unitario numeric(15,2) NOT NULL,
+    valor_total numeric(15,2) GENERATED ALWAYS AS (round((quantidade * valor_unitario), 2)) STORED,
+    mes_desejado integer NOT NULL,
+    prioridade text DEFAULT 'media'::text NOT NULL,
+    acao_id uuid NOT NULL,
+    fonte_recurso_id uuid NOT NULL,
+    natureza_despesa_id uuid,
+    justificativa text,
+    origem text DEFAULT 'dfd'::text NOT NULL,
+    situacao text DEFAULT 'ativo'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT pca_itens_catalogo_check CHECK ((((tipo = 'material'::text) AND (codigo_pdm IS NOT NULL) AND (codigo_servico IS NULL)) OR ((tipo = 'servico'::text) AND (codigo_servico IS NOT NULL) AND (codigo_pdm IS NULL) AND (codigo_item IS NULL)))),
+    CONSTRAINT pca_itens_descricao_check CHECK (((char_length(btrim(descricao)) >= 1) AND (char_length(btrim(descricao)) <= 1000))),
+    CONSTRAINT pca_itens_justificativa_check CHECK ((char_length(justificativa) <= 2000)),
+    CONSTRAINT pca_itens_mes_desejado_check CHECK (((mes_desejado >= 1) AND (mes_desejado <= 12))),
+    CONSTRAINT pca_itens_numero_sei_check CHECK (((char_length(btrim(numero_sei)) >= 1) AND (char_length(btrim(numero_sei)) <= 60))),
+    CONSTRAINT pca_itens_origem_check CHECK ((origem = ANY (ARRAY['dfd'::text, 'sugestao_aceita'::text]))),
+    CONSTRAINT pca_itens_prioridade_check CHECK ((prioridade = ANY (ARRAY['alta'::text, 'media'::text, 'baixa'::text]))),
+    CONSTRAINT pca_itens_quantidade_check CHECK ((quantidade > (0)::numeric)),
+    CONSTRAINT pca_itens_situacao_check CHECK ((situacao = ANY (ARRAY['ativo'::text, 'excluido'::text]))),
+    CONSTRAINT pca_itens_tipo_check CHECK ((tipo = ANY (ARRAY['material'::text, 'servico'::text]))),
+    CONSTRAINT pca_itens_unidade_fornecimento_check CHECK (((char_length(btrim(unidade_fornecimento)) >= 1) AND (char_length(btrim(unidade_fornecimento)) <= 60))),
+    CONSTRAINT pca_itens_valor_unitario_check CHECK ((valor_unitario >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE pca_itens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pca_itens IS 'Itens do PCA: cada demanda lançada por Compras a partir de um DFD do SEI (numero_sei), com item do CATMAT/CATSER. Sai do PCA por situacao = excluido.';
+
+
+--
+-- Name: pca_planos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pca_planos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    exercicio integer NOT NULL,
+    situacao text DEFAULT 'rascunho'::text NOT NULL,
+    processo_sei text,
+    data_aprovacao date,
+    data_publicacao_pncp date,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT pca_planos_exercicio_check CHECK (((exercicio >= 2020) AND (exercicio <= 2100))),
+    CONSTRAINT pca_planos_observacoes_check CHECK ((char_length(observacoes) <= 2000)),
+    CONSTRAINT pca_planos_processo_sei_check CHECK ((char_length(processo_sei) <= 60)),
+    CONSTRAINT pca_planos_situacao_check CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'enviado_sei'::text, 'aprovado'::text, 'publicado'::text])))
+);
+
+
+--
+-- Name: TABLE pca_planos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pca_planos IS 'PCA (Plano de Contratações Anual, Lei 14.133, art. 12, VII): um por exercício. A aprovação é ato do SEI; aqui ficam o número do processo e as datas.';
+
+
+--
+-- Name: pca_tetos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pca_tetos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    plano_id uuid NOT NULL,
+    acao_id uuid NOT NULL,
+    fonte_recurso_id uuid NOT NULL,
+    valor_previsto numeric(15,2) DEFAULT 0 NOT NULL,
+    origem text DEFAULT 'ploa'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT pca_tetos_origem_check CHECK ((origem = ANY (ARRAY['ploa'::text, 'qdd'::text]))),
+    CONSTRAINT pca_tetos_valor_previsto_check CHECK ((valor_previsto >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE pca_tetos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pca_tetos IS 'Teto do PCA por ação orçamentária × fonte: o previsto na PLOA, digitado por Compras, ou o QDD do exercício quando chega.';
 
 
 --

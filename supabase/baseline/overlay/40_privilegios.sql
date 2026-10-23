@@ -336,3 +336,7 @@ REVOKE ALL ON FUNCTION public.fechar_conciliacao_mensal(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fechar_conciliacao_mensal(uuid) TO authenticated;
 REVOKE ALL ON FUNCTION public.reabrir_conciliacao_mensal(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reabrir_conciliacao_mensal(uuid, text) TO authenticated;
+
+-- ---- Compras: PCA (migração 20261027090000): gatilhos sem EXECUTE para a API ----
+REVOKE EXECUTE ON FUNCTION public.pca_carimbar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.pca_registrar_historico() FROM PUBLIC, anon, authenticated;

@@ -374,6 +374,70 @@ ALTER TABLE ONLY public.cargos
 
 
 --
+-- Name: cat_material_itens cat_material_itens_codigo_item_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cat_material_itens
+    ADD CONSTRAINT cat_material_itens_codigo_item_key UNIQUE (codigo_item);
+
+
+--
+-- Name: cat_material_itens cat_material_itens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cat_material_itens
+    ADD CONSTRAINT cat_material_itens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cat_material_pdms cat_material_pdms_codigo_pdm_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cat_material_pdms
+    ADD CONSTRAINT cat_material_pdms_codigo_pdm_key UNIQUE (codigo_pdm);
+
+
+--
+-- Name: cat_material_pdms cat_material_pdms_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cat_material_pdms
+    ADD CONSTRAINT cat_material_pdms_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cat_servicos cat_servicos_codigo_servico_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cat_servicos
+    ADD CONSTRAINT cat_servicos_codigo_servico_key UNIQUE (codigo_servico);
+
+
+--
+-- Name: cat_servicos cat_servicos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cat_servicos
+    ADD CONSTRAINT cat_servicos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cat_sincronizacoes cat_sincronizacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cat_sincronizacoes
+    ADD CONSTRAINT cat_sincronizacoes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cat_sincronizacoes cat_sincronizacoes_tipo_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cat_sincronizacoes
+    ADD CONSTRAINT cat_sincronizacoes_tipo_key UNIQUE (tipo);
+
+
+--
 -- Name: categorias_material categorias_material_codigo_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2438,6 +2502,54 @@ ALTER TABLE ONLY public.patrimonio_unidade
 
 
 --
+-- Name: pca_historico pca_historico_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_historico
+    ADD CONSTRAINT pca_historico_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pca_itens pca_itens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_itens
+    ADD CONSTRAINT pca_itens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pca_planos pca_planos_exercicio_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_planos
+    ADD CONSTRAINT pca_planos_exercicio_key UNIQUE (exercicio);
+
+
+--
+-- Name: pca_planos pca_planos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_planos
+    ADD CONSTRAINT pca_planos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pca_tetos pca_tetos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_tetos
+    ADD CONSTRAINT pca_tetos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pca_tetos pca_tetos_plano_acao_fonte_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_tetos
+    ADD CONSTRAINT pca_tetos_plano_acao_fonte_key UNIQUE (plano_id, acao_id, fonte_recurso_id);
+
+
+--
 -- Name: pensoes_alimenticias pensoes_alimenticias_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3762,6 +3874,41 @@ CREATE INDEX idx_cargos_ativo ON public.cargos USING btree (ativo);
 --
 
 CREATE INDEX idx_cargos_categoria ON public.cargos USING btree (categoria);
+
+
+--
+-- Name: idx_cat_material_itens_pdm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cat_material_itens_pdm ON public.cat_material_itens USING btree (codigo_pdm);
+
+
+--
+-- Name: idx_cat_material_pdms_busca; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cat_material_pdms_busca ON public.cat_material_pdms USING gin (to_tsvector('portuguese'::regconfig, ((nome_pdm || ' '::text) || nome_classe)));
+
+
+--
+-- Name: idx_cat_material_pdms_grupo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cat_material_pdms_grupo ON public.cat_material_pdms USING btree (codigo_grupo, codigo_classe);
+
+
+--
+-- Name: idx_cat_servicos_busca; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cat_servicos_busca ON public.cat_servicos USING gin (to_tsvector('portuguese'::regconfig, ((nome_servico || ' '::text) || COALESCE(nome_classe, ''::text))));
+
+
+--
+-- Name: idx_cat_servicos_secao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_cat_servicos_secao ON public.cat_servicos USING btree (codigo_secao, codigo_grupo);
 
 
 --
@@ -6929,6 +7076,27 @@ CREATE INDEX idx_patrimonio_unidade ON public.patrimonio_unidade USING btree (un
 
 
 --
+-- Name: idx_pca_historico_plano; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pca_historico_plano ON public.pca_historico USING btree (plano_id, feito_em DESC);
+
+
+--
+-- Name: idx_pca_itens_orcamento; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pca_itens_orcamento ON public.pca_itens USING btree (plano_id, acao_id, fonte_recurso_id);
+
+
+--
+-- Name: idx_pca_itens_plano; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pca_itens_plano ON public.pca_itens USING btree (plano_id, situacao);
+
+
+--
 -- Name: idx_pensoes_alimenticias_ativo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9929,6 +10097,41 @@ CREATE TRIGGER trg_movimentacao_atualiza_estoque AFTER INSERT ON public.moviment
 --
 
 CREATE TRIGGER trg_parametros_folha_normalizar_nome BEFORE INSERT OR UPDATE OF tipo_parametro ON public.parametros_folha FOR EACH ROW EXECUTE FUNCTION public.parametros_folha_normalizar_nome();
+
+
+--
+-- Name: pca_itens trg_pca_itens_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pca_itens_carimbar BEFORE INSERT OR UPDATE ON public.pca_itens FOR EACH ROW EXECUTE FUNCTION public.pca_carimbar();
+
+
+--
+-- Name: pca_itens trg_pca_itens_historico; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pca_itens_historico AFTER INSERT OR UPDATE ON public.pca_itens FOR EACH ROW EXECUTE FUNCTION public.pca_registrar_historico();
+
+
+--
+-- Name: pca_planos trg_pca_planos_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pca_planos_carimbar BEFORE INSERT OR UPDATE ON public.pca_planos FOR EACH ROW EXECUTE FUNCTION public.pca_carimbar();
+
+
+--
+-- Name: pca_planos trg_pca_planos_historico; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pca_planos_historico AFTER INSERT OR UPDATE ON public.pca_planos FOR EACH ROW EXECUTE FUNCTION public.pca_registrar_historico();
+
+
+--
+-- Name: pca_tetos trg_pca_tetos_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pca_tetos_carimbar BEFORE INSERT OR UPDATE ON public.pca_tetos FOR EACH ROW EXECUTE FUNCTION public.pca_carimbar();
 
 
 --
@@ -13225,6 +13428,14 @@ ALTER TABLE ONLY public.cargo_vencimentos
 
 ALTER TABLE ONLY public.cargo_vencimentos
     ADD CONSTRAINT cargo_vencimentos_cargo_id_fkey FOREIGN KEY (cargo_id) REFERENCES public.cargos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: cat_material_itens cat_material_itens_codigo_pdm_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cat_material_itens
+    ADD CONSTRAINT cat_material_itens_codigo_pdm_fkey FOREIGN KEY (codigo_pdm) REFERENCES public.cat_material_pdms(codigo_pdm);
 
 
 --
@@ -16860,6 +17071,110 @@ ALTER TABLE ONLY public.patrimonio_unidade
 
 
 --
+-- Name: pca_historico pca_historico_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_historico
+    ADD CONSTRAINT pca_historico_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.pca_itens(id);
+
+
+--
+-- Name: pca_historico pca_historico_plano_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_historico
+    ADD CONSTRAINT pca_historico_plano_id_fkey FOREIGN KEY (plano_id) REFERENCES public.pca_planos(id);
+
+
+--
+-- Name: pca_itens pca_itens_acao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_itens
+    ADD CONSTRAINT pca_itens_acao_id_fkey FOREIGN KEY (acao_id) REFERENCES public.fin_acoes_orcamentarias(id);
+
+
+--
+-- Name: pca_itens pca_itens_codigo_item_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_itens
+    ADD CONSTRAINT pca_itens_codigo_item_fkey FOREIGN KEY (codigo_item) REFERENCES public.cat_material_itens(codigo_item);
+
+
+--
+-- Name: pca_itens pca_itens_codigo_pdm_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_itens
+    ADD CONSTRAINT pca_itens_codigo_pdm_fkey FOREIGN KEY (codigo_pdm) REFERENCES public.cat_material_pdms(codigo_pdm);
+
+
+--
+-- Name: pca_itens pca_itens_codigo_servico_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_itens
+    ADD CONSTRAINT pca_itens_codigo_servico_fkey FOREIGN KEY (codigo_servico) REFERENCES public.cat_servicos(codigo_servico);
+
+
+--
+-- Name: pca_itens pca_itens_fonte_recurso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_itens
+    ADD CONSTRAINT pca_itens_fonte_recurso_id_fkey FOREIGN KEY (fonte_recurso_id) REFERENCES public.fin_fontes_recurso(id);
+
+
+--
+-- Name: pca_itens pca_itens_natureza_despesa_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_itens
+    ADD CONSTRAINT pca_itens_natureza_despesa_id_fkey FOREIGN KEY (natureza_despesa_id) REFERENCES public.fin_naturezas_despesa(id);
+
+
+--
+-- Name: pca_itens pca_itens_plano_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_itens
+    ADD CONSTRAINT pca_itens_plano_id_fkey FOREIGN KEY (plano_id) REFERENCES public.pca_planos(id);
+
+
+--
+-- Name: pca_itens pca_itens_setor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_itens
+    ADD CONSTRAINT pca_itens_setor_id_fkey FOREIGN KEY (setor_id) REFERENCES public.estrutura_organizacional(id);
+
+
+--
+-- Name: pca_tetos pca_tetos_acao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_tetos
+    ADD CONSTRAINT pca_tetos_acao_id_fkey FOREIGN KEY (acao_id) REFERENCES public.fin_acoes_orcamentarias(id);
+
+
+--
+-- Name: pca_tetos pca_tetos_fonte_recurso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_tetos
+    ADD CONSTRAINT pca_tetos_fonte_recurso_id_fkey FOREIGN KEY (fonte_recurso_id) REFERENCES public.fin_fontes_recurso(id);
+
+
+--
+-- Name: pca_tetos pca_tetos_plano_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pca_tetos
+    ADD CONSTRAINT pca_tetos_plano_id_fkey FOREIGN KEY (plano_id) REFERENCES public.pca_planos(id);
+
+
+--
 -- Name: pensoes_alimenticias pensoes_alimenticias_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -18201,6 +18516,30 @@ ALTER TABLE public.cargo_vencimentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cargos ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: cat_material_itens; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cat_material_itens ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: cat_material_pdms; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cat_material_pdms ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: cat_servicos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cat_servicos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: cat_sincronizacoes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cat_sincronizacoes ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: categorias_material; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -19347,6 +19686,30 @@ ALTER TABLE public.participantes_reuniao ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.patrimonio_unidade ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: pca_historico; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pca_historico ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: pca_itens; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pca_itens ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: pca_planos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pca_planos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: pca_tetos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pca_tetos ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: pensoes_alimenticias; Type: ROW SECURITY; Schema: public; Owner: -
@@ -21325,6 +21688,34 @@ CREATE POLICY rls_insert ON public.cargos FOR INSERT TO authenticated WITH CHECK
 
 
 --
+-- Name: cat_material_itens rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cat_material_itens FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
+-- Name: cat_material_pdms rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cat_material_pdms FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
+-- Name: cat_servicos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cat_servicos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
+-- Name: cat_sincronizacoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.cat_sincronizacoes FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
 -- Name: categorias_material rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22416,6 +22807,27 @@ CREATE POLICY rls_insert ON public.patrimonio_unidade FOR INSERT TO authenticate
 
 
 --
+-- Name: pca_itens rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pca_itens FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
+-- Name: pca_planos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pca_planos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
+-- Name: pca_tetos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pca_tetos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
 -- Name: pensoes_alimenticias rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22963,6 +23375,34 @@ CREATE POLICY rls_select ON public.cargo_vencimentos FOR SELECT TO authenticated
 --
 
 CREATE POLICY rls_select ON public.cargos FOR SELECT TO authenticated USING (public.is_active_user());
+
+
+--
+-- Name: cat_material_itens rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cat_material_itens FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'compras'::text));
+
+
+--
+-- Name: cat_material_pdms rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cat_material_pdms FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'compras'::text));
+
+
+--
+-- Name: cat_servicos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cat_servicos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'compras'::text));
+
+
+--
+-- Name: cat_sincronizacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.cat_sincronizacoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'compras'::text));
 
 
 --
@@ -24108,6 +24548,34 @@ CREATE POLICY rls_select ON public.patrimonio_unidade FOR SELECT TO authenticate
 
 
 --
+-- Name: pca_historico rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pca_historico FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'compras'::text));
+
+
+--
+-- Name: pca_itens rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pca_itens FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.pca.editar'::text))));
+
+
+--
+-- Name: pca_planos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pca_planos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.pca.editar'::text))));
+
+
+--
+-- Name: pca_tetos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pca_tetos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.pca.editar'::text))));
+
+
+--
 -- Name: pensoes_alimenticias rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -24637,6 +25105,34 @@ CREATE POLICY rls_update ON public.cargo_unidade_compatibilidade FOR UPDATE TO a
 --
 
 CREATE POLICY rls_update ON public.cargos FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'rh'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'rh'::text));
+
+
+--
+-- Name: cat_material_itens rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cat_material_itens FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
+-- Name: cat_material_pdms rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cat_material_pdms FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
+-- Name: cat_servicos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cat_servicos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
+-- Name: cat_sincronizacoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.cat_sincronizacoes FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
 
 
 --
@@ -25730,6 +26226,27 @@ CREATE POLICY rls_update ON public.participantes_reuniao FOR UPDATE TO authentic
 --
 
 CREATE POLICY rls_update ON public.patrimonio_unidade FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'patrimonio'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'patrimonio'::text));
+
+
+--
+-- Name: pca_itens rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pca_itens FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
+-- Name: pca_planos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pca_planos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
+
+
+--
+-- Name: pca_tetos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pca_tetos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'::text)));
 
 
 --

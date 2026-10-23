@@ -2639,6 +2639,156 @@ export type Database = {
         }
         Relationships: []
       }
+      cat_material_itens: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          codigo_item: number
+          codigo_pdm: number
+          descricao: string
+          id: string
+          sustentavel: boolean
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_item: number
+          codigo_pdm: number
+          descricao: string
+          id?: string
+          sustentavel?: boolean
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_item?: number
+          codigo_pdm?: number
+          descricao?: string
+          id?: string
+          sustentavel?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cat_material_itens_codigo_pdm_fkey"
+            columns: ["codigo_pdm"]
+            isOneToOne: false
+            referencedRelation: "cat_material_pdms"
+            referencedColumns: ["codigo_pdm"]
+          },
+        ]
+      }
+      cat_material_pdms: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          codigo_classe: number
+          codigo_grupo: number
+          codigo_pdm: number
+          id: string
+          nome_classe: string
+          nome_grupo: string
+          nome_pdm: string
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_classe: number
+          codigo_grupo: number
+          codigo_pdm: number
+          id?: string
+          nome_classe: string
+          nome_grupo: string
+          nome_pdm: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_classe?: number
+          codigo_grupo?: number
+          codigo_pdm?: number
+          id?: string
+          nome_classe?: string
+          nome_grupo?: string
+          nome_pdm?: string
+        }
+        Relationships: []
+      }
+      cat_servicos: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          codigo_classe: number | null
+          codigo_divisao: number | null
+          codigo_grupo: number | null
+          codigo_secao: number
+          codigo_servico: number
+          id: string
+          nome_classe: string | null
+          nome_divisao: string | null
+          nome_grupo: string | null
+          nome_secao: string
+          nome_servico: string
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_classe?: number | null
+          codigo_divisao?: number | null
+          codigo_grupo?: number | null
+          codigo_secao: number
+          codigo_servico: number
+          id?: string
+          nome_classe?: string | null
+          nome_divisao?: string | null
+          nome_grupo?: string | null
+          nome_secao: string
+          nome_servico: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_classe?: number | null
+          codigo_divisao?: number | null
+          codigo_grupo?: number | null
+          codigo_secao?: number
+          codigo_servico?: number
+          id?: string
+          nome_classe?: string | null
+          nome_divisao?: string | null
+          nome_grupo?: string | null
+          nome_secao?: string
+          nome_servico?: string
+        }
+        Relationships: []
+      }
+      cat_sincronizacoes: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          id: string
+          tipo: string
+          total: number
+        }
+        ComputedFields: never
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          id?: string
+          tipo: string
+          total?: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          id?: string
+          tipo?: string
+          total?: number
+        }
+        Relationships: []
+      }
       categorias_material: {
         Row: {
           ativo: boolean | null
@@ -18242,6 +18392,305 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_relatorio_uso_unidades"
             referencedColumns: ["unidade_id"]
+          },
+        ]
+      }
+      pca_historico: {
+        Row: {
+          acao: string
+          antes: Json | null
+          depois: Json | null
+          feito_em: string
+          feito_por: string | null
+          id: string
+          item_id: string | null
+          motivo: string | null
+          plano_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          acao: string
+          antes?: Json | null
+          depois?: Json | null
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          item_id?: string | null
+          motivo?: string | null
+          plano_id: string
+        }
+        Update: {
+          acao?: string
+          antes?: Json | null
+          depois?: Json | null
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          item_id?: string | null
+          motivo?: string | null
+          plano_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pca_historico_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pca_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_historico_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "pca_planos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pca_itens: {
+        Row: {
+          acao_id: string
+          codigo_item: number | null
+          codigo_pdm: number | null
+          codigo_servico: number | null
+          created_at: string
+          created_by: string | null
+          descricao: string
+          fonte_recurso_id: string
+          id: string
+          justificativa: string | null
+          mes_desejado: number
+          natureza_despesa_id: string | null
+          numero_sei: string
+          origem: string
+          plano_id: string
+          prioridade: string
+          quantidade: number
+          setor_id: string | null
+          situacao: string
+          tipo: string
+          unidade_fornecimento: string
+          updated_at: string
+          updated_by: string | null
+          valor_total: number | null
+          valor_unitario: number
+        }
+        ComputedFields: never
+        Insert: {
+          acao_id: string
+          codigo_item?: number | null
+          codigo_pdm?: number | null
+          codigo_servico?: number | null
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          fonte_recurso_id: string
+          id?: string
+          justificativa?: string | null
+          mes_desejado: number
+          natureza_despesa_id?: string | null
+          numero_sei: string
+          origem?: string
+          plano_id: string
+          prioridade?: string
+          quantidade: number
+          setor_id?: string | null
+          situacao?: string
+          tipo: string
+          unidade_fornecimento: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_total?: never
+          valor_unitario: number
+        }
+        Update: {
+          acao_id?: string
+          codigo_item?: number | null
+          codigo_pdm?: number | null
+          codigo_servico?: number | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          fonte_recurso_id?: string
+          id?: string
+          justificativa?: string | null
+          mes_desejado?: number
+          natureza_despesa_id?: string | null
+          numero_sei?: string
+          origem?: string
+          plano_id?: string
+          prioridade?: string
+          quantidade?: number
+          setor_id?: string | null
+          situacao?: string
+          tipo?: string
+          unidade_fornecimento?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_total?: never
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pca_itens_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_acoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_itens_codigo_item_fkey"
+            columns: ["codigo_item"]
+            isOneToOne: false
+            referencedRelation: "cat_material_itens"
+            referencedColumns: ["codigo_item"]
+          },
+          {
+            foreignKeyName: "pca_itens_codigo_pdm_fkey"
+            columns: ["codigo_pdm"]
+            isOneToOne: false
+            referencedRelation: "cat_material_pdms"
+            referencedColumns: ["codigo_pdm"]
+          },
+          {
+            foreignKeyName: "pca_itens_codigo_servico_fkey"
+            columns: ["codigo_servico"]
+            isOneToOne: false
+            referencedRelation: "cat_servicos"
+            referencedColumns: ["codigo_servico"]
+          },
+          {
+            foreignKeyName: "pca_itens_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_itens_natureza_despesa_id_fkey"
+            columns: ["natureza_despesa_id"]
+            isOneToOne: false
+            referencedRelation: "fin_naturezas_despesa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_itens_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "pca_planos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_itens_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pca_planos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_aprovacao: string | null
+          data_publicacao_pncp: string | null
+          exercicio: number
+          id: string
+          observacoes: string | null
+          processo_sei: string | null
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_aprovacao?: string | null
+          data_publicacao_pncp?: string | null
+          exercicio: number
+          id?: string
+          observacoes?: string | null
+          processo_sei?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_aprovacao?: string | null
+          data_publicacao_pncp?: string | null
+          exercicio?: number
+          id?: string
+          observacoes?: string | null
+          processo_sei?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      pca_tetos: {
+        Row: {
+          acao_id: string
+          created_at: string
+          created_by: string | null
+          fonte_recurso_id: string
+          id: string
+          origem: string
+          plano_id: string
+          updated_at: string
+          updated_by: string | null
+          valor_previsto: number
+        }
+        ComputedFields: never
+        Insert: {
+          acao_id: string
+          created_at?: string
+          created_by?: string | null
+          fonte_recurso_id: string
+          id?: string
+          origem?: string
+          plano_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_previsto?: number
+        }
+        Update: {
+          acao_id?: string
+          created_at?: string
+          created_by?: string | null
+          fonte_recurso_id?: string
+          id?: string
+          origem?: string
+          plano_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_previsto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pca_tetos_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_acoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_tetos_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_tetos_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "pca_planos"
+            referencedColumns: ["id"]
           },
         ]
       }
