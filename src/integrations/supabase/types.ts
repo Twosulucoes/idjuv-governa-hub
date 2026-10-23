@@ -11050,6 +11050,63 @@ export type Database = {
           },
         ]
       }
+      fin_empenho_documentos_fiplan: {
+        Row: {
+          created_at: string
+          data: string
+          empenho_id: string
+          historico: string | null
+          id: string
+          numero: string
+          ordem: number
+          pc: string | null
+          tipo: string
+          valor_emp: number | null
+          valor_gcv: number | null
+          valor_liq: number | null
+          valor_nob: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          data: string
+          empenho_id: string
+          historico?: string | null
+          id?: string
+          numero: string
+          ordem: number
+          pc?: string | null
+          tipo: string
+          valor_emp?: number | null
+          valor_gcv?: number | null
+          valor_liq?: number | null
+          valor_nob?: number | null
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          empenho_id?: string
+          historico?: string | null
+          id?: string
+          numero?: string
+          ordem?: number
+          pc?: string | null
+          tipo?: string
+          valor_emp?: number | null
+          valor_gcv?: number | null
+          valor_liq?: number | null
+          valor_nob?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_empenho_documentos_fiplan_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_empenhos: {
         Row: {
           conta_contabil_credito_id: string | null
@@ -11057,20 +11114,29 @@ export type Database = {
           contrato_id: string | null
           created_at: string | null
           created_by: string | null
+          credor_codigo_fiplan: string | null
+          credor_nome: string | null
           data_empenho: string
           data_inscricao_rp: string | null
-          dotacao_id: string
+          data_referencia_fiplan: string | null
+          dotacao_fiplan: string | null
+          dotacao_id: string | null
           emitido_por: string | null
           exercicio: number
           fonte_recurso_id: string | null
-          fornecedor_id: string
+          fornecedor_id: string | null
           historico_status: Json | null
           id: string
+          importacao_id: string | null
           inscrito_rp: boolean | null
           natureza_despesa_id: string | null
           numero: string
           objeto: string
           observacoes: string | null
+          origem: string
+          ped_data: string | null
+          ped_numero: string | null
+          processo_fiplan: string | null
           processo_sei: string | null
           saldo_liquidar: number | null
           saldo_pagar: number | null
@@ -11091,20 +11157,29 @@ export type Database = {
           contrato_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          credor_codigo_fiplan?: string | null
+          credor_nome?: string | null
           data_empenho?: string
           data_inscricao_rp?: string | null
-          dotacao_id: string
+          data_referencia_fiplan?: string | null
+          dotacao_fiplan?: string | null
+          dotacao_id?: string | null
           emitido_por?: string | null
           exercicio: number
           fonte_recurso_id?: string | null
-          fornecedor_id: string
+          fornecedor_id?: string | null
           historico_status?: Json | null
           id?: string
+          importacao_id?: string | null
           inscrito_rp?: boolean | null
           natureza_despesa_id?: string | null
           numero: string
           objeto: string
           observacoes?: string | null
+          origem?: string
+          ped_data?: string | null
+          ped_numero?: string | null
+          processo_fiplan?: string | null
           processo_sei?: string | null
           saldo_liquidar?: never
           saldo_pagar?: never
@@ -11124,20 +11199,29 @@ export type Database = {
           contrato_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          credor_codigo_fiplan?: string | null
+          credor_nome?: string | null
           data_empenho?: string
           data_inscricao_rp?: string | null
-          dotacao_id?: string
+          data_referencia_fiplan?: string | null
+          dotacao_fiplan?: string | null
+          dotacao_id?: string | null
           emitido_por?: string | null
           exercicio?: number
           fonte_recurso_id?: string | null
-          fornecedor_id?: string
+          fornecedor_id?: string | null
           historico_status?: Json | null
           id?: string
+          importacao_id?: string | null
           inscrito_rp?: boolean | null
           natureza_despesa_id?: string | null
           numero?: string
           objeto?: string
           observacoes?: string | null
+          origem?: string
+          ped_data?: string | null
+          ped_numero?: string | null
+          processo_fiplan?: string | null
           processo_sei?: string | null
           saldo_liquidar?: never
           saldo_pagar?: never
@@ -11192,6 +11276,13 @@ export type Database = {
             columns: ["fornecedor_id"]
             isOneToOne: false
             referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_empenhos_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
             referencedColumns: ["id"]
           },
           {
@@ -12976,6 +13067,7 @@ export type Database = {
           ativo: boolean | null
           banco_codigo: string | null
           banco_nome: string | null
+          codigo_credor_fiplan: string | null
           conta: string | null
           cpf_cnpj: string
           created_at: string | null
@@ -13012,6 +13104,7 @@ export type Database = {
           ativo?: boolean | null
           banco_codigo?: string | null
           banco_nome?: string | null
+          codigo_credor_fiplan?: string | null
           conta?: string | null
           cpf_cnpj: string
           created_at?: string | null
@@ -13047,6 +13140,7 @@ export type Database = {
           ativo?: boolean | null
           banco_codigo?: string | null
           banco_nome?: string | null
+          codigo_credor_fiplan?: string | null
           conta?: string | null
           cpf_cnpj?: string
           created_at?: string | null
@@ -24992,6 +25086,16 @@ export type Database = {
           p_linhas: Json
           p_simular?: boolean
           p_tipo: string
+        }
+        Returns: Json
+      }
+      importar_empenhos_fip614: {
+        Args: {
+          p_arquivo: Json
+          p_data_referencia?: string
+          p_exercicio: number
+          p_linhas: Json
+          p_simular?: boolean
         }
         Returns: Json
       }
