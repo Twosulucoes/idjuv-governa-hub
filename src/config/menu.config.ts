@@ -1270,7 +1270,7 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/importacoes",
         icon: Upload,
         // Qualquer permissão de importador (mesma lista de PERMISSOES_IMPORTACAO em src/lib/importacao/registro.ts)
-        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar", "financeiro.folha.processar"],
+        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar", "financeiro.folha.processar", "compras.processos.editar"],
       },
       {
         id: "envios",

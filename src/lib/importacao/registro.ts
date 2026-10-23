@@ -9,6 +9,7 @@ import { importadorClassificadoresFiplan } from "./importadores/classificadoresF
 import { importadorEmpenhosFip614 } from "./importadores/empenhosFip614";
 import { importadorFolhaSigrh } from "./importadores/folhaSigrh";
 import { importadorPortariasPlanilha } from "./importadores/portariasPlanilha";
+import { importadorProcessosPlanilha } from "./importadores/processosPlanilha";
 import { importadorQddFiplan } from "./importadores/qddFiplan";
 
 // Cada importador é coerente com o próprio tipo de linha; na lista o tipo da linha não importa.
@@ -21,6 +22,7 @@ export const IMPORTADORES: Importador<unknown>[] = [
   generico(importadorArquivoBancario),
   generico(importadorPortariasPlanilha),
   generico(importadorFolhaSigrh),
+  generico(importadorProcessosPlanilha),
 ];
 
 export function obterImportador(id: string): Importador<unknown> | undefined {
