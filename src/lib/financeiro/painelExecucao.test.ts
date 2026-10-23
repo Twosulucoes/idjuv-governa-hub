@@ -3,6 +3,7 @@ import {
   alertasDeSaldo,
   execucaoPorGrupo,
   filaDePagamento,
+  formatarNatureza,
   maioresDespesas,
   resumirExecucao,
   type DotacaoPainel,
@@ -171,5 +172,15 @@ describe("maioresDespesas", () => {
     expect(m[0]).toMatchObject({ liquidado: 60, pct: 60, nome: "Serviços PJ" });
     const muitas = Array.from({ length: 8 }, (_, i) => dot(`3390${10 + i}00`, { valor_liquidado: i + 1 }));
     expect(maioresDespesas(muitas)).toHaveLength(5);
+  });
+});
+
+describe("formatarNatureza", () => {
+  it("põe os pontos do FIPLAN e tira o subelemento 00", () => {
+    expect(formatarNatureza("31901100")).toBe("3.1.90.11");
+    expect(formatarNatureza("33903901")).toBe("3.3.90.39.01");
+    expect(formatarNatureza("3.3.90.39")).toBe("3.3.90.39");
+    expect(formatarNatureza("339039")).toBe("3.3.90.39");
+    expect(formatarNatureza(null)).toBe("—");
   });
 });

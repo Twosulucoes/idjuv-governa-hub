@@ -223,3 +223,13 @@ export function maioresDespesas(dotacoes: DotacaoPainel[], limite = 5): DespesaE
     .slice(0, limite)
     .map((e) => ({ ...e, pct: pct(e.liquidado, total) }));
 }
+
+/** 31901100 → 3.1.90.11; 33903901 → 3.3.90.39.01 (subelemento 00 some) */
+export function formatarNatureza(natureza: string | null): string {
+  const dig = digitos(natureza);
+  if (dig.length < 6) return natureza?.trim() || "—";
+  const partes = [dig[0], dig[1], dig.slice(2, 4), dig.slice(4, 6)];
+  const sub = dig.slice(6, 8);
+  if (sub && sub !== "00") partes.push(sub);
+  return partes.join(".");
+}
