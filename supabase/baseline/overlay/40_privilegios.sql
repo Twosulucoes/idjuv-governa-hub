@@ -186,6 +186,8 @@ GRANT SELECT ON public.envios_log TO authenticated;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.importacoes FROM authenticated;
 -- tabelas do FIPLAN (migração 20261019100000): só leitura pela API; escrita pela RPC importar_classificadores_fiplan
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_classificadores_fiplan FROM authenticated;
+-- histórico do FIP 614 (migração 20261027090000): só leitura pela API; escrita pela RPC importar_empenhos_fip614
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_empenho_documentos_fiplan FROM authenticated;
 -- financeiro: arquivos bancários, reenvio e extrato do BB (migrações 20261011100000 a 20261011100300). As tabelas só
 -- são lidas pela API (escrita pelas RPCs com pagamento.conciliar ou pela service role na Edge Function bb-api);
 -- funções de apoio e de trigger fora da API; registrar_extrato_bb só para a service role.
@@ -337,7 +339,7 @@ GRANT EXECUTE ON FUNCTION public.fechar_conciliacao_mensal(uuid) TO authenticate
 REVOKE ALL ON FUNCTION public.reabrir_conciliacao_mensal(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reabrir_conciliacao_mensal(uuid, text) TO authenticated;
 
--- ---- Compras: PCA (migração 20261027090000): gatilhos sem EXECUTE para a API ----
+-- ---- Compras: PCA (migração 20261028090000): gatilhos sem EXECUTE para a API ----
 REVOKE EXECUTE ON FUNCTION public.pca_carimbar() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.pca_registrar_historico() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.pca_classificadores(integer) FROM PUBLIC, anon;

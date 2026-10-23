@@ -1,7 +1,8 @@
 /**
  * Formulário do Favorecido - Dialog
  * Cadastro e edição de quem recebe pagamentos (tabela `fornecedores`): documento, nome, endereço e a conta de
- * crédito usada na remessa OBN600 quando o pagamento não traz conta própria.
+ * crédito usada na remessa OBN600 quando o pagamento não traz conta própria. O código do credor no FIPLAN liga
+ * os empenhos importados do FIP 614 a este favorecido.
  */
 
 import { useEffect } from "react";
@@ -40,6 +41,7 @@ const opcional = (max: number) => z.string().trim().max(max, `Máximo de ${max} 
 const schema = z.object({
   cpf_cnpj: z.string().trim().refine(documentoValido, "CPF ou CNPJ inválido"),
   razao_social: z.string().trim().min(3, "Mínimo de 3 caracteres").max(255),
+  codigo_credor_fiplan: z.string().trim().regex(/^(\d{4}\.\d{5}-\d)?$/, "Use o formato 2001.00001-1"),
   endereco_logradouro: opcional(255),
   endereco_numero: opcional(20),
   endereco_bairro: opcional(100),
@@ -60,6 +62,7 @@ type FormData = z.infer<typeof schema>;
 const VAZIO: FormData = {
   cpf_cnpj: "",
   razao_social: "",
+  codigo_credor_fiplan: "",
   endereco_logradouro: "",
   endereco_numero: "",
   endereco_bairro: "",
@@ -78,6 +81,7 @@ const VAZIO: FormData = {
 const doFavorecido = (f: Favorecido): FormData => ({
   cpf_cnpj: f.cpf_cnpj ?? "",
   razao_social: f.razao_social ?? "",
+  codigo_credor_fiplan: f.codigo_credor_fiplan ?? "",
   endereco_logradouro: f.endereco_logradouro ?? "",
   endereco_numero: f.endereco_numero ?? "",
   endereco_bairro: f.endereco_bairro ?? "",
@@ -172,6 +176,7 @@ export default function FavorecidoFormDialog({ open, onOpenChange, favorecido }:
           conta: normalizarAgenciaConta(d.conta),
           tipo_conta: d.tipo_conta,
           ativo: d.ativo,
+          codigo_credor_fiplan: ouNulo(d.codigo_credor_fiplan),
         },
       });
       onOpenChange(false);
@@ -215,6 +220,20 @@ export default function FavorecidoFormDialog({ open, onOpenChange, favorecido }:
                 />
                 <CampoTexto control={form.control} name="razao_social" rotulo="Nome ou razão social *" maxLength={255} />
               </div>
+              <FormField
+                control={form.control}
+                name="codigo_credor_fiplan"
+                render={({ field }) => (
+                  <FormItem className="max-w-xs">
+                    <FormLabel>Código do credor no FIPLAN</FormLabel>
+                    <FormControl>
+                      <Input placeholder="2001.00001-1" maxLength={12} {...field} />
+                    </FormControl>
+                    <FormDescription>Liga os empenhos importados do FIPLAN a este favorecido.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </fieldset>
 
             <fieldset className="space-y-4">

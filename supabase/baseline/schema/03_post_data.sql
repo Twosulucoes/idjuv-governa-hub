@@ -1526,6 +1526,22 @@ ALTER TABLE ONLY public.fin_empenho_anulacoes
 
 
 --
+-- Name: fin_empenho_documentos_fiplan fin_empenho_documentos_fiplan_ordem; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_empenho_documentos_fiplan
+    ADD CONSTRAINT fin_empenho_documentos_fiplan_ordem UNIQUE (empenho_id, ordem);
+
+
+--
+-- Name: fin_empenho_documentos_fiplan fin_empenho_documentos_fiplan_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_empenho_documentos_fiplan
+    ADD CONSTRAINT fin_empenho_documentos_fiplan_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_empenhos fin_empenhos_numero_exercicio_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3328,6 +3344,13 @@ CREATE UNIQUE INDEX documentos_portaria_numero_uk ON public.documentos USING btr
 --
 
 CREATE UNIQUE INDEX eventos_esocial_folha_evento_servidor_uidx ON public.eventos_esocial USING btree (folha_id, tipo_evento, COALESCE(servidor_id, '00000000-0000-0000-0000-000000000000'::uuid)) WHERE ((folha_id IS NOT NULL) AND (status <> ALL (ARRAY['erro'::public.status_evento_esocial, 'rejeitado'::public.status_evento_esocial])));
+
+
+--
+-- Name: fornecedores_codigo_credor_fiplan_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX fornecedores_codigo_credor_fiplan_key ON public.fornecedores USING btree (codigo_credor_fiplan) WHERE (codigo_credor_fiplan IS NOT NULL);
 
 
 --
@@ -5599,6 +5622,13 @@ CREATE INDEX idx_fin_empenhos_contrato ON public.fin_empenhos USING btree (contr
 
 
 --
+-- Name: idx_fin_empenhos_credor_fiplan; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_empenhos_credor_fiplan ON public.fin_empenhos USING btree (credor_codigo_fiplan);
+
+
+--
 -- Name: idx_fin_empenhos_dotacao; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5624,6 +5654,13 @@ CREATE INDEX idx_fin_empenhos_fonte_recurso_id ON public.fin_empenhos USING btre
 --
 
 CREATE INDEX idx_fin_empenhos_fornecedor ON public.fin_empenhos USING btree (fornecedor_id);
+
+
+--
+-- Name: idx_fin_empenhos_importacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_empenhos_importacao ON public.fin_empenhos USING btree (importacao_id);
 
 
 --
@@ -9501,7 +9538,7 @@ CREATE TRIGGER trg_atualizar_saldo_contrato AFTER INSERT OR DELETE OR UPDATE ON 
 -- Name: fin_empenhos trg_atualizar_saldo_empenho; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_atualizar_saldo_empenho AFTER INSERT OR DELETE OR UPDATE OF valor_empenhado ON public.fin_empenhos FOR EACH ROW EXECUTE FUNCTION public.fn_atualizar_saldo_dotacao_empenho();
+CREATE TRIGGER trg_atualizar_saldo_empenho AFTER INSERT OR DELETE OR UPDATE OF valor_empenhado, origem ON public.fin_empenhos FOR EACH ROW EXECUTE FUNCTION public.fn_atualizar_saldo_dotacao_empenho();
 
 
 --
@@ -15335,6 +15372,14 @@ ALTER TABLE ONLY public.fin_empenho_anulacoes
 
 
 --
+-- Name: fin_empenho_documentos_fiplan fin_empenho_documentos_fiplan_empenho_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_empenho_documentos_fiplan
+    ADD CONSTRAINT fin_empenho_documentos_fiplan_empenho_id_fkey FOREIGN KEY (empenho_id) REFERENCES public.fin_empenhos(id) ON DELETE CASCADE;
+
+
+--
 -- Name: fin_empenhos fin_empenhos_conta_contabil_credito_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15396,6 +15441,14 @@ ALTER TABLE ONLY public.fin_empenhos
 
 ALTER TABLE ONLY public.fin_empenhos
     ADD CONSTRAINT fin_empenhos_fornecedor_id_fkey FOREIGN KEY (fornecedor_id) REFERENCES public.fornecedores(id);
+
+
+--
+-- Name: fin_empenhos fin_empenhos_importacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_empenhos
+    ADD CONSTRAINT fin_empenhos_importacao_id_fkey FOREIGN KEY (importacao_id) REFERENCES public.importacoes(id) ON DELETE SET NULL;
 
 
 --
@@ -19177,6 +19230,19 @@ ALTER TABLE public.fin_dotacoes ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.fin_empenho_anulacoes ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_empenho_documentos_fiplan; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_empenho_documentos_fiplan ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_empenho_documentos_fiplan fin_empenho_documentos_fiplan_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY fin_empenho_documentos_fiplan_select ON public.fin_empenho_documentos_fiplan FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ( SELECT public.can_access_module(auth.uid(), 'financeiro'::text) AS can_access_module)));
+
 
 --
 -- Name: fin_empenhos; Type: ROW SECURITY; Schema: public; Owner: -

@@ -242,6 +242,7 @@ import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage"
 import PcaListaPage from "./pages/compras/PcaListaPage";
 import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
 import PagamentoDetalhePage from "./pages/financeiro/PagamentoDetalhePage";
+import EmpenhoDetalhePage from "./pages/financeiro/EmpenhoDetalhePage";
 
 // Inventário e Patrimônio
 import {
@@ -1326,7 +1327,7 @@ const App = () => (
               } />
               <Route path="/financeiro/empenhos/:id" element={
                 <ProtectedRoute requiredPermissions="orcamento.criar">
-                  <PlaceholderDetalheFinanceiroPage />
+                  <EmpenhoDetalhePage />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/pagamentos/:id" element={

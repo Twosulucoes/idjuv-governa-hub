@@ -1,6 +1,6 @@
 /**
  * PCA (Plano de Contratações Anual) do módulo Compras: planos por exercício, tetos por ação × fonte, itens lançados a
- * partir dos DFDs do SEI e o catálogo CATMAT/CATSER. Migração 20261027090000; leitura com `compras.pca.visualizar`,
+ * partir dos DFDs do SEI e o catálogo CATMAT/CATSER. Migração 20261028090000; leitura com `compras.pca.visualizar`,
  * escrita com `compras.pca.editar` (RLS). Ações, fontes e naturezas vêm de `pca_classificadores` (são do módulo
  * financeiro); itens de um PDM e a atualização do catálogo passam pela Edge Function `catalogo-compras`.
  */

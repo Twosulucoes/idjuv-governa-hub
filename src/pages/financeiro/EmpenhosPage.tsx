@@ -39,7 +39,12 @@ const colunas: ColunaTabela<Empenho>[] = [
   {
     id: "numero",
     cabecalho: "Número",
-    celula: (emp) => <span className="font-mono font-medium">{emp.numero}</span>,
+    celula: (emp) => (
+      <span className="inline-flex items-center gap-2">
+        <span className="font-mono font-medium">{emp.numero}</span>
+        {emp.origem === "fiplan" && <Badge variant="outline">FIPLAN</Badge>}
+      </span>
+    ),
     ordenarPor: (emp) => emp.numero,
     buscarPor: (emp) => emp.numero,
   },
@@ -52,9 +57,10 @@ const colunas: ColunaTabela<Empenho>[] = [
   {
     id: "fornecedor",
     cabecalho: "Fornecedor",
-    celula: (emp) => emp.fornecedor?.razao_social || "-",
-    ordenarPor: (emp) => emp.fornecedor?.razao_social,
-    buscarPor: (emp) => emp.fornecedor?.razao_social,
+    // Empenho do FIPLAN sem favorecido ligado mostra o credor como veio no relatório
+    celula: (emp) => emp.fornecedor?.razao_social || emp.credor_nome || "-",
+    ordenarPor: (emp) => emp.fornecedor?.razao_social ?? emp.credor_nome,
+    buscarPor: (emp) => emp.fornecedor?.razao_social ?? emp.credor_nome,
   },
   {
     id: "objeto",

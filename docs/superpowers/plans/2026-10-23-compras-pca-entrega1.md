@@ -30,7 +30,7 @@ React Query, vitest.
 - Edge Function: `verify_jwt = true` em `supabase/config.toml`; só chama `https://dadosabertos.compras.gov.br`; confere
   módulo `compras` + permissão `compras.pca.editar` (sincronizar e gravar item) ou `compras.pca.visualizar` (buscar).
 - Não editar `src/integrations/supabase/client.ts`; `types.ts` sai de `bash scripts/db/gerar-tipos.sh`.
-- Migração `supabase/migrations/20261027090000_compras_pca.sql` só vai para a PR depois do "sim" do usuário às tabelas.
+- Migração `supabase/migrations/20261028090000_compras_pca.sql` só vai para a PR depois do "sim" do usuário às tabelas.
 - `bash scripts/gate.sh` verde; docs da matriz + `docs/planejamento/ROADMAP.md` na mesma PR.
 
 ## Review Focus
@@ -46,7 +46,7 @@ React Query, vitest.
 ### Task 1: Migração, RLS, baseline e tipos
 
 **Files:**
-- Create: `supabase/migrations/20261027090000_compras_pca.sql`
+- Create: `supabase/migrations/20261028090000_compras_pca.sql`
 - Modify: `supabase/baseline/rls/mapa.csv`, `supabase/baseline/rls/35_policies_geradas.sql` (gerado),
   `supabase/baseline/overlay/40_privilegios.sql`, `supabase/baseline/schema/01_pre_data.sql` e `03_post_data.sql`
   (regenerados), `supabase/baseline/README.md`, `scripts/db/testar-rls.sql`, `src/integrations/supabase/types.ts`

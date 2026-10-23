@@ -18,14 +18,14 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Páginas (`*Page.tsx` em `src/pages`) | 214 |
+| Páginas (`*Page.tsx` em `src/pages`) | 215 |
 | Componentes (`.tsx` em `src/components`) | 327 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
 | — fora de `ui/` | 284 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 108 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 66 |
-| Linhas de `src/App.tsx` | 1387 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 27944 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 67 |
+| Linhas de `src/App.tsx` | 1388 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 28048 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -43,7 +43,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | `curriculo/` | 4 |
 | `eventos/` | 3 |
 | `federacoes/` | 3 |
-| `financeiro/` | 15 |
+| `financeiro/` | 16 |
 | `folha/` | 4 |
 | `formularios/` | 5 |
 | `gabinete/` | 1 |
@@ -68,16 +68,16 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 311 |
-| Migração mais recente | `20261027090000_compras_pca.sql` |
-| Tabelas do schema public (baseline) | 268 |
+| Migrações (`supabase/migrations/*.sql`) | 312 |
+| Migração mais recente | `20261028090000_compras_pca.sql` |
+| Tabelas do schema public (baseline) | 269 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 322 |
+| Funções (baseline) | 323 |
 | — de gatilho (`RETURNS trigger`) | 125 |
-| — demais | 197 |
+| — demais | 198 |
 | Enums (baseline) | 109 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1958 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 268 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1959 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 269 |
 | Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 11 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.

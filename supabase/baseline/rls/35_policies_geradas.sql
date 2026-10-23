@@ -1881,6 +1881,9 @@ DROP POLICY IF EXISTS "rls_delete" ON public.fin_empenho_anulacoes;
 CREATE POLICY "rls_delete" ON public.fin_empenho_anulacoes FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
 
+-- fin_empenho_documentos_fiplan  [preservar: financeiro]
+-- (nenhuma policy gerada)
+
 -- fin_empenhos  [modulo: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_empenhos;
 CREATE POLICY "rls_select" ON public.fin_empenhos FOR SELECT TO authenticated

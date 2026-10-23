@@ -1088,7 +1088,7 @@ Todas idempotentes.
   - RLS classe `permissao` (`escrita=pagamento.conciliar`; cabeçalho com `excluir=ninguem`); testes no bloco
     "Financeiro: conciliação mensal" de `scripts/db/testar-rls.sql`. A leitura dos arquivos e o casamento são do
     navegador (`src/lib/conciliacao/`).
-- **PCA, entrega 1** (`20261027090000_compras_pca.sql`, spec
+- **PCA, entrega 1** (`20261028090000_compras_pca.sql`, spec
   [2026-10-23-compras-gerador-pca-design.md](./superpowers/specs/2026-10-23-compras-gerador-pca-design.md)):
   - catálogo CATMAT/CATSER: `cat_material_pdms` (grupo → classe → PDM), `cat_servicos` (seção → divisão → grupo →
     classe → serviço), `cat_material_itens` (só os itens de material já usados) e `cat_sincronizacoes` (data e total da
@@ -1500,6 +1500,31 @@ colunas da planilha em `atributos`. RLS: `SELECT` para quem acessa o módulo fin
 corrige o nome de `fin_fontes_recurso` (mesmos dígitos), de `fin_programas_orcamentarios` do exercício e das
 naturezas com o nome provisório do QDD; nada é criado nesses cadastros nem apagado.
 
+#### Empenhos do FIPLAN (FIP 614)
+
+Migração `supabase/migrations/20261027090000_fin_empenhos_fip614.sql`. Spec:
+[`2026-10-22-importacao-empenhos-fip614-design.md`](./superpowers/specs/2026-10-22-importacao-empenhos-fip614-design.md).
+O FIPLAN é a fonte dos empenhos importados; a dotação continua vindo do QDD.
+
+- `fin_empenhos` ganha `origem` (`sistema` | `fiplan`, padrão `sistema`, não muda depois de gravada),
+  `credor_codigo_fiplan`, `credor_nome`, `ped_numero`, `ped_data`, `dotacao_fiplan`, `processo_fiplan`,
+  `data_referencia_fiplan` e `importacao_id`; `numero` passa a `varchar(30)`. `fornecedor_id` e `dotacao_id` deixam
+  de ser `NOT NULL`, mas o CHECK `fin_empenhos_sistema_vinculos_check` continua exigindo os dois no empenho feito no
+  sistema. Os gatilhos de saldo (`fn_atualizar_saldo_dotacao_empenho`, `fn_validar_saldo_empenho`,
+  `fn_verificar_saldo_dotacao`) ignoram `origem = 'fiplan'`: o valor da dotação já vem somado no QDD.
+- `fornecedores.codigo_credor_fiplan` (formato `2001.00001-1`, único quando preenchido): liga o empenho importado ao
+  favorecido na importação.
+- `fin_empenho_documentos_fiplan`: histórico do empenho no FIPLAN (EMP, LIQ, NOB, GCV, EST; número, data, P/C, valor
+  por coluna e histórico da liquidação), apagado junto com o empenho. RLS: `SELECT` para perfil ativo com o módulo
+  financeiro; sem escrita pela API (classe `preservar`, privilégio retirado no overlay 40).
+- `importar_empenhos_fip614(p_exercicio, p_linhas, p_arquivo, p_data_referencia, p_simular)` — `SECURITY DEFINER`,
+  exige perfil ativo, módulo financeiro e `orcamento.importar`; simula ou aplica tudo ou nada e registra em
+  `importacoes` (`tipo = 'empenhos_fip614'`). Cria ou atualiza pelo número, nunca apaga, e recusa número que já é de
+  empenho feito no sistema. A dotação liga pelos dígitos de `função…fonte` como prefixo do `codigo_dotacao`; com
+  mais de uma candidata, o IDU em número do 11º segmento (1 Não, 4 ECNI, 5 ECI, 6 EII; vem no Excel, o PDF corta a
+  dotação antes dele) escolhe pela sigla do QDD. Sem IDU, mantém a escolha anterior se ainda for candidata, senão
+  fica nula com aviso, e a escolha é feita na tela do empenho (UPDATE de `dotacao_id` pela policy de `fin_empenhos`).
+
 #### Importar portarias (`importar_portarias_planilha`)
 
 Migração `supabase/migrations/20261015120000_gab_importar_portarias.sql`. Spec:
@@ -1652,6 +1677,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
 - **Tabelas do FIPLAN**: `importar_classificadores_fiplan(p_tipo, p_exercicio, p_linhas, p_arquivo, p_simular)` —
   `SECURITY DEFINER`, exige perfil ativo, módulo financeiro e `orcamento.importar`; simula ou aplica tudo ou nada
   (código fora do padrão ou repetido barra a aplicação) e registra em `importacoes` (seção "Tabelas do FIPLAN").
+- **Empenhos do FIPLAN**: `importar_empenhos_fip614(p_exercicio, p_linhas, p_arquivo, p_data_referencia, p_simular)`
+  — `SECURITY DEFINER`, exige perfil ativo, módulo financeiro e `orcamento.importar` (seção "Empenhos do FIPLAN
+  (FIP 614)").
 - **Importação de portarias**: `importar_portarias_planilha(p_linhas, p_arquivo, p_simular)` — `SECURITY DEFINER`,
   exige módulo `gabinete` e `gabinete.portarias.importar`; simula por savepoint e aplica tudo ou nada (seção
   "Importar portarias").

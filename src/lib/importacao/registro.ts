@@ -6,6 +6,7 @@
 import type { Importador } from "./types";
 import { importadorArquivoBancario } from "./importadores/arquivoBancario";
 import { importadorClassificadoresFiplan } from "./importadores/classificadoresFiplan";
+import { importadorEmpenhosFip614 } from "./importadores/empenhosFip614";
 import { importadorFolhaSigrh } from "./importadores/folhaSigrh";
 import { importadorPortariasPlanilha } from "./importadores/portariasPlanilha";
 import { importadorQddFiplan } from "./importadores/qddFiplan";
@@ -16,6 +17,7 @@ const generico = <T,>(imp: Importador<T>) => imp as unknown as Importador<unknow
 export const IMPORTADORES: Importador<unknown>[] = [
   generico(importadorQddFiplan),
   generico(importadorClassificadoresFiplan),
+  generico(importadorEmpenhosFip614),
   generico(importadorArquivoBancario),
   generico(importadorPortariasPlanilha),
   generico(importadorFolhaSigrh),

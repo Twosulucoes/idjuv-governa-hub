@@ -95,6 +95,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `docs/GUIA_FRONTEND.md` (Importação de dados). A rota usa a própria `PERMISSOES_IMPORTACAO` e o item de menu repete a mesma lista
   (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`); `src/lib/importacao/registro.test.ts`
   reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha".
+- Financeiro: `/financeiro/empenhos/:id` (`EmpenhoDetalhePage`, `requiredPermissions="orcamento.criar"`): dados,
+  valores, histórico do FIPLAN e escolha da dotação do empenho importado do FIP 614.
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"
   requiredPermissions="pagamento.conciliar"`; `?aba=contas` abre direto as contas pagadoras);
   `/financeiro/favorecidos` (`FavorecidosPage`, `requiredModule="financeiro"`, `requiredPermissions="orcamento.criar"`,

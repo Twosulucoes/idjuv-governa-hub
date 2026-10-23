@@ -31,6 +31,7 @@ export type FavorecidoInput = Pick<
   | 'conta'
   | 'tipo_conta'
   | 'ativo'
+  | 'codigo_credor_fiplan'
 >;
 
 const CHAVE = ['fin_favorecidos'];
@@ -61,7 +62,13 @@ export function useSalvarFavorecido() {
         : supabase.from('fornecedores').insert(dados);
       const { data, error } = await consulta.select().single();
       if (error) {
-        if (error.code === '23505') throw new Error('Já existe um favorecido com este CPF/CNPJ.');
+        if (error.code === '23505') {
+          throw new Error(
+            error.message.includes('codigo_credor_fiplan')
+              ? 'Já existe um favorecido com este código de credor do FIPLAN.'
+              : 'Já existe um favorecido com este CPF/CNPJ.',
+          );
+        }
         throw error;
       }
       return { data, novo: !id };

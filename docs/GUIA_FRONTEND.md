@@ -217,6 +217,16 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
   `orcamento.importar`). Um arquivo por tabela; o parser (função pura, testada com vitest) reconhece a tabela pelo
   título, acha o cabeçalho, pula o cabeçalho repetido e o aviso "Continua na próxima planilha", exige um exercício só e
   não guarda coluna que possa ser dado pessoal (responsável, CPF, e-mail, telefone, matrícula). Regras: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#tabelas-do-fiplan-fin_classificadores_fiplan).
+- `tabelaHtml.ts` — "Excel" que é tabela HTML (o `.xls` do FIPLAN): `pareceTabelaHtml`, `decodificarHtml` (charset do
+  `<meta>`, padrão windows-1252) e `linhasDaTabelaHtml` (texto de cada célula como está, com a coluna real contando o
+  `colspan`). A biblioteca de planilhas lê esse arquivo, mas troca dia e mês e estraga números como `-20.329,08`.
+- `importadores/empenhosFip614.ts` + `empenhosFip614Parser.ts` — PDF ou Excel do "FIP 614 - Situação de Empenho" do FIPLAN →
+  `importar_empenhos_fip614` (`id` `empenhos_fip614`, módulo `financeiro`, permissão `orcamento.importar`). O parser
+  (função pura, testada com vitest e dados fictícios) põe cada valor na coluna pela borda direita, junta credor e
+  dotação quebrados, guarda o histórico da liquidação, trata o estorno (EST) na coluna onde o valor cai e confere cada
+  bloco com o TOTAL e a soma com o TOTAL UG. O Excel vira linhas posicionadas (`linhasFip614DoExcel`, uma posição por
+  coluna) e passa pelo mesmo parser; o exercício sai do número dos empenhos. O empenho importado aparece com o selo FIPLAN em Empenhos e o detalhe
+  (`EmpenhoDetalhePage`) mostra o histórico e a escolha da dotação. Regras: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#empenhos-do-fiplan-fip-614).
 - `planilha.ts` — helpers de planilha compartilhados (mesma lógica da importação do quadro de vagas, que mantém a
   sua cópia): `lerPrimeiraAba`
   (XLSX/XLS/CSV; CSV em UTF-8 ou Windows-1252; devolve cabeçalhos e linhas com o número da linha no Excel),
