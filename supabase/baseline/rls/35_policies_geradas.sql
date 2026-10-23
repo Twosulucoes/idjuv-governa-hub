@@ -3109,6 +3109,19 @@ DROP POLICY IF EXISTS "rls_delete" ON public.pre_cadastros;
 CREATE POLICY "rls_delete" ON public.pre_cadastros FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'gabinete')));
 
+-- processo_andamentos  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.processo_andamentos;
+CREATE POLICY "rls_select" ON public.processo_andamentos FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar') OR public.has_permission_code(auth.uid(), 'compras.processos.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.processo_andamentos;
+CREATE POLICY "rls_insert" ON public.processo_andamentos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.processo_andamentos;
+CREATE POLICY "rls_update" ON public.processo_andamentos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.processo_andamentos;
+
 -- processo_checklist_respostas  [preservar: workflow]
 -- (nenhuma policy gerada)
 

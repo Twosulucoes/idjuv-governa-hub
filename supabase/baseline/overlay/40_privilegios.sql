@@ -346,3 +346,12 @@ REVOKE ALL ON FUNCTION public.pca_classificadores(integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.pca_classificadores(integer) TO authenticated;
 REVOKE ALL ON FUNCTION public.pca_usar_qdd(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.pca_usar_qdd(uuid) TO authenticated;
+
+-- ---- Compras: processos de contratação (migração 20261029090000): gatilhos sem EXECUTE para a API ----
+REVOKE EXECUTE ON FUNCTION public.processo_licitatorio_normalizar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.processo_andamento_no_processo() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.processo_andamento_carimbar() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.processo_empenhos(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_empenhos(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.importar_processos_planilha(jsonb, jsonb, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.importar_processos_planilha(jsonb, jsonb, boolean) TO authenticated;

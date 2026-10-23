@@ -19792,6 +19792,51 @@ export type Database = {
           },
         ]
       }
+      processo_andamentos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: string
+          data_informada: boolean
+          etapa: string
+          id: string
+          processo_id: string
+          setor: string | null
+          situacao: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data: string
+          data_informada?: boolean
+          etapa: string
+          id?: string
+          processo_id: string
+          setor?: string | null
+          situacao: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          data_informada?: boolean
+          etapa?: string
+          id?: string
+          processo_id?: string
+          setor?: string | null
+          situacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_andamentos_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processo_checklist_respostas: {
         Row: {
           created_at: string
@@ -20113,6 +20158,7 @@ export type Database = {
       processos_licitatorios: {
         Row: {
           ano: number
+          atualizado_em: string | null
           created_at: string | null
           created_by: string | null
           data_abertura: string | null
@@ -20121,12 +20167,13 @@ export type Database = {
           data_sessao: string | null
           dotacao_orcamentaria: string | null
           elemento_despesa: string | null
+          etapa: string
           fase_atual: Database["public"]["Enums"]["fase_licitacao"] | null
           fonte_recurso: string | null
           fundamentacao_legal: string | null
           historico_fases: Json | null
           id: string
-          modalidade: Database["public"]["Enums"]["modalidade_licitacao"]
+          modalidade: Database["public"]["Enums"]["modalidade_licitacao"] | null
           numero_processo: string
           objeto: string
           objeto_resumido: string | null
@@ -20134,15 +20181,19 @@ export type Database = {
           pregoeiro_id: string | null
           programa_trabalho: string | null
           servidor_responsavel_id: string | null
+          setor_atual: string | null
+          situacao_atual: string | null
           tipo_licitacao: string | null
           unidade_requisitante_id: string | null
           updated_at: string | null
           updated_by: string | null
           valor_estimado: number | null
+          valor_estimado_obs: string | null
         }
         ComputedFields: never
         Insert: {
           ano?: number
+          atualizado_em?: string | null
           created_at?: string | null
           created_by?: string | null
           data_abertura?: string | null
@@ -20151,12 +20202,15 @@ export type Database = {
           data_sessao?: string | null
           dotacao_orcamentaria?: string | null
           elemento_despesa?: string | null
+          etapa?: string
           fase_atual?: Database["public"]["Enums"]["fase_licitacao"] | null
           fonte_recurso?: string | null
           fundamentacao_legal?: string | null
           historico_fases?: Json | null
           id?: string
-          modalidade: Database["public"]["Enums"]["modalidade_licitacao"]
+          modalidade?:
+            | Database["public"]["Enums"]["modalidade_licitacao"]
+            | null
           numero_processo: string
           objeto: string
           objeto_resumido?: string | null
@@ -20164,14 +20218,18 @@ export type Database = {
           pregoeiro_id?: string | null
           programa_trabalho?: string | null
           servidor_responsavel_id?: string | null
+          setor_atual?: string | null
+          situacao_atual?: string | null
           tipo_licitacao?: string | null
           unidade_requisitante_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
           valor_estimado?: number | null
+          valor_estimado_obs?: string | null
         }
         Update: {
           ano?: number
+          atualizado_em?: string | null
           created_at?: string | null
           created_by?: string | null
           data_abertura?: string | null
@@ -20180,12 +20238,15 @@ export type Database = {
           data_sessao?: string | null
           dotacao_orcamentaria?: string | null
           elemento_despesa?: string | null
+          etapa?: string
           fase_atual?: Database["public"]["Enums"]["fase_licitacao"] | null
           fonte_recurso?: string | null
           fundamentacao_legal?: string | null
           historico_fases?: Json | null
           id?: string
-          modalidade?: Database["public"]["Enums"]["modalidade_licitacao"]
+          modalidade?:
+            | Database["public"]["Enums"]["modalidade_licitacao"]
+            | null
           numero_processo?: string
           objeto?: string
           objeto_resumido?: string | null
@@ -20193,11 +20254,14 @@ export type Database = {
           pregoeiro_id?: string | null
           programa_trabalho?: string | null
           servidor_responsavel_id?: string | null
+          setor_atual?: string | null
+          situacao_atual?: string | null
           tipo_licitacao?: string | null
           unidade_requisitante_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
           valor_estimado?: number | null
+          valor_estimado_obs?: string | null
         }
         Relationships: [
           {
@@ -25561,6 +25625,10 @@ export type Database = {
         Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
         Returns: Json
       }
+      importar_processos_planilha: {
+        Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
+        Returns: Json
+      }
       importar_qdd_fiplan: {
         Args: {
           p_arquivo: Json
@@ -25928,6 +25996,23 @@ export type Database = {
         Returns: Json
       }
       processar_folha_pagamento: { Args: { p_folha_id: string }; Returns: Json }
+      processo_empenhos: {
+        Args: { _processo_id?: string }
+        Returns: {
+          credor: string
+          data_empenho: string
+          empenho_id: string
+          exercicio: number
+          fonte: string
+          natureza: string
+          numero: string
+          processo_id: string
+          valor_anulado: number
+          valor_empenhado: number
+          valor_liquidado: number
+          valor_pago: number
+        }[]
+      }
       promover_rascunho: {
         Args: { p_justificativa?: string; p_rascunho_id: string }
         Returns: boolean
@@ -26639,6 +26724,7 @@ export type Database = {
         | "dialogo_competitivo"
         | "dispensa"
         | "inexigibilidade"
+        | "adesao_ata"
       motivo_baixa_patrimonio:
         | "inservivel"
         | "obsoleto"
@@ -27470,6 +27556,7 @@ export const Constants = {
         "dialogo_competitivo",
         "dispensa",
         "inexigibilidade",
+        "adesao_ata",
       ],
       motivo_baixa_patrimonio: [
         "inservivel",
