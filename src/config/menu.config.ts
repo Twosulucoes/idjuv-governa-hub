@@ -88,6 +88,7 @@ export type PermissaoInstitucional =
   | 'compras.criar'
   | 'compras.tramitar'
   | 'compras.aprovar'
+  | 'compras.pca.visualizar'
   // Contratos
   | 'contratos.visualizar'
   | 'contratos.criar'
@@ -255,6 +256,13 @@ export const menuConfig: MenuSection[] = [
             route: "/processos/compras?acao=novo",
             icon: FileText,
             permission: "compras.criar",
+          },
+          {
+            id: "pca",
+            label: "Plano de Contratações (PCA)",
+            route: "/compras/pca",
+            icon: ClipboardList,
+            permission: "compras.pca.visualizar",
           },
         ],
       },

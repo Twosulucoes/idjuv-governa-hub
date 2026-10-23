@@ -1088,6 +1088,24 @@ Todas idempotentes.
   - RLS classe `permissao` (`escrita=pagamento.conciliar`; cabeçalho com `excluir=ninguem`); testes no bloco
     "Financeiro: conciliação mensal" de `scripts/db/testar-rls.sql`. A leitura dos arquivos e o casamento são do
     navegador (`src/lib/conciliacao/`).
+- **PCA, entrega 1** (`20261028090000_compras_pca.sql`, spec
+  [2026-10-23-compras-gerador-pca-design.md](./superpowers/specs/2026-10-23-compras-gerador-pca-design.md)):
+  - catálogo CATMAT/CATSER: `cat_material_pdms` (grupo → classe → PDM), `cat_servicos` (seção → divisão → grupo →
+    classe → serviço), `cat_material_itens` (só os itens de material já usados) e `cat_sincronizacoes` (data e total da
+    última atualização). Chave `id` uuid e o código do catálogo `UNIQUE`; gravados pela Edge Function
+    `catalogo-compras` (service role);
+  - `pca_planos` (um por exercício, `UNIQUE`; `situacao` `rascunho`/`enviado_sei`/`aprovado`/`publicado`, processo SEI e
+    datas; nasce rascunho pelo gatilho `pca_carimbar`), `pca_tetos` (PLOA ou QDD por ação × fonte, `UNIQUE`) e
+    `pca_itens` (DFD do SEI: setor, material com PDM ou serviço, quantidade, valor unitário, `valor_total` gerado, mês,
+    prioridade, ação, fonte, natureza; sai do PCA por `situacao = 'excluido'`);
+  - `pca_historico`: trilha gravada pelo gatilho `pca_registrar_historico` (DEFINER): criação do plano, mudança de
+    situação, troca dos tetos pelo QDD e inclusão/alteração/exclusão de item, com o autor;
+  - `pca_classificadores(exercicio) → jsonb` (DEFINER): ações, fontes e naturezas (código e nome) e as linhas do QDD do
+    exercício para quem tem o PCA, sem abrir a RLS do financeiro; `pca_usar_qdd(plano) → integer` (DEFINER, exige
+    `compras.pca.editar`) troca os tetos pela soma de `valor_atual` do QDD por ação × fonte (`22023` sem QDD);
+  - permissões `compras.pca.visualizar` e `compras.pca.editar` (concedidas a quem tem `compras.criar`); RLS classe
+    `permissao` (`pca_*` com `leitura=` das duas, `cat_*` lidas pelo módulo; `excluir=ninguem`) e `trilha` no
+    histórico; testes no bloco "Compras: PCA" de `scripts/db/testar-rls.sql`.
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver

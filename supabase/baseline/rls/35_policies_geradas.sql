@@ -460,6 +460,58 @@ DROP POLICY IF EXISTS "rls_delete" ON public.cargos;
 CREATE POLICY "rls_delete" ON public.cargos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
+-- cat_material_itens  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.cat_material_itens;
+CREATE POLICY "rls_select" ON public.cat_material_itens FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')));
+DROP POLICY IF EXISTS "rls_insert" ON public.cat_material_itens;
+CREATE POLICY "rls_insert" ON public.cat_material_itens FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.cat_material_itens;
+CREATE POLICY "rls_update" ON public.cat_material_itens FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.cat_material_itens;
+
+-- cat_material_pdms  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.cat_material_pdms;
+CREATE POLICY "rls_select" ON public.cat_material_pdms FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')));
+DROP POLICY IF EXISTS "rls_insert" ON public.cat_material_pdms;
+CREATE POLICY "rls_insert" ON public.cat_material_pdms FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.cat_material_pdms;
+CREATE POLICY "rls_update" ON public.cat_material_pdms FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.cat_material_pdms;
+
+-- cat_servicos  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.cat_servicos;
+CREATE POLICY "rls_select" ON public.cat_servicos FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')));
+DROP POLICY IF EXISTS "rls_insert" ON public.cat_servicos;
+CREATE POLICY "rls_insert" ON public.cat_servicos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.cat_servicos;
+CREATE POLICY "rls_update" ON public.cat_servicos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.cat_servicos;
+
+-- cat_sincronizacoes  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.cat_sincronizacoes;
+CREATE POLICY "rls_select" ON public.cat_sincronizacoes FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')));
+DROP POLICY IF EXISTS "rls_insert" ON public.cat_sincronizacoes;
+CREATE POLICY "rls_insert" ON public.cat_sincronizacoes FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.cat_sincronizacoes;
+CREATE POLICY "rls_update" ON public.cat_sincronizacoes FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.cat_sincronizacoes;
+
 -- categorias_material  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.categorias_material;
 CREATE POLICY "rls_select" ON public.categorias_material FOR SELECT TO authenticated
@@ -2916,6 +2968,50 @@ CREATE POLICY "rls_update" ON public.patrimonio_unidade FOR UPDATE TO authentica
 DROP POLICY IF EXISTS "rls_delete" ON public.patrimonio_unidade;
 CREATE POLICY "rls_delete" ON public.patrimonio_unidade FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'patrimonio')));
+
+-- pca_historico  [trilha: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pca_historico;
+CREATE POLICY "rls_select" ON public.pca_historico FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')));
+
+-- pca_itens  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pca_itens;
+CREATE POLICY "rls_select" ON public.pca_itens FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar') OR public.has_permission_code(auth.uid(), 'compras.pca.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.pca_itens;
+CREATE POLICY "rls_insert" ON public.pca_itens FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.pca_itens;
+CREATE POLICY "rls_update" ON public.pca_itens FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.pca_itens;
+
+-- pca_planos  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pca_planos;
+CREATE POLICY "rls_select" ON public.pca_planos FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar') OR public.has_permission_code(auth.uid(), 'compras.pca.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.pca_planos;
+CREATE POLICY "rls_insert" ON public.pca_planos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.pca_planos;
+CREATE POLICY "rls_update" ON public.pca_planos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.pca_planos;
+
+-- pca_tetos  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pca_tetos;
+CREATE POLICY "rls_select" ON public.pca_tetos FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar') OR public.has_permission_code(auth.uid(), 'compras.pca.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.pca_tetos;
+CREATE POLICY "rls_insert" ON public.pca_tetos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.pca_tetos;
+CREATE POLICY "rls_update" ON public.pca_tetos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.pca_tetos;
 
 -- pensoes_alimenticias  [permissao: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.pensoes_alimenticias;

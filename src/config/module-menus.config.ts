@@ -158,6 +158,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     items: [
       { id: "licitacoes", label: "Licitações", icon: ShoppingCart, route: "/processos/compras" },
       { id: "nova-licitacao", label: "Nova Licitação", icon: FileText, route: "/processos/compras?acao=novo" },
+      { id: "pca", label: "Plano de Contratações (PCA)", icon: ClipboardList, route: "/compras/pca", permission: "compras.pca.visualizar" },
     ],
   },
 

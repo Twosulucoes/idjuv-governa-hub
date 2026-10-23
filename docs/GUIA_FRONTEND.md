@@ -62,6 +62,12 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   FIP103 e OFX e o casamento em `src/lib/conciliacao/` (testes em `conciliacao.test.ts`).
   `useFavorecidos` (`useFavorecidos`, `useSalvarFavorecido`): favorecidos da tela Financeiro → Favorecidos (tabela
   `fornecedores`); agência e conta validadas por `src/lib/bancario/favorecido.ts`, com a regra da remessa OBN600.
+- **Compras:** `usePca` (`usePcaPlanos`, `usePcaPlano`, `useCriarPcaPlano`, `usePcaTetos`, `useSalvarPcaTeto`,
+  `useUsarQddPca`, `usePcaItens`, `useSalvarPcaItem`, `useExcluirPcaItem`, `useClassificadoresPca`, `useBuscarCatalogo`,
+  `useItensDoPdm`, `useSincronizarCatalogo`): telas `/compras/pca` e `/compras/pca/:exercicio` (componentes em
+  `src/components/compras/pca/`). Orçamento por ação × fonte em `src/lib/pca/orcamento.ts` e leitura de número
+  digitado em `src/lib/pca/numero.ts` (testes vitest). Itens de um PDM e a atualização do catálogo passam pela Edge
+  Function `catalogo-compras`.
 - **Exercício do Financeiro** (`src/hooks/useExercicioFinanceiro.ts`): ano orçamentário compartilhado pelas telas
   do módulo. Lê `?exercicio=` da URL; sem ele, o último ano escolhido no navegador (`localStorage`,
   chave `financeiro:exercicio`); sem nenhum, o ano atual. Faixa: 2024 até o ano seguinte ao atual. Devolve

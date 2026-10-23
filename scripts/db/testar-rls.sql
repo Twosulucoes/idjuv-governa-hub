@@ -104,7 +104,10 @@ INSERT INTO seed_ov VALUES
   ('fin_conciliacoes_mensais', '{"competencia":"2020-01-01","situacao":"rascunho","fechada_em":null,"fechada_por":null}'),
   ('fin_conciliacao_itens', '{"lado":"bancario","natureza":"debito","valor":1,"situacao":"pendente","origem":"mes","item_origem_id":null,"grupo":null,"regra":null,"re":null,"nob":null}'),
   -- empenho sem favorecido nem dotação só com origem fiplan (fin_empenhos_sistema_vinculos_check, migração 20261027090000)
-  ('fin_empenhos', '{"origem":"fiplan","credor_codigo_fiplan":"2001.00001-1","credor_nome":"Credor Teste"}');
+  ('fin_empenhos', '{"origem":"fiplan","credor_codigo_fiplan":"2001.00001-1","credor_nome":"Credor Teste"}'),
+  -- item do PCA: serviço do catálogo, sem PDM nem item de material (pca_itens_catalogo_check, migração 20261028090000)
+  ('pca_itens', '{"tipo":"servico","codigo_servico":1,"codigo_pdm":null,"codigo_item":null,"quantidade":1,"valor_unitario":1,"mes_desejado":1,"numero_sei":"SEI-1","descricao":"Teste","unidade_fornecimento":"UN"}'),
+  ('cat_sincronizacoes', '{"tipo":"pdm"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -7638,6 +7641,97 @@ BEGIN
   IF r NOT LIKE 'erro:%' AND r <> 'ok:0' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: UPDATE direto no histórico aceito (' || r || ')'); END IF;
 
   PERFORM pg_temp.nota('FIN (empenhos do FIPLAN): permissão, simulação sem gravar, aplicação sem somar na dotação, favorecido pelo código, dotação ambígua e escolhida à mão, dotação pelo IDU, histórico e log, reaplicação sem alteração, origem fixa, empenho do sistema intacto e escrita direta no histórico bloqueada verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Compras: PCA (migração 20261028090000) (TRIGGERS LIGADOS)
+-- Migração 20261028090000_compras_pca.sql (spec docs/superpowers/specs/2026-10-23-compras-gerador-pca-design.md):
+--   * o plano nasce rascunho (as transições são da entrega 4) e o mesmo exercício não entra duas vezes (23505);
+--   * só compras.pca.editar grava item (visualizar = 42501); valor_total = quantidade × valor unitário;
+--   * material exige PDM e não aceita serviço (23514); a trilha registra criação, inclusão, alteração e exclusão
+--     com o autor; pca_carimbar e pca_registrar_historico sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.pca.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.pca.visualizar');
+  v_acao uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'fin_acoes_orcamentarias');
+  v_fonte uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'fin_fontes_recurso');
+  plano uuid; item uuid; r text; ins text; x text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.pca_carimbar()', 'public.pca_registrar_historico()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('COMPRAS PCA: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  INSERT INTO public.cat_material_pdms (codigo_pdm, nome_pdm, codigo_classe, nome_classe, codigo_grupo, nome_grupo)
+  VALUES (900281, 'CARTUCHO CANETA TINTEIRO', 7520, 'ACESSÓRIOS E DISPOSITIVOS PARA ESCRITÓRIO', 75, 'UTENSÍLIOS DE ESCRITÓRIO')
+  ON CONFLICT DO NOTHING;
+  INSERT INTO public.cat_servicos (codigo_servico, nome_servico, codigo_secao, nome_secao)
+  VALUES (907250, 'SERVIÇO DE TESTE', 9, 'SERVIÇOS DA COMUNIDADE') ON CONFLICT DO NOTHING;
+
+  -- plano criado pelo editor, pedindo 'aprovado': nasce rascunho
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.pca_planos (exercicio, situacao) VALUES (2099, 'aprovado') RETURNING id INTO plano;
+  IF (SELECT situacao FROM public.pca_planos WHERE id = plano) <> 'rascunho' THEN
+    PERFORM pg_temp.falha('COMPRAS PCA: plano não nasce rascunho');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.pca_historico WHERE plano_id = plano AND acao = 'plano_criado' AND feito_por = u_ed) THEN
+    PERFORM pg_temp.falha('COMPRAS PCA: criação do plano fora da trilha');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', 'INSERT INTO public.pca_planos (exercicio) VALUES (2099) RETURNING id::text');
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: exercício repetido aceito (' || r || ')'); END IF;
+
+  ins := format('INSERT INTO public.pca_itens (plano_id, numero_sei, tipo, codigo_pdm, codigo_servico, descricao, unidade_fornecimento, '
+             || 'quantidade, valor_unitario, mes_desejado, acao_id, fonte_recurso_id) VALUES (%L, ''00001.000001/2026-01'', %%L, %%s, %%s, '
+             || '''Cartucho'', ''UNIDADE'', 3, 10.50, 3, %L, %L) RETURNING valor_total::text', plano, v_acao, v_fonte);
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(ins, 'material', 900281, 'NULL'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: só visualizar grava item (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, 'material', 900281, 'NULL'));
+  IF r IS DISTINCT FROM '31.50' THEN PERFORM pg_temp.falha('COMPRAS PCA: valor_total de 3 × 10,50 (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, 'material', 'NULL', 907250));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: material sem PDM aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, 'servico', 'NULL', 907250));
+  IF r IS DISTINCT FROM '31.50' THEN PERFORM pg_temp.falha('COMPRAS PCA: serviço recusado (' || r || ')'); END IF;
+
+  -- inclusão, alteração e exclusão na trilha, com o autor
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  EXECUTE replace(format(ins, 'material', 900281, 'NULL'), 'RETURNING valor_total::text', 'RETURNING id') INTO item;
+  UPDATE public.pca_itens SET quantidade = 4 WHERE id = item;
+  UPDATE public.pca_itens SET situacao = 'excluido' WHERE id = item;
+  IF (SELECT array_agg(acao ORDER BY acao) FROM public.pca_historico WHERE item_id = item AND feito_por = u_ed)
+     IS DISTINCT FROM ARRAY['item_alterado', 'item_excluido', 'item_incluido'] THEN
+    PERFORM pg_temp.falha('COMPRAS PCA: trilha do item incompleta');
+  END IF;
+  IF (SELECT updated_by FROM public.pca_itens WHERE id = item) IS DISTINCT FROM u_ed THEN
+    PERFORM pg_temp.falha('COMPRAS PCA: updated_by não é quem alterou');
+  END IF;
+  -- classificadores: visualizar lê; sem a permissão = 42501
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT jsonb_typeof(public.pca_classificadores(2099)->''acoes'')');
+  IF r IS DISTINCT FROM 'array' THEN PERFORM pg_temp.falha('COMPRAS PCA: visualizar não lê os classificadores (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como((SELECT uid FROM persona WHERE nome = 'mod_compras'), 'authenticated', 'SELECT public.pca_classificadores(2099)::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: módulo sem permissão lê os classificadores (' || r || ')'); END IF;
+  -- QDD: visualizar = 42501; sem QDD = 22023; com QDD troca os tetos digitados
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT public.pca_usar_qdd(%L)::text', plano));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: visualizar troca os tetos (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT public.pca_usar_qdd(%L)::text', plano));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: troca sem QDD aceita (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO public.pca_tetos (plano_id, acao_id, fonte_recurso_id, valor_previsto) VALUES (plano, v_acao, v_fonte, 5);
+  SET LOCAL session_replication_role = replica;
+  PERFORM pg_temp.seed_row('fin_dotacoes', jsonb_build_object('id', 'f5000000-0000-0000-0000-000000000001', 'exercicio', 2099,
+    'acao_id', v_acao, 'fonte_recurso_id', v_fonte, 'valor_inicial', 1000, 'valor_suplementado', 200, 'valor_reduzido', 0, 'ativo', true,
+    'codigo_dotacao', 'PCA-TESTE-1'));
+  PERFORM pg_temp.seed_row('fin_dotacoes', jsonb_build_object('id', 'f5000000-0000-0000-0000-000000000002', 'exercicio', 2099,
+    'acao_id', v_acao, 'fonte_recurso_id', v_fonte, 'valor_inicial', 300, 'valor_suplementado', 0, 'valor_reduzido', 0, 'ativo', true,
+    'codigo_dotacao', 'PCA-TESTE-2'));
+  SET LOCAL session_replication_role = origin;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  r := public.pca_usar_qdd(plano)::text;
+  r := r || '|' || (SELECT string_agg(valor_previsto::text || ':' || origem, ',') FROM public.pca_tetos WHERE plano_id = plano);
+  IF r IS DISTINCT FROM '1|1500.00:qdd' THEN PERFORM pg_temp.falha('COMPRAS PCA: troca pelo QDD (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('COMPRAS PCA: classificadores, troca pelo QDD, plano nasce rascunho, exercício único, gravação só com compras.pca.editar, valor_total, item do catálogo e trilha verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

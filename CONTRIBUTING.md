@@ -23,7 +23,7 @@ automaticamente nos passos internos.)
 O gate (`scripts/gate.sh`) roda, nesta ordem (o que falha em segundos primeiro):
 `check:migrations` → `check:docs` → `check:rls` → `check:contraste` → `check:autoria-rh` → `estado:checar` →
 `check:numeros` → base antiga de PDF (`scripts/check-base-pdf-antiga.mjs`) → `typecheck` → `lint` → cor crua → jsPDF fora de `src/lib/documentos/core/` → impressão fora de `src/lib/documentos/` → testes (vitest em
-`src/` e `scripts/`) → `build` → build do site (`npm run build:site` e
+`src/`, `scripts/` e nas partes puras das Edge Functions, `supabase/functions/**/*.test.ts`) → `build` → build do site (`npm run build:site` e
 `scripts/check-bundle-site.mjs`, que reprova código do sistema interno no `dist-site/`; o jsPDF é permitido
 desde 17/10/2026 porque o `/curriculo` gera PDF, carregado sob demanda). O `vite build` **não** checa
 tipos, por isso o typecheck (`tsc -p tsconfig.app.json`) é passo próprio.
