@@ -37,7 +37,9 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
 - **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
   pode usar e o histórico (`importacoes`). Importadores: QDD do FIPLAN, tabelas do FIPLAN (planilhas "Consultar
   ..." de função, programa, elemento, subelemento, fonte e finalidade de pagamento) e arquivo do banco
-  (OBN600/CNAB 240), do financeiro, e planilha de portarias, do gabinete (com botão "Baixar modelo").
+  (OBN600/CNAB 240), do financeiro, planilha de portarias, do gabinete (com botão "Baixar modelo"), e o espelho da
+  folha do SIGRH (PDF FPAG10, relatório analítico de conferência ou planilha analítica), da folha, que grava a folha
+  mensal já paga, com a ficha de cada servidor, e a deixa fechada.
 - **Envio de e-mail e WhatsApp**: `ConfigEnviosPage` (`/admin/envios`, menu "E-mail e WhatsApp"). O
   cliente configura o remetente (SMTP próprio ou Resend), a identidade visual do e-mail e o WhatsApp
   oficial (Meta Cloud API, templates por uso), grava as credenciais (só escrita, no Vault), envia teste
@@ -54,7 +56,9 @@ O maior módulo. Páginas em `src/pages/rh/` (~20), além de `folha/` e `curricu
 
 - **Servidores**: `GestaoServidoresPage`, `ServidorFormPage`, `ServidorDetalhePage`,
   `DiagnosticoPendenciasServidoresPage`, `AniversariantesPage`.
-- **Lotação/designação**: `GestaoLotacaoPage`, `GestaoDesignacoesPage`.
+- **Lotação/designação**: `GestaoLotacaoPage`, `GestaoDesignacoesPage`. A designação de chefia de unidade local
+  (aba da ficha do servidor, `DesignacoesUnidadeTab`) registra o ato feito no SEI: tipo, processo SEI, número do ato,
+  assinatura, publicação e DOE, todos completáveis depois (lápis na linha); sem número, "aguardando SEI".
 - **Frequência/ponto**: `GestaoFrequenciaPage`, `ConfiguracaoFrequenciaPage`,
   `ControlePacotesFrequenciaPage`, `ValidacaoFrequenciaPage` (`/rh/frequencia/validacao`:
   fila de abonos com aprovação chefia → RH e rejeição com motivo; grade de fechamento
@@ -196,6 +200,20 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
   continua). O topo da tela traz os cartões de resumo do exercício (dotação atual, empenhado, saldo disponível)
   e o aviso "Atualizado pelo FIPLAN em <data> · <arquivo>" (ou "Ainda não importado"), lido do último registro
   em `importacoes`. Não há mais "Nova dotação": dotação vem do FIPLAN.
+- **Painel `/financeiro` (execução do exercício)**, calculado no navegador sobre o QDD (`fin_dotacoes`) e o
+  FIP 614 (`fin_empenhos`), sem tabela própria. As contas ficam em `src/lib/financeiro/painelExecucao.ts` (com
+  testes) e os quadros em `src/components/financeiro/painel/`:
+  - faixa com a data da última importação do QDD e do FIP 614 (amarela quando o QDD tem mais de 7 dias);
+  - cartões de autorizado, empenhado, liquidado, pago, saldo para empenhar e reservado (PED). O saldo usa a conta
+    do FIPLAN (autorizado − empenhado − bloqueado − reserva − PED), não a coluna `saldo_disponivel`;
+  - execução por grupo de despesa, com gráfico e tabela;
+  - alertas de saldo: dotações cujo saldo não cobre o resto do ano no ritmo do que já foi liquidado. Os
+    vencimentos e as obrigações patronais contam o 13º;
+  - fila de pagamento por credor: o que falta liquidar e o que já foi liquidado e falta pagar;
+  - as 5 maiores despesas por elemento.
+
+  Para manter o painel em dia, importe o QDD e o FIP 614 toda semana. Spec:
+  [`2026-10-23-painel-financeiro-fiplan-design.md`](./superpowers/specs/2026-10-23-painel-financeiro-fiplan-design.md).
 - **Orçamento saiu do menu.** `OrcamentoPage` foi removida; `/financeiro/orcamento` redireciona para
   `/financeiro/qdd`.
 - **Exercício único no módulo.** O seletor `SeletorExercicio` (hook `useExercicioFinanceiro`, ver
@@ -244,7 +262,12 @@ Bens, inventário, almoxarifado e unidades.
   `IncluirUnidadesCampanhaDialog`); dados em `useVistoriaInventario`.
 - **Unidades locais** (`src/pages/unidades/`): `GestaoUnidadesLocaisPage`,
   `UnidadeDetalhePage`, `RelatoriosCentralPage`, `RelatoriosUnidadesLocaisPage`,
-  `RelatoriosCedenciaPage` (cessões de espaços).
+  `RelatoriosCedenciaPage` (cessões de espaços). Termo de cessão (aba "Termos de Cessão" do detalhe da unidade,
+  `TermosCessaoTab`): o termo é feito e assinado no SEI; o sistema registra o termo da reserva aprovada com processo
+  SEI, número do termo no SEI, data da assinatura e DOE (todos opcionais na hora do registro) e permite completar
+  ou cancelar depois (lápis na linha). Sem número, a lista mostra "aguardando SEI" e a etapa é "Aguardando SEI";
+  numerado, "Numerado no SEI"; com a assinatura, "Assinado". Termos antigos guardam o número interno que o sistema
+  gerava.
 - **Mobile/PWA** (`src/pages/mobile/`): `PatrimonioMobileUnificadoPage`
   (cadastro + coleta em campo, com leitura de QR via `html5-qrcode` e modo
   offline via `useColetaOffline`), `InstalarAppPage`. O cartão "Vistoria de
@@ -341,8 +364,8 @@ relatório de viagem. O item "Workflow RH" saiu do menu no P09 (não havia tela)
 ## Formulários institucionais
 
 `src/pages/formularios/`: `TermoDemandaPage`, `OrdemMissaoPage`,
-`RelatorioViagemPage`, `RequisicaoMaterialPage`, `TermoResponsabilidadePage`,
-`CPSIPage` (com assistente de IA via Edge Function `cpsi-ai-assistant`).
+`RelatorioViagemPage`, `RequisicaoMaterialPage`, `TermoResponsabilidadePage`. A tela CPSI (DFD/ETP/TR) saiu na
+onda 5 do P23: esses atos são feitos no SEI.
 
 ## Portal público (sem login)
 

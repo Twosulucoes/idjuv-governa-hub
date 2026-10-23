@@ -614,7 +614,6 @@ export default function ServidorDetalheePage() {
             <TabsContent value="designacoes">
               <DesignacoesUnidadeTab 
                 servidorId={id!}
-                servidorNome={servidor.nome_completo}
               />
             </TabsContent>
 

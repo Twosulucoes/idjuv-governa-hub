@@ -66,7 +66,6 @@ import OrdemMissaoPage from "./pages/formularios/OrdemMissaoPage";
 import RelatorioViagemPage from "./pages/formularios/RelatorioViagemPage";
 import RequisicaoMaterialPage from "./pages/formularios/RequisicaoMaterialPage";
 import TermoResponsabilidadePage from "./pages/formularios/TermoResponsabilidadePage";
-import CPSIPage from "./pages/formularios/CPSIPage";
 import PortariasPage from "./pages/governanca/PortariasPage";
 import RelatorioGovernancaPage from "./pages/governanca/RelatorioGovernancaPage";
 import BolsaAtletaPage from "./pages/programas/BolsaAtletaPage";
@@ -231,6 +230,7 @@ import {
   PagamentosPage,
   AdiantamentosPage,
   ContasBancariasPage,
+  FavorecidosPage,
   RelatoriosFinanceiroPage,
   PlaceholderDetalheFinanceiroPage,
   QDDPage,
@@ -239,7 +239,10 @@ import {
   SubEmpenhosPage,
 } from "./pages/financeiro";
 import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage";
+import PcaListaPage from "./pages/compras/PcaListaPage";
+import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
 import PagamentoDetalhePage from "./pages/financeiro/PagamentoDetalhePage";
+import EmpenhoDetalhePage from "./pages/financeiro/EmpenhoDetalhePage";
 
 // Inventário e Patrimônio
 import {
@@ -479,6 +482,16 @@ const App = () => (
               <Route path="/financeiro" element={<ProtectedRoute requiredModule="financeiro"><FinanceiroDashboardPage /></ProtectedRoute>} />
               <Route path="/patrimonio" element={<ProtectedRoute requiredModule="patrimonio"><PatrimonioDashboardPage /></ProtectedRoute>} />
               <Route path="/compras" element={<ProtectedRoute requiredModule="compras"><ComprasDashboardPage /></ProtectedRoute>} />
+              <Route path="/compras/pca" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pca.visualizar", "compras.pca.editar"]}>
+                  <PcaListaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compras/pca/:exercicio" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pca.visualizar", "compras.pca.editar"]}>
+                  <PcaPlanoPage />
+                </ProtectedRoute>
+              } />
               <Route path="/contratos" element={<ProtectedRoute requiredModule="contratos"><ContratosDashboardPage /></ProtectedRoute>} />
               <Route path="/workflow" element={<ProtectedRoute requiredModule="workflow"><WorkflowDashboardPage /></ProtectedRoute>} />
               <Route path="/comunicacao" element={<ProtectedRoute requiredModule="comunicacao"><ComunicacaoDashboardPage /></ProtectedRoute>} />
@@ -816,12 +829,12 @@ const App = () => (
               {/* ============================================ */}
               {/* UNIDADES LOCAIS */}
               {/* ============================================ */}
-              <Route path="/unidades" element={<ProtectedRoute requiredModule="patrimonio"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
-              <Route path="/unidades/gestao" element={<ProtectedRoute requiredModule="patrimonio"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
-              <Route path="/unidades/relatorios" element={<ProtectedRoute requiredModule="patrimonio"><RelatoriosUnidadesLocaisPage /></ProtectedRoute>} />
-               <Route path="/unidades/central-relatorios" element={<ProtectedRoute requiredModule="patrimonio"><RelatoriosCentralPage /></ProtectedRoute>} />
-              <Route path="/unidades/cedencia" element={<ProtectedRoute requiredModule="patrimonio"><RelatoriosCedenciaPage /></ProtectedRoute>} />
-              <Route path="/unidades/:id" element={<ProtectedRoute requiredModule="patrimonio"><UnidadeDetalhePage /></ProtectedRoute>} />
+              <Route path="/unidades" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.visualizar"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
+              <Route path="/unidades/gestao" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.visualizar"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
+              <Route path="/unidades/relatorios" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.relatorios.visualizar"><RelatoriosUnidadesLocaisPage /></ProtectedRoute>} />
+               <Route path="/unidades/central-relatorios" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.relatorios.visualizar"><RelatoriosCentralPage /></ProtectedRoute>} />
+              <Route path="/unidades/cedencia" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.cedencias.visualizar"><RelatoriosCedenciaPage /></ProtectedRoute>} />
+              <Route path="/unidades/:id" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.visualizar"><UnidadeDetalhePage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* RH - Com permissões mapeadas */}
@@ -1037,7 +1050,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/inventario/movimentacoes" element={
-                <ProtectedRoute requiredPermissions="patrimonio.tramitar">
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
                   <MovimentacoesPatrimonioPage />
                 </ProtectedRoute>
               } />
@@ -1062,7 +1075,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/inventario/baixas" element={
-                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
                   <BaixasPatrimonioPage />
                 </ProtectedRoute>
               } />
@@ -1079,7 +1092,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/inventario/bens/:id/editar" element={
-                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                <ProtectedRoute requiredPermissions="patrimonio.editar">
                   <BemEditarPage />
                 </ProtectedRoute>
               } />
@@ -1099,7 +1112,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/inventario/movimentacoes/:id" element={
-                <ProtectedRoute requiredPermissions="patrimonio.tramitar">
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
                   <MovimentacaoDetalhePage />
                 </ProtectedRoute>
               } />
@@ -1119,12 +1132,12 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/inventario/almoxarifado/:id/editar" element={
-                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                <ProtectedRoute requiredPermissions="patrimonio.editar">
                   <ItemMaterialEditarPage />
                 </ProtectedRoute>
               } />
               <Route path="/inventario/baixas/:id" element={
-                <ProtectedRoute requiredPermissions="patrimonio.criar">
+                <ProtectedRoute requiredPermissions="patrimonio.visualizar">
                   <BaixaDetalhePage />
                 </ProtectedRoute>
               } />
@@ -1137,7 +1150,6 @@ const App = () => (
               <Route path="/formularios/relatorio-viagem" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><RelatorioViagemPage /></ProtectedRoute>} />
               <Route path="/formularios/requisicao-material" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><RequisicaoMaterialPage /></ProtectedRoute>} />
               <Route path="/formularios/termo-responsabilidade" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><TermoResponsabilidadePage /></ProtectedRoute>} />
-              <Route path="/formularios/cpsi" element={<ProtectedRoute requiredPermissions="formularios.visualizar"><CPSIPage /></ProtectedRoute>} />
               
               {/* ============================================ */}
               {/* MANUAIS - Apenas autenticação */}
@@ -1281,6 +1293,11 @@ const App = () => (
                   <ContasBancariasPage />
                 </ProtectedRoute>
               } />
+              <Route path="/financeiro/favorecidos" element={
+                <ProtectedRoute requiredModule="financeiro" requiredPermissions="orcamento.criar">
+                  <FavorecidosPage />
+                </ProtectedRoute>
+              } />
               <Route path="/financeiro/relatorios" element={
                 <ProtectedRoute requiredPermissions="orcamento.visualizar">
                   <RelatoriosFinanceiroPage />
@@ -1310,7 +1327,7 @@ const App = () => (
               } />
               <Route path="/financeiro/empenhos/:id" element={
                 <ProtectedRoute requiredPermissions="orcamento.criar">
-                  <PlaceholderDetalheFinanceiroPage />
+                  <EmpenhoDetalhePage />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/pagamentos/:id" element={

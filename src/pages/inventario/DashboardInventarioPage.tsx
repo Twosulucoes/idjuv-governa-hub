@@ -20,10 +20,14 @@ import { useEstatisticasPatrimonio, useCampanhasInventario } from "@/hooks/usePa
 import { useEstatisticasAlmoxarifado } from "@/hooks/useAlmoxarifado";
 import { CadastroLoteDialog } from "@/components/inventario/CadastroLoteDialog";
 import { MovimentacaoLoteDialog } from "@/components/inventario/MovimentacaoLoteDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function DashboardInventarioPage() {
   const [cadastroLoteOpen, setCadastroLoteOpen] = useState(false);
   const [movimentacaoLoteOpen, setMovimentacaoLoteOpen] = useState(false);
+  // Movimentar (avulsa ou em lote) exige patrimonio.tramitar; o banco também valida.
+  const { hasPermission } = useAuth();
+  const podeMovimentar = hasPermission("patrimonio.tramitar");
   
   const {
     data: estatisticasPatrimonio,
@@ -190,16 +194,20 @@ export default function DashboardInventarioPage() {
               <PackagePlus className="w-5 h-5" aria-hidden="true" />
               <span>Cadastro em lote</span>
             </Button>
-            <Button asChild variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal">
-              <Link to="/inventario/movimentacoes?acao=nova">
-                <TrendingUp className="w-5 h-5" aria-hidden="true" />
-                <span>Movimentação</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal" onClick={() => setMovimentacaoLoteOpen(true)}>
-              <ArrowRightLeft className="w-5 h-5" aria-hidden="true" />
-              <span>Movimentação em lote</span>
-            </Button>
+            {podeMovimentar && (
+              <>
+                <Button asChild variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal">
+                  <Link to="/inventario/movimentacoes?acao=nova">
+                    <TrendingUp className="w-5 h-5" aria-hidden="true" />
+                    <span>Movimentação</span>
+                  </Link>
+                </Button>
+                <Button variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal" onClick={() => setMovimentacaoLoteOpen(true)}>
+                  <ArrowRightLeft className="w-5 h-5" aria-hidden="true" />
+                  <span>Movimentação em lote</span>
+                </Button>
+              </>
+            )}
             <Button asChild variant="outline" className="h-auto sm:h-auto py-4 flex-col gap-2 whitespace-normal">
               <Link to="/inventario/requisicoes?acao=nova">
                 <ClipboardCheck className="w-5 h-5" aria-hidden="true" />

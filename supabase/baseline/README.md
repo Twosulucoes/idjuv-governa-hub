@@ -39,7 +39,7 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | # | Arquivo | O que faz | Origem |
 |---|---|---|---|
 | 1 | `schema/01_pre_data.sql` | tipos, funções, tabelas, views | **gerado** (`scripts/db/gerar-baseline.sh`) |
-| 2 | `schema/02_dados_catalogo.sql` | 23 tabelas de catálogo/parâmetros (972 linhas; `processo_modelos`, `processo_modelo_etapas` e `processo_modelo_checklist` (modelos de fluxo do workflow, migração `20261013100000`); `audit_colunas_sensiveis` entrou na E1, `rh.contracheques.visualizar` e seus 2 papéis na E3; `regra_lancamento` (um modo por módulo: `rh` em `registrar`, os demais `desligado`), `rh.comissoes.gerenciar` e o papel `admin` na regra de setor, migração `20261011020000`, que tira o `manager`) | **gerado** |
+| 2 | `schema/02_dados_catalogo.sql` | 24 tabelas de catálogo/parâmetros (972 linhas; `bancos_cnab` (lista de bancos, migração `20261025090000`); `processo_modelos`, `processo_modelo_etapas` e `processo_modelo_checklist` (modelos de fluxo do workflow, migração `20261013100000`); `audit_colunas_sensiveis` entrou na E1, `rh.contracheques.visualizar` e seus 2 papéis na E3; `regra_lancamento` (um modo por módulo: `rh` em `registrar`, os demais `desligado`), `rh.comissoes.gerenciar` e o papel `admin` na regra de setor, migração `20261011020000`, que tira o `manager`) | **gerado** |
 | 3 | `schema/03_post_data.sql` | constraints, índices, triggers, RLS ligado, policies do replay | **gerado** |
 | 4 | `overlay/10_funcoes_acesso.sql` | `is_admin_user`, `is_admin_atual`, `has_permission_code`, `meu_servidor_id` exigem perfil **ativo**; fim dos stubs “acesso total”; alias `usuario_eh_admin`; `eh_meu_servidor(uuid)` (B2: "este servidor é o do usuário?", por vínculo ou, sem vínculo, por CPF); `eh_meu_arquivo_frequencia(text)` e `eh_minha_pasta_servidor(text)` (B3: o objeto do storage é do servidor do usuário?) | à mão |
 | 5 | `overlay/12_protecao_profiles.sql` | trigger: quem não é admin não muda `is_active`, `servidor_id`, bloqueio, tipo, CPF, e-mail; policies de `profiles` sem duplicatas | à mão |
@@ -48,12 +48,14 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 | 8 | `overlay/20_campos_iniciais.sql` | triggers: formulários públicos e pedidos do servidor não escolhem `status`, aprovação, autoria (nos pedidos do RH a isenção é por permissão, formato `perm:`, e nunca no próprio pedido); links do formulário de árbitros só do próprio bucket; P12 (`20261017090000`, mesmo texto): `gestores_escolares` sem a policy `insercao_publica_gestores` (o cadastro público é só pela RPC) | à mão |
 | 9 | `overlay/30_remover_acesso_total.sql` | apaga as policies `acesso_total_*` e a tabela morta `_backup_usuario_modulos_old` | à mão |
 | 10 | `rls/35_policies_geradas.sql` | policies por módulo, **falha fechada** | **gerado** de `rls/mapa.csv` |
-| 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas; funções da E1 (autoria e trilha) sem EXECUTE pela API, exceto `registrar_evento` para `authenticated`; `trilha_storage` e `trilha_storage_chave` (E2) sem EXECUTE pela API; `exigir_folha_fechada` e `remessa_integridade` (E3) sem EXECUTE pela API e `cancelar_remessa` só para `authenticated`; regra de setor (`20261011020000`): `lotacao_vigente`, `unidade_e_superiores`, `lancamento_modulos_tabela`, `fundamento_*`, `lancamento_cache_invalidar`, `data_local`, `exigir_setor`, `exigir_setor_fim`, `regra_lancamento_proteger_exigir` e `comissoes_membros_validar` sem EXECUTE pela API, `meus_fundamentos_lancamento(app_module[])` e `saneamento_lancamento` só para `authenticated`; RH de 2026-10-12 (migrações `20261012090000` a `20261012140000`): funções de apoio e de trigger sem EXECUTE pela API e só as 4 RPCs do pré-cadastro público para `anon`; quadro de vagas (`20261012150000`): `rh_provimento_vaga` e `rh_vagas_cargo_validar` sem EXECUTE pela API; workflow (`20261013100000` a `20261013100200`): `anon` sem nada nas tabelas de modelo e nas respostas do checklist, `wf_pode_ver_processo` e `fn_somar_dias_uteis` só para `authenticated`, funções internas (`wf_resolver_unidade`, `wf_travar_processo` e afins) sem EXECUTE pela API, RPCs do acompanhamento só para `authenticated`; P12 (`20261017090000`): `anon` sem INSERT em `gestores_escolares`, `limite_requisicoes_publicas` sem privilégio para `anon`/`authenticated` e `limite_publico_consumir`/`limite_publico_insercao` sem EXECUTE pela API; folha (`20261019200000`): `calcular_irrf_mensal` sem EXECUTE pela API; atos remuneratórios (`20261020100000`): triggers dos atos e de `cargos` sem EXECUTE pela API, `aplicar_ato_remuneratorio` e `vencimento_cargo_em` só para `authenticated`; retorno da remessa (`20261021090000`): `registrar_retorno_remessa` só para `authenticated` | à mão |
+| 11 | `overlay/40_privilegios.sql` | `anon` só com as exceções públicas; sem EXECUTE para PUBLIC em função nova; sem TRUNCATE/TRIGGER; `audit_logs` só-acréscimo; RPCs que escrevem fechadas; funções da E1 (autoria e trilha) sem EXECUTE pela API, exceto `registrar_evento` para `authenticated`; `trilha_storage` e `trilha_storage_chave` (E2) sem EXECUTE pela API; `exigir_folha_fechada` e `remessa_integridade` (E3) sem EXECUTE pela API e `cancelar_remessa` só para `authenticated`; regra de setor (`20261011020000`): `lotacao_vigente`, `unidade_e_superiores`, `lancamento_modulos_tabela`, `fundamento_*`, `lancamento_cache_invalidar`, `data_local`, `exigir_setor`, `exigir_setor_fim`, `regra_lancamento_proteger_exigir` e `comissoes_membros_validar` sem EXECUTE pela API, `meus_fundamentos_lancamento(app_module[])` e `saneamento_lancamento` só para `authenticated`; RH de 2026-10-12 (migrações `20261012090000` a `20261012140000`): funções de apoio e de trigger sem EXECUTE pela API e só as 4 RPCs do pré-cadastro público para `anon`; quadro de vagas (`20261012150000`): `rh_provimento_vaga` e `rh_vagas_cargo_validar` sem EXECUTE pela API; workflow (`20261013100000` a `20261013100200`): `anon` sem nada nas tabelas de modelo e nas respostas do checklist, `wf_pode_ver_processo` e `fn_somar_dias_uteis` só para `authenticated`, funções internas (`wf_resolver_unidade`, `wf_travar_processo` e afins) sem EXECUTE pela API, RPCs do acompanhamento só para `authenticated`; P12 (`20261017090000`): `anon` sem INSERT em `gestores_escolares`, `limite_requisicoes_publicas` sem privilégio para `anon`/`authenticated` e `limite_publico_consumir`/`limite_publico_insercao` sem EXECUTE pela API; folha (`20261019200000`): `calcular_irrf_mensal` sem EXECUTE pela API; atos remuneratórios (`20261020100000`): triggers dos atos e de `cargos` sem EXECUTE pela API, `aplicar_ato_remuneratorio` e `vencimento_cargo_em` só para `authenticated`; retorno da remessa (`20261021090000`): `registrar_retorno_remessa` só para `authenticated`; importação da folha do SIGRH (`20261022090000`): `importar_folha_sigrh` só para `authenticated` | à mão |
 | 12 | `overlay/50_storage.sql` | buckets (com limite de tamanho/tipo no de árbitros, no privado `inventario-evidencias` e, desde a B3, no privado `documentos-requerimento`) e policies de storage por módulo; `frequencias` e `documentos-requerimento` (B3) gravam com módulo e código e o servidor lê o próprio arquivo; triggers `trilha_rh_storage_*` (E2) gravam na trilha a gravação, troca e exclusão de arquivo nesses dois buckets; bucket privado `remessas-cnab` (E3: ler e enviar `<remessa_id>.rem` com o módulo `rh` e `financeiro.folha.processar`, sem UPDATE/DELETE) | à mão |
 
 `lacunas/` guarda a migração que cobre as tabelas usadas e nunca criadas; ela só serve ao replay
 (`scripts/db/validar-migracoes.sh`) que alimenta os itens 1–3. O baseline não a aplica.
-`bootstrap-admin.sql` cria o primeiro administrador (não faz parte do `aplicar.sh`).
+`bootstrap-admin.sql` cria o primeiro administrador (não faz parte do `aplicar.sh`). `dados-teste.sql` enche um banco
+de **teste** com dados fictícios (fora do `aplicar.sh`; recusa banco que já tenha servidor, fornecedor ou bem; guia em
+[`docs/NOVO_BANCO.md` §9](../../docs/NOVO_BANCO.md#9-ambiente-de-teste-com-dados-fictícios)).
 
 Arquivos **gerados** não se editam à mão. Dados antes das constraints/triggers é proposital: o
 INSERT não dispara auditoria e as FKs são validadas depois, contra os dados semeados.
@@ -65,7 +67,7 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 
 | Classe | Tabelas | Regra |
 |---|---|---|
-| `modulo` | 155 | módulo(s) do mapa leem e escrevem; admin (papel) também. `extra` aceita `excluir=<código>\|admin\|ninguem` (DELETE com o código, só do admin ou de ninguém pela API) |
+| `modulo` | 155 | módulo(s) do mapa leem e escrevem; admin (papel) também. `extra` aceita `excluir=<código>\|admin\|ninguem` (DELETE com o código, só do admin ou de ninguém pela API), `altera=<código>` (UPDATE com o código) e `coletor=<módulo>:<ops>` (app de campo só com as operações listadas; ver "Outras classes") |
 | `permissao` | 36 | módulo lê (com `;proprio`/`;pai=` o servidor lê o seu, como `proprio_leitura`/`proprio_filho`; com `;filho=<tabela>.<fk>` lê a linha que tem uma filha sua — a folha em que tem ficha); **escreve só quem tem o módulo E a permissão granular** do `extra` (via `can_access_module` + `has_permission_code`; admin passa). Hoje: as 10 tabelas da folha (B1, `financeiro.folha.processar\|configurar`; migração `20261010070000_onda_b_folha_rls_permissao.sql`) e 12 do RH (B2: férias, licenças, viagens, ponto, frequência, abono, ajuste, justificativa, fechamento, configuração do fechamento, banco de horas e lançamentos; migração `20261010090000_onda_b_rh_permissoes.sql`) e 3 do RH na B3 (`frequencia_pacotes`, `frequencia_arquivos` e `documentos_requerimento_servidor`; migração `20261010210000_onda_b_rh_storage.sql`). Na E3 (migração `20261011010100_rh_contracheques_leitura.sql`) entraram `eventos_esocial`, `remessas_bancarias` (as duas com `excluir=ninguem`), `pensoes_alimenticias` e `itens_retorno_bancario`, e `;leitura=` passou a valer em fichas, itens, lançamentos, consignações, pensões, retorno e eSocial. Na regra de setor (migração `20261011020000_lancamento_por_setor.sql`) entraram `comissoes` e `comissoes_membros` (`escrita=rh.comissoes.gerenciar`). As migrações carregam o mesmo SQL gerado |
 | `trilha` | 10 | módulo lê; **ninguém escreve por API** (auditoria e históricos gravados por trigger). `audit_log_licitacoes` usa `extra=sigilo_workflow`: a linha copiada de uma tabela do processo do workflow só aparece com `wf_pode_ver_processo` ou para o papel admin (migração `20261015100000`, testes "wf trilha" no bloco "Workflow: acompanhamento do SEI" de `scripts/db/testar-rls.sql`) |
 | `proprio_leitura` / `proprio` / `proprio_filho` | 8 / 0 / 0 | módulo + o próprio servidor lê; em `proprio*` o servidor também cria o próprio pedido (status/aprovação forçados pelo overlay 20). Desde a B2, `servidores` (posse pela coluna `id`, DELETE com `rh.servidores.excluir`, e nos contornos `sem_autoaprovacao`: ninguém grava a própria ficha), `vinculos_servidor` e `lotacoes` estão aqui; as tabelas do RH que estavam em `proprio`/`proprio_filho` passaram a `permissao` (a última, `documentos_requerimento_servidor`, na B3). As classes `proprio` e `proprio_filho` continuam no gerador, sem tabela |
@@ -74,7 +76,7 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
 | `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`; desde a E1 imutável por trigger e com a policy extra `audit_logs_rh_auditoria_select` da migração `20261011000100`, fora do gerador: módulo `rh` e `rh.auditoria.visualizar` leem as linhas do RH) |
 | `publico_admin` | 4 | `anon` e logados leem (portal público); só admin escreve. `dados_oficiais` (configuração do cliente) entrou em 2026-10-11 (migração `20261011023500`) |
-| `preservar` | 19 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `fotos_vistoria_inventario`, `avisos`, `avisos_leituras`, `datas_importantes`, `importacoes`, `config_envio` e `envios_log`: policies das próprias migrações, que chegam pelo replay em `schema/03_post_data.sql` (as notas do `mapa.csv` ainda dizem "próxima regeneração"; o schema foi regenerado em 2026-10-10 e já as contém). `fin_movimentos_bancarios`, `fin_remessas_bancarias` e `fin_extrato_lancamentos` (migrações `20261011100100` a `20261011100300`): só SELECT pelo módulo financeiro, escrita pelas RPCs (e pela service role no extrato); privilégios no overlay 40 e testes no bloco "Financeiro: FIPLAN" de `scripts/db/testar-rls.sql`. `fin_classificadores_fiplan` (migração `20261019100000`): idem, escrita só por `importar_classificadores_fiplan`; testes no bloco "Financeiro: tabelas do FIPLAN". Workflow (migrações `20261013100100` e `20261013100200`): `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`, `prazos_processo`, `despachos` e `processo_checklist_respostas` leem por `wf_pode_ver_processo` (sigilo) e a escrita é das RPCs; testes no bloco "Workflow: acompanhamento do SEI" |
+| `preservar` | 20 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `fotos_vistoria_inventario`, `avisos`, `avisos_leituras`, `datas_importantes`, `importacoes`, `config_envio` e `envios_log`: policies das próprias migrações, que chegam pelo replay em `schema/03_post_data.sql` (as notas do `mapa.csv` ainda dizem "próxima regeneração"; o schema foi regenerado em 2026-10-10 e já as contém). `fin_movimentos_bancarios`, `fin_remessas_bancarias` e `fin_extrato_lancamentos` (migrações `20261011100100` a `20261011100300`): só SELECT pelo módulo financeiro, escrita pelas RPCs (e pela service role no extrato); privilégios no overlay 40 e testes no bloco "Financeiro: FIPLAN" de `scripts/db/testar-rls.sql`. `fin_classificadores_fiplan` (migração `20261019100000`): idem, escrita só por `importar_classificadores_fiplan`; testes no bloco "Financeiro: tabelas do FIPLAN". `fin_empenho_documentos_fiplan` (migração `20261027090000`): idem, escrita só por `importar_empenhos_fip614`; testes no bloco "Financeiro: empenhos do FIPLAN (FIP 614)". Workflow (migrações `20261013100100` e `20261013100200`): `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`, `prazos_processo`, `despachos` e `processo_checklist_respostas` leem por `wf_pode_ver_processo` (sigilo) e a escrita é das RPCs; testes no bloco "Workflow: acompanhamento do SEI" |
 | `fechada` | 1 | nada é gerado: RLS ligado e sem policy, negado a todos pela API (a service role ignora a RLS). Hoje só `limite_requisicoes_publicas` (P12, migração `20261017090000`), gravada por `limite_publico_consumir` (`SECURITY DEFINER`) |
 
 - Toda tabela de `public` precisa de uma linha no mapa e de RLS ligado: o teste de RLS reprova
@@ -107,6 +109,7 @@ Classe `permissao`: `escrita=<c1>[|<c2>...][;<sufixo>]...`, com `escrita=` sempr
 | `;leitura=a\|b` | a leitura pelo módulo exige também um dos códigos: `((<módulos>) AND (hp(a) OR hp(b))) OR <posse>`; a posse continua sem código. na E3, `leitura=rh.contracheques.visualizar\|financeiro.folha.processar` em `fichas_financeiras`, `itens_ficha_financeira`, `lancamentos_folha`, `consignacoes`, `pensoes_alimenticias`, `itens_retorno_bancario` e `eventos_esocial` |
 | `;insere_proprio` | o servidor também insere a linha que é dele (pedido); exige `;proprio` ou `;pai=` |
 | `;sem_autoaprovacao` | INSERT/UPDATE/DELETE pelo caminho da permissão (e o DELETE de `;excluir=<código>`) exigem que a linha **não** seja do usuário logado: `is_admin_user(auth.uid()) OR NOT eh_meu_servidor(<posse>)`. `eh_meu_servidor` confere o vínculo do perfil ou, sem vínculo, o CPF; o papel admin passa. Exige `;proprio` ou `;pai=` |
+| `;coletor=<módulo>:<ops>` | o módulo do app de campo recebe só as operações listadas (`select\|insert\|update`), sem código; ex.: `unidades_locais` (`escrita=unidades.gerenciar;coletor=patrimonio_mobile:select`) |
 | `;posse=usuario` | a coluna de posse (ou o `servidor_id` do pai, com `;pai=`) guarda o id do **usuário** (FK para `profiles(id)`): leitura e inserção próprias usam `<col> = auth.uid() AND is_active_user()`, e `;sem_autoaprovacao` usa `<posse> IS DISTINCT FROM auth.uid()`. Exige `;proprio` ou `;pai=`; `testar-rls.sql` confere que toda coluna de posse com FK para `profiles` o declara |
 
 `;proprio`, `;pai=` e `;filho=` são excludentes (no máximo uma posse).
@@ -116,6 +119,16 @@ Outras classes:
 - `proprio_leitura`: aceita `coluna=<col>`, `excluir=<código>|admin|ninguem` e `sem_autoaprovacao` (este, dos
   contornos: INSERT/UPDATE/DELETE pelo módulo exigem ainda `is_admin_user(auth.uid()) OR NOT
   eh_meu_servidor(<col>)`). `servidores` usa `coluna=id;excluir=rh.servidores.excluir;sem_autoaprovacao`.
+- `modulo`: aceita `excluir=<código>|admin|ninguem`, `altera=<código>[|<código>...]` (o UPDATE exige o módulo **e** um
+  dos códigos; SELECT, INSERT e DELETE seguem por módulo) e `coletor=<módulo>:<ops>` (P14 entrega 4, migração
+  `20261023100000`). `bens_patrimoniais` usa `altera=patrimonio.editar;excluir=admin;coletor=patrimonio_mobile:select|insert`.
+- `coletor=<módulo>:<ops>` (classes `modulo` e `permissao`): dá ao módulo de um app de campo **só** as operações listadas
+  (`select`, `insert` e `update`, separadas por `|`; DELETE nunca), por OU nas policies dessas operações e sem código de
+  permissão. O módulo do coletor não pode estar na coluna `modulos` (lá teria tudo). É assim que o app de coleta do
+  patrimônio (`patrimonio_mobile`) lê e cadastra bens e coletas (e, fora do app de campo, o Financeiro lê, cadastra e
+  edita `fornecedores` com `coletor=financeiro:select|insert|update`, migração `20261025090000`), só pede baixa e movimentação, muda a situação da unidade na
+  vistoria e só lê unidades e campanhas; as demais tabelas do patrimônio são só do módulo `patrimonio`. `testar-rls.sql`
+  confere cada operação com a persona `mod_<módulo>` (as listadas passam, as outras são negadas).
 - `catalogo`: aceita `escrita=<código>[|<código>...]` (dos contornos): a escrita exige o módulo **e** um dos
   códigos, como na classe `permissao`; a leitura continua para qualquer usuário ativo. `tipos_abono` usa
   `escrita=rh.frequencia.configurar`.
@@ -241,6 +254,17 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
   `testar-rls.sh` passa como `-v casos_folha`): cada caso de INSS (com e sem o truncamento por faixa) e de IRRF dá o
   valor esperado em `calcular_inss_servidor` e `calcular_irrf_mensal`; férias da CLT e 13º ficam listados como fora
   do porte; sem o arquivo, o teste reprova;
+- empenhos do FIPLAN (migração `20261027090000`, bloco "Financeiro: empenhos do FIPLAN (FIP 614)" de `testar-rls.sql`):
+  `importar_empenhos_fip614` recusa (`42501`) sem `orcamento.importar`, sem o módulo financeiro e sem sessão;
+  simulação não grava; aplicação grava empenho e histórico sem somar na dotação; dotação ambígua fica nula com aviso
+  e a escolha manual se mantém na reimportação; `origem` não muda; número de empenho do sistema não é sobrescrito;
+  INSERT/UPDATE direto no histórico pela API não passa;
+- importação da folha do SIGRH (migrações `20261022090000` e `20261022100000`, bloco "FOLHA: importação da folha do SIGRH" de
+  `testar-rls.sql`): anon e PUBLIC sem EXECUTE; quem processa a folha sem poder fechá-la recusa (`42501`); competência
+  futura, mês corrente e lista vazia (`22023`); simulação não grava e avisa servidor sem provimento e falta das
+  alíquotas patronais; provento de rubrica que não incide INSS fora da base; CPF desconhecido é erro da linha,
+  sem gravar nem devolver o CPF; aplicação cria a folha fechada com fichas, itens e totais e o log sem CPF; competência
+  que já tem folha mensal recusada (`23505`);
 - parte patronal e INSS por faixa da folha (migração `20261021100000`, bloco "FOLHA: parte patronal e INSS por faixa"
   de `testar-rls.sql`): INSS truncado por faixa só com `inss_truncar_por_faixa` e na vigência; alíquota em % e opção
   fora de 0/1 recusadas (CHECK `parametros_folha_encargos_check`); folha sem alíquotas processa com patronal zero e
@@ -254,6 +278,27 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
 - RPCs: injeção de SQL, `SECURITY DEFINER` sem checagem fora de lista revisada (desde 2026-10-12 a lista inclui as 4
   RPCs do pré-cadastro público e `frequencia_competencia_travada`), privilégios padrão, `anon` executando exatamente
   14 funções, campos que o autor não pode escolher nos formulários.
+
+A migração `20261023090000_registro_sei_termo_cessao_designacao.sql` (ciclo do SEI no termo de cessão e na designação
+de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termos_cessao.processo_sei`, `doe_numero`,
+`doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
+`ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
+
+A migração `20261028090000_compras_pca.sql` (PCA, entrega 1) entrou no schema regenerado (`01_pre_data.sql` e
+`03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões `compras.pca.visualizar`/`editar` e da
+concessão a `admin` e `manager`, copiadas da regeneração), no `rls/mapa.csv` (`pca_*` e `cat_*` na classe `permissao`,
+`pca_historico` em `trilha`) e no `overlay/40_privilegios.sql`; testes no bloco "Compras: PCA" de
+`scripts/db/testar-rls.sql`, com sementes de `pca_itens` e `cat_sincronizacoes` em `seed_ov`.
+
+A migração `20261026090000_fin_conciliacao_mensal.sql` (conciliação mensal, quadro da SEFAZ) entrou no schema
+regenerado (`01_pre_data.sql` e `03_post_data.sql`; o `02_dados_catalogo.sql` não muda), no `rls/mapa.csv`
+(`fin_conciliacoes_mensais` e `fin_conciliacao_itens`, classe `permissao`, `escrita=pagamento.conciliar`; o cabeçalho
+com `excluir=ninguem`) e no `overlay/40_privilegios.sql`; testes no bloco "Financeiro: conciliação mensal" de
+`scripts/db/testar-rls.sql`, com sementes das duas tabelas em `seed_ov`.
+
+A migração `20261024090000_fin_remessa_obn600.sql` (remessa OBN600 dos pagamentos) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`; o `02_dados_catalogo.sql` não muda). Sem tabela nova: `rls/mapa.csv` sem
+mudança; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de `scripts/db/testar-rls.sql`.
 
 Em 2026-10-18 (P13, migração `20261018100000_remove_tabelas_backup_aposentado.sql`), as tabelas `backup_config`,
 `backup_history` e `backup_integrity_checks` e os enums `backup_status` e `backup_type` (do backup antigo, aposentado

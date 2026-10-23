@@ -36,19 +36,38 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
 - **Dashboards**: `use<Modulo>DashboardStats` (Admin, RH, Financeiro, Patrimônio,
   Compras, Contratos, Comunicação, Governança, Integridade, Programas,
   Transparência, Workflow, Gestores Escolares).
+- **Governança**: `useRelatorioGovernanca` (relatório anual do exercício escolhido: checklists de conformidade,
+  processos da matriz RACI, riscos, plano de tratamento, avaliações de controle e, só com `integridade.gerenciar`,
+  a contagem de denúncias por situação; seção sem registro vem vazia, sem número de exemplo), `useMatrizRaci`
+  (papéis, processos e atribuições de `matriz_raci_*`), `useEstruturaOrganizacional` (em `useOrganograma.ts`).
+- **Transparência**: `useResumoQuadroCargos` (em `useTransparenciaCargos.ts`; total, custo e divisão por diretoria do
+  quadro, calculados em `src/lib/quadroCargos.ts` a partir da RPC pública `transparencia_cargos_publicos`) e
+  `usePrazosLai` (prazos de `prazos_lai`; sem linha, o padrão legal de `src/lib/prazosLai.ts`).
 - **RH / folha**: `useServidorCompleto`, `useServidoresPorUnidade`,
   `useVinculosServidor`, `useGestaoLotacao`,
   `useDesignacoes`, `useComissoes` (comissões e membros), `useFrequencia`, `useFrequenciaPacotes`,
   `useParametrizacoesFrequencia`, `useGerarFrequenciaPDF`, `useFolhaPagamento`,
   `useFolhaCalculos`, `useFechamentoFolha`, `useAtosRemuneratorios` (atos que mudam valores da folha e a RPC
   `aplicar_ato_remuneratorio`), `useContracheque`,
-  `useRelatorios`, `usePortarias`, `usePreCadastro`.
+  `useRelatorios`, `usePortarias`, `usePreCadastro`, `useDesignacoesChefiaUnidade` (designação de chefia de
+  unidade local, na ficha do servidor: registro e edição do ciclo do ato no SEI).
 - **Financeiro**: `useFinanceiro` (inclui `useResumoOrcamentario`, `useUltimaImportacaoQdd`,
   `useCriarSolicitacao`, `useCriarContaBancaria`), `useAlteracoesOrcamentarias` (inclui
   `useConfirmarAlteracaoFiplan`), `useSubEmpenhos`, `useRestosAPagar`,
   `useConciliacaoBancaria` (movimentos dos arquivos do banco, conciliação manual, reenvio Gestão MAX, detalhe do
   pagamento e chamadas à Edge Function `bb-api`: `useStatusBB`, `useValidarContaBB`, `useImportarExtratoBB`).
   Tipos da conciliação em `src/types/conciliacaoBancaria.ts`.
+  `useConciliacaoMensal` (`useConciliacoesMensais`, `useMesConciliacao`, `useSalvarConciliacaoMensal`,
+  `useReabrirConciliacaoMensal`): aba "Fechamento mensal" da Conciliação (quadro da SEFAZ); leitura do FIP630,
+  FIP103 e OFX e o casamento em `src/lib/conciliacao/` (testes em `conciliacao.test.ts`).
+  `useFavorecidos` (`useFavorecidos`, `useSalvarFavorecido`): favorecidos da tela Financeiro → Favorecidos (tabela
+  `fornecedores`); agência e conta validadas por `src/lib/bancario/favorecido.ts`, com a regra da remessa OBN600.
+- **Compras:** `usePca` (`usePcaPlanos`, `usePcaPlano`, `useCriarPcaPlano`, `usePcaTetos`, `useSalvarPcaTeto`,
+  `useUsarQddPca`, `usePcaItens`, `useSalvarPcaItem`, `useExcluirPcaItem`, `useClassificadoresPca`, `useBuscarCatalogo`,
+  `useItensDoPdm`, `useSincronizarCatalogo`): telas `/compras/pca` e `/compras/pca/:exercicio` (componentes em
+  `src/components/compras/pca/`). Orçamento por ação × fonte em `src/lib/pca/orcamento.ts` e leitura de número
+  digitado em `src/lib/pca/numero.ts` (testes vitest). Itens de um PDM e a atualização do catálogo passam pela Edge
+  Function `catalogo-compras`.
 - **Exercício do Financeiro** (`src/hooks/useExercicioFinanceiro.ts`): ano orçamentário compartilhado pelas telas
   do módulo. Lê `?exercicio=` da URL; sem ele, o último ano escolhido no navegador (`localStorage`,
   chave `financeiro:exercicio`); sem nenhum, o ano atual. Faixa: 2024 até o ano seguinte ao atual. Devolve
@@ -57,7 +76,9 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   (`src/components/financeiro/SeletorExercicio.tsx`). Tela nova do financeiro que filtra por ano deve usar este
   hook, não um `useState` próprio.
 - **Patrimônio**: `usePatrimonio`, `useCadastroLote`, `useCadastroBemSimplificado`,
-  `useMovimentacaoLote`, `useAlmoxarifado`, `useColetaOffline`. Inventário de
+  `useMovimentacaoLote`, `useAlmoxarifado`, `useColetaOffline`, `useTermosCessao` (termos de cessão da unidade
+  local: registro da reserva aprovada e ciclo do SEI; a etapa e a validação ficam em `src/lib/registroSei.ts`, com
+  os campos `CamposAtoSei` compartilhados com a designação). Inventário de
   campo: `useVistoriaInventario` (unidades da campanha, situação, fotos com URL
   assinada, importação de KML), `useFilaFotosVistoria` (fila offline de fotos),
   `useGeolocalizacao` (posição e precisão do GPS); tipos em
@@ -84,7 +105,7 @@ de chamar `supabase` direto dentro da página.
 
 ## Lib (`src/lib`)
 
-- **PDF** (`pdf*.ts`, ~40): base em `pdfTemplate.ts`/`pdfLogos.ts`/`pdfGenerator.ts`.
+- **PDF**: modelos do motor único em `src/lib/documentos/` ([PADRAO_DOCUMENTOS.md](./PADRAO_DOCUMENTOS.md)); os `pdf*.ts` restantes só chamam o motor.
   Exemplos: `pdfContracheque`, `pdfFrequenciaMensalGenerator`, `pdfPortarias`,
   `pdfOrganograma`, `pdfRelatorioFederacoes`, `pdfRelatoriosRH`,
   `pdfRelatoriosAfastamentos` (férias, licenças, viagens), blocos de unidade em `pdf/`.
@@ -180,11 +201,32 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
   quando o parser aplicou o padrão); a RPC confere tudo de novo, inclusive matrículas e o que já existe.
   Identifica o servidor só por matrícula (sem CPF). Invalida as chaves de `usePortarias` (`portarias`, `portaria`,
   `portarias-servidor`, a seção da ficha do servidor) e `portarias-para-ato` (`useGestaoLotacao`). Regras de negócio: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-portarias-importar_portarias_planilha).
+- `importadores/folhaSigrh.ts` + `folhaSigrhParser.ts` — espelho da folha do SIGRH → `importar_folha_sigrh` (`id`
+  `folha_sigrh`, módulo `rh`, permissão `financeiro.folha.processar`; a RPC também exige poder fechar a folha). Aceita
+  o PDF FPAG10 (Folha Analítica por Funcionário), o PDF "Relatório analítico de conferência de folha" do SIGRH novo e a
+  planilha analítica por evento (`CdNomeacao`, `CPF`, `NmEvento`, `TpEvento`, `Valor`…; o mês e o ano saem do nome do
+  arquivo, e sem ano usa o atual com aviso). O parser (função pura, testada com vitest) separa provento e desconto pela
+  coluna (FPAG10: à direita do título "Desconto"; o número vai para Qtde ou Valor pela borda direita mais próxima, e a
+  rubrica impressa sem valor, como o IRRF isento, não entra), guarda a competência do retroativo ("(202602)"), confere
+  a soma de cada servidor e a do órgão com o total impresso (diferença de um centavo é erro) e junta numa ficha os
+  vínculos do mesmo CPF no mês. Valores em centavos. A prévia mostra o CPF mascarado. Invalida `folhas-pagamento`,
+  `fichas-financeiras`, `contracheques-rh` e `meus-contracheques`. Regras de negócio:
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-a-folha-do-sigrh-importar_folha_sigrh).
 - `importadores/classificadoresFiplan.ts` + `classificadoresFiplanParser.ts` — tabelas do FIPLAN (`.xls` das consultas
   "Consultar ...") → `importar_classificadores_fiplan` (`id` `classificadores_fiplan`, módulo `financeiro`, permissão
   `orcamento.importar`). Um arquivo por tabela; o parser (função pura, testada com vitest) reconhece a tabela pelo
   título, acha o cabeçalho, pula o cabeçalho repetido e o aviso "Continua na próxima planilha", exige um exercício só e
   não guarda coluna que possa ser dado pessoal (responsável, CPF, e-mail, telefone, matrícula). Regras: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#tabelas-do-fiplan-fin_classificadores_fiplan).
+- `tabelaHtml.ts` — "Excel" que é tabela HTML (o `.xls` do FIPLAN): `pareceTabelaHtml`, `decodificarHtml` (charset do
+  `<meta>`, padrão windows-1252) e `linhasDaTabelaHtml` (texto de cada célula como está, com a coluna real contando o
+  `colspan`). A biblioteca de planilhas lê esse arquivo, mas troca dia e mês e estraga números como `-20.329,08`.
+- `importadores/empenhosFip614.ts` + `empenhosFip614Parser.ts` — PDF ou Excel do "FIP 614 - Situação de Empenho" do FIPLAN →
+  `importar_empenhos_fip614` (`id` `empenhos_fip614`, módulo `financeiro`, permissão `orcamento.importar`). O parser
+  (função pura, testada com vitest e dados fictícios) põe cada valor na coluna pela borda direita, junta credor e
+  dotação quebrados, guarda o histórico da liquidação, trata o estorno (EST) na coluna onde o valor cai e confere cada
+  bloco com o TOTAL e a soma com o TOTAL UG. O Excel vira linhas posicionadas (`linhasFip614DoExcel`, uma posição por
+  coluna) e passa pelo mesmo parser; o exercício sai do número dos empenhos. O empenho importado aparece com o selo FIPLAN em Empenhos e o detalhe
+  (`EmpenhoDetalhePage`) mostra o histórico e a escolha da dotação. Regras: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#empenhos-do-fiplan-fip-614).
 - `planilha.ts` — helpers de planilha compartilhados (mesma lógica da importação do quadro de vagas, que mantém a
   sua cópia): `lerPrimeiraAba`
   (XLSX/XLS/CSV; CSV em UTF-8 ou Windows-1252; devolve cabeçalhos e linhas com o número da linha no Excel),

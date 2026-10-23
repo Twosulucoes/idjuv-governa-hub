@@ -5,6 +5,7 @@ export { default as LiquidacoesPage } from "./LiquidacoesPage";
 export { default as PagamentosPage } from "./PagamentosPage";
 export { default as AdiantamentosPage } from "./AdiantamentosPage";
 export { default as ContasBancariasPage } from "./ContasBancariasPage";
+export { default as FavorecidosPage } from "./FavorecidosPage";
 export { default as RelatoriosFinanceiroPage } from "./RelatoriosFinanceiroPage";
 export { default as PlaceholderDetalheFinanceiroPage } from "./PlaceholderDetalheFinanceiroPage";
 export { default as QDDPage } from "./QDDPage";

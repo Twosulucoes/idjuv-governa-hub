@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { orgaoEmTexto, ufDaSede } from "@/lib/rotulosInstituicao";
 import { desligarServidor, MOTIVOS_QUE_DESLIGAM, type MotivoDesligamento } from "@/lib/rhRpc";
 
 // Tipos
@@ -101,8 +102,9 @@ export const TIPO_DERIVADO_COLORS: Record<string, string> = {
 };
 
 export const ORIGEM_LABELS: Record<OrigemVinculo, string> = {
-  idjuv: "IDJuv",
-  estado_rr: "Estado de Roraima",
+  // Códigos `idjuv`/`estado_rr` são do banco; os rótulos vêm do cadastro da instituição.
+  get idjuv() { return `Quadro do ${orgaoEmTexto()}`; },
+  get estado_rr() { const uf = ufDaSede(); return uf ? `Estado (${uf})` : "Estado da sede"; },
   federal: "Federal",
   municipal: "Municipal",
   outro_orgao: "Outro Órgão",

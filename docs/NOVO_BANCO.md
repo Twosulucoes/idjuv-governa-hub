@@ -183,12 +183,47 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - O cálculo do IRRF pela lei de 2026 e a opção pelo regime próprio de origem (migração `20261019200000`) entraram no
   schema do baseline regenerado a partir do replay; `calcular_irrf_mensal` sem EXECUTE pela API no overlay 40; testes no
   bloco "FOLHA: cálculo do INSS e do IRRF" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os empenhos do FIPLAN (migração `20261027090000`) entraram no schema do baseline regenerado (colunas novas em
+  `fin_empenhos` e `fornecedores`, tabela `fin_empenho_documentos_fiplan`, gatilhos de saldo e
+  `importar_empenhos_fip614`) e o rótulo novo de `orcamento.importar` no catálogo; classe `preservar` no mapa,
+  escrita retirada no overlay 40; testes no bloco "Financeiro: empenhos do FIPLAN (FIP 614)" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#empenhos-do-fiplan-fip-614)).
 - Os atos remuneratórios e o histórico do vencimento por cargo (migração `20261020100000`) entraram no schema do
   baseline regenerado e no mapa (`atos_remuneratorios` e `atos_remuneratorios_itens` na classe `permissao`,
   `cargo_vencimentos` na `trilha`); privilégios das funções novas no overlay 40; testes no bloco "FOLHA: atos
   remuneratórios" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - Os vetores de teste da folha comuns com o hrms_brasil (`scripts/db/casos-folha.json`) rodam no teste de RLS, no
   bloco "FOLHA: vetores comuns": `testar-rls.sh` passa o arquivo ao `psql`, e rodar o `.sql` sem ele reprova.
+- O registro do ciclo do SEI no termo de cessão e na designação de chefia (migração `20261023090000`) entrou no
+  schema do baseline só com os trechos do dump (colunas novas e `NOT NULL` retirado em `termos_cessao` e
+  `nomeacoes_chefe_unidade`, com os comentários), sem regenerar o resto; RLS e privilégios sem mudança
+  ([detalhe](./BANCO_DE_DADOS.md#termo-de-cessão-e-designação-de-chefia-ciclo-do-sei)).
+- A importação da folha do SIGRH (migração `20261022090000`) entrou no schema do baseline regenerado
+  (`importar_folha_sigrh`, com os ajustes da revisão na `20261022100000`); o EXECUTE só para `authenticated` no overlay 40; testes no bloco "FOLHA: importação da
+  folha do SIGRH" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- A remessa OBN600 dos pagamentos (migração `20261024090000`) entrou no schema do baseline regenerado (colunas novas
+  em `contas_autarquia`, `fin_remessas_bancarias` e `fin_pagamentos`, `registrar_remessa_obn600` e as versões finais
+  de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
+  mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- O PCA, entrega 1 (migração `20261028090000`), entrou no mapa (`pca_planos`, `pca_tetos`, `pca_itens` e as `cat_*`,
+  classe `permissao` com `compras.pca.editar`; `pca_historico`, classe `trilha`), no schema do baseline regenerado, no
+  catálogo (as duas permissões e a concessão aos papéis `admin` e `manager`) e no `overlay/40_privilegios.sql`; testes
+  no bloco "Compras: PCA" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- A conciliação mensal (migração `20261026090000`) entrou no mapa (`fin_conciliacoes_mensais` e
+  `fin_conciliacao_itens`, classe `permissao` com `pagamento.conciliar`), no schema do baseline regenerado e no
+  `overlay/40_privilegios.sql` (EXECUTE das RPCs só para `authenticated`; trigger fora da API); testes no bloco
+  "Financeiro: conciliação mensal" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os favorecidos e a lista de bancos (migração `20261025090000`) entraram no mapa (`fornecedores` com
+  `coletor=financeiro:select|insert|update`; `bancos_cnab` na classe `catalogo`), no schema do baseline regenerado e no
+  catálogo (`bancos_cnab` nas `SEMENTES`, 19 bancos). `testar-rls.sql` não escolhe mais o módulo do coletor como
+  "módulo alheio", e `validar-baseline.sh`/`gerar-baseline.sh` deixam fora do dump as sequências `rh_protocolo_seq_AAAA`,
+  criadas sob demanda quando uma migração grava em tabela com trilha ([detalhe](./BANCO_DE_DADOS.md)).
+- As permissões do patrimônio e das unidades (P14 entrega 4, migração `20261023100000`) entraram no mapa com os sufixos
+  novos `altera=` e `coletor=` do `scripts/db/gerar-rls.mjs` (documentados em `supabase/baseline/README.md`), no schema
+  do baseline regenerado (gatilho `trg_bens_proteger_colunas`, `fn_atualizar_estatisticas_campanha` SECURITY DEFINER) e
+  no catálogo (`patrimonio.editar` para admin e manager); EXECUTE retirado das duas funções no overlay 40; testes no
+  bloco "Patrimônio: permissões (P14 entrega 4)" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A parte patronal da folha e o INSS truncado por faixa (migração `20261021100000`) entraram no schema do baseline
   regenerado (`folhas_pagamento.total_rat`, CHECK `parametros_folha_encargos_check`, `calcular_inss_servidor` e
   `processar_folha_pagamento` novos, sem mudança de privilégio); testes no bloco "FOLHA: parte patronal e INSS por
@@ -205,3 +240,31 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `20261009160000` pelo replay, não do gerador ([detalhe](../supabase/baseline/README.md)).
 - A migração `20260110184920` e o histórico git contêm 74 nomes de servidores (CPF placeholder); o baseline não
   os leva, mas o repositório os mantém até uma decisão sobre limpeza de histórico.
+
+## 9. Ambiente de teste com dados fictícios
+
+Para testar as telas sem tocar na produção, monte **outro** Supabase (no Coolify da VPS, ao lado dos que já rodam)
+pelos passos 3 a 5 e depois encha-o com `supabase/baseline/dados-teste.sql`: uma instituição inventada com unidades,
+cargos, servidores com provimento, lotação e portaria de nomeação publicada, tabelas de INSS e IRRF e parâmetros da
+folha de exemplo, frequência de setembro fechada, férias, licenças, viagens, bens, almoxarifado, fornecedores,
+licitações, contratos, programa, ação e dotações do orçamento, solicitações e empenhos, riscos, demandas da ASCOM,
+notícias, programas, federações, árbitros, escolas com gestores e reuniões. Nomes, CPFs, CNPJs e e-mails
+(`@exemplo.test`) são inventados.
+
+```bash
+# depois do aplicar.sh (passo 4) e do bootstrap-admin.sql com o e-mail do login de teste (passo 5)
+PGPASSWORD='...' psql "postgresql://postgres@127.0.0.1:5432/postgres" \
+  -v confirmo=banco_de_teste -v email='login-de-teste@exemplo.test' -f supabase/baseline/dados-teste.sql
+```
+
+- **Travas:** sem `-v confirmo=banco_de_teste` o script não roda, e ele recusa banco que já tenha servidor, fornecedor
+  ou bem (a produção tem). Uma transação só: se algo falhar, nada fica gravado.
+- `email` liga o login de teste ao servidor fictício "Usuário de Teste" (lotado no RH), para as telas que pedem
+  servidor vinculado.
+- A folha de **setembro/2026** processa sem inconsistência (conferido num banco do baseline com o shim, como o
+  login de teste); **outubro** fica sem frequência, para testar o lançamento.
+- O front de teste é outra aplicação do Coolify com o mesmo `Dockerfile` e o `.env` apontando para o Supabase de
+  teste (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` dele). Ela não entra no `deploy-front.yml`: o
+  CI publica só a produção.
+- `solicitacoes_sic` fica sem exemplo: o trigger `registrar_historico_lai` lê uma coluna que a tabela não tem e
+  recusa o INSERT (pendência no [ROADMAP](./planejamento/ROADMAP.md#backlog-fora-do-plano)).

@@ -12,7 +12,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
-import { generateTermoResponsabilidade, generateDocumentNumber } from '@/lib/pdfGenerator';
+import { useUnidadesAdministrativas } from '@/hooks/useServidoresPorUnidade';
+import { useIdentidade } from '@/core/tenant';
+import { orgaoEmTexto } from '@/lib/rotulosInstituicao';
+import { baixarTermoResponsabilidade, numeroDoFormulario } from '@/lib/formulariosAdministrativos';
 
 const termoResponsabilidadeSchema = z.object({
   servidor: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
@@ -47,9 +50,9 @@ const TermoResponsabilidadePage = () => {
     setIsGenerating(true);
     
     try {
-      const numero = generateDocumentNumber('TR');
+      const numero = numeroDoFormulario('TR');
       
-      generateTermoResponsabilidade({
+      await baixarTermoResponsabilidade({
         servidor: data.servidor,
         cargo: data.cargo,
         matricula: data.matricula,
@@ -72,15 +75,10 @@ const TermoResponsabilidadePage = () => {
     }
   };
 
-  const setores = [
-    'Presidência',
-    'DIRAF - Diretoria Administrativa e Financeira',
-    'DIGEP - Diretoria de Gestão de Políticas',
-    'DIJEL - Diretoria de Juventude, Esporte e Lazer',
-    'Assessoria Jurídica',
-    'Controle Interno',
-    'Patrimônio',
-  ];
+  // Setores vêm da estrutura organizacional cadastrada (não de lista fixa)
+  const { data: unidades = [] } = useUnidadesAdministrativas();
+  const orgao = orgaoEmTexto(useIdentidade().sigla);
+  const setores = unidades.map((u) => (u.sigla ? `${u.sigla} - ${u.nome}` : u.nome));
 
   return (
     <ModuleLayout>
@@ -256,7 +254,7 @@ const TermoResponsabilidadePage = () => {
                   <div className="bg-muted border border-border rounded-lg p-4">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">Declaração de Responsabilidade</h4>
                     <p className="text-sm text-muted-foreground">
-                      Ao gerar este termo, declaro ter recebido os bens acima descritos, comprometendo-me a zelar pela sua guarda, conservação e uso adequado, nos termos da IN de Patrimônio do IDJUV. Estou ciente de que responderei administrativa, civil e penalmente por dano, extravio ou uso indevido.
+                      Ao gerar este termo, declaro ter recebido os bens acima descritos, comprometendo-me a zelar pela sua guarda, conservação e uso adequado, nos termos da IN de Patrimônio do {orgao}. Estou ciente de que responderei administrativa, civil e penalmente por dano, extravio ou uso indevido.
                     </p>
                   </div>
 

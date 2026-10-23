@@ -32,6 +32,8 @@ export interface NovoBemPayload {
   observacao?: string;
   possui_tombamento_externo?: boolean;
   numero_patrimonio_externo?: string;
+  /** URL da foto já enviada ao Storage; vai no próprio INSERT (o coletor não tem UPDATE em bens). */
+  foto_bem_url?: string;
 }
 
 export interface UnidadeLocal {
@@ -143,6 +145,7 @@ export function useCadastroBemSimplificado() {
         fornecedor_cnpj_cpf: payload.fornecedor_cnpj_cpf?.trim() || null,
         observacao: payload.observacao?.trim() || null,
         patrimonio_anterior: patrimonioAnterior,
+        foto_bem_url: payload.foto_bem_url || null,
         unidade_local_id: payload.unidade_local_id,
         situacao: "ativo",
         data_aquisicao: new Date().toISOString().split("T")[0],

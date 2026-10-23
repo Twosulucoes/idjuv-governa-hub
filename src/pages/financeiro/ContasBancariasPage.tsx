@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { ModuleLayout } from "@/components/layout";
 import ContaBancariaFormDialog from "@/components/financeiro/ContaBancariaFormDialog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
-import { Plus, Building2, CheckCircle2, Wallet } from "lucide-react";
+import { Plus, Building2, CheckCircle2, Wallet, Info } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { useContasBancarias } from "@/hooks/useFinanceiro";
 import type { ContaBancaria } from "@/types/financeiro";
@@ -87,6 +89,25 @@ export default function ContasBancariasPage() {
           </Button>
         }
       />
+
+      <Alert>
+        <Info className="h-4 w-4" aria-hidden="true" />
+        <AlertTitle>Esta tela é a tesouraria (saldos)</AlertTitle>
+        <AlertDescription className="space-y-2">
+          <p>
+            A conta que paga pelo arquivo do banco (convênio, remessa OBN600) se cadastra e se edita em Conciliação
+            bancária → Contas pagadoras. A conta de quem recebe fica no cadastro do favorecido.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link to="/financeiro/conciliacao?aba=contas">Abrir contas pagadoras</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/financeiro/favorecidos">Abrir favorecidos</Link>
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KpiCard rotulo="Total de contas" valor={contas?.length || 0} icone={Building2} carregando={isLoading} />

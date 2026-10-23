@@ -11,6 +11,7 @@ import type {
   Dotacao,
   SolicitacaoDespesa,
   Empenho,
+  DocumentoEmpenhoFiplan,
   Liquidacao,
   Pagamento,
   ContaBancaria,
@@ -20,6 +21,7 @@ import type {
   NaturezaDespesa,
   ResumoOrcamentario,
 } from '@/types/financeiro';
+import type { DotacaoPainel, EmpenhoPainel } from '@/lib/financeiro/painelExecucao';
 
 // ===========================================
 // DOTAÇÕES ORÇAMENTÁRIAS
@@ -292,6 +294,96 @@ export function useCriarEmpenho() {
         description: error.message,
         variant: 'destructive',
       });
+    },
+  });
+}
+
+/** Empenho com dotação, favorecido, natureza e fonte (tela de detalhe). */
+export function useEmpenhoDetalhe(id?: string) {
+  return useQuery({
+    queryKey: ['fin_empenho', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fin_empenhos')
+        .select(`
+          *,
+          dotacao:fin_dotacoes(id, codigo_dotacao, idu, saldo_disponivel),
+          fornecedor:fornecedores(id, razao_social, cpf_cnpj),
+          natureza_despesa:fin_naturezas_despesa(id, codigo, nome),
+          fonte_recurso:fin_fontes_recurso(id, codigo, nome)
+        `)
+        .eq('id', id!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as unknown as Empenho | null;
+    },
+  });
+}
+
+/** LIQ, NOB, GCV e estornos do FIPLAN de um empenho importado do FIP 614, na ordem do relatório. */
+export function useDocumentosEmpenhoFiplan(empenhoId?: string) {
+  return useQuery({
+    queryKey: ['fin_empenho_documentos_fiplan', empenhoId],
+    enabled: !!empenhoId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fin_empenho_documentos_fiplan')
+        .select('*')
+        .eq('empenho_id', empenhoId!)
+        .order('ordem');
+      if (error) throw error;
+      return data as unknown as DocumentoEmpenhoFiplan[];
+    },
+  });
+}
+
+/**
+ * Dotações do QDD em que o empenho do FIPLAN pode cair: mesmos dígitos de função a fonte. O FIP 614 em PDF corta a
+ * dotação antes do IDU, então pode haver mais de uma (ex.: recurso livre e emenda na mesma natureza).
+ */
+export function useDotacoesCandidatasEmpenho(empenho?: Pick<Empenho, 'exercicio' | 'dotacao_fiplan' | 'origem'> | null) {
+  const prefixo = empenho?.dotacao_fiplan
+    ? empenho.dotacao_fiplan.split('.').slice(2, 9).join('').replace(/\D/g, '')
+    : '';
+  return useQuery({
+    queryKey: ['fin_dotacoes', empenho?.exercicio, 'candidatas', prefixo],
+    enabled: empenho?.origem === 'fiplan' && prefixo.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fin_dotacoes')
+        .select('id, codigo_dotacao, idu, natureza_despesa_id, fonte_recurso_id, valor_atual, valor_empenhado')
+        .eq('exercicio', empenho!.exercicio);
+      if (error) throw error;
+      return (data ?? []).filter((d) => d.codigo_dotacao.replace(/\D/g, '').startsWith(prefixo));
+    },
+  });
+}
+
+/** Liga o empenho do FIPLAN a uma das dotações candidatas (com a natureza e a fonte dela). */
+export function useDefinirDotacaoEmpenho() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (dados: { empenhoId: string; dotacao: { id: string; natureza_despesa_id: string | null; fonte_recurso_id: string | null } }) => {
+      const { error } = await supabase
+        .from('fin_empenhos')
+        .update({
+          dotacao_id: dados.dotacao.id,
+          natureza_despesa_id: dados.dotacao.natureza_despesa_id,
+          fonte_recurso_id: dados.dotacao.fonte_recurso_id,
+        })
+        .eq('id', dados.empenhoId)
+        .eq('origem', 'fiplan');
+      if (error) throw error;
+    },
+    onSuccess: (_d, dados) => {
+      queryClient.invalidateQueries({ queryKey: ['fin_empenho', dados.empenhoId] });
+      queryClient.invalidateQueries({ queryKey: ['fin_empenhos'] });
+      toast({ title: 'Dotação do empenho definida' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao definir a dotação', description: error.message, variant: 'destructive' });
     },
   });
 }
@@ -665,68 +757,76 @@ export function useNaturezasDespesa() {
 }
 
 // ===========================================
-// DASHBOARD
+// PAINEL DO FINANCEIRO (execução do exercício)
 // ===========================================
 
-export function useDashboardFinanceiro(exercicio?: number) {
-  const ano = exercicio || new Date().getFullYear();
-  
-  const resumoOrcamentario = useResumoOrcamentario(ano);
-  const contasBancarias = useContasBancarias();
-  
-  // Pagamentos pendentes
-  const pagamentosPendentes = useQuery({
-    queryKey: ['fin_pagamentos_pendentes', ano],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('fin_pagamentos')
-        .select('*', { count: 'exact', head: true })
-        .eq('exercicio', ano)
-        .eq('status', 'programado');
-      
+/** Linhas do painel: dotações ativas (QDD), empenhos com saldo (FIP 614) e data das últimas importações. */
+export function usePainelFinanceiro(exercicio: number) {
+  const dotacoes = useQuery({
+    queryKey: ['fin_painel_dotacoes', exercicio],
+    queryFn: async (): Promise<DotacaoPainel[]> => {
+      const { data, error } = await supabase
+        .from('fin_dotacoes')
+        .select(`
+          paoe, valor_atual, valor_empenhado, valor_liquidado, valor_pago,
+          valor_bloqueado, valor_reserva, valor_ped,
+          natureza_despesa:fin_naturezas_despesa(codigo, nome),
+          fonte_recurso:fin_fontes_recurso(codigo)
+        `)
+        .eq('exercicio', exercicio)
+        .eq('ativo', true);
+
       if (error) throw error;
-      return count || 0;
+      return (data ?? []).map(({ natureza_despesa, fonte_recurso, ...valores }) => ({
+        ...valores,
+        natureza: natureza_despesa?.codigo ?? null,
+        natureza_nome: natureza_despesa?.nome ?? null,
+        fonte: fonte_recurso?.codigo ?? null,
+      }));
     },
   });
-  
-  // Adiantamentos com prestação pendente
-  const adiantamentosPendentes = useQuery({
-    queryKey: ['fin_adiantamentos_pendentes', ano],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('fin_adiantamentos')
-        .select('*', { count: 'exact', head: true })
-        .eq('exercicio', ano)
-        .in('status', ['em_uso', 'prestacao_pendente', 'bloqueado']);
-      
+
+  const empenhos = useQuery({
+    queryKey: ['fin_painel_empenhos', exercicio],
+    queryFn: async (): Promise<EmpenhoPainel[]> => {
+      const { data, error } = await supabase
+        .from('fin_empenhos')
+        .select('credor_nome, data_empenho, saldo_liquidar, saldo_pagar, status, fornecedor:fornecedores(razao_social)')
+        .eq('exercicio', exercicio)
+        .or('saldo_liquidar.gt.0,saldo_pagar.gt.0');
+
       if (error) throw error;
-      return count || 0;
+      return (data ?? []).map((e) => ({
+        credor: e.credor_nome ?? e.fornecedor?.razao_social ?? null,
+        data_empenho: e.data_empenho,
+        saldo_liquidar: e.saldo_liquidar,
+        saldo_pagar: e.saldo_pagar,
+        status: e.status,
+      }));
     },
   });
-  
-  // Solicitações pendentes de análise
-  const solicitacoesPendentes = useQuery({
-    queryKey: ['fin_solicitacoes_pendentes', ano],
+
+  const atualizacao = useQuery({
+    queryKey: ['fin_painel_atualizacao', exercicio],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from('fin_solicitacoes')
-        .select('*', { count: 'exact', head: true })
-        .eq('exercicio', ano)
-        .in('status', ['pendente_analise', 'em_analise']);
-      
-      if (error) throw error;
-      return count || 0;
+      // Uma consulta por tipo: reimportações de um não escondem a última do outro
+      const ultima = async (tipo: string) => {
+        const { data, error } = await supabase
+          .from('importacoes')
+          .select('created_at')
+          .eq('exercicio', exercicio)
+          .eq('tipo', tipo)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        return data?.[0]?.created_at ?? null;
+      };
+      const [qdd, fip614] = await Promise.all([ultima('qdd_fiplan'), ultima('empenhos_fip614')]);
+      return { qdd, fip614 };
     },
   });
-  
-  return {
-    resumoOrcamentario,
-    contasBancarias,
-    pagamentosPendentes,
-    adiantamentosPendentes,
-    solicitacoesPendentes,
-    loading: resumoOrcamentario.isLoading || contasBancarias.isLoading,
-  };
+
+  return { dotacoes, empenhos, atualizacao };
 }
 
 // ===========================================

@@ -22,8 +22,8 @@ automaticamente nos passos internos.)
 
 O gate (`scripts/gate.sh`) roda, nesta ordem (o que falha em segundos primeiro):
 `check:migrations` → `check:docs` → `check:rls` → `check:contraste` → `check:autoria-rh` → `estado:checar` →
-`check:numeros` → `typecheck` → `lint` → cor crua → jsPDF fora de `src/lib/documentos/core/` → testes (vitest em
-`src/` e `scripts/`) → `build` → build do site (`npm run build:site` e
+`check:numeros` → base antiga de PDF (`scripts/check-base-pdf-antiga.mjs`) → `typecheck` → `lint` → cor crua → jsPDF fora de `src/lib/documentos/core/` → impressão fora de `src/lib/documentos/` → testes (vitest em
+`src/`, `scripts/` e nas partes puras das Edge Functions, `supabase/functions/**/*.test.ts`) → `build` → build do site (`npm run build:site` e
 `scripts/check-bundle-site.mjs`, que reprova código do sistema interno no `dist-site/`; o jsPDF é permitido
 desde 17/10/2026 porque o `/curriculo` gera PDF, carregado sob demanda). O `vite build` **não** checa
 tipos, por isso o typecheck (`tsc -p tsconfig.app.json`) é passo próprio.
@@ -49,9 +49,15 @@ do código. Mudou algo que muda a contagem? Rode `npm run estado` e commite o ar
 estado do sistema. Fato datado de uma entrega pode ficar, marcado com `<!-- numero-datado -->` na linha ou
 entre `<!-- numero-datado:inicio -->` e `<!-- numero-datado:fim -->`.
 Desde o P03 (tipos do banco gerados das migrações) a baseline do typecheck é 4.
-A baseline `jspdfForaDoCore` cai a cada onda da padronização de PDFs (`docs/PADRAO_DOCUMENTOS.md`): o gerador migrado
-para `src/lib/documentos/` deixa de importar `jspdf`, e a baseline é baixada na mesma PR. Demais relatórios (onda 4), comprovantes (onda 3), fichas (onda 2) e
-relatórios do RH (onda 1) já passaram por esse ajuste.
+A baseline `jspdfForaDoCore` caiu a cada onda da padronização de PDFs (`docs/PADRAO_DOCUMENTOS.md`) e chegou a
+**zero** na onda 5: nenhum arquivo fora de `src/lib/documentos/core/` importa `jspdf`, e qualquer import novo reprova o
+gate. A mesma onda apagou a base antiga (pdfTemplate, pdfInstitucional, pdfLogos); o guard
+`scripts/check-base-pdf-antiga.mjs` reprova a volta desses arquivos ou de import com esses nomes.
+A baseline `impressaoForaDoCore` (`scripts/check-impressao-fora-do-core.mjs`, `npm run check:impressao` lista) fecha as
+outras portas de impressão: `window.print()` (também numa janela aberta à mão), classe `print:` do Tailwind,
+`@media print`/`@page` e biblioteca de PDF que não é o jsPDF do core (pdf-lib, html2canvas, react-to-print, pdfmake,
+@react-pdf), contadas por arquivo de `src/` fora de `src/lib/documentos/`. Nasceu com a dívida de 21/10/2026
+(etiquetas de patrimônio, ficha cadastral geral em pdf-lib e o botão Imprimir do organograma) e só cai.
 
 Migração nova exige o `src/integrations/supabase/types.ts` regenerado no mesmo PR:
 `bash scripts/db/gerar-tipos.sh` (Postgres local, ver `docs/BANCO_DE_DADOS.md`). O CI **Tipos do banco**

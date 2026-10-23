@@ -7,6 +7,8 @@ description: Cria ou migra um documento imprimível (PDF) do IDJUV Governa Hub p
 
 Padrão canônico: `docs/PADRAO_DOCUMENTOS.md`. Spec: `docs/superpowers/specs/2026-10-12-padrao-impressao-documentos-design.md`.
 **Nunca** crie `new jsPDF` fora de `src/lib/documentos/core/` — o gate falha.
+Também não use `window.print()`, classe `print:`, `@media print`/`@page` nem outra biblioteca de PDF
+(pdf-lib, html2canvas, react-to-print…) fora de `src/lib/documentos/`: o gate conta e não deixa subir.
 
 **Ato formal do órgão não se gera** (portaria, memorando, termo, requerimento, DFD/ETP/TR): é feito no SEI. O sistema
 só acompanha o ciclo — registre processo SEI, número do ato e publicação no DOE (decisão do dono, 12/10/2026). Se o

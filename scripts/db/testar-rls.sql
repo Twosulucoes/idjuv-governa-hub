@@ -27,6 +27,10 @@
 --                    persona só com o código de escrita fora da lista não leem; a posse continua lendo a linha própria
 --   proprio_leitura  ;coluna=<col>: posse por outra coluna (servidores: id); ;excluir=<código>: DELETE só com o código
 --   excluir=ninguem  (modulo, permissao, proprio_leitura; E3) ninguém apaga pela API, nem o admin
+--   altera=<c>       (modulo; P14 entrega 4) o UPDATE exige o módulo E o código (persona perm_<código>); o módulo sozinho
+--                    lê, insere e não altera
+--   coletor=<m>:<ops> (modulo e permissao; P14 entrega 4) o módulo do app de campo (mod_<m>, fora da coluna modulos) faz SÓ
+--                    as operações listadas (select|insert|update): as outras são negadas, DELETE sempre
 --   fechada          ninguém lê (nem admin)
 --   preservar        profiles e denuncias: testes próprios no bloco "cobertura adicional"
 --   UPDATE/DELETE    por tabela e persona (SET col = DEFAULT, sem WHERE: mede só a policy de UPDATE)
@@ -53,6 +57,9 @@
 --   P12              INSERT público de federações/árbitros só na situação inicial (sem depender do trigger); gestor só
 --                    pela RPC (duplicidade neutra); limite por IP (PT429) nas RPCs e no INSERT público; permissões de
 --                    outro usuário só para o próprio ou o admin; chefe da unidade só com rh/patrimonio
+--   P14 (entrega 4)  app de coleta só com o que usa (coletor=), patrimonio.editar no UPDATE de bem, DELETE de bem só do
+--                    admin, valor/data/forma de aquisição e situação só do admin (42501), estatística da campanha pelo
+--                    trigger SECURITY DEFINER e patrimonio_decidir_baixa ainda baixando o bem
 --
 -- Cobertura é exigida: tabela sem linha semente, fora do mapa ou sem RLS é FALHA. As tabelas temporárias do teste
 -- (mapa, persona, semeado...) são lidas por papéis com SET ROLE, então recebem GRANT explícito.
@@ -92,7 +99,15 @@ INSERT INTO seed_ov VALUES
   -- código da vaga em maiúsculas (vagas_cargo_codigo_check, migração 20261012150000)
   ('vagas_cargo', '{"codigo":"VAGA-TESTE.001"}'),
   -- um alvo por item (atos_remuneratorios_itens_alvo_check, migração 20261020100000)
-  ('atos_remuneratorios_itens', '{"alvo":"parametro","cargo_id":null,"rubrica_id":null,"tipo_parametro":"teste_seed"}');
+  ('atos_remuneratorios_itens', '{"alvo":"parametro","cargo_id":null,"rubrica_id":null,"tipo_parametro":"teste_seed"}'),
+  -- competência no dia 1 e item pendente do próprio mês (migração 20261026090000)
+  ('fin_conciliacoes_mensais', '{"competencia":"2020-01-01","situacao":"rascunho","fechada_em":null,"fechada_por":null}'),
+  ('fin_conciliacao_itens', '{"lado":"bancario","natureza":"debito","valor":1,"situacao":"pendente","origem":"mes","item_origem_id":null,"grupo":null,"regra":null,"re":null,"nob":null}'),
+  -- empenho sem favorecido nem dotação só com origem fiplan (fin_empenhos_sistema_vinculos_check, migração 20261027090000)
+  ('fin_empenhos', '{"origem":"fiplan","credor_codigo_fiplan":"2001.00001-1","credor_nome":"Credor Teste"}'),
+  -- item do PCA: serviço do catálogo, sem PDM nem item de material (pca_itens_catalogo_check, migração 20261028090000)
+  ('pca_itens', '{"tipo":"servico","codigo_servico":1,"codigo_pdm":null,"codigo_item":null,"quantidade":1,"valor_unitario":1,"mes_desejado":1,"numero_sei":"SEI-1","descricao":"Teste","unidade_fornecimento":"UN"}'),
+  ('cat_sincronizacoes', '{"tipo":"pdm"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -331,6 +346,16 @@ $$;
 CREATE FUNCTION pg_temp.codigos_leitura(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE WHEN classe = 'permissao' THEN string_to_array((regexp_match(extra, '(^|;)leitura=([^;]+)'))[2], '|') END
 $$;
+-- altera=a|b (modulo, P14 entrega 4): códigos exigidos, além do módulo, para o UPDATE; NULL se não há
+CREATE FUNCTION pg_temp.codigos_altera(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE WHEN classe = 'modulo' THEN string_to_array((regexp_match(extra, '(^|;)altera=([^;]+)'))[2], '|') END
+$$;
+-- coletor=<módulo>:<ops> (modulo e permissao, P14 entrega 4): {módulo, op1, op2...} (ops em minúsculas); NULL se não há
+CREATE FUNCTION pg_temp.coletor_de(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE WHEN classe IN ('modulo', 'permissao') AND extra ~ '(^|;)coletor=' THEN
+    ARRAY[(regexp_match(extra, '(^|;)coletor=([a-z_0-9]+):'))[2]]
+    || string_to_array((regexp_match(extra, '(^|;)coletor=[a-z_0-9]+:([^;]+)'))[2], '|') END
+$$;
 -- true quando o extra traz o sufixo sem valor (ex.: proprio, insere_proprio, sem_autoaprovacao)
 CREATE FUNCTION pg_temp.tem_sufixo(extra text, sufixo text) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
   SELECT sufixo = ANY (string_to_array(extra, ';'))
@@ -346,6 +371,7 @@ FROM (SELECT c.codigo, unnest(string_to_array(m.modulos, '|')) AS modulo
       FROM mapa m
       CROSS JOIN LATERAL unnest(coalesce(pg_temp.codigos_escrita(m.classe, m.extra), '{}'::text[])
                                 || coalesce(pg_temp.codigos_leitura(m.classe, m.extra), '{}'::text[])
+                                || coalesce(pg_temp.codigos_altera(m.classe, m.extra), '{}'::text[])
                                 || ARRAY[CASE WHEN pg_temp.excluir_de(m.classe, m.extra) NOT IN ('admin', 'ninguem')
                                               THEN pg_temp.excluir_de(m.classe, m.extra) END]) AS c(codigo)
       WHERE c.codigo IS NOT NULL) x
@@ -513,6 +539,7 @@ DECLARE
   -- dono das linhas A/B na coluna de posse (servidor; ou o perfil da persona com ;posse=usuario) e literais das
   -- linhas A/B no teste de ;sem_autoaprovacao
   dono_a text; dono_b text; lit_a text; lit_b text; pai_a text;
+  colet text[];   -- coletor=<m>:<ops> (P14 entrega 4): {módulo, ops...}
   total int := 0;
 BEGIN
   FOR m IN SELECT * FROM mapa WHERE classe NOT IN ('preservar') ORDER BY tabela LOOP
@@ -583,7 +610,9 @@ BEGIN
         END IF;
       END LOOP;
       -- módulo alheio não vê nem escreve
-      outro := (SELECT x FROM unnest(ARRAY['financeiro','rh','compras','patrimonio']) x WHERE x <> ALL (mods) LIMIT 1);
+      -- (o módulo do coletor também não conta como alheio)
+      outro := (SELECT x FROM unnest(ARRAY['financeiro','rh','compras','patrimonio']) x
+                WHERE x <> ALL (mods) AND x IS DISTINCT FROM (pg_temp.coletor_de(m.classe, m.extra))[1] LIMIT 1);
       u_mod := (SELECT uid FROM persona WHERE nome = 'mod_' || outro);
       IF m.classe <> 'catalogo' AND m.anon <> 'select' AND coalesce(ok_seed, false) AND pg_temp.sel(u_mod, 'authenticated', m.tabela) > 0 THEN
         PERFORM pg_temp.falha(m.tabela || ': módulo alheio (' || outro || ') enxerga linhas');
@@ -594,6 +623,20 @@ BEGIN
       -- admin (papel) tem acesso
       IF coalesce(ok_seed, false) AND pg_temp.sel(u_admin, 'authenticated', m.tabela) < 1 THEN
         PERFORM pg_temp.falha(m.tabela || ': papel admin não enxerga a linha');
+      END IF;
+      -- coletor=<m>:<ops> (P14 entrega 4): o módulo do app de campo lê/insere só se a operação está listada
+      colet := pg_temp.coletor_de(m.classe, m.extra);
+      IF colet IS NOT NULL THEN
+        u_mod := (SELECT uid FROM persona WHERE nome = 'mod_' || colet[1]);
+        IF colet[1] = ANY (mods) THEN PERFORM pg_temp.falha(m.tabela || ': o módulo do coletor (' || colet[1] || ') também está na coluna modulos'); END IF;
+        IF coalesce(ok_seed, false) THEN
+          n := pg_temp.sel(u_mod, 'authenticated', m.tabela);
+          IF 'select' = ANY (colet) AND n < 1 THEN PERFORM pg_temp.falha(m.tabela || ': coletor ' || colet[1] || ' não enxerga a linha (select declarado)');
+          ELSIF NOT ('select' = ANY (colet)) AND n > 0 THEN PERFORM pg_temp.falha(m.tabela || ': coletor ' || colet[1] || ' enxerga linhas sem select declarado'); END IF;
+        END IF;
+        r := pg_temp.ins(u_mod, 'authenticated', m.tabela);
+        IF 'insert' = ANY (colet) AND r = 'negado' THEN PERFORM pg_temp.falha(m.tabela || ': coletor ' || colet[1] || ' não consegue INSERT (insert declarado)');
+        ELSIF NOT ('insert' = ANY (colet)) AND r <> 'negado' THEN PERFORM pg_temp.falha(m.tabela || ': coletor ' || colet[1] || ' consegue INSERT sem insert declarado'); END IF;
       END IF;
     END IF;
 
@@ -798,10 +841,13 @@ END $$;
 -- permissao: cada código da lista escrita=; ;excluir=<código>|admin muda só o DELETE (também em proprio_leitura).
 -- ;sem_autoaprovacao: a persona com a permissão e dona da linha A só alcança a linha B (UPDATE e DELETE; com
 -- ;excluir=<código>, o DELETE é medido com a persona desse código).
+-- modulo;altera=<código>: o UPDATE só com a persona do código (o módulo sozinho insere e apaga, salvo excluir=).
+-- coletor=<m>:<ops>: mod_<m> altera só com update na lista e nunca apaga.
 DO $$
 DECLARE
   m record; mods text[]; pers record; autorizado boolean; n int; op text; outro text; checagens int := 0;
   perms text[]; avulsas text[]; excl text; perm_excl text; tem_mod boolean; codigo text; u_perm uuid;
+  perms_alt text[]; colet text[];   -- altera= e coletor= (P14 entrega 4)
   sa uuid := 'b0000000-0000-0000-0000-00000000000a';
   u_a uuid := (SELECT uid FROM persona WHERE nome = 'srv_a');
 BEGIN
@@ -812,10 +858,13 @@ BEGIN
     avulsas := coalesce((SELECT array_agg('perm_avulsa_' || c) FROM unnest(pg_temp.codigos_escrita(m.classe, m.extra)) c), '{}');
     excl := pg_temp.excluir_de(m.classe, m.extra);
     perm_excl := CASE WHEN excl NOT IN ('admin', 'ninguem') THEN 'perm_' || excl END;
+    perms_alt := coalesce((SELECT array_agg('perm_' || c) FROM unnest(pg_temp.codigos_altera(m.classe, m.extra)) c), '{}');
+    colet := pg_temp.coletor_de(m.classe, m.extra);
     FOR pers IN SELECT * FROM persona
                 WHERE nome IN ('admin','admin_inativo','nenhum','inativo','srv_a','srv_inativo','mod_admin','mod_' || outro)
                    OR nome = ANY (SELECT 'mod_' || x FROM unnest(mods) x)
-                   OR nome = ANY (perms) OR nome = ANY (avulsas) OR nome = perm_excl LOOP
+                   OR nome = ANY (perms) OR nome = ANY (avulsas) OR nome = perm_excl
+                   OR nome = ANY (perms_alt) OR nome = 'mod_' || colet[1] LOOP
       -- persona com algum módulo da tabela (mod_<m> ou perm_<código> cujo módulo é da tabela)
       tem_mod := (pers.nome LIKE 'mod_%' AND substr(pers.nome, 5) = ANY (mods))
                  OR EXISTS (SELECT 1 FROM persona_perm pp WHERE pp.nome = pers.nome AND pp.modulos && mods);
@@ -824,9 +873,12 @@ BEGIN
           WHEN m.classe IN ('trilha', 'admin_leitura') THEN false
           WHEN op = 'DELETE' AND excl = 'ninguem' THEN false                 -- E3: ninguém apaga pela API, nem o admin
           WHEN m.classe IN ('admin', 'catalogo_admin', 'proprio_user', 'publico_admin') THEN pers.nome = 'admin'
+          -- coletor=<m>:<ops>: o módulo do app de campo só faz o que está listado (DELETE nunca)
+          WHEN colet IS NOT NULL AND pers.nome = 'mod_' || colet[1] THEN lower(op) = ANY (colet)
           WHEN op = 'DELETE' AND excl = 'admin' THEN pers.nome = 'admin'
           WHEN op = 'DELETE' AND excl IS NOT NULL THEN pers.nome = 'admin' OR pers.nome = perm_excl
           WHEN m.classe = 'permissao' OR cardinality(perms) > 0 THEN pers.nome = 'admin' OR pers.nome = ANY (perms)   -- módulo sozinho e permissão avulsa NÃO alteram nem apagam
+          WHEN op = 'UPDATE' AND cardinality(perms_alt) > 0 THEN pers.nome = 'admin' OR pers.nome = ANY (perms_alt)   -- altera=: só com o código
           ELSE pers.nome = 'admin' OR tem_mod
         END;
         n := CASE op WHEN 'UPDATE' THEN pg_temp.upd(pers.uid, 'authenticated', m.tabela) ELSE pg_temp.del(pers.uid, 'authenticated', m.tabela) END;
@@ -1816,6 +1868,158 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.campanhas_inventario_unidades'::regclass AND NOT tgisinternal AND tgenabled <> 'D') THEN
     PERFORM pg_temp.falha('campanhas_inventario_unidades: falta o trigger de updated_at/updated_by');
   END IF;
+END $$;
+
+-- ---------------------------------------------------------------- Patrimônio: permissões (P14 entrega 4, migração 20261023100000) (TRIGGERS LIGADOS)
+-- O app de coleta (mod_patrimonio_mobile) lê e cadastra bem (a foto no próprio INSERT), lê e registra coleta, só pede
+-- baixa e movimentação, muda a situação da unidade na vistoria e não altera nem apaga bem, unidade, almoxarifado ou
+-- campanha; as estatísticas da campanha seguem vindo do trigger (fn_atualizar_estatisticas_campanha, SECURITY DEFINER).
+-- O UPDATE de bem exige patrimonio.editar; o DELETE, o papel admin; valor, data e forma de aquisição e situação só o
+-- admin muda pela API (fn_bens_proteger_colunas, 42501), e patrimonio_decidir_baixa (SECURITY DEFINER) segue baixando.
+DO $$
+DECLARE
+  u_mob uuid := (SELECT uid FROM persona WHERE nome = 'mod_patrimonio_mobile');
+  u_pat uuid := (SELECT uid FROM persona WHERE nome = 'mod_patrimonio');
+  u_edt uuid := (SELECT uid FROM persona WHERE nome = 'perm_patrimonio.editar');
+  u_admin uuid := (SELECT uid FROM persona WHERE nome = 'admin');
+  u_trm uuid := 'a0000000-0000-0000-0000-0000000000f2';   -- módulo patrimonio + patrimonio.tramitar
+  unid uuid := (SELECT id_a FROM semeado WHERE tabela = 'unidades_locais')::uuid;
+  camp uuid; bem uuid; bem2 uuid; baixa uuid; r text; t text; n int; campo text;
+BEGIN
+  IF u_edt IS NULL THEN PERFORM pg_temp.falha('P14: sem a persona perm_patrimonio.editar (altera= de bens_patrimoniais no mapa?)'); RETURN; END IF;
+  INSERT INTO auth.users (id, email) VALUES (u_trm, 'tramitar-p14@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id = u_trm;
+  INSERT INTO public.user_permissions (user_id, permission) VALUES (u_trm, 'patrimonio.tramitar');
+  INSERT INTO public.user_modules (user_id, module) VALUES (u_trm, 'patrimonio');
+  INSERT INTO public.campanhas_inventario (nome, ano, data_inicio, data_fim)
+    VALUES ('Campanha P14', 2026, current_date, current_date + 30) RETURNING id INTO camp;
+  INSERT INTO public.bens_patrimoniais (descricao, data_aquisicao, valor_aquisicao, unidade_local_id)
+    VALUES ('Bem P14', current_date, 100, unid) RETURNING id INTO bem;
+  INSERT INTO public.bens_patrimoniais (descricao, data_aquisicao, valor_aquisicao, unidade_local_id)
+    VALUES ('Bem P14 sem filhos', current_date, 50, unid) RETURNING id INTO bem2;
+  INSERT INTO public.campanhas_inventario_unidades (campanha_id, unidade_local_id) VALUES (camp, unid);
+
+  -- ===== coletor: bem
+  IF pg_temp.sel(u_mob, 'authenticated', 'bens_patrimoniais') < 1 THEN PERFORM pg_temp.falha('P14: coletor não lê bens'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mob, 'authenticated', format(
+    'INSERT INTO public.bens_patrimoniais (descricao, data_aquisicao, valor_aquisicao, unidade_local_id, situacao, forma_aquisicao, foto_bem_url) '
+    'VALUES (''Cadeira'', current_date, 0, %L, ''ativo'', ''compra'', ''https://x/foto.jpg'') RETURNING numero_patrimonio || ''|'' || foto_bem_url', unid));
+  IF r NOT LIKE 'PAT-%|https://x/foto.jpg' THEN PERFORM pg_temp.falha('P14: coletor não cadastra bem com a foto no INSERT e lê de volta (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format('UPDATE public.bens_patrimoniais SET foto_bem_url = ''x'' WHERE id = %L', bem));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('P14: coletor altera bem (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format('DELETE FROM public.bens_patrimoniais WHERE id = %L', bem2));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('P14: coletor apaga bem (' || r || ')'); END IF;
+
+  -- ===== coletor: coleta (e as estatísticas da campanha, pelo trigger SECURITY DEFINER)
+  r := pg_temp.exec_como(u_mob, 'authenticated', format('INSERT INTO public.coletas_inventario (campanha_id, bem_id) VALUES (%L, %L)', camp, bem));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P14: coletor não registra coleta (' || r || ')'); END IF;
+  IF (SELECT total_conferidos FROM public.campanhas_inventario WHERE id = camp) IS DISTINCT FROM 1 THEN
+    PERFORM pg_temp.falha('P14: coleta do coletor não atualizou total_conferidos da campanha ('
+      || coalesce((SELECT total_conferidos::text FROM public.campanhas_inventario WHERE id = camp), 'NULL') || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_mob, 'authenticated', format('SELECT count(*)::text FROM public.coletas_inventario WHERE campanha_id = %L', camp));
+  IF r <> '1' THEN PERFORM pg_temp.falha('P14: coletor não lê a coleta que registrou (' || r || ')'); END IF;
+
+  -- ===== coletor: pede baixa e movimentação (INSERT sem leitura de volta), não lê nem decide
+  r := pg_temp.sql_como(u_mob, 'authenticated', format(
+    'INSERT INTO public.baixas_patrimonio (bem_id, motivo, justificativa, status) VALUES (%L, ''inservivel'', ''quebrado'', ''solicitada'')', bem));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: coletor não pede baixa (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format(
+    'INSERT INTO public.movimentacoes_patrimonio (bem_id, tipo, motivo, status, unidade_local_origem_id, unidade_local_destino_id) '
+    'VALUES (%L, ''transferencia_interna'', ''via app'', ''pendente'', %L, %L)', bem, unid, unid));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: coletor não pede movimentação (' || r || ')'); END IF;
+  FOREACH t IN ARRAY ARRAY['baixas_patrimonio', 'movimentacoes_patrimonio'] LOOP
+    IF pg_temp.sel(u_mob, 'authenticated', t) > 0 THEN PERFORM pg_temp.falha('P14: coletor lê ' || t); END IF;
+  END LOOP;
+
+  -- ===== coletor: situação da unidade na vistoria (UPDATE sim; INSERT e DELETE não)
+  r := pg_temp.sql_como(u_mob, 'authenticated', format('UPDATE public.campanhas_inventario_unidades SET situacao = ''em_vistoria'' WHERE campanha_id = %L', camp));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: coletor não muda a situação da unidade na campanha (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format('INSERT INTO public.campanhas_inventario_unidades (campanha_id, unidade_local_id) VALUES (%L, %L)', camp, gen_random_uuid()));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('P14: coletor inclui unidade na campanha (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mob, 'authenticated', format('DELETE FROM public.campanhas_inventario_unidades WHERE campanha_id = %L', camp));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('P14: coletor apaga unidade da campanha (' || r || ')'); END IF;
+
+  -- ===== coletor: lê mas não altera nem apaga bem, unidade, campanha; almoxarifado nem lê
+  FOREACH t IN ARRAY ARRAY['bens_patrimoniais', 'unidades_locais', 'almoxarifados', 'campanhas_inventario'] LOOP
+    IF pg_temp.upd(u_mob, 'authenticated', t) > 0 THEN PERFORM pg_temp.falha('P14: coletor consegue UPDATE em ' || t); END IF;
+    IF pg_temp.del(u_mob, 'authenticated', t) > 0 THEN PERFORM pg_temp.falha('P14: coletor consegue DELETE em ' || t); END IF;
+  END LOOP;
+  FOREACH t IN ARRAY ARRAY['unidades_locais', 'campanhas_inventario'] LOOP
+    IF pg_temp.sel(u_mob, 'authenticated', t) < 1 THEN PERFORM pg_temp.falha('P14: coletor não lê ' || t); END IF;
+    IF pg_temp.ins(u_mob, 'authenticated', t) <> 'negado' THEN PERFORM pg_temp.falha('P14: coletor insere em ' || t); END IF;
+  END LOOP;
+  -- tabelas que saíram do app de coleta: nada
+  FOREACH t IN ARRAY ARRAY['agenda_unidade', 'almoxarifados', 'categorias_material', 'conciliacoes_inventario', 'estoque',
+                           'historico_patrimonio', 'itens_material', 'manutencoes_patrimonio', 'movimentacoes_bem',
+                           'movimentacoes_estoque', 'ocorrencias_patrimonio', 'patrimonio_unidade', 'requisicao_itens',
+                           'requisicoes_material', 'termos_cessao', 'documentos_cedencia'] LOOP
+    IF pg_temp.sel(u_mob, 'authenticated', t) > 0 THEN PERFORM pg_temp.falha('P14: coletor ainda lê ' || t); END IF;
+    IF pg_temp.ins(u_mob, 'authenticated', t) <> 'negado' THEN PERFORM pg_temp.falha('P14: coletor ainda insere em ' || t); END IF;
+    IF pg_temp.upd(u_mob, 'authenticated', t) > 0 OR pg_temp.del(u_mob, 'authenticated', t) > 0 THEN
+      PERFORM pg_temp.falha('P14: coletor ainda altera/apaga ' || t);
+    END IF;
+  END LOOP;
+  IF pg_temp.sel(u_mob, 'authenticated', 'fotos_vistoria_inventario') < 1 THEN PERFORM pg_temp.falha('P14: coletor perdeu a leitura das fotos da vistoria'); END IF;
+
+  -- ===== sistema: cadastrar pelo módulo; editar com patrimonio.editar; apagar só o admin
+  r := pg_temp.valor_desfeito_como(u_pat, 'authenticated', format(
+    'INSERT INTO public.bens_patrimoniais (descricao, data_aquisicao, valor_aquisicao, unidade_local_id) VALUES (''Mesa'', current_date, 10, %L) RETURNING numero_patrimonio', unid));
+  IF r NOT LIKE 'PAT-%' THEN PERFORM pg_temp.falha('P14: módulo patrimonio sem patrimonio.editar não cadastra bem (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_pat, 'authenticated', format('UPDATE public.bens_patrimoniais SET descricao = ''outra'' WHERE id = %L', bem));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('P14: módulo patrimonio SEM patrimonio.editar altera bem (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_edt, 'authenticated', format('UPDATE public.bens_patrimoniais SET descricao = ''outra'', marca = ''M'' WHERE id = %L', bem));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: quem tem patrimonio.editar não altera a descrição do bem (' || r || ')'); END IF;
+  -- mesmo valor nas colunas protegidas (formulário que manda tudo) passa
+  r := pg_temp.sql_como(u_edt, 'authenticated', format(
+    'UPDATE public.bens_patrimoniais SET valor_aquisicao = valor_aquisicao, data_aquisicao = data_aquisicao, forma_aquisicao = forma_aquisicao, situacao = situacao, descricao = ''x'' WHERE id = %L', bem));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: UPDATE com as colunas protegidas inalteradas recusado (' || r || ')'); END IF;
+  FOREACH campo IN ARRAY ARRAY['valor_aquisicao = 999', 'data_aquisicao = current_date - 1', 'forma_aquisicao = ''doacao''', 'situacao = ''baixado'''] LOOP
+    r := pg_temp.sql_como(u_edt, 'authenticated', format('UPDATE public.bens_patrimoniais SET %s WHERE id = %L', campo, bem));
+    IF r NOT LIKE 'erro:42501:Somente administradores%' THEN PERFORM pg_temp.falha('P14: não-admin com patrimonio.editar muda ' || campo || ' (' || r || ')'); END IF;
+    r := pg_temp.sql_como(u_admin, 'authenticated', format('UPDATE public.bens_patrimoniais SET %s WHERE id = %L', campo, bem));
+    IF r <> 'ok:1' THEN PERFORM pg_temp.falha('P14: admin não muda ' || campo || ' (' || r || ')'); END IF;
+  END LOOP;
+  FOREACH t IN ARRAY ARRAY['mod_patrimonio', 'perm_patrimonio.editar'] LOOP
+    r := pg_temp.sql_como((SELECT uid FROM persona WHERE nome = t), 'authenticated', format('DELETE FROM public.bens_patrimoniais WHERE id = %L', bem2));
+    IF r <> 'ok:0' THEN PERFORM pg_temp.falha('P14: ' || t || ' apaga bem (' || r || ')'); END IF;
+  END LOOP;
+  -- o admin passa pela RLS; a FK de historico_patrimonio (o cadastro já gravou o evento) segura a exclusão do bem
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('DELETE FROM public.bens_patrimoniais WHERE id = %L', bem2));
+  IF r <> 'ok:1' AND r NOT LIKE 'erro:23503%historico_p%' THEN PERFORM pg_temp.falha('P14: RLS barra o admin de apagar bem (' || r || ')'); END IF;
+
+  -- ===== decisão da baixa (SECURITY DEFINER) continua mudando a situação do bem
+  r := pg_temp.exec_como(u_mob, 'authenticated', format(
+    'INSERT INTO public.baixas_patrimonio (bem_id, motivo, justificativa, status) VALUES (%L, ''perda'', ''sumiu'', ''solicitada'')', bem));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P14: coletor não pede a baixa a decidir (' || r || ')'); END IF;
+  SELECT id INTO baixa FROM public.baixas_patrimonio WHERE bem_id = bem AND motivo = 'perda';
+  r := pg_temp.sql_como(u_pat, 'authenticated', format('SELECT public.patrimonio_decidir_baixa(%L, true)', baixa));
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('P14: módulo sem patrimonio.tramitar decide baixa (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_trm, 'authenticated', format('SELECT public.patrimonio_decidir_baixa(%L, true)', baixa));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('P14: patrimonio_decidir_baixa falhou para quem tem patrimonio.tramitar (' || r || ')'); END IF;
+  IF (SELECT situacao FROM public.bens_patrimoniais WHERE id = bem) IS DISTINCT FROM 'baixado'
+     OR (SELECT status FROM public.baixas_patrimonio WHERE id = baixa) IS DISTINCT FROM 'aprovada' THEN
+    PERFORM pg_temp.falha('P14: baixa aprovada não baixou o bem (situacao '
+      || coalesce((SELECT situacao FROM public.bens_patrimoniais WHERE id = bem), 'NULL') || ')');
+  END IF;
+
+  -- ===== funções e catálogo
+  IF NOT (SELECT prosecdef FROM pg_proc WHERE oid = 'public.fn_atualizar_estatisticas_campanha()'::regprocedure) THEN
+    PERFORM pg_temp.falha('P14: fn_atualizar_estatisticas_campanha não é SECURITY DEFINER');
+  END IF;
+  FOREACH t IN ARRAY ARRAY['public.fn_atualizar_estatisticas_campanha()', 'public.fn_bens_proteger_colunas()'] LOOP
+    IF has_function_privilege('authenticated', t::regprocedure, 'EXECUTE') OR has_function_privilege('anon', t::regprocedure, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('P14: ' || t || ' executável pela API');
+    END IF;
+  END LOOP;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.bens_patrimoniais'::regclass AND tgname = 'trg_bens_proteger_colunas' AND tgenabled <> 'D') THEN
+    PERFORM pg_temp.falha('P14: falta o trigger trg_bens_proteger_colunas');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.module_permissions_catalog WHERE permission_code = 'patrimonio.editar' AND module_code = 'patrimonio')
+     OR (SELECT count(*) FROM public.role_permissions WHERE permission = 'patrimonio.editar' AND role IN ('admin', 'manager')) <> 2 THEN
+    PERFORM pg_temp.falha('P14: patrimonio.editar fora do catálogo ou sem os papéis admin e manager');
+  END IF;
+  PERFORM pg_temp.nota('P14 (permissões do patrimônio): coletor (bem com foto, coleta e estatística da campanha, pedidos de baixa e movimentação, situação da unidade, sem UPDATE/DELETE, tabelas fora do app), patrimonio.editar, DELETE só admin, colunas protegidas (42501) e decisão da baixa verificados');
 END $$;
 
 -- ---------------------------------------------------------------- RH: permissões e etapas (Onda B / B2) (TRIGGERS LIGADOS)
@@ -4470,6 +4674,273 @@ BEGIN
   PERFORM pg_temp.nota('FIN (FIPLAN e banco): FIPLAN (confirmação e trava), importação (remessa/retorno/vazio/data de efetivação), janela de 5 dias, conciliação manual, correção de conta, reserva/confirmação/cancelamento do reenvio, retorno do reenvio, extrato do BB, baixa só pelo banco (empenho/dotação/saldo) e exclusão de alteração confirmada verificados');
 END $$;
 
+-- ---------------------------------------------------------------- Financeiro: remessa OBN600 dos pagamentos
+-- Migração 20261024090000_fin_remessa_obn600.sql (spec docs/superpowers/specs/2026-10-21-financeiro-remessa-obn600-design.md):
+--   * registrar_remessa_obn600: sem pagamento.conciliar = 42501; conta sem código do cliente/UG/gestão, pagamento
+--     sem conta, pago, repetido ou lista vazia = 22023; o servidor monta as OBs (tipo 31 antes de 32, nº da OB =
+--     exercício + sequência do pagamento, relação = exercício + nº da remessa + tipo, conta do pagamento ou do
+--     fornecedor) e reserva os pagamentos; nº inicial só na primeira remessa da conta;
+--   * outro usuário não reserva os mesmos pagamentos nem confirma; confirmar grava o nº da OB em
+--     identificador_transacao; pagamento já enviado não entra de novo; cancelar libera os pagamentos;
+--   * o retorno OBN600 casa a OB com o pagamento pelo nº da OB e dá a baixa.
+SET session_replication_role = replica;
+DO $$
+DECLARE
+  forn_pf text := 'f4000000-0000-0000-0000-000000000001';
+  cb text := 'f2000000-0000-0000-0000-000000000002';
+  emp text := 'f2000000-0000-0000-0000-00000000000b'; liq text := 'f2000000-0000-0000-0000-00000000000f';
+BEGIN
+  PERFORM pg_temp.seed_row('fornecedores', jsonb_build_object('id', forn_pf, 'tipo_pessoa', 'PF',
+    'cpf_cnpj', '111.222.333-44', 'razao_social', 'Credora Fictícia', 'banco_codigo', '001', 'agencia', '0250-X',
+    'conta', '208685-9', 'endereco_logradouro', 'Rua A', 'endereco_numero', '10', 'endereco_bairro', 'Centro',
+    'endereco_cidade', 'Boa Vista', 'endereco_uf', 'rr', 'endereco_cep', '69300-000'));
+  -- 201: conta do cadastro do fornecedor (BB); 202: conta no próprio pagamento (outro banco); 203: sem conta;
+  -- 204: já pago; 205: para o cancelamento
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000201', 'numero', 'OP-000201',
+    'exercicio', 2026, 'fornecedor_id', forn_pf, 'empenho_id', emp, 'liquidacao_id', liq, 'conta_bancaria_id', cb,
+    'valor_bruto', 1000, 'valor_retencoes', 100, 'forma_pagamento', 'ob', 'status', 'programado'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000202', 'numero', 'OP-000202',
+    'exercicio', 2026, 'fornecedor_id', forn_pf, 'empenho_id', emp, 'liquidacao_id', liq, 'conta_bancaria_id', cb,
+    'valor_bruto', 50.25, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'autorizado',
+    'banco_favorecido', '341', 'agencia_favorecido', '6953', 'conta_favorecido', '36003-6'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000203', 'numero', 'OP-000203',
+    'exercicio', 2026, 'fornecedor_id', 'f2000000-0000-0000-0000-000000000001', 'empenho_id', emp, 'liquidacao_id', liq,
+    'conta_bancaria_id', cb, 'valor_bruto', 10, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'programado'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000204', 'numero', 'OP-000204',
+    'exercicio', 2026, 'fornecedor_id', forn_pf, 'empenho_id', emp, 'liquidacao_id', liq, 'conta_bancaria_id', cb,
+    'valor_bruto', 10, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'pago', 'data_efetivacao', '2026-10-01'));
+  PERFORM pg_temp.seed_row('fin_pagamentos', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000205', 'numero', 'OP-000205',
+    'exercicio', 2026, 'fornecedor_id', forn_pf, 'empenho_id', emp, 'liquidacao_id', liq, 'conta_bancaria_id', cb,
+    'valor_bruto', 20, 'valor_retencoes', 0, 'forma_pagamento', 'ob', 'status', 'programado'));
+  PERFORM pg_temp.seed_row('contas_autarquia', jsonb_build_object('id', 'f4000000-0000-0000-0000-000000000010',
+    'descricao', 'Conta OBN teste', 'agencia', '1234', 'agencia_digito', '5', 'conta', '67890', 'conta_digito', '1',
+    'obn_codigo_cliente', '123456789', 'obn_unidade_gestora', '000123', 'obn_gestao', '00001'));
+END $$;
+SET session_replication_role = origin;
+DO $$
+DECLARE
+  u_conc uuid := 'f1000000-0000-0000-0000-000000000001'; u_conc2 uuid := 'f1000000-0000-0000-0000-000000000004';
+  u_fin uuid := (SELECT uid FROM persona WHERE nome='mod_financeiro');
+  p201 uuid := 'f4000000-0000-0000-0000-000000000201'; p202 uuid := 'f4000000-0000-0000-0000-000000000202';
+  p203 uuid := 'f4000000-0000-0000-0000-000000000203'; p204 uuid := 'f4000000-0000-0000-0000-000000000204';
+  p205 uuid := 'f4000000-0000-0000-0000-000000000205';
+  cobn text := 'f4000000-0000-0000-0000-000000000010';
+  csem text := 'f2000000-0000-0000-0000-000000000005';  -- conta pagadora sem os dados do OBN600
+  hoje text := current_date::text;
+  t text := 'SELECT public.registrar_remessa_obn600(%L, %L::uuid[], %L::date, %s)::text';
+  r text; j jsonb; x record; rem uuid; hash_ok text := repeat('e', 64);
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF to_regprocedure('public.registrar_remessa_obn600(uuid,uuid[],date,integer)') IS NULL THEN
+    PERFORM pg_temp.falha('FIN OBN600: registrar_remessa_obn600 não existe');
+    RETURN;
+  END IF;
+  IF has_function_privilege('anon', 'public.registrar_remessa_obn600(uuid,uuid[],date,integer)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.registrar_remessa_obn600(uuid,uuid[],date,integer)', 'EXECUTE')
+     OR NOT (SELECT prosecdef AND coalesce(proconfig::text, '') ~ 'search_path' FROM pg_proc
+              WHERE oid = 'public.registrar_remessa_obn600(uuid,uuid[],date,integer)'::regprocedure) THEN
+    PERFORM pg_temp.falha('FIN OBN600: privilégios, SECURITY DEFINER ou search_path de registrar_remessa_obn600');
+  END IF;
+
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', format(t, cobn, ARRAY[p201], hoje, 'NULL'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN OBN600: módulo sem pagamento.conciliar gera remessa (' || left(r, 100) || ')'); END IF;
+  FOR x IN SELECT * FROM (VALUES
+      ('conta sem código do cliente/UG/gestão', csem, ARRAY[p201]::text),
+      ('pagamento sem conta', cobn, ARRAY[p203]::text),
+      ('pagamento já pago', cobn, ARRAY[p204]::text),
+      ('pagamento repetido', cobn, ARRAY[p201, p201]::text),
+      ('lista vazia', cobn, '{}')) v(caso, conta, pags) LOOP
+    r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(t, x.conta, x.pags, hoje, 'NULL'));
+    IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha(format('FIN OBN600: %s aceito (%s)', x.caso, left(r, 100))); END IF;
+  END LOOP;
+
+  -- reserva [201 (BB), 202 (outro banco)] com nº inicial 74466: a OB de outro banco (31) vem antes
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(t, cobn, ARRAY[p201, p202], hoje, '74466'));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN OBN600: reserva falhou (' || r || ')'); r := '{}'; END IF;
+  j := r::jsonb; rem := (j->>'id')::uuid;
+  IF j->>'layout' IS DISTINCT FROM 'obn600' OR (j->>'nsa')::int IS DISTINCT FROM 74466 OR j->>'convenio' IS DISTINCT FROM '123456789'
+     OR j->'parametros' IS DISTINCT FROM '{"gestao": "00001", "unidade_gestora": "000123"}'::jsonb
+     OR jsonb_array_length(COALESCE(j->'creditos', '[]')) <> 2 OR j ? 'arquivo_sha256' THEN
+    PERFORM pg_temp.falha('FIN OBN600: retorno da reserva fora do formato (' || left(r, 300) || ')');
+  END IF;
+  IF j->'creditos'->0 @> jsonb_build_object('pagamento_id', p202, 'numero_ob', '02026000202', 'relacao', '20267446631',
+                                             'banco', '341', 'agencia', '6953', 'agencia_dv', '', 'conta', '36003', 'conta_dv', '6',
+                                             'valor', 50.25, 'documento', '11122233344') IS NOT TRUE
+     OR j->'creditos'->1 @> jsonb_build_object('pagamento_id', p201, 'numero_ob', '02026000201', 'relacao', '20267446632',
+                                             'banco', '001', 'agencia', '0250', 'agencia_dv', 'X', 'conta', '208685', 'conta_dv', '9',
+                                             'valor', 900, 'nome', 'Credora Fictícia', 'endereco', 'Rua A, 10 - Centro',
+                                             'municipio', 'Boa Vista', 'cep', '69300000', 'uf', 'RR') IS NOT TRUE THEN
+    PERFORM pg_temp.falha('FIN OBN600: OBs não montadas pelo servidor como esperado (' || left(j->>'creditos', 400) || ')');
+  END IF;
+  IF (SELECT quantidade || '|' || valor_total FROM public.fin_remessas_bancarias WHERE id = rem) IS DISTINCT FROM '2|950.25'
+     OR (SELECT count(*) FROM public.fin_pagamentos WHERE remessa_bancaria_id = rem) <> 2 THEN
+    PERFORM pg_temp.falha('FIN OBN600: quantidade/valor não calculados no servidor ou pagamentos não reservados');
+  END IF;
+  -- outro usuário: não reserva os mesmos pagamentos nem confirma
+  r := pg_temp.valor_desfeito_como(u_conc2, 'authenticated', format(t, cobn, ARRAY[p201], hoje, 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN OBN600: pagamento reservado por outro usuário entrou noutra remessa (' || left(r, 100) || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc2, 'authenticated', format('SELECT public.confirmar_remessa_bancaria(%L, %L)::text', rem, hash_ok));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN OBN600: outro usuário confirmou a reserva (' || r || ')'); END IF;
+  -- confirmação grava o nº da OB nos pagamentos
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.confirmar_remessa_bancaria(%L, %L)->>''pagamentos_marcados''', rem, hash_ok));
+  IF r <> '2' OR (SELECT identificador_transacao FROM public.fin_pagamentos WHERE id = p201) IS DISTINCT FROM '02026000201'
+     OR (SELECT identificador_transacao FROM public.fin_pagamentos WHERE id = p202) IS DISTINCT FROM '02026000202' THEN
+    PERFORM pg_temp.falha('FIN OBN600: confirmação não gravou o nº da OB nos pagamentos (' || r || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(t, cobn, ARRAY[p201], hoje, 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN OBN600: pagamento já enviado aceito de novo (' || left(r, 100) || ')'); END IF;
+  -- pela API (módulo e admin): não tira da remessa nem muda valor/conta/nº da OB de pagamento enviado
+  FOR x IN SELECT * FROM (VALUES ('mod_financeiro', u_fin), ('admin', (SELECT uid FROM persona WHERE nome='admin'))) v(quem, uid) LOOP
+    FOREACH t IN ARRAY ARRAY['remessa_bancaria_id = NULL', 'valor_bruto = 2000', 'conta_favorecido = ''1-1''',
+                             'identificador_transacao = ''X''', 'fornecedor_id = NULL'] LOOP
+      r := pg_temp.sql_como(x.uid, 'authenticated', format('UPDATE public.fin_pagamentos SET %s WHERE id = %L', t, p201));
+      IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha(format('FIN OBN600: %s mudou pagamento enviado pela API (%s: %s)', x.quem, t, r)); END IF;
+    END LOOP;
+    r := pg_temp.sql_como(x.uid, 'authenticated', format('UPDATE public.fin_pagamentos SET remessa_bancaria_id = %L WHERE id = %L', rem, p205));
+    IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha(format('FIN OBN600: %s pôs pagamento numa remessa pela API (%s)', x.quem, r)); END IF;
+    r := pg_temp.sql_como(x.uid, 'authenticated', format('UPDATE public.fin_pagamentos SET observacoes = ''nota'' WHERE id = %L', p201));
+    IF r <> 'ok:1' THEN PERFORM pg_temp.falha(format('FIN OBN600: %s não muda observação de pagamento enviado (%s)', x.quem, r)); END IF;
+  END LOOP;
+  t := 'SELECT public.registrar_remessa_obn600(%L, %L::uuid[], %L::date, %s)::text';
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.obter_remessa_bancaria(%L)->>''arquivo_sha256''', rem));
+  IF r IS DISTINCT FROM hash_ok THEN PERFORM pg_temp.falha('FIN OBN600: obter_remessa_bancaria sem o hash confirmado (' || r || ')'); END IF;
+
+  -- nº inicial ignorado depois da primeira remessa; cancelar libera os pagamentos
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(t, cobn, ARRAY[p205], hoje, '500'));
+  IF r LIKE 'erro:%' OR (r::jsonb->>'nsa')::int <> 74467 THEN PERFORM pg_temp.falha('FIN OBN600: próximo nº não é max + 1 (' || left(r, 120) || ')'); r := '{}'; END IF;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.cancelar_remessa_bancaria(%L)->>''pagamentos_liberados''', (r::jsonb->>'id')));
+  IF r <> '1' OR (SELECT remessa_bancaria_id FROM public.fin_pagamentos WHERE id = p205) IS NOT NULL THEN
+    PERFORM pg_temp.falha('FIN OBN600: cancelar não liberou o pagamento (' || r || ')');
+  END IF;
+
+  -- retorno OBN600: a OB 02026000201 paga casa com o pagamento 201 pelo nº da OB e dá a baixa
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.importar_arquivo_bancario(%L::jsonb, %L::jsonb, %L::jsonb, false)::text',
+         '[{"tipo_lancamento":"credito_bb","identificador":"02026000201","favorecido_documento":"11122233344","valor":900,'
+         '"data_pagamento":"' || hoje || '","data_efetivacao":"' || hoje || '","situacao":"pago","codigo_retorno":"01"}]',
+         '{"nome":"OBN600_RET_TESTE.txt","sha256":"' || repeat('f', 64) || '","tamanho":1054}',
+         '{"origem":"obn600","sentido":"retorno","data_arquivo":"' || hoje || '","sequencial_arquivo":"74466"}'));
+  IF r LIKE 'erro:%' OR (SELECT status::text || '|' || data_efetivacao FROM public.fin_pagamentos WHERE id = p201) IS DISTINCT FROM 'pago|' || hoje THEN
+    PERFORM pg_temp.falha('FIN OBN600: retorno não deu baixa no pagamento pelo nº da OB (' || left(r, 160) || ')');
+  END IF;
+
+  PERFORM pg_temp.nota('FIN OBN600: permissão, regras de entrada, montagem das OBs no servidor, numeração, reserva/confirmação/cancelamento, trava do pagamento enviado pela API e baixa pelo retorno verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro: conciliação mensal (TRIGGERS LIGADOS)
+-- Migração 20261026090000_fin_conciliacao_mensal.sql (spec docs/superpowers/specs/2026-10-21-financeiro-conciliacao-mensal-design.md):
+--   * RPCs só para authenticated; reabrir é SECURITY DEFINER com search_path; módulo sem pagamento.conciliar não grava;
+--   * competência no dia 1; o mês nasce rascunho (INSERT direto com situacao fechada vira rascunho) e só fecha pela
+--     fechar_conciliacao_mensal, que confere ajustado = conta + fundo (22023 se não bate; UPDATE direto = 42501);
+--   * mês fechado não muda (salvar, itens, cabeçalho, nem o admin pela API; set_config sem ser admin não destranca);
+--   * pendência anterior só de pendente do mês imediatamente anterior fechado da mesma conta, uma vez só;
+--   * reabrir só pelo admin, com motivo, e não com mês posterior fechado; o motivo vai para as observações.
+DO $$
+DECLARE
+  u_conc uuid := 'f1000000-0000-0000-0000-000000000001';
+  u_fin uuid := (SELECT uid FROM persona WHERE nome='mod_financeiro');
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  cb text := 'f2000000-0000-0000-0000-000000000002';
+  salvar text := 'SELECT public.salvar_conciliacao_mensal(%L, %L::date, %L::jsonb, %L::jsonb)::text';
+  dados_ok text := '{"saldo_razao": 1000, "saldo_conta": 1100, "saldo_fundo": 0, "rendimento_fundo": 0}';
+  itens_set text := '[{"lado":"contabil","natureza":"credito","data":"2026-09-20","documento":"00001.0001.26.00090-1","tipo":"NOB","valor":100,"situacao":"pendente"},'
+    '{"lado":"contabil","natureza":"credito","data":"2026-09-10","valor":50,"situacao":"casado","grupo":1,"regra":"valor_data"},'
+    '{"lado":"bancario","natureza":"debito","data":"2026-09-10","valor":50,"situacao":"casado","grupo":1,"regra":"valor_data"}]';
+  r text; f text; set_id uuid; out_id uuid; pend uuid; casado uuid; x record;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOR x IN SELECT unnest(ARRAY['public.salvar_conciliacao_mensal(uuid,date,jsonb,jsonb)', 'public.fechar_conciliacao_mensal(uuid)',
+                               'public.reabrir_conciliacao_mensal(uuid,text)']) AS fn LOOP
+    IF to_regprocedure(x.fn) IS NULL THEN PERFORM pg_temp.falha('FIN CONC: ' || x.fn || ' não existe'); RETURN; END IF;
+    IF has_function_privilege('anon', x.fn, 'EXECUTE') OR NOT has_function_privilege('authenticated', x.fn, 'EXECUTE')
+       OR NOT (SELECT coalesce(proconfig::text, '') ~ 'search_path' FROM pg_proc WHERE oid = x.fn::regprocedure) THEN
+      PERFORM pg_temp.falha('FIN CONC: privilégios ou search_path de ' || x.fn);
+    END IF;
+  END LOOP;
+  IF NOT (SELECT prosecdef FROM pg_proc WHERE oid = 'public.reabrir_conciliacao_mensal(uuid,text)'::regprocedure)
+     OR (SELECT prosecdef FROM pg_proc WHERE oid = 'public.salvar_conciliacao_mensal(uuid,date,jsonb,jsonb)'::regprocedure) THEN
+    PERFORM pg_temp.falha('FIN CONC: salvar deve ser INVOKER (RLS vale) e reabrir DEFINER');
+  END IF;
+
+  -- módulo sem a permissão não grava; competência fora do dia 1 é recusada
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', format(salvar, cb, '2026-09-01', dados_ok, itens_set));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN CONC: módulo sem pagamento.conciliar grava (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(salvar, cb, '2026-09-15', dados_ok, itens_set));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN CONC: competência no dia 15 aceita (' || r || ')'); END IF;
+  -- INSERT direto não nasce fechado
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(
+    'INSERT INTO public.fin_conciliacoes_mensais (conta_bancaria_id, competencia, saldo_razao, situacao, fechada_em) '
+    'VALUES (%L, ''2026-12-01'', 0, ''fechada'', now()) RETURNING situacao || coalesce(fechada_em::text, '''')', cb));
+  IF r <> 'rascunho' THEN PERFORM pg_temp.falha('FIN CONC: INSERT direto nasceu fechado (' || r || ')'); END IF;
+
+  -- setembro: rascunho com o extrato errado não fecha; com o certo fecha
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(salvar, cb, '2026-09-01',
+         '{"saldo_razao": 1000, "saldo_conta": 1000, "saldo_fundo": 0}', itens_set));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN CONC: salvar setembro falhou (' || r || ')'); RETURN; END IF;
+  set_id := r::uuid;
+  r := pg_temp.sql_como(u_conc, 'authenticated', format('UPDATE public.fin_conciliacoes_mensais SET situacao = ''fechada'' WHERE id = %L', set_id));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN CONC: fechou por UPDATE direto (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.fechar_conciliacao_mensal(%L)::text', set_id));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN CONC: fechou com o quadro sem bater (' || r || ')'); END IF;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(salvar, cb, '2026-09-01', dados_ok, itens_set));
+  IF r IS DISTINCT FROM set_id::text OR (SELECT count(*) FROM public.fin_conciliacao_itens WHERE conciliacao_id = set_id) <> 3 THEN
+    PERFORM pg_temp.falha('FIN CONC: salvar de novo não trocou os itens do mesmo mês (' || r || ')');
+  END IF;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.fechar_conciliacao_mensal(%L)::text', set_id));
+  IF r LIKE 'erro:%' OR (SELECT situacao || (fechada_por = u_conc)::text FROM public.fin_conciliacoes_mensais WHERE id = set_id) <> 'fechadatrue' THEN
+    PERFORM pg_temp.falha('FIN CONC: fechar setembro falhou (' || r || ')');
+  END IF;
+
+  -- fechado não muda: salvar, itens, cabeçalho (nem o admin), nem com set_config sem ser admin
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(salvar, cb, '2026-09-01', dados_ok, '[]'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN CONC: salvou mês fechado (' || r || ')'); END IF;
+  FOR x IN SELECT * FROM (VALUES
+      ('item', u_conc, format('UPDATE public.fin_conciliacao_itens SET justificativa = ''x'' WHERE conciliacao_id = %L', set_id)),
+      ('item apagado', u_conc, format('DELETE FROM public.fin_conciliacao_itens WHERE conciliacao_id = %L', set_id)),
+      ('item novo', u_conc, format('INSERT INTO public.fin_conciliacao_itens (conciliacao_id, lado, natureza, data, valor, situacao) VALUES (%L, ''bancario'', ''debito'', ''2026-09-30'', 1, ''pendente'')', set_id)),
+      ('cabeçalho', u_conc, format('UPDATE public.fin_conciliacoes_mensais SET observacoes = ''x'' WHERE id = %L', set_id)),
+      ('cabeçalho pelo admin', u_admin, format('UPDATE public.fin_conciliacoes_mensais SET saldo_conta = 1 WHERE id = %L', set_id)),
+      ('set_config sem ser admin', u_conc, format('WITH s AS (SELECT set_config(''idjuv.reabrindo_conciliacao'', %L, true) v) '
+         'UPDATE public.fin_conciliacoes_mensais SET situacao = ''rascunho'' WHERE id = %L AND EXISTS (SELECT 1 FROM s)', set_id, set_id))
+    ) v(caso, uid, cmd) LOOP
+    r := pg_temp.sql_como(x.uid, 'authenticated', x.cmd);
+    IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha(format('FIN CONC: mês fechado mudou (%s: %s)', x.caso, r)); END IF;
+  END LOOP;
+
+  -- outubro: traz a pendência de setembro; casada, repetida ou de outro mês não
+  SELECT id INTO pend FROM public.fin_conciliacao_itens WHERE conciliacao_id = set_id AND situacao = 'pendente';
+  SELECT id INTO casado FROM public.fin_conciliacao_itens WHERE conciliacao_id = set_id AND situacao = 'casado' LIMIT 1;
+  f := '{"lado":"contabil","natureza":"credito","data":"2026-09-20","valor":100,"situacao":"pendente","origem":"anterior","item_origem_id":"%s"}';
+  FOR x IN SELECT * FROM (VALUES
+      ('item casado', '2026-10-01', '[' || format(f, casado) || ']'),
+      ('repetida', '2026-10-01', '[' || format(f, pend) || ',' || format(f, pend) || ']'),
+      ('pulando um mês', '2026-11-01', '[' || format(f, pend) || ']')) v(caso, comp, itens) LOOP
+    r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format(salvar, cb, x.comp, dados_ok, x.itens));
+    IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha(format('FIN CONC: pendência anterior aceita (%s: %s)', x.caso, r)); END IF;
+  END LOOP;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format(salvar, cb, '2026-10-01', dados_ok, '[' || format(f, pend) || ']'));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN CONC: pendência de setembro recusada em outubro (' || r || ')'); RETURN; END IF;
+  out_id := r::uuid;
+  r := pg_temp.fin_valor_como(u_conc, 'authenticated', format('SELECT public.fechar_conciliacao_mensal(%L)::text', out_id));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN CONC: fechar outubro falhou (' || r || ')'); END IF;
+
+  -- reabrir: só admin, com motivo, do mais recente para trás
+  r := pg_temp.valor_desfeito_como(u_conc, 'authenticated', format('SELECT public.reabrir_conciliacao_mensal(%L, ''motivo do teste'')::text', out_id));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN CONC: não admin reabriu (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('SELECT public.reabrir_conciliacao_mensal(%L, ''x'')::text', out_id));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN CONC: reabriu sem motivo (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_admin, 'authenticated', format('SELECT public.reabrir_conciliacao_mensal(%L, ''motivo do teste'')::text', set_id));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN CONC: reabriu setembro com outubro fechado (' || r || ')'); END IF;
+  r := pg_temp.fin_valor_como(u_admin, 'authenticated', format('SELECT public.reabrir_conciliacao_mensal(%L, ''motivo do teste'')::text', out_id));
+  IF r LIKE 'erro:%' OR (SELECT situacao FROM public.fin_conciliacoes_mensais WHERE id = out_id) <> 'rascunho'
+     OR (SELECT observacoes FROM public.fin_conciliacoes_mensais WHERE id = out_id) NOT LIKE '%Reaberta em%motivo do teste' THEN
+    PERFORM pg_temp.falha('FIN CONC: admin não reabriu outubro (' || r || ')');
+  END IF;
+  r := pg_temp.fin_valor_como(u_admin, 'authenticated', format('SELECT public.reabrir_conciliacao_mensal(%L, ''motivo do teste'')::text', set_id));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN CONC: admin não reabriu setembro depois de outubro (' || r || ')'); END IF;
+
+  PERFORM pg_temp.nota('FIN CONC: permissão, competência, nascimento em rascunho, fechamento conferido no servidor, trava do mês fechado, corrente de pendências e reabertura pelo admin verificados');
+END $$;
+
 -- ---------------------------------------------------------------- Lançamento por setor (fase 1) (TRIGGERS LIGADOS)
 -- Migração 20261011020000_lancamento_por_setor.sql (spec docs/superpowers/specs/2026-10-11-lancamento-por-setor-design.md):
 --   * catálogo: regra_lancamento com rh = registrar e os demais desligado; rh.comissoes.gerenciar só para o papel admin;
@@ -6908,6 +7379,409 @@ BEGIN
 
   PERFORM pg_temp.nota(format('FOLHA (vetores do hrms_brasil): %s casos de INSS e IRRF iguais; fora do porte (férias da CLT e 13º): %s',
                               n_ok, array_to_string(outras, ', ')));
+END $$;
+
+-- ---------------------------------------------------------------- FOLHA: importação da folha do SIGRH (migração 20261022090000)
+--   * importar_folha_sigrh: anon e PUBLIC sem EXECUTE; quem processa a folha mas não pode fechá-la (sem rh.admin) recusa
+--     (42501); competência futura, mês corrente e lista vazia recusados (22023); sem alíquotas patronais, aviso;
+--   * base de INSS sem o provento cuja rubrica cadastrada não incide (ajuste da migração 20261022100000);
+--   * simulação não grava (nem folha, nem fichas, nem importacoes) e avisa servidor sem provimento no mês;
+--   * CPF desconhecido é erro da linha e a aplicação não grava nada;
+--   * aplicação: folha mensal fechada com a justificativa da importação, uma ficha por servidor (casado pelo CPF
+--     formatado no cadastro), totais, INSS/IRRF somados das rubricas, cargo do provimento e função do espelho,
+--     retroativo com a competência na descrição, rubrica ligada pela descrição; log em importacoes sem CPF;
+--   * competência que já tem folha mensal: recusada (23505).
+CREATE FUNCTION pg_temp.fs_chamar(p_uid uuid, p_comp jsonb, p_fichas jsonb, p_simular boolean) RETURNS text
+LANGUAGE sql AS $$
+  SELECT pg_temp.valor_como(p_uid, 'authenticated', format(
+    'SELECT public.importar_folha_sigrh(%L::jsonb, %L::jsonb, %L::jsonb, %L)::text', p_comp, p_fichas,
+    jsonb_build_object('nome', 'ESPELHO_FPAG10.pdf', 'sha256', repeat('cd', 32), 'tamanho', 4096), p_simular))
+$$;
+
+DO $$
+DECLARE
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000007a1';   -- módulo rh + financeiro.folha.processar + rh.admin
+  u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');   -- processa, não fecha
+  cg uuid := 'f5000000-0000-0000-0000-0000000000c1';
+  s1 uuid := 'f5000000-0000-0000-0000-0000000000a1';      -- com provimento
+  s2 uuid := 'f5000000-0000-0000-0000-0000000000a2';      -- sem provimento
+  rb uuid := 'f5000000-0000-0000-0000-0000000000b1';
+  fn text := 'public.importar_folha_sigrh(jsonb, jsonb, jsonb, boolean)';
+  comp jsonb := '{"ano": 2019, "mes": 3}';
+  fichas jsonb; r text; j jsonb; modo_rh text; fl record; f1 record; n int;
+BEGIN
+  IF to_regprocedure(fn) IS NULL THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: ' || fn || ' não existe');
+    RETURN;
+  END IF;
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'fs_imp@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id = u_imp;
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_imp, 'rh', '{financeiro.folha.processar,rh.admin,rh.contracheques.visualizar}');
+  SELECT modo INTO modo_rh FROM public.regra_lancamento WHERE modulo = 'rh';
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = 'registrar' WHERE modulo = 'rh';
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, vencimento_base, quantidade_vagas)
+    VALUES (cg, 'Cargo SIGRH Teste', 'SIG-T', 'comissionado', 'comissionado', 3578.08, 2);
+  INSERT INTO public.servidores (id, nome_completo, cpf, situacao, ativo) VALUES
+    (s1, 'SIGRH Servidor 1', '000.000.701-01', 'ativo', true),   -- casado só pelos dígitos
+    (s2, 'SIGRH Servidor 2', '00000070202', 'exonerado', false);
+  INSERT INTO public.provimentos (servidor_id, cargo_id, data_nomeacao, status) VALUES (s1, cg, '2019-01-01', 'ativo');
+  INSERT INTO public.rubricas (id, codigo, descricao, tipo, natureza, formula_tipo, vigencia_inicio, ativo, incide_inss) VALUES
+    (rb, 'SIG01', 'Vencimento SIGRH Teste', 'provento', 'remuneratorio', 'valor_fixo', '2019-01-01', true, true),
+    (gen_random_uuid(), 'SIG02', 'Diaria SIGRH Teste', 'provento', 'indenizatorio', 'valor_fixo', '2019-01-01', true, false);
+  SET LOCAL session_replication_role = origin;
+
+  fichas := jsonb_build_array(
+    jsonb_build_object('indice', 0, 'cpf', '00000070101', 'nome', 'SERVIDOR UM', 'funcao', 'CHEFE DE NUCLEO',
+      'banco_codigo', '001', 'banco_agencia', '04263', 'banco_conta', '12345X', 'dependentes_ir', 1,
+      'itens', jsonb_build_array(
+        jsonb_build_object('descricao', 'VENCIMENTO SIGRH TESTE', 'tipo', 'provento', 'quantidade', '30,00', 'valor', '3578.08'),
+        jsonb_build_object('descricao', 'DIF DE VENCIMENTO', 'tipo', 'provento', 'competencia', '2019-02', 'valor', '79.99'),
+        jsonb_build_object('descricao', 'DIARIA SIGRH TESTE', 'tipo', 'provento', 'valor', '100.00'),
+        jsonb_build_object('descricao', 'INSS', 'tipo', 'desconto', 'quantidade', '12,00', 'valor', '317.95'),
+        jsonb_build_object('descricao', 'IRRF', 'tipo', 'desconto', 'valor', '10.00'))),
+    jsonb_build_object('indice', 1, 'cpf', '00000070202', 'nome', 'SERVIDOR DOIS', 'funcao', 'DIRETOR',
+      'itens', jsonb_build_array(jsonb_build_object('descricao', 'SUBSIDIO', 'tipo', 'provento', 'valor', '1000.00'))));
+
+  -- ===== quem chama
+  IF has_function_privilege('anon', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('FOLHA SIGRH: anon executa ' || fn); END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              WHERE p.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: PUBLIC executa ' || fn);
+  END IF;
+  IF NOT has_function_privilege('authenticated', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('FOLHA SIGRH: authenticated não executa ' || fn); END IF;
+  r := pg_temp.fs_chamar(u_proc, comp, fichas, true);
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: quem processa sem poder fechar a folha importa (' || r || ')'); END IF;
+  r := pg_temp.fs_chamar(u_imp, jsonb_build_object('ano', extract(year FROM current_date + 40)::int,
+                                                    'mes', extract(month FROM current_date + 40)::int), fichas, true);
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: competência futura aceita (' || r || ')'); END IF;
+  r := pg_temp.fs_chamar(u_imp, jsonb_build_object('ano', extract(year FROM current_date)::int,
+                                                    'mes', extract(month FROM current_date)::int), fichas, true);
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: mês corrente (ainda não pago) aceito (' || r || ')'); END IF;
+  r := pg_temp.fs_chamar(u_imp, comp, '[]', true);
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: lista vazia aceita (' || r || ')'); END IF;
+
+  -- ===== simulação: nada gravado, aviso de quem não tem provimento
+  r := pg_temp.fs_chamar(u_imp, comp, fichas, true);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR (j -> 'totais' ->> 'inserir')::int <> 2 OR jsonb_array_length(j -> 'erros') <> 0
+     OR (j -> 'linhas' -> 1 -> 'avisos')::text NOT LIKE '%Sem provimento%'
+     OR (j -> 'linhas' -> 0 -> 'avisos')::text NOT LIKE '%parte patronal da folha sai zero%' THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: simulação deveria inserir 2 fichas e avisar o servidor sem provimento (' || r || ')');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.folhas_pagamento WHERE competencia_ano = 2019 AND competencia_mes = 3)
+     OR EXISTS (SELECT 1 FROM public.importacoes WHERE tipo = 'folha_sigrh') THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: a simulação gravou');
+  END IF;
+
+  -- ===== CPF desconhecido: erro da linha, nada gravado
+  r := pg_temp.fs_chamar(u_imp, comp, fichas || jsonb_build_array(jsonb_build_object('indice', 2, 'cpf', '99999999999',
+         'nome', 'NAO CADASTRADO', 'itens', jsonb_build_array(jsonb_build_object('descricao', 'SUBSIDIO', 'tipo', 'provento', 'valor', '1.00')))), false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR jsonb_array_length(j -> 'erros') <> 1 OR (j -> 'erros' -> 0 ->> 'indice')::int <> 2
+     OR (j -> 'erros' -> 0 ->> 'mensagem') NOT LIKE 'NAO CADASTRADO: Servidor não cadastrado%' OR r LIKE '%99999999999%' THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: CPF desconhecido deveria ser erro da linha 2, sem devolver o CPF (' || r || ')');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.folhas_pagamento WHERE competencia_ano = 2019 AND competencia_mes = 3) THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: aplicação com erro gravou a folha');
+  END IF;
+
+  -- ===== aplicação
+  r := pg_temp.fs_chamar(u_imp, comp, fichas, false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  SELECT * INTO fl FROM public.folhas_pagamento WHERE competencia_ano = 2019 AND competencia_mes = 3 AND tipo_folha = 'mensal';
+  IF j IS NULL OR j ->> 'importacao_id' IS NULL OR fl.id IS NULL OR fl.status <> 'fechada'
+     OR fl.justificativa_fechamento NOT LIKE 'Folha histórica importada do SIGRH (arquivo ESPELHO_FPAG10.pdf)%'
+     OR fl.fechado_por IS DISTINCT FROM u_imp OR fl.quantidade_servidores <> 2
+     OR fl.total_bruto <> 4758.07 OR fl.total_descontos <> 327.95 OR fl.total_liquido <> 4430.12
+     OR fl.total_inss_servidor <> 317.95 OR fl.total_irrf <> 10.00 THEN
+    PERFORM pg_temp.falha(format('FOLHA SIGRH: aplicação deveria criar a folha fechada com os totais (%s; folha %s)', r, to_jsonb(fl)));
+  END IF;
+  SELECT * INTO f1 FROM public.fichas_financeiras WHERE folha_id = fl.id AND servidor_id = s1;
+  IF f1.id IS NULL OR f1.cargo_id IS DISTINCT FROM cg OR f1.cargo_nome <> 'CHEFE DE NUCLEO' OR f1.total_proventos <> 3758.07
+     OR f1.valor_inss <> 317.95 OR f1.base_inss <> 3658.07 OR f1.valor_irrf <> 10.00 OR f1.valor_liquido <> 3430.12
+     OR f1.banco_conta <> '12345X' OR f1.quantidade_dependentes <> 1 THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: ficha do servidor 1 sem cargo, função, totais ou banco (' || to_jsonb(f1)::text || ')');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.itens_ficha_financeira WHERE ficha_id = f1.id AND descricao = 'DIF DE VENCIMENTO (02/2019)')
+     OR (SELECT rubrica_id FROM public.itens_ficha_financeira WHERE ficha_id = f1.id AND ordem = 1) IS DISTINCT FROM rb
+     OR (SELECT count(*) FROM public.itens_ficha_financeira WHERE ficha_id = f1.id AND origem = 'automatico') <> 5 THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: itens sem a competência do retroativo, sem a rubrica ligada ou fora da origem automatico');
+  END IF;
+  IF (SELECT cargo_id FROM public.fichas_financeiras WHERE folha_id = fl.id AND servidor_id = s2) IS NOT NULL THEN
+    PERFORM pg_temp.falha('FOLHA SIGRH: servidor sem provimento ganhou cargo');
+  END IF;
+  SELECT count(*) INTO n FROM public.importacoes
+   WHERE tipo = 'folha_sigrh' AND modulo = 'rh' AND exercicio = 2019 AND (resumo ->> 'fichas')::int = 2
+     AND detalhes::text NOT LIKE '%0000007%' AND resumo::text NOT LIKE '%0000007%';
+  IF n <> 1 THEN PERFORM pg_temp.falha('FOLHA SIGRH: log em importacoes ausente ou com CPF'); END IF;
+
+  -- ===== a mesma competência não entra de novo
+  r := pg_temp.fs_chamar(u_imp, comp, fichas, true);
+  IF r NOT LIKE 'erro:23505%' THEN PERFORM pg_temp.falha('FOLHA SIGRH: competência que já tem folha mensal aceita (' || r || ')'); END IF;
+
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
+  PERFORM pg_temp.nota('FOLHA SIGRH: permissão (processar e fechar), competência futura, simulação sem gravar, CPF desconhecido sem gravar nem devolver o CPF, folha fechada com fichas, itens e totais, log sem CPF e competência repetida verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro: empenhos do FIPLAN (FIP 614)
+-- Migração 20261027090000_fin_empenhos_fip614.sql (spec docs/superpowers/specs/2026-10-22-importacao-empenhos-fip614-design.md):
+--   * importar_empenhos_fip614: sem o módulo financeiro, sem orcamento.importar ou sem sessão recusa (42501); anon e
+--     PUBLIC sem EXECUTE; lista vazia = 22023;
+--   * simulação não grava; aplicação cria o empenho com origem fiplan, liga a dotação única e o favorecido pelo código
+--     do FIPLAN, grava o histórico e o log, e NÃO soma na dotação; dotação ambígua fica sem ligação e com aviso;
+--     reaplicar dá sem_alteracao; empenho do sistema com o mesmo número vira erro e nada é gravado;
+--   * o empenho feito no sistema continua somando na dotação e exigindo favorecido e dotação;
+--   * fin_empenho_documentos_fiplan: lê quem tem o módulo financeiro; ninguém grava pela API.
+-- Banco anterior à migração: o bloco reprova sem abortar.
+DO $$
+DECLARE
+  u_fin uuid := 'a0000000-0000-0000-0000-0000000008e1';   -- módulo financeiro + orcamento.importar
+  u_lei uuid := 'a0000000-0000-0000-0000-0000000008e2';   -- módulo financeiro sem a permissão
+  u_rhp uuid := 'a0000000-0000-0000-0000-0000000008e3';   -- a permissão no módulo rh, sem o financeiro
+  d_osc1 uuid := 'f3000000-0000-0000-0000-0000000000d1';
+  d_osc4 uuid := 'f3000000-0000-0000-0000-0000000000d2';
+  d_pas uuid := 'f3000000-0000-0000-0000-0000000000d3';
+  f_cred uuid := 'f3000000-0000-0000-0000-0000000000f1';
+  fn text := 'public.importar_empenhos_fip614(integer, jsonb, jsonb, date, boolean)';
+  arq text := jsonb_build_object('nome', 'fip614.pdf', 'sha256', repeat('ef', 32), 'tamanho', 2048)::text;
+  e1 jsonb; e2 jsonb; linhas jsonb; r text; n_imp int; x record; v_emp uuid;
+BEGIN
+  IF to_regprocedure(fn) IS NULL OR to_regclass('public.fin_empenho_documentos_fiplan') IS NULL THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: ' || fn || ' ou a tabela não existe');
+    RETURN;
+  END IF;
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_fin, 'ef_fin@teste.invalid'), (u_lei, 'ef_lei@teste.invalid'), (u_rhp, 'ef_rhp@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_fin, u_lei, u_rhp);
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_fin, 'financeiro', '{orcamento.importar}'),
+    (u_lei, 'financeiro', '{}'),
+    (u_rhp, 'rh', '{orcamento.importar}');
+  -- QDD de 2031: duas dotações de OSC (IDU diferente) e uma de passagens
+  INSERT INTO public.fin_dotacoes (id, exercicio, codigo_dotacao, valor_inicial, valor_empenhado) VALUES
+    (d_osc1, 2031, '08.244.030.2544.9900.33504100.1.500.0000.Não', 100000, 0),
+    (d_osc4, 2031, '08.244.030.2544.9900.33504100.1.500.0000.ECNI', 100000, 0),
+    (d_pas, 2031, '08.244.030.2544.9900.33903300.1.500.0000.Não', 1000, 1000);
+  INSERT INTO public.fornecedores (id, tipo_pessoa, cpf_cnpj, razao_social, codigo_credor_fiplan)
+    VALUES (f_cred, 'PJ', '00.000.000/0001-91', 'Agência de Teste', '2001.00001-1');
+
+  -- Passagens: R$ 900,00 empenhado, R$ 100,00 estornado, R$ 500,00 liquidado e R$ 300,00 pago
+  e1 := jsonb_build_object('numero', '17302.0001.31.00001-1', 'data_empenho', '2031-03-05', 'processo', '00000107/31-01',
+          'processo_sei', '17302.000107/2031.01', 'convenio', null, 'ped_numero', '17302.0001.31.00008-9', 'ped_data', '2031-03-04',
+          'dotacao', '17302.0001.08.244.030.2544.9900.33903300.1500.000', 'credor_codigo', '2001.00001-1', 'credor_nome', 'AGENCIA DE TESTE',
+          'valor_empenhado', 900, 'valor_anulado', 100,
+          'totais', jsonb_build_object('emp', 800, 'liq', 500, 'nob', 300, 'gcv', 0, 'saldo_liquidar', 300, 'a_pagar', 200),
+          'documentos', jsonb_build_array(
+            jsonb_build_object('tipo', 'EMP', 'numero', '17302.0001.31.00001-1', 'data', '2031-03-05', 'pc', null, 'valores', jsonb_build_object('emp', 900), 'historico', null),
+            jsonb_build_object('tipo', 'LIQ', 'numero', '17302.0001.31.00100-6', 'data', '2031-07-08', 'pc', null, 'valores', jsonb_build_object('liq', 500), 'historico', 'Fatura de teste'),
+            jsonb_build_object('tipo', 'NOB', 'numero', '17302.0001.31.00127-0', 'data', '2031-08-04', 'pc', 'P', 'valores', jsonb_build_object('nob', 300), 'historico', null),
+            jsonb_build_object('tipo', 'EST', 'numero', '17302.0001.31.00002-3', 'data', '2031-08-09', 'pc', null, 'valores', jsonb_build_object('emp', 100), 'historico', null)));
+  -- OSC: duas dotações possíveis (o FIP 614 corta antes do IDU)
+  e2 := jsonb_build_object('numero', '17302.0001.31.00002-1', 'data_empenho', '2031-04-24', 'processo', '00000168/31-61',
+          'processo_sei', '17302.000168/2031.61', 'convenio', 'Fomento nº 01/2031', 'ped_numero', '17302.0001.31.00016-1', 'ped_data', '2031-04-24',
+          'dotacao', '17302.0001.08.244.030.2544.9900.33504100.1500.000', 'credor_codigo', '2025.00002-2', 'credor_nome', 'INSTITUTO DE TESTE',
+          'valor_empenhado', 5000, 'valor_anulado', 0,
+          'totais', jsonb_build_object('emp', 5000, 'liq', 0, 'nob', 0, 'gcv', 0, 'saldo_liquidar', 5000, 'a_pagar', 0),
+          'documentos', jsonb_build_array(
+            jsonb_build_object('tipo', 'EMP', 'numero', '17302.0001.31.00002-1', 'data', '2031-04-24', 'pc', null, 'valores', jsonb_build_object('emp', 5000), 'historico', null)));
+  linhas := jsonb_build_array(e1, e2);
+
+  -- ===== quem chama
+  IF has_function_privilege('anon', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: anon executa ' || fn); END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              WHERE p.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: PUBLIC executa ' || fn);
+  END IF;
+  FOR x IN SELECT * FROM (VALUES (u_lei, 'sem orcamento.importar'), (u_rhp, 'sem o módulo financeiro'), (NULL::uuid, 'sem sessão')) v(quem, rot) LOOP
+    r := pg_temp.sql_como(x.quem, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, NULL, NULL, true)', linhas));
+    IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: ' || x.rot || ' não recusa (' || r || ')'); END IF;
+  END LOOP;
+  r := pg_temp.sql_como(u_fin, 'authenticated', 'SELECT public.importar_empenhos_fip614(2031, ''[]''::jsonb, NULL, NULL, true)');
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: lista vazia aceita (' || r || ')'); END IF;
+
+  -- ===== simulação não grava
+  SELECT count(*) INTO n_imp FROM public.importacoes;
+  r := pg_temp.valor_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, %L, true)::text', linhas, arq, '2031-09-30'));
+  IF left(coalesce(r, ''), 1) <> '{' OR (r::jsonb -> 'totais' ->> 'inserir')::int <> 2 OR jsonb_array_length(r::jsonb -> 'erros') <> 0
+     OR r::jsonb -> 'linhas' -> 1 -> 'avisos' ->> 0 !~ '2 dotações possíveis' THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: simulação devolveu ' || left(coalesce(r, 'nulo'), 200));
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.fin_empenhos WHERE exercicio = 2031) OR (SELECT count(*) FROM public.importacoes) <> n_imp THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: a simulação gravou');
+  END IF;
+
+  -- ===== aplicação: grava sem somar na dotação; reaplicar dá sem_alteracao
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, %L, false)', linhas, arq, '2031-09-30'));
+  SELECT id INTO v_emp FROM public.fin_empenhos WHERE exercicio = 2031 AND numero = '17302.0001.31.00001-1';
+  IF r <> 'ok' OR v_emp IS NULL
+     OR (SELECT row(origem, dotacao_id, fornecedor_id, valor_empenhado, valor_anulado, valor_liquidado, valor_pago, saldo_liquidar, status::text, objeto, data_referencia_fiplan)
+           FROM public.fin_empenhos WHERE id = v_emp)
+        IS DISTINCT FROM row('fiplan'::text, d_pas, f_cred, 900.00::numeric(15,2), 100.00::numeric(15,2), 500.00::numeric(15,2), 300.00::numeric(15,2),
+                             300.00::numeric(15,2), 'parcialmente_pago'::text, 'Fatura de teste'::text, '2031-09-30'::date) THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: empenho gravado errado (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  IF (SELECT count(*) FROM public.fin_empenho_documentos_fiplan WHERE empenho_id = v_emp) <> 4
+     OR (SELECT dotacao_id FROM public.fin_empenhos WHERE exercicio = 2031 AND numero = '17302.0001.31.00002-1') IS NOT NULL
+     OR (SELECT count(*) FROM public.importacoes WHERE tipo = 'empenhos_fip614') <> 1 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: histórico, dotação ambígua ou log errados');
+  END IF;
+  IF (SELECT valor_empenhado FROM public.fin_dotacoes WHERE id = d_pas) <> 1000
+     OR (SELECT sum(valor_empenhado) FROM public.fin_dotacoes WHERE id IN (d_osc1, d_osc4)) <> 0 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: empenho do FIPLAN somou na dotação');
+  END IF;
+  r := pg_temp.valor_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, %L, true)::text', linhas, arq, '2031-09-30'));
+  IF left(coalesce(r, ''), 1) <> '{' OR (r::jsonb -> 'totais' ->> 'sem_alteracao')::int <> 2 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: reimportar não deu sem_alteracao (' || left(coalesce(r, 'nulo'), 300) || ')');
+  END IF;
+  -- dotação escolhida à mão entre as candidatas sobrevive à reimportação
+  UPDATE public.fin_empenhos SET dotacao_id = d_osc4 WHERE exercicio = 2031 AND numero = '17302.0001.31.00002-1';
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, %L, false)', linhas, arq, '2031-10-31'));
+  IF r <> 'ok' OR (SELECT dotacao_id FROM public.fin_empenhos WHERE exercicio = 2031 AND numero = '17302.0001.31.00002-1') IS DISTINCT FROM d_osc4 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: reimportar perdeu a dotação escolhida (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  -- com o IDU em número na dotação (1 = Não), a dotação certa liga sozinha, mesmo com outra escolhida antes
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, %L, false)',
+         jsonb_build_array(e2 || jsonb_build_object('dotacao', '17302.0001.08.244.030.2544.9900.33504100.1500.0000.1.1')), arq, '2031-10-31'));
+  IF r <> 'ok' OR (SELECT dotacao_id FROM public.fin_empenhos WHERE exercicio = 2031 AND numero = '17302.0001.31.00002-1') IS DISTINCT FROM d_osc1 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: IDU da dotação não escolheu a dotação (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  -- a origem não muda
+  BEGIN
+    UPDATE public.fin_empenhos SET origem = 'sistema' WHERE id = v_emp;
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: origem alterada');
+  EXCEPTION WHEN invalid_parameter_value OR check_violation THEN NULL;
+  END;
+
+  -- ===== empenho do sistema: continua somando na dotação e exigindo favorecido e dotação
+  INSERT INTO public.fin_empenhos (numero, exercicio, dotacao_id, fornecedor_id, valor_empenhado, objeto)
+    VALUES ('NE-2031-001', 2031, d_osc1, f_cred, 250, 'Empenho do sistema');
+  IF (SELECT valor_empenhado FROM public.fin_dotacoes WHERE id = d_osc1) <> 250 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: empenho do sistema deixou de somar na dotação');
+  END IF;
+  BEGIN
+    INSERT INTO public.fin_empenhos (numero, exercicio, dotacao_id, valor_empenhado, objeto) VALUES ('NE-2031-002', 2031, d_osc1, 10, 'Sem favorecido');
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: empenho do sistema sem favorecido aceito');
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+
+  -- ===== número de empenho do sistema não é sobrescrito: erro e nada gravado
+  SELECT count(*) INTO n_imp FROM public.importacoes;
+  UPDATE public.fin_empenhos SET numero = '17302.0001.31.00003-0' WHERE numero = 'NE-2031-001';
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, NULL, false)',
+         jsonb_build_array(e1 || jsonb_build_object('numero', '17302.0001.31.00003-0')), arq));
+  IF r NOT LIKE 'erro:22023%' OR (SELECT count(*) FROM public.importacoes) <> n_imp
+     OR (SELECT origem FROM public.fin_empenhos WHERE numero = '17302.0001.31.00003-0') <> 'sistema' THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: empenho do sistema sobrescrito (' || coalesce(r, 'nulo') || ')');
+  END IF;
+
+  -- ===== leitura e escrita direta no histórico
+  r := pg_temp.valor_como(u_lei, 'authenticated', format('SELECT count(*)::text FROM public.fin_empenho_documentos_fiplan WHERE empenho_id = %L', v_emp));
+  IF r IS DISTINCT FROM '4' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: quem tem o módulo financeiro não lê o histórico (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_como(u_rhp, 'authenticated', 'SELECT count(*)::text FROM public.fin_empenho_documentos_fiplan');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: sem o módulo financeiro lê o histórico (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('INSERT INTO public.fin_empenho_documentos_fiplan (empenho_id, ordem, tipo, numero, data) VALUES (%L, 9, %L, %L, %L)',
+         v_emp, 'LIQ', '17302.0001.31.00999-9', '2031-01-01'));
+  IF r NOT LIKE 'erro:%' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: INSERT direto no histórico aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.fin_empenho_documentos_fiplan SET historico = %L', 'x'));
+  IF r NOT LIKE 'erro:%' AND r <> 'ok:0' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: UPDATE direto no histórico aceito (' || r || ')'); END IF;
+
+  PERFORM pg_temp.nota('FIN (empenhos do FIPLAN): permissão, simulação sem gravar, aplicação sem somar na dotação, favorecido pelo código, dotação ambígua e escolhida à mão, dotação pelo IDU, histórico e log, reaplicação sem alteração, origem fixa, empenho do sistema intacto e escrita direta no histórico bloqueada verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Compras: PCA (migração 20261028090000) (TRIGGERS LIGADOS)
+-- Migração 20261028090000_compras_pca.sql (spec docs/superpowers/specs/2026-10-23-compras-gerador-pca-design.md):
+--   * o plano nasce rascunho (as transições são da entrega 4) e o mesmo exercício não entra duas vezes (23505);
+--   * só compras.pca.editar grava item (visualizar = 42501); valor_total = quantidade × valor unitário;
+--   * material exige PDM e não aceita serviço (23514); a trilha registra criação, inclusão, alteração e exclusão
+--     com o autor; pca_carimbar e pca_registrar_historico sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.pca.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.pca.visualizar');
+  v_acao uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'fin_acoes_orcamentarias');
+  v_fonte uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'fin_fontes_recurso');
+  plano uuid; item uuid; r text; ins text; x text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.pca_carimbar()', 'public.pca_registrar_historico()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('COMPRAS PCA: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  INSERT INTO public.cat_material_pdms (codigo_pdm, nome_pdm, codigo_classe, nome_classe, codigo_grupo, nome_grupo)
+  VALUES (900281, 'CARTUCHO CANETA TINTEIRO', 7520, 'ACESSÓRIOS E DISPOSITIVOS PARA ESCRITÓRIO', 75, 'UTENSÍLIOS DE ESCRITÓRIO')
+  ON CONFLICT DO NOTHING;
+  INSERT INTO public.cat_servicos (codigo_servico, nome_servico, codigo_secao, nome_secao)
+  VALUES (907250, 'SERVIÇO DE TESTE', 9, 'SERVIÇOS DA COMUNIDADE') ON CONFLICT DO NOTHING;
+
+  -- plano criado pelo editor, pedindo 'aprovado': nasce rascunho
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.pca_planos (exercicio, situacao) VALUES (2099, 'aprovado') RETURNING id INTO plano;
+  IF (SELECT situacao FROM public.pca_planos WHERE id = plano) <> 'rascunho' THEN
+    PERFORM pg_temp.falha('COMPRAS PCA: plano não nasce rascunho');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.pca_historico WHERE plano_id = plano AND acao = 'plano_criado' AND feito_por = u_ed) THEN
+    PERFORM pg_temp.falha('COMPRAS PCA: criação do plano fora da trilha');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', 'INSERT INTO public.pca_planos (exercicio) VALUES (2099) RETURNING id::text');
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: exercício repetido aceito (' || r || ')'); END IF;
+
+  ins := format('INSERT INTO public.pca_itens (plano_id, numero_sei, tipo, codigo_pdm, codigo_servico, descricao, unidade_fornecimento, '
+             || 'quantidade, valor_unitario, mes_desejado, acao_id, fonte_recurso_id) VALUES (%L, ''00001.000001/2026-01'', %%L, %%s, %%s, '
+             || '''Cartucho'', ''UNIDADE'', 3, 10.50, 3, %L, %L) RETURNING valor_total::text', plano, v_acao, v_fonte);
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(ins, 'material', 900281, 'NULL'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: só visualizar grava item (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, 'material', 900281, 'NULL'));
+  IF r IS DISTINCT FROM '31.50' THEN PERFORM pg_temp.falha('COMPRAS PCA: valor_total de 3 × 10,50 (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, 'material', 'NULL', 907250));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: material sem PDM aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, 'servico', 'NULL', 907250));
+  IF r IS DISTINCT FROM '31.50' THEN PERFORM pg_temp.falha('COMPRAS PCA: serviço recusado (' || r || ')'); END IF;
+
+  -- inclusão, alteração e exclusão na trilha, com o autor
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  EXECUTE replace(format(ins, 'material', 900281, 'NULL'), 'RETURNING valor_total::text', 'RETURNING id') INTO item;
+  UPDATE public.pca_itens SET quantidade = 4 WHERE id = item;
+  UPDATE public.pca_itens SET situacao = 'excluido' WHERE id = item;
+  IF (SELECT array_agg(acao ORDER BY acao) FROM public.pca_historico WHERE item_id = item AND feito_por = u_ed)
+     IS DISTINCT FROM ARRAY['item_alterado', 'item_excluido', 'item_incluido'] THEN
+    PERFORM pg_temp.falha('COMPRAS PCA: trilha do item incompleta');
+  END IF;
+  IF (SELECT updated_by FROM public.pca_itens WHERE id = item) IS DISTINCT FROM u_ed THEN
+    PERFORM pg_temp.falha('COMPRAS PCA: updated_by não é quem alterou');
+  END IF;
+  -- classificadores: visualizar lê; sem a permissão = 42501
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT jsonb_typeof(public.pca_classificadores(2099)->''acoes'')');
+  IF r IS DISTINCT FROM 'array' THEN PERFORM pg_temp.falha('COMPRAS PCA: visualizar não lê os classificadores (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como((SELECT uid FROM persona WHERE nome = 'mod_compras'), 'authenticated', 'SELECT public.pca_classificadores(2099)::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: módulo sem permissão lê os classificadores (' || r || ')'); END IF;
+  -- QDD: visualizar = 42501; sem QDD = 22023; com QDD troca os tetos digitados
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT public.pca_usar_qdd(%L)::text', plano));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: visualizar troca os tetos (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT public.pca_usar_qdd(%L)::text', plano));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: troca sem QDD aceita (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO public.pca_tetos (plano_id, acao_id, fonte_recurso_id, valor_previsto) VALUES (plano, v_acao, v_fonte, 5);
+  SET LOCAL session_replication_role = replica;
+  PERFORM pg_temp.seed_row('fin_dotacoes', jsonb_build_object('id', 'f5000000-0000-0000-0000-000000000001', 'exercicio', 2099,
+    'acao_id', v_acao, 'fonte_recurso_id', v_fonte, 'valor_inicial', 1000, 'valor_suplementado', 200, 'valor_reduzido', 0, 'ativo', true,
+    'codigo_dotacao', 'PCA-TESTE-1'));
+  PERFORM pg_temp.seed_row('fin_dotacoes', jsonb_build_object('id', 'f5000000-0000-0000-0000-000000000002', 'exercicio', 2099,
+    'acao_id', v_acao, 'fonte_recurso_id', v_fonte, 'valor_inicial', 300, 'valor_suplementado', 0, 'valor_reduzido', 0, 'ativo', true,
+    'codigo_dotacao', 'PCA-TESTE-2'));
+  SET LOCAL session_replication_role = origin;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  r := public.pca_usar_qdd(plano)::text;
+  r := r || '|' || (SELECT string_agg(valor_previsto::text || ':' || origem, ',') FROM public.pca_tetos WHERE plano_id = plano);
+  IF r IS DISTINCT FROM '1|1500.00:qdd' THEN PERFORM pg_temp.falha('COMPRAS PCA: troca pelo QDD (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('COMPRAS PCA: classificadores, troca pelo QDD, plano nasce rascunho, exercício único, gravação só com compras.pca.editar, valor_total, item do catálogo e trilha verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

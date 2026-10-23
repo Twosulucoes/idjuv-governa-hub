@@ -186,6 +186,8 @@ GRANT SELECT ON public.envios_log TO authenticated;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.importacoes FROM authenticated;
 -- tabelas do FIPLAN (migração 20261019100000): só leitura pela API; escrita pela RPC importar_classificadores_fiplan
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_classificadores_fiplan FROM authenticated;
+-- histórico do FIP 614 (migração 20261027090000): só leitura pela API; escrita pela RPC importar_empenhos_fip614
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_empenho_documentos_fiplan FROM authenticated;
 -- financeiro: arquivos bancários, reenvio e extrato do BB (migrações 20261011100000 a 20261011100300). As tabelas só
 -- são lidas pela API (escrita pelas RPCs com pagamento.conciliar ou pela service role na Edge Function bb-api);
 -- funções de apoio e de trigger fora da API; registrar_extrato_bb só para a service role.
@@ -313,3 +315,34 @@ GRANT EXECUTE ON FUNCTION public.vencimento_cargo_em(uuid, date) TO authenticate
 -- só para authenticated (a guarda no corpo exige o módulo rh e financeiro.folha.processar)
 REVOKE EXECUTE ON FUNCTION public.registrar_retorno_remessa(uuid, jsonb, jsonb) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.registrar_retorno_remessa(uuid, jsonb, jsonb) TO authenticated;
+
+-- ---- folha (migração 20261022090000): importação da folha histórica do SIGRH ----
+-- só para authenticated (a guarda no corpo exige o módulo rh, financeiro.folha.processar e poder fechar a folha)
+REVOKE ALL ON FUNCTION public.importar_folha_sigrh(jsonb, jsonb, jsonb, boolean) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.importar_folha_sigrh(jsonb, jsonb, jsonb, boolean) TO authenticated;
+
+-- ---- patrimônio (migração 20261023100000, P14 entrega 4): funções de trigger só por dentro ----
+-- fn_atualizar_estatisticas_campanha virou SECURITY DEFINER (o coletor não altera campanhas_inventario) e
+-- fn_bens_proteger_colunas guarda valor, data e forma de aquisição e situação do bem
+REVOKE EXECUTE ON FUNCTION public.fn_atualizar_estatisticas_campanha() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.fn_bens_proteger_colunas() FROM PUBLIC, anon, authenticated;
+
+-- ---- financeiro (migração 20261026090000): conciliação mensal ----
+-- trigger só por dentro; as RPCs só para authenticated (salvar e fechar rodam como quem chama: a RLS vale)
+REVOKE EXECUTE ON FUNCTION public.fin_conciliacao_proteger() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.fin_conciliacao_conferir_anteriores(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fin_conciliacao_conferir_anteriores(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.salvar_conciliacao_mensal(uuid, date, jsonb, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.salvar_conciliacao_mensal(uuid, date, jsonb, jsonb) TO authenticated;
+REVOKE ALL ON FUNCTION public.fechar_conciliacao_mensal(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fechar_conciliacao_mensal(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.reabrir_conciliacao_mensal(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.reabrir_conciliacao_mensal(uuid, text) TO authenticated;
+
+-- ---- Compras: PCA (migração 20261028090000): gatilhos sem EXECUTE para a API ----
+REVOKE EXECUTE ON FUNCTION public.pca_carimbar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.pca_registrar_historico() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.pca_classificadores(integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.pca_classificadores(integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.pca_usar_qdd(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.pca_usar_qdd(uuid) TO authenticated;

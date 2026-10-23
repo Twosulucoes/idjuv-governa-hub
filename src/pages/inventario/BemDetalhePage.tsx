@@ -14,6 +14,7 @@ import {
   Info, History, Image as ImageIcon, Printer, AlertTriangle, ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -344,6 +345,9 @@ export default function BemDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const { data: bem, isLoading, error } = useBemPatrimonial(id || "");
   const { data: historico, isLoading: loadingHistorico } = useHistoricoPatrimonio(id);
+  // Editar exige patrimonio.editar (mesma permissão da rota de edição; o banco também valida).
+  const { hasPermission } = useAuth();
+  const podeEditar = hasPermission("patrimonio.editar");
 
   if (isLoading) return <DetailSkeleton />;
 
@@ -417,12 +421,14 @@ export default function BemDetalhePage() {
                   Imprimir etiqueta
                 </Button>
               )}
-              <Button asChild>
-                <Link to={`/inventario/bens/${bem.id}/editar`}>
-                  <Edit className="w-4 h-4" aria-hidden="true" />
-                  Editar
-                </Link>
-              </Button>
+              {podeEditar && (
+                <Button asChild>
+                  <Link to={`/inventario/bens/${bem.id}/editar`}>
+                    <Edit className="w-4 h-4" aria-hidden="true" />
+                    Editar
+                  </Link>
+                </Button>
+              )}
             </>
           }
         />

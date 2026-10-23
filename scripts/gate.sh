@@ -24,10 +24,11 @@ ts_erros()   { npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep -c "error TS" |
 lint_erros() { npx eslint . -f json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).reduce((a,f)=>a+f.errorCount,0))}catch{console.log(-1)}})'; }
 cor_crua()   { node scripts/check-cor-crua.mjs; }
 jspdf_fora() { node scripts/check-jspdf-fora-do-core.mjs; }
+impressao_fora() { node scripts/check-impressao-fora-do-core.mjs; }
 lido()       { node -e "console.log(require('./$BASE').$1)"; }
 
 if [ "${1:-}" = "--update-baseline" ]; then
-  printf '{\n  "typecheck": %s,\n  "lint": %s,\n  "corCrua": %s,\n  "jspdfForaDoCore": %s\n}\n' "$(ts_erros)" "$(lint_erros)" "$(cor_crua)" "$(jspdf_fora)" > "$BASE"
+  printf '{\n  "typecheck": %s,\n  "lint": %s,\n  "corCrua": %s,\n  "jspdfForaDoCore": %s,\n  "impressaoForaDoCore": %s\n}\n' "$(ts_erros)" "$(lint_erros)" "$(cor_crua)" "$(jspdf_fora)" "$(impressao_fora)" > "$BASE"
   echo "Baseline atualizada:"; cat "$BASE"; exit 0
 fi
 
@@ -60,11 +61,13 @@ else
   guard "estado do sistema em dia" node scripts/estado-do-sistema.mjs --checar
 fi
 guard "docs sem contagem escrita à mão" node scripts/check-numeros-docs.mjs
+guard "PDF sem a base antiga (pdfTemplate, pdfInstitucional, pdfLogos)" node scripts/check-base-pdf-antiga.mjs
 
 comparar "typecheck" "$(ts_erros)" typecheck
 comparar "lint" "$(lint_erros)" lint
 comparar "cor crua em .tsx" "$(cor_crua)" corCrua ocorrências
 comparar "jsPDF fora de documentos/core" "$(jspdf_fora)" jspdfForaDoCore arquivos
+comparar "impressão fora de documentos/ (window.print, print:, @media print, pdf-lib)" "$(impressao_fora)" impressaoForaDoCore arquivos
 guard "testes (vitest: src/ e scripts/)" npx vitest run --reporter=dot
 
 printf "\n${AMARELO}▸ build${SEM}\n"

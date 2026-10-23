@@ -1,73 +1,64 @@
 /**
  * DASHBOARD - FINANCEIRO
- * Usa ModuleLayout para navegação modular e os padrões do design system
- * (PageHeader, KpiCard). Consome useDashboardFinanceiro (hook centralizado).
+ * Painel da execução orçamentária do exercício, calculado sobre o QDD e o FIP 614 importados do FIPLAN.
+ * Spec: docs/superpowers/specs/2026-10-23-painel-financeiro-fiplan-design.md
  */
 
-import { DollarSign, FileText, CreditCard, TrendingUp, Receipt, Calculator, AlertCircle } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { useMemo } from "react";
+import { FileText, CreditCard, Receipt, Calculator, Upload } from "lucide-react";
+import { Link } from "react-router-dom";
 import { ModuleLayout } from "@/components/layout";
-import { useDashboardFinanceiro } from "@/hooks/useFinanceiro";
+import { usePainelFinanceiro } from "@/hooks/useFinanceiro";
 import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { KpiCard, PageHeader } from "@/components/design-system";
-import { Link } from "react-router-dom";
-import { formatCurrency } from "@/lib/formatters";
+import { EmptyState, PageHeader } from "@/components/design-system";
+import { FaixaAtualizacao } from "@/components/financeiro/painel/FaixaAtualizacao";
+import { CartoesExecucao } from "@/components/financeiro/painel/CartoesExecucao";
+import { ExecucaoPorGrupo } from "@/components/financeiro/painel/ExecucaoPorGrupo";
+import { AlertasSaldo } from "@/components/financeiro/painel/AlertasSaldo";
+import { FilaPagamento } from "@/components/financeiro/painel/FilaPagamento";
+import { MaioresDespesas } from "@/components/financeiro/painel/MaioresDespesas";
+import {
+  alertasDeSaldo,
+  execucaoPorGrupo,
+  filaDePagamento,
+  maioresDespesas,
+  resumirExecucao,
+} from "@/lib/financeiro/painelExecucao";
 
-const numero = new Intl.NumberFormat("pt-BR");
-const percentual = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-
-interface Indicador {
-  rotulo: string;
-  valor: string;
-  icone: LucideIcon;
-  href?: string;
-  carregando: boolean;
+/** Mês dos dados: o da última importação do QDD; exercício encerrado vale dezembro. */
+function mesDeReferencia(exercicio: number, qdd: string | null, hoje: Date): number {
+  if (exercicio < hoje.getFullYear()) return 12;
+  return (qdd ? new Date(qdd) : hoje).getMonth() + 1;
 }
 
 export default function FinanceiroDashboardPage() {
   const { exercicio, comExercicio } = useExercicioFinanceiro();
-  const {
-    resumoOrcamentario,
-    solicitacoesPendentes,
-    loading,
-  } = useDashboardFinanceiro(exercicio);
+  const { dotacoes, empenhos, atualizacao } = usePainelFinanceiro(exercicio);
+  const hoje = useMemo(() => new Date(), []);
 
-  const resumo = resumoOrcamentario.data;
+  const linhas = dotacoes.data;
+  const qdd = atualizacao.data?.qdd ?? null;
+  const painel = useMemo(() => {
+    if (!linhas) return null;
+    const mes = mesDeReferencia(exercicio, qdd, hoje);
+    return {
+      resumo: resumirExecucao(linhas),
+      grupos: execucaoPorGrupo(linhas),
+      alertas: alertasDeSaldo(linhas, mes, { encerrado: exercicio < hoje.getFullYear() }),
+      despesas: maioresDespesas(linhas),
+    };
+  }, [linhas, exercicio, qdd, hoje]);
+  const fila = useMemo(() => filaDePagamento(empenhos.data ?? [], hoje), [empenhos.data, hoje]);
 
-  // Sem dado (erro) mostra "—" em vez de um zero que parece real
-  const indicadores: Indicador[] = [
-    {
-      rotulo: "Dotação atual",
-      valor: resumo ? formatCurrency(resumo.dotacao_atual || 0) : "—",
-      icone: DollarSign,
-      href: "/financeiro/qdd",
-      carregando: loading,
-    },
-    {
-      rotulo: "Executado (pago / dotação)",
-      valor: resumo ? `${percentual.format(resumo.percentual_executado || 0)}%` : "—",
-      icone: TrendingUp,
-      carregando: loading,
-    },
-    {
-      rotulo: "Solicitações pendentes",
-      valor: typeof solicitacoesPendentes.data === "number" ? numero.format(solicitacoesPendentes.data) : "—",
-      icone: FileText,
-      href: "/financeiro/solicitacoes",
-      carregando: solicitacoesPendentes.isLoading,
-    },
-    {
-      rotulo: "Pago",
-      valor: resumo ? formatCurrency(resumo.pago || 0) : "—",
-      icone: CreditCard,
-      href: "/financeiro/pagamentos",
-      carregando: loading,
-    },
-  ];
+  const estadoDotacoes = {
+    carregando: dotacoes.isLoading,
+    erro: dotacoes.isError,
+    onTentarNovamente: () => dotacoes.refetch(),
+  };
+  const semDados = !dotacoes.isLoading && !dotacoes.isError && (linhas?.length ?? 0) === 0;
 
   const quickActions = [
     { label: "Solicitações", description: "Solicitações de despesa", href: "/financeiro/solicitacoes", icon: Receipt },
@@ -81,55 +72,60 @@ export default function FinanceiroDashboardPage() {
       <div className="space-y-6">
         <PageHeader
           titulo="Financeiro"
-          descricao={`Orçamento, empenhos, liquidações e pagamentos · exercício ${exercicio}`}
+          descricao={`Execução orçamentária do exercício ${exercicio}`}
           acoes={<SeletorExercicio />}
         />
 
-        {resumoOrcamentario.isError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" aria-hidden="true" />
-            <AlertDescription className="flex flex-wrap items-center gap-2">
-              Não foi possível carregar os indicadores.
-              <Button variant="outline" size="sm" onClick={() => resumoOrcamentario.refetch()}>
-                Tentar novamente
-              </Button>
-            </AlertDescription>
-          </Alert>
+        {!atualizacao.isLoading && (
+          <FaixaAtualizacao
+            qdd={qdd}
+            fip614={atualizacao.data?.fip614 ?? null}
+            hoje={hoje}
+            encerrado={exercicio < hoje.getFullYear()}
+          />
         )}
 
-        {/* Indicadores: os que têm tela própria levam a ela */}
-        <section aria-labelledby="fin-indicadores">
-          <h2 id="fin-indicadores" className="sr-only">Indicadores</h2>
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {indicadores.map((ind) => {
-              const cartao = (
-                <KpiCard
-                  rotulo={ind.rotulo}
-                  valor={ind.valor}
-                  icone={ind.icone}
-                  carregando={ind.carregando}
-                  className="h-full"
-                />
-              );
-              return (
-                <li key={ind.rotulo}>
-                  {ind.href ? (
-                    <Link
-                      to={comExercicio(ind.href)}
-                      className="block h-full rounded-lg transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                      {cartao}
-                    </Link>
-                  ) : (
-                    cartao
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        {semDados ? (
+          <EmptyState
+            icone={Upload}
+            titulo="Importe o QDD do FIPLAN para ver o painel"
+            descricao="O painel é calculado sobre o QDD (dotações) e o FIP 614 (empenhos) importados na Central de Importações."
+            acao={
+              <Button asChild>
+                <Link to="/admin/importacoes">Ir para a Central de Importações</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <CartoesExecucao
+              resumo={dotacoes.isError ? null : (painel?.resumo ?? null)}
+              carregando={dotacoes.isLoading}
+              comExercicio={comExercicio}
+            />
 
-        {/* Quick Actions */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 [&>*]:min-w-0">
+              <ExecucaoPorGrupo grupos={painel?.grupos ?? []} {...estadoDotacoes} />
+              <AlertasSaldo alertas={painel?.alertas ?? []} {...estadoDotacoes} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 [&>*]:min-w-0">
+              <div className="lg:col-span-3">
+                <FilaPagamento
+                  fila={fila}
+                  comExercicio={comExercicio}
+                  carregando={empenhos.isLoading}
+                  erro={empenhos.isError}
+                  onTentarNovamente={() => empenhos.refetch()}
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <MaioresDespesas despesas={painel?.despesas ?? []} {...estadoDotacoes} />
+              </div>
+            </div>
+          </>
+        )}
+
         <Card>
           <CardHeader>
             <h2 className="text-h2 text-foreground">Ações rápidas</h2>

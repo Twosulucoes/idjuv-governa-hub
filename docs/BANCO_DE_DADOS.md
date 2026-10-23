@@ -680,6 +680,23 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   A remessa `gerada` passa a `enviada` (com `enviado_em`/`enviado_por`); retorno que não é prévia e não tem agendado a
   deixa `processada`. Quem lê o arquivo e casa cada crédito com a ficha é a tela (`src/lib/bancario/retornoFolha.ts`).
   Testes no bloco "FOLHA: retorno do banco da remessa" de `scripts/db/testar-rls.sql`.
+- <a id="importar-a-folha-do-sigrh-importar_folha_sigrh"></a>**Importar a folha do SIGRH** (migração
+  `20261022090000_folha_importar_sigrh.sql`) — RPC `importar_folha_sigrh(p_competencia, p_fichas, p_arquivo,
+  p_simular DEFAULT true)` (SECURITY DEFINER; perfil ativo, módulo `rh`, `financeiro.folha.processar` e
+  `usuario_pode_fechar_folha`, senão `42501`; só `authenticated`) para os meses pagos pelo SIGRH antes do sistema.
+  Recebe as fichas lidas do espelho no navegador (CPF, função, banco, dependentes e as rubricas com tipo, quantidade,
+  competência do retroativo e valor) e grava, tudo ou nada: a folha mensal da competência (observação e justificativa
+  "Folha histórica importada do SIGRH (arquivo …)"), uma ficha por servidor casado pelo CPF (só dígitos; o cargo e a
+  unidade do provimento vigente no mês, a função como paga no espelho, INSS e IRRF somados das rubricas, base de INSS
+  igual aos proventos de quem descontou INSS, menos os de rubrica cadastrada que não incide INSS; `base_irrf` e a
+  dedução de dependentes ficam vazias, porque o espelho não as traz), os itens (`origem` `automatico`, rubrica ligada pela descrição, a
+  competência do retroativo na descrição), a parte patronal pela regra do processamento e o fechamento por
+  `fechar_folha`. Recusa o mês corrente e o futuro (só mês encerrado) e lista vazia (`22023`) e a que já tem folha mensal (`23505`); servidor
+  não cadastrado ou CPF em dois cadastros é erro da linha, e com erro nada é gravado; com `p_simular` tudo é desfeito
+  no fim. O log em `importacoes` (`tipo` `folha_sigrh`, `exercicio` = ano) guarda competência, totais e a ficha de
+  cada linha, sem CPF. Sem as alíquotas patronais no mês, avisa que a parte patronal sai zero. Ajustes da revisão na
+  migração `20261022100000` (mês corrente, CPF do cadastro com mais de 11 dígitos não casa, base de INSS, aviso das
+  alíquotas). Testes no bloco "FOLHA: importação da folha do SIGRH" de `scripts/db/testar-rls.sql`.
 - **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
   `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez**, depois do INSERT, e só
   por quem: tem o módulo `rh` e `financeiro.folha.processar` (`42501`), **gerou a remessa** (`gerado_por`, fixado pela
@@ -1017,6 +1034,78 @@ Todas idempotentes.
   - `cancelar_remessa_bancaria(p_id uuid) → jsonb` (`id`, `nsa`, `movimentos_liberados`): só reserva não confirmada,
     pelo autor ou por um administrador; **apaga** a linha (a trilha `fin_audit_log` guarda) e limpa `remessa_id` dos
     movimentos. Se era a última remessa da conta, o NSA volta a ficar livre; senão, o número fica pulado.
+- **Remessa OBN600 dos pagamentos** (`20261024090000_fin_remessa_obn600.sql`, spec
+  [`2026-10-21-financeiro-remessa-obn600-design.md`](./superpowers/specs/2026-10-21-financeiro-remessa-obn600-design.md)):
+  o sistema gera o arquivo de ordens bancárias (crédito em conta) que hoje sai do sistema estadual. Colunas novas:
+  `contas_autarquia.obn_codigo_cliente` (até 9 dígitos, header 059-067), `obn_unidade_gestora` (até 6) e `obn_gestao`
+  (até 5), com CHECK de dígitos (vazias = a conta não gera OBN600); `fin_remessas_bancarias.layout` aceita `obn600`, com
+  `pagamentos uuid[]` (ordem das OBs) e `parametros jsonb` (`{unidade_gestora, gestao}`); `convenio` guarda o código do
+  cliente e `nsa` o nº da remessa (até 99999); `fin_pagamentos.remessa_bancaria_id` (FK `ON DELETE SET NULL`) aponta a
+  reserva ou a remessa em que o pagamento saiu.
+  - `registrar_remessa_obn600(p_conta_autarquia_id uuid, p_pagamentos uuid[], p_data_pagamento date,
+    p_sequencial_minimo integer DEFAULT NULL) → jsonb` (formato de `fin_remessa_bancaria_json`, sem o hash): o
+    **servidor** monta as OBs (`pagamento_id`, `pagamento_numero`, `relacao`, `numero_ob`, `nome`, `documento`,
+    `banco`, `agencia`, `agencia_dv`, `conta`, `conta_dv`, `valor` = `valor_liquido`, `endereco`, `municipio`, `cep`,
+    `uf`) com o favorecido do fornecedor e a conta do pagamento (vazia, a do fornecedor; agência até 4 dígitos e conta
+    até 9, DV depois do hífen). Nº da OB = exercício + sequência do pagamento (`OP-000123` de 2026 → `02026000123`);
+    relação = exercício + nº da remessa + tipo (`31` outro banco, `32` BB); OBs ordenadas por tipo. Recusa (`22023`)
+    conta sem os dados do OBN600, lista vazia/repetida/acima de 999, data fora de [ontem, hoje + 60], pagamento que
+    não esteja programado/autorizado, estornado, sem favorecido com CPF/CNPJ, sem conta válida, fora da numeração
+    `OP-` ou já em outra remessa (confirmada, ou reservada por outra pessoa). Numeração e reaproveitamento da reserva
+    do mesmo usuário como no reenvio (`p_sequencial_minimo` só na primeira OBN600 da conta).
+  - `confirmar_remessa_bancaria` (versão final nesta migração) também confirma a OBN600: confere que os pagamentos
+    seguem reservados e programados/autorizados e grava o nº da OB em `fin_pagamentos.identificador_transacao`
+    (devolve `pagamentos_marcados`). É por ele que `importar_arquivo_bancario` casa a OB do retorno com o pagamento e
+    dá a baixa. `cancelar_remessa_bancaria` também limpa `remessa_bancaria_id` (devolve `pagamentos_liberados`);
+    `fin_remessa_bancaria_json` passa a devolver `layout` e `parametros`.
+  - `fin_pagamentos_proteger_baixa` (versão final): pela API (`anon`/`authenticated`, admin inclusive) o pagamento não
+    nasce com `remessa_bancaria_id`, não muda `remessa_bancaria_id` e, numa remessa (reservada ou enviada), não muda
+    `valor_bruto`, `valor_retencoes`, `fornecedor_id`, `banco_favorecido`, `agencia_favorecido`, `conta_favorecido`
+    nem `identificador_transacao` (`42501`). Observações e status (salvo a baixa) seguem editáveis.
+- **Favorecidos e lista de bancos** (`20261025090000_fin_favorecidos_bancos.sql`; só policies e dados, sem coluna nova):
+  `fornecedores` ganha `coletor=financeiro:select|insert|update` no `rls/mapa.csv`, então o Financeiro lê, cadastra e
+  edita os favorecidos (tela Financeiro → Favorecidos) sem apagar, que segue com Compras e Contratos. `bancos_cnab`
+  passa de `modulo` a `catalogo` (qualquer usuário ativo lê, o RH escreve) e recebe 19 bancos pelo código FEBRABAN
+  (`ON CONFLICT (codigo_banco) DO NOTHING`, então não mexe em banco já cadastrado); entrou nas `SEMENTES` do
+  `scripts/db/gerar-baseline.sh`. A tela valida agência e conta com as mesmas regras de `registrar_remessa_obn600`
+  (`src/lib/bancario/favorecido.ts`).
+- **Conciliação mensal (quadro da SEFAZ)** (`20261026090000_fin_conciliacao_mensal.sql`, spec
+  [2026-10-21-financeiro-conciliacao-mensal-design.md](./superpowers/specs/2026-10-21-financeiro-conciliacao-mensal-design.md)):
+  - `fin_conciliacoes_mensais`: uma por conta (`fin_contas_bancarias`) e competência (dia 1, `UNIQUE`); saldo do razão
+    (FIP630), saldo da conta corrente e do fundo no último dia (o extrato do quadro é a soma), rendimento do fundo,
+    nomes dos arquivos lidos, observações, `situacao` `rascunho`/`fechada` e quem fechou;
+  - `fin_conciliacao_itens`: lançamentos do razão (`contabil`) e do extrato (`bancario`) do mês, `casado` (com `grupo`
+    e `regra`: `interno`, `re`, `ob_cancelada`, `repasse`, `valor_data`, `estorno` ou `manual`, este com
+    justificativa) ou `pendente` (as quatro listas). `origem` `anterior` aponta (`item_origem_id`) a pendência do mês
+    anterior fechado; `abertura` é lançada à mão na implantação;
+  - trigger `fin_conciliacao_proteger`: o mês nasce rascunho, só fecha pela RPC e, fechado, nem ele nem os itens mudam
+    (`42501`, admin inclusive pela API);
+  - `salvar_conciliacao_mensal(conta, competência, dados, itens) → uuid` (INVOKER: a RLS vale) grava o rascunho e troca
+    os itens; `fechar_conciliacao_mensal(id)` (INVOKER) recalcula o ajustado no banco e só fecha se for igual a conta +
+    fundo (`22023`); as duas conferem que cada pendência `anterior` é pendente do mês imediatamente anterior fechado da
+    mesma conta, uma vez só; `reabrir_conciliacao_mensal(id, motivo)` (DEFINER) só do admin, com motivo (vai para as
+    observações) e sem mês posterior fechado;
+  - RLS classe `permissao` (`escrita=pagamento.conciliar`; cabeçalho com `excluir=ninguem`); testes no bloco
+    "Financeiro: conciliação mensal" de `scripts/db/testar-rls.sql`. A leitura dos arquivos e o casamento são do
+    navegador (`src/lib/conciliacao/`).
+- **PCA, entrega 1** (`20261028090000_compras_pca.sql`, spec
+  [2026-10-23-compras-gerador-pca-design.md](./superpowers/specs/2026-10-23-compras-gerador-pca-design.md)):
+  - catálogo CATMAT/CATSER: `cat_material_pdms` (grupo → classe → PDM), `cat_servicos` (seção → divisão → grupo →
+    classe → serviço), `cat_material_itens` (só os itens de material já usados) e `cat_sincronizacoes` (data e total da
+    última atualização). Chave `id` uuid e o código do catálogo `UNIQUE`; gravados pela Edge Function
+    `catalogo-compras` (service role);
+  - `pca_planos` (um por exercício, `UNIQUE`; `situacao` `rascunho`/`enviado_sei`/`aprovado`/`publicado`, processo SEI e
+    datas; nasce rascunho pelo gatilho `pca_carimbar`), `pca_tetos` (PLOA ou QDD por ação × fonte, `UNIQUE`) e
+    `pca_itens` (DFD do SEI: setor, material com PDM ou serviço, quantidade, valor unitário, `valor_total` gerado, mês,
+    prioridade, ação, fonte, natureza; sai do PCA por `situacao = 'excluido'`);
+  - `pca_historico`: trilha gravada pelo gatilho `pca_registrar_historico` (DEFINER): criação do plano, mudança de
+    situação, troca dos tetos pelo QDD e inclusão/alteração/exclusão de item, com o autor;
+  - `pca_classificadores(exercicio) → jsonb` (DEFINER): ações, fontes e naturezas (código e nome) e as linhas do QDD do
+    exercício para quem tem o PCA, sem abrir a RLS do financeiro; `pca_usar_qdd(plano) → integer` (DEFINER, exige
+    `compras.pca.editar`) troca os tetos pela soma de `valor_atual` do QDD por ação × fonte (`22023` sem QDD);
+  - permissões `compras.pca.visualizar` e `compras.pca.editar` (concedidas a quem tem `compras.criar`); RLS classe
+    `permissao` (`pca_*` com `leitura=` das duas, `cat_*` lidas pelo módulo; `excluir=ninguem`) e `trilha` no
+    histórico; testes no bloco "Compras: PCA" de `scripts/db/testar-rls.sql`.
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver
@@ -1048,7 +1137,8 @@ Todas idempotentes.
   interno (sem EXECUTE para a API). Erros: `42501` sem permissão; `22023` dado inválido; `P0002` registro inexistente.
 - **No baseline**: `schema/` regenerado, as três tabelas como `preservar` no `rls/mapa.csv`, REVOKE/GRANT no
   `overlay/40_privilegios.sql` e testes no bloco "Financeiro: FIPLAN, arquivos bancários e extrato do BB" de
-  `scripts/db/testar-rls.sql`.
+  `scripts/db/testar-rls.sql`. A remessa OBN600 (`20261024090000`) tem o bloco "Financeiro: remessa OBN600 dos
+  pagamentos".
 
 ### Patrimônio e inventário
 `bens_patrimoniais`, `movimentacoes_bem`, `movimentacoes_patrimonio`,
@@ -1058,6 +1148,21 @@ Todas idempotentes.
 `fotos_vistoria_inventario`. Almoxarifado: `almoxarifados`,
 `estoque`, `movimentacoes_estoque`, `categorias_material`, `itens_material`,
 `requisicoes_material`, `requisicao_itens`.
+
+**Permissões (P14 entrega 4, migração `20261023100000_patrimonio_permissoes_entrega4.sql`).**
+
+- O app de coleta (módulo `patrimonio_mobile`) só tem as operações que usa: lê e cadastra bem (com a foto no próprio
+  INSERT), lê e registra coleta, insere baixa e movimentação, lê e atualiza `campanhas_inventario_unidades`, lê
+  `unidades_locais` e `campanhas_inventario`. Saiu de almoxarifado, estoque, requisições, manutenções, ocorrências,
+  conciliações, agenda e histórico. Sufixo `coletor=` do mapa.
+- `bens_patrimoniais`: UPDATE exige `patrimonio.editar` (sufixo `altera=`; a migração concedeu a permissão a quem já tinha
+  `patrimonio.criar`, nas três fontes); DELETE só admin. UPDATE em `itens_material` também exige `patrimonio.editar`. O gatilho `trg_bens_proteger_colunas` recusa (42501) a troca
+  de `valor_aquisicao`, `data_aquisicao`, `forma_aquisicao` e `situacao` por quem não é admin quando o acesso vem da API
+  (`current_user` `authenticated`/`anon`); as funções DEFINER de baixa e movimentação passam.
+- `unidades_locais` escreve com `unidades.gerenciar`; `agenda_unidade`, `termos_cessao` e `documentos_cedencia` com
+  `unidades.cedencias.gerenciar` (classe `permissao`).
+- `fn_atualizar_estatisticas_campanha` passou a SECURITY DEFINER (`search_path=public`, sem EXECUTE pela API), para a coleta
+  do app continuar atualizando os totais da campanha sem UPDATE em `campanhas_inventario`.
 
 **Número de tombamento e fluxos (auditoria de 10/10/2026).** Migração
 `supabase/migrations/20261010230000_patrimonio_gravacoes_e_tombamento.sql` (aplicada pelo CI no merge):
@@ -1304,6 +1409,28 @@ gravada pelas Edge Functions. No baseline as duas tabelas estão no `rls/mapa.cs
 `unidades_locais`, `agenda_unidade`, `agrupamento_unidade_vinculo`,
 `config_agrupamento_unidades`, `cessoes`, `termos_cessao`, `documentos_cedencia`.
 
+#### Termo de cessão e designação de chefia: ciclo do SEI
+
+Mesma regra das portarias ("ato formal é do SEI", P23): o sistema não gera mais o PDF do termo de cessão nem o
+memorando de designação; só registra e acompanha o ciclo. Migração
+`supabase/migrations/20261023090000_registro_sei_termo_cessao_designacao.sql` (idempotente; só `ADD COLUMN` nulo e
+`DROP NOT NULL`, nenhuma linha antiga muda):
+
+- **`termos_cessao`**: colunas novas `processo_sei` (texto), `doe_numero` (texto) e `doe_data` (data);
+  `numero_termo` passa a aceitar nulo e é o número que o termo recebe no SEI (as linhas antigas guardam o número
+  interno que o sistema gerava); `data_assinatura` já existia. O `status` (enum `status_termo_cessao`, padrão
+  `pendente`) segue o SEI: `pendente` = aguardando SEI (sem número), `emitido` = numerado, aguardando assinatura,
+  `assinado` = com a data da assinatura, `cancelado`. A etapa é calculada na tela (`statusTermoPeloSei`,
+  `src/lib/registroSei.ts`); o banco não tem trigger de ciclo para o termo.
+- **`nomeacoes_chefe_unidade`**: colunas novas `processo_sei` (texto) e `ato_data_assinatura` (data); `ato_numero` e
+  `ato_data_publicacao` passam a aceitar nulo (designação registrada antes do número no SEI fica "aguardando SEI");
+  o DOE continua em `ato_doe_numero`/`ato_doe_data`. O trigger `encerrar_nomeacao_anterior` não muda.
+- **RLS**: sem mudança. As policies `rls_*` das duas tabelas (`termos_cessao`: módulo `patrimonio`;
+  `nomeacoes_chefe_unidade`: `rh` ou `patrimonio`) são por linha e valem para as colunas novas; os privilégios são
+  por tabela.
+- **Front**: hooks `useTermosCessao` e `useDesignacoesChefiaUnidade`; validação do registro (assinatura e DOE só com
+  o número do ato; DOE com número e data juntos) em `src/lib/registroSei.ts`.
+
 ### Esporte: federações, instituições, eventos e árbitros
 `federacoes_esportivas`, `federacao_arbitros`, `federacao_espacos_cedidos`,
 `federacao_parcerias`, `calendario_federacao`, `instituicoes`,
@@ -1372,6 +1499,31 @@ colunas da planilha em `atributos`. RLS: `SELECT` para quem acessa o módulo fin
 `preservar` no mapa, privilégio retirado no overlay 40). Quem grava é `importar_classificadores_fiplan`, que também
 corrige o nome de `fin_fontes_recurso` (mesmos dígitos), de `fin_programas_orcamentarios` do exercício e das
 naturezas com o nome provisório do QDD; nada é criado nesses cadastros nem apagado.
+
+#### Empenhos do FIPLAN (FIP 614)
+
+Migração `supabase/migrations/20261027090000_fin_empenhos_fip614.sql`. Spec:
+[`2026-10-22-importacao-empenhos-fip614-design.md`](./superpowers/specs/2026-10-22-importacao-empenhos-fip614-design.md).
+O FIPLAN é a fonte dos empenhos importados; a dotação continua vindo do QDD.
+
+- `fin_empenhos` ganha `origem` (`sistema` | `fiplan`, padrão `sistema`, não muda depois de gravada),
+  `credor_codigo_fiplan`, `credor_nome`, `ped_numero`, `ped_data`, `dotacao_fiplan`, `processo_fiplan`,
+  `data_referencia_fiplan` e `importacao_id`; `numero` passa a `varchar(30)`. `fornecedor_id` e `dotacao_id` deixam
+  de ser `NOT NULL`, mas o CHECK `fin_empenhos_sistema_vinculos_check` continua exigindo os dois no empenho feito no
+  sistema. Os gatilhos de saldo (`fn_atualizar_saldo_dotacao_empenho`, `fn_validar_saldo_empenho`,
+  `fn_verificar_saldo_dotacao`) ignoram `origem = 'fiplan'`: o valor da dotação já vem somado no QDD.
+- `fornecedores.codigo_credor_fiplan` (formato `2001.00001-1`, único quando preenchido): liga o empenho importado ao
+  favorecido na importação.
+- `fin_empenho_documentos_fiplan`: histórico do empenho no FIPLAN (EMP, LIQ, NOB, GCV, EST; número, data, P/C, valor
+  por coluna e histórico da liquidação), apagado junto com o empenho. RLS: `SELECT` para perfil ativo com o módulo
+  financeiro; sem escrita pela API (classe `preservar`, privilégio retirado no overlay 40).
+- `importar_empenhos_fip614(p_exercicio, p_linhas, p_arquivo, p_data_referencia, p_simular)` — `SECURITY DEFINER`,
+  exige perfil ativo, módulo financeiro e `orcamento.importar`; simula ou aplica tudo ou nada e registra em
+  `importacoes` (`tipo = 'empenhos_fip614'`). Cria ou atualiza pelo número, nunca apaga, e recusa número que já é de
+  empenho feito no sistema. A dotação liga pelos dígitos de `função…fonte` como prefixo do `codigo_dotacao`; com
+  mais de uma candidata, o IDU em número do 11º segmento (1 Não, 4 ECNI, 5 ECI, 6 EII; vem no Excel, o PDF corta a
+  dotação antes dele) escolhe pela sigla do QDD. Sem IDU, mantém a escolha anterior se ainda for candidata, senão
+  fica nula com aviso, e a escolha é feita na tela do empenho (UPDATE de `dotacao_id` pela policy de `fin_empenhos`).
 
 #### Importar portarias (`importar_portarias_planilha`)
 
@@ -1525,6 +1677,9 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
 - **Tabelas do FIPLAN**: `importar_classificadores_fiplan(p_tipo, p_exercicio, p_linhas, p_arquivo, p_simular)` —
   `SECURITY DEFINER`, exige perfil ativo, módulo financeiro e `orcamento.importar`; simula ou aplica tudo ou nada
   (código fora do padrão ou repetido barra a aplicação) e registra em `importacoes` (seção "Tabelas do FIPLAN").
+- **Empenhos do FIPLAN**: `importar_empenhos_fip614(p_exercicio, p_linhas, p_arquivo, p_data_referencia, p_simular)`
+  — `SECURITY DEFINER`, exige perfil ativo, módulo financeiro e `orcamento.importar` (seção "Empenhos do FIPLAN
+  (FIP 614)").
 - **Importação de portarias**: `importar_portarias_planilha(p_linhas, p_arquivo, p_simular)` — `SECURITY DEFINER`,
   exige módulo `gabinete` e `gabinete.portarias.importar`; simula por savepoint e aplica tudo ou nada (seção
   "Importar portarias").

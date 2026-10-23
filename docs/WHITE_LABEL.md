@@ -237,6 +237,10 @@ Decisão recomendada:
 | `config_autarquia` | Mantida como **extensão fiscal/contábil** (eSocial, CRC, regime tributário). Vira 1:1 com `config_institucional` via FK |
 | `dados_oficiais` | Mantida como **registro auditável** de dados legais (tem `lei_referencia`, `documento_url`, `bloqueado`, histórico de alteração). É o lugar certo para CNPJ, lei de criação, dirigente |
 
+Passo dado em 2026-10-21: a identidade que `config_autarquia` repetia (razão social, CNPJ, endereço, contato,
+dirigente) passou a ser lida de `dados_oficiais` pela folha, pelo eSocial e pelos arquivos do banco; a tela da Folha
+ficou só com a parte fiscal/contábil (ver [CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md)).
+
 Não duplicar: um campo mora em exatamente uma tabela. Uma view
 `v_identidade_institucional` reúne tudo para leitura.
 
@@ -485,7 +489,7 @@ verificável isoladamente (`bun run lint && bun run build`).
 | **1. Build e metadados** | `.env` estendido, `vite.config.ts` sem literais, `index.html` com placeholders, ícones por tenant | Título, manifest e favicon trocam por env | Baixo |
 | **2. Marca na UI** | `<Logo>` genérico substitui `LogoIdjuv`; Header, Footer, Sidebar, PortalFooter, ReportHeader consomem `useTenant()`; tema injetado do banco | UI 100% sem marca fixa | Baixo |
 | **3. Identidade institucional** | Consolidar `config_institucional`/`config_autarquia`/`dados_oficiais`; remover `FALLBACK_DATA`; e-mails, telefones, URLs e redes sociais para config | Nenhum dado do IDJUV no bundle | Médio |
-| **4. Documentos** | `cabecalhoOficial`/`rodapeOficial` no `pdfTemplate.ts`; refatorar os 38 geradores + `wordPortarias` + `report.styles`; unificar as 3 paletas | Documentos com a marca do tenant | Médio (volume) |
+| **4. Documentos** | `cabecalhoOficial`/`rodapeOficial` no pdfTemplate (hoje: cabeçalho e rodapé do motor único `src/lib/documentos/`); refatorar os 38 geradores + `wordPortarias` + `report.styles`; unificar as 3 paletas | Documentos com a marca do tenant | Médio (volume) |
 | **5. Modelos de ato e normas** | Tabela `modelos_atos` + renderizador de placeholders; páginas de governança via CMS; seeds do IDJUV | Portarias de qualquer órgão | **Alto** (jurídico — validar com o cliente) |
 | **6. Módulos e verticais** | `modulosHabilitados()`, guard `<ModuloHabilitado>`, extração da vertical esporte | Venda de core sem vertical | Médio |
 | **7. Enums e schema** | Migração de `ALTER TYPE ... RENAME VALUE` e colunas; regenerar types | Schema neutro | **Alto** (banco em produção) |
@@ -506,6 +510,11 @@ partida e reserva. Detalhes, e o que ainda falta (logos, cores, textos em págin
 Em 19/10/2026 o `TenantConfig` ganhou o bloco opcional `impressao` (`TenantImpressao`: cor de destaque,
 logos, cabeçalho, rodapé, emissor, letra, tabela, orientação dos PDFs), também alimentado pelas chaves
 `impressao_*` de `dados_oficiais`; ausente, o motor de documentos usa o padrão.
+Em 21/10/2026 (P24, fase A) as telas e PDFs que tinham nome, sigla, UF, cidade, vinculação ou lei escritos à mão
+passaram a ler a identidade (`useIdentidade()`/`useTenant()` em componente; `src/lib/rotulosInstituicao.ts` em código
+puro, com texto genérico quando a sigla está vazia). Rótulos em constantes de tipos usam getters, porque a identidade do
+banco chega depois do carregamento do módulo. Valores de enum e nomes de coluna (`efetivo_idjuv`, `unidade_idjuv_id`)
+ficam como estão (§9). Setores, diretorias, RACI, prazos da LAI e quadro de cargos vêm das tabelas próprias.
 
 **Fase 0 — CONCLUÍDA.** O que foi entregue:
 

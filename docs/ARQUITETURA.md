@@ -85,14 +85,22 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `requiredPermissions="admin.configuracao_cliente"`): grava a identidade da instituição em
   `dados_oficiais`, que o `TenantProvider` aplica por cima do perfil do tenant. Ver
   [CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md).
+- **PCA (Compras)** em `/compras/pca` e `/compras/pca/:exercicio` (`PcaListaPage`, `PcaPlanoPage`,
+  `requiredModule="compras"` e `compras.pca.visualizar` ou `compras.pca.editar`): itens lançados dos DFDs do SEI e
+  orçamento por ação × fonte; menu em Compras → "Plano de Contratações (PCA)". O catálogo CATMAT/CATSER vem do portal
+  de dados abertos do Compras.gov.br pela Edge Function `catalogo-compras` (o navegador não chama o portal: CORS e CSP).
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
   `docs/GUIA_FRONTEND.md` (Importação de dados). A rota usa a própria `PERMISSOES_IMPORTACAO` e o item de menu repete a mesma lista
-  (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`); `src/lib/importacao/registro.test.ts`
+  (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`); `src/lib/importacao/registro.test.ts`
   reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha".
+- Financeiro: `/financeiro/empenhos/:id` (`EmpenhoDetalhePage`, `requiredPermissions="orcamento.criar"`): dados,
+  valores, histórico do FIPLAN e escolha da dotação do empenho importado do FIP 614.
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"
-  requiredPermissions="pagamento.conciliar"`); `/financeiro/pagamentos/:id` abre o detalhe real do pagamento
+  requiredPermissions="pagamento.conciliar"`; `?aba=contas` abre direto as contas pagadoras);
+  `/financeiro/favorecidos` (`FavorecidosPage`, `requiredModule="financeiro"`, `requiredPermissions="orcamento.criar"`,
+  a mesma dos empenhos; item "Favorecidos" no menu do Financeiro); `/financeiro/pagamentos/:id` abre o detalhe real do pagamento
   (`orcamento.aprovar`); `/financeiro/orcamento` só redireciona para `/financeiro/qdd`. O ano das telas do
   módulo vai na query `?exercicio=` (ver [MODULOS.md](./MODULOS.md)). `/financeiro` é declarada uma vez só
   (painel do módulo, `FinanceiroDashboardPage`, `requiredModule="financeiro"`).
@@ -105,12 +113,20 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   página de detalhe da campanha.
 - Detalhes do patrimônio: `/inventario/movimentacoes/:id`, `/inventario/manutencoes/:id` e
   `/inventario/baixas/:id` (`MovimentacaoDetalhePage`, `ManutencaoDetalhePage`, `BaixaDetalhePage`), abertas
-  pelo "olho" das listas, com as mesmas ações de aprovar/rejeitar/concluir (`patrimonio.tramitar`).
-- Edição do bem: `/inventario/bens/:id/editar` (`BemEditarPage`, `patrimonio.criar`). Número de patrimônio,
+  pelo "olho" das listas, com as mesmas ações de aprovar/rejeitar/concluir (`patrimonio.tramitar`). Listas e
+  detalhes de baixas e movimentações exigem só `patrimonio.visualizar`; criar baixa pede `patrimonio.criar` e
+  criar movimentação `patrimonio.tramitar` (botões).
+- Edição do bem: `/inventario/bens/:id/editar` (`BemEditarPage`, `patrimonio.editar`). Número de patrimônio,
   QR e dados de aquisição (valor, data, forma) só o admin altera; a ficha do bem (`BemDetalhePage`) tem abas de
   manutenções e ocorrências. Item do almoxarifado: `/inventario/almoxarifado/:id` (`ItemMaterialDetalhePage`, `patrimonio.visualizar`) e
-  `/inventario/almoxarifado/:id/editar` (`ItemMaterialEditarPage`, `patrimonio.criar`); o saldo real ainda não
+  `/inventario/almoxarifado/:id/editar` (`ItemMaterialEditarPage`, `patrimonio.editar`); o saldo real ainda não
   existe, e a ficha mostra só os limites de estoque. A rota de detalhe da requisição ainda usa `PlaceholderDetalhePage`.
+- Unidades: `/unidades`, `/unidades/gestao` e `/unidades/:id` exigem `unidades.visualizar`; `/unidades/relatorios` e
+  `/unidades/central-relatorios`, `unidades.relatorios.visualizar`; `/unidades/cedencia`, `unidades.cedencias.visualizar`
+  (além do módulo `patrimonio`). Criar/editar unidade e importar KML pedem `unidades.gerenciar`; agenda e termo de
+  cessão, `unidades.cedencias.gerenciar`.
+- Formulários: a rota `/formularios/cpsi` (tela CPSI, que gerava DFD/ETP/TR) saiu na onda 5 do P23; esses atos são
+  feitos no SEI e o sistema só registra o ciclo.
 
 ## Autenticação
 
@@ -166,8 +182,8 @@ caches relevantes. Estatísticas de dashboard ficam em `use<Modulo>DashboardStat
 Toda a emissão de PDFs/planilhas/Word acontece **no navegador** (sem servidor de
 relatórios), em `src/lib`:
 
-- **PDF**: `jspdf` + `pdf-lib` — ~40 geradores (`pdf*.ts`), com base em
-  `pdfTemplate.ts`/`pdfLogos.ts`.
+- **PDF**: motor único em `src/lib/documentos/` (`jspdf` só em `core/`); os `pdf*.ts` restantes só chamam o motor
+  ([PADRAO_DOCUMENTOS.md](./PADRAO_DOCUMENTOS.md)). A base antiga (pdfTemplate, pdfLogos) foi apagada na onda 5 da P23.
 - **Planilhas**: `xlsx` — `src/export/`, `src/lib/exportar*.ts`.
 - **Fiscais/folha**: `cnabGenerator.ts` (remessa bancária CNAB; com conta pagadora no BB usa `bancario/folhaBbCnab240.ts`, o leiaute que o banco já aceita da folha),
   `esocialGenerator.ts`/`esocialXmlGenerator.ts` (eSocial).

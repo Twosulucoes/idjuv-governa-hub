@@ -2486,6 +2486,7 @@ DECLARE
   v_uid uuid := auth.uid();
   v_rem public.fin_remessas_bancarias%ROWTYPE;
   v_liberados integer := 0;
+  v_pags_liberados integer := 0;
 BEGIN
   IF v_uid IS NULL
      OR NOT COALESCE(public.perfil_ativo_atual()
@@ -2499,11 +2500,11 @@ BEGIN
     RAISE EXCEPTION 'Remessa não encontrada.' USING ERRCODE = 'P0002';
   END IF;
   IF v_rem.arquivo_sha256 IS NOT NULL THEN
-    RAISE EXCEPTION 'A remessa NSA % já foi confirmada (arquivo gerado): não pode ser cancelada.', v_rem.nsa
+    RAISE EXCEPTION 'A remessa nº % já foi confirmada (arquivo gerado): não pode ser cancelada.', v_rem.nsa
       USING ERRCODE = '22023';
   END IF;
   IF v_rem.created_by IS DISTINCT FROM v_uid AND NOT COALESCE(public.is_admin_user(v_uid), false) THEN
-    RAISE EXCEPTION 'Só quem reservou a remessa NSA % (ou um administrador) cancela.', v_rem.nsa USING ERRCODE = '42501';
+    RAISE EXCEPTION 'Só quem reservou a remessa nº % (ou um administrador) cancela.', v_rem.nsa USING ERRCODE = '42501';
   END IF;
 
   UPDATE public.fin_movimentos_bancarios
@@ -2511,9 +2512,15 @@ BEGIN
    WHERE remessa_id = p_id AND reenviado_em IS NULL;
   GET DIAGNOSTICS v_liberados = ROW_COUNT;
 
+  UPDATE public.fin_pagamentos
+     SET remessa_bancaria_id = NULL, updated_at = now()
+   WHERE remessa_bancaria_id = p_id;
+  GET DIAGNOSTICS v_pags_liberados = ROW_COUNT;
+
   DELETE FROM public.fin_remessas_bancarias WHERE id = p_id;
 
-  RETURN jsonb_build_object('id', p_id, 'nsa', v_rem.nsa, 'movimentos_liberados', v_liberados);
+  RETURN jsonb_build_object('id', p_id, 'nsa', v_rem.nsa, 'movimentos_liberados', v_liberados,
+                            'pagamentos_liberados', v_pags_liberados);
 END;
 $$;
 
@@ -2522,7 +2529,7 @@ $$;
 -- Name: FUNCTION cancelar_remessa_bancaria(p_id uuid); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.cancelar_remessa_bancaria(p_id uuid) IS 'Cancela (apaga) uma reserva de remessa de reenvio não confirmada e libera os movimentos. Autor da reserva ou administrador; exige pagamento.conciliar.';
+COMMENT ON FUNCTION public.cancelar_remessa_bancaria(p_id uuid) IS 'Cancela (apaga) uma reserva de remessa não confirmada (reenvio Gestão MAX ou OBN600) e libera os movimentos e pagamentos. Autor da reserva ou administrador; exige pagamento.conciliar.';
 
 
 --
@@ -2785,13 +2792,37 @@ BEGIN
   END IF;
   IF v_rem.arquivo_sha256 IS NOT NULL THEN
     IF v_rem.arquivo_sha256 <> p_sha256 THEN
-      RAISE EXCEPTION 'A remessa NSA % já foi confirmada com outro arquivo.', v_rem.nsa USING ERRCODE = '22023';
+      RAISE EXCEPTION 'A remessa nº % já foi confirmada com outro arquivo.', v_rem.nsa USING ERRCODE = '22023';
     END IF;
     RETURN jsonb_build_object('id', v_rem.id, 'nsa', v_rem.nsa, 'arquivo_sha256', v_rem.arquivo_sha256,
-                              'movimentos_marcados', 0, 'ja_confirmada', true);
+                              'movimentos_marcados', 0, 'pagamentos_marcados', 0, 'ja_confirmada', true);
   END IF;
   IF v_rem.created_by IS DISTINCT FROM v_uid THEN
-    RAISE EXCEPTION 'Só quem gerou a remessa NSA % confirma o arquivo.', v_rem.nsa USING ERRCODE = '42501';
+    RAISE EXCEPTION 'Só quem gerou a remessa nº % confirma o arquivo.', v_rem.nsa USING ERRCODE = '42501';
+  END IF;
+
+  IF v_rem.layout = 'obn600' THEN
+    PERFORM 1 FROM public.fin_pagamentos WHERE id = ANY (v_rem.pagamentos) ORDER BY id FOR UPDATE;
+    SELECT count(*) INTO v_ok
+      FROM public.fin_pagamentos
+     WHERE id = ANY (v_rem.pagamentos) AND remessa_bancaria_id = p_id
+       AND COALESCE(status::text, '') IN ('programado', 'autorizado') AND NOT COALESCE(estornado, false);
+    IF v_ok <> cardinality(v_rem.pagamentos) THEN
+      RAISE EXCEPTION '% pagamento(s) da remessa nº % não estão mais reservados para ela (ou mudaram de situação): gere de novo.',
+        cardinality(v_rem.pagamentos) - v_ok, v_rem.nsa USING ERRCODE = '22023';
+    END IF;
+
+    UPDATE public.fin_remessas_bancarias SET arquivo_sha256 = p_sha256 WHERE id = p_id;
+
+    -- O nº da OB é o que volta no retorno: importar_arquivo_bancario casa a OB com o pagamento por ele.
+    UPDATE public.fin_pagamentos p
+       SET identificador_transacao = o.ob->>'numero_ob', updated_at = now()
+      FROM jsonb_array_elements(v_rem.creditos) AS o(ob)
+     WHERE p.id = (o.ob->>'pagamento_id')::uuid AND p.remessa_bancaria_id = p_id;
+    GET DIAGNOSTICS v_marcados = ROW_COUNT;
+
+    RETURN jsonb_build_object('id', v_rem.id, 'nsa', v_rem.nsa, 'arquivo_sha256', p_sha256,
+                              'movimentos_marcados', 0, 'pagamentos_marcados', v_marcados, 'ja_confirmada', false);
   END IF;
 
   PERFORM 1 FROM public.fin_movimentos_bancarios WHERE id = ANY (v_rem.movimentos) ORDER BY id FOR UPDATE;
@@ -2811,7 +2842,7 @@ BEGIN
   GET DIAGNOSTICS v_marcados = ROW_COUNT;
 
   RETURN jsonb_build_object('id', v_rem.id, 'nsa', v_rem.nsa, 'arquivo_sha256', p_sha256,
-                            'movimentos_marcados', v_marcados, 'ja_confirmada', false);
+                            'movimentos_marcados', v_marcados, 'pagamentos_marcados', 0, 'ja_confirmada', false);
 END;
 $_$;
 
@@ -2820,7 +2851,7 @@ $_$;
 -- Name: FUNCTION confirmar_remessa_bancaria(p_id uuid, p_sha256 text); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.confirmar_remessa_bancaria(p_id uuid, p_sha256 text) IS 'Grava o SHA-256 do arquivo de reenvio gerado e marca os movimentos reservados como reenviados (falha se algum saiu da reserva). Só o autor da reserva. Exige pagamento.conciliar.';
+COMMENT ON FUNCTION public.confirmar_remessa_bancaria(p_id uuid, p_sha256 text) IS 'Grava o SHA-256 do arquivo gerado. Reenvio Gestão MAX: marca os movimentos reservados como reenviados. OBN600: grava o nº da OB nos pagamentos reservados. Falha se algum saiu da reserva. Só o autor da reserva. Exige pagamento.conciliar.';
 
 
 --
@@ -3454,6 +3485,50 @@ $$;
 
 
 --
+-- Name: fechar_conciliacao_mensal(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fechar_conciliacao_mensal(p_id uuid) RETURNS void
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_c public.fin_conciliacoes_mensais%ROWTYPE;
+  v_ajustado numeric(15,2);
+BEGIN
+  SELECT * INTO v_c FROM public.fin_conciliacoes_mensais WHERE id = p_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Conciliação não encontrada.' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_c.situacao = 'fechada' THEN
+    RAISE EXCEPTION 'Conciliação já fechada.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT v_c.saldo_razao
+         - COALESCE(sum(valor) FILTER (WHERE lado = 'contabil' AND natureza = 'debito'), 0)
+         + COALESCE(sum(valor) FILTER (WHERE lado = 'contabil' AND natureza = 'credito'), 0)
+         - COALESCE(sum(valor) FILTER (WHERE lado = 'bancario' AND natureza = 'debito'), 0)
+         + COALESCE(sum(valor) FILTER (WHERE lado = 'bancario' AND natureza = 'credito'), 0)
+    INTO v_ajustado
+    FROM public.fin_conciliacao_itens
+   WHERE conciliacao_id = p_id AND situacao = 'pendente';
+
+  PERFORM public.fin_conciliacao_conferir_anteriores(p_id);
+  IF v_ajustado <> v_c.saldo_conta + v_c.saldo_fundo THEN
+    RAISE EXCEPTION 'O saldo ajustado (%) não bate com o extrato (%): confira as pendências antes de fechar.',
+      v_ajustado, v_c.saldo_conta + v_c.saldo_fundo USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM set_config('idjuv.fechando_conciliacao', p_id::text, true);
+  UPDATE public.fin_conciliacoes_mensais
+     SET situacao = 'fechada', fechada_em = now(), fechada_por = auth.uid()
+   WHERE id = p_id;
+  PERFORM set_config('idjuv.fechando_conciliacao', '', true);
+END;
+$$;
+
+
+--
 -- Name: fechar_folha(uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3668,6 +3743,87 @@ COMMENT ON FUNCTION public.fin_casar_movimento_pagamento(p_identificador text, p
 
 
 --
+-- Name: fin_conciliacao_conferir_anteriores(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_conciliacao_conferir_anteriores(p_id uuid) RETURNS void
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+      FROM public.fin_conciliacao_itens n
+      JOIN public.fin_conciliacoes_mensais m ON m.id = n.conciliacao_id
+      LEFT JOIN public.fin_conciliacao_itens o ON o.id = n.item_origem_id
+      LEFT JOIN public.fin_conciliacoes_mensais c ON c.id = o.conciliacao_id
+     WHERE n.conciliacao_id = p_id AND n.origem = 'anterior'
+       AND (o.id IS NULL OR o.situacao <> 'pendente' OR c.situacao <> 'fechada'
+            OR c.conta_bancaria_id <> m.conta_bancaria_id
+            OR c.competencia <> (m.competencia - interval '1 month')::date)
+  ) OR EXISTS (
+    SELECT 1 FROM public.fin_conciliacao_itens n
+     WHERE n.conciliacao_id = p_id AND n.item_origem_id IS NOT NULL
+     GROUP BY n.item_origem_id HAVING count(*) > 1
+  ) THEN
+    RAISE EXCEPTION 'Pendência anterior que não está em aberto no mês anterior fechado desta conta (ou repetida).'
+      USING ERRCODE = '22023';
+  END IF;
+END;
+$$;
+
+
+--
+-- Name: fin_conciliacao_proteger(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_conciliacao_proteger() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  IF TG_TABLE_NAME = 'fin_conciliacoes_mensais' THEN
+    IF TG_OP = 'INSERT' THEN
+      -- nasce rascunho: fechar é só pela fechar_conciliacao_mensal, que confere o quadro
+      NEW.situacao := 'rascunho';
+      NEW.fechada_em := NULL;
+      NEW.fechada_por := NULL;
+      RETURN NEW;
+    END IF;
+    IF TG_OP = 'UPDATE' THEN
+      NEW.updated_at := now();
+      NEW.updated_by := auth.uid();
+      IF (NEW.situacao, NEW.fechada_em, NEW.fechada_por) IS DISTINCT FROM (OLD.situacao, OLD.fechada_em, OLD.fechada_por)
+         AND OLD.situacao = 'rascunho'
+         AND COALESCE(current_setting('idjuv.fechando_conciliacao', true), '') <> OLD.id::text THEN
+        RAISE EXCEPTION 'Use "Fechar o mês" para fechar a conciliação.' USING ERRCODE = '42501';
+      END IF;
+    END IF;
+    IF TG_OP IN ('UPDATE', 'DELETE') AND OLD.situacao = 'fechada'
+       AND NOT (COALESCE(current_setting('idjuv.reabrindo_conciliacao', true), '') = OLD.id::text
+                AND public.is_admin_user(auth.uid())) THEN
+      RAISE EXCEPTION 'Conciliação de % fechada: peça ao administrador para reabrir.', to_char(OLD.competencia, 'MM/YYYY')
+        USING ERRCODE = '42501';
+    END IF;
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
+
+  v_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.conciliacao_id ELSE NEW.conciliacao_id END;
+  IF EXISTS (SELECT 1 FROM public.fin_conciliacoes_mensais c WHERE c.id = v_id AND c.situacao = 'fechada') THEN
+    RAISE EXCEPTION 'Conciliação fechada: os itens não mudam.' USING ERRCODE = '42501';
+  END IF;
+  IF TG_OP = 'UPDATE' AND OLD.conciliacao_id IS DISTINCT FROM NEW.conciliacao_id
+     AND EXISTS (SELECT 1 FROM public.fin_conciliacoes_mensais c WHERE c.id = OLD.conciliacao_id AND c.situacao = 'fechada') THEN
+    RAISE EXCEPTION 'Conciliação fechada: os itens não mudam.' USING ERRCODE = '42501';
+  END IF;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+
+
+--
 -- Name: fin_marcar_pagamento_pago(uuid, date); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3713,10 +3869,31 @@ BEGIN
         RAISE EXCEPTION 'Pagamento não nasce pago: a baixa vem do retorno do banco ou da conciliação bancária.'
           USING ERRCODE = '42501';
       END IF;
-    ELSIF (NEW.status::text = 'pago' AND OLD.status IS DISTINCT FROM NEW.status)
-       OR NEW.data_efetivacao IS DISTINCT FROM OLD.data_efetivacao THEN
-      RAISE EXCEPTION 'O pagamento % só é baixado (pago/data de efetivação) pelo retorno do banco ou pela conciliação bancária.', OLD.numero
-        USING ERRCODE = '42501';
+      IF NEW.remessa_bancaria_id IS NOT NULL THEN
+        RAISE EXCEPTION 'Pagamento não nasce numa remessa bancária: a reserva é da geração da remessa.'
+          USING ERRCODE = '42501';
+      END IF;
+    ELSE
+      IF (NEW.status::text = 'pago' AND OLD.status IS DISTINCT FROM NEW.status)
+         OR NEW.data_efetivacao IS DISTINCT FROM OLD.data_efetivacao THEN
+        RAISE EXCEPTION 'O pagamento % só é baixado (pago/data de efetivação) pelo retorno do banco ou pela conciliação bancária.', OLD.numero
+          USING ERRCODE = '42501';
+      END IF;
+      IF NEW.remessa_bancaria_id IS DISTINCT FROM OLD.remessa_bancaria_id THEN
+        RAISE EXCEPTION 'O pagamento % só entra ou sai de uma remessa bancária pela geração ou pelo cancelamento da remessa.', OLD.numero
+          USING ERRCODE = '42501';
+      END IF;
+      IF OLD.remessa_bancaria_id IS NOT NULL
+         AND (NEW.valor_bruto IS DISTINCT FROM OLD.valor_bruto
+              OR NEW.valor_retencoes IS DISTINCT FROM OLD.valor_retencoes
+              OR NEW.fornecedor_id IS DISTINCT FROM OLD.fornecedor_id
+              OR NEW.banco_favorecido IS DISTINCT FROM OLD.banco_favorecido
+              OR NEW.agencia_favorecido IS DISTINCT FROM OLD.agencia_favorecido
+              OR NEW.conta_favorecido IS DISTINCT FROM OLD.conta_favorecido
+              OR NEW.identificador_transacao IS DISTINCT FROM OLD.identificador_transacao) THEN
+        RAISE EXCEPTION 'O pagamento % está numa remessa bancária: valor, favorecido, conta e nº da OB não mudam mais.', OLD.numero
+          USING ERRCODE = '42501';
+      END IF;
     END IF;
   END IF;
   RETURN NEW;
@@ -3728,7 +3905,7 @@ $$;
 -- Name: FUNCTION fin_pagamentos_proteger_baixa(); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.fin_pagamentos_proteger_baixa() IS 'Trigger: pela API (anon/authenticated) fin_pagamentos não passa a pago, não nasce pago e não muda data_efetivacao; a baixa é de fin_marcar_pagamento_pago (RPCs de conciliação bancária).';
+COMMENT ON FUNCTION public.fin_pagamentos_proteger_baixa() IS 'Trigger: pela API (anon/authenticated) fin_pagamentos não passa a pago, não nasce pago e não muda data_efetivacao (a baixa é de fin_marcar_pagamento_pago); não entra nem sai de remessa bancária (remessa_bancaria_id é das RPCs de remessa) e, numa remessa, não muda valor, favorecido, conta nem identificador_transacao.';
 
 
 --
@@ -3740,10 +3917,10 @@ CREATE FUNCTION public.fin_remessa_bancaria_json(p_id uuid) RETURNS jsonb
     SET search_path TO 'public'
     AS $$
   SELECT jsonb_build_object(
-    'id', r.id, 'nsa', r.nsa, 'convenio', r.convenio,
+    'id', r.id, 'layout', r.layout, 'nsa', r.nsa, 'convenio', r.convenio,
     'agencia', r.agencia, 'agencia_digito', r.agencia_digito, 'conta', r.conta, 'conta_digito', r.conta_digito,
     'data_geracao', r.data_geracao, 'data_pagamento', r.data_pagamento, 'tipo_servico', r.tipo_servico,
-    'creditos', r.creditos,
+    'parametros', r.parametros, 'creditos', r.creditos,
     'arquivo_sha256', r.arquivo_sha256)
     FROM public.fin_remessas_bancarias r
    WHERE r.id = p_id;
@@ -3754,7 +3931,7 @@ $$;
 -- Name: FUNCTION fin_remessa_bancaria_json(p_id uuid); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.fin_remessa_bancaria_json(p_id uuid) IS 'Uso interno das RPCs de remessa de reenvio: remessa no formato devolvido à tela. Fora da API.';
+COMMENT ON FUNCTION public.fin_remessa_bancaria_json(p_id uuid) IS 'Uso interno das RPCs de remessa (reenvio Gestão MAX e OBN600): remessa no formato devolvido à tela. Fora da API.';
 
 
 --
@@ -4002,7 +4179,7 @@ COMMENT ON FUNCTION public.fn_atualizar_empenho_pagamento() IS 'Trigger de fin_p
 --
 
 CREATE FUNCTION public.fn_atualizar_estatisticas_campanha() RETURNS trigger
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
 DECLARE
@@ -4139,6 +4316,15 @@ CREATE FUNCTION public.fn_atualizar_saldo_dotacao_empenho() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 BEGIN
+  -- A origem não muda depois de gravada (a dotação ficaria somada ou descontada errado)
+  IF TG_OP = 'UPDATE' AND OLD.origem IS DISTINCT FROM NEW.origem THEN
+    RAISE EXCEPTION 'A origem do empenho (sistema/FIPLAN) não pode ser alterada.' USING ERRCODE = '22023';
+  END IF;
+  -- Empenho do FIPLAN: os valores da dotação vêm do QDD
+  IF (CASE WHEN TG_OP = 'DELETE' THEN OLD.origem ELSE NEW.origem END) = 'fiplan' THEN
+    RETURN COALESCE(NEW, OLD);
+  END IF;
+
   IF TG_OP = 'INSERT' THEN
     UPDATE fin_dotacoes
     SET valor_empenhado = valor_empenhado + NEW.valor_empenhado,
@@ -4155,7 +4341,7 @@ BEGIN
         updated_at = now()
     WHERE id = OLD.dotacao_id;
   END IF;
-  
+
   RETURN COALESCE(NEW, OLD);
 END;
 $$;
@@ -4668,6 +4854,32 @@ BEGIN
   RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
 END;
 $_$;
+
+
+--
+-- Name: fn_bens_proteger_colunas(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_bens_proteger_colunas() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  -- current_user é o papel da requisição (authenticated/anon) na API; dentro das funções SECURITY DEFINER
+  -- (patrimonio_decidir_baixa, registrar_historico_manutencao...) é o dono da função, e a regra não se aplica.
+  IF current_user IN ('authenticated', 'anon') AND NOT public.is_admin_user(auth.uid()) THEN
+    IF NEW.valor_aquisicao IS DISTINCT FROM OLD.valor_aquisicao
+       OR NEW.data_aquisicao IS DISTINCT FROM OLD.data_aquisicao
+       OR NEW.forma_aquisicao IS DISTINCT FROM OLD.forma_aquisicao
+       OR NEW.situacao IS DISTINCT FROM OLD.situacao
+    THEN
+      RAISE EXCEPTION 'Somente administradores alteram valor, data e forma de aquisição e a situação do bem (a baixa segue o fluxo de baixa)'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
 
 --
@@ -5540,6 +5752,10 @@ CREATE FUNCTION public.fn_validar_saldo_empenho() RETURNS trigger
 DECLARE
   v_saldo NUMERIC;
 BEGIN
+  IF NEW.origem = 'fiplan' THEN
+    RETURN NEW;
+  END IF;
+
   SELECT saldo_disponivel INTO v_saldo
   FROM public.fin_dotacoes
   WHERE id = NEW.dotacao_id;
@@ -5549,7 +5765,7 @@ BEGIN
   END IF;
 
   IF NEW.valor_empenhado > v_saldo THEN
-    RAISE EXCEPTION 'Valor do empenho (R$ %) excede o saldo disponível da dotação (R$ %)', 
+    RAISE EXCEPTION 'Valor do empenho (R$ %) excede o saldo disponível da dotação (R$ %)',
       NEW.valor_empenhado, v_saldo;
   END IF;
 
@@ -5665,14 +5881,18 @@ CREATE FUNCTION public.fn_verificar_saldo_dotacao() RETURNS trigger
 DECLARE
   v_saldo NUMERIC;
 BEGIN
+  IF NEW.origem = 'fiplan' THEN
+    RETURN NEW;
+  END IF;
+
   SELECT saldo_disponivel INTO v_saldo
   FROM fin_dotacoes
   WHERE id = NEW.dotacao_id;
-  
+
   IF v_saldo < NEW.valor_empenhado THEN
     RAISE EXCEPTION 'Saldo insuficiente na dotação. Disponível: %, Solicitado: %', v_saldo, NEW.valor_empenhado;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -7927,6 +8147,705 @@ COMMENT ON FUNCTION public.importar_classificadores_fiplan(p_tipo text, p_exerci
 
 
 --
+-- Name: importar_empenhos_fip614(integer, jsonb, jsonb, date, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.importar_empenhos_fip614(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_data_referencia date DEFAULT NULL::date, p_simular boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  c_numero constant text := '^\d{5}\.\d{4}\.\d{2}\.\d{5}-\d$';
+  v_uid uuid := auth.uid();
+  v_linha jsonb;
+  v_doc jsonb;
+  v_idx integer := -1;
+  v_ordem integer;
+  v_numero text;
+  v_numeros text[] := '{}';
+  v_dot_digitos text;
+  v_candidatas uuid[];
+  v_por_idu uuid[];
+  v_idu text;
+  v_dotacao public.fin_dotacoes%ROWTYPE;
+  v_dotacao_id uuid;
+  v_fornecedor_id uuid;
+  v_existente public.fin_empenhos%ROWTYPE;
+  v_achou boolean;
+  v_emp numeric; v_anulado numeric; v_liq numeric; v_pago numeric; v_liquido numeric;
+  v_status public.status_empenho;
+  v_objeto text;
+  v_novo jsonb;
+  v_antigo jsonb;
+  v_mudancas jsonb;
+  v_avisos text[];
+  v_docs_novos jsonb;
+  v_docs_antigos jsonb;
+  v_empenho_id uuid;
+  v_resultado jsonb := '[]'::jsonb;
+  v_erros jsonb := '[]'::jsonb;
+  v_ins integer := 0; v_upd integer := 0; v_igual integer := 0;
+  v_ausentes text[];
+  v_resumo jsonb;
+  v_import_id uuid;
+BEGIN
+  p_simular := COALESCE(p_simular, true);
+
+  -- COALESCE: um NULL em qualquer checagem nega (NOT NULL não dispararia o RAISE).
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'orcamento.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar dados do FIPLAN (orcamento.importar).' USING ERRCODE = '42501';
+  END IF;
+  IF p_exercicio IS NULL OR p_exercicio NOT BETWEEN 2000 AND 2100 THEN
+    RAISE EXCEPTION 'Exercício inválido: %', p_exercicio USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_linhas) IS DISTINCT FROM 'array'
+     OR jsonb_array_length(p_linhas) NOT BETWEEN 1 AND 5000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 5000 empenhos.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT p_simular AND (
+       char_length(COALESCE(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
+       OR COALESCE(p_arquivo->>'sha256', '') !~ '^[0-9a-f]{64}$'
+       OR COALESCE(p_arquivo->>'tamanho', '') !~ '^\d{1,15}$') THEN
+    RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Uma importação de empenhos por exercício de cada vez
+  PERFORM pg_advisory_xact_lock(hashtext('importar_empenhos_fip614'), p_exercicio);
+
+  IF NOT p_simular THEN
+    INSERT INTO public.importacoes
+      (tipo, modulo, arquivo_nome, arquivo_sha256, arquivo_tamanho, exercicio, created_by)
+    VALUES
+      ('empenhos_fip614', 'financeiro', p_arquivo->>'nome', p_arquivo->>'sha256',
+       (p_arquivo->>'tamanho')::bigint, p_exercicio, v_uid)
+    RETURNING id INTO v_import_id;
+  END IF;
+
+  FOR v_linha IN SELECT value FROM jsonb_array_elements(p_linhas) LOOP
+    v_idx := v_idx + 1;
+    v_avisos := '{}';
+    v_numero := btrim(COALESCE(v_linha->>'numero', ''));
+
+    -- Validação da linha
+    BEGIN
+      IF v_numero !~ c_numero OR split_part(v_numero, '.', 3) <> right(p_exercicio::text, 2) THEN
+        RAISE EXCEPTION 'número do empenho "%" fora do padrão ou de outro exercício', left(v_numero, 30);
+      END IF;
+      IF v_numero = ANY (v_numeros) THEN
+        RAISE EXCEPTION 'empenho repetido no arquivo';
+      END IF;
+      IF COALESCE(v_linha->>'credor_codigo', '') !~ '^\d{4}\.\d{5}-\d$'
+         OR char_length(btrim(COALESCE(v_linha->>'credor_nome', ''))) NOT BETWEEN 1 AND 300 THEN
+        RAISE EXCEPTION 'credor fora do padrão';
+      END IF;
+      IF COALESCE(v_linha->>'ped_numero', '') !~ c_numero
+         OR COALESCE(v_linha->>'dotacao', '') !~ '^\d{5}\.\d{4}(\.\d+){7}'
+         OR char_length(v_linha->>'dotacao') > 80
+         OR char_length(COALESCE(v_linha->>'processo', '')) NOT BETWEEN 1 AND 30
+         OR char_length(COALESCE(v_linha->>'processo_sei', '')) > 50
+         OR char_length(COALESCE(v_linha->>'convenio', '')) > 200 THEN
+        RAISE EXCEPTION 'PED, dotação ou processo fora do padrão';
+      END IF;
+      v_emp := (v_linha->>'valor_empenhado')::numeric;
+      v_anulado := (v_linha->>'valor_anulado')::numeric;
+      v_liq := (v_linha#>>'{totais,liq}')::numeric;
+      v_pago := (v_linha#>>'{totais,nob}')::numeric;
+      v_liquido := (v_linha#>>'{totais,emp}')::numeric;
+      IF v_emp IS NULL OR v_anulado IS NULL OR v_liq IS NULL OR v_pago IS NULL OR v_liquido IS NULL
+         OR v_emp < 0 OR v_emp >= 1e13 OR v_anulado < 0 OR v_anulado > v_emp
+         OR v_emp - v_anulado <> v_liquido OR v_liq < 0 OR v_pago < 0 OR v_liq > v_liquido OR v_pago > v_liq THEN
+        RAISE EXCEPTION 'valores do empenho incoerentes (empenhado, estornado, liquidado e pago)';
+      END IF;
+      IF jsonb_typeof(v_linha->'documentos') IS DISTINCT FROM 'array'
+         OR jsonb_array_length(v_linha->'documentos') NOT BETWEEN 1 AND 500 THEN
+        RAISE EXCEPTION 'lista de documentos inválida';
+      END IF;
+      FOR v_doc IN SELECT value FROM jsonb_array_elements(v_linha->'documentos') LOOP
+        IF COALESCE(v_doc->>'tipo', '') NOT IN ('EMP', 'EST', 'LIQ', 'NOB', 'GCV')
+           OR COALESCE(v_doc->>'numero', '') !~ c_numero
+           OR (v_doc->>'data')::date IS NULL
+           OR COALESCE(v_doc->>'pc', 'P') NOT IN ('P', 'C')
+           OR char_length(COALESCE(v_doc->>'historico', '')) > 1000
+           OR abs(COALESCE((v_doc#>>'{valores,emp}')::numeric, 0)) >= 1e13
+           OR abs(COALESCE((v_doc#>>'{valores,liq}')::numeric, 0)) >= 1e13
+           OR abs(COALESCE((v_doc#>>'{valores,nob}')::numeric, 0)) >= 1e13
+           OR abs(COALESCE((v_doc#>>'{valores,gcv}')::numeric, 0)) >= 1e13 THEN
+          RAISE EXCEPTION 'documento % fora do padrão', left(COALESCE(v_doc->>'numero', '?'), 30);
+        END IF;
+      END LOOP;
+      IF (v_linha->>'data_empenho')::date IS NULL OR (v_linha->>'ped_data')::date IS NULL THEN
+        RAISE EXCEPTION 'data do empenho ou do PED ausente';
+      END IF;
+    EXCEPTION WHEN raise_exception OR invalid_text_representation OR datetime_field_overflow
+                    OR invalid_datetime_format OR numeric_value_out_of_range THEN
+      v_erros := v_erros || jsonb_build_object('indice', v_idx,
+                   'mensagem', format('EMP %s: %s.', left(v_numero, 30), SQLERRM));
+      CONTINUE;
+    END;
+    v_numeros := v_numeros || v_numero;
+
+    SELECT * INTO v_existente FROM public.fin_empenhos
+     WHERE exercicio = p_exercicio AND numero = v_numero
+     FOR UPDATE;
+    v_achou := FOUND;
+    IF v_achou AND v_existente.origem <> 'fiplan' THEN
+      v_erros := v_erros || jsonb_build_object('indice', v_idx,
+                   'mensagem', format('EMP %s: já existe um empenho do sistema com esse número; não é sobrescrito.', v_numero));
+      CONTINUE;
+    END IF;
+
+    -- Dotação: dígitos de função…fonte contra o código do QDD. Com várias candidatas (mesma natureza e fonte),
+    -- o IDU em número do FIP 614 (11º segmento: 1 Não, 4 ECNI, 5 ECI, 6 EII) escolhe pela sigla do QDD.
+    -- Sem o IDU ou com código desconhecido, mantém a escolhida antes se ela ainda for candidata.
+    v_dot_digitos := regexp_replace(array_to_string((string_to_array(v_linha->>'dotacao', '.'))[3:9], ''), '\D', '', 'g');
+    SELECT array_agg(id ORDER BY codigo_dotacao) INTO v_candidatas
+      FROM public.fin_dotacoes
+     WHERE exercicio = p_exercicio
+       AND regexp_replace(codigo_dotacao, '\D', '', 'g') LIKE v_dot_digitos || '%';
+    IF cardinality(v_candidatas) > 1 THEN
+      v_idu := CASE (string_to_array(v_linha->>'dotacao', '.'))[11]
+                 WHEN '1' THEN 'NAO' WHEN '4' THEN 'ECNI' WHEN '5' THEN 'ECI' WHEN '6' THEN 'EII' END;
+      SELECT array_agg(id) INTO v_por_idu
+        FROM public.fin_dotacoes
+       WHERE id = ANY (v_candidatas)
+         AND translate(upper(split_part(codigo_dotacao, '.', 10)), 'ÃÁ', 'AA') = v_idu;
+      IF cardinality(v_por_idu) = 1 THEN
+        v_candidatas := v_por_idu;
+      END IF;
+    END IF;
+    v_dotacao_id := NULL;
+    IF cardinality(v_candidatas) = 1 THEN
+      v_dotacao_id := v_candidatas[1];
+    ELSIF v_achou AND v_existente.dotacao_id = ANY (COALESCE(v_candidatas, '{}')) THEN
+      v_dotacao_id := v_existente.dotacao_id;
+    ELSIF COALESCE(cardinality(v_candidatas), 0) = 0 THEN
+      v_avisos := v_avisos || 'Dotação não encontrada no QDD do exercício: importe o QDD e importe de novo.'::text;
+    ELSE
+      v_avisos := v_avisos || format('Há %s dotações possíveis no QDD para o IDU desta linha: escolha a dotação no detalhe do empenho.',
+                                     cardinality(v_candidatas));
+    END IF;
+    IF v_dotacao_id IS NOT NULL THEN
+      SELECT * INTO v_dotacao FROM public.fin_dotacoes WHERE id = v_dotacao_id;
+    ELSE
+      v_dotacao := NULL;
+    END IF;
+
+    SELECT id INTO v_fornecedor_id FROM public.fornecedores
+     WHERE codigo_credor_fiplan = v_linha->>'credor_codigo';
+
+    v_status := CASE
+      WHEN v_liquido = 0 THEN 'anulado'
+      WHEN v_pago >= v_liquido THEN 'pago'
+      WHEN v_pago > 0 THEN 'parcialmente_pago'
+      WHEN v_liq >= v_liquido THEN 'liquidado'
+      WHEN v_liq > 0 THEN 'parcialmente_liquidado'
+      ELSE 'emitido'
+    END::public.status_empenho;
+
+    -- O FIP 614 não traz o histórico do empenho: usa o da primeira liquidação
+    SELECT d->>'historico' INTO v_objeto
+      FROM jsonb_array_elements(v_linha->'documentos') AS d
+     WHERE d->>'tipo' = 'LIQ' AND COALESCE(btrim(d->>'historico'), '') <> ''
+     LIMIT 1;
+    v_objeto := COALESCE(v_objeto, format('Empenho do FIPLAN – processo %s', v_linha->>'processo_sei'));
+
+    v_novo := jsonb_build_object(
+      'data_empenho',         v_linha->>'data_empenho',
+      'dotacao_id',           v_dotacao_id,
+      'fornecedor_id',        v_fornecedor_id,
+      'natureza_despesa_id',  v_dotacao.natureza_despesa_id,
+      'fonte_recurso_id',     v_dotacao.fonte_recurso_id,
+      'valor_empenhado',      v_emp,
+      'valor_anulado',        v_anulado,
+      'valor_liquidado',      v_liq,
+      'valor_pago',           v_pago,
+      'status',               v_status,
+      'objeto',               v_objeto,
+      'processo_sei',         v_linha->>'processo_sei',
+      'processo_fiplan',      v_linha->>'processo',
+      'observacoes',          CASE WHEN COALESCE(v_linha->>'convenio', '') <> '' THEN 'Convênio: ' || (v_linha->>'convenio') END,
+      'credor_codigo_fiplan', v_linha->>'credor_codigo',
+      'credor_nome',          btrim(v_linha->>'credor_nome'),
+      'ped_numero',           v_linha->>'ped_numero',
+      'ped_data',             v_linha->>'ped_data',
+      'dotacao_fiplan',       v_linha->>'dotacao'
+    );
+
+    -- Documentos como serão gravados (para comparar com os de antes)
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+             'tipo', d->>'tipo', 'numero', d->>'numero', 'data', d->>'data', 'pc', d->>'pc',
+             'valor_emp', (d#>>'{valores,emp}')::numeric, 'valor_liq', (d#>>'{valores,liq}')::numeric,
+             'valor_nob', (d#>>'{valores,nob}')::numeric, 'valor_gcv', (d#>>'{valores,gcv}')::numeric,
+             'historico', NULLIF(btrim(COALESCE(d->>'historico', '')), '')) ORDER BY o), '[]'::jsonb)
+      INTO v_docs_novos
+      FROM jsonb_array_elements(v_linha->'documentos') WITH ORDINALITY AS x(d, o);
+
+    IF NOT v_achou THEN
+      v_ins := v_ins + 1;
+      v_resultado := v_resultado || jsonb_strip_nulls(jsonb_build_object('indice', v_idx, 'acao', 'inserir',
+                       'avisos', CASE WHEN cardinality(v_avisos) > 0 THEN to_jsonb(v_avisos) END));
+      IF p_simular THEN CONTINUE; END IF;
+      INSERT INTO public.fin_empenhos
+        (numero, exercicio, data_empenho, dotacao_id, fornecedor_id, tipo, natureza_despesa_id, fonte_recurso_id,
+         valor_empenhado, valor_anulado, valor_liquidado, valor_pago, objeto, processo_sei, status, observacoes,
+         origem, credor_codigo_fiplan, credor_nome, ped_numero, ped_data, dotacao_fiplan, processo_fiplan,
+         data_referencia_fiplan, importacao_id, created_by)
+      VALUES
+        (v_numero, p_exercicio, (v_novo->>'data_empenho')::date, v_dotacao_id, v_fornecedor_id, 'ordinario',
+         v_dotacao.natureza_despesa_id, v_dotacao.fonte_recurso_id,
+         v_emp, v_anulado, v_liq, v_pago, v_objeto, v_novo->>'processo_sei', v_status, v_novo->>'observacoes',
+         'fiplan', v_novo->>'credor_codigo_fiplan', v_novo->>'credor_nome', v_novo->>'ped_numero',
+         (v_novo->>'ped_data')::date, v_novo->>'dotacao_fiplan', v_novo->>'processo_fiplan',
+         p_data_referencia, v_import_id, v_uid)
+      RETURNING id INTO v_empenho_id;
+    ELSE
+      v_antigo := jsonb_build_object(
+        'data_empenho',         v_existente.data_empenho,
+        'dotacao_id',           v_existente.dotacao_id,
+        'fornecedor_id',        v_existente.fornecedor_id,
+        'natureza_despesa_id',  v_existente.natureza_despesa_id,
+        'fonte_recurso_id',     v_existente.fonte_recurso_id,
+        'valor_empenhado',      v_existente.valor_empenhado,
+        'valor_anulado',        v_existente.valor_anulado,
+        'valor_liquidado',      v_existente.valor_liquidado,
+        'valor_pago',           v_existente.valor_pago,
+        'status',               v_existente.status,
+        'objeto',               v_existente.objeto,
+        'processo_sei',         v_existente.processo_sei,
+        'processo_fiplan',      v_existente.processo_fiplan,
+        'observacoes',          v_existente.observacoes,
+        'credor_codigo_fiplan', v_existente.credor_codigo_fiplan,
+        'credor_nome',          v_existente.credor_nome,
+        'ped_numero',           v_existente.ped_numero,
+        'ped_data',             v_existente.ped_data,
+        'dotacao_fiplan',       v_existente.dotacao_fiplan
+      );
+      SELECT COALESCE(jsonb_object_agg(k, jsonb_build_array(v_antigo->k, v_novo->k)), '{}'::jsonb) INTO v_mudancas
+        FROM jsonb_object_keys(v_novo) AS k
+       -- numeric e texto comparados pelo valor (12.5 = 12.50; datas e ids já vêm como texto)
+       WHERE (v_antigo->>k) IS DISTINCT FROM (v_novo->>k)
+         AND NOT (jsonb_typeof(v_novo->k) = 'number' AND jsonb_typeof(v_antigo->k) = 'number'
+                  AND (v_antigo->>k)::numeric = (v_novo->>k)::numeric);
+
+      SELECT COALESCE(jsonb_agg(jsonb_build_object(
+               'tipo', tipo, 'numero', numero, 'data', data::text, 'pc', pc,
+               'valor_emp', valor_emp, 'valor_liq', valor_liq, 'valor_nob', valor_nob, 'valor_gcv', valor_gcv,
+               'historico', historico) ORDER BY ordem), '[]'::jsonb)
+        INTO v_docs_antigos
+        FROM public.fin_empenho_documentos_fiplan WHERE empenho_id = v_existente.id;
+      IF v_docs_antigos IS DISTINCT FROM v_docs_novos THEN
+        v_mudancas := v_mudancas || jsonb_build_object('documentos',
+                        jsonb_build_array(jsonb_array_length(v_docs_antigos), jsonb_array_length(v_docs_novos)));
+      END IF;
+
+      IF v_mudancas = '{}'::jsonb THEN
+        v_igual := v_igual + 1;
+        v_resultado := v_resultado || jsonb_strip_nulls(jsonb_build_object('indice', v_idx, 'acao', 'sem_alteracao',
+                         'avisos', CASE WHEN cardinality(v_avisos) > 0 THEN to_jsonb(v_avisos) END));
+        CONTINUE;
+      END IF;
+      v_upd := v_upd + 1;
+      v_resultado := v_resultado || jsonb_strip_nulls(jsonb_build_object('indice', v_idx, 'acao', 'atualizar',
+                       'mudancas', v_mudancas,
+                       'avisos', CASE WHEN cardinality(v_avisos) > 0 THEN to_jsonb(v_avisos) END));
+      IF p_simular THEN CONTINUE; END IF;
+      UPDATE public.fin_empenhos SET
+        data_empenho = (v_novo->>'data_empenho')::date,
+        dotacao_id = v_dotacao_id,
+        fornecedor_id = v_fornecedor_id,
+        natureza_despesa_id = v_dotacao.natureza_despesa_id,
+        fonte_recurso_id = v_dotacao.fonte_recurso_id,
+        valor_empenhado = v_emp,
+        valor_anulado = v_anulado,
+        valor_liquidado = v_liq,
+        valor_pago = v_pago,
+        status = v_status,
+        objeto = v_objeto,
+        processo_sei = v_novo->>'processo_sei',
+        processo_fiplan = v_novo->>'processo_fiplan',
+        observacoes = v_novo->>'observacoes',
+        credor_codigo_fiplan = v_novo->>'credor_codigo_fiplan',
+        credor_nome = v_novo->>'credor_nome',
+        ped_numero = v_novo->>'ped_numero',
+        ped_data = (v_novo->>'ped_data')::date,
+        dotacao_fiplan = v_novo->>'dotacao_fiplan',
+        data_referencia_fiplan = COALESCE(p_data_referencia, data_referencia_fiplan),
+        importacao_id = v_import_id,
+        updated_at = now()
+      WHERE id = v_existente.id;
+      v_empenho_id := v_existente.id;
+      DELETE FROM public.fin_empenho_documentos_fiplan WHERE empenho_id = v_empenho_id;
+    END IF;
+
+    v_ordem := 0;
+    FOR v_doc IN SELECT value FROM jsonb_array_elements(v_docs_novos) LOOP
+      INSERT INTO public.fin_empenho_documentos_fiplan
+        (empenho_id, ordem, tipo, numero, data, pc, valor_emp, valor_liq, valor_nob, valor_gcv, historico)
+      VALUES
+        (v_empenho_id, v_ordem, v_doc->>'tipo', v_doc->>'numero', (v_doc->>'data')::date, v_doc->>'pc',
+         (v_doc->>'valor_emp')::numeric, (v_doc->>'valor_liq')::numeric, (v_doc->>'valor_nob')::numeric,
+         (v_doc->>'valor_gcv')::numeric, v_doc->>'historico');
+      v_ordem := v_ordem + 1;
+    END LOOP;
+  END LOOP;
+
+  -- Com qualquer erro, nada fica gravado (inclusive o log).
+  IF jsonb_array_length(v_erros) > 0 AND NOT p_simular THEN
+    RAISE EXCEPTION 'O relatório tem % empenho(s) com erro; nada foi gravado.', jsonb_array_length(v_erros)
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Empenhos do FIPLAN do exercício que não vieram no arquivo: só avisados, nunca apagados.
+  SELECT array_agg(numero ORDER BY numero) INTO v_ausentes
+    FROM public.fin_empenhos
+   WHERE exercicio = p_exercicio AND origem = 'fiplan' AND NOT (numero = ANY (v_numeros));
+
+  v_resumo := jsonb_build_object(
+    'totais', jsonb_build_object('inserir', v_ins, 'atualizar', v_upd, 'sem_alteracao', v_igual),
+    'ausentes', to_jsonb(COALESCE(v_ausentes, '{}'::text[]))
+  );
+
+  IF NOT p_simular THEN
+    UPDATE public.importacoes SET resumo = v_resumo, detalhes = v_resultado WHERE id = v_import_id;
+  END IF;
+
+  RETURN v_resumo || jsonb_build_object(
+    'simulacao', p_simular,
+    'importacao_id', v_import_id,
+    'linhas', v_resultado,
+    'erros', v_erros
+  );
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION importar_empenhos_fip614(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_data_referencia date, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.importar_empenhos_fip614(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_data_referencia date, p_simular boolean) IS 'Importa os empenhos do FIP 614 do FIPLAN para fin_empenhos (origem fiplan) e o histórico de LIQ/NOB/GCV/estornos (p_simular = true só calcula as mudanças). Exige orcamento.importar.';
+
+
+--
+-- Name: importar_folha_sigrh(jsonb, jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.importar_folha_sigrh(p_competencia jsonb, p_fichas jsonb, p_arquivo jsonb, p_simular boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_ano integer;
+  v_mes integer;
+  v_d1 date;
+  v_d2 date;
+  v_existente record;
+  v_folha_id uuid;
+  v_ficha jsonb;
+  v_item jsonb;
+  v_ind integer;
+  v_pos integer := -1;
+  v_nome text;
+  v_cpf text;
+  v_srv uuid;
+  v_qtd_srv integer;
+  v_pv record;
+  v_ficha_id uuid;
+  v_prov numeric;
+  v_base numeric;
+  v_rubrica uuid;
+  v_incide boolean;
+  v_desc numeric;
+  v_inss numeric;
+  v_irrf numeric;
+  v_valor numeric;
+  v_tipo text;
+  v_descricao text;
+  v_comp text;
+  v_ordem integer;
+  v_avisos text[];
+  v_vistos text[] := '{}';
+  v_linhas_res jsonb := '[]'::jsonb;
+  v_erros jsonb := '[]'::jsonb;
+  v_detalhes jsonb := '[]'::jsonb;
+  v_n integer := 0;
+  v_aliq_patronal numeric;
+  v_aliq_rat numeric;
+  v_base_patronal numeric;
+  v_fechamento jsonb;
+  v_justificativa text;
+  v_totais jsonb;
+  v_resumo jsonb;
+  v_import_id uuid;
+BEGIN
+  p_simular := COALESCE(p_simular, true);
+
+  -- COALESCE: um NULL em qualquer checagem nega
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'rh')
+                     AND public.has_permission_code(v_uid, 'financeiro.folha.processar')
+                     AND public.usuario_pode_fechar_folha(v_uid), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar a folha (processar e fechar a folha).' USING ERRCODE = '42501';
+  END IF;
+
+  IF COALESCE(p_competencia->>'ano', '') !~ '^\d{4}$' OR COALESCE(p_competencia->>'mes', '') !~ '^\d{1,2}$' THEN
+    RAISE EXCEPTION 'Competência inválida.' USING ERRCODE = '22023';
+  END IF;
+  v_ano := (p_competencia->>'ano')::integer;
+  v_mes := (p_competencia->>'mes')::integer;
+  IF v_mes NOT BETWEEN 1 AND 12 OR v_ano NOT BETWEEN 2000 AND 2100 THEN
+    RAISE EXCEPTION 'Competência inválida.' USING ERRCODE = '22023';
+  END IF;
+  v_d1 := make_date(v_ano, v_mes, 1);
+  v_d2 := (v_d1 + interval '1 month - 1 day')::date;
+  IF v_d1 >= date_trunc('month', CURRENT_DATE)::date THEN
+    RAISE EXCEPTION 'A competência %/% não está encerrada: só se importa folha de mês anterior ao atual.',
+      lpad(v_mes::text, 2, '0'), v_ano USING ERRCODE = '22023';
+  END IF;
+
+  IF jsonb_typeof(p_fichas) IS DISTINCT FROM 'array' OR jsonb_array_length(p_fichas) NOT BETWEEN 1 AND 3000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 3000 fichas.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT p_simular AND (
+       char_length(COALESCE(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
+       OR COALESCE(p_arquivo->>'sha256', '') !~ '^[0-9a-f]{64}$'
+       OR COALESCE(p_arquivo->>'tamanho', '') !~ '^\d{1,15}$') THEN
+    RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
+  END IF;
+
+  -- uma importação por competência de cada vez; com outra em andamento recusa na hora
+  IF NOT pg_try_advisory_xact_lock(hashtext('importar_folha_sigrh'), v_ano * 100 + v_mes) THEN
+    RAISE EXCEPTION 'Já há uma importação desta folha em andamento; tente de novo em instantes.' USING ERRCODE = '55P03';
+  END IF;
+
+  SELECT f.id, f.status INTO v_existente FROM public.folhas_pagamento f
+   WHERE f.competencia_ano = v_ano AND f.competencia_mes = v_mes AND f.tipo_folha = 'mensal';
+  IF FOUND THEN
+    RAISE EXCEPTION 'Já existe folha mensal de %/% no sistema (situação: %). A importação não grava por cima.',
+      lpad(v_mes::text, 2, '0'), v_ano, v_existente.status USING ERRCODE = '23505';
+  END IF;
+
+  v_justificativa := left(format('Folha histórica importada do SIGRH (arquivo %s)',
+                                 COALESCE(nullif(p_arquivo->>'nome', ''), 'sem nome')), 500);
+  v_aliq_patronal := public.get_parametro_vigente('inss_patronal_aliquota'::varchar, v_d2);
+  v_aliq_rat := public.get_parametro_vigente('rat_fap_aliquota'::varchar, v_d2);
+
+  BEGIN
+    INSERT INTO public.folhas_pagamento (competencia_ano, competencia_mes, tipo_folha, status, observacoes)
+    VALUES (v_ano, v_mes, 'mensal', 'aberta', v_justificativa)
+    RETURNING id INTO v_folha_id;
+
+    FOR v_ficha IN SELECT e FROM jsonb_array_elements(p_fichas) e LOOP
+      v_pos := v_pos + 1;
+      v_ind := v_pos;
+      v_avisos := '{}';
+      v_nome := NULL;
+      BEGIN
+        IF jsonb_typeof(v_ficha) IS DISTINCT FROM 'object' THEN
+          RAISE EXCEPTION 'Ficha em formato inválido.' USING ERRCODE = '22023';
+        END IF;
+        IF COALESCE(v_ficha->>'indice', '') ~ '^\d{1,6}$' THEN v_ind := (v_ficha->>'indice')::integer; END IF;
+        v_nome := left(btrim(COALESCE(v_ficha->>'nome', '')), 200);
+        v_cpf := COALESCE(v_ficha->>'cpf', '');
+        IF v_cpf !~ '^\d{11}$' THEN
+          RAISE EXCEPTION 'CPF ausente ou inválido no arquivo.' USING ERRCODE = '22023';
+        END IF;
+        IF v_cpf = ANY (v_vistos) THEN
+          RAISE EXCEPTION 'O mesmo servidor aparece duas vezes no arquivo.' USING ERRCODE = '22023';
+        END IF;
+        v_vistos := v_vistos || v_cpf;
+        IF jsonb_typeof(v_ficha->'itens') IS DISTINCT FROM 'array' OR jsonb_array_length(v_ficha->'itens') NOT BETWEEN 1 AND 200 THEN
+          RAISE EXCEPTION 'Ficha sem rubricas.' USING ERRCODE = '22023';
+        END IF;
+
+        SELECT min(s.id::text)::uuid, count(*) INTO v_srv, v_qtd_srv FROM public.servidores s
+         WHERE char_length(regexp_replace(COALESCE(s.cpf, ''), '[^0-9]', '', 'g')) BETWEEN 1 AND 11
+           AND lpad(regexp_replace(s.cpf, '[^0-9]', '', 'g'), 11, '0') = v_cpf;
+        IF v_qtd_srv = 0 THEN
+          RAISE EXCEPTION 'Servidor não cadastrado no sistema (procurado pelo CPF): cadastre-o antes de importar.'
+            USING ERRCODE = 'P0001';
+        ELSIF v_qtd_srv > 1 THEN
+          RAISE EXCEPTION 'O CPF está em % cadastros de servidor: junte os cadastros antes de importar.', v_qtd_srv
+            USING ERRCODE = 'P0001';
+        END IF;
+
+        -- cargo e unidade do provimento vigente no mês (o mesmo critério do processamento da folha mensal)
+        SELECT p.cargo_id, p.unidade_id, eo.nome AS unidade_nome, eo.sigla AS unidade_sigla INTO v_pv
+          FROM public.provimentos p
+          LEFT JOIN public.estrutura_organizacional eo ON eo.id = p.unidade_id
+         WHERE p.servidor_id = v_srv AND p.status IN ('ativo', 'suspenso', 'encerrado')
+           AND coalesce(p.data_exercicio, p.data_nomeacao) <= v_d2
+           AND (p.data_encerramento IS NULL OR p.data_encerramento >= v_d1)
+         ORDER BY coalesce(p.data_exercicio, p.data_nomeacao) DESC LIMIT 1;
+        IF NOT FOUND THEN
+          v_avisos := v_avisos || 'Sem provimento no sistema neste mês: a ficha fica sem cargo e sem unidade do cadastro.'::text;
+        END IF;
+
+        INSERT INTO public.fichas_financeiras (
+          folha_id, servidor_id, competencia_ano, competencia_mes, tipo_folha, cargo_id, cargo_nome,
+          unidade_id, unidade_nome, quantidade_dependentes, banco_codigo, banco_agencia, banco_conta,
+          processado, data_processamento, tem_inconsistencia)
+        VALUES (
+          v_folha_id, v_srv, v_ano, v_mes, 'mensal', v_pv.cargo_id,
+          nullif(left(btrim(COALESCE(v_ficha->>'funcao', '')), 200), ''),
+          v_pv.unidade_id,
+          CASE WHEN v_pv.unidade_id IS NOT NULL
+               THEN COALESCE(v_pv.unidade_sigla, '') || ' - ' || COALESCE(v_pv.unidade_nome, '') END,
+          CASE WHEN COALESCE(v_ficha->>'dependentes_ir', '') ~ '^\d{1,2}$' THEN (v_ficha->>'dependentes_ir')::integer ELSE 0 END,
+          nullif(left(COALESCE(v_ficha->>'banco_codigo', ''), 3), ''),
+          nullif(left(COALESCE(v_ficha->>'banco_agencia', ''), 10), ''),
+          nullif(left(COALESCE(v_ficha->>'banco_conta', ''), 20), ''),
+          true, now(), false)
+        RETURNING id INTO v_ficha_id;
+
+        v_prov := 0; v_base := 0; v_desc := 0; v_inss := 0; v_irrf := 0; v_ordem := 0;
+        FOR v_item IN SELECT e FROM jsonb_array_elements(v_ficha->'itens') e LOOP
+          v_ordem := v_ordem + 1;
+          v_tipo := v_item->>'tipo';
+          v_descricao := left(btrim(COALESCE(v_item->>'descricao', '')), 120);
+          IF v_tipo NOT IN ('provento', 'desconto') OR v_descricao = '' THEN
+            RAISE EXCEPTION 'Rubrica % em formato inválido.', v_ordem USING ERRCODE = '22023';
+          END IF;
+          IF COALESCE(v_item->>'valor', '') !~ '^\d{1,9}(\.\d{1,2})?$' THEN
+            RAISE EXCEPTION 'Valor inválido na rubrica %.', v_descricao USING ERRCODE = '22023';
+          END IF;
+          v_valor := (v_item->>'valor')::numeric;
+          v_comp := CASE WHEN COALESCE(v_item->>'competencia', '') ~ '^20\d{2}-(0[1-9]|1[0-2])$'
+                         THEN substr(v_item->>'competencia', 6, 2) || '/' || substr(v_item->>'competencia', 1, 4) END;
+          v_rubrica := NULL; v_incide := NULL;
+          SELECT r.id, r.incide_inss INTO v_rubrica, v_incide FROM public.rubricas r
+           WHERE upper(btrim(r.descricao)) = upper(v_descricao) AND r.tipo::text = v_tipo AND r.ativo
+           ORDER BY r.vigencia_inicio DESC LIMIT 1;
+          INSERT INTO public.itens_ficha_financeira (ficha_id, rubrica_id, descricao, tipo, valor, referencia, ordem, origem)
+          VALUES (
+            v_ficha_id,
+            v_rubrica,
+            v_descricao || COALESCE(' (' || v_comp || ')', ''),
+            v_tipo, v_valor,
+            nullif(left(btrim(COALESCE(v_item->>'quantidade', '')), 40), ''),
+            v_ordem, 'automatico');
+          IF v_tipo = 'provento' THEN
+            v_prov := v_prov + v_valor;
+            -- rubrica cadastrada que não incide INSS (diária, indenização) fica fora da base; a não cadastrada entra
+            IF v_incide IS DISTINCT FROM false THEN v_base := v_base + v_valor; END IF;
+          ELSE
+            v_desc := v_desc + v_valor;
+            IF upper(v_descricao) LIKE 'INSS%' THEN v_inss := v_inss + v_valor; END IF;
+            IF upper(v_descricao) LIKE 'IRRF%' THEN v_irrf := v_irrf + v_valor; END IF;
+          END IF;
+        END LOOP;
+
+        -- base de INSS: o espelho não informa a incidência. Vale a da rubrica cadastrada com a mesma descrição; sem
+        -- rubrica, o provento entra (nas folhas de cargo em comissão todo provento incide). Só de quem descontou INSS.
+        UPDATE public.fichas_financeiras
+           SET total_proventos = v_prov, total_descontos = v_desc, valor_liquido = v_prov - v_desc,
+               valor_inss = v_inss, valor_irrf = v_irrf,
+               base_inss = CASE WHEN v_inss > 0 THEN v_base ELSE 0 END
+         WHERE id = v_ficha_id;
+
+        v_n := v_n + 1;
+        v_linhas_res := v_linhas_res || jsonb_strip_nulls(jsonb_build_object(
+          'indice', v_ind, 'acao', 'inserir',
+          'avisos', CASE WHEN cardinality(v_avisos) > 0 THEN to_jsonb(v_avisos) END));
+        v_detalhes := v_detalhes || jsonb_build_object('indice', v_ind, 'ficha_id', v_ficha_id);
+      EXCEPTION
+        WHEN OTHERS THEN
+          v_erros := v_erros || jsonb_build_object('indice', v_ind, 'mensagem',
+            COALESCE(nullif(v_nome, '') || ': ', '') ||
+            CASE WHEN left(SQLSTATE, 2) IN ('22', '23') OR SQLSTATE IN ('P0001', 'RHS01', '42501') THEN SQLERRM
+                 ELSE format('erro inesperado ao gravar a ficha (código %s).', SQLSTATE) END);
+      END;
+    END LOOP;
+
+    -- parte patronal: mesma regra do processamento (migração 20261021100000)
+    UPDATE public.fichas_financeiras
+       SET inss_patronal = round(base_inss * coalesce(v_aliq_patronal, 0), 2),
+           rat = round(base_inss * coalesce(v_aliq_rat, 0), 2),
+           total_encargos = round(base_inss * coalesce(v_aliq_patronal, 0), 2) + round(base_inss * coalesce(v_aliq_rat, 0), 2)
+     WHERE folha_id = v_folha_id AND valor_inss > 0;
+    SELECT coalesce(sum(base_inss), 0) INTO v_base_patronal
+      FROM public.fichas_financeiras WHERE folha_id = v_folha_id AND valor_inss > 0;
+
+    PERFORM set_config('trilha.renovar_decisao', 'folhas_pagamento.processado_por', true);
+    UPDATE public.folhas_pagamento
+       SET total_bruto = COALESCE((SELECT SUM(total_proventos) FROM public.fichas_financeiras WHERE folha_id = v_folha_id), 0),
+           total_descontos = COALESCE((SELECT SUM(total_descontos) FROM public.fichas_financeiras WHERE folha_id = v_folha_id), 0),
+           total_liquido = COALESCE((SELECT SUM(valor_liquido) FROM public.fichas_financeiras WHERE folha_id = v_folha_id), 0),
+           total_inss_servidor = COALESCE((SELECT SUM(valor_inss) FROM public.fichas_financeiras WHERE folha_id = v_folha_id), 0),
+           total_irrf = COALESCE((SELECT SUM(valor_irrf) FROM public.fichas_financeiras WHERE folha_id = v_folha_id), 0),
+           total_inss_patronal = trunc(v_base_patronal * coalesce(v_aliq_patronal, 0), 2),
+           total_rat = trunc(v_base_patronal * coalesce(v_aliq_rat, 0), 2),
+           total_encargos_patronais = trunc(v_base_patronal * coalesce(v_aliq_patronal, 0), 2)
+                                      + trunc(v_base_patronal * coalesce(v_aliq_rat, 0), 2),
+           quantidade_servidores = v_n,
+           data_processamento = now(),
+           processado_por = v_uid,
+           updated_at = now()
+     WHERE id = v_folha_id;
+    PERFORM set_config('trilha.renovar_decisao', '', true);
+
+    SELECT jsonb_build_object(
+             'competencia', lpad(v_mes::text, 2, '0') || '/' || v_ano,
+             'fichas', v_n,
+             'total_bruto', f.total_bruto, 'total_descontos', f.total_descontos, 'total_liquido', f.total_liquido)
+      INTO v_resumo FROM public.folhas_pagamento f WHERE f.id = v_folha_id;
+
+    IF p_simular OR jsonb_array_length(v_erros) > 0 THEN
+      RAISE EXCEPTION 'importação desfeita' USING ERRCODE = 'FSI01';
+    END IF;
+
+    v_fechamento := public.fechar_folha(v_folha_id, v_justificativa);
+    IF NOT COALESCE((v_fechamento->>'success')::boolean, false) THEN
+      RAISE EXCEPTION 'Não foi possível fechar a folha importada: %', COALESCE(v_fechamento->>'error', 'motivo não informado')
+        USING ERRCODE = 'P0001';
+    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'FSI01' THEN
+      PERFORM set_config('trilha.renovar_decisao', '', true);
+      v_folha_id := NULL;  -- desfeito: nada do que as fichas gravaram fica; as variáveis continuam valendo
+  END;
+
+  v_totais := jsonb_build_object('inserir', v_n, 'atualizar', 0, 'sem_alteracao', 0);
+  -- como no processamento: sem as alíquotas, a parte patronal sai zero; avisa na primeira linha
+  IF (v_aliq_patronal IS NULL OR v_aliq_rat IS NULL) AND jsonb_array_length(v_linhas_res) > 0 THEN
+    v_linhas_res := jsonb_set(v_linhas_res, '{0,avisos}', COALESCE(v_linhas_res -> 0 -> 'avisos', '[]'::jsonb) ||
+      to_jsonb('Parâmetros inss_patronal_aliquota ou rat_fap_aliquota sem vigência no mês: a parte patronal da folha sai zero.'::text));
+  END IF;
+
+  IF NOT p_simular AND jsonb_array_length(v_erros) = 0 THEN
+    INSERT INTO public.importacoes
+      (tipo, modulo, arquivo_nome, arquivo_sha256, arquivo_tamanho, exercicio, resumo, detalhes, created_by)
+    VALUES
+      ('folha_sigrh', 'rh', p_arquivo->>'nome', p_arquivo->>'sha256', (p_arquivo->>'tamanho')::bigint,
+       v_ano, v_resumo || jsonb_build_object('folha_id', v_folha_id, 'totais', v_totais), v_detalhes, v_uid)
+    RETURNING id INTO v_import_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'simulacao', p_simular,
+    'importacao_id', v_import_id,
+    'folha_id', v_folha_id,
+    'totais', v_totais,
+    'linhas', v_linhas_res,
+    'erros', v_erros
+  );
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION importar_folha_sigrh(p_competencia jsonb, p_fichas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.importar_folha_sigrh(p_competencia jsonb, p_fichas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa a folha mensal histórica do SIGRH (fichas e rubricas por servidor, casado pelo CPF) e a fecha; p_simular = true só calcula; tudo ou nada; recusa competência que já tem folha mensal. Exige módulo rh, financeiro.folha.processar e poder fechar a folha. Migrações 20261022090000 e 20261022100000.';
+
+
+--
 -- Name: importar_portarias_planilha(jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -9668,6 +10587,138 @@ $$;
 
 
 --
+-- Name: pca_carimbar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pca_carimbar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF TG_TABLE_NAME = 'pca_planos' THEN
+      NEW.situacao := 'rascunho';
+    END IF;
+    NEW.created_by := COALESCE(auth.uid(), NEW.created_by);
+  ELSE
+    NEW.created_at := OLD.created_at;
+    NEW.created_by := OLD.created_by;
+  END IF;
+  NEW.updated_at := now();
+  NEW.updated_by := auth.uid();
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: pca_classificadores(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pca_classificadores(_exercicio integer) RETURNS jsonb
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT (public.can_access_module(auth.uid(), 'compras')
+          AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar')
+               OR public.has_permission_code(auth.uid(), 'compras.pca.editar'))) THEN
+    RAISE EXCEPTION 'Requer a permissão de ver o PCA.' USING ERRCODE = '42501';
+  END IF;
+  RETURN jsonb_build_object(
+    'acoes', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', a.id, 'codigo', a.codigo, 'nome', a.nome) ORDER BY a.codigo)
+                         FROM public.fin_acoes_orcamentarias a WHERE a.ativo IS NOT FALSE), '[]'::jsonb),
+    'fontes', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', f.id, 'codigo', f.codigo, 'nome', f.nome) ORDER BY f.codigo)
+                          FROM public.fin_fontes_recurso f WHERE f.ativo IS NOT FALSE), '[]'::jsonb),
+    'naturezas', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.id, 'codigo', n.codigo, 'nome', n.nome) ORDER BY n.codigo)
+                             FROM public.fin_naturezas_despesa n WHERE n.ativo IS NOT FALSE), '[]'::jsonb),
+    'qdd_linhas', (SELECT count(*) FROM public.fin_dotacoes d
+                    WHERE d.exercicio = _exercicio AND d.ativo IS NOT FALSE
+                      AND d.acao_id IS NOT NULL AND d.fonte_recurso_id IS NOT NULL)
+  );
+END;
+$$;
+
+
+--
+-- Name: pca_registrar_historico(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pca_registrar_historico() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'pca_planos' THEN
+    IF TG_OP = 'INSERT' THEN
+      INSERT INTO public.pca_historico (plano_id, acao, depois, feito_por)
+      VALUES (NEW.id, 'plano_criado', jsonb_build_object('exercicio', NEW.exercicio), auth.uid());
+    ELSIF NEW.situacao IS DISTINCT FROM OLD.situacao THEN
+      INSERT INTO public.pca_historico (plano_id, acao, antes, depois, feito_por)
+      VALUES (NEW.id, 'situacao', jsonb_build_object('situacao', OLD.situacao), jsonb_build_object('situacao', NEW.situacao),
+              auth.uid());
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO public.pca_historico (plano_id, item_id, acao, depois, feito_por)
+    VALUES (NEW.plano_id, NEW.id, 'item_incluido', to_jsonb(NEW), auth.uid());
+  ELSIF to_jsonb(NEW) - ARRAY['updated_at', 'updated_by'] IS DISTINCT FROM to_jsonb(OLD) - ARRAY['updated_at', 'updated_by'] THEN
+    INSERT INTO public.pca_historico (plano_id, item_id, acao, antes, depois, feito_por)
+    VALUES (NEW.plano_id, NEW.id,
+            CASE WHEN NEW.situacao = 'excluido' AND OLD.situacao = 'ativo' THEN 'item_excluido' ELSE 'item_alterado' END,
+            to_jsonb(OLD), to_jsonb(NEW), auth.uid());
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: pca_usar_qdd(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pca_usar_qdd(_plano_id uuid) RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_exercicio integer;
+  v_antes jsonb;
+  v_n integer;
+BEGIN
+  IF NOT (public.can_access_module(auth.uid(), 'compras') AND public.has_permission_code(auth.uid(), 'compras.pca.editar')) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar o PCA.' USING ERRCODE = '42501';
+  END IF;
+  SELECT exercicio INTO v_exercicio FROM public.pca_planos WHERE id = _plano_id FOR UPDATE;
+  IF v_exercicio IS NULL THEN
+    RAISE EXCEPTION 'PCA não encontrado.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.fin_dotacoes d WHERE d.exercicio = v_exercicio AND d.ativo IS NOT FALSE
+                    AND d.acao_id IS NOT NULL AND d.fonte_recurso_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'Ainda não há QDD de % importado.', v_exercicio USING ERRCODE = '22023';
+  END IF;
+
+  SELECT jsonb_agg(jsonb_build_object('acao_id', t.acao_id, 'fonte_recurso_id', t.fonte_recurso_id,
+                                      'valor_previsto', t.valor_previsto, 'origem', t.origem))
+    INTO v_antes FROM public.pca_tetos t WHERE t.plano_id = _plano_id;
+  DELETE FROM public.pca_tetos WHERE plano_id = _plano_id;
+  INSERT INTO public.pca_tetos (plano_id, acao_id, fonte_recurso_id, valor_previsto, origem)
+  SELECT _plano_id, d.acao_id, d.fonte_recurso_id, GREATEST(sum(COALESCE(d.valor_atual, 0)), 0), 'qdd'
+    FROM public.fin_dotacoes d
+   WHERE d.exercicio = v_exercicio AND d.ativo IS NOT FALSE AND d.acao_id IS NOT NULL AND d.fonte_recurso_id IS NOT NULL
+   GROUP BY d.acao_id, d.fonte_recurso_id;
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  INSERT INTO public.pca_historico (plano_id, acao, antes, depois, motivo, feito_por)
+  VALUES (_plano_id, 'tetos_qdd', jsonb_build_object('tetos', COALESCE(v_antes, '[]'::jsonb)),
+          jsonb_build_object('tetos_qdd', v_n), 'Tetos trocados pelo QDD do exercício', auth.uid());
+  RETURN v_n;
+END;
+$$;
+
+
+--
 -- Name: perfil_ativo_atual(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -10425,6 +11476,46 @@ BEGIN
   WHERE id = p_rascunho_id;
 
   RETURN true;
+END;
+$$;
+
+
+--
+-- Name: reabrir_conciliacao_mensal(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reabrir_conciliacao_mensal(p_id uuid, p_motivo text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_c public.fin_conciliacoes_mensais%ROWTYPE;
+BEGIN
+  IF NOT public.is_admin_user(auth.uid()) THEN
+    RAISE EXCEPTION 'Só o administrador reabre uma conciliação fechada.' USING ERRCODE = '42501';
+  END IF;
+  IF char_length(btrim(COALESCE(p_motivo, ''))) < 5 THEN
+    RAISE EXCEPTION 'Informe o motivo da reabertura.' USING ERRCODE = '22023';
+  END IF;
+  SELECT * INTO v_c FROM public.fin_conciliacoes_mensais WHERE id = p_id FOR UPDATE;
+  IF NOT FOUND OR v_c.situacao <> 'fechada' THEN
+    RAISE EXCEPTION 'Conciliação não está fechada.' USING ERRCODE = '22023';
+  END IF;
+  -- O mês seguinte fechado já carregou as pendências deste: reabrir quebraria a corrente
+  IF EXISTS (
+    SELECT 1 FROM public.fin_conciliacoes_mensais s
+     WHERE s.conta_bancaria_id = v_c.conta_bancaria_id AND s.competencia > v_c.competencia AND s.situacao = 'fechada'
+  ) THEN
+    RAISE EXCEPTION 'Há mês posterior fechado: reabra primeiro o mais recente.' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM set_config('idjuv.reabrindo_conciliacao', p_id::text, true);
+  UPDATE public.fin_conciliacoes_mensais
+     SET situacao = 'rascunho', fechada_em = NULL, fechada_por = NULL,
+         observacoes = left(concat_ws(E'\n', observacoes,
+           'Reaberta em ' || to_char(now() AT TIME ZONE 'America/Boa_Vista', 'DD/MM/YYYY HH24:MI') || ': ' || btrim(p_motivo)), 2000)
+   WHERE id = p_id;
+  PERFORM set_config('idjuv.reabrindo_conciliacao', '', true);
 END;
 $$;
 
@@ -11274,6 +12365,220 @@ $_$;
 --
 
 COMMENT ON FUNCTION public.registrar_remessa_bancaria(p_conta_autarquia_id uuid, p_layout text, p_movimentos uuid[], p_data_pagamento date, p_nsa_minimo integer, p_tipo_servico text) IS 'Monta no servidor os créditos de uma remessa de reenvio (Gestão MAX) a partir dos movimentos recusados (com a conta corrigida), reserva o NSA e os movimentos e devolve convênio, conta pagadora e créditos. Exige pagamento.conciliar.';
+
+
+--
+-- Name: registrar_remessa_obn600(uuid, uuid[], date, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registrar_remessa_obn600(p_conta_autarquia_id uuid, p_pagamentos uuid[], p_data_pagamento date, p_sequencial_minimo integer DEFAULT NULL::integer) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_conta public.contas_autarquia%ROWTYPE;
+  v_ultima public.fin_remessas_bancarias%ROWTYPE;
+  v_reuso uuid;
+  v_outras boolean;
+  v_pags uuid[] := COALESCE(p_pagamentos, '{}');
+  v_seq integer;
+  v_id uuid;
+  v_ordens jsonb := '[]'::jsonb;
+  v_ordem_pags uuid[] := '{}';
+  v_total numeric(15,2) := 0;
+  r record;
+  v_banco text; v_ag text; v_ag_dv text; v_ct text; v_ct_dv text;
+  v_partes text[];
+  v_doc text;
+  v_num text;
+  v_tipo text;
+  v_endereco text;
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'pagamento.conciliar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para gerar remessa bancária (pagamento.conciliar).' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_data_pagamento IS NULL OR p_data_pagamento < CURRENT_DATE - 1 OR p_data_pagamento > CURRENT_DATE + 60 THEN
+    RAISE EXCEPTION 'Data do pagamento inválida (de hoje a 60 dias à frente).' USING ERRCODE = '22023';
+  END IF;
+  IF p_sequencial_minimo IS NOT NULL AND p_sequencial_minimo NOT BETWEEN 1 AND 99999 THEN
+    RAISE EXCEPTION 'Nº inicial da remessa inválido (1 a 99999).' USING ERRCODE = '22023';
+  END IF;
+  IF cardinality(v_pags) NOT BETWEEN 1 AND 999
+     OR array_position(v_pags, NULL) IS NOT NULL
+     OR cardinality(v_pags) <> (SELECT count(DISTINCT p) FROM unnest(v_pags) p) THEN
+    RAISE EXCEPTION 'Informe de 1 a 999 pagamentos, sem repetição.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_conta FROM public.contas_autarquia WHERE id = p_conta_autarquia_id AND COALESCE(ativo, true);
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Conta pagadora não encontrada ou inativa.' USING ERRCODE = 'P0002';
+  END IF;
+  IF COALESCE(v_conta.obn_codigo_cliente, '') !~ '^\d{1,9}$'
+     OR COALESCE(v_conta.obn_unidade_gestora, '') !~ '^\d{1,6}$'
+     OR COALESCE(v_conta.obn_gestao, '') !~ '^\d{1,5}$' THEN
+    RAISE EXCEPTION 'A conta pagadora não tem código do cliente, UG e gestão do OBN600 cadastrados.' USING ERRCODE = '22023';
+  END IF;
+  IF COALESCE(btrim(v_conta.agencia), '') !~ '^\d{1,4}$' OR COALESCE(btrim(v_conta.conta), '') !~ '^\d{1,9}$' THEN
+    RAISE EXCEPTION 'A conta pagadora precisa de agência (até 4 dígitos) e conta (até 9 dígitos).' USING ERRCODE = '22023';
+  END IF;
+
+  -- Um número de remessa por vez para a mesma conta.
+  PERFORM pg_advisory_xact_lock(hashtext('registrar_remessa_bancaria'), hashtext(p_conta_autarquia_id::text || '|obn600'));
+
+  SELECT * INTO v_ultima FROM public.fin_remessas_bancarias
+   WHERE conta_autarquia_id = p_conta_autarquia_id AND layout = 'obn600'
+   ORDER BY nsa DESC LIMIT 1;
+  IF FOUND AND v_ultima.arquivo_sha256 IS NULL AND v_ultima.created_by = v_uid THEN
+    -- Nova tentativa do mesmo usuário: reaproveita a reserva não confirmada (número e linha).
+    v_reuso := v_ultima.id;
+  END IF;
+  v_outras := EXISTS (SELECT 1 FROM public.fin_remessas_bancarias
+                       WHERE conta_autarquia_id = p_conta_autarquia_id AND layout = 'obn600'
+                         AND id IS DISTINCT FROM v_reuso);
+
+  IF NOT v_outras AND p_sequencial_minimo IS NOT NULL THEN
+    v_seq := p_sequencial_minimo;
+  ELSIF v_reuso IS NOT NULL THEN
+    v_seq := v_ultima.nsa;
+  ELSE
+    v_seq := COALESCE(v_ultima.nsa, 0) + 1;
+  END IF;
+  IF v_seq > 99999 THEN
+    RAISE EXCEPTION 'Numeração de remessa OBN600 esgotada para esta conta.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Trava os pagamentos (ordem fixa evita deadlock).
+  PERFORM 1 FROM public.fin_pagamentos WHERE id = ANY (v_pags) ORDER BY id FOR UPDATE;
+
+  FOR r IN
+    SELECT x.ord, p.*, f.cpf_cnpj AS f_doc, f.razao_social AS f_nome, f.banco_codigo AS f_banco,
+           f.agencia AS f_agencia, f.conta AS f_conta, f.endereco_logradouro, f.endereco_numero,
+           f.endereco_bairro, f.endereco_cidade, f.endereco_uf, f.endereco_cep,
+           rem.arquivo_sha256 AS rem_sha, rem.created_by AS rem_autor, rem.nsa AS rem_nsa
+      FROM unnest(v_pags) WITH ORDINALITY AS x(id, ord)
+      LEFT JOIN public.fin_pagamentos p ON p.id = x.id
+      LEFT JOIN public.fornecedores f ON f.id = p.fornecedor_id
+      LEFT JOIN public.fin_remessas_bancarias rem ON rem.id = p.remessa_bancaria_id
+     ORDER BY x.ord
+  LOOP
+    IF r.numero IS NULL THEN
+      RAISE EXCEPTION 'Pagamento % não encontrado.', r.ord USING ERRCODE = 'P0002';
+    END IF;
+    IF COALESCE(r.status::text, '') NOT IN ('programado', 'autorizado') OR COALESCE(r.estornado, false) THEN
+      RAISE EXCEPTION 'Pagamento % não está programado nem autorizado.', r.numero USING ERRCODE = '22023';
+    END IF;
+    IF r.remessa_bancaria_id IS NOT NULL AND r.remessa_bancaria_id IS DISTINCT FROM v_reuso THEN
+      IF r.rem_sha IS NOT NULL THEN
+        RAISE EXCEPTION 'Pagamento % já saiu na remessa OBN600 nº %.', r.numero, r.rem_nsa USING ERRCODE = '22023';
+      END IF;
+      RAISE EXCEPTION 'Pagamento % está reservado em outra remessa ainda não confirmada (nº %).', r.numero, r.rem_nsa
+        USING ERRCODE = '22023';
+    END IF;
+    IF r.valor_liquido IS NULL OR r.valor_liquido <= 0 THEN
+      RAISE EXCEPTION 'Pagamento % sem valor líquido.', r.numero USING ERRCODE = '22023';
+    END IF;
+    IF r.numero !~ '^OP-\d{1,7}$' OR r.exercicio NOT BETWEEN 2000 AND 2999 THEN
+      RAISE EXCEPTION 'Pagamento % fora da numeração OP-nnnnnn: não dá para montar o nº da OB.', r.numero USING ERRCODE = '22023';
+    END IF;
+
+    v_doc := regexp_replace(COALESCE(r.f_doc, ''), '\D', '', 'g');
+    IF length(v_doc) NOT IN (11, 14) OR NULLIF(btrim(COALESCE(r.f_nome, '')), '') IS NULL THEN
+      RAISE EXCEPTION 'Pagamento % sem favorecido com CPF/CNPJ e nome.', r.numero USING ERRCODE = '22023';
+    END IF;
+
+    -- Conta do pagamento; vazia, a do cadastro do fornecedor. Agência "1234" ou "1234-5"; conta "1111" ou "1111-X".
+    IF NULLIF(btrim(COALESCE(r.conta_favorecido, '')), '') IS NOT NULL THEN
+      v_banco := r.banco_favorecido; v_ag := r.agencia_favorecido; v_ct := r.conta_favorecido;
+    ELSE
+      v_banco := r.f_banco; v_ag := r.f_agencia; v_ct := r.f_conta;
+    END IF;
+    v_banco := lpad(regexp_replace(COALESCE(v_banco, ''), '\D', '', 'g'), 3, '0');
+    v_partes := regexp_match(regexp_replace(COALESCE(v_ag, ''), '[\s.]', '', 'g'), '^(\d{1,4})(?:-([0-9Xx]))?$');
+    v_ag := v_partes[1]; v_ag_dv := upper(COALESCE(v_partes[2], ''));
+    v_partes := regexp_match(regexp_replace(COALESCE(v_ct, ''), '[\s.]', '', 'g'), '^(\d{1,9})(?:-([0-9Xx]))?$');
+    v_ct := v_partes[1]; v_ct_dv := upper(COALESCE(v_partes[2], ''));
+    IF v_banco !~ '^\d{3}$' OR v_banco = '000' OR v_ag IS NULL OR v_ct IS NULL OR v_ct ~ '^0+$' THEN
+      RAISE EXCEPTION 'Pagamento % sem banco, agência (até 4 dígitos) e conta (até 9 dígitos, DV depois do hífen) válidos.', r.numero
+        USING ERRCODE = '22023';
+    END IF;
+
+    v_tipo := CASE WHEN v_banco = '001' THEN '32' ELSE '31' END;
+    v_num := lpad(r.exercicio::text || lpad(substring(r.numero FROM 4), 6, '0'), 11, '0');
+    v_endereco := concat_ws(' - ',
+      NULLIF(concat_ws(', ', NULLIF(btrim(COALESCE(r.endereco_logradouro, '')), ''),
+                             NULLIF(btrim(COALESCE(r.endereco_numero, '')), '')), ''),
+      NULLIF(btrim(COALESCE(r.endereco_bairro, '')), ''));
+
+    v_ordens := v_ordens || jsonb_build_array(jsonb_build_object(
+      'tipo', v_tipo, 'ord', r.ord,
+      'pagamento_id', r.id, 'pagamento_numero', r.numero,
+      'relacao', lpad(r.exercicio::text || lpad(v_seq::text, 5, '0') || v_tipo, 11, '0'),
+      'numero_ob', v_num,
+      'nome', btrim(r.f_nome), 'documento', v_doc,
+      'banco', v_banco, 'agencia', v_ag, 'agencia_dv', v_ag_dv, 'conta', v_ct, 'conta_dv', v_ct_dv,
+      'valor', r.valor_liquido,
+      'endereco', COALESCE(v_endereco, ''), 'municipio', btrim(COALESCE(r.endereco_cidade, '')),
+      'cep', regexp_replace(COALESCE(r.endereco_cep, ''), '\D', '', 'g'),
+      'uf', upper(btrim(COALESCE(r.endereco_uf, '')))));
+    v_total := v_total + r.valor_liquido;
+  END LOOP;
+
+  IF v_total >= 1e13 THEN
+    RAISE EXCEPTION 'Valor total inválido.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Ordem do arquivo: por tipo de OB (uma relação por tipo) e, dentro dele, a ordem pedida.
+  SELECT jsonb_agg(o - 'tipo' - 'ord' ORDER BY o->>'tipo', (o->>'ord')::int),
+         array_agg((o->>'pagamento_id')::uuid ORDER BY o->>'tipo', (o->>'ord')::int)
+    INTO v_ordens, v_ordem_pags
+    FROM jsonb_array_elements(v_ordens) AS e(o);
+
+  IF v_reuso IS NOT NULL THEN
+    UPDATE public.fin_pagamentos
+       SET remessa_bancaria_id = NULL, updated_at = now()
+     WHERE remessa_bancaria_id = v_reuso AND NOT (id = ANY (v_pags));
+    UPDATE public.fin_remessas_bancarias
+       SET nsa = v_seq, convenio = v_conta.obn_codigo_cliente,
+           agencia = btrim(v_conta.agencia), agencia_digito = NULLIF(btrim(COALESCE(v_conta.agencia_digito, '')), ''),
+           conta = btrim(v_conta.conta), conta_digito = NULLIF(btrim(COALESCE(v_conta.conta_digito, '')), ''),
+           data_geracao = now(), data_pagamento = p_data_pagamento,
+           quantidade = cardinality(v_pags), valor_total = v_total, creditos = v_ordens, pagamentos = v_ordem_pags,
+           parametros = jsonb_build_object('unidade_gestora', v_conta.obn_unidade_gestora, 'gestao', v_conta.obn_gestao)
+     WHERE id = v_reuso
+     RETURNING id INTO v_id;
+  ELSE
+    INSERT INTO public.fin_remessas_bancarias
+      (layout, conta_autarquia_id, convenio, agencia, agencia_digito, conta, conta_digito, nsa,
+       data_pagamento, quantidade, valor_total, creditos, pagamentos, parametros, created_by)
+    VALUES
+      ('obn600', p_conta_autarquia_id, v_conta.obn_codigo_cliente,
+       btrim(v_conta.agencia), NULLIF(btrim(COALESCE(v_conta.agencia_digito, '')), ''),
+       btrim(v_conta.conta), NULLIF(btrim(COALESCE(v_conta.conta_digito, '')), ''), v_seq,
+       p_data_pagamento, cardinality(v_pags), v_total, v_ordens, v_ordem_pags,
+       jsonb_build_object('unidade_gestora', v_conta.obn_unidade_gestora, 'gestao', v_conta.obn_gestao), v_uid)
+    RETURNING id INTO v_id;
+  END IF;
+
+  -- Reserva: os pagamentos passam a apontar para esta remessa (o nº da OB só é gravado na confirmação).
+  UPDATE public.fin_pagamentos
+     SET remessa_bancaria_id = v_id, updated_at = now()
+   WHERE id = ANY (v_pags) AND remessa_bancaria_id IS DISTINCT FROM v_id;
+
+  RETURN public.fin_remessa_bancaria_json(v_id) - 'arquivo_sha256';
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION registrar_remessa_obn600(p_conta_autarquia_id uuid, p_pagamentos uuid[], p_data_pagamento date, p_sequencial_minimo integer); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.registrar_remessa_obn600(p_conta_autarquia_id uuid, p_pagamentos uuid[], p_data_pagamento date, p_sequencial_minimo integer) IS 'Monta no servidor as ordens bancárias (OBN600) dos pagamentos escolhidos, numera relação e OB, reserva o nº da remessa e os pagamentos e devolve conta pagadora e OBs. Exige pagamento.conciliar.';
 
 
 --
@@ -12805,6 +14110,76 @@ BEGIN
       NEW.codigo, to_char(NEW.data_extincao, 'DD/MM/YYYY');
   END IF;
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: salvar_conciliacao_mensal(uuid, date, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.salvar_conciliacao_mensal(p_conta_bancaria_id uuid, p_competencia date, p_dados jsonb, p_itens jsonb) RETURNS uuid
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid;
+  v_situacao text;
+BEGIN
+  IF p_competencia IS NULL OR extract(day FROM p_competencia) <> 1 THEN
+    RAISE EXCEPTION 'Competência deve ser o primeiro dia do mês.' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_itens) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'Itens da conciliação ausentes.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT id, situacao INTO v_id, v_situacao
+    FROM public.fin_conciliacoes_mensais
+   WHERE conta_bancaria_id = p_conta_bancaria_id AND competencia = p_competencia
+   FOR UPDATE;
+  IF v_situacao = 'fechada' THEN
+    RAISE EXCEPTION 'Conciliação de % fechada: peça ao administrador para reabrir.', to_char(p_competencia, 'MM/YYYY')
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF v_id IS NULL THEN
+    INSERT INTO public.fin_conciliacoes_mensais
+      (conta_bancaria_id, competencia, saldo_razao, saldo_conta, saldo_fundo, rendimento_fundo, arquivos, observacoes)
+    VALUES (
+      p_conta_bancaria_id, p_competencia,
+      (p_dados->>'saldo_razao')::numeric,
+      COALESCE((p_dados->>'saldo_conta')::numeric, 0),
+      COALESCE((p_dados->>'saldo_fundo')::numeric, 0),
+      COALESCE((p_dados->>'rendimento_fundo')::numeric, 0),
+      COALESCE(p_dados->'arquivos', '[]'::jsonb),
+      NULLIF(btrim(COALESCE(p_dados->>'observacoes', '')), '')
+    )
+    RETURNING id INTO v_id;
+  ELSE
+    UPDATE public.fin_conciliacoes_mensais
+       SET saldo_razao = (p_dados->>'saldo_razao')::numeric,
+           saldo_conta = COALESCE((p_dados->>'saldo_conta')::numeric, 0),
+           saldo_fundo = COALESCE((p_dados->>'saldo_fundo')::numeric, 0),
+           rendimento_fundo = COALESCE((p_dados->>'rendimento_fundo')::numeric, 0),
+           arquivos = COALESCE(p_dados->'arquivos', '[]'::jsonb),
+           observacoes = NULLIF(btrim(COALESCE(p_dados->>'observacoes', '')), '')
+     WHERE id = v_id;
+    DELETE FROM public.fin_conciliacao_itens WHERE conciliacao_id = v_id;
+  END IF;
+
+  INSERT INTO public.fin_conciliacao_itens
+    (conciliacao_id, lado, natureza, data, documento, tipo, historico, valor, re, nob, origem, item_origem_id,
+     situacao, grupo, regra, justificativa)
+  SELECT v_id, i.lado, i.natureza, i.data, COALESCE(i.documento, ''), COALESCE(i.tipo, ''), COALESCE(i.historico, ''),
+         i.valor, NULLIF(i.re, ''), NULLIF(i.nob, ''), COALESCE(i.origem, 'mes'), i.item_origem_id,
+         i.situacao, i.grupo, NULLIF(i.regra, ''), NULLIF(btrim(COALESCE(i.justificativa, '')), '')
+    FROM jsonb_to_recordset(p_itens) AS i(
+      lado text, natureza text, data date, documento text, tipo text, historico text, valor numeric, re text, nob text,
+      origem text, item_origem_id uuid, situacao text, grupo integer, regra text, justificativa text
+    );
+
+  PERFORM public.fin_conciliacao_conferir_anteriores(v_id);
+  RETURN v_id;
 END;
 $$;
 
@@ -16195,6 +17570,102 @@ CREATE TABLE public.cargos (
 
 
 --
+-- Name: cat_material_itens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cat_material_itens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    codigo_item integer NOT NULL,
+    codigo_pdm integer NOT NULL,
+    descricao text NOT NULL,
+    sustentavel boolean DEFAULT false NOT NULL,
+    ativo boolean DEFAULT true NOT NULL,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE cat_material_itens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.cat_material_itens IS 'Itens de material do CATMAT já usados num PCA (gravados sob demanda pela Edge Function catalogo-compras).';
+
+
+--
+-- Name: cat_material_pdms; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cat_material_pdms (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    codigo_pdm integer NOT NULL,
+    nome_pdm text NOT NULL,
+    codigo_classe integer NOT NULL,
+    nome_classe text NOT NULL,
+    codigo_grupo integer NOT NULL,
+    nome_grupo text NOT NULL,
+    ativo boolean DEFAULT true NOT NULL,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE cat_material_pdms; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.cat_material_pdms IS 'PDMs (padrões descritivos de material) do CATMAT, copiados do portal de dados abertos do Compras.gov.br pela Edge Function catalogo-compras.';
+
+
+--
+-- Name: cat_servicos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cat_servicos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    codigo_servico integer NOT NULL,
+    nome_servico text NOT NULL,
+    codigo_classe integer,
+    nome_classe text,
+    codigo_grupo integer,
+    nome_grupo text,
+    codigo_divisao integer,
+    nome_divisao text,
+    codigo_secao integer NOT NULL,
+    nome_secao text NOT NULL,
+    ativo boolean DEFAULT true NOT NULL,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE cat_servicos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.cat_servicos IS 'Serviços do CATSER, copiados do portal de dados abertos do Compras.gov.br pela Edge Function catalogo-compras.';
+
+
+--
+-- Name: cat_sincronizacoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cat_sincronizacoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tipo text NOT NULL,
+    total integer DEFAULT 0 NOT NULL,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL,
+    atualizado_por uuid,
+    CONSTRAINT cat_sincronizacoes_tipo_check CHECK ((tipo = ANY (ARRAY['pdm'::text, 'servico'::text]))),
+    CONSTRAINT cat_sincronizacoes_total_check CHECK ((total >= 0))
+);
+
+
+--
+-- Name: TABLE cat_sincronizacoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.cat_sincronizacoes IS 'Última atualização de cada parte do catálogo CATMAT/CATSER.';
+
+
+--
 -- Name: categorias_material; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -17661,7 +19132,11 @@ CREATE TABLE public.contas_autarquia (
     updated_by uuid,
     updated_by_servidor_id uuid,
     nsa_inicial integer,
-    CONSTRAINT contas_autarquia_nsa_inicial_check CHECK (((nsa_inicial IS NULL) OR ((nsa_inicial >= 1) AND (nsa_inicial <= 999999))))
+    obn_codigo_cliente character varying(9),
+    obn_unidade_gestora character varying(6),
+    obn_gestao character varying(5),
+    CONSTRAINT contas_autarquia_nsa_inicial_check CHECK (((nsa_inicial IS NULL) OR ((nsa_inicial >= 1) AND (nsa_inicial <= 999999)))),
+    CONSTRAINT contas_autarquia_obn_check CHECK ((((obn_codigo_cliente IS NULL) OR ((obn_codigo_cliente)::text ~ '^\d{1,9}$'::text)) AND ((obn_unidade_gestora IS NULL) OR ((obn_unidade_gestora)::text ~ '^\d{1,6}$'::text)) AND ((obn_gestao IS NULL) OR ((obn_gestao)::text ~ '^\d{1,5}$'::text))))
 );
 
 
@@ -17670,6 +19145,27 @@ CREATE TABLE public.contas_autarquia (
 --
 
 COMMENT ON COLUMN public.contas_autarquia.nsa_inicial IS 'Primeiro número de remessa (NSA) desta conta; continua a sequência do sistema anterior. Vazio = 1';
+
+
+--
+-- Name: COLUMN contas_autarquia.obn_codigo_cliente; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contas_autarquia.obn_codigo_cliente IS 'Código do cliente no BB usado no header da remessa OBN600 (posições 059-067). Vazio = a conta não gera OBN600.';
+
+
+--
+-- Name: COLUMN contas_autarquia.obn_unidade_gestora; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contas_autarquia.obn_unidade_gestora IS 'Unidade gestora emitente das ordens bancárias (OBN600, posições 007-012).';
+
+
+--
+-- Name: COLUMN contas_autarquia.obn_gestao; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contas_autarquia.obn_gestao IS 'Gestão das ordens bancárias (OBN600, posições 013-017).';
 
 
 --
@@ -19182,6 +20678,90 @@ COMMENT ON COLUMN public.fin_classificadores_fiplan.codigo IS 'Código como o FI
 
 
 --
+-- Name: fin_conciliacao_itens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_conciliacao_itens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    conciliacao_id uuid NOT NULL,
+    lado text NOT NULL,
+    natureza text NOT NULL,
+    data date NOT NULL,
+    documento text DEFAULT ''::text NOT NULL,
+    tipo text DEFAULT ''::text NOT NULL,
+    historico text DEFAULT ''::text NOT NULL,
+    valor numeric(15,2) NOT NULL,
+    re text,
+    nob text,
+    origem text DEFAULT 'mes'::text NOT NULL,
+    item_origem_id uuid,
+    situacao text NOT NULL,
+    grupo integer,
+    regra text,
+    justificativa text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_conciliacao_itens_anterior_check CHECK (((origem = 'anterior'::text) = (item_origem_id IS NOT NULL))),
+    CONSTRAINT fin_conciliacao_itens_casado_check CHECK ((((situacao = 'casado'::text) AND (grupo IS NOT NULL) AND (regra IS NOT NULL)) OR ((situacao = 'pendente'::text) AND (grupo IS NULL) AND (regra IS NULL)))),
+    CONSTRAINT fin_conciliacao_itens_documento_check CHECK ((char_length(documento) <= 60)),
+    CONSTRAINT fin_conciliacao_itens_historico_check CHECK ((char_length(historico) <= 300)),
+    CONSTRAINT fin_conciliacao_itens_justificativa_check CHECK ((char_length(justificativa) <= 500)),
+    CONSTRAINT fin_conciliacao_itens_lado_check CHECK ((lado = ANY (ARRAY['contabil'::text, 'bancario'::text]))),
+    CONSTRAINT fin_conciliacao_itens_manual_check CHECK (((regra IS DISTINCT FROM 'manual'::text) OR (char_length(btrim(justificativa)) > 0))),
+    CONSTRAINT fin_conciliacao_itens_natureza_check CHECK ((natureza = ANY (ARRAY['debito'::text, 'credito'::text]))),
+    CONSTRAINT fin_conciliacao_itens_nob_check CHECK ((nob ~ '^\d{2}\.\d{5}-\d$'::text)),
+    CONSTRAINT fin_conciliacao_itens_origem_check CHECK ((origem = ANY (ARRAY['mes'::text, 'anterior'::text, 'abertura'::text]))),
+    CONSTRAINT fin_conciliacao_itens_re_check CHECK ((re ~ '^\d{2}\.\d{5}-\d$'::text)),
+    CONSTRAINT fin_conciliacao_itens_regra_check CHECK ((regra = ANY (ARRAY['interno'::text, 're'::text, 'ob_cancelada'::text, 'repasse'::text, 'valor_data'::text, 'estorno'::text, 'manual'::text]))),
+    CONSTRAINT fin_conciliacao_itens_situacao_check CHECK ((situacao = ANY (ARRAY['casado'::text, 'pendente'::text]))),
+    CONSTRAINT fin_conciliacao_itens_tipo_check CHECK ((char_length(tipo) <= 10)),
+    CONSTRAINT fin_conciliacao_itens_valor_check CHECK ((valor > (0)::numeric))
+);
+
+
+--
+-- Name: TABLE fin_conciliacao_itens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_conciliacao_itens IS 'Itens da conciliação mensal: lançamentos do razão (contabil) e do extrato (bancario), casados em grupos ou pendentes (as quatro listas do quadro). origem anterior = pendência do mês anterior (item_origem_id); abertura = lançada na implantação.';
+
+
+--
+-- Name: fin_conciliacoes_mensais; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_conciliacoes_mensais (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    conta_bancaria_id uuid NOT NULL,
+    competencia date NOT NULL,
+    saldo_razao numeric(15,2) NOT NULL,
+    saldo_conta numeric(15,2) DEFAULT 0 NOT NULL,
+    saldo_fundo numeric(15,2) DEFAULT 0 NOT NULL,
+    rendimento_fundo numeric(15,2) DEFAULT 0 NOT NULL,
+    situacao text DEFAULT 'rascunho'::text NOT NULL,
+    arquivos jsonb DEFAULT '[]'::jsonb NOT NULL,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    fechada_em timestamp with time zone,
+    fechada_por uuid,
+    CONSTRAINT fin_conciliacoes_mensais_arquivos_check CHECK ((jsonb_typeof(arquivos) = 'array'::text)),
+    CONSTRAINT fin_conciliacoes_mensais_competencia_check CHECK ((EXTRACT(day FROM competencia) = (1)::numeric)),
+    CONSTRAINT fin_conciliacoes_mensais_observacoes_check CHECK ((char_length(observacoes) <= 2000)),
+    CONSTRAINT fin_conciliacoes_mensais_rendimento_fundo_check CHECK ((rendimento_fundo >= (0)::numeric)),
+    CONSTRAINT fin_conciliacoes_mensais_situacao_check CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'fechada'::text])))
+);
+
+
+--
+-- Name: TABLE fin_conciliacoes_mensais; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_conciliacoes_mensais IS 'Conciliação bancária mensal de uma conta (quadro da SEFAZ). Saldo do extrato = saldo_conta + saldo_fundo no último dia do mês. Gravada por salvar_conciliacao_mensal; fechada por fechar_conciliacao_mensal.';
+
+
+--
 -- Name: fin_contas_bancarias; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -19375,17 +20955,50 @@ ALTER TABLE ONLY public.fin_empenho_anulacoes FORCE ROW LEVEL SECURITY;
 
 
 --
+-- Name: fin_empenho_documentos_fiplan; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_empenho_documentos_fiplan (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    empenho_id uuid NOT NULL,
+    ordem integer NOT NULL,
+    tipo text NOT NULL,
+    numero text NOT NULL,
+    data date NOT NULL,
+    pc text,
+    valor_emp numeric(15,2),
+    valor_liq numeric(15,2),
+    valor_nob numeric(15,2),
+    valor_gcv numeric(15,2),
+    historico text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_empenho_documentos_fiplan_historico_check CHECK ((char_length(historico) <= 1000)),
+    CONSTRAINT fin_empenho_documentos_fiplan_numero_check CHECK ((numero ~ '^\d{5}\.\d{4}\.\d{2}\.\d{5}-\d$'::text)),
+    CONSTRAINT fin_empenho_documentos_fiplan_ordem_check CHECK ((ordem >= 0)),
+    CONSTRAINT fin_empenho_documentos_fiplan_pc_check CHECK ((pc = ANY (ARRAY['P'::text, 'C'::text]))),
+    CONSTRAINT fin_empenho_documentos_fiplan_tipo_check CHECK ((tipo = ANY (ARRAY['EMP'::text, 'EST'::text, 'LIQ'::text, 'NOB'::text, 'GCV'::text])))
+);
+
+
+--
+-- Name: TABLE fin_empenho_documentos_fiplan; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_empenho_documentos_fiplan IS 'Documentos de execução do FIPLAN (FIP 614) de cada empenho importado: EMP, LIQ, NOB, GCV e estornos. Escrita só pela RPC importar_empenhos_fip614.';
+
+
+--
 -- Name: fin_empenhos; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.fin_empenhos (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    numero character varying(20) NOT NULL,
+    numero character varying(30) NOT NULL,
     exercicio integer NOT NULL,
     data_empenho date DEFAULT CURRENT_DATE NOT NULL,
     solicitacao_id uuid,
-    dotacao_id uuid NOT NULL,
-    fornecedor_id uuid NOT NULL,
+    dotacao_id uuid,
+    fornecedor_id uuid,
     contrato_id uuid,
     tipo public.tipo_empenho DEFAULT 'ordinario'::public.tipo_empenho NOT NULL,
     natureza_despesa_id uuid,
@@ -19409,10 +21022,50 @@ CREATE TABLE public.fin_empenhos (
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     conta_contabil_debito_id uuid,
-    conta_contabil_credito_id uuid
+    conta_contabil_credito_id uuid,
+    origem text DEFAULT 'sistema'::text NOT NULL,
+    credor_codigo_fiplan text,
+    credor_nome text,
+    ped_numero text,
+    ped_data date,
+    dotacao_fiplan text,
+    processo_fiplan text,
+    data_referencia_fiplan date,
+    importacao_id uuid,
+    CONSTRAINT fin_empenhos_fiplan_credor_check CHECK (((origem = 'sistema'::text) OR ((credor_codigo_fiplan ~ '^\d{4}\.\d{5}-\d$'::text) AND ((char_length(credor_nome) >= 1) AND (char_length(credor_nome) <= 300))))),
+    CONSTRAINT fin_empenhos_origem_check CHECK ((origem = ANY (ARRAY['sistema'::text, 'fiplan'::text]))),
+    CONSTRAINT fin_empenhos_sistema_vinculos_check CHECK (((origem = 'fiplan'::text) OR ((fornecedor_id IS NOT NULL) AND (dotacao_id IS NOT NULL))))
 );
 
 ALTER TABLE ONLY public.fin_empenhos FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: COLUMN fin_empenhos.origem; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_empenhos.origem IS 'sistema = emitido pela tela de Empenhos; fiplan = importado do FIP 614 (não soma na dotação: os valores dela vêm do QDD).';
+
+
+--
+-- Name: COLUMN fin_empenhos.credor_codigo_fiplan; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_empenhos.credor_codigo_fiplan IS 'Código do credor no FIPLAN (ex.: 2001.00715-5), do FIP 614.';
+
+
+--
+-- Name: COLUMN fin_empenhos.dotacao_fiplan; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_empenhos.dotacao_fiplan IS 'Dotação como o FIP 614 escreve (…natureza.fonte.cod_acomp.IDU.x, IDU em número).';
+
+
+--
+-- Name: COLUMN fin_empenhos.processo_fiplan; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_empenhos.processo_fiplan IS 'Processo como o FIPLAN mostra (ex.: 00000112/26-14); processo_sei traz o número no padrão do SEI.';
 
 
 --
@@ -19814,10 +21467,18 @@ CREATE TABLE public.fin_pagamentos (
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     conta_contabil_debito_id uuid,
-    conta_contabil_credito_id uuid
+    conta_contabil_credito_id uuid,
+    remessa_bancaria_id uuid
 );
 
 ALTER TABLE ONLY public.fin_pagamentos FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: COLUMN fin_pagamentos.remessa_bancaria_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_pagamentos.remessa_bancaria_id IS 'Remessa OBN600 (fin_remessas_bancarias) em que o pagamento saiu ou está reservado (reserva = remessa sem arquivo_sha256). Gravado só pelas RPCs de remessa.';
 
 
 --
@@ -19932,6 +21593,8 @@ CREATE TABLE public.fin_remessas_bancarias (
     movimentos uuid[] DEFAULT '{}'::uuid[] NOT NULL,
     created_by uuid DEFAULT auth.uid(),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    pagamentos uuid[] DEFAULT '{}'::uuid[] NOT NULL,
+    parametros jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT fin_remessas_bancarias_agencia_check CHECK (((char_length(agencia) >= 1) AND (char_length(agencia) <= 10))),
     CONSTRAINT fin_remessas_bancarias_agencia_digito_check CHECK ((char_length(agencia_digito) <= 2)),
     CONSTRAINT fin_remessas_bancarias_arquivo_sha256_check CHECK ((arquivo_sha256 ~ '^[0-9a-f]{64}$'::text)),
@@ -19939,8 +21602,9 @@ CREATE TABLE public.fin_remessas_bancarias (
     CONSTRAINT fin_remessas_bancarias_conta_digito_check CHECK ((char_length(conta_digito) <= 2)),
     CONSTRAINT fin_remessas_bancarias_convenio_check CHECK (((char_length(convenio) >= 1) AND (char_length(convenio) <= 20))),
     CONSTRAINT fin_remessas_bancarias_creditos_check CHECK ((jsonb_typeof(creditos) = 'array'::text)),
-    CONSTRAINT fin_remessas_bancarias_layout_check CHECK ((layout = 'gestao_max_cnab240'::text)),
+    CONSTRAINT fin_remessas_bancarias_layout_check CHECK ((layout = ANY (ARRAY['gestao_max_cnab240'::text, 'obn600'::text]))),
     CONSTRAINT fin_remessas_bancarias_nsa_check CHECK (((nsa >= 1) AND (nsa <= 999999))),
+    CONSTRAINT fin_remessas_bancarias_parametros_check CHECK ((jsonb_typeof(parametros) = 'object'::text)),
     CONSTRAINT fin_remessas_bancarias_quantidade_check CHECK (((quantidade >= 1) AND (quantidade <= 999))),
     CONSTRAINT fin_remessas_bancarias_tipo_servico_check CHECK ((tipo_servico = ANY (ARRAY['98'::text, '30'::text]))),
     CONSTRAINT fin_remessas_bancarias_valor_total_check CHECK ((valor_total > (0)::numeric))
@@ -19951,7 +21615,14 @@ CREATE TABLE public.fin_remessas_bancarias (
 -- Name: TABLE fin_remessas_bancarias; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.fin_remessas_bancarias IS 'Arquivos de reenvio (CNAB240 do BB Gestão MAX) gerados pelo sistema: NSA e créditos montados por registrar_remessa_bancaria, hash gravado por confirmar_remessa_bancaria. arquivo_sha256 nulo = reserva não confirmada (cancelável). Escrita só pelas RPCs.';
+COMMENT ON TABLE public.fin_remessas_bancarias IS 'Arquivos de remessa gerados pelo sistema: reenvio de recusados (CNAB240 do BB Gestão MAX) e ordens bancárias dos pagamentos (OBN600). Retrato montado pelas RPCs registrar_remessa_bancaria/registrar_remessa_obn600, hash gravado por confirmar_remessa_bancaria. arquivo_sha256 nulo = reserva não confirmada (cancelável). Escrita só pelas RPCs.';
+
+
+--
+-- Name: COLUMN fin_remessas_bancarias.convenio; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_remessas_bancarias.convenio IS 'Gestão MAX: convênio de pagamento. OBN600: código do cliente no BB. Cópia de contas_autarquia no momento da remessa.';
 
 
 --
@@ -19972,7 +21643,7 @@ COMMENT ON COLUMN public.fin_remessas_bancarias.tipo_servico IS 'Serviço dos cr
 -- Name: COLUMN fin_remessas_bancarias.creditos; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.fin_remessas_bancarias.creditos IS 'Retrato dos créditos do arquivo: [{movimento_id, pagamento_id, nome, documento, banco, agencia, agencia_dv, conta, conta_dv, valor, seu_numero}], montado pelo servidor.';
+COMMENT ON COLUMN public.fin_remessas_bancarias.creditos IS 'Retrato do arquivo. Gestão MAX: [{movimento_id, pagamento_id, nome, documento, banco, agencia, agencia_dv, conta, conta_dv, valor, seu_numero}]. OBN600: [{pagamento_id, pagamento_numero, relacao, numero_ob, nome, documento, banco, agencia, agencia_dv, conta, conta_dv, valor, endereco, municipio, cep, uf}]. Montado pelo servidor.';
 
 
 --
@@ -19980,6 +21651,20 @@ COMMENT ON COLUMN public.fin_remessas_bancarias.creditos IS 'Retrato dos crédit
 --
 
 COMMENT ON COLUMN public.fin_remessas_bancarias.movimentos IS 'fin_movimentos_bancarios recusados reenviados neste arquivo (mesma ordem de creditos).';
+
+
+--
+-- Name: COLUMN fin_remessas_bancarias.pagamentos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_remessas_bancarias.pagamentos IS 'OBN600: fin_pagamentos da remessa (mesma ordem de creditos).';
+
+
+--
+-- Name: COLUMN fin_remessas_bancarias.parametros; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_remessas_bancarias.parametros IS 'OBN600: {unidade_gestora, gestao} copiados da conta pagadora no momento da remessa.';
 
 
 --
@@ -20235,8 +21920,17 @@ CREATE TABLE public.fornecedores (
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
     updated_by uuid,
+    codigo_credor_fiplan text,
+    CONSTRAINT fornecedores_codigo_credor_fiplan_check CHECK (((codigo_credor_fiplan IS NULL) OR (codigo_credor_fiplan ~ '^\d{4}\.\d{5}-\d$'::text))),
     CONSTRAINT fornecedores_tipo_pessoa_check CHECK (((tipo_pessoa)::text = ANY ((ARRAY['PF'::character varying, 'PJ'::character varying])::text[])))
 );
+
+
+--
+-- Name: COLUMN fornecedores.codigo_credor_fiplan; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fornecedores.codigo_credor_fiplan IS 'Código do credor no FIPLAN (ex.: 2001.00715-5). Liga os empenhos importados do FIP 614 ao favorecido.';
 
 
 --
@@ -21530,8 +23224,8 @@ CREATE TABLE public.nomeacoes_chefe_unidade (
     servidor_id uuid NOT NULL,
     cargo text DEFAULT 'Chefe de Unidade Local'::text NOT NULL,
     ato_nomeacao_tipo public.tipo_ato_nomeacao NOT NULL,
-    ato_numero text NOT NULL,
-    ato_data_publicacao date NOT NULL,
+    ato_numero text,
+    ato_data_publicacao date,
     ato_doe_numero text,
     ato_doe_data date,
     data_inicio date NOT NULL,
@@ -21544,8 +23238,38 @@ CREATE TABLE public.nomeacoes_chefe_unidade (
     updated_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
     created_by_servidor_id uuid,
-    updated_by_servidor_id uuid
+    updated_by_servidor_id uuid,
+    processo_sei text,
+    ato_data_assinatura date
 );
+
+
+--
+-- Name: COLUMN nomeacoes_chefe_unidade.ato_numero; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.nomeacoes_chefe_unidade.ato_numero IS 'Número do ato no SEI; nulo enquanto aguarda o SEI';
+
+
+--
+-- Name: COLUMN nomeacoes_chefe_unidade.ato_data_publicacao; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.nomeacoes_chefe_unidade.ato_data_publicacao IS 'Data de publicação do ato; nula enquanto não publicado';
+
+
+--
+-- Name: COLUMN nomeacoes_chefe_unidade.processo_sei; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.nomeacoes_chefe_unidade.processo_sei IS 'Número do processo SEI onde o ato de designação foi formalizado';
+
+
+--
+-- Name: COLUMN nomeacoes_chefe_unidade.ato_data_assinatura; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.nomeacoes_chefe_unidade.ato_data_assinatura IS 'Data da assinatura do ato de designação no SEI';
 
 
 --
@@ -21754,6 +23478,140 @@ CREATE TABLE public.patrimonio_unidade (
     updated_by uuid,
     updated_at timestamp with time zone DEFAULT now()
 );
+
+
+--
+-- Name: pca_historico; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pca_historico (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    plano_id uuid NOT NULL,
+    item_id uuid,
+    acao text NOT NULL,
+    antes jsonb,
+    depois jsonb,
+    motivo text,
+    feito_por uuid DEFAULT auth.uid(),
+    feito_em timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT pca_historico_acao_check CHECK ((acao = ANY (ARRAY['plano_criado'::text, 'situacao'::text, 'tetos_qdd'::text, 'item_incluido'::text, 'item_alterado'::text, 'item_excluido'::text])))
+);
+
+
+--
+-- Name: TABLE pca_historico; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pca_historico IS 'Trilha do PCA: criação, mudança de situação e inclusão/alteração/exclusão de itens (gatilho).';
+
+
+--
+-- Name: pca_itens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pca_itens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    plano_id uuid NOT NULL,
+    numero_sei text NOT NULL,
+    setor_id uuid,
+    tipo text NOT NULL,
+    codigo_pdm integer,
+    codigo_servico integer,
+    codigo_item integer,
+    descricao text NOT NULL,
+    unidade_fornecimento text NOT NULL,
+    quantidade numeric(15,3) NOT NULL,
+    valor_unitario numeric(15,2) NOT NULL,
+    valor_total numeric(15,2) GENERATED ALWAYS AS (round((quantidade * valor_unitario), 2)) STORED,
+    mes_desejado integer NOT NULL,
+    prioridade text DEFAULT 'media'::text NOT NULL,
+    acao_id uuid NOT NULL,
+    fonte_recurso_id uuid NOT NULL,
+    natureza_despesa_id uuid,
+    justificativa text,
+    origem text DEFAULT 'dfd'::text NOT NULL,
+    situacao text DEFAULT 'ativo'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT pca_itens_catalogo_check CHECK ((((tipo = 'material'::text) AND (codigo_pdm IS NOT NULL) AND (codigo_servico IS NULL)) OR ((tipo = 'servico'::text) AND (codigo_servico IS NOT NULL) AND (codigo_pdm IS NULL) AND (codigo_item IS NULL)))),
+    CONSTRAINT pca_itens_descricao_check CHECK (((char_length(btrim(descricao)) >= 1) AND (char_length(btrim(descricao)) <= 1000))),
+    CONSTRAINT pca_itens_justificativa_check CHECK ((char_length(justificativa) <= 2000)),
+    CONSTRAINT pca_itens_mes_desejado_check CHECK (((mes_desejado >= 1) AND (mes_desejado <= 12))),
+    CONSTRAINT pca_itens_numero_sei_check CHECK (((char_length(btrim(numero_sei)) >= 1) AND (char_length(btrim(numero_sei)) <= 60))),
+    CONSTRAINT pca_itens_origem_check CHECK ((origem = ANY (ARRAY['dfd'::text, 'sugestao_aceita'::text]))),
+    CONSTRAINT pca_itens_prioridade_check CHECK ((prioridade = ANY (ARRAY['alta'::text, 'media'::text, 'baixa'::text]))),
+    CONSTRAINT pca_itens_quantidade_check CHECK ((quantidade > (0)::numeric)),
+    CONSTRAINT pca_itens_situacao_check CHECK ((situacao = ANY (ARRAY['ativo'::text, 'excluido'::text]))),
+    CONSTRAINT pca_itens_tipo_check CHECK ((tipo = ANY (ARRAY['material'::text, 'servico'::text]))),
+    CONSTRAINT pca_itens_unidade_fornecimento_check CHECK (((char_length(btrim(unidade_fornecimento)) >= 1) AND (char_length(btrim(unidade_fornecimento)) <= 60))),
+    CONSTRAINT pca_itens_valor_unitario_check CHECK ((valor_unitario >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE pca_itens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pca_itens IS 'Itens do PCA: cada demanda lançada por Compras a partir de um DFD do SEI (numero_sei), com item do CATMAT/CATSER. Sai do PCA por situacao = excluido.';
+
+
+--
+-- Name: pca_planos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pca_planos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    exercicio integer NOT NULL,
+    situacao text DEFAULT 'rascunho'::text NOT NULL,
+    processo_sei text,
+    data_aprovacao date,
+    data_publicacao_pncp date,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT pca_planos_exercicio_check CHECK (((exercicio >= 2020) AND (exercicio <= 2100))),
+    CONSTRAINT pca_planos_observacoes_check CHECK ((char_length(observacoes) <= 2000)),
+    CONSTRAINT pca_planos_processo_sei_check CHECK ((char_length(processo_sei) <= 60)),
+    CONSTRAINT pca_planos_situacao_check CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'enviado_sei'::text, 'aprovado'::text, 'publicado'::text])))
+);
+
+
+--
+-- Name: TABLE pca_planos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pca_planos IS 'PCA (Plano de Contratações Anual, Lei 14.133, art. 12, VII): um por exercício. A aprovação é ato do SEI; aqui ficam o número do processo e as datas.';
+
+
+--
+-- Name: pca_tetos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pca_tetos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    plano_id uuid NOT NULL,
+    acao_id uuid NOT NULL,
+    fonte_recurso_id uuid NOT NULL,
+    valor_previsto numeric(15,2) DEFAULT 0 NOT NULL,
+    origem text DEFAULT 'ploa'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT pca_tetos_origem_check CHECK ((origem = ANY (ARRAY['ploa'::text, 'qdd'::text]))),
+    CONSTRAINT pca_tetos_valor_previsto_check CHECK ((valor_previsto >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE pca_tetos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pca_tetos IS 'Teto do PCA por ação orçamentária × fonte: o previsto na PLOA, digitado por Compras, ou o QDD do exercício quando chega.';
 
 
 --
@@ -23290,7 +25148,7 @@ CREATE TABLE public.termos_cessao (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     agenda_id uuid NOT NULL,
     unidade_local_id uuid NOT NULL,
-    numero_termo text NOT NULL,
+    numero_termo text,
     ano integer NOT NULL,
     cessionario_nome text NOT NULL,
     cessionario_documento text,
@@ -23321,8 +25179,53 @@ CREATE TABLE public.termos_cessao (
     restricoes_uso text,
     termo_responsabilidade_aceito boolean DEFAULT false,
     data_aceite_responsabilidade timestamp with time zone,
-    historico_renovacoes jsonb DEFAULT '[]'::jsonb
+    historico_renovacoes jsonb DEFAULT '[]'::jsonb,
+    processo_sei text,
+    doe_numero text,
+    doe_data date
 );
+
+
+--
+-- Name: COLUMN termos_cessao.numero_termo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.numero_termo IS 'Número do termo no SEI; nulo enquanto aguarda o SEI (linhas registradas antes desta migração guardam o número interno gerado pelo sistema)';
+
+
+--
+-- Name: COLUMN termos_cessao.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.status IS 'pendente = aguardando SEI; emitido = numerado no SEI, aguardando assinatura; assinado; cancelado';
+
+
+--
+-- Name: COLUMN termos_cessao.data_assinatura; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.data_assinatura IS 'Data da assinatura do termo no SEI';
+
+
+--
+-- Name: COLUMN termos_cessao.processo_sei; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.processo_sei IS 'Número do processo SEI onde o termo de cessão foi formalizado';
+
+
+--
+-- Name: COLUMN termos_cessao.doe_numero; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.doe_numero IS 'Número do DOE em que o extrato do termo foi publicado';
+
+
+--
+-- Name: COLUMN termos_cessao.doe_data; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.termos_cessao.doe_data IS 'Data do DOE em que o extrato do termo foi publicado';
 
 
 --

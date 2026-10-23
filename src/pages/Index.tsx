@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { 
   ArrowRight, Building2, Users, FileCheck,
   AlertTriangle, CheckCircle2, Clock, FileText, BookOpen,
@@ -17,17 +16,12 @@ import {
 } from "@/components/icons";
 import { useDadosOficiais } from "@/hooks/useDadosOficiais";
 import { DadoOficialDisplay } from "@/components/institucional";
+import { useTenant } from "@/core/tenant";
+import { useResumoQuadroCargos } from "@/hooks/useTransparenciaCargos";
+import { vagasPorTipo } from "@/lib/quadroCargos";
 
-interface ResumoData {
-  total_cargos: number;
-  valor_total_mensal_formatado: string;
-  ocupacao: {
-    ocupados: number;
-    vagos: number;
-    percentual_ocupacao: number;
-  };
-  por_diretoria: Record<string, { quantidade: number }>;
-}
+const formatarMoeda = (valor: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
 
 const quickLinks = [
   {
@@ -89,7 +83,9 @@ const processos = [
 ];
 
 const Index = () => {
-  const [resumo, setResumo] = useState<ResumoData | null>(null);
+  // Quadro de cargos calculado do cadastro (antes vinha de public/data/resumo.json)
+  const { resumo } = useResumoQuadroCargos();
+  const { identidade: { sigla }, entidadeSuperior } = useTenant();
   const { 
     nomeOficial, 
     nomeCurto, 
@@ -98,15 +94,8 @@ const Index = () => {
     leiCriacao 
   } = useDadosOficiais();
 
-  useEffect(() => {
-    fetch('/data/resumo.json')
-      .then(res => res.json())
-      .then(data => setResumo(data))
-      .catch(err => console.error('Erro ao carregar resumo:', err));
-  }, []);
-
   return (
-    <ModuleLayout module="admin" title="Portal de Governança" description="Sistema integrado de gestão do IDJUV">
+    <ModuleLayout module="admin" title="Portal de Governança" description={`Sistema integrado de gestão do ${sigla}`}>
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         {/* Background com gradiente institucional */}
@@ -125,12 +114,11 @@ const Index = () => {
               Sistema de Governança Administrativa
             </div>
             <h1 className="font-serif text-4xl lg:text-5xl font-bold mb-6 leading-tight text-white drop-shadow-sm">
-              Portal de Governança do IDJUV
+              Portal de Governança do {sigla}
             </h1>
             <p className="text-lg lg:text-xl text-white/90 mb-8 leading-relaxed">
               Sistema integrado de controle administrativo, padronização de processos e 
-              conformidade com normas do TCE para o Instituto de Desporto, Juventude e 
-              Lazer do Estado de Roraima.
+              conformidade com normas do Tribunal de Contas para o {nomeOficial}.
             </p>
             <div className="flex flex-wrap gap-4">
               <Button asChild size="lg" className="bg-secondary text-secondary-foreground hover:bg-secondary/90 shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5">
@@ -154,13 +142,17 @@ const Index = () => {
       </section>
 
       {/* Painel de Resumo - Cargos */}
-      {resumo && (
+      {resumo && resumo.total > 0 && (
         <section className="py-12 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="font-serif text-2xl font-bold mb-1">Quadro de Cargos</h2>
-                <p className="text-sm text-muted-foreground">Dados atualizados conforme Lei nº 2.301/2025</p>
+                {(resumo.leis.length > 0 || leiCriacao) && (
+                  <p className="text-sm text-muted-foreground">
+                    Dados atualizados conforme {resumo.leis.length > 0 ? resumo.leis.join("; ") : leiCriacao}
+                  </p>
+                )}
               </div>
               <Button asChild variant="outline" size="sm">
                 <Link to="/transparencia/cargos">
@@ -175,7 +167,7 @@ const Index = () => {
                   <div className="flex items-center gap-3">
                     <Briefcase className="h-8 w-8 text-primary" />
                     <div>
-                      <p className="text-2xl font-bold">{resumo.total_cargos}</p>
+                      <p className="text-2xl font-bold">{resumo.total}</p>
                       <p className="text-xs text-muted-foreground">Total de Cargos</p>
                     </div>
                   </div>
@@ -186,7 +178,7 @@ const Index = () => {
                   <div className="flex items-center gap-3">
                     <Users className="h-8 w-8 text-success" />
                     <div>
-                      <p className="text-2xl font-bold">{resumo.ocupacao.ocupados}</p>
+                      <p className="text-2xl font-bold">{resumo.ocupados}</p>
                       <p className="text-xs text-muted-foreground">Ocupados</p>
                     </div>
                   </div>
@@ -197,7 +189,7 @@ const Index = () => {
                   <div className="flex items-center gap-3">
                     <TrendingUp className="h-8 w-8 text-warning" />
                     <div>
-                      <p className="text-2xl font-bold">{resumo.ocupacao.vagos}</p>
+                      <p className="text-2xl font-bold">{resumo.vagos}</p>
                       <p className="text-xs text-muted-foreground">Vagos</p>
                     </div>
                   </div>
@@ -208,7 +200,7 @@ const Index = () => {
                   <div className="flex items-center gap-3">
                     <Building2 className="h-8 w-8 text-secondary" />
                     <div>
-                      <p className="text-2xl font-bold">{resumo.por_diretoria['Presidência']?.quantidade || 0}</p>
+                      <p className="text-2xl font-bold">{vagasPorTipo(resumo, "presidencia")}</p>
                       <p className="text-xs text-muted-foreground">Presidência</p>
                     </div>
                   </div>
@@ -219,11 +211,7 @@ const Index = () => {
                   <div className="flex items-center gap-3">
                     <Building2 className="h-8 w-8 text-accent" />
                     <div>
-                      <p className="text-2xl font-bold">
-                        {(resumo.por_diretoria['DIRAF']?.quantidade || 0) + 
-                         (resumo.por_diretoria['DIESP']?.quantidade || 0) + 
-                         (resumo.por_diretoria['DIJUV']?.quantidade || 0)}
-                      </p>
+                      <p className="text-2xl font-bold">{vagasPorTipo(resumo, "diretoria")}</p>
                       <p className="text-xs text-muted-foreground">Diretorias</p>
                     </div>
                   </div>
@@ -234,7 +222,7 @@ const Index = () => {
                   <div className="flex items-center gap-3">
                     <DollarSign className="h-8 w-8 text-info" />
                     <div>
-                      <p className="text-lg font-bold">{resumo.valor_total_mensal_formatado}</p>
+                      <p className="text-lg font-bold">{formatarMoeda(resumo.valorMensal)}</p>
                       <p className="text-xs text-muted-foreground">Custo Mensal</p>
                     </div>
                   </div>
@@ -251,7 +239,7 @@ const Index = () => {
           <div className="text-center mb-12 animate-fade-in">
             <h2 className="font-serif text-3xl font-bold mb-4">Áreas do Sistema</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Acesse as principais áreas do sistema de governança administrativa do IDJUV
+              Acesse as principais áreas do sistema de governança administrativa do {sigla}
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
@@ -366,7 +354,7 @@ const Index = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Orientações sobre conformidade com normas do TCE-RR, pareceres técnicos 
+                  Orientações sobre conformidade com normas do Tribunal de Contas, pareceres técnicos 
                   e acompanhamento de processos administrativos.
                 </p>
                 <Button asChild variant="outline" className="hover:scale-105 transition-transform">
@@ -413,12 +401,14 @@ const Index = () => {
                   leiReferencia={leiCriacao}
                   variant="card"
                 />
-                <div className="bg-muted rounded-lg p-4">
-                  <h3 className="font-semibold mb-2 text-sm">Jurisdição</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Todo o Estado de Roraima
-                  </p>
-                </div>
+                {entidadeSuperior?.nome && (
+                  <div className="bg-muted rounded-lg p-4">
+                    <h3 className="font-semibold mb-2 text-sm">Jurisdição</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {entidadeSuperior.nome}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

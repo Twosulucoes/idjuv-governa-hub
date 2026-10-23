@@ -2639,6 +2639,156 @@ export type Database = {
         }
         Relationships: []
       }
+      cat_material_itens: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          codigo_item: number
+          codigo_pdm: number
+          descricao: string
+          id: string
+          sustentavel: boolean
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_item: number
+          codigo_pdm: number
+          descricao: string
+          id?: string
+          sustentavel?: boolean
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_item?: number
+          codigo_pdm?: number
+          descricao?: string
+          id?: string
+          sustentavel?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cat_material_itens_codigo_pdm_fkey"
+            columns: ["codigo_pdm"]
+            isOneToOne: false
+            referencedRelation: "cat_material_pdms"
+            referencedColumns: ["codigo_pdm"]
+          },
+        ]
+      }
+      cat_material_pdms: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          codigo_classe: number
+          codigo_grupo: number
+          codigo_pdm: number
+          id: string
+          nome_classe: string
+          nome_grupo: string
+          nome_pdm: string
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_classe: number
+          codigo_grupo: number
+          codigo_pdm: number
+          id?: string
+          nome_classe: string
+          nome_grupo: string
+          nome_pdm: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_classe?: number
+          codigo_grupo?: number
+          codigo_pdm?: number
+          id?: string
+          nome_classe?: string
+          nome_grupo?: string
+          nome_pdm?: string
+        }
+        Relationships: []
+      }
+      cat_servicos: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          codigo_classe: number | null
+          codigo_divisao: number | null
+          codigo_grupo: number | null
+          codigo_secao: number
+          codigo_servico: number
+          id: string
+          nome_classe: string | null
+          nome_divisao: string | null
+          nome_grupo: string | null
+          nome_secao: string
+          nome_servico: string
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_classe?: number | null
+          codigo_divisao?: number | null
+          codigo_grupo?: number | null
+          codigo_secao: number
+          codigo_servico: number
+          id?: string
+          nome_classe?: string | null
+          nome_divisao?: string | null
+          nome_grupo?: string | null
+          nome_secao: string
+          nome_servico: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_classe?: number | null
+          codigo_divisao?: number | null
+          codigo_grupo?: number | null
+          codigo_secao?: number
+          codigo_servico?: number
+          id?: string
+          nome_classe?: string | null
+          nome_divisao?: string | null
+          nome_grupo?: string | null
+          nome_secao?: string
+          nome_servico?: string
+        }
+        Relationships: []
+      }
+      cat_sincronizacoes: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          id: string
+          tipo: string
+          total: number
+        }
+        ComputedFields: never
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          id?: string
+          tipo: string
+          total?: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          id?: string
+          tipo?: string
+          total?: number
+        }
+        Relationships: []
+      }
       categorias_material: {
         Row: {
           ativo: boolean | null
@@ -6000,6 +6150,9 @@ export type Database = {
           descricao: string
           id: string
           nsa_inicial: number | null
+          obn_codigo_cliente: string | null
+          obn_gestao: string | null
+          obn_unidade_gestora: string | null
           tipo_conta: string | null
           updated_at: string | null
           updated_by: string | null
@@ -6023,6 +6176,9 @@ export type Database = {
           descricao: string
           id?: string
           nsa_inicial?: number | null
+          obn_codigo_cliente?: string | null
+          obn_gestao?: string | null
+          obn_unidade_gestora?: string | null
           tipo_conta?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -6045,6 +6201,9 @@ export type Database = {
           descricao?: string
           id?: string
           nsa_inicial?: number | null
+          obn_codigo_cliente?: string | null
+          obn_gestao?: string | null
+          obn_unidade_gestora?: string | null
           tipo_conta?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -10505,6 +10664,151 @@ export type Database = {
           },
         ]
       }
+      fin_conciliacao_itens: {
+        Row: {
+          conciliacao_id: string
+          created_at: string
+          data: string
+          documento: string
+          grupo: number | null
+          historico: string
+          id: string
+          item_origem_id: string | null
+          justificativa: string | null
+          lado: string
+          natureza: string
+          nob: string | null
+          origem: string
+          re: string | null
+          regra: string | null
+          situacao: string
+          tipo: string
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          conciliacao_id: string
+          created_at?: string
+          data: string
+          documento?: string
+          grupo?: number | null
+          historico?: string
+          id?: string
+          item_origem_id?: string | null
+          justificativa?: string | null
+          lado: string
+          natureza: string
+          nob?: string | null
+          origem?: string
+          re?: string | null
+          regra?: string | null
+          situacao: string
+          tipo?: string
+          valor: number
+        }
+        Update: {
+          conciliacao_id?: string
+          created_at?: string
+          data?: string
+          documento?: string
+          grupo?: number | null
+          historico?: string
+          id?: string
+          item_origem_id?: string | null
+          justificativa?: string | null
+          lado?: string
+          natureza?: string
+          nob?: string | null
+          origem?: string
+          re?: string | null
+          regra?: string | null
+          situacao?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_conciliacao_itens_conciliacao_id_fkey"
+            columns: ["conciliacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_conciliacoes_mensais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_conciliacao_itens_item_origem_id_fkey"
+            columns: ["item_origem_id"]
+            isOneToOne: false
+            referencedRelation: "fin_conciliacao_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_conciliacoes_mensais: {
+        Row: {
+          arquivos: NonNullable<Json>
+          competencia: string
+          conta_bancaria_id: string
+          created_at: string
+          created_by: string | null
+          fechada_em: string | null
+          fechada_por: string | null
+          id: string
+          observacoes: string | null
+          rendimento_fundo: number
+          saldo_conta: number
+          saldo_fundo: number
+          saldo_razao: number
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          arquivos?: NonNullable<Json>
+          competencia: string
+          conta_bancaria_id: string
+          created_at?: string
+          created_by?: string | null
+          fechada_em?: string | null
+          fechada_por?: string | null
+          id?: string
+          observacoes?: string | null
+          rendimento_fundo?: number
+          saldo_conta?: number
+          saldo_fundo?: number
+          saldo_razao: number
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          arquivos?: NonNullable<Json>
+          competencia?: string
+          conta_bancaria_id?: string
+          created_at?: string
+          created_by?: string | null
+          fechada_em?: string | null
+          fechada_por?: string | null
+          id?: string
+          observacoes?: string | null
+          rendimento_fundo?: number
+          saldo_conta?: number
+          saldo_fundo?: number
+          saldo_razao?: number
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_conciliacoes_mensais_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_contas_bancarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_contas_bancarias: {
         Row: {
           agencia: string
@@ -10896,6 +11200,63 @@ export type Database = {
           },
         ]
       }
+      fin_empenho_documentos_fiplan: {
+        Row: {
+          created_at: string
+          data: string
+          empenho_id: string
+          historico: string | null
+          id: string
+          numero: string
+          ordem: number
+          pc: string | null
+          tipo: string
+          valor_emp: number | null
+          valor_gcv: number | null
+          valor_liq: number | null
+          valor_nob: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          data: string
+          empenho_id: string
+          historico?: string | null
+          id?: string
+          numero: string
+          ordem: number
+          pc?: string | null
+          tipo: string
+          valor_emp?: number | null
+          valor_gcv?: number | null
+          valor_liq?: number | null
+          valor_nob?: number | null
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          empenho_id?: string
+          historico?: string | null
+          id?: string
+          numero?: string
+          ordem?: number
+          pc?: string | null
+          tipo?: string
+          valor_emp?: number | null
+          valor_gcv?: number | null
+          valor_liq?: number | null
+          valor_nob?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_empenho_documentos_fiplan_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_empenhos: {
         Row: {
           conta_contabil_credito_id: string | null
@@ -10903,20 +11264,29 @@ export type Database = {
           contrato_id: string | null
           created_at: string | null
           created_by: string | null
+          credor_codigo_fiplan: string | null
+          credor_nome: string | null
           data_empenho: string
           data_inscricao_rp: string | null
-          dotacao_id: string
+          data_referencia_fiplan: string | null
+          dotacao_fiplan: string | null
+          dotacao_id: string | null
           emitido_por: string | null
           exercicio: number
           fonte_recurso_id: string | null
-          fornecedor_id: string
+          fornecedor_id: string | null
           historico_status: Json | null
           id: string
+          importacao_id: string | null
           inscrito_rp: boolean | null
           natureza_despesa_id: string | null
           numero: string
           objeto: string
           observacoes: string | null
+          origem: string
+          ped_data: string | null
+          ped_numero: string | null
+          processo_fiplan: string | null
           processo_sei: string | null
           saldo_liquidar: number | null
           saldo_pagar: number | null
@@ -10937,20 +11307,29 @@ export type Database = {
           contrato_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          credor_codigo_fiplan?: string | null
+          credor_nome?: string | null
           data_empenho?: string
           data_inscricao_rp?: string | null
-          dotacao_id: string
+          data_referencia_fiplan?: string | null
+          dotacao_fiplan?: string | null
+          dotacao_id?: string | null
           emitido_por?: string | null
           exercicio: number
           fonte_recurso_id?: string | null
-          fornecedor_id: string
+          fornecedor_id?: string | null
           historico_status?: Json | null
           id?: string
+          importacao_id?: string | null
           inscrito_rp?: boolean | null
           natureza_despesa_id?: string | null
           numero: string
           objeto: string
           observacoes?: string | null
+          origem?: string
+          ped_data?: string | null
+          ped_numero?: string | null
+          processo_fiplan?: string | null
           processo_sei?: string | null
           saldo_liquidar?: never
           saldo_pagar?: never
@@ -10970,20 +11349,29 @@ export type Database = {
           contrato_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          credor_codigo_fiplan?: string | null
+          credor_nome?: string | null
           data_empenho?: string
           data_inscricao_rp?: string | null
-          dotacao_id?: string
+          data_referencia_fiplan?: string | null
+          dotacao_fiplan?: string | null
+          dotacao_id?: string | null
           emitido_por?: string | null
           exercicio?: number
           fonte_recurso_id?: string | null
-          fornecedor_id?: string
+          fornecedor_id?: string | null
           historico_status?: Json | null
           id?: string
+          importacao_id?: string | null
           inscrito_rp?: boolean | null
           natureza_despesa_id?: string | null
           numero?: string
           objeto?: string
           observacoes?: string | null
+          origem?: string
+          ped_data?: string | null
+          ped_numero?: string | null
+          processo_fiplan?: string | null
           processo_sei?: string | null
           saldo_liquidar?: never
           saldo_pagar?: never
@@ -11038,6 +11426,13 @@ export type Database = {
             columns: ["fornecedor_id"]
             isOneToOne: false
             referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_empenhos_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
             referencedColumns: ["id"]
           },
           {
@@ -11800,6 +12195,7 @@ export type Database = {
           motivo_estorno: string | null
           numero: string
           observacoes: string | null
+          remessa_bancaria_id: string | null
           status: Database["public"]["Enums"]["status_pagamento"] | null
           tipo_conta_favorecido: string | null
           updated_at: string | null
@@ -11837,6 +12233,7 @@ export type Database = {
           motivo_estorno?: string | null
           numero: string
           observacoes?: string | null
+          remessa_bancaria_id?: string | null
           status?: Database["public"]["Enums"]["status_pagamento"] | null
           tipo_conta_favorecido?: string | null
           updated_at?: string | null
@@ -11873,6 +12270,7 @@ export type Database = {
           motivo_estorno?: string | null
           numero?: string
           observacoes?: string | null
+          remessa_bancaria_id?: string | null
           status?: Database["public"]["Enums"]["status_pagamento"] | null
           tipo_conta_favorecido?: string | null
           updated_at?: string | null
@@ -11921,6 +12319,13 @@ export type Database = {
             columns: ["liquidacao_id"]
             isOneToOne: false
             referencedRelation: "fin_liquidacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_pagamentos_remessa_bancaria_id_fkey"
+            columns: ["remessa_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_remessas_bancarias"
             referencedColumns: ["id"]
           },
         ]
@@ -12157,6 +12562,8 @@ export type Database = {
           layout: string
           movimentos: string[]
           nsa: number
+          pagamentos: string[]
+          parametros: NonNullable<Json>
           quantidade: number
           tipo_servico: string
           valor_total: number
@@ -12179,6 +12586,8 @@ export type Database = {
           layout?: string
           movimentos?: string[]
           nsa: number
+          pagamentos?: string[]
+          parametros?: NonNullable<Json>
           quantidade: number
           tipo_servico?: string
           valor_total: number
@@ -12200,6 +12609,8 @@ export type Database = {
           layout?: string
           movimentos?: string[]
           nsa?: number
+          pagamentos?: string[]
+          parametros?: NonNullable<Json>
           quantidade?: number
           tipo_servico?: string
           valor_total?: number
@@ -12806,6 +13217,7 @@ export type Database = {
           ativo: boolean | null
           banco_codigo: string | null
           banco_nome: string | null
+          codigo_credor_fiplan: string | null
           conta: string | null
           cpf_cnpj: string
           created_at: string | null
@@ -12842,6 +13254,7 @@ export type Database = {
           ativo?: boolean | null
           banco_codigo?: string | null
           banco_nome?: string | null
+          codigo_credor_fiplan?: string | null
           conta?: string | null
           cpf_cnpj: string
           created_at?: string | null
@@ -12877,6 +13290,7 @@ export type Database = {
           ativo?: boolean | null
           banco_codigo?: string | null
           banco_nome?: string | null
+          codigo_credor_fiplan?: string | null
           conta?: string | null
           cpf_cnpj?: string
           created_at?: string | null
@@ -17150,11 +17564,12 @@ export type Database = {
       }
       nomeacoes_chefe_unidade: {
         Row: {
-          ato_data_publicacao: string
+          ato_data_assinatura: string | null
+          ato_data_publicacao: string | null
           ato_doe_data: string | null
           ato_doe_numero: string | null
           ato_nomeacao_tipo: Database["public"]["Enums"]["tipo_ato_nomeacao"]
-          ato_numero: string
+          ato_numero: string | null
           cargo: string
           created_at: string | null
           created_by: string | null
@@ -17164,6 +17579,7 @@ export type Database = {
           documento_nomeacao_url: string | null
           id: string
           observacoes: string | null
+          processo_sei: string | null
           servidor_id: string
           status: Database["public"]["Enums"]["status_nomeacao"]
           unidade_local_id: string
@@ -17173,11 +17589,12 @@ export type Database = {
         }
         ComputedFields: never
         Insert: {
-          ato_data_publicacao: string
+          ato_data_assinatura?: string | null
+          ato_data_publicacao?: string | null
           ato_doe_data?: string | null
           ato_doe_numero?: string | null
           ato_nomeacao_tipo: Database["public"]["Enums"]["tipo_ato_nomeacao"]
-          ato_numero: string
+          ato_numero?: string | null
           cargo?: string
           created_at?: string | null
           created_by?: string | null
@@ -17187,6 +17604,7 @@ export type Database = {
           documento_nomeacao_url?: string | null
           id?: string
           observacoes?: string | null
+          processo_sei?: string | null
           servidor_id: string
           status?: Database["public"]["Enums"]["status_nomeacao"]
           unidade_local_id: string
@@ -17195,11 +17613,12 @@ export type Database = {
           updated_by_servidor_id?: string | null
         }
         Update: {
-          ato_data_publicacao?: string
+          ato_data_assinatura?: string | null
+          ato_data_publicacao?: string | null
           ato_doe_data?: string | null
           ato_doe_numero?: string | null
           ato_nomeacao_tipo?: Database["public"]["Enums"]["tipo_ato_nomeacao"]
-          ato_numero?: string
+          ato_numero?: string | null
           cargo?: string
           created_at?: string | null
           created_by?: string | null
@@ -17209,6 +17628,7 @@ export type Database = {
           documento_nomeacao_url?: string | null
           id?: string
           observacoes?: string | null
+          processo_sei?: string | null
           servidor_id?: string
           status?: Database["public"]["Enums"]["status_nomeacao"]
           unidade_local_id?: string
@@ -18066,6 +18486,305 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_relatorio_uso_unidades"
             referencedColumns: ["unidade_id"]
+          },
+        ]
+      }
+      pca_historico: {
+        Row: {
+          acao: string
+          antes: Json | null
+          depois: Json | null
+          feito_em: string
+          feito_por: string | null
+          id: string
+          item_id: string | null
+          motivo: string | null
+          plano_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          acao: string
+          antes?: Json | null
+          depois?: Json | null
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          item_id?: string | null
+          motivo?: string | null
+          plano_id: string
+        }
+        Update: {
+          acao?: string
+          antes?: Json | null
+          depois?: Json | null
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          item_id?: string | null
+          motivo?: string | null
+          plano_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pca_historico_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pca_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_historico_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "pca_planos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pca_itens: {
+        Row: {
+          acao_id: string
+          codigo_item: number | null
+          codigo_pdm: number | null
+          codigo_servico: number | null
+          created_at: string
+          created_by: string | null
+          descricao: string
+          fonte_recurso_id: string
+          id: string
+          justificativa: string | null
+          mes_desejado: number
+          natureza_despesa_id: string | null
+          numero_sei: string
+          origem: string
+          plano_id: string
+          prioridade: string
+          quantidade: number
+          setor_id: string | null
+          situacao: string
+          tipo: string
+          unidade_fornecimento: string
+          updated_at: string
+          updated_by: string | null
+          valor_total: number | null
+          valor_unitario: number
+        }
+        ComputedFields: never
+        Insert: {
+          acao_id: string
+          codigo_item?: number | null
+          codigo_pdm?: number | null
+          codigo_servico?: number | null
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          fonte_recurso_id: string
+          id?: string
+          justificativa?: string | null
+          mes_desejado: number
+          natureza_despesa_id?: string | null
+          numero_sei: string
+          origem?: string
+          plano_id: string
+          prioridade?: string
+          quantidade: number
+          setor_id?: string | null
+          situacao?: string
+          tipo: string
+          unidade_fornecimento: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_total?: never
+          valor_unitario: number
+        }
+        Update: {
+          acao_id?: string
+          codigo_item?: number | null
+          codigo_pdm?: number | null
+          codigo_servico?: number | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          fonte_recurso_id?: string
+          id?: string
+          justificativa?: string | null
+          mes_desejado?: number
+          natureza_despesa_id?: string | null
+          numero_sei?: string
+          origem?: string
+          plano_id?: string
+          prioridade?: string
+          quantidade?: number
+          setor_id?: string | null
+          situacao?: string
+          tipo?: string
+          unidade_fornecimento?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_total?: never
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pca_itens_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_acoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_itens_codigo_item_fkey"
+            columns: ["codigo_item"]
+            isOneToOne: false
+            referencedRelation: "cat_material_itens"
+            referencedColumns: ["codigo_item"]
+          },
+          {
+            foreignKeyName: "pca_itens_codigo_pdm_fkey"
+            columns: ["codigo_pdm"]
+            isOneToOne: false
+            referencedRelation: "cat_material_pdms"
+            referencedColumns: ["codigo_pdm"]
+          },
+          {
+            foreignKeyName: "pca_itens_codigo_servico_fkey"
+            columns: ["codigo_servico"]
+            isOneToOne: false
+            referencedRelation: "cat_servicos"
+            referencedColumns: ["codigo_servico"]
+          },
+          {
+            foreignKeyName: "pca_itens_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_itens_natureza_despesa_id_fkey"
+            columns: ["natureza_despesa_id"]
+            isOneToOne: false
+            referencedRelation: "fin_naturezas_despesa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_itens_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "pca_planos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_itens_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pca_planos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_aprovacao: string | null
+          data_publicacao_pncp: string | null
+          exercicio: number
+          id: string
+          observacoes: string | null
+          processo_sei: string | null
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_aprovacao?: string | null
+          data_publicacao_pncp?: string | null
+          exercicio: number
+          id?: string
+          observacoes?: string | null
+          processo_sei?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_aprovacao?: string | null
+          data_publicacao_pncp?: string | null
+          exercicio?: number
+          id?: string
+          observacoes?: string | null
+          processo_sei?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      pca_tetos: {
+        Row: {
+          acao_id: string
+          created_at: string
+          created_by: string | null
+          fonte_recurso_id: string
+          id: string
+          origem: string
+          plano_id: string
+          updated_at: string
+          updated_by: string | null
+          valor_previsto: number
+        }
+        ComputedFields: never
+        Insert: {
+          acao_id: string
+          created_at?: string
+          created_by?: string | null
+          fonte_recurso_id: string
+          id?: string
+          origem?: string
+          plano_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_previsto?: number
+        }
+        Update: {
+          acao_id?: string
+          created_at?: string
+          created_by?: string | null
+          fonte_recurso_id?: string
+          id?: string
+          origem?: string
+          plano_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_previsto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pca_tetos_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_acoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_tetos_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pca_tetos_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "pca_planos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -22680,14 +23399,17 @@ export type Database = {
           data_emissao: string | null
           documento_assinado_url: string | null
           documento_gerado_url: string | null
+          doe_data: string | null
+          doe_numero: string | null
           finalidade: string
           historico_renovacoes: Json | null
           id: string
           numero_protocolo: string | null
-          numero_termo: string
+          numero_termo: string | null
           observacoes: string | null
           periodo_fim: string
           periodo_inicio: string
+          processo_sei: string | null
           responsabilidades: string | null
           restricoes_uso: string | null
           status: Database["public"]["Enums"]["status_termo_cessao"]
@@ -22718,14 +23440,17 @@ export type Database = {
           data_emissao?: string | null
           documento_assinado_url?: string | null
           documento_gerado_url?: string | null
+          doe_data?: string | null
+          doe_numero?: string | null
           finalidade: string
           historico_renovacoes?: Json | null
           id?: string
           numero_protocolo?: string | null
-          numero_termo: string
+          numero_termo?: string | null
           observacoes?: string | null
           periodo_fim: string
           periodo_inicio: string
+          processo_sei?: string | null
           responsabilidades?: string | null
           restricoes_uso?: string | null
           status?: Database["public"]["Enums"]["status_termo_cessao"]
@@ -22755,14 +23480,17 @@ export type Database = {
           data_emissao?: string | null
           documento_assinado_url?: string | null
           documento_gerado_url?: string | null
+          doe_data?: string | null
+          doe_numero?: string | null
           finalidade?: string
           historico_renovacoes?: Json | null
           id?: string
           numero_protocolo?: string | null
-          numero_termo?: string
+          numero_termo?: string | null
           observacoes?: string | null
           periodo_fim?: string
           periodo_inicio?: string
+          processo_sei?: string | null
           responsabilidades?: string | null
           restricoes_uso?: string | null
           status?: Database["public"]["Enums"]["status_termo_cessao"]
@@ -24502,6 +25230,7 @@ export type Database = {
       eh_meu_servidor: { Args: { _servidor_id: string }; Returns: boolean }
       eh_minha_pasta_servidor: { Args: { _name: string }; Returns: boolean }
       enviar_folha_conferencia: { Args: { p_folha_id: string }; Returns: Json }
+      fechar_conciliacao_mensal: { Args: { p_id: string }; Returns: undefined }
       fechar_folha: {
         Args: { p_folha_id: string; p_justificativa?: string }
         Returns: Json
@@ -24514,6 +25243,10 @@ export type Database = {
           p_valor: number
         }
         Returns: string
+      }
+      fin_conciliacao_conferir_anteriores: {
+        Args: { p_id: string }
+        Returns: undefined
       }
       fin_marcar_pagamento_pago: {
         Args: { p_data: string; p_pagamento_id: string }
@@ -24805,6 +25538,25 @@ export type Database = {
         }
         Returns: Json
       }
+      importar_empenhos_fip614: {
+        Args: {
+          p_arquivo: Json
+          p_data_referencia?: string
+          p_exercicio: number
+          p_linhas: Json
+          p_simular?: boolean
+        }
+        Returns: Json
+      }
+      importar_folha_sigrh: {
+        Args: {
+          p_arquivo: Json
+          p_competencia: Json
+          p_fichas: Json
+          p_simular?: boolean
+        }
+        Returns: Json
+      }
       importar_portarias_planilha: {
         Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
         Returns: Json
@@ -25010,6 +25762,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      pca_classificadores: { Args: { _exercicio: number }; Returns: Json }
+      pca_usar_qdd: { Args: { _plano_id: string }; Returns: number }
       perfil_ativo_atual: { Args: Record<PropertyKey, never>; Returns: boolean }
       pode_conciliar_pagamentos: {
         Args: Record<PropertyKey, never>
@@ -25178,6 +25932,10 @@ export type Database = {
         Args: { p_justificativa?: string; p_rascunho_id: string }
         Returns: boolean
       }
+      reabrir_conciliacao_mensal: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: undefined
+      }
       reabrir_folha: {
         Args: { p_folha_id: string; p_justificativa: string }
         Returns: Json
@@ -25233,6 +25991,15 @@ export type Database = {
           p_movimentos: string[]
           p_nsa_minimo?: number
           p_tipo_servico?: string
+        }
+        Returns: Json
+      }
+      registrar_remessa_obn600: {
+        Args: {
+          p_conta_autarquia_id: string
+          p_data_pagamento: string
+          p_pagamentos: string[]
+          p_sequencial_minimo?: number
         }
         Returns: Json
       }
@@ -25357,6 +26124,15 @@ export type Database = {
       }
       rh_vaga_ocupante_atual: { Args: { p_vaga_id: string }; Returns: string }
       rh_vaga_situacao: { Args: { p_vaga_id: string }; Returns: string }
+      salvar_conciliacao_mensal: {
+        Args: {
+          p_competencia: string
+          p_conta_bancaria_id: string
+          p_dados: Json
+          p_itens: Json
+        }
+        Returns: string
+      }
       salvar_segredo_envio: {
         Args: { p_canal: string; p_segredo: string }
         Returns: string

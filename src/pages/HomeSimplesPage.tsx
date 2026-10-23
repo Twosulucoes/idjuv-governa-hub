@@ -36,8 +36,8 @@ export default function HomeSimplesPage() {
               </h1>
               {/* TODO (White Label — Fase 5): chamada editorial, vai para CMS. */}
               <p className="text-lg md:text-xl opacity-90 mb-8 max-w-2xl">
-                Autarquia pública estadual dedicada ao desenvolvimento do esporte,
-                da juventude e do lazer no Estado de Roraima.
+                {identidade.naturezaJuridica || "Instituição pública"} dedicada ao desenvolvimento
+                do esporte, da juventude e do lazer.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button size="lg" variant="secondary" className="text-base px-8" asChild>
@@ -73,9 +73,9 @@ export default function HomeSimplesPage() {
             <p className="text-base text-muted-foreground leading-relaxed">
               {/* TODO (White Label — Fase 5): texto institucional editorial.
                   Vira conteúdo de CMS/banco, como as normas em governanca/. */}
-              O IDJUV é responsável por desenvolver e executar políticas públicas
-              voltadas ao esporte, à juventude e ao lazer em Roraima, promovendo
-              o desenvolvimento integral da juventude roraimense.
+              O {identidade.sigla} é responsável por desenvolver e executar políticas públicas
+              voltadas ao esporte, à juventude e ao lazer, promovendo o desenvolvimento
+              integral da juventude.
             </p>
           </div>
         </div>

@@ -1,166 +1,77 @@
-import { 
-  CheckCircle2, 
-  Users, 
-  FileText, 
+import { useState } from "react";
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle2,
+  ClipboardCheck,
+  Download,
+  FileText,
+  Megaphone,
   Shield,
   Target,
-  Calendar,
-  Download
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout/ModuleLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ChartCard, PageHeader, StatusBadge, type TomStatus } from "@/components/design-system";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChartCard, EmptyState, KpiCard, PageHeader, StatusBadge, tomDaSituacao } from "@/components/design-system";
 import { generateRelatorioGovernancaPDF } from "@/lib/pdfGenerator";
+import { useRelatorioGovernanca } from "@/hooks/useRelatorioGovernanca";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  AVISO_SEM_CADASTRO,
+  indicadoresGovernanca,
+  relatorioSemCadastro,
+} from "@/lib/documentos/modelos/governanca/relatorioAnual";
 import { toast } from "sonner";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  CartesianGrid,
-} from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis } from "recharts";
 
-// Dados dos indicadores principais
-const indicadoresPrincipais = [
-  {
-    titulo: "Conformidade Geral",
-    valor: 87,
-    meta: 90,
-    icon: CheckCircle2,
-    cor: "text-success",
-    bgCor: "bg-success/15",
-  },
-  {
-    titulo: "Processos Mapeados",
-    valor: 24,
-    meta: 30,
-    icon: FileText,
-    cor: "text-info",
-    bgCor: "bg-info/15",
-  },
-  {
-    titulo: "Capacitações Realizadas",
-    valor: 156,
-    meta: 200,
-    icon: Users,
-    cor: "text-primary",
-    bgCor: "bg-primary/15",
-  },
-  {
-    titulo: "Riscos Mitigados",
-    valor: 18,
-    meta: 22,
-    icon: Shield,
-    cor: "text-warning",
-    bgCor: "bg-warning/15",
-  },
-];
+// Relatório anual com os cadastros reais de governança e integridade (hook `useRelatorioGovernanca`).
+// Seção sem registro mostra "sem dados cadastrados"; nenhum número fica escrito no código.
 
-// Dados do gráfico de conformidade mensal
-const dadosConformidade = [
-  { mes: "Jan", conformidade: 72, meta: 90 },
-  { mes: "Fev", conformidade: 75, meta: 90 },
-  { mes: "Mar", conformidade: 78, meta: 90 },
-  { mes: "Abr", conformidade: 80, meta: 90 },
-  { mes: "Mai", conformidade: 82, meta: 90 },
-  { mes: "Jun", conformidade: 85, meta: 90 },
-  { mes: "Jul", conformidade: 84, meta: 90 },
-  { mes: "Ago", conformidade: 86, meta: 90 },
-  { mes: "Set", conformidade: 87, meta: 90 },
-  { mes: "Out", conformidade: 87, meta: 90 },
-  { mes: "Nov", conformidade: 88, meta: 90 },
-  { mes: "Dez", conformidade: 87, meta: 90 },
-];
-
-// Dados do gráfico de processos por área
-const dadosProcessos = [
-  { area: "Compras", quantidade: 8, cor: "hsl(var(--chart-1))" },
-  { area: "RH", quantidade: 5, cor: "hsl(var(--chart-2))" },
-  { area: "Patrimônio", quantidade: 4, cor: "hsl(var(--chart-3))" },
-  { area: "Financeiro", quantidade: 4, cor: "hsl(var(--chart-4))" },
-  { area: "Almoxarifado", quantidade: 3, cor: "hsl(var(--chart-5))" },
-];
-
-// Dados de riscos por categoria
-const dadosRiscos = [
-  { categoria: "Baixo", quantidade: 12, cor: "hsl(var(--success))" },
-  { categoria: "Médio", quantidade: 8, cor: "hsl(var(--chart-8))" },
-  { categoria: "Alto", quantidade: 4, cor: "hsl(var(--chart-3))" },
-  { categoria: "Crítico", quantidade: 1, cor: "hsl(var(--destructive))" },
-];
-
-// Ações de integridade
-const acoesIntegridade = [
-  {
-    titulo: "Treinamento em Ética",
-    status: "concluido",
-    percentual: 100,
-    prazo: "Mar/2025",
-  },
-  {
-    titulo: "Atualização Código de Conduta",
-    status: "concluido",
-    percentual: 100,
-    prazo: "Abr/2025",
-  },
-  {
-    titulo: "Mapeamento de Riscos",
-    status: "em_andamento",
-    percentual: 75,
-    prazo: "Jun/2025",
-  },
-  {
-    titulo: "Implantação Canal Denúncias",
-    status: "concluido",
-    percentual: 100,
-    prazo: "Mai/2025",
-  },
-  {
-    titulo: "Auditoria Interna",
-    status: "em_andamento",
-    percentual: 45,
-    prazo: "Dez/2025",
-  },
-  {
-    titulo: "Certificação ISO 37001",
-    status: "pendente",
-    percentual: 10,
-    prazo: "Dez/2026",
-  },
-];
-
-// Situação da ação → rótulo e tom (status nunca só por cor)
-const SITUACAO_ACAO: Record<string, { label: string; tom: TomStatus }> = {
-  concluido: { label: "Concluído", tom: "sucesso" },
-  em_andamento: { label: "Em andamento", tom: "andamento" },
-  pendente: { label: "Pendente", tom: "pendente" },
+const ICONES_INDICADOR: Record<string, typeof CheckCircle2> = {
+  Conformidade: CheckCircle2,
+  "Processos mapeados": FileText,
+  "Riscos identificados": Shield,
+  "Ações de tratamento": Target,
+  "Avaliações de controles": ClipboardCheck,
+  "Denúncias recebidas": Megaphone,
 };
 
 const chartConfig = {
-  conformidade: {
-    label: "Conformidade",
-    color: "hsl(var(--primary))",
-  },
-  meta: {
-    label: "Meta",
-    color: "hsl(var(--muted-foreground))",
-  },
+  quantidade: { label: "Processos", color: "hsl(var(--chart-1))" },
+  inerente: { label: "Inerente", color: "hsl(var(--chart-3))" },
+  residual: { label: "Residual", color: "hsl(var(--chart-2))" },
 };
 
+const SemDados = () => (
+  <EmptyState titulo="Sem dados cadastrados" descricao="Nenhum registro deste assunto no exercício escolhido." />
+);
+
 export default function RelatorioGovernancaPage() {
+  const anoAtual = new Date().getFullYear();
+  const [ano, setAno] = useState(anoAtual);
+  const { hasPermission } = useAuth();
+  const podeVerDenuncias = hasPermission("integridade.gerenciar");
+  const { data, isLoading, isError } = useRelatorioGovernanca(ano, podeVerDenuncias);
+
+  const anos = Array.from({ length: 6 }, (_, i) => anoAtual - i);
+  const semCadastro = data ? relatorioSemCadastro(data) : false;
+  const indicadores = data ? indicadoresGovernanca(data) : [];
+
+  const baixar = async () => {
+    if (!data) return;
+    try {
+      await generateRelatorioGovernancaPDF(data);
+      toast.success("PDF do Relatório de Governança gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar relatório de governança:", error);
+      toast.error("Erro ao gerar o PDF do Relatório de Governança");
+    }
+  };
+
   return (
     <ModuleLayout module="governanca">
       <div className="space-y-6">
@@ -170,267 +81,268 @@ export default function RelatorioGovernancaPage() {
           descricao={
             <span className="flex items-center gap-2">
               <Calendar className="w-4 h-4" aria-hidden="true" />
-              Exercício 2025 - Atualizado em dezembro
+              Exercício {ano}, com os cadastros de governança do sistema
             </span>
           }
           acoes={
-            <Button
-              onClick={async () => {
-                try {
-                  await generateRelatorioGovernancaPDF();
-                  toast.success("PDF do Relatório de Governança gerado com sucesso!");
-                } catch (error) {
-                  console.error("Erro ao gerar relatório de governança:", error);
-                  toast.error("Erro ao gerar o PDF do Relatório de Governança");
-                }
-              }}
-            >
-              <Download className="w-4 h-4" aria-hidden="true" />
-              Baixar PDF
-            </Button>
+            <div className="flex items-center gap-2">
+              <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
+                <SelectTrigger className="w-28" aria-label="Exercício">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {anos.map((a) => (
+                    <SelectItem key={a} value={String(a)}>
+                      {a}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={baixar} disabled={!data}>
+                <Download className="w-4 h-4" aria-hidden="true" />
+                Baixar PDF
+              </Button>
+            </div>
           }
         />
 
-        {/* Indicadores principais (com meta e progresso; por isso não usam KpiCard) */}
-        <section aria-labelledby="relatorio-indicadores">
-          <h2 id="relatorio-indicadores" className="sr-only">Indicadores principais</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {indicadoresPrincipais.map((indicador) => (
-            <Card key={indicador.titulo} className="relative overflow-hidden">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">
-                      {indicador.titulo}
-                    </p>
-                    <p className="text-h1 tabular-nums">
-                      {indicador.valor}
-                      {indicador.titulo === "Conformidade Geral" && "%"}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Meta: {indicador.meta}{indicador.titulo === "Conformidade Geral" && "%"}
-                    </p>
-                  </div>
-                  <div className={`w-12 h-12 ${indicador.bgCor} rounded-lg flex items-center justify-center`}>
-                    <indicador.icon className={`w-6 h-6 ${indicador.cor}`} aria-hidden="true" />
-                  </div>
-                </div>
-                <Progress 
-                  value={(indicador.valor / indicador.meta) * 100} 
-                  className="mt-4 h-2" 
-                  aria-label={`${indicador.titulo}: ${Math.round((indicador.valor / indicador.meta) * 100)}% da meta`}
-                />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        </section>
+        {isError && (
+          <EmptyState
+            icone={AlertTriangle}
+            titulo="Não foi possível carregar o relatório"
+            descricao="Verifique sua conexão e permissões e tente novamente."
+          />
+        )}
 
-        {/* Gráficos */}
-        <h2 className="sr-only">Gráficos</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Gráfico de Conformidade */}
-          <ChartCard
-            titulo="Evolução da conformidade"
-            descricao="Índice mensal de conformidade vs meta estabelecida"
-            tabela={{
-              colunas: [
-                { chave: "mes", rotulo: "Mês" },
-                { chave: "conformidade", rotulo: "Conformidade (%)", numerica: true },
-                { chave: "meta", rotulo: "Meta (%)", numerica: true },
-              ],
-              linhas: dadosConformidade,
-            }}
-          >
-              <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <LineChart data={dadosConformidade}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="mes" className="text-xs" />
-                  <YAxis domain={[60, 100]} className="text-xs" />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="conformidade" 
-                    stroke="hsl(var(--primary))" 
-                    strokeWidth={3}
-                    dot={{ fill: "hsl(var(--primary))", strokeWidth: 2 }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="meta" 
-                    stroke="hsl(var(--muted-foreground))" 
-                    strokeDasharray="5 5"
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ChartContainer>
-          </ChartCard>
+        {isLoading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <KpiCard key={i} rotulo="Carregando" valor="" carregando />
+            ))}
+          </div>
+        )}
 
-          {/* Gráfico de Processos por Área */}
-          <ChartCard
-            titulo="Processos mapeados por área"
-            descricao="Distribuição dos 24 processos formalizados"
-            tabela={{
-              colunas: [
-                { chave: "area", rotulo: "Área" },
-                { chave: "quantidade", rotulo: "Processos", numerica: true },
-              ],
-              linhas: dadosProcessos.map(({ area, quantidade }) => ({ area, quantidade })),
-            }}
-          >
-              <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <BarChart data={dadosProcessos} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis type="number" className="text-xs" />
-                  <YAxis dataKey="area" type="category" className="text-xs" width={80} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="quantidade" radius={[0, 4, 4, 0]}>
-                    {dadosProcessos.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.cor} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
-          </ChartCard>
+        {data && semCadastro && (
+          <EmptyState
+            icone={AlertTriangle}
+            titulo={AVISO_SEM_CADASTRO}
+            descricao={`Não há riscos, controles, checklists de conformidade, processos mapeados nem ações de tratamento cadastrados para ${ano}. O PDF sai com este aviso e sem números.`}
+          />
+        )}
 
-          {/* Gráfico de Riscos */}
-          <ChartCard
-            titulo="Matriz de riscos"
-            descricao="Classificação dos 25 riscos identificados"
-            tabela={{
-              colunas: [
-                { chave: "categoria", rotulo: "Classificação" },
-                { chave: "quantidade", rotulo: "Riscos", numerica: true },
-              ],
-              linhas: dadosRiscos.map(({ categoria, quantidade }) => ({ categoria, quantidade })),
-            }}
-          >
-              <ChartContainer config={chartConfig} className="mx-auto h-[300px] w-full max-w-[400px]">
-                <PieChart>
-                  <Pie
-                    data={dadosRiscos}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="quantidade"
-                    label={({ categoria, quantidade }) => `${categoria}: ${quantidade}`}
-                  >
-                    {dadosRiscos.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.cor} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                </PieChart>
-              </ChartContainer>
-          </ChartCard>
-
-          {/* Ações de Integridade */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-primary" aria-hidden="true" />
-                Plano de ação de integridade
-              </CardTitle>
-              <CardDescription>
-                Acompanhamento das ações planejadas para 2025
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {acoesIntegridade.map((acao) => (
-                  <div key={acao.titulo} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{acao.titulo}</span>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge tom={SITUACAO_ACAO[acao.status]?.tom ?? "neutro"}>
-                          {SITUACAO_ACAO[acao.status]?.label ?? acao.status}
-                        </StatusBadge>
-                        <span className="text-xs text-muted-foreground">
-                          {acao.prazo}
-                        </span>
-                      </div>
-                    </div>
-                    <Progress value={acao.percentual} className="h-2" aria-label={`${acao.titulo}: ${acao.percentual}% concluído`} />
-                  </div>
+        {data && !semCadastro && (
+          <>
+            <section aria-labelledby="relatorio-indicadores">
+              <h2 id="relatorio-indicadores" className="sr-only">Indicadores principais</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {indicadores.map((i) => (
+                  <KpiCard key={i.titulo} rotulo={i.titulo} valor={i.valor} detalhe={i.base} icone={ICONES_INDICADOR[i.titulo]} />
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </section>
 
-        {/* Resumo Executivo */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-h2">Resumo executivo</CardTitle>
-          </CardHeader>
-          <CardContent className="prose prose-sm max-w-none">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <h4 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-success" aria-hidden="true" />
-                  Principais conquistas
-                </h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>• Implantação do Portal de Governança com 100% dos documentos estruturantes</li>
-                  <li>• Canal de Denúncias operacional com garantia de anonimato</li>
-                  <li>• 24 processos administrativos formalizados e documentados</li>
-                  <li>• 156 servidores capacitados em ética e integridade</li>
-                  <li>• Matriz de Riscos institucional aprovada e publicada</li>
-                  <li>• Código de Ética e Conduta atualizado e divulgado</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-primary" aria-hidden="true" />
-                  Metas para 2026
-                </h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>• Atingir 95% de conformidade nos processos críticos</li>
-                  <li>• Mapear 100% dos processos institucionais (30 processos)</li>
-                  <li>• Implementar sistema de gestão de riscos automatizado</li>
-                  <li>• Capacitar 100% dos servidores em integridade</li>
-                  <li>• Obter certificação ISO 37001 (Antissuborno)</li>
-                  <li>• Realizar auditoria externa de governança</li>
-                </ul>
-              </div>
+            <h2 className="sr-only">Detalhamento</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Conformidade por checklist */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-primary" aria-hidden="true" />
+                    Conformidade por checklist
+                  </CardTitle>
+                  <CardDescription>Itens conformes sobre os itens aplicáveis do exercício {ano}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {data.conformidade.length === 0 ? (
+                    <SemDados />
+                  ) : (
+                    <div className="space-y-4">
+                      {data.conformidade.map((c) => {
+                        const aplicaveis = c.itens - c.naoAplicaveis;
+                        const pct = aplicaveis > 0 ? Math.round((c.conformes / aplicaveis) * 100) : null;
+                        return (
+                          <div key={`${c.nome}-${c.orgao}`} className="space-y-1">
+                            <div className="flex items-center justify-between gap-2 text-sm">
+                              <span className="font-medium">{c.nome} <span className="text-muted-foreground">({c.orgao})</span></span>
+                              <span className="tabular-nums">{pct === null ? "—" : `${pct}%`}</span>
+                            </div>
+                            <Progress value={pct ?? 0} className="h-2" aria-label={`${c.nome}: ${pct ?? 0}% conforme`} />
+                            <p className="text-xs text-muted-foreground tabular-nums">
+                              {c.conformes} conformes · {c.parciais} parciais · {c.naoConformes} não conformes · {c.pendentes} pendentes
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Processos por área */}
+              <ChartCard
+                titulo="Processos mapeados por área"
+                descricao="Processos ativos da matriz RACI"
+                tabela={{
+                  colunas: [
+                    { chave: "area", rotulo: "Área" },
+                    { chave: "quantidade", rotulo: "Processos", numerica: true },
+                  ],
+                  linhas: data.processosPorArea,
+                }}
+              >
+                {data.processosPorArea.length === 0 ? (
+                  <SemDados />
+                ) : (
+                  <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                    <BarChart data={data.processosPorArea} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis type="number" allowDecimals={false} className="text-xs" />
+                      <YAxis dataKey="area" type="category" className="text-xs" width={110} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="quantidade" fill="var(--color-quantidade)" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ChartContainer>
+                )}
+              </ChartCard>
+
+              {/* Matriz de riscos */}
+              <ChartCard
+                titulo="Matriz de riscos"
+                descricao="Riscos ativos por nível inerente e residual (residual só dos já reavaliados)"
+                tabela={{
+                  colunas: [
+                    { chave: "nivel", rotulo: "Nível" },
+                    { chave: "inerente", rotulo: "Inerente", numerica: true },
+                    { chave: "residual", rotulo: "Residual", numerica: true },
+                  ],
+                  linhas: data.riscosPorNivel,
+                }}
+              >
+                {data.riscosPorNivel.length === 0 ? (
+                  <SemDados />
+                ) : (
+                  <>
+                    <ChartContainer config={chartConfig} className="h-[260px] w-full">
+                      <BarChart data={data.riscosPorNivel}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="nivel" className="text-xs" />
+                        <YAxis allowDecimals={false} className="text-xs" />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Legend />
+                        <Bar dataKey="inerente" fill="var(--color-inerente)" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="residual" fill="var(--color-residual)" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ChartContainer>
+                    <ul className="mt-3 flex flex-wrap gap-2 text-xs">
+                      {data.riscosPorSituacao.map((s) => (
+                        <li key={s.situacao}>
+                          <StatusBadge tom="neutro">{s.situacao}: {s.quantidade}</StatusBadge>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </ChartCard>
+
+              {/* Plano de tratamento */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="w-5 h-5 text-primary" aria-hidden="true" />
+                    Plano de tratamento de riscos
+                  </CardTitle>
+                  <CardDescription>Ações vigentes em {ano}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {data.acoes.length === 0 ? (
+                    <SemDados />
+                  ) : (
+                    <div className="space-y-4">
+                      {data.acoes.map((acao, i) => (
+                        <div key={`${acao.titulo}-${i}`} className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium">{acao.titulo}</span>
+                            <div className="flex items-center gap-2">
+                              <StatusBadge tom={tomDaSituacao(acao.situacao)}>{acao.situacao}</StatusBadge>
+                              {acao.prazo && <span className="text-xs text-muted-foreground">{acao.prazo}</span>}
+                            </div>
+                          </div>
+                          {acao.percentual !== null && (
+                            <Progress value={acao.percentual} className="h-2" aria-label={`${acao.titulo}: ${acao.percentual}% executado`} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Controles internos */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardCheck className="w-5 h-5 text-primary" aria-hidden="true" />
+                    Avaliação de controles internos
+                  </CardTitle>
+                  <CardDescription>Avaliações registradas em {ano}, por efetividade</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {data.avaliacoesControle.length === 0 ? (
+                    <SemDados />
+                  ) : (
+                    <ul className="space-y-2 text-sm">
+                      {data.avaliacoesControle.map((a) => (
+                        <li key={a.efetividade} className="flex justify-between">
+                          <span>{a.efetividade}</span>
+                          <span className="tabular-nums">{a.quantidade}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Canal de denúncias (só para quem gerencia o canal) */}
+              {data.denuncias !== null && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Megaphone className="w-5 h-5 text-primary" aria-hidden="true" />
+                      Canal de denúncias
+                    </CardTitle>
+                    <CardDescription>Denúncias recebidas em {ano}, por situação</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {data.denuncias.length === 0 ? (
+                      <SemDados />
+                    ) : (
+                      <ul className="space-y-2 text-sm">
+                        {data.denuncias.map((d) => (
+                          <li key={d.situacao} className="flex justify-between">
+                            <span>{d.situacao}</span>
+                            <span className="tabular-nums">{d.quantidade}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </>
+        )}
 
-        {/* Fundamentos Legais */}
+        {/* Fundamentos legais (legislação federal geral; normas do órgão ficam no portal de governança) */}
         <Card className="bg-primary/5 border-primary/20">
           <CardHeader>
             <CardTitle className="text-h3">Fundamentação legal</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <h5 className="font-semibold mb-2">Legislação Federal</h5>
-                <ul className="space-y-1 text-muted-foreground">
-                  <li>• Lei nº 13.303/2016 (Estatais)</li>
-                  <li>• Lei nº 12.846/2013 (Anticorrupção)</li>
-                  <li>• Decreto nº 9.203/2017 (Governança)</li>
-                </ul>
-              </div>
-              <div>
-                <h5 className="font-semibold mb-2">Legislação Estadual</h5>
-                <ul className="space-y-1 text-muted-foreground">
-                  <li>• Lei nº 2.301/2025 (IDJUV)</li>
-                  <li>• Decreto Regulamentador IDJUV</li>
-                  <li>• Regimento Interno IDJUV</li>
-                </ul>
-              </div>
-              <div>
-                <h5 className="font-semibold mb-2">Normativas Internas</h5>
-                <ul className="space-y-1 text-muted-foreground">
-                  <li>• Plano de Integridade 2025</li>
-                  <li>• Código de Ética e Conduta</li>
-                  <li>• Matriz de Riscos Institucional</li>
-                </ul>
-              </div>
-            </div>
+            <ul className="space-y-1 text-sm text-muted-foreground">
+              <li>• Lei nº 12.846/2013 (Anticorrupção)</li>
+              <li>• Decreto nº 9.203/2017 (Governança)</li>
+              <li>• Lei nº 13.303/2016 (Estatais)</li>
+            </ul>
           </CardContent>
         </Card>
       </div>

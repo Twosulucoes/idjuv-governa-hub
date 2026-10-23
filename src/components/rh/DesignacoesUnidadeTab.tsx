@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -14,112 +14,87 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
-import { Plus, Building2, Loader2, FileDown } from "lucide-react";
+import { Plus, Building2, Loader2, Pencil } from "lucide-react";
 import {
   TipoAtoNomeacao,
   TIPO_ATO_LABELS,
   STATUS_NOMEACAO_LABELS,
   STATUS_NOMEACAO_COLORS,
 } from "@/types/unidadesLocais";
-import { generateMemorandoDesignacao } from "@/lib/pdf/rh/memorandoDesignacao";
+import {
+  type DesignacaoChefia,
+  useDesignacoesChefiaServidor,
+  useUnidadesLocaisAtivas,
+  useRegistrarDesignacaoChefia,
+  useAtualizarRegistroSeiDesignacao,
+} from "@/hooks/useDesignacoesChefiaUnidade";
+import {
+  CAMPOS_SEI_VAZIOS,
+  type CamposSei,
+  aguardandoSei,
+  registroSeiDesignacaoSchema,
+} from "@/lib/registroSei";
+import { CamposAtoSei } from "@/components/unidades/CamposAtoSei";
 
 interface DesignacoesUnidadeTabProps {
   servidorId: string;
-  servidorNome: string;
 }
 
-interface Designacao {
-  id: string;
-  unidade_local_id: string;
-  servidor_id: string;
-  cargo: string;
-  ato_nomeacao_tipo: string;
-  ato_numero: string;
-  ato_data_publicacao: string;
-  ato_doe_numero?: string;
-  ato_doe_data?: string;
-  data_inicio: string;
-  data_fim?: string;
-  status: string;
-  observacoes?: string;
-  unidade?: { id: string; nome_unidade: string; municipio: string };
-}
+const dataBR = (d?: string | null) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("pt-BR") : "");
 
-interface UnidadeLocal {
-  id: string;
-  nome_unidade: string;
-  municipio: string;
-}
+// O ato de designação é feito no SEI: aqui se registra a designação e se acompanha o ciclo do ato
+// (processo SEI, número, assinatura, publicação e DOE). Sem número, a designação fica "aguardando SEI".
+export function DesignacoesUnidadeTab({ servidorId }: DesignacoesUnidadeTabProps) {
+  const { data: designacoes = [], isLoading } = useDesignacoesChefiaServidor(servidorId);
+  const { data: unidades = [] } = useUnidadesLocaisAtivas();
+  const registrar = useRegistrarDesignacaoChefia();
+  const atualizar = useAtualizarRegistroSeiDesignacao();
 
-export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesUnidadeTabProps) {
-  const [designacoes, setDesignacoes] = useState<Designacao[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const { registrarAntes } = useRegistrarEvento();
-  // Trilha: memorando registrado antes de gerar o PDF (sem registro, sem arquivo)
-  const registrarMemorando = (designacaoId: string | null) =>
-    registrarAntes({
-      acao: "download",
-      entidade: "nomeacoes_chefe_unidade",
-      entidadeId: designacaoId,
-      descricao: "Memorando de designação de chefia impresso",
-      metadados: { servidor_id: servidorId, documento: "memorando_designacao", formato: "pdf" },
-    });
-  const [unidades, setUnidades] = useState<UnidadeLocal[]>([]);
   const [selectedUnidade, setSelectedUnidade] = useState<string>("");
+  const [formData, setFormData] = useState({ data_inicio: "", observacoes: "" });
 
-  const [formData, setFormData] = useState({
-    ato_nomeacao_tipo: "portaria" as TipoAtoNomeacao,
-    ato_numero: "",
-    ato_data_publicacao: "",
-    ato_doe_numero: "",
-    ato_doe_data: "",
-    data_inicio: "",
-    observacoes: "",
-  });
+  // Ato no SEI (registro e edição usam o mesmo formulário)
+  const [tipoAto, setTipoAto] = useState<TipoAtoNomeacao>("portaria");
+  const [dataPublicacao, setDataPublicacao] = useState("");
+  const [sei, setSei] = useState<CamposSei>(CAMPOS_SEI_VAZIOS);
+  const [editando, setEditando] = useState<DesignacaoChefia | null>(null);
 
-  useEffect(() => {
-    loadDesignacoes();
-    loadUnidades();
-  }, [servidorId]);
-
-  async function loadDesignacoes() {
-    try {
-      const { data, error } = await supabase
-        .from("nomeacoes_chefe_unidade")
-        .select(`
-          *,
-          unidade:unidades_locais!nomeacoes_chefe_unidade_unidade_local_id_fkey(id, nome_unidade, municipio)
-        `)
-        .eq("servidor_id", servidorId)
-        .order("data_inicio", { ascending: false });
-
-      if (error) throw error;
-      setDesignacoes((data || []) as any);
-    } catch (error) {
-      console.error("Erro ao carregar designações:", error);
-    } finally {
-      setLoading(false);
-    }
+  function resetForm() {
+    setSelectedUnidade("");
+    setFormData({ data_inicio: "", observacoes: "" });
+    setTipoAto("portaria");
+    setDataPublicacao("");
+    setSei(CAMPOS_SEI_VAZIOS);
   }
 
-  async function loadUnidades() {
-    try {
-      const { data, error } = await supabase
-        .from("unidades_locais")
-        .select("id, nome_unidade, municipio")
-        .eq("status", "ativa")
-        .order("nome_unidade");
+  function abrirEdicao(d: DesignacaoChefia) {
+    setEditando(d);
+    setTipoAto(d.ato_nomeacao_tipo);
+    setDataPublicacao(d.ato_data_publicacao || "");
+    setSei({
+      processoSei: d.processo_sei || "",
+      numero: d.ato_numero || "",
+      dataAssinatura: d.ato_data_assinatura || "",
+      doeNumero: d.ato_doe_numero || "",
+      doeData: d.ato_doe_data || "",
+    });
+  }
 
-      if (error) throw error;
-      setUnidades(data || []);
-    } catch (error) {
-      console.error("Erro ao carregar unidades:", error);
+  function fecharEdicao() {
+    setEditando(null);
+    resetForm();
+  }
+
+  /** Valida o bloco do SEI; devolve os campos prontos ou null (já avisou o erro). */
+  function validarSei() {
+    const validacao = registroSeiDesignacaoSchema.safeParse({ ...sei, dataPublicacao });
+    if (!validacao.success) {
+      toast.error(validacao.error.issues[0]?.message || "Verifique os campos do SEI");
+      return null;
     }
+    return { ...validacao.data, tipoAto };
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -128,82 +103,72 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
       toast.error("Selecione uma unidade local");
       return;
     }
+    const dadosSei = validarSei();
+    if (!dadosSei) return;
 
-    setSaving(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-
-      const { data: criada, error } = await supabase.from("nomeacoes_chefe_unidade").insert({
-        unidade_local_id: selectedUnidade,
-        servidor_id: servidorId,
-        cargo: "Chefe de Unidade Local",
-        ato_nomeacao_tipo: formData.ato_nomeacao_tipo,
-        ato_numero: formData.ato_numero.trim(),
-        ato_data_publicacao: formData.ato_data_publicacao,
-        ato_doe_numero: formData.ato_doe_numero.trim() || null,
-        ato_doe_data: formData.ato_doe_data || null,
-        data_inicio: formData.data_inicio,
-        status: "ativo",
-        observacoes: formData.observacoes.trim() || null,
-        created_by: userData.user?.id,
-      }).select("id").single();
-
-      if (error) throw error;
-
-      // Gerar memorando PDF
-      const unidadeSelecionada = unidades.find(u => u.id === selectedUnidade);
-      const memorandoLiberado = !!unidadeSelecionada && (await registrarMemorando(criada?.id ?? null));
-      if (unidadeSelecionada && memorandoLiberado) {
-        generateMemorandoDesignacao({
-          servidorNome,
-          cargo: "Chefe de Unidade Local",
-          unidadeNome: unidadeSelecionada.nome_unidade,
-          unidadeMunicipio: unidadeSelecionada.municipio,
-          tipoAto: formData.ato_nomeacao_tipo,
-          numeroAto: formData.ato_numero,
-          dataPublicacao: formData.ato_data_publicacao,
-          dataInicio: formData.data_inicio,
-        });
-      }
-
-      toast.success(memorandoLiberado ? "Designação registrada com sucesso! Memorando gerado." : "Designação registrada com sucesso!");
+      await registrar.mutateAsync({
+        servidorId,
+        unidadeId: selectedUnidade,
+        dataInicio: formData.data_inicio,
+        observacoes: formData.observacoes,
+        sei: dadosSei,
+      });
+      toast.success(
+        dadosSei.numero
+          ? "Designação registrada com o número do ato no SEI."
+          : "Designação registrada como aguardando SEI.",
+      );
       setShowForm(false);
       resetForm();
-      loadDesignacoes();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Erro ao registrar designação:", error);
-      toast.error(error.message || "Erro ao registrar designação");
-    } finally {
-      setSaving(false);
+      toast.error((error as { message?: string })?.message || "Erro ao registrar designação");
     }
   }
 
-  function resetForm() {
-    setSelectedUnidade("");
-    setFormData({
-      ato_nomeacao_tipo: "portaria",
-      ato_numero: "",
-      ato_data_publicacao: "",
-      ato_doe_numero: "",
-      ato_doe_data: "",
-      data_inicio: "",
-      observacoes: "",
-    });
+  async function handleSalvarEdicao() {
+    if (!editando) return;
+    const dadosSei = validarSei();
+    if (!dadosSei) return;
+    try {
+      await atualizar.mutateAsync({ id: editando.id, sei: dadosSei });
+      toast.success("Registro do SEI atualizado.");
+      fecharEdicao();
+    } catch (error) {
+      console.error("Erro ao atualizar designação:", error);
+      toast.error((error as { message?: string })?.message || "Erro ao atualizar designação");
+    }
   }
 
-  async function handleDownloadMemorando(designacao: Designacao) {
-    if (!(await registrarMemorando(designacao.id))) return;
-    generateMemorandoDesignacao({
-      servidorNome,
-      cargo: designacao.cargo,
-      unidadeNome: designacao.unidade?.nome_unidade || "Unidade",
-      unidadeMunicipio: designacao.unidade?.municipio || "",
-      tipoAto: designacao.ato_nomeacao_tipo,
-      numeroAto: designacao.ato_numero,
-      dataPublicacao: designacao.ato_data_publicacao,
-      dataInicio: designacao.data_inicio,
-    });
-  }
+  // Campos do ato (tipo, SEI e publicação), comuns ao registro e à edição
+  const camposAto = (prefixo: string) => (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Tipo de Ato *</Label>
+          <Select value={tipoAto} onValueChange={(v) => setTipoAto(v as TipoAtoNomeacao)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(TIPO_ATO_LABELS).map(([key, label]) => (
+                <SelectItem key={key} value={key}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${prefixo}-publicacao`}>Data de Publicação</Label>
+          <Input
+            id={`${prefixo}-publicacao`}
+            type="date"
+            value={dataPublicacao}
+            onChange={(e) => setDataPublicacao(e.target.value)}
+          />
+        </div>
+      </div>
+      <CamposAtoSei valores={sei} onChange={setSei} rotuloNumero="Número do ato no SEI" idPrefixo={prefixo} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -212,7 +177,7 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
           <Building2 className="h-5 w-5" />
           Designações de Chefia em Unidades Locais
         </h3>
-        <Button onClick={() => setShowForm(true)}>
+        <Button onClick={() => { resetForm(); setShowForm(true); }}>
           <Plus className="mr-2 h-4 w-4" />
           Nova Designação
         </Button>
@@ -220,7 +185,7 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
 
       <Card>
         <CardContent className="p-0">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
@@ -233,10 +198,10 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
               <TableHeader>
                 <TableRow>
                   <TableHead>Unidade Local</TableHead>
-                  <TableHead>Ato</TableHead>
+                  <TableHead>Ato (SEI)</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[80px]">Memorando</TableHead>
+                  <TableHead className="w-12"><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -250,30 +215,51 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <p>{TIPO_ATO_LABELS[d.ato_nomeacao_tipo as TipoAtoNomeacao]} nº {d.ato_numero}</p>
-                        <p className="text-muted-foreground">
-                          {new Date(d.ato_data_publicacao).toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <p>Início: {new Date(d.data_inicio).toLocaleDateString("pt-BR")}</p>
-                        {d.data_fim && (
-                          <p className="text-muted-foreground">
-                            Fim: {new Date(d.data_fim).toLocaleDateString("pt-BR")}
+                        {aguardandoSei(d.ato_numero) ? (
+                          <p className="text-muted-foreground italic">
+                            {TIPO_ATO_LABELS[d.ato_nomeacao_tipo]}: aguardando SEI
                           </p>
+                        ) : (
+                          <p>{TIPO_ATO_LABELS[d.ato_nomeacao_tipo]} nº {d.ato_numero}</p>
+                        )}
+                        {d.processo_sei && <p className="text-muted-foreground">Proc. {d.processo_sei}</p>}
+                        {d.ato_data_assinatura && (
+                          <p className="text-muted-foreground">Assinado em {dataBR(d.ato_data_assinatura)}</p>
+                        )}
+                        {d.ato_doe_numero ? (
+                          <p className="text-muted-foreground">
+                            DOE nº {d.ato_doe_numero}
+                            {d.ato_doe_data && ` de ${dataBR(d.ato_doe_data)}`}
+                          </p>
+                        ) : (
+                          d.ato_data_publicacao && (
+                            <p className="text-muted-foreground">Publicado em {dataBR(d.ato_data_publicacao)}</p>
+                          )
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={STATUS_NOMEACAO_COLORS[d.status as keyof typeof STATUS_NOMEACAO_COLORS]}>
-                        {STATUS_NOMEACAO_LABELS[d.status as keyof typeof STATUS_NOMEACAO_LABELS]}
+                      <div className="text-sm">
+                        <p>Início: {dataBR(d.data_inicio)}</p>
+                        {d.data_fim && (
+                          <p className="text-muted-foreground">Fim: {dataBR(d.data_fim)}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={STATUS_NOMEACAO_COLORS[d.status]}>
+                        {STATUS_NOMEACAO_LABELS[d.status]}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => handleDownloadMemorando(d)} title="Baixar Memorando">
-                        <FileDown className="h-4 w-4" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => abrirEdicao(d)}
+                        aria-label="Editar registro do SEI"
+                        title="Editar registro do SEI"
+                      >
+                        <Pencil className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -285,87 +271,51 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
       </Card>
 
       {/* Dialog de Nova Designação */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={showForm} onOpenChange={(aberto) => { setShowForm(aberto); if (!aberto) resetForm(); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova Designação de Chefia</DialogTitle>
             <DialogDescription>
-              Designe este servidor como chefe de uma unidade local.
-              O chefe anterior será automaticamente encerrado.
+              Designe este servidor como chefe de uma unidade local. O chefe anterior será automaticamente
+              encerrado. O ato é feito no SEI: informe o processo e o número quando houver.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Seleção de Unidade */}
-            <div className="space-y-2">
-              <Label>Unidade Local *</Label>
-              <Select value={selectedUnidade} onValueChange={setSelectedUnidade}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a unidade local..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {unidades.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.nome_unidade} - {u.municipio}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Dados do Ato */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Tipo de Ato *</Label>
-                <Select
-                  value={formData.ato_nomeacao_tipo}
-                  onValueChange={(v) => setFormData({ ...formData, ato_nomeacao_tipo: v as TipoAtoNomeacao })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Label>Unidade Local *</Label>
+                <Select value={selectedUnidade} onValueChange={setSelectedUnidade}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a unidade local..." />
+                  </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(TIPO_ATO_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    {unidades.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.nome_unidade} - {u.municipio}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Número do Ato *</Label>
+                <Label htmlFor="designacao-inicio">Data Início Efetivo *</Label>
                 <Input
-                  value={formData.ato_numero}
-                  onChange={(e) => setFormData({ ...formData, ato_numero: e.target.value })}
-                  placeholder="Ex: 001/2025"
+                  id="designacao-inicio"
+                  type="date"
+                  value={formData.data_inicio}
+                  onChange={(e) => setFormData({ ...formData, data_inicio: e.target.value })}
                   required
-                  maxLength={30}
                 />
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Data de Publicação *</Label>
-                <Input type="date" value={formData.ato_data_publicacao} onChange={(e) => setFormData({ ...formData, ato_data_publicacao: e.target.value })} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Data Início Efetivo *</Label>
-                <Input type="date" value={formData.data_inicio} onChange={(e) => setFormData({ ...formData, data_inicio: e.target.value })} required />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>DOE Número</Label>
-                <Input value={formData.ato_doe_numero} onChange={(e) => setFormData({ ...formData, ato_doe_numero: e.target.value })} placeholder="Número do DOE" maxLength={20} />
-              </div>
-              <div className="space-y-2">
-                <Label>DOE Data</Label>
-                <Input type="date" value={formData.ato_doe_data} onChange={(e) => setFormData({ ...formData, ato_doe_data: e.target.value })} />
-              </div>
-            </div>
+            {camposAto("designacao-nova")}
 
             <div className="space-y-2">
-              <Label>Observações</Label>
+              <Label htmlFor="designacao-observacoes">Observações</Label>
               <Textarea
+                id="designacao-observacoes"
                 value={formData.observacoes}
                 onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
                 placeholder="Observações adicionais..."
@@ -375,15 +325,40 @@ export function DesignacoesUnidadeTab({ servidorId, servidorNome }: DesignacoesU
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => { setShowForm(false); resetForm(); }} disabled={saving}>
+              <Button type="button" variant="outline" onClick={() => { setShowForm(false); resetForm(); }} disabled={registrar.isPending}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={saving || !selectedUnidade}>
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={registrar.isPending || !selectedUnidade}>
+                {registrar.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Registrar Designação
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de edição do registro do SEI */}
+      <Dialog open={!!editando} onOpenChange={(aberto) => !aberto && fecharEdicao()}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Registro do SEI da designação</DialogTitle>
+            <DialogDescription>
+              {editando?.unidade?.nome_unidade} — início em {dataBR(editando?.data_inicio)}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {camposAto("designacao-edicao")}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={fecharEdicao} disabled={atualizar.isPending}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={handleSalvarEdicao} disabled={atualizar.isPending}>
+                {atualizar.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -84,6 +84,7 @@ export interface CreditoRemessa {
  */
 export interface RemessaRegistrada {
   id: string;
+  layout?: "gestao_max_cnab240";
   nsa: number;
   convenio: string;
   agencia: string;
@@ -97,6 +98,79 @@ export interface RemessaRegistrada {
   creditos: CreditoRemessa[];
   /** Só em `obter_remessa_bancaria` (null = reserva não confirmada) */
   arquivo_sha256?: string | null;
+}
+
+/** Conta pagadora com os dados do OBN600 (código do cliente no BB, UG e gestão). */
+export interface ContaPagadoraObn {
+  id: string;
+  descricao: string;
+  agencia: string;
+  agencia_digito: string | null;
+  conta: string;
+  conta_digito: string | null;
+  obn_codigo_cliente: string;
+  obn_unidade_gestora: string;
+  obn_gestao: string;
+}
+
+/** Ordem bancária montada pelo servidor (`registrar_remessa_obn600`). */
+export interface OrdemRemessaObn {
+  pagamento_id: string;
+  pagamento_numero: string;
+  relacao: string;
+  numero_ob: string;
+  nome: string;
+  documento: string;
+  banco: string;
+  agencia: string;
+  agencia_dv: string;
+  conta: string;
+  conta_dv: string;
+  valor: number;
+  endereco: string;
+  municipio: string;
+  cep: string;
+  uf: string;
+}
+
+/** Retrato da remessa OBN600 (`registrar_remessa_obn600` e `obter_remessa_bancaria`). */
+export interface RemessaObnRegistrada {
+  id: string;
+  layout: "obn600";
+  /** Nº da remessa (posições 048-052 do header) */
+  nsa: number;
+  /** Código do cliente no BB */
+  convenio: string;
+  agencia: string;
+  agencia_digito: string | null;
+  conta: string;
+  conta_digito: string | null;
+  data_geracao: string;
+  data_pagamento: string;
+  parametros: { unidade_gestora: string; gestao: string };
+  creditos: OrdemRemessaObn[];
+  arquivo_sha256?: string | null;
+}
+
+/** Pagamento que pode entrar numa remessa OBN600 (a conta é conferida de novo pelo servidor). */
+export interface PagamentoParaRemessa {
+  id: string;
+  numero: string;
+  exercicio: number;
+  data_pagamento: string;
+  valor_liquido: number;
+  status: string;
+  banco_favorecido: string | null;
+  agencia_favorecido: string | null;
+  conta_favorecido: string | null;
+  remessa_bancaria_id: string | null;
+  fornecedor: {
+    razao_social: string;
+    cpf_cnpj: string;
+    banco_codigo: string | null;
+    agencia: string | null;
+    conta: string | null;
+  } | null;
 }
 
 /** Linha de `fin_remessas_bancarias` para a lista de arquivos gerados. */

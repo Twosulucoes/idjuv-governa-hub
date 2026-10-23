@@ -14,7 +14,19 @@
  *                    ativo e dá passagem ao papel admin. extra opcional `excluir=<código>|admin|ninguem` (como em
  *                    proprio_leitura e permissao; `ninguem` = sem policy de DELETE: ninguém apaga pela API, nem o admin;
  *                    ex.: remessas_bancarias e eventos_esocial, que viram canceladas em vez de apagadas — E3).
- *   catalogo         SELECT para qualquer usuário ativo (is_active_user()); escrita por módulo. Extra opcional
+ *                    Sufixos separados por ;, em qualquer ordem, cada um no máximo uma vez (P14, entrega 4):
+ *                      excluir=<código>|admin|ninguem   (acima)
+ *                      altera=<c1>[|<c2>...]  o UPDATE exige o módulo E um dos códigos (has_permission_code); SELECT,
+ *                                          INSERT e DELETE continuam por módulo (o DELETE muda só com excluir=). Ex.:
+ *                                          bens_patrimoniais (altera=patrimonio.editar): cadastrar pede o módulo, editar
+ *                                          pede a permissão.
+ *                      coletor=<módulo>:<ops>  (também na classe permissao) dá a um módulo de app de campo SÓ as operações
+ *                                          listadas, separadas por | entre select, insert e update (DELETE nunca): cada
+ *                                          policy dessas operações ganha "OR can_access_module(auth.uid(), '<módulo>')".
+ *                                          O módulo do coletor não pode estar na coluna modulos (lá ele teria tudo). Ex.:
+ *                                          bens_patrimoniais coletor=patrimonio_mobile:select|insert (o app de coleta lê e
+ *                                          cadastra bens, não altera nem apaga).
+ *   catalogo       SELECT para qualquer usuário ativo (is_active_user()); escrita por módulo. Extra opcional
  *                    `escrita=<código>[|<código>...]`: a escrita exige o módulo E um dos códigos (como a classe
  *                    permissao; o papel admin passa pelos dois). Ex.: tipos_abono (rh.frequencia.configurar).
  *   proprio_leitura  módulo OU o próprio servidor (servidor_id = meu_servidor_id()) lê; escrita por módulo.
@@ -52,6 +64,9 @@
  *                                          financeiro.folha.processar; E3). Sem o sufixo, o módulo lê (como sempre)
  *                      ;insere_proprio     INSERT também quando a linha é do servidor logado (<col> = meu_servidor_id(),
  *                                          ou o pai é dele com ;pai=), como a classe proprio — exige ;proprio ou ;pai=
+ *                      ;coletor=<módulo>:<ops>  como na classe modulo (acima): o módulo do app de campo recebe só as
+ *                                          operações listadas (select|insert|update), sem código. Ex.: unidades_locais
+ *                                          (escrita=unidades.gerenciar;coletor=patrimonio_mobile:select)
  *                      ;sem_autoaprovacao  INSERT/UPDATE/DELETE pelo caminho da permissão (e o DELETE de ;excluir=<código>)
  *                                          exigem ainda que a linha NÃO seja do usuário logado:
  *                                          (is_admin_user(auth.uid()) OR NOT eh_meu_servidor(<posse>)); eh_meu_servidor é
@@ -142,6 +157,7 @@ const erros = [];
 const RE_CODIGO = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
 const RE_REF = /^([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)$/;   // <tabela>.<coluna>
 const RE_COL = /^[a-z_][a-z0-9_]*$/;
+const OPS_COLETOR = ["select", "insert", "update"];   // coletor=<módulo>:<ops> (DELETE nunca)
 
 // Lê os sufixos `;chave[=valor]` (ordem livre, sem repetição). `aceitos` = chaves permitidas na classe.
 // Devolve o objeto de opções ou null (com o erro registrado). As mensagens citam o sufixo sem o ";": em
@@ -164,6 +180,18 @@ function lerSufixos(t, partes, aceitos) {
       if (cods.some((c) => !RE_CODIGO.test(c)) || new Set(cods).size !== cods.length) { erros.push(`${t}: "leitura=" deve ser <código>[|<código>...] sem repetição`); return null; }
     }
     if (chave === "posse" && valor !== "usuario") { erros.push(`${t}: "posse=" só aceita usuario`); return null; }
+    if (chave === "altera") {
+      const cods = valor.split("|");
+      if (cods.some((c) => !RE_CODIGO.test(c)) || new Set(cods).size !== cods.length) { erros.push(`${t}: "altera=" deve ser <código>[|<código>...] sem repetição`); return null; }
+    }
+    if (chave === "coletor") {
+      const mc = /^([a-z_][a-z0-9_]*):([a-z|]+)$/.exec(valor);
+      const ops = mc ? mc[2].split("|") : [];
+      if (!mc || !MODULOS.has(mc[1]) || ops.some((o) => !OPS_COLETOR.includes(o)) || new Set(ops).size !== ops.length) {
+        erros.push(`${t}: "coletor=" deve ser <módulo>:<op>[|<op>...] com módulo de app_module e ops entre ${OPS_COLETOR.join(", ")}, sem repetição`);
+        return null;
+      }
+    }
     op[chave] = valor;
   }
   return op;
@@ -214,14 +242,35 @@ for (const r of dados) {
     politica("rls_delete", "DELETE", M, null);
   };
 
+  // coletor=<módulo>:<ops> (classes modulo e permissao): o módulo do app de campo entra, por OU, só nas policies das
+  // operações listadas. Devolve null sem o sufixo (e registra erro se o módulo também está na coluna modulos).
+  const lerColetor = (op) => {
+    if (!op.coletor) return null;
+    const [mod, ops] = op.coletor.split(":");
+    if (mods.includes(mod)) { erros.push(`${t}: o módulo do coletor (${mod}) não pode estar também na coluna modulos`); return null; }
+    return { C: `public.can_access_module(auth.uid(), ${q(mod)})`, ops: ops.split("|") };
+  };
+  // expressão da operação `cmd` (select|insert|update) com o OU do coletor, quando ele tem essa operação
+  const comColetor = (col, cmd, expr) => {
+    if (!col || !col.ops.includes(cmd)) return expr;
+    return `${expr === M ? M : `(${expr})`} OR ${col.C}`;
+  };
+
   switch (classe) {
     case "modulo": {
-      // extra vazio = forma de sempre; `excluir=<código>|admin|ninguem` muda só o DELETE
-      const op = extra === "" ? {} : lerSufixos(t, extra.split(";"), ["excluir"]);
+      // extra vazio = forma de sempre; `excluir=<código>|admin|ninguem` muda só o DELETE; `altera=` só o UPDATE;
+      // `coletor=` acrescenta o módulo do app de campo nas operações listadas
+      const op = extra === "" ? {} : lerSufixos(t, extra.split(";"), ["excluir", "altera", "coletor"]);
       if (!op) break;
-      politica("rls_select", "SELECT", M, null);
-      politica("rls_insert", "INSERT", null, M);
-      politica("rls_update", "UPDATE", M, M);
+      const colet = lerColetor(op);
+      const hpm = (c) => `public.has_permission_code(auth.uid(), ${q(c)})`;
+      const codAltera = op.altera ? op.altera.split("|") : null;
+      const U = !codAltera ? M
+        : codAltera.length === 1 ? `${M} AND ${hpm(codAltera[0])}`
+        : `${M} AND (${codAltera.map(hpm).join(" OR ")})`;
+      politica("rls_select", "SELECT", comColetor(colet, "select", M), null);
+      politica("rls_insert", "INSERT", null, comColetor(colet, "insert", M));
+      politica("rls_update", "UPDATE", comColetor(colet, "update", U), comColetor(colet, "update", U));
       if (op.excluir === "ninguem") L.push(`DROP POLICY IF EXISTS "rls_delete" ON public.${t};`);
       else if (op.excluir === "admin") politica("rls_delete", "DELETE", "public.is_admin_user(auth.uid())", null);
       else if (op.excluir) politica("rls_delete", "DELETE", `${M} AND public.has_permission_code(auth.uid(), ${q(op.excluir)})`, null);
@@ -288,8 +337,9 @@ for (const r of dados) {
         break;
       }
       if (new Set(codigos).size !== codigos.length) { erros.push(`${t}: código repetido em escrita=`); break; }
-      const op = lerSufixos(t, sufixos, ["proprio", "pai", "filho", "coluna", "excluir", "insere_proprio", "sem_autoaprovacao", "posse", "leitura"]);
+      const op = lerSufixos(t, sufixos, ["proprio", "pai", "filho", "coluna", "excluir", "insere_proprio", "sem_autoaprovacao", "posse", "leitura", "coletor"]);
       if (!op) break;
+      const colet = lerColetor(op);
       if (["proprio", "pai", "filho"].filter((k) => k in op).length > 1) { erros.push(`${t}: use só uma posse (;proprio, ;pai= ou ;filho=)`); break; }
       if (op.coluna && !op.proprio) { erros.push(`${t}: ;coluna= só vale com ;proprio`); break; }
       if ((op.insere_proprio || op.sem_autoaprovacao || op.posse) && !op.proprio && !op.pai) {
@@ -328,9 +378,9 @@ for (const r of dados) {
       if (op.excluir === "admin") exclusao = "public.is_admin_user(auth.uid())";
       else if (op.excluir === "ninguem") exclusao = null;
       else if (op.excluir) exclusao = `${M} AND ${hp(op.excluir)}` + (op.sem_autoaprovacao ? ` AND ${naoEMinha}` : "");
-      politica("rls_select", "SELECT", leitura, null);
-      politica("rls_insert", "INSERT", null, op.insere_proprio ? `(${PE}) OR ${deMim}` : PE);
-      politica("rls_update", "UPDATE", PE, PE);
+      politica("rls_select", "SELECT", comColetor(colet, "select", leitura), null);
+      politica("rls_insert", "INSERT", null, comColetor(colet, "insert", op.insere_proprio ? `(${PE}) OR ${deMim}` : PE));
+      politica("rls_update", "UPDATE", comColetor(colet, "update", PE), comColetor(colet, "update", PE));
       if (exclusao) politica("rls_delete", "DELETE", exclusao, null);
       else L.push(`DROP POLICY IF EXISTS "rls_delete" ON public.${t};`);
       break;

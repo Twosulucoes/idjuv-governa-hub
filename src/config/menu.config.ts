@@ -88,6 +88,7 @@ export type PermissaoInstitucional =
   | 'compras.criar'
   | 'compras.tramitar'
   | 'compras.aprovar'
+  | 'compras.pca.visualizar'
   // Contratos
   | 'contratos.visualizar'
   | 'contratos.criar'
@@ -123,7 +124,11 @@ export type PermissaoInstitucional =
   // Patrimônio
   | 'patrimonio.visualizar'
   | 'patrimonio.criar'
+  | 'patrimonio.editar'
   | 'patrimonio.tramitar'
+  // Unidades locais
+  | 'unidades.visualizar'
+  | 'unidades.relatorios.visualizar'
   // Governança
   | 'governanca.visualizar'
   | 'governanca.aprovar'
@@ -251,6 +256,13 @@ export const menuConfig: MenuSection[] = [
             route: "/processos/compras?acao=novo",
             icon: FileText,
             permission: "compras.criar",
+          },
+          {
+            id: "pca",
+            label: "Plano de Contratações (PCA)",
+            route: "/compras/pca",
+            icon: ClipboardList,
+            permission: "compras.pca.visualizar",
           },
         ],
       },
@@ -542,7 +554,7 @@ export const menuConfig: MenuSection[] = [
         label: "Movimentações",
         route: "/inventario/movimentacoes",
         icon: TrendingUp,
-        permission: "patrimonio.tramitar",
+        permission: "patrimonio.visualizar",
         priority: 3,
       },
       {
@@ -582,7 +594,7 @@ export const menuConfig: MenuSection[] = [
         label: "Baixas",
         route: "/inventario/baixas",
         icon: Trash2,
-        permission: "patrimonio.criar",
+        permission: "patrimonio.visualizar",
         priority: 8,
       },
     ],
@@ -676,6 +688,14 @@ export const menuConfig: MenuSection[] = [
         icon: Wallet,
         permission: "orcamento.visualizar",
         priority: 4,
+      },
+      {
+        id: "fin-favorecidos",
+        label: "Favorecidos",
+        route: "/financeiro/favorecidos",
+        icon: Users,
+        permission: "orcamento.criar",
+        priority: 5,
       },
       {
         id: "fin-contas",
@@ -935,7 +955,7 @@ export const menuConfig: MenuSection[] = [
         label: "Unidades Locais",
         route: "/unidades",
         icon: MapPin,
-        permission: "patrimonio.visualizar",
+        permission: "unidades.visualizar",
       },
       {
         id: "relatorios-unidades",
@@ -943,7 +963,7 @@ export const menuConfig: MenuSection[] = [
         labelShort: "Relatórios",
         route: "/unidades/central-relatorios",
         icon: BarChart3,
-        permission: "patrimonio.visualizar",
+        permission: "unidades.relatorios.visualizar",
       },
       {
         id: "federacoes",
@@ -1250,7 +1270,7 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/importacoes",
         icon: Upload,
         // Qualquer permissão de importador (mesma lista de PERMISSOES_IMPORTACAO em src/lib/importacao/registro.ts)
-        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar"],
+        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar", "financeiro.folha.processar"],
       },
       {
         id: "envios",

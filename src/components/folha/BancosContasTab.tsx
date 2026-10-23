@@ -112,7 +112,7 @@ export function BancosContasTab() {
                 Contas Bancárias da Autarquia
               </CardTitle>
               <CardDescription>
-                Contas para pagamento de folha e geração de arquivos CNAB
+                Contas da instituição usadas na folha (CNAB) e nos pagamentos do Financeiro (remessa OBN600)
               </CardDescription>
             </div>
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

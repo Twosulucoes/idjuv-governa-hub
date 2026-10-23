@@ -16,7 +16,7 @@ import {
   valorTotalViagem,
   periodoMesAtual,
 } from "@/lib/relatoriosRHRegras";
-import { formatCurrency } from "@/lib/pdfTemplate";
+import { formatCurrency } from "@/lib/formatters";
 import { exportarParaExcel as exportarPlanilhaXlsx } from "@/export/exportExcel";
 import { FiltroPeriodo } from "./FiltroPeriodo";
 import { FiltroUnidade } from "./FiltroUnidade";

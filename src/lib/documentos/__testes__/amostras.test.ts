@@ -4,11 +4,13 @@ import { describe, it } from 'vitest';
 import { renderizarDocumento } from '../core/renderizar';
 import { ESTILO_PADRAO } from '../core/tokens';
 import { amostraFicha, amostraRelatorio } from '../modelos/amostras';
+import { conciliacaoMensal } from '../modelos/financeiro/conciliacaoMensal';
 import { fichaHistoricoFuncional } from '../modelos/rh/historicoFuncional';
 import { relatorioServidoresDiretoria } from '../modelos/rh/servidoresDiretoria';
 import { relatorioServidoresPortarias } from '../modelos/rh/servidoresPortarias';
 import { relatorioServidoresVinculo } from '../modelos/rh/servidoresVinculo';
 import { relatorioVagasCargo } from '../modelos/rh/vagasCargo';
+import { dadosConciliacao } from './fixturesConciliacao';
 import { emissaoTeste, marcaTeste } from './fixtures';
 import { dadosDiretoria, dadosHistorico, dadosPortarias, dadosVagas, dadosVinculo } from './fixturesRhGrupoA';
 import { comprovanteReferencia, dadosComprovante, dadosFicha, dadosRelatorio, fichaReferencia, relatorioReferencia } from './modelosReferencia';
@@ -48,5 +50,11 @@ describe.skipIf(!saida)('amostras para inspeção visual', () => {
     gravar('rh-historico-funcional.pdf', renderizarDocumento(fichaHistoricoFuncional, dadosHistorico(8), marcaTeste, emissaoTeste).doc);
     gravar('rh-vagas-cargo.pdf', renderizarDocumento(relatorioVagasCargo, dadosVagas(8), marcaTeste, emissaoTeste).doc);
     gravar('rh-servidores-portarias.pdf', renderizarDocumento(relatorioServidoresPortarias, dadosPortarias(6), marcaTeste, emissaoTeste).doc);
+  });
+
+  it('grava o quadro da conciliação mensal', () => {
+    mkdirSync(saida!, { recursive: true });
+    writeFileSync(join(saida!, 'financeiro-conciliacao-mensal.pdf'),
+      Buffer.from(renderizarDocumento(conciliacaoMensal, dadosConciliacao(), marcaTeste, emissaoTeste).doc.output('arraybuffer')));
   });
 });

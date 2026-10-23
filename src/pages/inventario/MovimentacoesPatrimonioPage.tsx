@@ -137,17 +137,19 @@ export default function MovimentacoesPatrimonioPage() {
   const [dialogNovaMovimentacaoOpen, setDialogNovaMovimentacaoOpen] = useState(false);
   const [decisao, setDecisao] = useState<{ mov: Movimentacao; modo: ModoDecisao } | null>(null);
   const decidirMovimentacao = useDecidirMovimentacao();
-  // Aprovar/rejeitar exige patrimonio.tramitar (o banco também valida: erro 42501).
+  // Aprovar/rejeitar e pedir nova movimentação exigem patrimonio.tramitar (o banco também
+  // valida: erro 42501). Quem só visualiza vê a lista e o detalhe.
   const { hasPermission } = useAuth();
   const podeDecidir = hasPermission("patrimonio.tramitar");
+  const podeMovimentar = podeDecidir;
 
   // Verifica se tem ação no URL
   useEffect(() => {
     if (searchParams.get("acao") === "nova") {
-      setDialogNovaMovimentacaoOpen(true);
+      if (podeMovimentar) setDialogNovaMovimentacaoOpen(true);
       setSearchParams({}, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, podeMovimentar]);
 
   const { data: movimentacoes, isLoading, isError, refetch } = useMovimentacoesPatrimonio();
 
@@ -165,10 +167,12 @@ export default function MovimentacoesPatrimonioPage() {
           titulo="Movimentações"
           descricao="Transferências, cessões e empréstimos"
           acoes={
-            <Button onClick={() => setDialogNovaMovimentacaoOpen(true)}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Nova movimentação
-            </Button>
+            podeMovimentar && (
+              <Button onClick={() => setDialogNovaMovimentacaoOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Nova movimentação
+              </Button>
+            )
           }
         />
 

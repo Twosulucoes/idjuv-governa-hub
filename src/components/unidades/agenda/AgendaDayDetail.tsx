@@ -26,6 +26,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AgendaDayDetailProps {
   selectedDate: Date;
@@ -45,6 +46,9 @@ export function AgendaDayDetail({
   const [seiNumber, setSeiNumber] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [updating, setUpdating] = useState(false);
+  // Aprovar, rejeitar e cancelar reserva exigem unidades.cedencias.gerenciar (o banco também valida).
+  const { hasPermission } = useAuth();
+  const podeGerenciar = hasPermission("unidades.cedencias.gerenciar");
 
   async function handleApprove() {
     if (!approveDialog) return;
@@ -214,7 +218,7 @@ export function AgendaDayDetail({
                     </div>
 
                     {/* Ações */}
-                    {reserva.status === "solicitado" && chefeAtualId && (
+                    {podeGerenciar && reserva.status === "solicitado" && chefeAtualId && (
                       <div className="flex flex-col gap-2 shrink-0">
                         <Button
                           size="sm"
@@ -232,7 +236,7 @@ export function AgendaDayDetail({
                         </Button>
                       </div>
                     )}
-                    {(reserva.status === "solicitado" || reserva.status === "aprovado") && (
+                    {podeGerenciar && (reserva.status === "solicitado" || reserva.status === "aprovado") && (
                       <Button
                         size="sm"
                         variant="ghost"

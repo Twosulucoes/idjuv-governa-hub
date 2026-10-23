@@ -74,24 +74,24 @@ DROP POLICY IF EXISTS "rls_delete" ON public.aditivos_contrato;
 CREATE POLICY "rls_delete" ON public.aditivos_contrato FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
 
--- agenda_unidade  [modulo: patrimonio | patrimonio_mobile]
+-- agenda_unidade  [permissao: patrimonio]
 DROP POLICY IF EXISTS "pat_module_delete" ON public.agenda_unidade;
 DROP POLICY IF EXISTS "pat_module_select" ON public.agenda_unidade;
 DROP POLICY IF EXISTS "pat_module_update" ON public.agenda_unidade;
 DROP POLICY IF EXISTS "pat_module_write" ON public.agenda_unidade;
 DROP POLICY IF EXISTS "rls_select" ON public.agenda_unidade;
 CREATE POLICY "rls_select" ON public.agenda_unidade FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.agenda_unidade;
 CREATE POLICY "rls_insert" ON public.agenda_unidade FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'));
 DROP POLICY IF EXISTS "rls_update" ON public.agenda_unidade;
 CREATE POLICY "rls_update" ON public.agenda_unidade FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.agenda_unidade;
 CREATE POLICY "rls_delete" ON public.agenda_unidade FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'));
 
 -- agrupamento_unidade_vinculo  [modulo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.agrupamento_unidade_vinculo;
@@ -108,24 +108,24 @@ DROP POLICY IF EXISTS "rls_delete" ON public.agrupamento_unidade_vinculo;
 CREATE POLICY "rls_delete" ON public.agrupamento_unidade_vinculo FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
--- almoxarifados  [modulo: patrimonio | patrimonio_mobile]
+-- almoxarifados  [modulo: patrimonio]
 DROP POLICY IF EXISTS "pat_module_delete" ON public.almoxarifados;
 DROP POLICY IF EXISTS "pat_module_select" ON public.almoxarifados;
 DROP POLICY IF EXISTS "pat_module_update" ON public.almoxarifados;
 DROP POLICY IF EXISTS "pat_module_write" ON public.almoxarifados;
 DROP POLICY IF EXISTS "rls_select" ON public.almoxarifados;
 CREATE POLICY "rls_select" ON public.almoxarifados FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.almoxarifados;
 CREATE POLICY "rls_insert" ON public.almoxarifados FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.almoxarifados;
 CREATE POLICY "rls_update" ON public.almoxarifados FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.almoxarifados;
 CREATE POLICY "rls_delete" ON public.almoxarifados FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- approval_delegations  [modulo: workflow]
 DROP POLICY IF EXISTS "rls_select" ON public.approval_delegations;
@@ -268,24 +268,24 @@ CREATE POLICY "rls_delete" ON public.avaliacoes_risco FOR DELETE TO authenticate
 -- avisos_leituras  [preservar: comunicacao]
 -- (nenhuma policy gerada)
 
--- baixas_patrimonio  [modulo: patrimonio | patrimonio_mobile]
+-- baixas_patrimonio  [modulo: patrimonio]
 DROP POLICY IF EXISTS "pat_module_delete" ON public.baixas_patrimonio;
 DROP POLICY IF EXISTS "pat_module_select" ON public.baixas_patrimonio;
 DROP POLICY IF EXISTS "pat_module_update" ON public.baixas_patrimonio;
 DROP POLICY IF EXISTS "pat_module_write" ON public.baixas_patrimonio;
 DROP POLICY IF EXISTS "rls_select" ON public.baixas_patrimonio;
 CREATE POLICY "rls_select" ON public.baixas_patrimonio FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.baixas_patrimonio;
 CREATE POLICY "rls_insert" ON public.baixas_patrimonio FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
 DROP POLICY IF EXISTS "rls_update" ON public.baixas_patrimonio;
 CREATE POLICY "rls_update" ON public.baixas_patrimonio FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.baixas_patrimonio;
 CREATE POLICY "rls_delete" ON public.baixas_patrimonio FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- banco_horas  [permissao: rh]
 DROP POLICY IF EXISTS "rh_module_delete" ON public.banco_horas;
@@ -306,10 +306,10 @@ DROP POLICY IF EXISTS "rls_delete" ON public.banco_horas;
 CREATE POLICY "rls_delete" ON public.banco_horas FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.frequencia.lancar') AND (public.is_admin_user(auth.uid()) OR servidor_id IS DISTINCT FROM auth.uid()));
 
--- bancos_cnab  [modulo: rh]
+-- bancos_cnab  [catalogo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.bancos_cnab;
 CREATE POLICY "rls_select" ON public.bancos_cnab FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'rh')));
+  USING (public.is_active_user());
 DROP POLICY IF EXISTS "rls_insert" ON public.bancos_cnab;
 CREATE POLICY "rls_insert" ON public.bancos_cnab FOR INSERT TO authenticated
   WITH CHECK ((public.can_access_module(auth.uid(), 'rh')));
@@ -321,24 +321,24 @@ DROP POLICY IF EXISTS "rls_delete" ON public.bancos_cnab;
 CREATE POLICY "rls_delete" ON public.bancos_cnab FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
--- bens_patrimoniais  [modulo: patrimonio | patrimonio_mobile]
+-- bens_patrimoniais  [modulo: patrimonio]
 DROP POLICY IF EXISTS "pat_module_delete" ON public.bens_patrimoniais;
 DROP POLICY IF EXISTS "pat_module_select" ON public.bens_patrimoniais;
 DROP POLICY IF EXISTS "pat_module_update" ON public.bens_patrimoniais;
 DROP POLICY IF EXISTS "pat_module_write" ON public.bens_patrimoniais;
 DROP POLICY IF EXISTS "rls_select" ON public.bens_patrimoniais;
 CREATE POLICY "rls_select" ON public.bens_patrimoniais FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
 DROP POLICY IF EXISTS "rls_insert" ON public.bens_patrimoniais;
 CREATE POLICY "rls_insert" ON public.bens_patrimoniais FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
 DROP POLICY IF EXISTS "rls_update" ON public.bens_patrimoniais;
 CREATE POLICY "rls_update" ON public.bens_patrimoniais FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'patrimonio.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'patrimonio.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.bens_patrimoniais;
 CREATE POLICY "rls_delete" ON public.bens_patrimoniais FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING (public.is_admin_user(auth.uid()));
 
 -- cadastro_arbitros  [modulo: arbitros]
 DROP POLICY IF EXISTS "authenticated_read_arbitros" ON public.cadastro_arbitros;
@@ -391,35 +391,35 @@ DROP POLICY IF EXISTS "rls_delete" ON public.calendario_federacao;
 CREATE POLICY "rls_delete" ON public.calendario_federacao FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'federacoes') OR public.can_access_module(auth.uid(), 'organizacoes') OR public.can_access_module(auth.uid(), 'comunicacao') OR public.can_access_module(auth.uid(), 'programas')));
 
--- campanhas_inventario  [modulo: patrimonio | patrimonio_mobile]
+-- campanhas_inventario  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.campanhas_inventario;
 CREATE POLICY "rls_select" ON public.campanhas_inventario FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
 DROP POLICY IF EXISTS "rls_insert" ON public.campanhas_inventario;
 CREATE POLICY "rls_insert" ON public.campanhas_inventario FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.campanhas_inventario;
 CREATE POLICY "rls_update" ON public.campanhas_inventario FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.campanhas_inventario;
 CREATE POLICY "rls_delete" ON public.campanhas_inventario FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
--- campanhas_inventario_unidades  [modulo: patrimonio | patrimonio_mobile]
+-- campanhas_inventario_unidades  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.campanhas_inventario_unidades;
 CREATE POLICY "rls_select" ON public.campanhas_inventario_unidades FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
 DROP POLICY IF EXISTS "rls_insert" ON public.campanhas_inventario_unidades;
 CREATE POLICY "rls_insert" ON public.campanhas_inventario_unidades FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.campanhas_inventario_unidades;
 CREATE POLICY "rls_update" ON public.campanhas_inventario_unidades FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
 DROP POLICY IF EXISTS "rls_delete" ON public.campanhas_inventario_unidades;
 CREATE POLICY "rls_delete" ON public.campanhas_inventario_unidades FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- cargo_unidade_compatibilidade  [modulo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.cargo_unidade_compatibilidade;
@@ -460,20 +460,72 @@ DROP POLICY IF EXISTS "rls_delete" ON public.cargos;
 CREATE POLICY "rls_delete" ON public.cargos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
--- categorias_material  [modulo: patrimonio | patrimonio_mobile]
+-- cat_material_itens  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.cat_material_itens;
+CREATE POLICY "rls_select" ON public.cat_material_itens FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')));
+DROP POLICY IF EXISTS "rls_insert" ON public.cat_material_itens;
+CREATE POLICY "rls_insert" ON public.cat_material_itens FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.cat_material_itens;
+CREATE POLICY "rls_update" ON public.cat_material_itens FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.cat_material_itens;
+
+-- cat_material_pdms  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.cat_material_pdms;
+CREATE POLICY "rls_select" ON public.cat_material_pdms FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')));
+DROP POLICY IF EXISTS "rls_insert" ON public.cat_material_pdms;
+CREATE POLICY "rls_insert" ON public.cat_material_pdms FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.cat_material_pdms;
+CREATE POLICY "rls_update" ON public.cat_material_pdms FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.cat_material_pdms;
+
+-- cat_servicos  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.cat_servicos;
+CREATE POLICY "rls_select" ON public.cat_servicos FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')));
+DROP POLICY IF EXISTS "rls_insert" ON public.cat_servicos;
+CREATE POLICY "rls_insert" ON public.cat_servicos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.cat_servicos;
+CREATE POLICY "rls_update" ON public.cat_servicos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.cat_servicos;
+
+-- cat_sincronizacoes  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.cat_sincronizacoes;
+CREATE POLICY "rls_select" ON public.cat_sincronizacoes FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')));
+DROP POLICY IF EXISTS "rls_insert" ON public.cat_sincronizacoes;
+CREATE POLICY "rls_insert" ON public.cat_sincronizacoes FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.cat_sincronizacoes;
+CREATE POLICY "rls_update" ON public.cat_sincronizacoes FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.cat_sincronizacoes;
+
+-- categorias_material  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.categorias_material;
 CREATE POLICY "rls_select" ON public.categorias_material FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.categorias_material;
 CREATE POLICY "rls_insert" ON public.categorias_material FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.categorias_material;
 CREATE POLICY "rls_update" ON public.categorias_material FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.categorias_material;
 CREATE POLICY "rls_delete" ON public.categorias_material FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- categorias_noticias_eventos  [modulo: comunicacao]
 DROP POLICY IF EXISTS "rls_select" ON public.categorias_noticias_eventos;
@@ -625,20 +677,20 @@ DROP POLICY IF EXISTS "rls_delete" ON public.cms_media;
 CREATE POLICY "rls_delete" ON public.cms_media FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'comunicacao')));
 
--- coletas_inventario  [modulo: patrimonio | patrimonio_mobile]
+-- coletas_inventario  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.coletas_inventario;
 CREATE POLICY "rls_select" ON public.coletas_inventario FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
 DROP POLICY IF EXISTS "rls_insert" ON public.coletas_inventario;
 CREATE POLICY "rls_insert" ON public.coletas_inventario FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
 DROP POLICY IF EXISTS "rls_update" ON public.coletas_inventario;
 CREATE POLICY "rls_update" ON public.coletas_inventario FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.coletas_inventario;
 CREATE POLICY "rls_delete" ON public.coletas_inventario FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- comissoes  [permissao: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.comissoes;
@@ -685,20 +737,20 @@ DROP POLICY IF EXISTS "rls_delete" ON public.composicao_cargos;
 CREATE POLICY "rls_delete" ON public.composicao_cargos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'governanca')));
 
--- conciliacoes_inventario  [modulo: patrimonio | patrimonio_mobile]
+-- conciliacoes_inventario  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.conciliacoes_inventario;
 CREATE POLICY "rls_select" ON public.conciliacoes_inventario FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.conciliacoes_inventario;
 CREATE POLICY "rls_insert" ON public.conciliacoes_inventario FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.conciliacoes_inventario;
 CREATE POLICY "rls_update" ON public.conciliacoes_inventario FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.conciliacoes_inventario;
 CREATE POLICY "rls_delete" ON public.conciliacoes_inventario FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- config_agrupamento_unidades  [modulo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.config_agrupamento_unidades;
@@ -1354,20 +1406,20 @@ DROP POLICY IF EXISTS "rls_delete" ON public.documentos;
 CREATE POLICY "rls_delete" ON public.documentos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'workflow') OR public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'governanca') OR public.can_access_module(auth.uid(), 'admin')));
 
--- documentos_cedencia  [modulo: patrimonio]
+-- documentos_cedencia  [permissao: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.documentos_cedencia;
 CREATE POLICY "rls_select" ON public.documentos_cedencia FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.documentos_cedencia;
 CREATE POLICY "rls_insert" ON public.documentos_cedencia FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'));
 DROP POLICY IF EXISTS "rls_update" ON public.documentos_cedencia;
 CREATE POLICY "rls_update" ON public.documentos_cedencia FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.documentos_cedencia;
 CREATE POLICY "rls_delete" ON public.documentos_cedencia FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'));
 
 -- documentos_preparatorios_licitacao  [modulo: compras | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.documentos_preparatorios_licitacao;
@@ -1480,20 +1532,20 @@ DROP POLICY IF EXISTS "rls_delete" ON public.escolas_jer;
 CREATE POLICY "rls_delete" ON public.escolas_jer FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'gestores_escolares')));
 
--- estoque  [modulo: patrimonio | patrimonio_mobile]
+-- estoque  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.estoque;
 CREATE POLICY "rls_select" ON public.estoque FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.estoque;
 CREATE POLICY "rls_insert" ON public.estoque FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.estoque;
 CREATE POLICY "rls_update" ON public.estoque FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.estoque;
 CREATE POLICY "rls_delete" ON public.estoque FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- estrutura_organizacional  [catalogo: organizacoes]
 DROP POLICY IF EXISTS "rls_select" ON public.estrutura_organizacional;
@@ -1741,6 +1793,34 @@ CREATE POLICY "rls_delete" ON public.fin_checklist_ci FOR DELETE TO authenticate
 -- fin_classificadores_fiplan  [preservar: financeiro]
 -- (nenhuma policy gerada)
 
+-- fin_conciliacao_itens  [permissao: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_conciliacao_itens;
+CREATE POLICY "rls_select" ON public.fin_conciliacao_itens FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')));
+DROP POLICY IF EXISTS "rls_insert" ON public.fin_conciliacao_itens;
+CREATE POLICY "rls_insert" ON public.fin_conciliacao_itens FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'));
+DROP POLICY IF EXISTS "rls_update" ON public.fin_conciliacao_itens;
+CREATE POLICY "rls_update" ON public.fin_conciliacao_itens FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.fin_conciliacao_itens;
+CREATE POLICY "rls_delete" ON public.fin_conciliacao_itens FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'));
+
+-- fin_conciliacoes_mensais  [permissao: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_conciliacoes_mensais;
+CREATE POLICY "rls_select" ON public.fin_conciliacoes_mensais FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')));
+DROP POLICY IF EXISTS "rls_insert" ON public.fin_conciliacoes_mensais;
+CREATE POLICY "rls_insert" ON public.fin_conciliacoes_mensais FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'));
+DROP POLICY IF EXISTS "rls_update" ON public.fin_conciliacoes_mensais;
+CREATE POLICY "rls_update" ON public.fin_conciliacoes_mensais FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'pagamento.conciliar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.fin_conciliacoes_mensais;
+
 -- fin_contas_bancarias  [modulo: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_contas_bancarias;
 CREATE POLICY "rls_select" ON public.fin_contas_bancarias FOR SELECT TO authenticated
@@ -1800,6 +1880,9 @@ CREATE POLICY "rls_update" ON public.fin_empenho_anulacoes FOR UPDATE TO authent
 DROP POLICY IF EXISTS "rls_delete" ON public.fin_empenho_anulacoes;
 CREATE POLICY "rls_delete" ON public.fin_empenho_anulacoes FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
+
+-- fin_empenho_documentos_fiplan  [preservar: financeiro]
+-- (nenhuma policy gerada)
 
 -- fin_empenhos  [modulo: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_empenhos;
@@ -2108,14 +2191,14 @@ DROP POLICY IF EXISTS "comp_module_update" ON public.fornecedores;
 DROP POLICY IF EXISTS "comp_module_write" ON public.fornecedores;
 DROP POLICY IF EXISTS "rls_select" ON public.fornecedores;
 CREATE POLICY "rls_select" ON public.fornecedores FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
+  USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')) OR public.can_access_module(auth.uid(), 'financeiro'));
 DROP POLICY IF EXISTS "rls_insert" ON public.fornecedores;
 CREATE POLICY "rls_insert" ON public.fornecedores FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')) OR public.can_access_module(auth.uid(), 'financeiro'));
 DROP POLICY IF EXISTS "rls_update" ON public.fornecedores;
 CREATE POLICY "rls_update" ON public.fornecedores FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
+  USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')) OR public.can_access_module(auth.uid(), 'financeiro'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')) OR public.can_access_module(auth.uid(), 'financeiro'));
 DROP POLICY IF EXISTS "rls_delete" ON public.fornecedores;
 CREATE POLICY "rls_delete" ON public.fornecedores FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
@@ -2258,10 +2341,10 @@ DROP POLICY IF EXISTS "rls_select" ON public.historico_lai;
 CREATE POLICY "rls_select" ON public.historico_lai FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'transparencia')));
 
--- historico_patrimonio  [trilha: patrimonio | patrimonio_mobile]
+-- historico_patrimonio  [trilha: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.historico_patrimonio;
 CREATE POLICY "rls_select" ON public.historico_patrimonio FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- horarios_jornada  [catalogo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.horarios_jornada;
@@ -2375,24 +2458,24 @@ DROP POLICY IF EXISTS "rls_delete" ON public.itens_licitacao;
 CREATE POLICY "rls_delete" ON public.itens_licitacao FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos')));
 
--- itens_material  [modulo: patrimonio | patrimonio_mobile]
+-- itens_material  [modulo: patrimonio]
 DROP POLICY IF EXISTS "pat_module_delete" ON public.itens_material;
 DROP POLICY IF EXISTS "pat_module_select" ON public.itens_material;
 DROP POLICY IF EXISTS "pat_module_update" ON public.itens_material;
 DROP POLICY IF EXISTS "pat_module_write" ON public.itens_material;
 DROP POLICY IF EXISTS "rls_select" ON public.itens_material;
 CREATE POLICY "rls_select" ON public.itens_material FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.itens_material;
 CREATE POLICY "rls_insert" ON public.itens_material FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.itens_material;
 CREATE POLICY "rls_update" ON public.itens_material FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'patrimonio.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'patrimonio.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.itens_material;
 CREATE POLICY "rls_delete" ON public.itens_material FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- itens_processo_licitatorio  [modulo: compras | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.itens_processo_licitatorio;
@@ -2538,20 +2621,20 @@ DROP POLICY IF EXISTS "rls_delete" ON public.lotacoes;
 CREATE POLICY "rls_delete" ON public.lotacoes FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')));
 
--- manutencoes_patrimonio  [modulo: patrimonio | patrimonio_mobile]
+-- manutencoes_patrimonio  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.manutencoes_patrimonio;
 CREATE POLICY "rls_select" ON public.manutencoes_patrimonio FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.manutencoes_patrimonio;
 CREATE POLICY "rls_insert" ON public.manutencoes_patrimonio FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.manutencoes_patrimonio;
 CREATE POLICY "rls_update" ON public.manutencoes_patrimonio FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.manutencoes_patrimonio;
 CREATE POLICY "rls_delete" ON public.manutencoes_patrimonio FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- matriz_raci_atribuicoes  [modulo: governanca]
 DROP POLICY IF EXISTS "rls_select" ON public.matriz_raci_atribuicoes;
@@ -2692,54 +2775,54 @@ DROP POLICY IF EXISTS "rls_delete" ON public.module_settings;
 CREATE POLICY "rls_delete" ON public.module_settings FOR DELETE TO authenticated
   USING (public.is_admin_user(auth.uid()));
 
--- movimentacoes_bem  [modulo: patrimonio | patrimonio_mobile]
+-- movimentacoes_bem  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.movimentacoes_bem;
 CREATE POLICY "rls_select" ON public.movimentacoes_bem FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.movimentacoes_bem;
 CREATE POLICY "rls_insert" ON public.movimentacoes_bem FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.movimentacoes_bem;
 CREATE POLICY "rls_update" ON public.movimentacoes_bem FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.movimentacoes_bem;
 CREATE POLICY "rls_delete" ON public.movimentacoes_bem FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
--- movimentacoes_estoque  [modulo: patrimonio | patrimonio_mobile]
+-- movimentacoes_estoque  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.movimentacoes_estoque;
 CREATE POLICY "rls_select" ON public.movimentacoes_estoque FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.movimentacoes_estoque;
 CREATE POLICY "rls_insert" ON public.movimentacoes_estoque FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.movimentacoes_estoque;
 CREATE POLICY "rls_update" ON public.movimentacoes_estoque FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.movimentacoes_estoque;
 CREATE POLICY "rls_delete" ON public.movimentacoes_estoque FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
--- movimentacoes_patrimonio  [modulo: patrimonio | patrimonio_mobile]
+-- movimentacoes_patrimonio  [modulo: patrimonio]
 DROP POLICY IF EXISTS "pat_module_delete" ON public.movimentacoes_patrimonio;
 DROP POLICY IF EXISTS "pat_module_select" ON public.movimentacoes_patrimonio;
 DROP POLICY IF EXISTS "pat_module_update" ON public.movimentacoes_patrimonio;
 DROP POLICY IF EXISTS "pat_module_write" ON public.movimentacoes_patrimonio;
 DROP POLICY IF EXISTS "rls_select" ON public.movimentacoes_patrimonio;
 CREATE POLICY "rls_select" ON public.movimentacoes_patrimonio FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.movimentacoes_patrimonio;
 CREATE POLICY "rls_insert" ON public.movimentacoes_patrimonio FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
 DROP POLICY IF EXISTS "rls_update" ON public.movimentacoes_patrimonio;
 CREATE POLICY "rls_update" ON public.movimentacoes_patrimonio FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.movimentacoes_patrimonio;
 CREATE POLICY "rls_delete" ON public.movimentacoes_patrimonio FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- movimentacoes_processo  [preservar: workflow]
 DROP POLICY IF EXISTS "rls_delete" ON public.movimentacoes_processo;
@@ -2777,20 +2860,20 @@ DROP POLICY IF EXISTS "rls_delete" ON public.noticias_eventos_esportivos;
 CREATE POLICY "rls_delete" ON public.noticias_eventos_esportivos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'comunicacao') OR public.can_access_module(auth.uid(), 'programas')));
 
--- ocorrencias_patrimonio  [modulo: patrimonio | patrimonio_mobile]
+-- ocorrencias_patrimonio  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.ocorrencias_patrimonio;
 CREATE POLICY "rls_select" ON public.ocorrencias_patrimonio FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.ocorrencias_patrimonio;
 CREATE POLICY "rls_insert" ON public.ocorrencias_patrimonio FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.ocorrencias_patrimonio;
 CREATE POLICY "rls_update" ON public.ocorrencias_patrimonio FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.ocorrencias_patrimonio;
 CREATE POLICY "rls_delete" ON public.ocorrencias_patrimonio FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- ocorrencias_servidor  [proprio_leitura: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.ocorrencias_servidor;
@@ -2871,20 +2954,64 @@ DROP POLICY IF EXISTS "rls_delete" ON public.participantes_reuniao;
 CREATE POLICY "rls_delete" ON public.participantes_reuniao FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'admin')));
 
--- patrimonio_unidade  [modulo: patrimonio | patrimonio_mobile]
+-- patrimonio_unidade  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.patrimonio_unidade;
 CREATE POLICY "rls_select" ON public.patrimonio_unidade FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.patrimonio_unidade;
 CREATE POLICY "rls_insert" ON public.patrimonio_unidade FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.patrimonio_unidade;
 CREATE POLICY "rls_update" ON public.patrimonio_unidade FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.patrimonio_unidade;
 CREATE POLICY "rls_delete" ON public.patrimonio_unidade FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
+
+-- pca_historico  [trilha: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pca_historico;
+CREATE POLICY "rls_select" ON public.pca_historico FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')));
+
+-- pca_itens  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pca_itens;
+CREATE POLICY "rls_select" ON public.pca_itens FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar') OR public.has_permission_code(auth.uid(), 'compras.pca.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.pca_itens;
+CREATE POLICY "rls_insert" ON public.pca_itens FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.pca_itens;
+CREATE POLICY "rls_update" ON public.pca_itens FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.pca_itens;
+
+-- pca_planos  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pca_planos;
+CREATE POLICY "rls_select" ON public.pca_planos FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar') OR public.has_permission_code(auth.uid(), 'compras.pca.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.pca_planos;
+CREATE POLICY "rls_insert" ON public.pca_planos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.pca_planos;
+CREATE POLICY "rls_update" ON public.pca_planos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.pca_planos;
+
+-- pca_tetos  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pca_tetos;
+CREATE POLICY "rls_select" ON public.pca_tetos FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar') OR public.has_permission_code(auth.uid(), 'compras.pca.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.pca_tetos;
+CREATE POLICY "rls_insert" ON public.pca_tetos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.pca_tetos;
+CREATE POLICY "rls_update" ON public.pca_tetos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pca.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.pca_tetos;
 
 -- pensoes_alimenticias  [permissao: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.pensoes_alimenticias;
@@ -3204,35 +3331,35 @@ CREATE POLICY "rls_update" ON public.remessas_bancarias FOR UPDATE TO authentica
   WITH CHECK ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.remessas_bancarias;
 
--- requisicao_itens  [modulo: patrimonio | patrimonio_mobile]
+-- requisicao_itens  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.requisicao_itens;
 CREATE POLICY "rls_select" ON public.requisicao_itens FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.requisicao_itens;
 CREATE POLICY "rls_insert" ON public.requisicao_itens FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.requisicao_itens;
 CREATE POLICY "rls_update" ON public.requisicao_itens FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.requisicao_itens;
 CREATE POLICY "rls_delete" ON public.requisicao_itens FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
--- requisicoes_material  [modulo: patrimonio | patrimonio_mobile]
+-- requisicoes_material  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.requisicoes_material;
 CREATE POLICY "rls_select" ON public.requisicoes_material FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.requisicoes_material;
 CREATE POLICY "rls_insert" ON public.requisicoes_material FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_update" ON public.requisicoes_material;
 CREATE POLICY "rls_update" ON public.requisicoes_material FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_delete" ON public.requisicoes_material;
 CREATE POLICY "rls_delete" ON public.requisicoes_material FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 
 -- respostas_checklist  [modulo: governanca]
 DROP POLICY IF EXISTS "rls_select" ON public.respostas_checklist;
@@ -3487,20 +3614,20 @@ DROP POLICY IF EXISTS "rls_delete" ON public.tabela_irrf;
 CREATE POLICY "rls_delete" ON public.tabela_irrf FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.configurar'));
 
--- termos_cessao  [modulo: patrimonio]
+-- termos_cessao  [permissao: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.termos_cessao;
 CREATE POLICY "rls_select" ON public.termos_cessao FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'patrimonio')));
 DROP POLICY IF EXISTS "rls_insert" ON public.termos_cessao;
 CREATE POLICY "rls_insert" ON public.termos_cessao FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'));
 DROP POLICY IF EXISTS "rls_update" ON public.termos_cessao;
 CREATE POLICY "rls_update" ON public.termos_cessao FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.termos_cessao;
 CREATE POLICY "rls_delete" ON public.termos_cessao FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.cedencias.gerenciar'));
 
 -- tipos_abono  [catalogo: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.tipos_abono;
@@ -3517,24 +3644,24 @@ DROP POLICY IF EXISTS "rls_delete" ON public.tipos_abono;
 CREATE POLICY "rls_delete" ON public.tipos_abono FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'rh.frequencia.configurar'));
 
--- unidades_locais  [modulo: patrimonio | patrimonio_mobile]
+-- unidades_locais  [permissao: patrimonio]
 DROP POLICY IF EXISTS "pat_module_delete" ON public.unidades_locais;
 DROP POLICY IF EXISTS "pat_module_select" ON public.unidades_locais;
 DROP POLICY IF EXISTS "pat_module_update" ON public.unidades_locais;
 DROP POLICY IF EXISTS "pat_module_write" ON public.unidades_locais;
 DROP POLICY IF EXISTS "rls_select" ON public.unidades_locais;
 CREATE POLICY "rls_select" ON public.unidades_locais FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
 DROP POLICY IF EXISTS "rls_insert" ON public.unidades_locais;
 CREATE POLICY "rls_insert" ON public.unidades_locais FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'));
 DROP POLICY IF EXISTS "rls_update" ON public.unidades_locais;
 CREATE POLICY "rls_update" ON public.unidades_locais FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.unidades_locais;
 CREATE POLICY "rls_delete" ON public.unidades_locais FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'patrimonio') OR public.can_access_module(auth.uid(), 'patrimonio_mobile')));
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'));
 
 -- user_modules  [proprio_user]
 DROP POLICY IF EXISTS "del_user_modules_admin" ON public.user_modules;
