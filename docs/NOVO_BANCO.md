@@ -192,6 +192,8 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   baseline regenerado e no mapa (`atos_remuneratorios` e `atos_remuneratorios_itens` na classe `permissao`,
   `cargo_vencimentos` na `trilha`); privilégios das funções novas no overlay 40; testes no bloco "FOLHA: atos
   remuneratórios" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os vetores de teste da folha comuns com o hrms_brasil (`scripts/db/casos-folha.json`) rodam no teste de RLS, no
+  bloco "FOLHA: vetores comuns": `testar-rls.sh` passa o arquivo ao `psql`, e rodar o `.sql` sem ele reprova.
 - O registro do ciclo do SEI no termo de cessão e na designação de chefia (migração `20261023090000`) entrou no
   schema do baseline só com os trechos do dump (colunas novas e `NOT NULL` retirado em `termos_cessao` e
   `nomeacoes_chefe_unidade`, com os comentários), sem regenerar o resto; RLS e privilégios sem mudança

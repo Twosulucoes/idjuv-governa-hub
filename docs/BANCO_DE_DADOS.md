@@ -661,7 +661,7 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   passa a ser por folha, conta e tipo. `contas_autarquia.nsa_inicial` (1 a 999999, opcional) continua a numeração do
   sistema anterior: o número é o maior entre o último da conta + 1 e o inicial; `get_proximo_numero_remessa` segue a
   mesma regra.
-- **Parte patronal e INSS por faixa** (migração `20261021100000_folha_encargos_patronais.sql`, em PR rascunho) —
+- **Parte patronal e INSS por faixa** (migração `20261021100000_folha_encargos_patronais.sql`, PR #144) —
   `processar_folha_pagamento` grava, em cada ficha de quem teve INSS descontado (quem contribui para o regime próprio
   na origem fica fora), `inss_patronal` e `rat` (base de INSS sem o teto × alíquota, arredondado) e `total_encargos`;
   na folha, `total_inss_patronal`, `total_rat` (coluna nova) e `total_encargos_patronais` são a soma das bases × a

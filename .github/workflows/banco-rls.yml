@@ -17,6 +17,7 @@ on:
       - "scripts/db/validar-baseline.sh"
       - "scripts/db/testar-rls.sh"
       - "scripts/db/testar-rls.sql"
+      - "scripts/db/casos-folha.json"
       - "scripts/db/shim-supabase.sql"
       - "scripts/db/gerar-rls.mjs"
       - ".github/workflows/banco-rls.yml"
@@ -29,6 +30,7 @@ on:
       - "scripts/db/validar-baseline.sh"
       - "scripts/db/testar-rls.sh"
       - "scripts/db/testar-rls.sql"
+      - "scripts/db/casos-folha.json"
       - "scripts/db/shim-supabase.sql"
       - "scripts/db/gerar-rls.mjs"
   workflow_dispatch:

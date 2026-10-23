@@ -20,7 +20,8 @@ esac
 psql -U "$SUPER" -d postgres -q -v ON_ERROR_STOP=1 \
   -c "drop database if exists \"$COPIA\" with (force);" \
   -c "create database \"$COPIA\" template \"$FONTE\";" || exit 2
-psql -U "$SUPER" -d "$COPIA" -v ON_ERROR_STOP=1 -f scripts/db/testar-rls.sql
+# vetores comuns com o hrms_brasil: o arquivo vai como variável (bloco "FOLHA: vetores comuns" do .sql)
+psql -U "$SUPER" -d "$COPIA" -v ON_ERROR_STOP=1 -v casos_folha="$(cat scripts/db/casos-folha.json)" -f scripts/db/testar-rls.sql
 status=$?
 psql -U "$SUPER" -d postgres -q -c "drop database if exists \"$COPIA\" with (force);" >/dev/null
 exit $status
