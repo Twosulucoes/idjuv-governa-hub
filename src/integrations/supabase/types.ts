@@ -25658,6 +25658,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      pca_classificadores: { Args: { _exercicio: number }; Returns: Json }
+      pca_usar_qdd: { Args: { _plano_id: string }; Returns: number }
       perfil_ativo_atual: { Args: Record<PropertyKey, never>; Returns: boolean }
       pode_conciliar_pagamentos: {
         Args: Record<PropertyKey, never>

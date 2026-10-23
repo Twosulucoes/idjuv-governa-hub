@@ -7538,8 +7538,33 @@ BEGIN
   IF (SELECT updated_by FROM public.pca_itens WHERE id = item) IS DISTINCT FROM u_ed THEN
     PERFORM pg_temp.falha('COMPRAS PCA: updated_by não é quem alterou');
   END IF;
+  -- classificadores: visualizar lê; sem a permissão = 42501
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT jsonb_typeof(public.pca_classificadores(2099)->''acoes'')');
+  IF r IS DISTINCT FROM 'array' THEN PERFORM pg_temp.falha('COMPRAS PCA: visualizar não lê os classificadores (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como((SELECT uid FROM persona WHERE nome = 'mod_compras'), 'authenticated', 'SELECT public.pca_classificadores(2099)::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: módulo sem permissão lê os classificadores (' || r || ')'); END IF;
+  -- QDD: visualizar = 42501; sem QDD = 22023; com QDD troca os tetos digitados
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT public.pca_usar_qdd(%L)::text', plano));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: visualizar troca os tetos (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT public.pca_usar_qdd(%L)::text', plano));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PCA: troca sem QDD aceita (' || r || ')'); END IF;
   PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM pg_temp.nota('COMPRAS PCA: plano nasce rascunho, exercício único, gravação só com compras.pca.editar, valor_total, item do catálogo e trilha verificados');
+  INSERT INTO public.pca_tetos (plano_id, acao_id, fonte_recurso_id, valor_previsto) VALUES (plano, v_acao, v_fonte, 5);
+  SET LOCAL session_replication_role = replica;
+  PERFORM pg_temp.seed_row('fin_dotacoes', jsonb_build_object('id', 'f5000000-0000-0000-0000-000000000001', 'exercicio', 2099,
+    'acao_id', v_acao, 'fonte_recurso_id', v_fonte, 'valor_inicial', 1000, 'valor_suplementado', 200, 'valor_reduzido', 0, 'ativo', true,
+    'codigo_dotacao', 'PCA-TESTE-1'));
+  PERFORM pg_temp.seed_row('fin_dotacoes', jsonb_build_object('id', 'f5000000-0000-0000-0000-000000000002', 'exercicio', 2099,
+    'acao_id', v_acao, 'fonte_recurso_id', v_fonte, 'valor_inicial', 300, 'valor_suplementado', 0, 'valor_reduzido', 0, 'ativo', true,
+    'codigo_dotacao', 'PCA-TESTE-2'));
+  SET LOCAL session_replication_role = origin;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  r := public.pca_usar_qdd(plano)::text;
+  r := r || '|' || (SELECT string_agg(valor_previsto::text || ':' || origem, ',') FROM public.pca_tetos WHERE plano_id = plano);
+  IF r IS DISTINCT FROM '1|1500.00:qdd' THEN PERFORM pg_temp.falha('COMPRAS PCA: troca pelo QDD (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('COMPRAS PCA: classificadores, troca pelo QDD, plano nasce rascunho, exercício único, gravação só com compras.pca.editar, valor_total, item do catálogo e trilha verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

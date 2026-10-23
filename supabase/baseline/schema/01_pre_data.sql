@@ -10212,6 +10212,35 @@ $$;
 
 
 --
+-- Name: pca_classificadores(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pca_classificadores(_exercicio integer) RETURNS jsonb
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT (public.can_access_module(auth.uid(), 'compras')
+          AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar')
+               OR public.has_permission_code(auth.uid(), 'compras.pca.editar'))) THEN
+    RAISE EXCEPTION 'Requer a permissão de ver o PCA.' USING ERRCODE = '42501';
+  END IF;
+  RETURN jsonb_build_object(
+    'acoes', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', a.id, 'codigo', a.codigo, 'nome', a.nome) ORDER BY a.codigo)
+                         FROM public.fin_acoes_orcamentarias a WHERE a.ativo IS NOT FALSE), '[]'::jsonb),
+    'fontes', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', f.id, 'codigo', f.codigo, 'nome', f.nome) ORDER BY f.codigo)
+                          FROM public.fin_fontes_recurso f WHERE f.ativo IS NOT FALSE), '[]'::jsonb),
+    'naturezas', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.id, 'codigo', n.codigo, 'nome', n.nome) ORDER BY n.codigo)
+                             FROM public.fin_naturezas_despesa n WHERE n.ativo IS NOT FALSE), '[]'::jsonb),
+    'qdd_linhas', (SELECT count(*) FROM public.fin_dotacoes d
+                    WHERE d.exercicio = _exercicio AND d.ativo IS NOT FALSE
+                      AND d.acao_id IS NOT NULL AND d.fonte_recurso_id IS NOT NULL)
+  );
+END;
+$$;
+
+
+--
 -- Name: pca_registrar_historico(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -10242,6 +10271,49 @@ BEGIN
             to_jsonb(OLD), to_jsonb(NEW), auth.uid());
   END IF;
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: pca_usar_qdd(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pca_usar_qdd(_plano_id uuid) RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_exercicio integer;
+  v_antes jsonb;
+  v_n integer;
+BEGIN
+  IF NOT (public.can_access_module(auth.uid(), 'compras') AND public.has_permission_code(auth.uid(), 'compras.pca.editar')) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar o PCA.' USING ERRCODE = '42501';
+  END IF;
+  SELECT exercicio INTO v_exercicio FROM public.pca_planos WHERE id = _plano_id FOR UPDATE;
+  IF v_exercicio IS NULL THEN
+    RAISE EXCEPTION 'PCA não encontrado.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.fin_dotacoes d WHERE d.exercicio = v_exercicio AND d.ativo IS NOT FALSE
+                    AND d.acao_id IS NOT NULL AND d.fonte_recurso_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'Ainda não há QDD de % importado.', v_exercicio USING ERRCODE = '22023';
+  END IF;
+
+  SELECT jsonb_agg(jsonb_build_object('acao_id', t.acao_id, 'fonte_recurso_id', t.fonte_recurso_id,
+                                      'valor_previsto', t.valor_previsto, 'origem', t.origem))
+    INTO v_antes FROM public.pca_tetos t WHERE t.plano_id = _plano_id;
+  DELETE FROM public.pca_tetos WHERE plano_id = _plano_id;
+  INSERT INTO public.pca_tetos (plano_id, acao_id, fonte_recurso_id, valor_previsto, origem)
+  SELECT _plano_id, d.acao_id, d.fonte_recurso_id, GREATEST(sum(COALESCE(d.valor_atual, 0)), 0), 'qdd'
+    FROM public.fin_dotacoes d
+   WHERE d.exercicio = v_exercicio AND d.ativo IS NOT FALSE AND d.acao_id IS NOT NULL AND d.fonte_recurso_id IS NOT NULL
+   GROUP BY d.acao_id, d.fonte_recurso_id;
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  INSERT INTO public.pca_historico (plano_id, acao, antes, depois, motivo, feito_por)
+  VALUES (_plano_id, 'tetos_qdd', jsonb_build_object('tetos', COALESCE(v_antes, '[]'::jsonb)),
+          jsonb_build_object('tetos_qdd', v_n), 'Tetos trocados pelo QDD do exercício', auth.uid());
+  RETURN v_n;
 END;
 $$;
 
@@ -22940,7 +23012,7 @@ CREATE TABLE public.pca_historico (
     motivo text,
     feito_por uuid DEFAULT auth.uid(),
     feito_em timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT pca_historico_acao_check CHECK ((acao = ANY (ARRAY['plano_criado'::text, 'situacao'::text, 'item_incluido'::text, 'item_alterado'::text, 'item_excluido'::text])))
+    CONSTRAINT pca_historico_acao_check CHECK ((acao = ANY (ARRAY['plano_criado'::text, 'situacao'::text, 'tetos_qdd'::text, 'item_incluido'::text, 'item_alterado'::text, 'item_excluido'::text])))
 );
 
 

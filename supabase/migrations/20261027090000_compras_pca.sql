@@ -13,6 +13,8 @@
 --   pca_tetos                teto previsto na PLOA (ou o QDD, quando chega) por ação orçamentária × fonte.
 --   pca_itens                cada demanda lançada por Compras a partir de um DFD do SEI.
 --   pca_historico            trilha das inclusões e mudanças (gatilho pca_registrar_historico).
+--   pca_classificadores      ações, fontes e naturezas (código e nome) para quem tem o PCA, sem abrir a RLS do financeiro.
+--   pca_usar_qdd             troca os tetos do plano pelo QDD do exercício (fin_dotacoes), com registro na trilha.
 --
 -- Leitura: módulo compras E compras.pca.visualizar (ou editar); escrita: compras.pca.editar. Ninguém apaga pela
 -- API: o item sai do PCA por situacao = 'excluido'. Permissões novas concedidas a quem já tem compras.criar.
@@ -160,7 +162,7 @@ CREATE TABLE IF NOT EXISTS public.pca_historico (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   plano_id uuid NOT NULL REFERENCES public.pca_planos(id),
   item_id uuid REFERENCES public.pca_itens(id),
-  acao text NOT NULL CHECK (acao IN ('plano_criado', 'situacao', 'item_incluido', 'item_alterado', 'item_excluido')),
+  acao text NOT NULL CHECK (acao IN ('plano_criado', 'situacao', 'tetos_qdd', 'item_incluido', 'item_alterado', 'item_excluido')),
   antes jsonb,
   depois jsonb,
   motivo text,
@@ -284,7 +286,85 @@ UPDATE public.user_modules
    AND NOT (ARRAY['compras.pca.visualizar', 'compras.pca.editar'] <@ permissions);
 
 -- ----------------------------------------------------------------------------
--- 5. RLS (gerado de supabase/baseline/rls/mapa.csv por scripts/db/gerar-rls.mjs)
+-- 5. Leitura dos classificadores e troca do teto pelo QDD
+-- ----------------------------------------------------------------------------
+-- Ações, fontes e naturezas são tabelas do módulo financeiro (a RLS delas não muda). Quem tem o PCA lê só código e
+-- nome, por esta função, e a contagem de linhas do QDD do exercício (para oferecer "Usar o QDD").
+CREATE OR REPLACE FUNCTION public.pca_classificadores(_exercicio integer)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT (public.can_access_module(auth.uid(), 'compras')
+          AND (public.has_permission_code(auth.uid(), 'compras.pca.visualizar')
+               OR public.has_permission_code(auth.uid(), 'compras.pca.editar'))) THEN
+    RAISE EXCEPTION 'Requer a permissão de ver o PCA.' USING ERRCODE = '42501';
+  END IF;
+  RETURN jsonb_build_object(
+    'acoes', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', a.id, 'codigo', a.codigo, 'nome', a.nome) ORDER BY a.codigo)
+                         FROM public.fin_acoes_orcamentarias a WHERE a.ativo IS NOT FALSE), '[]'::jsonb),
+    'fontes', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', f.id, 'codigo', f.codigo, 'nome', f.nome) ORDER BY f.codigo)
+                          FROM public.fin_fontes_recurso f WHERE f.ativo IS NOT FALSE), '[]'::jsonb),
+    'naturezas', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', n.id, 'codigo', n.codigo, 'nome', n.nome) ORDER BY n.codigo)
+                             FROM public.fin_naturezas_despesa n WHERE n.ativo IS NOT FALSE), '[]'::jsonb),
+    'qdd_linhas', (SELECT count(*) FROM public.fin_dotacoes d
+                    WHERE d.exercicio = _exercicio AND d.ativo IS NOT FALSE
+                      AND d.acao_id IS NOT NULL AND d.fonte_recurso_id IS NOT NULL)
+  );
+END;
+$$;
+REVOKE ALL ON FUNCTION public.pca_classificadores(integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.pca_classificadores(integer) TO authenticated;
+
+-- Troca os tetos do plano pelo QDD do exercício (soma de valor_atual por ação × fonte, origem 'qdd'). Os tetos
+-- digitados (PLOA) saem; a trilha guarda a troca. Sem QDD do exercício = 22023.
+CREATE OR REPLACE FUNCTION public.pca_usar_qdd(_plano_id uuid)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_exercicio integer;
+  v_antes jsonb;
+  v_n integer;
+BEGIN
+  IF NOT (public.can_access_module(auth.uid(), 'compras') AND public.has_permission_code(auth.uid(), 'compras.pca.editar')) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar o PCA.' USING ERRCODE = '42501';
+  END IF;
+  SELECT exercicio INTO v_exercicio FROM public.pca_planos WHERE id = _plano_id FOR UPDATE;
+  IF v_exercicio IS NULL THEN
+    RAISE EXCEPTION 'PCA não encontrado.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.fin_dotacoes d WHERE d.exercicio = v_exercicio AND d.ativo IS NOT FALSE
+                    AND d.acao_id IS NOT NULL AND d.fonte_recurso_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'Ainda não há QDD de % importado.', v_exercicio USING ERRCODE = '22023';
+  END IF;
+
+  SELECT jsonb_agg(jsonb_build_object('acao_id', t.acao_id, 'fonte_recurso_id', t.fonte_recurso_id,
+                                      'valor_previsto', t.valor_previsto, 'origem', t.origem))
+    INTO v_antes FROM public.pca_tetos t WHERE t.plano_id = _plano_id;
+  DELETE FROM public.pca_tetos WHERE plano_id = _plano_id;
+  INSERT INTO public.pca_tetos (plano_id, acao_id, fonte_recurso_id, valor_previsto, origem)
+  SELECT _plano_id, d.acao_id, d.fonte_recurso_id, GREATEST(sum(COALESCE(d.valor_atual, 0)), 0), 'qdd'
+    FROM public.fin_dotacoes d
+   WHERE d.exercicio = v_exercicio AND d.ativo IS NOT FALSE AND d.acao_id IS NOT NULL AND d.fonte_recurso_id IS NOT NULL
+   GROUP BY d.acao_id, d.fonte_recurso_id;
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  INSERT INTO public.pca_historico (plano_id, acao, antes, depois, motivo, feito_por)
+  VALUES (_plano_id, 'tetos_qdd', jsonb_build_object('tetos', COALESCE(v_antes, '[]'::jsonb)),
+          jsonb_build_object('tetos_qdd', v_n), 'Tetos trocados pelo QDD do exercício', auth.uid());
+  RETURN v_n;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.pca_usar_qdd(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.pca_usar_qdd(uuid) TO authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 6. RLS (gerado de supabase/baseline/rls/mapa.csv por scripts/db/gerar-rls.mjs)
 -- ----------------------------------------------------------------------------
 -- cat_material_itens  [permissao: compras]
 DROP POLICY IF EXISTS "rls_select" ON public.cat_material_itens;
