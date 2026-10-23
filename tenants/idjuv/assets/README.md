@@ -9,12 +9,17 @@ White Label — o núcleo em `src/` não contém mais marca de cliente.
 | `logo-dark.png` | Logo do órgão em fundo escuro (footer, sidebar) | `src/assets/logo-idjuv-dark4.png` |
 | `entidade-superior.jpg` | Co-branding Governo do Estado, fundo claro | `src/assets/logo-governo-roraima.jpg` |
 | `entidade-superior-dark.png` | Co-branding, fundo escuro | `src/assets/logo-governo-roraima-dark.png` |
-| `favicon.png` | Ícone da aba | `public/favicon.png` |
-| `favicon.ico` | Ícone legado servido em `/favicon.ico` | `public/favicon.ico` |
-| `apple-touch-icon.png` | Ícone iOS | `public/apple-touch-icon.png` |
-| `pwa-192x192.png`, `pwa-512x512.png` | Ícones do PWA e splash | `public/` |
+| `favicon.png` | Ícone da aba (512×512): atleta com a tocha e a estrela da logo, em fundo azul | redesenhado em 23/10/2026 |
+| `favicon.ico` | Ícone legado servido em `/favicon.ico` (16 a 256 px) | redesenhado em 23/10/2026 |
+| `apple-touch-icon.png` | Ícone iOS (180×180) | redesenhado em 23/10/2026 |
+| `pwa-192x192.png`, `pwa-512x512.png` | Ícones do PWA e splash | redesenhados em 23/10/2026 |
 | `favicon-alt.png` | Variante sem uso, preservada da migração | `public/favicon2.png` |
 | `documentos/` | PDFs institucionais (lei, decretos, CNPJ) | `public/documentos/` |
+
+Os ícones de 23/10/2026 substituíram o coração genérico (`favicon.ico`), o QR code (PWA)
+e a logo larga espremida (`favicon.png`). Foram montados a partir da logo larga do IDJUV (o antigo `favicon.png`):
+o atleta branco do "D" e a estrela amarela, sobre o azul da marca (`#005BA4`). No
+`index.html`, o `?v=2` nos links força o navegador a trocar o ícone guardado em cache.
 
 ## Como são consumidos
 
