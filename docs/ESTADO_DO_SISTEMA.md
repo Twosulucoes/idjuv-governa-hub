@@ -19,11 +19,11 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 213 |
-| Componentes (`.tsx` em `src/components`) | 322 |
+| Componentes (`.tsx` em `src/components`) | 329 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 279 |
+| — fora de `ui/` | 286 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 107 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 65 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 66 |
 | Linhas de `src/App.tsx` | 1376 |
 | Linhas de `src/integrations/supabase/types.ts` (gerado) | 27597 |
 
