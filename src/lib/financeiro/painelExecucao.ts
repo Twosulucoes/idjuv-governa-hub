@@ -152,7 +152,13 @@ export function execucaoPorGrupo(dotacoes: DotacaoPainel[]): GrupoExecucao[] {
  * Dotações cujo saldo não cobre o resto do ano no ritmo do que já foi liquidado.
  * Pessoal (vencimentos e obrigações patronais) conta um mês a mais pelo 13º.
  */
-export function alertasDeSaldo(dotacoes: DotacaoPainel[], mesReferencia: number): AlertaSaldo[] {
+export function alertasDeSaldo(
+  dotacoes: DotacaoPainel[],
+  mesReferencia: number,
+  { encerrado = false }: { encerrado?: boolean } = {},
+): AlertaSaldo[] {
+  // Exercício encerrado não tem mais o que cobrir
+  if (encerrado) return [];
   const m = Math.min(12, Math.max(1, Math.trunc(mesReferencia) || 1));
   const alertas: AlertaSaldo[] = [];
   for (const d of dotacoes) {

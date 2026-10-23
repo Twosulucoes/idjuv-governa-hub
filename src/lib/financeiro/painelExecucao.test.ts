@@ -123,6 +123,11 @@ describe("alertasDeSaldo", () => {
     expect(j.mesesRestantes).toBe(11);
   });
 
+  it("exercício encerrado não gera alerta, nem o do 13º", () => {
+    expect(alertasDeSaldo([vencimentos], 12, { encerrado: true })).toEqual([]);
+    expect(alertasDeSaldo([vencimentos], 12)).toHaveLength(1);
+  });
+
   it("ignora natureza nula e ordena por quanto falta", () => {
     const pequena = dot("33903900", { valor_atual: 10, valor_empenhado: 10, valor_liquidado: 10 });
     const grande = dot("33903000", { valor_atual: 100, valor_empenhado: 100, valor_liquidado: 100 });

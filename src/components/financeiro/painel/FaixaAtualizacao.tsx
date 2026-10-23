@@ -11,11 +11,13 @@ interface FaixaAtualizacaoProps {
   qdd: string | null;
   fip614: string | null;
   hoje: Date;
+  /** Exercício já terminado: os dados não envelhecem mais, então não há aviso de atraso */
+  encerrado?: boolean;
 }
 
-export function FaixaAtualizacao({ qdd, fip614, hoje }: FaixaAtualizacaoProps) {
+export function FaixaAtualizacao({ qdd, fip614, hoje, encerrado = false }: FaixaAtualizacaoProps) {
   const diasQdd = qdd ? Math.floor((hoje.getTime() - new Date(qdd).getTime()) / 86_400_000) : null;
-  const atrasado = diasQdd !== null && diasQdd > DIAS_ALERTA;
+  const atrasado = !encerrado && diasQdd !== null && diasQdd > DIAS_ALERTA;
   const Icone = atrasado ? AlertTriangle : CalendarClock;
 
   return (

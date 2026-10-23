@@ -47,7 +47,7 @@ export default function FinanceiroDashboardPage() {
     return {
       resumo: resumirExecucao(linhas),
       grupos: execucaoPorGrupo(linhas),
-      alertas: alertasDeSaldo(linhas, mes),
+      alertas: alertasDeSaldo(linhas, mes, { encerrado: exercicio < hoje.getFullYear() }),
       despesas: maioresDespesas(linhas),
     };
   }, [linhas, exercicio, qdd, hoje]);
@@ -77,7 +77,12 @@ export default function FinanceiroDashboardPage() {
         />
 
         {!atualizacao.isLoading && (
-          <FaixaAtualizacao qdd={qdd} fip614={atualizacao.data?.fip614 ?? null} hoje={hoje} />
+          <FaixaAtualizacao
+            qdd={qdd}
+            fip614={atualizacao.data?.fip614 ?? null}
+            hoje={hoje}
+            encerrado={exercicio < hoje.getFullYear()}
+          />
         )}
 
         {semDados ? (

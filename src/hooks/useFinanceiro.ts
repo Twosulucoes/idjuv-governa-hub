@@ -809,17 +809,20 @@ export function usePainelFinanceiro(exercicio: number) {
   const atualizacao = useQuery({
     queryKey: ['fin_painel_atualizacao', exercicio],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('importacoes')
-        .select('tipo, created_at')
-        .eq('exercicio', exercicio)
-        .in('tipo', ['qdd_fiplan', 'empenhos_fip614'])
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-      const ultima = (tipo: string) => (data ?? []).find((i) => i.tipo === tipo)?.created_at ?? null;
-      return { qdd: ultima('qdd_fiplan'), fip614: ultima('empenhos_fip614') };
+      // Uma consulta por tipo: reimportações de um não escondem a última do outro
+      const ultima = async (tipo: string) => {
+        const { data, error } = await supabase
+          .from('importacoes')
+          .select('created_at')
+          .eq('exercicio', exercicio)
+          .eq('tipo', tipo)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        return data?.[0]?.created_at ?? null;
+      };
+      const [qdd, fip614] = await Promise.all([ultima('qdd_fiplan'), ultima('empenhos_fip614')]);
+      return { qdd, fip614 };
     },
   });
 
