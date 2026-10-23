@@ -135,7 +135,8 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   usuário depende do SMTP do Supabase da VPS (hoje quem cria repassa a senha temporária).
 - [ ] **Ambiente de teste** (transversal, PR rascunho): `supabase/baseline/dados-teste.sql` enche um banco do baseline
   com dados fictícios de todos os módulos e liga o login de teste a um servidor ([NOVO_BANCO.md](../NOVO_BANCO.md#9-ambiente-de-teste-com-dados-fictícios)).
-  Falta subir no Coolify o Supabase e o front de teste.
+  No Coolify: ambiente `teste` do projeto `idjuv` com o Supabase de teste criado em 23/10/2026; o `Dockerfile` passa a pôr na
+  CSP o host do banco do build. Falta aplicar o baseline e os dados e subir o front de teste.
 - [ ] **LAI — pedido do SIC não grava** (achado ao montar o ambiente de teste): o trigger `registrar_historico_lai` de
   `solicitacoes_sic` lê `NEW.responsavel_id`, coluna que a tabela não tem, e todo INSERT falha no banco do baseline;
   conferir na produção e corrigir por migração (cabe no P16).

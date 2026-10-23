@@ -27,5 +27,9 @@ RUN test -n "$VITE_SUPABASE_URL" || { echo "VITE_SUPABASE_URL não configurada n
 FROM nginx:1.27-alpine
 COPY deploy/coolify/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/nginx/cabecalhos-seguranca.conf /etc/nginx/cabecalhos-seguranca.conf
+# o connect-src da CSP segue o banco do build (produção, ambiente de teste ou outra instalação)
+ARG VITE_SUPABASE_URL
+RUN host="$(echo "$VITE_SUPABASE_URL" | sed -E 's#^https?://##; s#/.*$##')" && \
+    test -n "$host" && sed -i "s#bd\.idjuv\.online#${host}#g" /etc/nginx/cabecalhos-seguranca.conf
 COPY --from=build /saida /usr/share/nginx/html
 EXPOSE 80
