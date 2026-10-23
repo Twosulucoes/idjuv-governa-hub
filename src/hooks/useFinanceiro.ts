@@ -21,6 +21,7 @@ import type {
   NaturezaDespesa,
   ResumoOrcamentario,
 } from '@/types/financeiro';
+import type { DotacaoPainel, EmpenhoPainel } from '@/lib/financeiro/painelExecucao';
 
 // ===========================================
 // DOTAÇÕES ORÇAMENTÁRIAS
@@ -818,6 +819,76 @@ export function useDashboardFinanceiro(exercicio?: number) {
     solicitacoesPendentes,
     loading: resumoOrcamentario.isLoading || contasBancarias.isLoading,
   };
+}
+
+// ===========================================
+// PAINEL DO FINANCEIRO (execução do exercício)
+// ===========================================
+
+/** Linhas do painel: dotações ativas (QDD), empenhos com saldo (FIP 614) e data das últimas importações. */
+export function usePainelFinanceiro(exercicio: number) {
+  const dotacoes = useQuery({
+    queryKey: ['fin_painel_dotacoes', exercicio],
+    queryFn: async (): Promise<DotacaoPainel[]> => {
+      const { data, error } = await supabase
+        .from('fin_dotacoes')
+        .select(`
+          paoe, valor_atual, valor_empenhado, valor_liquidado, valor_pago,
+          valor_bloqueado, valor_reserva, valor_ped,
+          natureza_despesa:fin_naturezas_despesa(codigo, nome),
+          fonte_recurso:fin_fontes_recurso(codigo)
+        `)
+        .eq('exercicio', exercicio)
+        .eq('ativo', true);
+
+      if (error) throw error;
+      return (data ?? []).map(({ natureza_despesa, fonte_recurso, ...valores }) => ({
+        ...valores,
+        natureza: natureza_despesa?.codigo ?? null,
+        natureza_nome: natureza_despesa?.nome ?? null,
+        fonte: fonte_recurso?.codigo ?? null,
+      }));
+    },
+  });
+
+  const empenhos = useQuery({
+    queryKey: ['fin_painel_empenhos', exercicio],
+    queryFn: async (): Promise<EmpenhoPainel[]> => {
+      const { data, error } = await supabase
+        .from('fin_empenhos')
+        .select('credor_nome, data_empenho, saldo_liquidar, saldo_pagar, status, fornecedor:fornecedores(razao_social)')
+        .eq('exercicio', exercicio)
+        .or('saldo_liquidar.gt.0,saldo_pagar.gt.0');
+
+      if (error) throw error;
+      return (data ?? []).map((e) => ({
+        credor: e.credor_nome ?? e.fornecedor?.razao_social ?? null,
+        data_empenho: e.data_empenho,
+        saldo_liquidar: e.saldo_liquidar,
+        saldo_pagar: e.saldo_pagar,
+        status: e.status,
+      }));
+    },
+  });
+
+  const atualizacao = useQuery({
+    queryKey: ['fin_painel_atualizacao', exercicio],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('importacoes')
+        .select('tipo, created_at')
+        .eq('exercicio', exercicio)
+        .in('tipo', ['qdd_fiplan', 'empenhos_fip614'])
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      const ultima = (tipo: string) => (data ?? []).find((i) => i.tipo === tipo)?.created_at ?? null;
+      return { qdd: ultima('qdd_fiplan'), fip614: ultima('empenhos_fip614') };
+    },
+  });
+
+  return { dotacoes, empenhos, atualizacao };
 }
 
 // ===========================================
