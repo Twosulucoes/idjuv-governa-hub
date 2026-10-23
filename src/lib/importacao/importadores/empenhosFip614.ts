@@ -1,7 +1,7 @@
 /**
  * IMPORTADOR: FIP 614 – Situação de Empenho (PDF do FIPLAN) → fin_empenhos (origem FIPLAN)
  *
- * Lê o PDF do FIP 614 e cria ou atualiza os empenhos do exercício pela RPC `importar_empenhos_fip614`,
+ * Lê o FIP 614 (PDF ou o "Excel" do FIPLAN, que é uma tabela HTML) e cria ou atualiza os empenhos do exercício pela RPC `importar_empenhos_fip614`,
  * que confere a permissão `orcamento.importar` e grava tudo numa transação: o empenho com os totais do
  * relatório e o histórico de LIQ, NOB, GCV e estornos. Não mexe na dotação (os valores dela vêm do QDD).
  */
@@ -10,8 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/formatters";
 import { lerLinhasPdf } from "../pdfTexto";
+import { decodificarHtml, linhasDaTabelaHtml, pareceTabelaHtml } from "../tabelaHtml";
 import type { Importador, ResultadoBanco } from "../types";
-import { interpretarEmpenhosFip614, type LinhaEmpenhoFip614 } from "./empenhosFip614Parser";
+import { interpretarEmpenhosFip614, linhasFip614DoExcel, type LinhaEmpenhoFip614 } from "./empenhosFip614Parser";
 
 const moeda = (v: number) => formatCurrency(v);
 /** "17302.0001.26.00051-8" → "26.00051-8" (a UG se repete em todos) */
@@ -23,10 +24,11 @@ export const importadorEmpenhosFip614: Importador<LinhaEmpenhoFip614> = {
   descricao: "Traz os empenhos do exercício, com liquidações, NOBs e estornos, do relatório FIP 614 – Situação de Empenho.",
   modulo: "financeiro",
   permissao: "orcamento.importar",
-  aceita: "application/pdf,.pdf",
+  aceita: "application/pdf,.pdf,.xls",
   instrucoes:
-    "No FIPLAN, gere o relatório \"FIP 614 - Situação de Empenho\" do exercício e salve em PDF. Importe o QDD do " +
-    "mesmo exercício antes, para os empenhos ligarem à dotação. Empenhos que já existem são atualizados; nada é apagado.",
+    "No FIPLAN, gere o relatório \"FIP 614 - Situação de Empenho\" do exercício e salve em Excel (melhor: traz a " +
+    "dotação com o IDU e o histórico inteiro) ou em PDF. Importe o QDD do mesmo exercício antes, para os empenhos " +
+    "ligarem à dotação. Empenhos que já existem são atualizados; nada é apagado.",
   colunas: [
     { id: "emp", rotulo: "Empenho", valor: (l) => curto(l.numero) },
     { id: "processo", rotulo: "Processo", valor: (l) => l.processo_sei },
@@ -61,8 +63,21 @@ export const importadorEmpenhosFip614: Importador<LinhaEmpenhoFip614> = {
   identificarLinha: (l) => `EMP ${curto(l.numero)}`,
 
   async ler(arquivo) {
-    const linhas = await lerLinhasPdf(await arquivo.arrayBuffer());
-    return interpretarEmpenhosFip614(linhas);
+    const dados = await arquivo.arrayBuffer();
+    if (pareceTabelaHtml(dados)) {
+      return interpretarEmpenhosFip614(linhasFip614DoExcel(linhasDaTabelaHtml(decodificarHtml(dados))));
+    }
+    if (/\.xlsx?$/i.test(arquivo.name)) {
+      return {
+        linhas: [],
+        problemas: [
+          { gravidade: "erro", mensagem: "Este Excel não é o que o FIPLAN exporta. Gere o FIP 614 de novo no FIPLAN, em Excel ou em PDF." },
+        ],
+        cabecalho: {},
+        parametros: {},
+      };
+    }
+    return interpretarEmpenhosFip614(await lerLinhasPdf(dados));
   },
 
   async enviar(leitura, arquivo, simular) {

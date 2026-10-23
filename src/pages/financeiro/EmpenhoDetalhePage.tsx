@@ -263,7 +263,7 @@ export default function EmpenhoDetalhePage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                O FIP 614 não traz o IDU, e o QDD tem {opcoes.length} dotações com essa classificação. Escolha a do
+                O FIP 614 em PDF não traz o IDU, e o QDD tem {opcoes.length} dotações com essa classificação. Escolha a do
                 empenho (a escolha é mantida quando um FIP 614 novo for importado).
               </p>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

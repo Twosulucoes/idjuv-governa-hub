@@ -7591,6 +7591,12 @@ BEGIN
   IF r <> 'ok' OR (SELECT dotacao_id FROM public.fin_empenhos WHERE exercicio = 2031 AND numero = '17302.0001.31.00002-1') IS DISTINCT FROM d_osc4 THEN
     PERFORM pg_temp.falha('FIN empenhos FIPLAN: reimportar perdeu a dotação escolhida (' || coalesce(r, 'nulo') || ')');
   END IF;
+  -- com o IDU em número na dotação (1 = Não), a dotação certa liga sozinha, mesmo com outra escolhida antes
+  r := pg_temp.exec_como(u_fin, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, %L::jsonb, %L, false)',
+         jsonb_build_array(e2 || jsonb_build_object('dotacao', '17302.0001.08.244.030.2544.9900.33504100.1500.0000.1.1')), arq, '2031-10-31'));
+  IF r <> 'ok' OR (SELECT dotacao_id FROM public.fin_empenhos WHERE exercicio = 2031 AND numero = '17302.0001.31.00002-1') IS DISTINCT FROM d_osc1 THEN
+    PERFORM pg_temp.falha('FIN empenhos FIPLAN: IDU da dotação não escolheu a dotação (' || coalesce(r, 'nulo') || ')');
+  END IF;
   -- a origem não muda
   BEGIN
     UPDATE public.fin_empenhos SET origem = 'sistema' WHERE id = v_emp;
@@ -7631,7 +7637,7 @@ BEGIN
   r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.fin_empenho_documentos_fiplan SET historico = %L', 'x'));
   IF r NOT LIKE 'erro:%' AND r <> 'ok:0' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: UPDATE direto no histórico aceito (' || r || ')'); END IF;
 
-  PERFORM pg_temp.nota('FIN (empenhos do FIPLAN): permissão, simulação sem gravar, aplicação sem somar na dotação, favorecido pelo código, dotação ambígua e escolhida à mão, histórico e log, reaplicação sem alteração, origem fixa, empenho do sistema intacto e escrita direta no histórico bloqueada verificados');
+  PERFORM pg_temp.nota('FIN (empenhos do FIPLAN): permissão, simulação sem gravar, aplicação sem somar na dotação, favorecido pelo código, dotação ambígua e escolhida à mão, dotação pelo IDU, histórico e log, reaplicação sem alteração, origem fixa, empenho do sistema intacto e escrita direta no histórico bloqueada verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

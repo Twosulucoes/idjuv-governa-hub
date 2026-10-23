@@ -338,7 +338,7 @@ export function useDocumentosEmpenhoFiplan(empenhoId?: string) {
 }
 
 /**
- * Dotações do QDD em que o empenho do FIPLAN pode cair: mesmos dígitos de função a fonte. O FIP 614 corta a
+ * Dotações do QDD em que o empenho do FIPLAN pode cair: mesmos dígitos de função a fonte. O FIP 614 em PDF corta a
  * dotação antes do IDU, então pode haver mais de uma (ex.: recurso livre e emenda na mesma natureza).
  */
 export function useDotacoesCandidatasEmpenho(empenho?: Pick<Empenho, 'exercicio' | 'dotacao_fiplan' | 'origem'> | null) {

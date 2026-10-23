@@ -1502,9 +1502,10 @@ O FIPLAN é a fonte dos empenhos importados; a dotação continua vindo do QDD.
 - `importar_empenhos_fip614(p_exercicio, p_linhas, p_arquivo, p_data_referencia, p_simular)` — `SECURITY DEFINER`,
   exige perfil ativo, módulo financeiro e `orcamento.importar`; simula ou aplica tudo ou nada e registra em
   `importacoes` (`tipo = 'empenhos_fip614'`). Cria ou atualiza pelo número, nunca apaga, e recusa número que já é de
-  empenho feito no sistema. A dotação liga quando o prefixo (o FIP 614 corta antes do IDU) casa com um só
-  `codigo_dotacao`; com mais de um, mantém a escolha anterior se ainda for candidata, senão fica nula com aviso, e
-  a escolha é feita na tela do empenho (UPDATE de `dotacao_id` pela policy de `fin_empenhos`).
+  empenho feito no sistema. A dotação liga pelos dígitos de `função…fonte` como prefixo do `codigo_dotacao`; com
+  mais de uma candidata, o IDU em número do 11º segmento (1 Não, 4 ECNI, 5 ECI, 6 EII; vem no Excel, o PDF corta a
+  dotação antes dele) escolhe pela sigla do QDD. Sem IDU, mantém a escolha anterior se ainda for candidata, senão
+  fica nula com aviso, e a escolha é feita na tela do empenho (UPDATE de `dotacao_id` pela policy de `fin_empenhos`).
 
 #### Importar portarias (`importar_portarias_planilha`)
 

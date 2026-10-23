@@ -25,11 +25,17 @@
 
 ## O relatório (FIP 614)
 
+Formatos: PDF ou o "Excel" do FIPLAN (um `.xls` que é uma tabela HTML em ISO-8859-1). O Excel é o recomendado: traz a
+dotação inteira, com o IDU, o nome do credor e o histórico da liquidação sem cortes, e o tipo do estorno escrito
+(`EST EMP`, `EST LIQ`, `EST NOB`; o documento estornado vem como `LIQ EST`, `NOB EST`). Não traz o título, o exercício
+nem a data de referência: o exercício sai do número dos empenhos. Conferido com o Excel até setembro: os mesmos 170
+empenhos do PDF, soma igual ao TOTAL UG.
+
 Cada bloco começa em `Nº PROCESSO: 00000112/26-14` e tem:
 
 | Linha | O que traz |
 |---|---|
-| `PED` | nº do PED, data, dotação (`UO.UG.função.subfunção.programa.PAOE.regional.natureza.fonte.acomp`, cortada antes do IDU), credor `código - nome` (o nome pode quebrar na linha de baixo) |
+| `PED` | nº do PED, data, dotação (`UO.UG.função.subfunção.programa.PAOE.regional.natureza.fonte.acomp.IDU.x`, IDU em número; o PDF corta depois do `acomp`), credor `código - nome` (o nome pode quebrar na linha de baixo) |
 | `EMP` | nº, data, valor (coluna EMP/EST) |
 | `LIQ` | nº, data, valor (coluna LIQ/EST) + uma linha "Histórico da Liquidação: …" (truncada) |
 | `NOB` | nº, `P`/`C`, data, valor (coluna NOB/EST) |
@@ -78,10 +84,11 @@ RPC `importar_empenhos_fip614(p_exercicio, p_linhas, p_arquivo, p_simular)`, no 
 (`SECURITY DEFINER`, `search_path` fixo, perfil ativo + módulo financeiro + `orcamento.importar`, lock por
 exercício, log em `importacoes`, diff por linha):
 
-- Dotação: o FIP 614 corta a dotação antes do IDU, então casa pelos dígitos de `função…acomp` como prefixo do
-  `codigo_dotacao` do QDD. Um candidato só → liga. Vários (mesma natureza com IDUs diferentes) ou nenhum → fica sem
-  dotação, com aviso na linha; a escolha é feita no detalhe do empenho e a reimportação mantém a escolha enquanto
-  ela continuar entre os candidatos. No exemplo, 18 dos 170 empenhos ficam para escolher.
+- Dotação: casa pelos dígitos de `função…fonte` como prefixo do `codigo_dotacao` do QDD. Um candidato só → liga.
+  Vários (mesma natureza com IDUs diferentes): o IDU em número da dotação do FIP 614 (1 Não, 4 ECNI, 5 ECI, 6 EII)
+  escolhe pela sigla do QDD. O Excel traz o IDU; o PDF corta a dotação antes dele (só a do primeiro bloco sai
+  inteira), e aí a linha fica sem dotação, com aviso, para escolher no detalhe do empenho; a reimportação mantém a
+  escolha enquanto ela continuar entre os candidatos. No exemplo em PDF, 18 dos 170 empenhos ficavam para escolher.
 - Valores: `valor_empenhado` = EMP; `valor_anulado` = estornos de EMP; `valor_liquidado` = TOTAL LIQ;
   `valor_pago` = TOTAL NOB. Situação calculada (anulado, emitido, parcialmente liquidado, liquidado,
   parcialmente pago, pago).

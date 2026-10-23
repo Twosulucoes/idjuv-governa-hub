@@ -52,7 +52,7 @@ ALTER TABLE public.fin_empenhos ADD CONSTRAINT fin_empenhos_fiplan_credor_check
 COMMENT ON COLUMN public.fin_empenhos.origem IS
   'sistema = emitido pela tela de Empenhos; fiplan = importado do FIP 614 (não soma na dotação: os valores dela vêm do QDD).';
 COMMENT ON COLUMN public.fin_empenhos.credor_codigo_fiplan IS 'Código do credor no FIPLAN (ex.: 2001.00715-5), do FIP 614.';
-COMMENT ON COLUMN public.fin_empenhos.dotacao_fiplan IS 'Dotação como o FIP 614 escreve (pode vir cortada antes do IDU).';
+COMMENT ON COLUMN public.fin_empenhos.dotacao_fiplan IS 'Dotação como o FIP 614 escreve (…natureza.fonte.cod_acomp.IDU.x, IDU em número).';
 COMMENT ON COLUMN public.fin_empenhos.processo_fiplan IS 'Processo como o FIPLAN mostra (ex.: 00000112/26-14); processo_sei traz o número no padrão do SEI.';
 
 CREATE INDEX IF NOT EXISTS idx_fin_empenhos_importacao ON public.fin_empenhos (importacao_id);
@@ -237,6 +237,8 @@ DECLARE
   v_numeros text[] := '{}';
   v_dot_digitos text;
   v_candidatas uuid[];
+  v_por_idu uuid[];
+  v_idu text;
   v_dotacao public.fin_dotacoes%ROWTYPE;
   v_dotacao_id uuid;
   v_fornecedor_id uuid;
@@ -367,13 +369,25 @@ BEGIN
       CONTINUE;
     END IF;
 
-    -- Dotação: dígitos de função…fonte (o FIP 614 corta a dotação antes do IDU) contra o código do QDD.
-    -- Só liga com uma candidata; com várias, mantém a escolhida antes se ela ainda for candidata.
+    -- Dotação: dígitos de função…fonte contra o código do QDD. Com várias candidatas (mesma natureza e fonte),
+    -- o IDU em número do FIP 614 (11º segmento: 1 Não, 4 ECNI, 5 ECI, 6 EII) escolhe pela sigla do QDD.
+    -- Sem o IDU ou com código desconhecido, mantém a escolhida antes se ela ainda for candidata.
     v_dot_digitos := regexp_replace(array_to_string((string_to_array(v_linha->>'dotacao', '.'))[3:9], ''), '\D', '', 'g');
     SELECT array_agg(id ORDER BY codigo_dotacao) INTO v_candidatas
       FROM public.fin_dotacoes
      WHERE exercicio = p_exercicio
        AND regexp_replace(codigo_dotacao, '\D', '', 'g') LIKE v_dot_digitos || '%';
+    IF cardinality(v_candidatas) > 1 THEN
+      v_idu := CASE (string_to_array(v_linha->>'dotacao', '.'))[11]
+                 WHEN '1' THEN 'NAO' WHEN '4' THEN 'ECNI' WHEN '5' THEN 'ECI' WHEN '6' THEN 'EII' END;
+      SELECT array_agg(id) INTO v_por_idu
+        FROM public.fin_dotacoes
+       WHERE id = ANY (v_candidatas)
+         AND translate(upper(split_part(codigo_dotacao, '.', 10)), 'ÃÁ', 'AA') = v_idu;
+      IF cardinality(v_por_idu) = 1 THEN
+        v_candidatas := v_por_idu;
+      END IF;
+    END IF;
     v_dotacao_id := NULL;
     IF cardinality(v_candidatas) = 1 THEN
       v_dotacao_id := v_candidatas[1];
@@ -382,7 +396,7 @@ BEGIN
     ELSIF COALESCE(cardinality(v_candidatas), 0) = 0 THEN
       v_avisos := v_avisos || 'Dotação não encontrada no QDD do exercício: importe o QDD e importe de novo.'::text;
     ELSE
-      v_avisos := v_avisos || format('O relatório não traz o IDU e há %s dotações possíveis no QDD: escolha a dotação no detalhe do empenho.',
+      v_avisos := v_avisos || format('Há %s dotações possíveis no QDD para o IDU desta linha: escolha a dotação no detalhe do empenho.',
                                      cardinality(v_candidatas));
     END IF;
     IF v_dotacao_id IS NOT NULL THEN

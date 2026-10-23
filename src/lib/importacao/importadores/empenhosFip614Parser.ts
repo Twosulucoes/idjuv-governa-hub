@@ -1,5 +1,5 @@
 /**
- * INTERPRETADOR DO FIP 614 – SITUAÇÃO DE EMPENHO (PDF do FIPLAN)
+ * INTERPRETADOR DO FIP 614 – SITUAÇÃO DE EMPENHO (PDF ou Excel do FIPLAN)
  *
  * O relatório traz um bloco por PED, aberto por "Nº PROCESSO: 00000112/26-14":
  *   - PED   nº, data, dotação completa e credor ("código - nome"; dotação e nome podem quebrar de linha)
@@ -7,7 +7,9 @@
  *   - LIQ   nº, data e valor, seguida de "Histórico da Liquidação: ..."
  *   - NOB   nº, P/C, data e valor
  *   - GCV   nº, data e valores (devolve o liquidado e o pago para a coluna GCV)
- *   - EST   estorno: tira o valor da coluna onde ele cai (EMP, LIQ, NOB ou GCV)
+ *   - EST   estorno: tira o valor da coluna onde ele cai (EMP, LIQ, NOB ou GCV); no Excel vem "EST EMP",
+ *           "EST LIQ"..., e o documento estornado vem como "LIQ EST", "NOB EST"
+
  *   - TOTAL EMP, LIQ, NOB, GCV, saldo a liquidar e a pagar do bloco
  * e, no fim de cada UG, "TOTAL UG ..." com a soma dos blocos.
  *
@@ -15,10 +17,15 @@
  * colunas vazias somem no texto corrido. A soma dos documentos de cada bloco é conferida com o TOTAL do
  * bloco, e a soma dos blocos com o TOTAL UG: qualquer diferença é erro de leitura.
  *
+ * O Excel do FIPLAN é uma tabela HTML: `linhasFip614DoExcel` põe cada célula na posição da sua coluna e o
+ * mesmo interpretador lê os dois formatos. O Excel não traz o título, o exercício nem a data de referência; o
+ * exercício sai do número dos empenhos.
+ *
  * Função pura (sem pdf.js) para poder ser conferida isoladamente.
  */
 
 import type { LinhaPdf, TrechoPdf } from "../pdfTexto";
+import type { CelulaHtml } from "../tabelaHtml";
 import type { ProblemaLeitura, ResultadoLeitura } from "../types";
 import { valorBR } from "./qddFiplanParser";
 
@@ -48,7 +55,7 @@ export interface LinhaEmpenhoFip614 {
   convenio: string | null;
   ped_numero: string;
   ped_data: string;
-  /** Dotação completa do FIPLAN: UO.UG.função.subfunção.programa.PAOE.regional.natureza.fonte.acomp.IDU.x */
+  /** Dotação do FIPLAN: UO.UG.função.subfunção.programa.PAOE.regional.natureza.fonte.acomp.IDU.x (IDU em número) */
   dotacao: string;
   credor_codigo: string;
   credor_nome: string;
@@ -92,6 +99,30 @@ const ROTULOS_COLUNA: Record<ColunaFip614, string> = {
   saldo_liquidar: "saldo a liquidar",
   a_pagar: "a pagar",
 };
+
+/** "EST EMP" → EST (o estorno); "LIQ EST" → LIQ (o documento que foi estornado); "LIQ" → LIQ */
+function tipoDoDocumento(texto: string): string {
+  const [primeiro, segundo] = texto.split(/\s+/);
+  return segundo && primeiro === "EST" ? "EST" : primeiro;
+}
+
+/** Largura, em "pontos", de cada coluna do Excel ao virar linha posicionada */
+const LARGURA_COLUNA_EXCEL = 100;
+
+/** Linhas da tabela do Excel → linhas posicionadas, com cada célula na posição da sua coluna. */
+export function linhasFip614DoExcel(tabela: CelulaHtml[][]): LinhaPdf[] {
+  return tabela.map((celulas, i) => ({
+    pagina: 1,
+    y: i,
+    trechos: celulas.map((c) => ({
+      texto: c.texto,
+      x: c.coluna * LARGURA_COLUNA_EXCEL,
+      xFim: c.coluna * LARGURA_COLUNA_EXCEL + LARGURA_COLUNA_EXCEL - 10,
+      y: i,
+      pagina: 1,
+    })),
+  }));
+}
 
 function normalizar(texto: string): string {
   return texto
@@ -184,7 +215,8 @@ export function interpretarEmpenhosFip614(linhasPdf: LinhaPdf[]): ResultadoLeitu
     const n = normalizar(texto);
 
     // Cabeçalho do relatório (repete em todas as páginas)
-    if (n.startsWith("fip 614")) {
+    // O Excel não traz o título "FIP 614": reconhece pelo título do quadro, que os dois formatos têm
+    if (n.startsWith("fip 614") || n === "documentos de execucao") {
       reconhecido = true;
       continue;
     }
@@ -209,6 +241,7 @@ export function interpretarEmpenhosFip614(linhasPdf: LinhaPdf[]): ResultadoLeitu
     if (/^(UO|UG):/.test(primeiro)) {
       const [rotulo, ...resto] = texto.split(":");
       cabecalho[rotulo === "UO" ? "Unidade orçamentária" : "Unidade gestora"] ??= resto.join(":").trim();
+      if (rotulo === "UO") uo ||= texto.match(/^UO:\s*(\d{5})/)?.[1] ?? "";
       continue;
     }
 
@@ -324,15 +357,16 @@ export function interpretarEmpenhosFip614(linhasPdf: LinhaPdf[]): ResultadoLeitu
     }
 
     // Documento: tipo + número
-    if (TIPOS.has(primeiro) && trechos[1] && RE_NUMERO.test(trechos[1].texto)) {
+    const tipo = tipoDoDocumento(primeiro);
+    if (TIPOS.has(tipo) && trechos[1] && RE_NUMERO.test(trechos[1].texto)) {
       const numero = trechos[1].texto;
       const resto = trechos.slice(2);
       const data = resto.map((t) => dataIso(t.texto)).find(Boolean) ?? null;
       if (!data) {
-        problemas.push({ gravidade: "erro", mensagem: `${primeiro} ${numero} (página ${linhaPdf.pagina}) sem data.` });
+        problemas.push({ gravidade: "erro", mensagem: `${tipo} ${numero} (página ${linhaPdf.pagina}) sem data.` });
         continue;
       }
-      if (primeiro === "PED") {
+      if (tipo === "PED") {
         const textos = resto.filter((t) => !RE_DATA.test(t.texto));
         const dot = textos.find((t) => /^\d{5}\.\d{4}\./.test(t.texto));
         const cred = textos.find((t) => RE_CREDOR.test(t.texto));
@@ -351,10 +385,10 @@ export function interpretarEmpenhosFip614(linhasPdf: LinhaPdf[]): ResultadoLeitu
       const pc = resto.find((t) => t.texto === "P" || t.texto === "C")?.texto as "P" | "C" | undefined;
       const { valores, perdidos } = atribuirValores(resto.filter((t) => RE_VALOR.test(t.texto)), ancoras);
       if (perdidos.length || valores.saldo_liquidar !== undefined || valores.a_pagar !== undefined) {
-        problemas.push({ gravidade: "erro", mensagem: `${primeiro} ${numero} (página ${linhaPdf.pagina}): valor fora das colunas.` });
+        problemas.push({ gravidade: "erro", mensagem: `${tipo} ${numero} (página ${linhaPdf.pagina}): valor fora das colunas.` });
       }
       const { saldo_liquidar: _s, a_pagar: _p, ...lancados } = valores;
-      bloco.documentos.push({ tipo: primeiro as TipoDocumentoFip614, numero, data, pc: pc ?? null, valores: lancados, historico: null });
+      bloco.documentos.push({ tipo: tipo as TipoDocumentoFip614, numero, data, pc: pc ?? null, valores: lancados, historico: null });
       continue;
     }
 
@@ -369,7 +403,13 @@ export function interpretarEmpenhosFip614(linhasPdf: LinhaPdf[]): ResultadoLeitu
   if (bloco) fecharSemTotal();
 
   if (!reconhecido) {
-    problemas.push({ gravidade: "erro", mensagem: 'O PDF não parece o "FIP 614 - Situação de Empenho" do FIPLAN.' });
+    problemas.push({ gravidade: "erro", mensagem: 'O arquivo não parece o "FIP 614 - Situação de Empenho" do FIPLAN.' });
+  }
+  // Sem o cabeçalho (Excel): o exercício sai do número dos empenhos (17302.0001.26.00051-8 → 2026)
+  if (!exercicio && linhas.length) {
+    const anos = new Set(linhas.map((l) => `20${l.numero.split(".")[2]}`));
+    if (anos.size === 1) exercicio = [...anos][0];
+    else problemas.push({ gravidade: "erro", mensagem: `O relatório mistura exercícios (${[...anos].join(", ")}); exporte um por vez.` });
   }
   const ano = Number(exercicio);
   if (!Number.isInteger(ano) || ano < 2000 || ano > 2100) {
