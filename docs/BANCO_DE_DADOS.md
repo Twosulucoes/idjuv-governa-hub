@@ -1106,6 +1106,23 @@ Todas idempotentes.
   - permissões `compras.pca.visualizar` e `compras.pca.editar` (concedidas a quem tem `compras.criar`); RLS classe
     `permissao` (`pca_*` com `leitura=` das duas, `cat_*` lidas pelo módulo; `excluir=ninguem`) e `trilha` no
     histórico; testes no bloco "Compras: PCA" de `scripts/db/testar-rls.sql`.
+- **Processos de contratação, entrega 1** (`20261029090000_compras_processos_andamento.sql`, spec
+  [2026-10-23-compras-processos-reserva-natureza-design.md](./superpowers/specs/2026-10-23-compras-processos-reserva-natureza-design.md)):
+  - `processos_licitatorios` (que já existia e é referenciada por contratos, atas e solicitações) ganha `etapa` (lista
+    fixa: abertura, dfd, etp, tr, cotacao, levantamento_tecnico, instrucao_adesao, analise_juridica, selecao, contrato,
+    execucao, encerrado, cancelado), `setor_atual`, `situacao_atual`, `atualizado_em` e `valor_estimado_obs`;
+    `modalidade` aceita `NULL` ("a definir") e o tipo `modalidade_licitacao` ganha `adesao_ata`; o gatilho
+    `processo_licitatorio_normalizar` grava o nº SEI sem espaço nas pontas. As policies dela não mudam;
+  - `processo_andamentos`: uma linha por movimentação no SEI (data, `data_informada`, etapa, setor, situação, autor);
+    o gatilho `processo_andamento_no_processo` (DEFINER) copia a mais recente para o processo;
+  - `processo_empenhos(processo uuid default null)` (DEFINER, exige ver processos): empenhos de `fin_empenhos` com
+    `btrim(processo_sei)` igual ao nº do processo, sem abrir a RLS do financeiro;
+  - `importar_processos_planilha(p_linhas, p_arquivo, p_simular)` (DEFINER, exige `compras.processos.editar`): cria o
+    processo novo, só completa campo vazio do existente e acrescenta as movimentações que faltam; simulação e
+    aplicação tudo ou nada, log em `importacoes` (tipo `processos_planilha`);
+  - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
+    RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
+    "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver
