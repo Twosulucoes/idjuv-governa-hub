@@ -500,7 +500,7 @@ const App = () => (
                   <ProcessosListaPage />
                 </ProtectedRoute>
               } />
-              <Route path="/compras/processos/programacao" element={
+              <Route path="/compras/programacao" element={
                 <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.processos.visualizar", "compras.processos.editar"]}>
                   <ProgramacaoNaturezaPage />
                 </ProtectedRoute>

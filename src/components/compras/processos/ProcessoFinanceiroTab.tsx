@@ -52,7 +52,7 @@ export function ProcessoFinanceiroTab({ financeiro, carregandoFinanceiro, peds, 
         <span className="text-muted-foreground">Fase financeira:</span>
         <StatusBadge tom={fase.tom} icone={false}>{fase.rotulo}</StatusBadge>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <KpiCard rotulo="Reservado" valor={v(financeiro?.reservado)} detalhe={`pendente ${v(financeiro?.pendente)}`} carregando={carregandoFinanceiro} />
         <KpiCard rotulo="PED autorizado" valor={v(financeiro?.ped_autorizado)} detalhe="aguardando empenho" carregando={carregandoFinanceiro} />
         <KpiCard rotulo="Empenhado" valor={v(financeiro?.empenhado)} carregando={carregandoFinanceiro} />

@@ -48,7 +48,8 @@ interface Combinacao {
 }
 
 const chave = (acao: string, fonte: string, natureza: string) => `${acao}|${fonte}|${natureza}`;
-const paraTexto = (n: number | null | undefined) => (n == null ? "" : n.toFixed(2).replace(".", ","));
+const paraTexto = (n: number | null | undefined) =>
+  n == null ? "" : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface Props {
   open: boolean;

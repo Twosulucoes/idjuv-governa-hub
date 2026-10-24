@@ -30,7 +30,7 @@ export const FASES_FINANCEIRAS: FaseFinanceira[] = [
   { codigo: "empenhado", rotulo: "Empenhado", tom: "andamento" },
   { codigo: "ped", rotulo: "PED autorizado", tom: "pendente" },
   { codigo: "reservado", rotulo: "Reservado", tom: "destaque" },
-  { codigo: "sem_movimento", rotulo: "Sem movimento financeiro", tom: "neutro" },
+  { codigo: "sem_movimento", rotulo: "Sem movimento", tom: "neutro" },
 ];
 
 const fase = (codigo: CodigoFase) => FASES_FINANCEIRAS.find((f) => f.codigo === codigo) as FaseFinanceira;

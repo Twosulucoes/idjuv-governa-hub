@@ -157,7 +157,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel de Compras", route: "/compras" },
     items: [
       { id: "processos", label: "Processos de contratação", icon: ShoppingCart, route: "/compras/processos", permission: "compras.processos.visualizar" },
-      { id: "programacao-natureza", label: "Programação por natureza", icon: Landmark, route: "/compras/processos/programacao", permission: "compras.processos.visualizar" },
+      { id: "programacao-natureza", label: "Programação por natureza", icon: Landmark, route: "/compras/programacao", permission: "compras.processos.visualizar" },
       { id: "guia-compras", label: "Guia do processo de compras", icon: FileText, route: "/processos/compras" },
       { id: "pca", label: "Plano de Contratações (PCA)", icon: ClipboardList, route: "/compras/pca", permission: "compras.pca.visualizar" },
     ],

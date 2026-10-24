@@ -40,20 +40,29 @@ const colunas: ColunaTabela<ReservaDoProcesso>[] = [
     mobile: "titulo",
     className: "min-w-[12rem]",
   },
-  { id: "acao", cabecalho: "Ação · fonte", celula: (r) => `${r.acao_codigo} · ${r.fonte_codigo}` },
-  { id: "exercicio", cabecalho: "Exercício", celula: (r) => r.exercicio, ordenarPor: (r) => r.exercicio },
-  { id: "valor", cabecalho: "Reservado", celula: (r) => formatCurrency(r.valor), ordenarPor: (r) => r.valor, alinhamento: "direita" },
+  {
+    id: "acao",
+    cabecalho: "Ação · fonte",
+    celula: (r) => (
+      <span className="whitespace-nowrap">
+        {r.acao_codigo} · {r.fonte_codigo}
+        <span className="block text-muted-foreground">{r.exercicio}</span>
+      </span>
+    ),
+    ordenarPor: (r) => r.exercicio,
+  },
+  { id: "valor", cabecalho: "Reservado", celula: (r) => <span className="whitespace-nowrap">{formatCurrency(r.valor)}</span>, ordenarPor: (r) => r.valor, alinhamento: "direita" },
   {
     id: "materializado",
     cabecalho: "Já no FIPLAN",
-    celula: (r) => formatCurrency(r.materializado),
+    celula: (r) => <span className="whitespace-nowrap">{formatCurrency(r.materializado)}</span>,
     ordenarPor: (r) => r.materializado,
     alinhamento: "direita",
   },
   {
     id: "pendente",
     cabecalho: "Pendente",
-    celula: (r) => (r.situacao === "cancelada" ? "—" : formatCurrency(r.pendente)),
+    celula: (r) => (r.situacao === "cancelada" ? "—" : <span className="whitespace-nowrap">{formatCurrency(r.pendente)}</span>),
     ordenarPor: (r) => r.pendente,
     alinhamento: "direita",
   },
@@ -64,7 +73,7 @@ const colunas: ColunaTabela<ReservaDoProcesso>[] = [
       r.saldo_livre === null ? (
         <span className="text-muted-foreground">sem QDD</span>
       ) : (
-        <span className={r.saldo_livre < 0 ? "font-medium text-destructive" : undefined}>{formatCurrency(r.saldo_livre)}</span>
+        <span className={r.saldo_livre < 0 ? "whitespace-nowrap font-medium text-destructive" : "whitespace-nowrap"}>{formatCurrency(r.saldo_livre)}</span>
       ),
     alinhamento: "direita",
   },

@@ -57,7 +57,7 @@ export function ReservadoEmProcessos({ exercicio }: { exercicio: number }) {
             </>
           )}
           {verProgramacao && (
-            <Link to="/compras/processos/programacao" className="text-caption font-medium text-primary underline-offset-2 hover:underline">
+            <Link to="/compras/programacao" className="text-caption font-medium text-primary underline-offset-2 hover:underline">
               Ver a programação por natureza
             </Link>
           )}

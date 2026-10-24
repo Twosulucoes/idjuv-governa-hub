@@ -255,7 +255,7 @@ export const menuConfig: MenuSection[] = [
           {
             id: "programacao-natureza",
             label: "Programação por natureza",
-            route: "/compras/processos/programacao",
+            route: "/compras/programacao",
             icon: Landmark,
             permission: "compras.processos.visualizar",
           },

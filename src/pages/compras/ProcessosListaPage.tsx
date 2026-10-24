@@ -95,11 +95,17 @@ export default function ProcessosListaPage() {
     },
     {
       id: "etapa",
-      cabecalho: "Etapa",
-      celula: (p) => <StatusBadge tom={p.etapa === "cancelado" ? "neutro" : p.etapa === "encerrado" ? "sucesso" : "andamento"} icone={false}>{rotuloEtapa(p.etapa)}</StatusBadge>,
+      cabecalho: "Etapa e setor",
+      celula: (p) => (
+        <span className="space-y-1">
+          <StatusBadge tom={p.etapa === "cancelado" ? "neutro" : p.etapa === "encerrado" ? "sucesso" : "andamento"} icone={false}>{rotuloEtapa(p.etapa)}</StatusBadge>
+          <span className="block text-xs text-muted-foreground">{p.setor_atual ? p.setor_atual.replace(/\//g, "/\u200b") : "—"}</span>
+        </span>
+      ),
       ordenarPor: (p) => ETAPAS_PROCESSO.findIndex((e) => e.value === p.etapa),
+      buscarPor: (p) => p.setor_atual,
+      className: "min-w-[10rem]",
     },
-    { id: "setor", cabecalho: "Setor", celula: (p) => (p.setor_atual ? p.setor_atual.replace(/\//g, "/\u200b") : "—"), className: "min-w-[11rem]", buscarPor: (p) => p.setor_atual, ordenarPor: (p) => p.setor_atual },
     {
       id: "parado",
       cabecalho: "Dias parado",
@@ -156,7 +162,7 @@ export default function ProcessosListaPage() {
           acoes={
             <>
               <Button asChild variant="outline">
-                <Link to="/compras/processos/programacao">
+                <Link to="/compras/programacao">
                   <Landmark className="h-4 w-4" aria-hidden="true" />
                   Programação por natureza
                 </Link>

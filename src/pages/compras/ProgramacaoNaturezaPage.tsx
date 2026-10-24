@@ -33,45 +33,39 @@ const colunas: ColunaTabela<LinhaProgramacao>[] = [
       <span>
         <span className="font-medium">{formatarNatureza(l.natureza_codigo)}</span>
         <span className="block text-muted-foreground">{l.natureza_nome}</span>
+        <span className="block whitespace-nowrap text-xs text-muted-foreground">ação {l.acao_codigo} · fonte {l.fonte_codigo}</span>
       </span>
     ),
     ordenarPor: (l) => l.natureza_codigo,
-    buscarPor: (l) => `${formatarNatureza(l.natureza_codigo)} ${l.natureza_codigo} ${l.natureza_nome}`,
+    buscarPor: (l) => `${formatarNatureza(l.natureza_codigo)} ${l.natureza_codigo} ${l.natureza_nome} ${l.acao_codigo} ${l.fonte_codigo}`,
     mobile: "titulo",
     className: "min-w-[12rem]",
   },
   {
-    id: "acao",
-    cabecalho: "Ação · fonte",
-    celula: (l) => `${l.acao_codigo} · ${l.fonte_codigo}`,
-    buscarPor: (l) => `${l.acao_codigo} ${l.fonte_codigo}`,
-  },
-  {
     id: "atual",
     cabecalho: "Dotação atual",
-    celula: (l) => (l.tem_qdd ? formatCurrency(l.dotacao_atual) : <span className="text-muted-foreground">sem QDD</span>),
+    celula: (l) => (l.tem_qdd ? <span className="whitespace-nowrap">{formatCurrency(l.dotacao_atual)}</span> : <span className="text-muted-foreground">sem QDD</span>),
     ordenarPor: (l) => l.dotacao_atual,
     alinhamento: "direita",
   },
-  { id: "empenhado", cabecalho: "Empenhado", celula: (l) => formatCurrency(l.empenhado), ordenarPor: (l) => l.empenhado, alinhamento: "direita" },
   {
     id: "reserva",
     cabecalho: "PED sem empenho",
-    celula: (l) => formatCurrency(l.reserva_fiplan),
+    celula: (l) => <span className="whitespace-nowrap">{formatCurrency(l.reserva_fiplan)}</span>,
     ordenarPor: (l) => l.reserva_fiplan,
     alinhamento: "direita",
   },
   {
     id: "disponivel",
     cabecalho: "Disponível no FIPLAN",
-    celula: (l) => formatCurrency(l.saldo_fiplan),
+    celula: (l) => <span className="whitespace-nowrap">{formatCurrency(l.saldo_fiplan)}</span>,
     ordenarPor: (l) => l.saldo_fiplan,
     alinhamento: "direita",
   },
   {
     id: "pendente",
     cabecalho: "Reservado em processos",
-    celula: (l) => (l.pendente_processos > 0 ? formatCurrency(l.pendente_processos) : "—"),
+    celula: (l) => (l.pendente_processos > 0 ? <span className="whitespace-nowrap">{formatCurrency(l.pendente_processos)}</span> : "—"),
     ordenarPor: (l) => l.pendente_processos,
     alinhamento: "direita",
   },
@@ -79,7 +73,7 @@ const colunas: ColunaTabela<LinhaProgramacao>[] = [
     id: "livre",
     cabecalho: "Saldo livre",
     celula: (l) => (
-      <span className={l.saldo_livre < 0 ? "font-semibold text-destructive" : "font-semibold"}>{formatCurrency(l.saldo_livre)}</span>
+      <span className={l.saldo_livre < 0 ? "whitespace-nowrap font-semibold text-destructive" : "whitespace-nowrap font-semibold"}>{formatCurrency(l.saldo_livre)}</span>
     ),
     ordenarPor: (l) => l.saldo_livre,
     alinhamento: "direita",
@@ -105,7 +99,7 @@ const colunas: ColunaTabela<LinhaProgramacao>[] = [
         </ul>
       ),
     buscarPor: (l) => l.processos.map((p) => `${p.numero_processo} ${p.objeto}`).join(" "),
-    className: "min-w-[14rem]",
+    className: "min-w-[12rem]",
   },
 ];
 
@@ -139,7 +133,7 @@ export default function ProgramacaoNaturezaPage() {
           ]}
           acoes={
             <Select value={String(exercicio)} onValueChange={(v) => setExercicio(Number(v))}>
-              <SelectTrigger className="w-36" aria-label="Exercício"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-44" aria-label="Exercício"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {[anoAtual + 1, anoAtual, anoAtual - 1].map((a) => <SelectItem key={a} value={String(a)}>Exercício {a}</SelectItem>)}
               </SelectContent>
