@@ -403,7 +403,7 @@ export default function QDDPage() {
                     </TableCell>
                     <TableCell className="text-right font-mono">{d.valor_restos_pagar ? formatCurrency(d.valor_restos_pagar) : "—"}</TableCell>
                   </TableRow>
-                )}
+                  ))}
                   {g.subtotal && (
                     <TableRow className="text-xs font-semibold bg-muted/30">
                       <TableCell colSpan={5}>
