@@ -158,8 +158,13 @@ dígito é improvável e, se acontecer, aparece nos dois processos (premissa ace
 materializado(linha) = PEDs autorizados do processo na mesma ação × fonte × natureza
                      + empenhado líquido (empenhado − anulado) dos empenhos do processo na mesma combinação
 pendente(linha)      = max(0, valor reservado − materializado)
-saldo livre          = Σ QDD (atual − empenhado − bloqueado − reserva − PED) − Σ pendente das outras linhas reservadas
+saldo livre          = Σ disponível do QDD − Σ pendente das outras linhas reservadas
+disponível do QDD    = atual − bloqueado − max(PED, empenhado + reserva)
 ```
+
+No QDD do FIPLAN a coluna "PED" já soma o empenhado e a reserva (Cont./Reserva = PEDs autorizados ainda sem empenho):
+no QDD 2026 enviado em 24/10, PED 32.347.253,42 = empenhado 26.670.834,42 + reserva 5.676.419,00, e o "Disponível"
+11.484.497,40 = atual − bloqueado − PED. Descontar empenhado, reserva e PED juntos contaria duas vezes.
 
 **Fase financeira do processo:** calculada, não gravada, a partir dos valores PED autorizado, empenhado líquido,
 liquidado e pago (`fin_peds` + `fin_empenhos`): Pago (pago ≥ empenhado > 0), Pago em parte, Liquidado, Empenhado,

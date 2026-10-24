@@ -43,7 +43,7 @@ delas não mudam); a regra da fase financeira e do saldo fica em funções puras
    `17101.011845/2025.51` dá `11845/25-51`; texto fora do padrão dá `NULL` (não liga nada).
 2. PED com estorno parcial aparece em duas linhas com o mesmo nº de PED e estornos diferentes: a chave de `fin_peds`
    inclui o PED de estorno; o "PED autorizado" só soma a situação "Pedido (PED) autorizado", uma vez por PED.
-3. Saldo livre não conta duas vezes: a parte da reserva que já virou PED autorizado ou empenho sai do pendente (o QDD
+3. Saldo livre não conta duas vezes (o "PED" do QDD já inclui empenhado e reserva; `fin_dotacao_disponivel`): a parte da reserva que já virou PED autorizado ou empenho sai do pendente (o QDD
    já a desconta); a própria linha fica fora ao salvar.
 4. Saldo insuficiente: a RPC recusa sem justificativa (≥ 10 caracteres) e grava a justificativa e o saldo do momento.
 5. Usuário só de Compras (sem Financeiro) vê a fase e os valores do processo, mas não lê `fin_peds` nem `fin_empenhos`

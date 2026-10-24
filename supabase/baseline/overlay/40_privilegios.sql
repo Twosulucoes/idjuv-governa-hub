@@ -355,3 +355,36 @@ REVOKE ALL ON FUNCTION public.processo_empenhos(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.processo_empenhos(uuid) TO authenticated;
 REVOKE ALL ON FUNCTION public.importar_processos_planilha(jsonb, jsonb, boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.importar_processos_planilha(jsonb, jsonb, boolean) TO authenticated;
+
+-- ---- Compras: reservas dos processos e PEDs do FIPLAN (migração 20261030090000) ----
+-- fin_peds e processo_reservas: só leitura pela API; escrita pelas RPCs importar_peds_fiplan e processo_reserva_*
+REVOKE ALL ON public.fin_peds FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_peds FROM authenticated;
+REVOKE ALL ON public.processo_reservas FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.processo_reservas FROM authenticated;
+-- contas internas sem EXECUTE para a API
+REVOKE ALL ON FUNCTION public.fin_dotacao_do_fiplan(integer, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.fin_dotacao_disponivel(numeric, numeric, numeric, numeric, numeric) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.processos_leitura_permitida() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.processos_execucao(integer) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.processo_reservas_pendentes(integer) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.processo_saldo_livre_calc(integer, uuid, uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+-- chamadas pela tela
+REVOKE ALL ON FUNCTION public.processo_chave_fiplan(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_chave_fiplan(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.importar_peds_fiplan(integer, jsonb, jsonb, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.importar_peds_fiplan(integer, jsonb, jsonb, boolean) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_saldo_livre(integer, uuid, uuid, uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_saldo_livre(integer, uuid, uuid, uuid, uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_reserva_salvar(uuid, uuid, integer, uuid, uuid, uuid, numeric, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_reserva_salvar(uuid, uuid, integer, uuid, uuid, uuid, numeric, uuid, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_reserva_cancelar(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_reserva_cancelar(uuid, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_reservas_detalhe(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_reservas_detalhe(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_peds(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_peds(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.processos_financeiro(integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processos_financeiro(integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.programacao_por_natureza(integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.programacao_por_natureza(integer) TO authenticated;

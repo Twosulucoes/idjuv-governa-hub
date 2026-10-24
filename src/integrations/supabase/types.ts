@@ -12367,6 +12367,103 @@ export type Database = {
         }
         Relationships: []
       }
+      fin_peds: {
+        Row: {
+          created_at: string
+          credor_codigo: string | null
+          credor_nome: string | null
+          data_autorizacao: string | null
+          data_criacao: string | null
+          data_solicitacao: string | null
+          dotacao_fiplan: string | null
+          dotacao_id: string | null
+          empenho_numero: string | null
+          estorno: boolean
+          exercicio: number
+          historico: string | null
+          id: string
+          importacao_id: string | null
+          licitacao: string | null
+          numero: string
+          numero_estorno: string | null
+          processo_chave: string | null
+          processo_fiplan: string | null
+          processo_sei: string | null
+          situacao: string
+          tipo_empenho: string | null
+          updated_at: string
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          credor_codigo?: string | null
+          credor_nome?: string | null
+          data_autorizacao?: string | null
+          data_criacao?: string | null
+          data_solicitacao?: string | null
+          dotacao_fiplan?: string | null
+          dotacao_id?: string | null
+          empenho_numero?: string | null
+          estorno?: boolean
+          exercicio: number
+          historico?: string | null
+          id?: string
+          importacao_id?: string | null
+          licitacao?: string | null
+          numero: string
+          numero_estorno?: string | null
+          processo_chave?: never
+          processo_fiplan?: string | null
+          processo_sei?: string | null
+          situacao: string
+          tipo_empenho?: string | null
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          credor_codigo?: string | null
+          credor_nome?: string | null
+          data_autorizacao?: string | null
+          data_criacao?: string | null
+          data_solicitacao?: string | null
+          dotacao_fiplan?: string | null
+          dotacao_id?: string | null
+          empenho_numero?: string | null
+          estorno?: boolean
+          exercicio?: number
+          historico?: string | null
+          id?: string
+          importacao_id?: string | null
+          licitacao?: string | null
+          numero?: string
+          numero_estorno?: string | null
+          processo_chave?: never
+          processo_fiplan?: string | null
+          processo_sei?: string | null
+          situacao?: string
+          tipo_empenho?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_peds_dotacao_id_fkey"
+            columns: ["dotacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_peds_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_plano_contas: {
         Row: {
           aceita_lancamento: boolean | null
@@ -20024,6 +20121,100 @@ export type Database = {
         }
         Relationships: []
       }
+      processo_reservas: {
+        Row: {
+          acao_id: string
+          created_at: string
+          created_by: string | null
+          exercicio: number
+          fonte_recurso_id: string
+          id: string
+          justificativa_saldo: string | null
+          motivo_cancelamento: string | null
+          natureza_despesa_id: string
+          pca_item_id: string | null
+          processo_id: string
+          saldo_livre_no_momento: number | null
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          acao_id: string
+          created_at?: string
+          created_by?: string | null
+          exercicio: number
+          fonte_recurso_id: string
+          id?: string
+          justificativa_saldo?: string | null
+          motivo_cancelamento?: string | null
+          natureza_despesa_id: string
+          pca_item_id?: string | null
+          processo_id: string
+          saldo_livre_no_momento?: number | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          acao_id?: string
+          created_at?: string
+          created_by?: string | null
+          exercicio?: number
+          fonte_recurso_id?: string
+          id?: string
+          justificativa_saldo?: string | null
+          motivo_cancelamento?: string | null
+          natureza_despesa_id?: string
+          pca_item_id?: string | null
+          processo_id?: string
+          saldo_livre_no_momento?: number | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_reservas_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_acoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_natureza_despesa_id_fkey"
+            columns: ["natureza_despesa_id"]
+            isOneToOne: false
+            referencedRelation: "fin_naturezas_despesa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_pca_item_id_fkey"
+            columns: ["pca_item_id"]
+            isOneToOne: false
+            referencedRelation: "pca_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processos_administrativos: {
         Row: {
           ano: number
@@ -25312,6 +25503,20 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      fin_dotacao_disponivel: {
+        Args: {
+          p_atual: number
+          p_bloqueado: number
+          p_empenhado: number
+          p_ped: number
+          p_reserva: number
+        }
+        Returns: number
+      }
+      fin_dotacao_do_fiplan: {
+        Args: { p_dotacao: string; p_exercicio: number }
+        Returns: string
+      }
       fin_marcar_pagamento_pago: {
         Args: { p_data: string; p_pagamento_id: string }
         Returns: string
@@ -25617,6 +25822,15 @@ export type Database = {
           p_arquivo: Json
           p_competencia: Json
           p_fichas: Json
+          p_simular?: boolean
+        }
+        Returns: Json
+      }
+      importar_peds_fiplan: {
+        Args: {
+          p_arquivo: Json
+          p_exercicio: number
+          p_linhas: Json
           p_simular?: boolean
         }
         Returns: Json
@@ -25996,6 +26210,7 @@ export type Database = {
         Returns: Json
       }
       processar_folha_pagamento: { Args: { p_folha_id: string }; Returns: Json }
+      processo_chave_fiplan: { Args: { p: string }; Returns: string }
       processo_empenhos: {
         Args: { _processo_id?: string }
         Returns: {
@@ -26011,6 +26226,150 @@ export type Database = {
           valor_empenhado: number
           valor_liquidado: number
           valor_pago: number
+        }[]
+      }
+      processo_peds: {
+        Args: { _processo_id: string }
+        Returns: {
+          data_autorizacao: string
+          data_solicitacao: string
+          empenho_numero: string
+          exercicio: number
+          fonte: string
+          licitacao: string
+          natureza: string
+          numero: string
+          ped_id: string
+          situacao: string
+          valor: number
+        }[]
+      }
+      processo_reserva_cancelar: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: undefined
+      }
+      processo_reserva_salvar: {
+        Args: {
+          p_acao: string
+          p_exercicio: number
+          p_fonte: string
+          p_id: string
+          p_justificativa?: string
+          p_natureza: string
+          p_pca_item_id?: string
+          p_processo_id: string
+          p_valor: number
+        }
+        Returns: Json
+      }
+      processo_reservas_detalhe: {
+        Args: { _processo_id: string }
+        Returns: {
+          acao_codigo: string
+          acao_id: string
+          acao_nome: string
+          created_at: string
+          exercicio: number
+          fonte_codigo: string
+          fonte_recurso_id: string
+          id: string
+          justificativa_saldo: string
+          materializado: number
+          motivo_cancelamento: string
+          natureza_codigo: string
+          natureza_despesa_id: string
+          natureza_nome: string
+          pca_item_id: string
+          pendente: number
+          saldo_livre: number
+          saldo_livre_no_momento: number
+          situacao: string
+          valor: number
+        }[]
+      }
+      processo_reservas_pendentes: {
+        Args: { _exercicio?: number }
+        Returns: {
+          acao_id: string
+          exercicio: number
+          fonte_recurso_id: string
+          materializado: number
+          natureza_despesa_id: string
+          pendente: number
+          processo_id: string
+          reserva_id: string
+          valor: number
+        }[]
+      }
+      processo_saldo_livre: {
+        Args: {
+          p_acao: string
+          p_exercicio: number
+          p_fonte: string
+          p_ignorar_reserva?: string
+          p_natureza: string
+        }
+        Returns: number
+      }
+      processo_saldo_livre_calc: {
+        Args: {
+          p_acao: string
+          p_exercicio: number
+          p_fonte: string
+          p_ignorar_reserva?: string
+          p_natureza: string
+        }
+        Returns: number
+      }
+      processos_execucao: {
+        Args: { _exercicio?: number }
+        Returns: {
+          acao_id: string
+          empenhado: number
+          exercicio: number
+          fonte_recurso_id: string
+          liquidado: number
+          natureza_despesa_id: string
+          pago: number
+          ped_autorizado: number
+          processo_id: string
+        }[]
+      }
+      processos_financeiro: {
+        Args: { _exercicio?: number }
+        Returns: {
+          empenhado: number
+          liquidado: number
+          pago: number
+          ped_autorizado: number
+          pendente: number
+          processo_id: string
+          reservado: number
+        }[]
+      }
+      processos_leitura_permitida: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      programacao_por_natureza: {
+        Args: { _exercicio: number }
+        Returns: {
+          acao_codigo: string
+          acao_id: string
+          bloqueado: number
+          dotacao_atual: number
+          empenhado: number
+          fonte_codigo: string
+          fonte_recurso_id: string
+          natureza_codigo: string
+          natureza_despesa_id: string
+          natureza_nome: string
+          pendente_processos: number
+          processos: Json
+          reserva_fiplan: number
+          saldo_fiplan: number
+          saldo_livre: number
+          tem_qdd: boolean
         }[]
       }
       promover_rascunho: {

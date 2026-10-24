@@ -1203,7 +1203,7 @@ BEGIN
     SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef AND p.prorettype <> 'trigger'::regtype
       AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
-      AND NOT (p.prosrc ~* 'auth\.uid\(\)|can_access_module|is_admin_user|is_admin_atual|usuario_tem_permissao|has_permission_code|usuario_eh_admin|usuario_eh_super_admin|is_active_user|perfil_ativo_atual|pode_gerenciar_avisos|pode_configurar_envios|pode_ver_envios|wf_pode_ver_processo')
+      AND NOT (p.prosrc ~* 'auth\.uid\(\)|can_access_module|is_admin_user|is_admin_atual|usuario_tem_permissao|has_permission_code|usuario_eh_admin|usuario_eh_super_admin|is_active_user|perfil_ativo_atual|pode_gerenciar_avisos|pode_configurar_envios|pode_ver_envios|wf_pode_ver_processo|processos_leitura_permitida')
       AND p.proname <> ALL (permitidas)
   LOOP
     PERFORM pg_temp.falha('SECURITY DEFINER sem checagem de quem chama e executável por authenticated: ' || f.proname || '(' || f.args || ')');
@@ -7885,6 +7885,180 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('COMPRAS PROCESSOS: nº SEI sem espaço, andamento só com compras.processos.editar, estado atual pela movimentação mais recente, andamento não se apaga, empenhos pelo nº SEI e importação (simulação, aplicação e reimportação) verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Compras: reservas e PEDs (migração 20261030090000) (TRIGGERS LIGADOS)
+-- Migração 20261030090000_compras_processos_reservas_peds.sql (spec §10, plano 2026-10-24-compras-processos-entrega2.md):
+--   * processo_chave_fiplan iguala nº SEI, nº do FIPLAN e do FIP 614; contas internas sem EXECUTE para a API;
+--   * fin_peds e processo_reservas: ninguém grava direto; fin_peds só o módulo financeiro lê;
+--   * importar_peds_fiplan: sem orcamento.importar no financeiro = 42501; simulação não grava; reimportar não muda;
+--   * saldo livre = disponível do QDD (atual − bloqueado − PED) − pendente das outras reservas; justificativa quando falta;
+--   * PED autorizado e empenho do processo saem do pendente; leituras exigem ver processos ou o módulo financeiro.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_compras');
+  u_finm uuid := (SELECT uid FROM persona WHERE nome = 'mod_financeiro');
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000009a1';   -- módulo financeiro + orcamento.importar
+  a1 uuid := 'f7000000-0000-0000-0000-0000000000a1';
+  f1 uuid := 'f7000000-0000-0000-0000-0000000000f1';
+  n1 uuid := 'f7000000-0000-0000-0000-0000000000b1';
+  d1 uuid := 'f7000000-0000-0000-0000-0000000000d1';
+  p1 uuid; p2 uuid; res1 uuid; res2 uuid; r text; x text; linhas jsonb; j jsonb;
+  arq jsonb := jsonb_build_object('nome', 'ped.xls', 'sha256', repeat('ab', 32), 'tamanho', 1024);
+BEGIN
+  IF to_regclass('public.fin_peds') IS NULL OR to_regclass('public.processo_reservas') IS NULL THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: tabelas da migração 20261030090000 não existem');
+    RETURN;
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.fin_dotacao_do_fiplan(integer, text)',
+                           'public.fin_dotacao_disponivel(numeric, numeric, numeric, numeric, numeric)',
+                           'public.processos_leitura_permitida()', 'public.processos_execucao(integer)',
+                           'public.processo_reservas_pendentes(integer)',
+                           'public.processo_saldo_livre_calc(integer, uuid, uuid, uuid, uuid)'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('COMPRAS RESERVAS: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  FOREACH x IN ARRAY ARRAY['public.importar_peds_fiplan(integer, jsonb, jsonb, boolean)',
+                           'public.processo_reserva_salvar(uuid, uuid, integer, uuid, uuid, uuid, numeric, uuid, text)',
+                           'public.programacao_por_natureza(integer)'] LOOP
+    IF has_function_privilege('anon', x, 'EXECUTE') THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: anon executa ' || x); END IF;
+  END LOOP;
+
+  r := (SELECT string_agg(COALESCE(public.processo_chave_fiplan(v), 'nulo'), ',')
+          FROM unnest(ARRAY['17302.000885/2026.92', '17302.000885/2026-92', '000885/26-92', '00000885/26-92', 'sem número']) v);
+  IF r IS DISTINCT FROM '885/26-92,885/26-92,885/26-92,885/26-92,nulo' THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: chave do processo (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+
+  -- Cenário: dotação de 2098 com atual 1000, empenhado 100, reserva 50 e PED 150 (o PED do QDD soma os dois):
+  -- disponível 850.
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'res_imp@teste.invalid');
+  PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_imp, 'email', 'res_imp@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES (u_imp, 'financeiro', '{orcamento.importar}');
+  PERFORM pg_temp.seed_row('fin_acoes_orcamentarias', jsonb_build_object('id', a1, 'codigo', '2544', 'nome', 'Ação de teste'));
+  PERFORM pg_temp.seed_row('fin_fontes_recurso', jsonb_build_object('id', f1, 'codigo', '1500', 'nome', 'Fonte de teste'));
+  PERFORM pg_temp.seed_row('fin_naturezas_despesa', jsonb_build_object('id', n1, 'codigo', '33903900', 'nome', 'Outros serviços PJ'));
+  INSERT INTO public.fin_dotacoes (id, exercicio, codigo_dotacao, acao_id, fonte_recurso_id, natureza_despesa_id,
+                                   valor_inicial, valor_empenhado, valor_reserva, valor_ped)
+  VALUES (d1, 2098, '08.244.030.2544.9900.33903900.1.500.0000.EII', a1, f1, n1, 1000, 100, 50, 150);
+  SET LOCAL session_replication_role = origin;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processos_licitatorios (numero_processo, ano, objeto) VALUES ('99999.000003/2098.03', 2098, 'Reserva 1') RETURNING id INTO p1;
+  INSERT INTO public.processos_licitatorios (numero_processo, ano, objeto) VALUES ('99999.000004/2098.04', 2098, 'Reserva 2') RETURNING id INTO p2;
+
+  -- ninguém grava direto nas tabelas
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_reservas (processo_id, exercicio, acao_id, fonte_recurso_id, natureza_despesa_id, valor) VALUES (%L, 2098, %L, %L, %L, 1) RETURNING id::text', p1, a1, f1, n1));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: reserva gravada direto na tabela (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_imp, 'authenticated',
+    'INSERT INTO public.fin_peds (exercicio, numero, valor, situacao) VALUES (2098, ''17302.0001.98.00001-1'', 1, ''x'') RETURNING id::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: PED gravado direto na tabela (' || r || ')'); END IF;
+
+  -- importação dos PEDs: PED autorizado de 50 do processo 1 (formato do FIPLAN) e o documento de estorno de outro
+  linhas := jsonb_build_array(
+    jsonb_build_object('indice', 0, 'numero', '17302.0001.98.00001-1', 'processo_fiplan', '000003/98-03',
+      'processo_sei', '17302.000003/2098.03', 'valor', 50, 'situacao', 'Pedido (PED) autorizado', 'estorno', false,
+      'data_autorizacao', '2098-03-01', 'dotacao', '17302.0001.08.244.030.2544.9900.33903900.1500.0000.6.1',
+      'credor_nome', 'CREDOR DE TESTE'),
+    jsonb_build_object('indice', 1, 'numero', '17302.0001.98.00003-8', 'numero_estorno', '17302.0001.98.00002-1',
+      'processo_fiplan', '000003/98-03', 'valor', 70, 'situacao', 'Documento de Estorno', 'estorno', true,
+      'dotacao', '17302.0001.08.244.030.2544.9900.33903900.1500.0000.6.1'));
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'SELECT public.importar_peds_fiplan(2098, %L::jsonb, ''{}''::jsonb, true)::text', linhas));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: Compras importa PED (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_imp, 'role', 'authenticated')::text, true);
+  r := public.importar_peds_fiplan(2098, linhas, '{}'::jsonb, true)->>'totais';
+  IF r IS DISTINCT FROM '{"inserir": 2, "atualizar": 0, "sem_alteracao": 0}' OR EXISTS (SELECT 1 FROM public.fin_peds WHERE exercicio = 2098) THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: simulação da importação de PED (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  r := (public.importar_peds_fiplan(2098, linhas, arq, false)->>'totais') || '|' || (public.importar_peds_fiplan(2098, linhas, arq, false)->>'totais');
+  IF r IS DISTINCT FROM '{"inserir": 2, "atualizar": 0, "sem_alteracao": 0}|{"inserir": 0, "atualizar": 0, "sem_alteracao": 2}' THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: aplicar a importação de PED duas vezes (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  IF (SELECT dotacao_id FROM public.fin_peds WHERE numero = '17302.0001.98.00001-1') IS DISTINCT FROM d1 THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: PED não ligou à dotação do QDD pelo IDU');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT count(*)::text FROM public.fin_peds WHERE exercicio = 2098');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: Compras lê fin_peds (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_finm, 'authenticated', 'SELECT count(*)::text FROM public.fin_peds WHERE exercicio = 2098');
+  IF r IS DISTINCT FROM '2' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: Financeiro não lê fin_peds (' || r || ')'); END IF;
+
+  -- saldo livre sem reservas: 850
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT public.processo_saldo_livre(2098, %L, %L, %L)::text', a1, f1, n1));
+  IF r IS DISTINCT FROM '850.00' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: saldo livre inicial (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT public.processo_saldo_livre(2098, %L, %L, %L)::text', a1, f1, n1));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: módulo sem permissão vê saldo (' || r || ')'); END IF;
+
+  -- reservas: visualizar recusa; 300 no processo 1 (pendente 250, o PED de 50 já está no QDD); 700 no processo 2
+  -- passa do saldo (600): sem justificativa recusa, com justificativa grava
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT public.processo_reserva_salvar(NULL, %L, 2098, %L, %L, %L, 300)::text', p1, a1, f1, n1));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: visualizar grava reserva (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  j := public.processo_reserva_salvar(NULL, p1, 2098, a1, f1, n1, 300);
+  res1 := (j->>'id')::uuid;
+  IF (j->>'faltou')::boolean OR (j->>'saldo_livre')::numeric <> 850 THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: primeira reserva (' || j::text || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'SELECT public.processo_reserva_salvar(NULL, %L, 2098, %L, %L, %L, 700)::text', p2, a1, f1, n1));
+  IF r NOT LIKE 'erro:P0001:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: reserva sem saldo e sem justificativa (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  j := public.processo_reserva_salvar(NULL, p2, 2098, a1, f1, n1, 700, NULL, 'Emenda reforça a dotação no mês que vem');
+  res2 := (j->>'id')::uuid;
+  IF NOT (j->>'faltou')::boolean OR (j->>'saldo_livre')::numeric <> 600
+     OR (SELECT justificativa_saldo FROM public.processo_reservas WHERE id = res2) IS NULL THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: reserva com justificativa (' || j::text || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'SELECT public.processo_reserva_salvar(NULL, %L, 2098, %L, %L, %L, 1, NULL, ''repetida de propósito'')::text', p1, a1, f1, n1));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: duas reservas na mesma combinação (' || r || ')'); END IF;
+
+  -- empenho do processo 1 (nº SEI com hífen): 120 empenhado, 20 estornado, 40 liquidado, 10 pago
+  PERFORM set_config('request.jwt.claims', '', true);
+  SET LOCAL session_replication_role = replica;
+  PERFORM pg_temp.seed_row('fin_empenhos', jsonb_build_object('id', 'f7000000-0000-0000-0000-0000000000e1', 'numero', '17302.0001.98.00009-9',
+    'exercicio', 2098, 'valor_empenhado', 120, 'valor_anulado', 20, 'valor_liquidado', 40, 'valor_pago', 10, 'objeto', 'Teste',
+    'processo_sei', '17302.000003/2098-03', 'dotacao_id', d1, 'natureza_despesa_id', n1, 'fonte_recurso_id', f1, 'origem', 'fiplan'));
+  SET LOCAL session_replication_role = origin;
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT string_agg(concat_ws('':'', reservado, pendente, ped_autorizado, empenhado, liquidado, pago), '','') FROM public.processos_financeiro(2098) WHERE processo_id = %L', p1));
+  IF r IS DISTINCT FROM '300.00:150.00:50.00:100.00:40.00:10.00' THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: totais financeiros do processo (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_finm, 'authenticated', format(
+    'SELECT concat_ws('':'', saldo_fiplan, pendente_processos, saldo_livre, jsonb_array_length(processos)) FROM public.programacao_por_natureza(2098) WHERE natureza_despesa_id = %L', n1));
+  IF r IS DISTINCT FROM '850.00:850.00:0.00:2' THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: programação por natureza (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT string_agg(numero || '':'' || valor::text, '','') FROM public.processo_peds(%L)', p1));
+  IF r IS DISTINCT FROM '17302.0001.98.00001-1:50.00' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: PEDs do processo (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT string_agg(numero, '','') FROM public.processo_empenhos(%L)', p1));
+  IF r IS DISTINCT FROM '17302.0001.98.00009-9' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: empenho pela chave (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT count(*)::text FROM public.processo_reservas_detalhe(%L)', p1));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: módulo sem permissão vê reservas (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT string_agg(concat_ws('':'', valor, materializado, pendente, saldo_livre), '','') FROM public.processo_reservas_detalhe(%L)', p1));
+  IF r IS DISTINCT FROM '300.00:150.00:150.00:0.00' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: detalhe da reserva (' || COALESCE(r, 'nulo') || ')'); END IF;
+
+  -- cancelar a reserva 2 libera o saldo: 850 − 150 = 700
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  PERFORM public.processo_reserva_cancelar(res2, 'Processo desistiu da compra');
+  r := public.processo_saldo_livre(2098, a1, f1, n1)::text;
+  IF r IS DISTINCT FROM '700.00' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: saldo depois do cancelamento (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'WITH d AS (DELETE FROM public.processo_reservas WHERE id = %L RETURNING 1) SELECT count(*)::text FROM d', res1));
+  IF r NOT LIKE 'erro:42501:%' AND r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: reserva apagada pela API (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('COMPRAS RESERVAS: chave do processo, PEDs só pelo Financeiro (importação, simulação e reimportação), saldo livre pelo disponível do QDD, justificativa quando falta, PED e empenho fora do pendente, leituras com permissão e cancelamento verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

@@ -1710,6 +1710,22 @@ ALTER TABLE ONLY public.fin_parametros
 
 
 --
+-- Name: fin_peds fin_peds_chave; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_peds
+    ADD CONSTRAINT fin_peds_chave UNIQUE NULLS NOT DISTINCT (exercicio, numero, numero_estorno);
+
+
+--
+-- Name: fin_peds fin_peds_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_peds
+    ADD CONSTRAINT fin_peds_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_plano_contas fin_plano_contas_codigo_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2715,6 +2731,14 @@ ALTER TABLE ONLY public.processo_modelos
 
 ALTER TABLE ONLY public.processo_modelos
     ADD CONSTRAINT processo_modelos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: processo_reservas processo_reservas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_pkey PRIMARY KEY (id);
 
 
 --
@@ -5931,6 +5955,20 @@ CREATE INDEX idx_fin_pagamentos_status ON public.fin_pagamentos USING btree (sta
 
 
 --
+-- Name: idx_fin_peds_dotacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_peds_dotacao ON public.fin_peds USING btree (dotacao_id);
+
+
+--
+-- Name: idx_fin_peds_processo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_peds_processo ON public.fin_peds USING btree (exercicio, processo_chave);
+
+
+--
 -- Name: idx_fin_plano_contas_codigo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7331,6 +7369,13 @@ CREATE INDEX idx_processo_checklist_respostas_item ON public.processo_checklist_
 
 
 --
+-- Name: idx_processo_reservas_combinacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_reservas_combinacao ON public.processo_reservas USING btree (exercicio, acao_id, fonte_recurso_id, natureza_despesa_id) WHERE (situacao = 'reservada'::text);
+
+
+--
 -- Name: idx_processos_admin_data; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8273,6 +8318,13 @@ CREATE UNIQUE INDEX retornos_bancarios_remessa_arquivo_key ON public.retornos_ba
 --
 
 CREATE UNIQUE INDEX uq_bens_patrimoniais_numero_norm ON public.bens_patrimoniais USING btree (upper(btrim((numero_patrimonio)::text)));
+
+
+--
+-- Name: uq_processo_reservas_combinacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_processo_reservas_combinacao ON public.processo_reservas USING btree (processo_id, exercicio, acao_id, fonte_recurso_id, natureza_despesa_id) WHERE (situacao = 'reservada'::text);
 
 
 --
@@ -15807,6 +15859,22 @@ ALTER TABLE ONLY public.fin_pagamentos
 
 
 --
+-- Name: fin_peds fin_peds_dotacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_peds
+    ADD CONSTRAINT fin_peds_dotacao_id_fkey FOREIGN KEY (dotacao_id) REFERENCES public.fin_dotacoes(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_peds fin_peds_importacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_peds
+    ADD CONSTRAINT fin_peds_importacao_id_fkey FOREIGN KEY (importacao_id) REFERENCES public.importacoes(id) ON DELETE SET NULL;
+
+
+--
 -- Name: fin_plano_contas fin_plano_contas_conta_pai_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17428,6 +17496,46 @@ ALTER TABLE ONLY public.processo_modelo_checklist
 
 ALTER TABLE ONLY public.processo_modelo_etapas
     ADD CONSTRAINT processo_modelo_etapas_modelo_id_fkey FOREIGN KEY (modelo_id) REFERENCES public.processo_modelos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: processo_reservas processo_reservas_acao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_acao_id_fkey FOREIGN KEY (acao_id) REFERENCES public.fin_acoes_orcamentarias(id);
+
+
+--
+-- Name: processo_reservas processo_reservas_fonte_recurso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_fonte_recurso_id_fkey FOREIGN KEY (fonte_recurso_id) REFERENCES public.fin_fontes_recurso(id);
+
+
+--
+-- Name: processo_reservas processo_reservas_natureza_despesa_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_natureza_despesa_id_fkey FOREIGN KEY (natureza_despesa_id) REFERENCES public.fin_naturezas_despesa(id);
+
+
+--
+-- Name: processo_reservas processo_reservas_pca_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_pca_item_id_fkey FOREIGN KEY (pca_item_id) REFERENCES public.pca_itens(id) ON DELETE SET NULL;
+
+
+--
+-- Name: processo_reservas processo_reservas_processo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_processo_id_fkey FOREIGN KEY (processo_id) REFERENCES public.processos_licitatorios(id) ON DELETE CASCADE;
 
 
 --
@@ -19382,6 +19490,19 @@ ALTER TABLE public.fin_pagamentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fin_parametros ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: fin_peds; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_peds ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_peds fin_peds_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY fin_peds_select ON public.fin_peds FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ( SELECT public.can_access_module(auth.uid(), 'financeiro'::text) AS can_access_module)));
+
+
+--
 -- Name: fin_plano_contas; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -19899,6 +20020,19 @@ ALTER TABLE public.processo_modelo_etapas ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.processo_modelos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_reservas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.processo_reservas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_reservas processo_reservas_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY processo_reservas_select ON public.processo_reservas FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ((( SELECT public.can_access_module(auth.uid(), 'compras'::text) AS can_access_module) AND (( SELECT public.has_permission_code(auth.uid(), 'compras.processos.visualizar'::text) AS has_permission_code) OR ( SELECT public.has_permission_code(auth.uid(), 'compras.processos.editar'::text) AS has_permission_code))) OR ( SELECT public.can_access_module(auth.uid(), 'financeiro'::text) AS can_access_module))));
+
 
 --
 -- Name: processos_administrativos; Type: ROW SECURITY; Schema: public; Owner: -

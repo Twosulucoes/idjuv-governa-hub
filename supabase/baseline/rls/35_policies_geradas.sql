@@ -2040,6 +2040,9 @@ DROP POLICY IF EXISTS "rls_delete" ON public.fin_parametros;
 CREATE POLICY "rls_delete" ON public.fin_parametros FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
 
+-- fin_peds  [preservar: financeiro]
+-- (nenhuma policy gerada)
+
 -- fin_plano_contas  [modulo: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_plano_contas;
 CREATE POLICY "rls_select" ON public.fin_plano_contas FOR SELECT TO authenticated
@@ -3169,6 +3172,9 @@ CREATE POLICY "rls_update" ON public.processo_modelos FOR UPDATE TO authenticate
 DROP POLICY IF EXISTS "rls_delete" ON public.processo_modelos;
 CREATE POLICY "rls_delete" ON public.processo_modelos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'workflow')) AND public.has_permission_code(auth.uid(), 'workflow.admin'));
+
+-- processo_reservas  [preservar: compras | financeiro]
+-- (nenhuma policy gerada)
 
 -- processos_administrativos  [preservar: workflow]
 DROP POLICY IF EXISTS "rls_delete" ON public.processos_administrativos;
