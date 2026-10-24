@@ -1123,6 +1123,27 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
+- **Processos de contratação, entrega 2** (`20261030090000_compras_processos_reservas_peds.sql`, mesma spec, §10):
+  - `processo_chave_fiplan(text)` (IMMUTABLE): leva o nº SEI (`17302.000885/2026.92`) e o nº do FIPLAN (`000885/26-92`)
+    à mesma chave (`885/26-92`); é por ela que PED, empenho e processo se ligam (`processo_empenhos` passou a usá-la);
+  - `fin_peds`: o relatório "Consultar PED" do FIPLAN, uma linha por PED ou documento de estorno (único por exercício,
+    número e nº do estorno; `processo_chave` gerada; `dotacao_id` achada pela mesma regra do FIP 614). Só SELECT pelo
+    módulo financeiro, sem escrita direta: grava `importar_peds_fiplan(p_exercicio, p_linhas, p_arquivo, p_simular)`
+    (DEFINER, exige o módulo financeiro e `orcamento.importar`; upsert com as mudanças por campo, simulação desfeita,
+    devolve os PEDs do exercício que não vieram no arquivo, log em `importacoes` com tipo `peds_fiplan`);
+  - `processo_reservas`: reserva do processo por exercício × ação × fonte × natureza (opcionalmente ligada ao item do
+    PCA), situação `reservada` ou `cancelada` (cancelar exige motivo; uma reservada por combinação), com a
+    justificativa e o saldo livre do momento quando gravada sem saldo. SELECT para quem vê processos ou tem o módulo
+    financeiro, sem escrita direta: `processo_reserva_salvar(...)` (DEFINER, `compras.processos.editar`, trava por
+    combinação; sem saldo ou sem QDD exige justificativa de 10 caracteres) e `processo_reserva_cancelar(p_id, p_motivo)`;
+  - saldo: `fin_dotacao_disponivel` = atual − bloqueado − max(PED, empenhado + reserva), porque no QDD a coluna PED já
+    soma o empenhado e a Cont./Reserva; o pendente de uma reserva é o reservado menos o PED autorizado e o empenhado
+    líquido do processo na combinação; saldo livre = disponível − pendente das reservas (`processo_saldo_livre`);
+  - leitura (DEFINER, exigem ver processos ou o módulo financeiro): `processo_reservas_detalhe`, `processo_peds`
+    (sem credor nem estornos), `processos_financeiro` (reservado, pendente, PED autorizado, empenhado, liquidado e pago
+    por processo) e `programacao_por_natureza` (QDD × reservas por combinação, com os processos);
+  - sem permissão nova; RLS classe `preservar` nas duas tabelas (policies na migração); testes no bloco
+    "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver
