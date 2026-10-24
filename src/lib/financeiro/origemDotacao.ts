@@ -35,6 +35,16 @@ export function rotuloOrigem(idu: string | null | undefined): string {
   return NOMES_EMENDA[sigla] ? `${NOMES_EMENDA[sigla]} (${sigla})` : `Emenda ${sigla}`;
 }
 
+/** "33903900 · fonte 1.500 · Emenda individual impositiva (EII)" */
+export function rotuloDotacaoEmenda(d: {
+  idu?: string | null;
+  codigo_dotacao?: string | null;
+  natureza_despesa?: { codigo?: string | null } | null;
+  fonte_recurso?: { codigo?: string | null } | null;
+}): string {
+  return `${d.natureza_despesa?.codigo ?? d.codigo_dotacao ?? "—"} · fonte ${d.fonte_recurso?.codigo ?? "—"} · ${rotuloOrigem(d.idu)}`;
+}
+
 type DotacaoValores = Pick<
   Dotacao,
   "idu" | "valor_atual" | "valor_bloqueado" | "valor_reserva" | "valor_empenhado" | "saldo_disponivel"
@@ -128,4 +138,44 @@ export function agruparPorNatureza<T extends DotacaoAgrupavel>(dotacoes: T[]): G
       g.disponivelComum = g.dotacoes.filter((d) => !ehEmenda(d.idu)).reduce((s, d) => s + (d.saldo_disponivel || 0), 0);
       return g;
     });
+}
+
+// ===========================================
+// EMENDAS CADASTRADAS
+// ===========================================
+
+type EmendaValores = { id: string; dotacao_id: string; valor: number; valor_reservado: number };
+type EmpenhoDaEmenda = { emenda_id?: string | null; valor_empenhado: number; valor_anulado?: number | null };
+
+export interface SaldoEmenda {
+  valor: number;
+  reservado: number;
+  empenhado: number;
+  /** valor − reservado − empenhado */
+  livre: number;
+}
+
+/** Empenhado líquido (empenhado − anulado) de cada emenda, pela soma dos empenhos ligados a ela. */
+export function empenhadoPorEmenda(empenhos: EmpenhoDaEmenda[]): Map<string, number> {
+  const mapa = new Map<string, number>();
+  for (const e of empenhos) {
+    if (!e.emenda_id) continue;
+    const liquido = (e.valor_empenhado || 0) - (e.valor_anulado || 0);
+    mapa.set(e.emenda_id, (mapa.get(e.emenda_id) ?? 0) + liquido);
+  }
+  return mapa;
+}
+
+export function saldoEmenda(emenda: EmendaValores, empenhado: number): SaldoEmenda {
+  const reservado = emenda.valor_reservado || 0;
+  return { valor: emenda.valor, reservado, empenhado, livre: emenda.valor - reservado - empenhado };
+}
+
+/**
+ * Confere as emendas cadastradas com a dotação do QDD em que caíram: quanto da dotação atual ainda não tem
+ * emenda cadastrada (positivo) ou quanto o cadastro passa da dotação (negativo).
+ */
+export function semEmendaCadastrada(dotacao: { id: string; valor_atual: number }, emendas: EmendaValores[]): number {
+  const cadastrado = emendas.filter((e) => e.dotacao_id === dotacao.id).reduce((s, e) => s + e.valor, 0);
+  return Math.round(((dotacao.valor_atual || 0) - cadastrado) * 100) / 100;
 }

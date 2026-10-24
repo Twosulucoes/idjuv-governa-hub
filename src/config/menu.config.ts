@@ -630,6 +630,16 @@ export const menuConfig: MenuSection[] = [
         priority: 2,
       },
       {
+        // Autor, objeto, beneficiário e saldo de cada emenda (dotações de emenda do QDD)
+        id: "fin-emendas",
+        label: "Emendas Parlamentares",
+        labelShort: "Emendas",
+        route: "/financeiro/emendas",
+        icon: FileText,
+        permission: "orcamento.visualizar",
+        priority: 2,
+      },
+      {
         id: "fin-despesas-submenu",
         label: "Despesas",
         icon: FileText,

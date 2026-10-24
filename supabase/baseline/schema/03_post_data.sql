@@ -1518,6 +1518,22 @@ ALTER TABLE ONLY public.fin_dotacoes
 
 
 --
+-- Name: fin_emendas fin_emendas_numero_exercicio_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_emendas
+    ADD CONSTRAINT fin_emendas_numero_exercicio_key UNIQUE (exercicio, numero);
+
+
+--
+-- Name: fin_emendas fin_emendas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_emendas
+    ADD CONSTRAINT fin_emendas_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_empenho_anulacoes fin_empenho_anulacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5602,6 +5618,13 @@ CREATE INDEX idx_fin_dotacoes_unidade ON public.fin_dotacoes USING btree (unidad
 
 
 --
+-- Name: idx_fin_emendas_dotacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_emendas_dotacao ON public.fin_emendas USING btree (dotacao_id);
+
+
+--
 -- Name: idx_fin_empenho_anulacoes_empenho_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5641,6 +5664,13 @@ CREATE INDEX idx_fin_empenhos_credor_fiplan ON public.fin_empenhos USING btree (
 --
 
 CREATE INDEX idx_fin_empenhos_dotacao ON public.fin_empenhos USING btree (dotacao_id);
+
+
+--
+-- Name: idx_fin_empenhos_emenda; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_empenhos_emenda ON public.fin_empenhos USING btree (emenda_id) WHERE (emenda_id IS NOT NULL);
 
 
 --
@@ -10924,6 +10954,13 @@ CREATE TRIGGER update_fichas_financeiras_updated_at BEFORE UPDATE ON public.fich
 
 
 --
+-- Name: fin_emendas update_fin_emendas_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_fin_emendas_updated_at BEFORE UPDATE ON public.fin_emendas FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
 -- Name: fin_restos_pagar update_fin_restos_pagar_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -15399,6 +15436,14 @@ ALTER TABLE ONLY public.fin_dotacoes
 
 
 --
+-- Name: fin_emendas fin_emendas_dotacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_emendas
+    ADD CONSTRAINT fin_emendas_dotacao_id_fkey FOREIGN KEY (dotacao_id) REFERENCES public.fin_dotacoes(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: fin_empenho_anulacoes fin_empenho_anulacoes_anulado_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15460,6 +15505,14 @@ ALTER TABLE ONLY public.fin_empenhos
 
 ALTER TABLE ONLY public.fin_empenhos
     ADD CONSTRAINT fin_empenhos_dotacao_id_fkey FOREIGN KEY (dotacao_id) REFERENCES public.fin_dotacoes(id);
+
+
+--
+-- Name: fin_empenhos fin_empenhos_emenda_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_empenhos
+    ADD CONSTRAINT fin_empenhos_emenda_id_fkey FOREIGN KEY (emenda_id) REFERENCES public.fin_emendas(id) ON DELETE SET NULL;
 
 
 --
@@ -19277,6 +19330,12 @@ ALTER TABLE public.fin_documentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fin_dotacoes ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: fin_emendas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_emendas ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: fin_empenho_anulacoes; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -20817,6 +20876,13 @@ CREATE POLICY rls_delete ON public.fin_documentos FOR DELETE TO authenticated US
 --
 
 CREATE POLICY rls_delete ON public.fin_dotacoes FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_emendas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_emendas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'orcamento.criar'::text)));
 
 
 --
@@ -22445,6 +22511,13 @@ CREATE POLICY rls_insert ON public.fin_documentos FOR INSERT TO authenticated WI
 --
 
 CREATE POLICY rls_insert ON public.fin_dotacoes FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_emendas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_emendas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'orcamento.criar'::text)));
 
 
 --
@@ -24149,6 +24222,13 @@ CREATE POLICY rls_select ON public.fin_documentos FOR SELECT TO authenticated US
 --
 
 CREATE POLICY rls_select ON public.fin_dotacoes FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_emendas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_emendas FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
 
 
 --
@@ -25879,6 +25959,13 @@ CREATE POLICY rls_update ON public.fin_documentos FOR UPDATE TO authenticated US
 --
 
 CREATE POLICY rls_update ON public.fin_dotacoes FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_emendas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_emendas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'orcamento.criar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'orcamento.criar'::text)));
 
 
 --

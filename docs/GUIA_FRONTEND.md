@@ -73,6 +73,11 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `src/components/compras/processos/`; etapas e formas em `src/types/processos.ts`). A planilha de acompanhamento
   entra pelo importador `processos_planilha` (abas "Processos" e "Andamento"; leitor em `lerAbas` de
   `src/lib/importacao/planilha.ts`), aberto pelo botão "Importar planilha" da lista ou pela Central.
+- **Emendas parlamentares** (`src/hooks/useEmendas.ts`: `useEmendas`, `useEmpenhosDeEmendas`, `useSalvarEmenda`,
+  `useDesativarEmenda`, `useDefinirEmendaEmpenho`): tela `/financeiro/emendas` (`EmendaFormDialog` em
+  `src/components/financeiro/`) e o cartão "Emenda do empenho" no detalhe do empenho. Origem da dotação (comum ou
+  emenda pelo IDU), agrupamento do QDD por natureza e saldo de cada emenda em `src/lib/financeiro/origemDotacao.ts`
+  (testes vitest).
 - **Exercício do Financeiro** (`src/hooks/useExercicioFinanceiro.ts`): ano orçamentário compartilhado pelas telas
   do módulo. Lê `?exercicio=` da URL; sem ele, o último ano escolhido no navegador (`localStorage`,
   chave `financeiro:exercicio`); sem nenhum, o ano atual. Faixa: 2024 até o ano seguinte ao atual. Devolve

@@ -105,6 +105,8 @@ INSERT INTO seed_ov VALUES
   ('fin_conciliacao_itens', '{"lado":"bancario","natureza":"debito","valor":1,"situacao":"pendente","origem":"mes","item_origem_id":null,"grupo":null,"regra":null,"re":null,"nob":null}'),
   -- empenho sem favorecido nem dotação só com origem fiplan (fin_empenhos_sistema_vinculos_check, migração 20261027090000)
   ('fin_empenhos', '{"origem":"fiplan","credor_codigo_fiplan":"2001.00001-1","credor_nome":"Credor Teste"}'),
+  -- emenda: IDU de emenda (fin_emendas_idu_check), valor positivo e sem CNPJ (migração 20261030090000)
+  ('fin_emendas', '{"idu":"EII","valor":1,"valor_reservado":0,"beneficiario_cnpj":null,"exercicio":2026}'),
   -- item do PCA: serviço do catálogo, sem PDM nem item de material (pca_itens_catalogo_check, migração 20261028090000)
   ('pca_itens', '{"tipo":"servico","codigo_servico":1,"codigo_pdm":null,"codigo_item":null,"quantidade":1,"valor_unitario":1,"mes_desejado":1,"numero_sei":"SEI-1","descricao":"Teste","unidade_fornecimento":"UN"}'),
   ('cat_sincronizacoes', '{"tipo":"pdm"}');

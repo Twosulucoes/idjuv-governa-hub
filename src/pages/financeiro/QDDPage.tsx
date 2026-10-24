@@ -253,6 +253,8 @@ export default function QDDPage() {
             <h2 id="qdd-origem" className="text-h3 font-semibold text-foreground">Dotação comum e emendas</h2>
             <p className="text-body text-muted-foreground">
               O disponível de emenda é vinculado ao objeto da emenda. Para uma despesa comum, conte só com o disponível da dotação comum.
+              Autor, objeto e beneficiário de cada emenda ficam em{" "}
+              <Link className="underline" to={comExercicio("/financeiro/emendas")}>Emendas parlamentares</Link>.
             </p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

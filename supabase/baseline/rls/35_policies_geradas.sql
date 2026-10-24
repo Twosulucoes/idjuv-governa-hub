@@ -1866,6 +1866,21 @@ DROP POLICY IF EXISTS "rls_delete" ON public.fin_dotacoes;
 CREATE POLICY "rls_delete" ON public.fin_dotacoes FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
 
+-- fin_emendas  [permissao: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_emendas;
+CREATE POLICY "rls_select" ON public.fin_emendas FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')));
+DROP POLICY IF EXISTS "rls_insert" ON public.fin_emendas;
+CREATE POLICY "rls_insert" ON public.fin_emendas FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'orcamento.criar'));
+DROP POLICY IF EXISTS "rls_update" ON public.fin_emendas;
+CREATE POLICY "rls_update" ON public.fin_emendas FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'orcamento.criar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'orcamento.criar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.fin_emendas;
+CREATE POLICY "rls_delete" ON public.fin_emendas FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'orcamento.criar'));
+
 -- fin_empenho_anulacoes  [modulo: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_empenho_anulacoes;
 CREATE POLICY "rls_select" ON public.fin_empenho_anulacoes FOR SELECT TO authenticated

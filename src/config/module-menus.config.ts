@@ -137,6 +137,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel Financeiro", route: "/financeiro" },
     items: [
       { id: "qdd", label: "QDD - Detalhamento", icon: FileText, route: "/financeiro/qdd" },
+      { id: "emendas", label: "Emendas Parlamentares", icon: Landmark, route: "/financeiro/emendas" },
       { id: "alteracoes", label: "Alterações Orçamentárias", icon: ArrowRightLeft, route: "/financeiro/alteracoes-orcamentarias" },
       { id: "solicitacoes", label: "Solicitações", icon: ClipboardList, route: "/financeiro/solicitacoes" },
       { id: "empenhos", label: "Empenhos", icon: FileText, route: "/financeiro/empenhos" },

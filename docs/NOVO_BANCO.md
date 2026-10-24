@@ -206,6 +206,9 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
   mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- As emendas parlamentares (migração `20261030090000`) entraram no mapa (`fin_emendas`, classe `permissao` com
+  `orcamento.criar`) e no schema do baseline regenerado; sem permissão nova nem função; semente em `seed_ov` de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - Os processos de contratação, entrega 1 (migração `20261029090000`), entraram no mapa (`processo_andamentos`, classe
   `permissao` com `compras.processos.editar`), no schema do baseline regenerado, no catálogo (as duas permissões e a
   concessão aos papéis `admin` e `manager`) e no `overlay/40_privilegios.sql`; testes no bloco "Compras: processos de

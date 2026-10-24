@@ -234,6 +234,7 @@ import {
   RelatoriosFinanceiroPage,
   PlaceholderDetalheFinanceiroPage,
   QDDPage,
+  EmendasPage,
   AlteracoesOrcamentariasPage,
   RestosAPagarPage,
   SubEmpenhosPage,
@@ -1268,6 +1269,11 @@ const App = () => (
               <Route path="/financeiro/qdd" element={
                 <ProtectedRoute requiredPermissions="orcamento.visualizar">
                   <QDDPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/emendas" element={
+                <ProtectedRoute requiredPermissions="orcamento.visualizar">
+                  <EmendasPage />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/alteracoes-orcamentarias" element={

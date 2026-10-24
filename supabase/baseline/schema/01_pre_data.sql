@@ -21220,6 +21220,64 @@ COMMENT ON COLUMN public.fin_dotacoes.paoe IS 'Código PAOE - Programa/Ação Or
 
 
 --
+-- Name: fin_emendas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_emendas (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    exercicio integer NOT NULL,
+    dotacao_id uuid NOT NULL,
+    numero text NOT NULL,
+    idu text NOT NULL,
+    autor text NOT NULL,
+    objeto text NOT NULL,
+    beneficiario text,
+    beneficiario_cnpj text,
+    valor numeric(15,2) NOT NULL,
+    valor_reservado numeric(15,2) DEFAULT 0 NOT NULL,
+    ped_numero text,
+    processo_sei text,
+    observacoes text,
+    ativo boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    CONSTRAINT fin_emendas_autor_check CHECK (((char_length(btrim(autor)) >= 1) AND (char_length(btrim(autor)) <= 200))),
+    CONSTRAINT fin_emendas_beneficiario_check CHECK (((beneficiario IS NULL) OR (char_length(beneficiario) <= 300))),
+    CONSTRAINT fin_emendas_beneficiario_cnpj_check CHECK (((beneficiario_cnpj IS NULL) OR (beneficiario_cnpj ~ '^\d{14}$'::text))),
+    CONSTRAINT fin_emendas_exercicio_check CHECK (((exercicio >= 2000) AND (exercicio <= 2100))),
+    CONSTRAINT fin_emendas_idu_check CHECK ((((char_length(btrim(idu)) >= 1) AND (char_length(btrim(idu)) <= 6)) AND (lower(btrim(idu)) <> 'não'::text))),
+    CONSTRAINT fin_emendas_numero_check CHECK (((char_length(btrim(numero)) >= 1) AND (char_length(btrim(numero)) <= 50))),
+    CONSTRAINT fin_emendas_objeto_check CHECK (((char_length(btrim(objeto)) >= 1) AND (char_length(btrim(objeto)) <= 2000))),
+    CONSTRAINT fin_emendas_ped_numero_check CHECK (((ped_numero IS NULL) OR (char_length(ped_numero) <= 30))),
+    CONSTRAINT fin_emendas_processo_sei_check CHECK (((processo_sei IS NULL) OR (char_length(processo_sei) <= 50))),
+    CONSTRAINT fin_emendas_valor_check CHECK ((valor > (0)::numeric)),
+    CONSTRAINT fin_emendas_valor_reservado_check CHECK ((valor_reservado >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE fin_emendas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_emendas IS 'Emendas parlamentares do orçamento: autor, objeto, beneficiário e valor de cada emenda, ligada à dotação do QDD (IDU de emenda). O empenhado vem dos empenhos com emenda_id.';
+
+
+--
+-- Name: COLUMN fin_emendas.idu; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_emendas.idu IS 'Tipo da emenda como no IDU do QDD do FIPLAN (ex.: ECNI, ECI, EII).';
+
+
+--
+-- Name: COLUMN fin_emendas.valor_reservado; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_emendas.valor_reservado IS 'Reserva (PED) feita para a emenda e ainda não empenhada, lançada à mão.';
+
+
+--
 -- Name: fin_empenho_anulacoes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -21315,6 +21373,7 @@ CREATE TABLE public.fin_empenhos (
     processo_fiplan text,
     data_referencia_fiplan date,
     importacao_id uuid,
+    emenda_id uuid,
     CONSTRAINT fin_empenhos_fiplan_credor_check CHECK (((origem = 'sistema'::text) OR ((credor_codigo_fiplan ~ '^\d{4}\.\d{5}-\d$'::text) AND ((char_length(credor_nome) >= 1) AND (char_length(credor_nome) <= 300))))),
     CONSTRAINT fin_empenhos_origem_check CHECK ((origem = ANY (ARRAY['sistema'::text, 'fiplan'::text]))),
     CONSTRAINT fin_empenhos_sistema_vinculos_check CHECK (((origem = 'fiplan'::text) OR ((fornecedor_id IS NOT NULL) AND (dotacao_id IS NOT NULL))))
@@ -21349,6 +21408,13 @@ COMMENT ON COLUMN public.fin_empenhos.dotacao_fiplan IS 'Dotação como o FIP 61
 --
 
 COMMENT ON COLUMN public.fin_empenhos.processo_fiplan IS 'Processo como o FIPLAN mostra (ex.: 00000112/26-14); processo_sei traz o número no padrão do SEI.';
+
+
+--
+-- Name: COLUMN fin_empenhos.emenda_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_empenhos.emenda_id IS 'Emenda parlamentar que o empenho executa (fin_emendas).';
 
 
 --
