@@ -137,10 +137,36 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   com dados fictícios de todos os módulos e liga o login de teste a um servidor ([NOVO_BANCO.md](../NOVO_BANCO.md#9-ambiente-de-teste-com-dados-fictícios)).
   No Coolify: ambiente `teste` do projeto `idjuv` com o Supabase de teste criado em 23/10/2026; o `Dockerfile` passa a pôr na
   CSP o host do banco do build. Supabase de teste enxuto (sem analytics, logs, pooler e realtime); `scripts/db/montar-ambiente-teste.sh` monta o banco
-  pelo container. Falta rodá-lo na VPS e publicar o front de teste.
+  pelo container; banco e front de teste no ar desde 23/10/2026. `supabase/baseline/dados-demo/` (carregado por
+  `scripts/db/carregar-demo-teste.sh`) completa a demonstração de todos os módulos com dados com cara de real.
 - [ ] **LAI — pedido do SIC não grava** (achado ao montar o ambiente de teste): o trigger `registrar_historico_lai` de
-  `solicitacoes_sic` lê `NEW.responsavel_id`, coluna que a tabela não tem, e todo INSERT falha no banco do baseline;
-  conferir na produção e corrigir por migração (cabe no P16).
+  `solicitacoes_sic` lê `OLD/NEW.responsavel_id`, coluna que a tabela não tem: todo INSERT e toda mudança de status
+  (resposta ao pedido) falham no banco do baseline; conferir na produção e corrigir por migração (cabe no P16).
+- [ ] **Defeitos achados ao montar a demonstração** (24/10/2026; conferir na produção antes de corrigir, cada um na
+  PR do seu módulo):
+  - Financeiro: `fn_atualizar_saldo_sub_empenho` faz UPDATE na coluna gerada `saldo_liquidar` (todo sub-empenho
+    falha) e conta o reforço duas vezes na dotação; `fn_atualizar_empenho_liquidacao` devolve texto sem cast para
+    `status_empenho` (liquidação aprovada no INSERT falha) e ignora a aprovação por UPDATE, que é o caminho da tela;
+    `fn_atualizar_empenho_pagamento` marca o empenho como pago quando só parte foi liquidada.
+  - Folha: `fn_gerar_esocial_s1200` lê colunas que não existem; `useLancarConsignacaoNaFicha` lança de novo a
+    consignação que `folha_montar_ficha` já lança; processar a folha passa por `processando` e o histórico registra
+    envio à conferência; `reabrir_folha` não conta as reaberturas.
+  - Patrimônio/almoxarifado: a lista do estoque usa `ponto_reposicao` como saldo; atender requisição não baixa o
+    estoque e grava sempre "atendida"; a lista de requisições mostra "0 item(s)"; o detalhe da requisição é
+    placeholder; `fn_atualizar_estatisticas_campanha` ignora o escopo da campanha; `v_resumo_patrimonio` e
+    `v_patrimonio_por_unidade` contam manutenção, baixados e alocados sempre zero.
+  - Compras/contratos: o painel de Compras filtra `fase` (a coluna é `fase_atual`) com valores fora do enum; a
+    página pública de licitações tem rótulos de fase que não existem no enum; a Central de Aprovações junta
+    `profiles` por FKs que apontam para `auth.users`; `atualizar_saldo_contrato` tira do executado a medição que
+    passa a "paga".
+  - RH: a impressão em lote da frequência e a lista por unidade filtram `cessoes.tipo = 'cedido'`, valor que o CHECK
+    não aceita; a situação "cedido" não limpa unidade e cargo atuais; `banco_horas`, `configuracao_jornada`,
+    `solicitacoes_ajuste_ponto` e `memorandos_lotacao` apontam `servidor_id` para `profiles`.
+  - Painéis: Transparência conta `dados_oficiais.status` e `historico_lai.status`, que não existem; Integridade
+    conta denúncias pela tabela de riscos.
+  - Portal: o `anon` não lê notícias, galerias, banners nem diretoria (baseline fechado, `rls/mapa.csv` marca
+    REVISAR); a categoria da notícia aparece como slug; o número da demanda da ASCOM quebra se houver número fora do
+    formato `0001/2026-ASCOM`.
 - [ ] **Patrimônio — inventário de campo, fases 2–3**: edificações e instalações, relatórios automáticos, conciliação
   com a relação da SEED, importação de planilha; confirmar os termos de uso da Esri World Imagery para uso institucional.
 
