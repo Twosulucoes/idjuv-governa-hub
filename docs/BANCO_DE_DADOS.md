@@ -1123,6 +1123,24 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
+- **Gatilhos de saldo do empenho e do contrato** (`20261030090000_fin_gatilhos_empenho_contrato.sql`, defeitos da
+  demonstração de 24/10/2026; sem tabela nova nem mudança de RLS):
+  - `fn_atualizar_saldo_sub_empenho`: o reforço só soma em `fin_empenhos.valor_empenhado` (a dotação segue pelo gatilho
+    `trg_atualizar_saldo_empenho`, uma vez só); a anulação soma em `valor_anulado`, devolve à dotação só o empenho do
+    sistema e deixa o empenho `anulado` quando anula o saldo inteiro sem liquidação. Antes as duas gravavam a coluna
+    gerada `saldo_liquidar` e falhavam sempre;
+  - `fn_atualizar_empenho_liquidacao`: conta a liquidação quando ela entra em `aprovada` (INSERT ou UPDATE) e devolve
+    quando sai; o status do empenho (`emitido`, `parcialmente_liquidado`, `liquidado`) só muda enquanto não há pagamento;
+  - `fn_atualizar_empenho_pagamento`: `pago` só com o empenho inteiro pago (empenhado − anulado); antes, `parcialmente_pago`.
+    A migração corrige o empenho do sistema marcado `pago` sem estar inteiro pago;
+  - `atualizar_saldo_contrato`: o executado conta medição `aprovada` e `paga` (a paga saía do executado). A migração
+    recalcula o contrato com medição paga;
+  - testes no bloco "Financeiro e contratos: gatilhos de saldo" de `scripts/db/testar-rls.sql`.
+- **Folha: processar e reabrir** (`20261030091000_folha_processar_reabertura.sql`): `processar_folha_pagamento` não
+  passa mais a folha por `processando` (status da folha enviada à conferência; o histórico registrava cada
+  processamento como envio à conferência e o gatilho marcava quem processou como quem conferiu); no erro a folha fica
+  como estava. `reabrir_folha` soma 1 em `quantidade_reaberturas`. Testes nos blocos "E1 folha" e "I4/M3" de
+  `scripts/db/testar-rls.sql`.
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver

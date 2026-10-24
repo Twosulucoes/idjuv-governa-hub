@@ -286,6 +286,7 @@ ALTER FUNCTION public.desmarcar_escola_cadastrada() SECURITY DEFINER;
 --     Desde a E3 (20261011010000, mesmo texto) reabrir_folha trava a folha, recusa folha com remessa ativa e tira da
 --     vigência os eventos do eSocial rascunho da folha.
 --     Desde o protocolo do RH (20261012110000, mesmo texto) as duas registram protocolo (`rh_protocolo_atual`).
+--     Desde 20261030091000 (mesmo texto) reabrir_folha conta as reaberturas (`quantidade_reaberturas`).
 CREATE OR REPLACE FUNCTION public.fechar_folha(p_folha_id uuid, p_justificativa text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -406,7 +407,8 @@ BEGIN
     status = 'reaberta',
     reaberto_por = v_user_id,
     reaberto_em = now(),
-    justificativa_reabertura = p_justificativa
+    justificativa_reabertura = p_justificativa,
+    quantidade_reaberturas = COALESCE(quantidade_reaberturas, 0) + 1
   WHERE id = p_folha_id;
 
   -- Eventos do eSocial rascunho da folha saem da vigência (E3)

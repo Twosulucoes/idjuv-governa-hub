@@ -138,6 +138,7 @@ export function calcularTotaisFolha(fichas: FichaParaTotais[]): TotaisFolha {
 export interface ItemParaReferencia {
   tipo: string;
   referencia: string | null;
+  descricao?: string | null;
   valor?: number | string | null;
 }
 
@@ -150,11 +151,33 @@ export function itemJaLancado(itens: ItemParaReferencia[], referencia: string | 
   return itens.some((i) => i.tipo === "desconto" && normalizarReferencia(i.referencia) === alvo);
 }
 
+export interface ConsignacaoParaFicha {
+  numero_contrato?: string | null;
+  consignataria_nome?: string | null;
+}
+
+/**
+ * Descrição do desconto que o cálculo da folha (`folha_montar_ficha`) grava para cada consignação ativa:
+ * "Consignação — <consignatária>", com a referência "parcela/total" (não o número do contrato).
+ */
+export const descricaoConsignacaoNaFicha = (consignataria: string | null | undefined) =>
+  `Consignação — ${consignataria ?? ""}`;
+
+/** A parcela desta consignação já está na ficha, lançada pelo cálculo ou à mão pelo botão "Lançar na ficha"? */
+export function consignacaoJaLancada(itens: ItemParaReferencia[], c: ConsignacaoParaFicha): boolean {
+  if (itemJaLancado(itens, c.numero_contrato)) return true;
+  const alvo = normalizarReferencia(c.consignataria_nome);
+  if (!alvo) return false;
+  const doCalculo = normalizarReferencia(descricaoConsignacaoNaFicha(c.consignataria_nome));
+  return itens.some((i) => i.tipo === "desconto" && normalizarReferencia(i.descricao) === doCalculo);
+}
+
 // ============== CONSIGNAÇÕES / MARGEM ==============
 
 export interface ConsignacaoParaMargem {
   id?: string;
   numero_contrato?: string | null;
+  consignataria_nome?: string | null;
   valor_parcela: number | string | null;
   ativo: boolean | null;
   suspenso: boolean | null;
@@ -189,9 +212,8 @@ export function baseMargemConsignavel(
   itens: ItemParaReferencia[],
   consignacoes: ConsignacaoParaMargem[],
 ): number {
-  const contratos = new Set(consignacoes.map((c) => normalizarReferencia(c.numero_contrato)).filter(Boolean));
   const devolvido = itens
-    .filter((i) => i.tipo === "desconto" && contratos.has(normalizarReferencia(i.referencia)))
+    .filter((i) => i.tipo === "desconto" && consignacoes.some((c) => consignacaoJaLancada([i], c)))
     .reduce((acc, i) => acc + (Number(i.valor) || 0), 0);
   return arredondar2((Number(valorLiquido) || 0) + devolvido);
 }

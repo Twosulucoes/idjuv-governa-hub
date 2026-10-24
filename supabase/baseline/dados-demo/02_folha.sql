@@ -544,7 +544,7 @@ UPDATE public.remessas_bancarias SET data_geracao = v.ger, enviado_em = CASE WHE
     ('d2000000-0000-4000-8000-000000000205', '2026-08-26 09:15-04', '2026-08-26 10:02-04')
   ) v(id, ger, env)
  WHERE remessas_bancarias.id = v.id AND remessas_bancarias.status <> 'cancelada';
--- reabrir_folha não mantém reaberto/quantidade_reaberturas: registra-se aqui a reabertura de agosto
+-- reabrir_folha não marca `reaberto` e só conta as reaberturas desde a migração 20261030091000: fixa-se aqui a de agosto
 UPDATE public.folhas_pagamento SET reaberto = true, quantidade_reaberturas = 1 WHERE id = 'd2000000-0000-4000-8000-000000000003';
 UPDATE public.eventos_esocial SET data_geracao = CASE folha_id WHEN 'd2000000-0000-4000-8000-000000000001' THEN timestamptz '2026-08-05 10:20-04'
                                                                ELSE timestamptz '2026-09-04 11:02-04' END

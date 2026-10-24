@@ -144,21 +144,18 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   (resposta ao pedido) falham no banco do baseline; conferir na produção e corrigir por migração (cabe no P16).
 - [ ] **Defeitos achados ao montar a demonstração** (24/10/2026; conferir na produção antes de corrigir, cada um na
   PR do seu módulo):
-  - Financeiro: `fn_atualizar_saldo_sub_empenho` faz UPDATE na coluna gerada `saldo_liquidar` (todo sub-empenho
-    falha) e conta o reforço duas vezes na dotação; `fn_atualizar_empenho_liquidacao` devolve texto sem cast para
-    `status_empenho` (liquidação aprovada no INSERT falha) e ignora a aprovação por UPDATE, que é o caminho da tela;
-    `fn_atualizar_empenho_pagamento` marca o empenho como pago quando só parte foi liquidada.
-  - Folha: `fn_gerar_esocial_s1200` lê colunas que não existem; `useLancarConsignacaoNaFicha` lança de novo a
-    consignação que `folha_montar_ficha` já lança; processar a folha passa por `processando` e o histórico registra
-    envio à conferência; `reabrir_folha` não conta as reaberturas.
+  - Corrigidos no lote 1 (migrações `20261030090000` e `20261030091000`): sub-empenho (coluna gerada e reforço em dobro
+    na dotação), liquidação aprovada no INSERT e por UPDATE, empenho "pago" com parte por liquidar, medição "paga" fora
+    do executado do contrato, consignação lançada em dobro na ficha, processamento registrado como envio à conferência
+    e reaberturas não contadas.
+  - Folha: `fn_gerar_esocial_s1200` lê colunas que não existem (sem uso no sistema).
   - Patrimônio/almoxarifado: a lista do estoque usa `ponto_reposicao` como saldo; atender requisição não baixa o
     estoque e grava sempre "atendida"; a lista de requisições mostra "0 item(s)"; o detalhe da requisição é
     placeholder; `fn_atualizar_estatisticas_campanha` ignora o escopo da campanha; `v_resumo_patrimonio` e
     `v_patrimonio_por_unidade` contam manutenção, baixados e alocados sempre zero.
   - Compras/contratos: o painel de Compras filtra `fase` (a coluna é `fase_atual`) com valores fora do enum; a
     página pública de licitações tem rótulos de fase que não existem no enum; a Central de Aprovações junta
-    `profiles` por FKs que apontam para `auth.users`; `atualizar_saldo_contrato` tira do executado a medição que
-    passa a "paga".
+    `profiles` por FKs que apontam para `auth.users`.
   - RH: a impressão em lote da frequência e a lista por unidade filtram `cessoes.tipo = 'cedido'`, valor que o CHECK
     não aceita; a situação "cedido" não limpa unidade e cargo atuais; `banco_horas`, `configuracao_jornada`,
     `solicitacoes_ajuste_ponto` e `memorandos_lotacao` apontam `servidor_id` para `profiles`.

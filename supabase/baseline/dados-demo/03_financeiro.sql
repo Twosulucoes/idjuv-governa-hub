@@ -337,7 +337,8 @@ FROM _emp e JOIN public.fin_dotacoes d ON d.id = e.dot
 ORDER BY e.data;
 
 -- ===================================================================== reforço e anulação de empenho
--- BUG do sistema: fn_atualizar_saldo_sub_empenho (gatilho trg_sub_empenho_saldo) faz UPDATE de fin_empenhos.saldo_liquidar,
+-- BUG do sistema (corrigido na migração 20261030090000; o caminho abaixo vale antes e depois dela).
+-- fn_atualizar_saldo_sub_empenho (gatilho trg_sub_empenho_saldo) faz UPDATE de fin_empenhos.saldo_liquidar,
 -- coluna gerada, e todo INSERT em fin_sub_empenhos falha ("column saldo_liquidar can only be updated to DEFAULT").
 -- O gatilho fica desligado só aqui e o efeito dele é aplicado à mão (reforço: soma no empenhado, e o gatilho do empenho
 -- leva à dotação; anulação: soma no anulado e devolve o saldo à dotação).
@@ -392,7 +393,8 @@ INSERT INTO _liq VALUES
   ('d3130000-0000-4000-8000-000000000021', '25.00211-3', 2025, '2025-12-30', 'd3100000-0000-4000-8000-000000000021', 'nota_fiscal', '2981', 'NFS-e', '2025-12-30', NULL, 18300.00, 0, 878.40, 915.00, 'aprovada', 'Licenças instaladas e ativadas em 30/12/2025.'),
   ('d3130000-0000-4000-8000-000000000022', '25.00214-8', 2025, '2025-12-30', 'd3100000-0000-4000-8000-000000000024', 'nota_fiscal', '612', '1', '2025-12-30', NULL, 7450.00, 0, 89.40, 0, 'aprovada', 'Placas instaladas na sede.');
 
--- BUG do sistema: fn_atualizar_empenho_liquidacao (gatilho trg_atualizar_empenho_liquidacao) monta o novo status do
+-- BUG do sistema (corrigido na migração 20261030090000; o caminho abaixo vale antes e depois dela).
+-- fn_atualizar_empenho_liquidacao (gatilho trg_atualizar_empenho_liquidacao) monta o novo status do
 -- empenho com CASE de texto sem cast para status_empenho, e todo INSERT de liquidação já 'aprovada' falha ("column status
 -- is of type status_empenho but expression is of type text"). Além disso, o corpo só trata INSERT: aprovar depois (UPDATE)
 -- não soma nada no empenho. O gatilho fica desligado aqui e o efeito (empenho e dotação) é aplicado à mão logo abaixo.
