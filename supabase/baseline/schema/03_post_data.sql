@@ -2646,6 +2646,14 @@ ALTER TABLE ONLY public.pre_cadastros
 
 
 --
+-- Name: processo_andamentos processo_andamentos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_andamentos
+    ADD CONSTRAINT processo_andamentos_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: processo_checklist_respostas processo_checklist_respostas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7309,6 +7317,13 @@ CREATE INDEX idx_pre_cadastros_status ON public.pre_cadastros USING btree (statu
 
 
 --
+-- Name: idx_processo_andamentos_processo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_andamentos_processo ON public.processo_andamentos USING btree (processo_id, data DESC, created_at DESC);
+
+
+--
 -- Name: idx_processo_checklist_respostas_item; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7383,6 +7398,13 @@ CREATE INDEX idx_processos_lic_fase ON public.processos_licitatorios USING btree
 --
 
 CREATE INDEX idx_processos_lic_numero ON public.processos_licitatorios USING btree (numero_processo);
+
+
+--
+-- Name: idx_processos_licitatorios_etapa; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processos_licitatorios_etapa ON public.processos_licitatorios USING btree (ano, etapa);
 
 
 --
@@ -10176,6 +10198,27 @@ CREATE TRIGGER trg_pca_tetos_carimbar BEFORE INSERT OR UPDATE ON public.pca_teto
 --
 
 CREATE TRIGGER trg_pre_cadastros_gerar_token BEFORE INSERT ON public.pre_cadastros FOR EACH ROW EXECUTE FUNCTION public.pre_cadastros_gerar_token();
+
+
+--
+-- Name: processo_andamentos trg_processo_andamentos_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_processo_andamentos_carimbar BEFORE INSERT ON public.processo_andamentos FOR EACH ROW EXECUTE FUNCTION public.processo_andamento_carimbar();
+
+
+--
+-- Name: processo_andamentos trg_processo_andamentos_no_processo; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_processo_andamentos_no_processo AFTER INSERT ON public.processo_andamentos FOR EACH ROW EXECUTE FUNCTION public.processo_andamento_no_processo();
+
+
+--
+-- Name: processos_licitatorios trg_processos_licitatorios_normalizar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_processos_licitatorios_normalizar BEFORE INSERT OR UPDATE OF numero_processo ON public.processos_licitatorios FOR EACH ROW EXECUTE FUNCTION public.processo_licitatorio_normalizar();
 
 
 --
@@ -17340,6 +17383,14 @@ ALTER TABLE ONLY public.pre_cadastros
 
 
 --
+-- Name: processo_andamentos processo_andamentos_processo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_andamentos
+    ADD CONSTRAINT processo_andamentos_processo_id_fkey FOREIGN KEY (processo_id) REFERENCES public.processos_licitatorios(id) ON DELETE CASCADE;
+
+
+--
 -- Name: processo_checklist_respostas processo_checklist_respostas_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -19818,6 +19869,12 @@ ALTER TABLE public.prazos_processo ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.pre_cadastros ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_andamentos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.processo_andamentos ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: processo_checklist_respostas; Type: ROW SECURITY; Schema: public; Owner: -
@@ -22936,6 +22993,13 @@ CREATE POLICY rls_insert ON public.pre_cadastros FOR INSERT TO authenticated WIT
 
 
 --
+-- Name: processo_andamentos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.processo_andamentos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
+
+
+--
 -- Name: processo_modelo_checklist rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -24684,6 +24748,13 @@ CREATE POLICY rls_select ON public.pre_cadastros FOR SELECT TO authenticated USI
 
 
 --
+-- Name: processo_andamentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.processo_andamentos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))));
+
+
+--
 -- Name: processo_modelo_checklist rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -26355,6 +26426,13 @@ CREATE POLICY rls_update ON public.prazos_lai FOR UPDATE TO authenticated USING 
 --
 
 CREATE POLICY rls_update ON public.pre_cadastros FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: processo_andamentos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.processo_andamentos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
 
 
 --

@@ -68,6 +68,11 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `src/components/compras/pca/`). Orçamento por ação × fonte em `src/lib/pca/orcamento.ts` e leitura de número
   digitado em `src/lib/pca/numero.ts` (testes vitest). Itens de um PDM e a atualização do catálogo passam pela Edge
   Function `catalogo-compras`.
+  `useProcessosContratacao` (`useProcessos`, `useProcesso`, `useSalvarProcesso`, `useAndamentos`, `useNovaMovimentacao`,
+  `useEmpenhosDosProcessos`, `somarEmpenhado`): telas `/compras/processos` e `/compras/processos/:id` (componentes em
+  `src/components/compras/processos/`; etapas e formas em `src/types/processos.ts`). A planilha de acompanhamento
+  entra pelo importador `processos_planilha` (abas "Processos" e "Andamento"; leitor em `lerAbas` de
+  `src/lib/importacao/planilha.ts`), aberto pelo botão "Importar planilha" da lista ou pela Central.
 - **Exercício do Financeiro** (`src/hooks/useExercicioFinanceiro.ts`): ano orçamentário compartilhado pelas telas
   do módulo. Lê `?exercicio=` da URL; sem ele, o último ano escolhido no navegador (`localStorage`,
   chave `financeiro:exercicio`); sem nenhum, o ano atual. Faixa: 2024 até o ano seguinte ao atual. Devolve

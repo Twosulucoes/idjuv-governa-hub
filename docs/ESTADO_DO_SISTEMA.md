@@ -11,21 +11,21 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Arquivo | Total | Protegidas | Públicas | Redirecionamentos | Curinga |
 |---|---:|---:|---:|---:|---:|
-| `src/App.tsx` (sistema) | 253 | 203 | 34 | 15 | 1 |
+| `src/App.tsx` (sistema) | 255 | 205 | 34 | 15 | 1 |
 | `src/AppSite.tsx` (site) | 32 | 0 | 29 | 2 | 1 |
 
 ## Código do front
 
 | Item | Quantidade |
 |---|---:|
-| Páginas (`*Page.tsx` em `src/pages`) | 216 |
-| Componentes (`.tsx` em `src/components`) | 335 |
+| Páginas (`*Page.tsx` em `src/pages`) | 218 |
+| Componentes (`.tsx` em `src/components`) | 339 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 292 |
-| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 108 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 69 |
-| Linhas de `src/App.tsx` | 1394 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 28048 |
+| — fora de `ui/` | 296 |
+| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 109 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 70 |
+| Linhas de `src/App.tsx` | 1406 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 28135 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -38,7 +38,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | `cadastro-arbitros/` | 2 |
 | `cadastrogestores/` | 6 |
 | `cargos/` | 2 |
-| `compras/` | 2 |
+| `compras/` | 4 |
 | `comunicacao/` | 6 |
 | `curriculo/` | 4 |
 | `eventos/` | 3 |
@@ -68,16 +68,16 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 312 |
-| Migração mais recente | `20261028090000_compras_pca.sql` |
-| Tabelas do schema public (baseline) | 269 |
+| Migrações (`supabase/migrations/*.sql`) | 313 |
+| Migração mais recente | `20261029090000_compras_processos_andamento.sql` |
+| Tabelas do schema public (baseline) | 270 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 323 |
-| — de gatilho (`RETURNS trigger`) | 125 |
-| — demais | 198 |
+| Funções (baseline) | 328 |
+| — de gatilho (`RETURNS trigger`) | 128 |
+| — demais | 200 |
 | Enums (baseline) | 109 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1959 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 269 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 1965 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 270 |
 | Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 11 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.
@@ -93,7 +93,7 @@ Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.
 | `admin` | Administração | 33 | 0 |
 | `rh` | Recursos Humanos | 33 | 3 |
 | `workflow` | Processos | 3 | 0 |
-| `compras` | Compras | 7 | 0 |
+| `compras` | Compras | 9 | 0 |
 | `contratos` | Contratos | 1 | 0 |
 | `financeiro` | Financeiro | 20 | 0 |
 | `patrimonio` | Patrimônio | 30 | 0 |

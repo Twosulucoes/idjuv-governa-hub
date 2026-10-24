@@ -7331,6 +7331,56 @@ BEGIN
   PERFORM pg_temp.nota('FOLHA (encargos): INSS truncado por faixa só com o parâmetro e na vigência, alíquota em % recusada, folha sem alíquotas com aviso, INSS patronal e RAT por ficha só do regime geral e totais truncados como a guia verificados');
 END $$;
 
+-- ---------------------------------------------------------------- FOLHA: vetores comuns com o hrms_brasil (scripts/db/casos-folha.json)
+-- Os mesmos casos rodam no hrms_brasil (tests/test_casos.py). testar-rls.sh passa o arquivo em -v casos_folha; INSS e
+-- IRRF usam as tabelas e os parâmetros de 2026 semeados no bloco "FOLHA: cálculo do INSS e do IRRF".
+\if :{?casos_folha}
+SELECT set_config('teste.casos_folha', :'casos_folha', false);
+\else
+SELECT set_config('teste.casos_folha', '', false);
+\endif
+DO $$
+DECLARE
+  v_json text := current_setting('teste.casos_folha', true);
+  c jsonb; e jsonb; r jsonb; v numeric; n_ok int := 0; outras text[] := '{}';
+BEGIN
+  IF coalesce(v_json, '') = '' THEN
+    PERFORM pg_temp.falha('VETORES: scripts/db/casos-folha.json não chegou ao teste (rode por scripts/db/testar-rls.sh)');
+    RETURN;
+  END IF;
+  FOR c IN SELECT jsonb_array_elements(v_json::jsonb -> 'casos') LOOP
+    e := c -> 'entrada';
+    IF c ->> 'regra' = 'inss' THEN
+      SET LOCAL session_replication_role = replica;
+      DELETE FROM public.parametros_folha WHERE tipo_parametro = 'inss_truncar_por_faixa';
+      IF e ->> 'arredondamento' = 'por_faixa' THEN
+        INSERT INTO public.parametros_folha (tipo_parametro, valor, vigencia_inicio, ativo) VALUES ('inss_truncar_por_faixa', 1, '2026-01-01', true);
+      END IF;
+      SET LOCAL session_replication_role = origin;
+      v := public.calcular_inss_servidor((e ->> 'base')::numeric, '2026-09-30');
+      IF v <> (c -> 'esperado' ->> 'inss')::numeric THEN
+        PERFORM pg_temp.falha(format('VETORES %s: INSS %s, esperado %s', c ->> 'id', v, c -> 'esperado' ->> 'inss'));
+      ELSE n_ok := n_ok + 1; END IF;
+    ELSIF c ->> 'regra' = 'irrf' THEN
+      r := public.calcular_irrf_mensal((e ->> 'rendimentos')::numeric,
+             (e ->> 'inss')::numeric + coalesce((e ->> 'dependentes')::int, 0) * 189.59 + coalesce((e ->> 'pensao')::numeric, 0),
+             '2026-09-30');
+      IF (r ->> 'irrf')::numeric <> (c -> 'esperado' ->> 'irrf')::numeric THEN
+        PERFORM pg_temp.falha(format('VETORES %s: IRRF %s, esperado %s (%s)', c ->> 'id', r ->> 'irrf', c -> 'esperado' ->> 'irrf', r));
+      ELSE n_ok := n_ok + 1; END IF;
+    ELSE
+      outras := outras || (c ->> 'id');
+    END IF;
+  END LOOP;
+  SET LOCAL session_replication_role = replica;
+  DELETE FROM public.parametros_folha WHERE tipo_parametro = 'inss_truncar_por_faixa';
+  SET LOCAL session_replication_role = origin;
+  IF n_ok = 0 THEN PERFORM pg_temp.falha('VETORES: nenhum caso de INSS ou IRRF conferido'); END IF;
+
+  PERFORM pg_temp.nota(format('FOLHA (vetores do hrms_brasil): %s casos de INSS e IRRF iguais; fora do porte (férias da CLT e 13º): %s',
+                              n_ok, array_to_string(outras, ', ')));
+END $$;
+
 -- ---------------------------------------------------------------- FOLHA: importação da folha do SIGRH (migração 20261022090000)
 --   * importar_folha_sigrh: anon e PUBLIC sem EXECUTE; quem processa a folha mas não pode fechá-la (sem rh.admin) recusa
 --     (42501); competência futura, mês corrente e lista vazia recusados (22023); sem alíquotas patronais, aviso;
@@ -7732,6 +7782,109 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('COMPRAS PCA: classificadores, troca pelo QDD, plano nasce rascunho, exercício único, gravação só com compras.pca.editar, valor_total, item do catálogo e trilha verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Compras: processos de contratação (migração 20261029090000) (TRIGGERS LIGADOS)
+-- Migração 20261029090000_compras_processos_andamento.sql (spec docs/superpowers/specs/2026-10-23-compras-processos-reserva-natureza-design.md):
+--   * nº SEI gravado sem espaço nas pontas; só compras.processos.editar grava andamento (visualizar = 42501);
+--   * a movimentação mais recente vira etapa/setor/situação do processo e uma mais antiga não; ninguém apaga andamento;
+--   * importar_processos_planilha: visualizar = 42501, simulação não grava, reimportar não duplica;
+--   * processo_empenhos liga pelo nº SEI e exige a permissão de ver processos; gatilhos sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_compras');
+  proc uuid; r text; x text; linhas jsonb;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.processo_andamento_no_processo()', 'public.processo_andamento_carimbar()',
+                           'public.processo_licitatorio_normalizar()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('COMPRAS PROCESSOS: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processos_licitatorios (numero_processo, ano, objeto)
+  VALUES (' 99999.000001/2099.01 ', 2099, 'Objeto de teste') RETURNING id INTO proc;
+  IF (SELECT numero_processo FROM public.processos_licitatorios WHERE id = proc) <> '99999.000001/2099.01' THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS: nº SEI gravado com espaço');
+  END IF;
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao) VALUES (%L, ''2099-03-01'', ''etp'', ''x'') RETURNING id::text', proc));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: só visualizar grava andamento (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processo_andamentos (processo_id, data, etapa, setor, situacao)
+  VALUES (proc, '2099-03-01', 'etp', ' IDJUV/PRESI/DIRAF/EPC ', 'Elaborando o ETP');
+  INSERT INTO public.processo_andamentos (processo_id, data, etapa, setor, situacao)
+  VALUES (proc, '2099-02-01', 'dfd', 'IDJUV/PRESI', 'DFD recebido');
+  r := (SELECT etapa || '|' || setor_atual || '|' || situacao_atual || '|' || atualizado_em::text
+          FROM public.processos_licitatorios WHERE id = proc);
+  IF r IS DISTINCT FROM 'etp|IDJUV/PRESI/DIRAF/EPC|Elaborando o ETP|2099-03-01' THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS: estado atual não é a movimentação mais recente (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  IF (SELECT created_by FROM public.processo_andamentos WHERE processo_id = proc AND etapa = 'dfd') IS DISTINCT FROM u_ed THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS: autoria do andamento');
+  END IF;
+
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'WITH d AS (DELETE FROM public.processo_andamentos WHERE processo_id = %L RETURNING 1) SELECT count(*)::text FROM d', proc));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: andamento apagado pela API (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format(
+    'SELECT count(*)::text FROM public.processo_andamentos WHERE processo_id = %L', proc));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: módulo sem permissão lê andamento (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT count(*)::text FROM public.processo_andamentos WHERE processo_id = %L', proc));
+  IF r IS DISTINCT FROM '2' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: visualizar não lê andamento (' || r || ')'); END IF;
+
+  -- empenho do FIP 614 com o nº SEI com espaço casa com o processo
+  PERFORM set_config('request.jwt.claims', '', true);
+  SET LOCAL session_replication_role = replica;
+  PERFORM pg_temp.seed_row('fin_empenhos', jsonb_build_object('id', 'f6000000-0000-0000-0000-000000000001', 'numero', '2099NE00001',
+    'exercicio', 2099, 'valor_empenhado', 1000, 'objeto', 'Teste', 'processo_sei', ' 99999.000001/2099.01'));
+  SET LOCAL session_replication_role = origin;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT string_agg(numero || '':'' || valor_empenhado::text, '','') FROM public.processo_empenhos(%L)', proc));
+  IF r IS DISTINCT FROM '2099NE00001:1000.00' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: empenho ligado pelo nº SEI (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', 'SELECT count(*)::text FROM public.processo_empenhos()');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: módulo sem permissão vê empenhos (' || r || ')'); END IF;
+
+  -- importação: visualizar recusa; simulação não grava; aplicar duas vezes não duplica
+  linhas := jsonb_build_array(
+    jsonb_build_object('indice', 0, 'numero_processo', '99999.000002/2099.02', 'ano', 2099, 'objeto', 'Água e esgoto',
+      'objeto_resumido', 'Água', 'modalidade', 'inexigibilidade', 'etapa', 'etp', 'setor_atual', 'IDJUV/PRESI/DIRAF/EPC',
+      'situacao_atual', 'Em instrução', 'atualizado_em', '2099-05-18', 'valor_estimado', 562114.42,
+      'andamentos', jsonb_build_array(jsonb_build_object('data', '2099-05-18', 'etapa', 'etp', 'setor', 'IDJUV/PRESI/DIRAF/EPC', 'situacao', 'Em instrução'))),
+    jsonb_build_object('indice', 1, 'numero_processo', ' 99999.000001/2099.01', 'ano', 2099, 'objeto', 'Objeto de teste',
+      'valor_estimado', 100, 'andamentos', jsonb_build_array(jsonb_build_object('data', NULL, 'etapa', 'cotacao', 'setor', NULL, 'situacao', 'Cotação'))));
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT public.importar_processos_planilha(%L::jsonb, ''{}''::jsonb, true)::text', linhas));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: visualizar importa (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  r := public.importar_processos_planilha(linhas, '{}'::jsonb, true)->>'totais';
+  IF r IS DISTINCT FROM '{"inserir": 1, "atualizar": 1, "sem_alteracao": 0}'
+     OR EXISTS (SELECT 1 FROM public.processos_licitatorios WHERE numero_processo = '99999.000002/2099.02') THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS: simulação (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  x := '{"nome": "processos.xlsx", "sha256": "' || repeat('a', 64) || '", "tamanho": "100"}';
+  r := public.importar_processos_planilha(linhas, x::jsonb, false)->>'totais';
+  r := r || '|' || (public.importar_processos_planilha(linhas, x::jsonb, false)->>'totais');
+  IF r IS DISTINCT FROM '{"inserir": 1, "atualizar": 1, "sem_alteracao": 0}|{"inserir": 0, "atualizar": 0, "sem_alteracao": 2}' THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS: aplicar duas vezes (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  r := (SELECT etapa || '|' || modalidade::text || '|' || valor_estimado::text || '|' || (SELECT count(*) FROM public.processo_andamentos a WHERE a.processo_id = p.id)::text
+          FROM public.processos_licitatorios p WHERE numero_processo = '99999.000002/2099.02');
+  IF r IS DISTINCT FROM 'etp|inexigibilidade|562114.42|1' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: processo importado (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := (SELECT p.valor_estimado::text || '|' || p.etapa || '|' || p.atualizado_em::text || '|' || count(*) FILTER (WHERE NOT a.data_informada)::text
+          FROM public.processos_licitatorios p JOIN public.processo_andamentos a ON a.processo_id = p.id
+         WHERE p.id = proc GROUP BY p.valor_estimado, p.etapa, p.atualizado_em);
+  IF r IS DISTINCT FROM '100.00|etp|2099-03-01|1' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: completar processo existente (' || COALESCE(r, 'nulo') || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('COMPRAS PROCESSOS: nº SEI sem espaço, andamento só com compras.processos.editar, estado atual pela movimentação mais recente, andamento não se apaga, empenhos pelo nº SEI e importação (simulação, aplicação e reimportação) verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

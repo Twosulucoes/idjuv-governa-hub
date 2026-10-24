@@ -54,7 +54,8 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 `lacunas/` guarda a migração que cobre as tabelas usadas e nunca criadas; ela só serve ao replay
 (`scripts/db/validar-migracoes.sh`) que alimenta os itens 1–3. O baseline não a aplica.
 `bootstrap-admin.sql` cria o primeiro administrador (não faz parte do `aplicar.sh`). `dados-teste.sql` enche um banco
-de **teste** com dados fictícios (fora do `aplicar.sh`; recusa banco que já tenha servidor, fornecedor ou bem; guia em
+de **teste** com dados fictícios (fora do `aplicar.sh`; recusa banco que já tenha servidor, fornecedor ou bem; `scripts/db/montar-ambiente-teste.sh` monta o
+banco de teste inteiro pelo container; guia em
 [`docs/NOVO_BANCO.md` §9](../../docs/NOVO_BANCO.md#9-ambiente-de-teste-com-dados-fictícios)).
 
 Arquivos **gerados** não se editam à mão. Dados antes das constraints/triggers é proposital: o
@@ -250,6 +251,10 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
   `importar_classificadores_fiplan` recusa (`42501`) sem `orcamento.importar`, sem o módulo financeiro e sem sessão;
   tabela desconhecida e lista vazia (`22023`); simulação não grava; aplicação grava, registra e corrige nomes de fonte,
   programa e natureza; código repetido ou fora do padrão não grava nada; INSERT/UPDATE direto pela API não passa;
+- vetores comuns com o hrms_brasil (bloco "FOLHA: vetores comuns", `scripts/db/casos-folha.json`, que
+  `testar-rls.sh` passa como `-v casos_folha`): cada caso de INSS (com e sem o truncamento por faixa) e de IRRF dá o
+  valor esperado em `calcular_inss_servidor` e `calcular_irrf_mensal`; férias da CLT e 13º ficam listados como fora
+  do porte; sem o arquivo, o teste reprova;
 - empenhos do FIPLAN (migração `20261027090000`, bloco "Financeiro: empenhos do FIPLAN (FIP 614)" de `testar-rls.sql`):
   `importar_empenhos_fip614` recusa (`42501`) sem `orcamento.importar`, sem o módulo financeiro e sem sessão;
   simulação não grava; aplicação grava empenho e histórico sem somar na dotação; dotação ambígua fica nula com aviso
@@ -279,6 +284,12 @@ A migração `20261023090000_registro_sei_termo_cessao_designacao.sql` (ciclo do
 de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termos_cessao.processo_sei`, `doe_numero`,
 `doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
 `ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
+
+A migração `20261029090000_compras_processos_andamento.sql` (processos de contratação, entrega 1) entrou no schema
+regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões
+`compras.processos.visualizar`/`editar` e da concessão a `admin` e `manager`, copiadas da regeneração), no
+`rls/mapa.csv` (`processo_andamentos` na classe `permissao`) e no `overlay/40_privilegios.sql`; testes no bloco
+"Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
 
 A migração `20261028090000_compras_pca.sql` (PCA, entrega 1) entrou no schema regenerado (`01_pre_data.sql` e
 `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões `compras.pca.visualizar`/`editar` e da

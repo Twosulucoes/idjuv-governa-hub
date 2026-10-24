@@ -192,6 +192,8 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   baseline regenerado e no mapa (`atos_remuneratorios` e `atos_remuneratorios_itens` na classe `permissao`,
   `cargo_vencimentos` na `trilha`); privilégios das funções novas no overlay 40; testes no bloco "FOLHA: atos
   remuneratórios" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os vetores de teste da folha comuns com o hrms_brasil (`scripts/db/casos-folha.json`) rodam no teste de RLS, no
+  bloco "FOLHA: vetores comuns": `testar-rls.sh` passa o arquivo ao `psql`, e rodar o `.sql` sem ele reprova.
 - O registro do ciclo do SEI no termo de cessão e na designação de chefia (migração `20261023090000`) entrou no
   schema do baseline só com os trechos do dump (colunas novas e `NOT NULL` retirado em `termos_cessao` e
   `nomeacoes_chefe_unidade`, com os comentários), sem regenerar o resto; RLS e privilégios sem mudança
@@ -204,6 +206,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
   mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os processos de contratação, entrega 1 (migração `20261029090000`), entraram no mapa (`processo_andamentos`, classe
+  `permissao` com `compras.processos.editar`), no schema do baseline regenerado, no catálogo (as duas permissões e a
+  concessão aos papéis `admin` e `manager`) e no `overlay/40_privilegios.sql`; testes no bloco "Compras: processos de
+  contratação" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - O PCA, entrega 1 (migração `20261028090000`), entrou no mapa (`pca_planos`, `pca_tetos`, `pca_itens` e as `cat_*`,
   classe `permissao` com `compras.pca.editar`; `pca_historico`, classe `trilha`), no schema do baseline regenerado, no
   catálogo (as duas permissões e a concessão aos papéis `admin` e `manager`) e no `overlay/40_privilegios.sql`; testes
@@ -255,6 +261,10 @@ PGPASSWORD='...' psql "postgresql://postgres@127.0.0.1:5432/postgres" \
   -v confirmo=banco_de_teste -v email='login-de-teste@exemplo.test' -f supabase/baseline/dados-teste.sql
 ```
 
+- **Atalho pela VPS:** `bash scripts/db/montar-ambiente-teste.sh <container-do-db-de-teste> <email>` faz tudo de uma vez
+  rodando o `psql` dentro do container (sem expor porta): baseline, login de teste já confirmado no Auth (senha
+  aleatória mostrada só no terminal), `bootstrap-admin.sql` e este script. Recusa o container `supabase-db` (o da
+  produção) e banco com tabela em `public`. No Coolify o container é `supabase-db-<uuid do serviço>`.
 - **Travas:** sem `-v confirmo=banco_de_teste` o script não roda, e ele recusa banco que já tenha servidor, fornecedor
   ou bem (a produção tem). Uma transação só: se algo falhar, nada fica gravado.
 - `email` liga o login de teste ao servidor fictício "Usuário de Teste" (lotado no RH), para as telas que pedem

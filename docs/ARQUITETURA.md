@@ -89,11 +89,16 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `requiredModule="compras"` e `compras.pca.visualizar` ou `compras.pca.editar`): itens lançados dos DFDs do SEI e
   orçamento por ação × fonte; menu em Compras → "Plano de Contratações (PCA)". O catálogo CATMAT/CATSER vem do portal
   de dados abertos do Compras.gov.br pela Edge Function `catalogo-compras` (o navegador não chama o portal: CORS e CSP).
+- **Processos de contratação (Compras)** em `/compras/processos` e `/compras/processos/:id` (`ProcessosListaPage`,
+  `ProcessoFichaPage`, `requiredModule="compras"` e `compras.processos.visualizar` ou `compras.processos.editar`): lista
+  com etapa, setor, dias parado, valor estimado e empenhado; ficha com Dados, Andamento (linha do tempo do SEI) e
+  Empenhos (FIP 614 pelo nº SEI). Menu em Compras → "Processos de contratação" (o antigo "Licitações"; "Novo processo"
+  abre `/compras/processos?novo=1`); a página-guia `/processos/compras` continua como "Guia do processo de compras".
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
   `docs/GUIA_FRONTEND.md` (Importação de dados). A rota usa a própria `PERMISSOES_IMPORTACAO` e o item de menu repete a mesma lista
-  (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`); `src/lib/importacao/registro.test.ts`
+  (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`, `compras.processos.editar`); `src/lib/importacao/registro.test.ts`
   reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha". `?importador=<id>` abre direto o assistente
   desse importador quando o usuário tem a permissão dele (atalhos de `/financeiro/atualizar`).
 - Financeiro: `/financeiro/empenhos/:id` (`EmpenhoDetalhePage`, `requiredPermissions="orcamento.criar"`): dados,

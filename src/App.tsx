@@ -242,6 +242,8 @@ import {
 import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage";
 import PcaListaPage from "./pages/compras/PcaListaPage";
 import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
+import ProcessosListaPage from "./pages/compras/ProcessosListaPage";
+import ProcessoFichaPage from "./pages/compras/ProcessoFichaPage";
 import PagamentoDetalhePage from "./pages/financeiro/PagamentoDetalhePage";
 import EmpenhoDetalhePage from "./pages/financeiro/EmpenhoDetalhePage";
 
@@ -491,6 +493,16 @@ const App = () => (
               <Route path="/compras/pca/:exercicio" element={
                 <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pca.visualizar", "compras.pca.editar"]}>
                   <PcaPlanoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compras/processos" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.processos.visualizar", "compras.processos.editar"]}>
+                  <ProcessosListaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compras/processos/:id" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.processos.visualizar", "compras.processos.editar"]}>
+                  <ProcessoFichaPage />
                 </ProtectedRoute>
               } />
               <Route path="/contratos" element={<ProtectedRoute requiredModule="contratos"><ContratosDashboardPage /></ProtectedRoute>} />

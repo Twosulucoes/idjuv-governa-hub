@@ -31,15 +31,15 @@ export default function ComprasDashboardPage() {
   const valor = (n: number | undefined) => (stats ? numero.format(n || 0) : "—");
 
   const indicadores: Indicador[] = [
-    { rotulo: "Licitações ativas", valor: valor(stats?.licitacoesAtivas), icone: Gavel, href: "/processos/compras" },
-    { rotulo: "Em andamento", valor: valor(stats?.emAndamento), icone: FileText },
+    { rotulo: "Processos abertos", valor: valor(stats?.processosAbertos), icone: Gavel, href: "/compras/processos" },
+    { rotulo: "Em instrução", valor: valor(stats?.emInstrucao), icone: FileText },
     { rotulo: "Dispensas/inexig.", valor: valor(stats?.dispensasInexigibilidades), icone: Scale },
-    { rotulo: "Concluídas (ano)", valor: valor(stats?.concluidas), icone: FileCheck },
+    { rotulo: "Contratados", valor: valor(stats?.contratados), icone: FileCheck },
   ];
 
   // Só rotas registradas em App.tsx
   const quickActions = [
-    { label: "Nova licitação", description: "Iniciar processo", href: "/processos/compras?acao=novo", icon: Gavel },
+    { label: "Novo processo", description: "Cadastrar processo de contratação", href: "/compras/processos?novo=1", icon: Gavel },
     { label: "Termo de demanda", description: "Formalizar demanda", href: "/formularios/termo-demanda", icon: FileText },
     { label: "Diárias e viagens", description: "Ordem de missão", href: "/processos/diarias", icon: MapPin },
     { label: "Convênios", description: "Parcerias e cooperação", href: "/processos/convenios", icon: Handshake },
@@ -53,9 +53,9 @@ export default function ComprasDashboardPage() {
           descricao="Licitações, dispensas e processos de aquisição"
           acoes={
             <Button asChild>
-              <Link to="/processos/compras?acao=novo">
+              <Link to="/compras/processos?novo=1">
                 <Gavel className="h-4 w-4" aria-hidden="true" />
-                Nova licitação
+                Novo processo
               </Link>
             </Button>
           }
