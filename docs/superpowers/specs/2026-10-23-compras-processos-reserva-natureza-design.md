@@ -9,8 +9,9 @@
   1. O processo nasce num cadastro de processos em Compras (nº SEI, objeto, forma de contratação), que pode puxar
      itens do PCA; cada linha reserva um valor por natureza × ação × fonte.
   2. Se a reserva passar do saldo livre, o sistema avisa e pede justificativa escrita (não trava).
-  3. Quando o processo ganha PED no FIPLAN, digita-se o nº do PED na linha e a reserva do sistema sai da conta
-     (o QDD já desconta o PED); o empenho do FIP 614 com o mesmo PED ou nº SEI fecha a linha.
+  3. ~~Digitar o nº do PED na linha~~ (revisto em 24/10, ver §10): o sistema importa o relatório do FIPLAN
+     "Consultar Pedido de Empenho da Despesa (PED)" e liga cada PED ao processo pelo número; a parte da reserva que
+     já virou PED ou empenho sai da conta (o QDD já a desconta).
   4. A planilha de acompanhamento dos processos de 2026 (11 processos) entra como primeira carga, com histórico de
      andamento (data, fase, setor, situação).
 
@@ -123,4 +124,49 @@ fonte: as reservas dos 11 processos são lançadas depois, na ficha. A planilha 
 | # | Entrega | Migração |
 |---|---|---|
 | 1 | Colunas do processo, andamento, telas lista/ficha (Dados, Andamento, Empenhos) e carga da planilha | sim (pede o "sim") |
-| 2 | Reservas, saldo livre, PED, "Puxar do PCA", programação por natureza e cartão no painel do Financeiro | sim (pede o "sim") |
+| 2 | Reservas, saldo livre, importação dos PEDs, fase financeira, "Puxar do PCA", programação por natureza e cartão no painel do Financeiro (§10) | sim (pede o "sim") |
+
+## 10. Revisão de 24/10/2026: PEDs do FIPLAN e fase financeira (vale para a entrega 2)
+
+Em 24/10 o usuário mandou o relatório do FIPLAN **"Consultar Pedido de Empenho da Despesa (PED)"** (Excel, exercício
+2026 até 20/10: 236 PEDs de 80 processos; 28 autorizados sem empenho somam R$ 5.676.419,00, o mesmo PED do FIP 608) e
+aprovou ("sim") trocar a digitação do PED pela importação desse relatório e mostrar a fase financeira de cada processo.
+Esta seção substitui o que for diferente nas seções 3 a 5.
+
+**O relatório:** uma linha por PED ou estorno, com nº do PED, PED de estorno/estornado, nº do empenho que saiu dele,
+nº do processo, valor, situação ("Pedido (PED) autorizado", "Pedido (PED) empenhado", "Pedido (PED) estornado (...)",
+"Documento de Estorno"), datas de solicitação, criação e autorização, tipo de empenho, dotação completa (com o IDU em
+número, como o FIP 614), licitação, histórico e credor. É um .xls de verdade (BIFF), que o SheetJS lê direito.
+
+**Ligação ao processo:** o "Nº Processo" do FIPLAN é o nº SEI abreviado (`000885/26-92` = `17302.000885/2026-92`; o
+FIP 614 escreve `00000112/26-14`). A função `processo_chave_fiplan(text)` reduz os três formatos à mesma chave
+(`885/26-92`: número sem zeros à esquerda, ano com dois dígitos, dígito). Ela também passa a ligar os empenhos do
+FIP 614 ao processo, no lugar do `btrim` exato. A chave ignora a UO; processo de outra UO com o mesmo número, ano e
+dígito é improvável e, se acontecer, aparece nos dois processos (premissa aceita).
+
+**Dados (no lugar do nº e da data do PED em `processo_reservas`):**
+- `fin_peds` (nova, do Financeiro): espelho do relatório, chave exercício + nº do PED + PED de estorno; dotação ligada
+  ao QDD pela mesma regra do FIP 614 (dígitos + IDU). Lida pelo módulo Financeiro; escrita só pela RPC
+  `importar_peds_fiplan` (permissão `orcamento.importar`, como o FIP 614). Reimportar atualiza; nada se apaga: PED que
+  some do relatório aparece como aviso.
+- `processo_reservas`: uma linha **reservada** por processo × exercício × ação × fonte × natureza; situação só
+  `reservada` ou `cancelada`.
+
+**Saldo livre (troca a seção 3):**
+
+```
+materializado(linha) = PEDs autorizados do processo na mesma ação × fonte × natureza
+                     + empenhado líquido (empenhado − anulado) dos empenhos do processo na mesma combinação
+pendente(linha)      = max(0, valor reservado − materializado)
+saldo livre          = Σ QDD (atual − empenhado − bloqueado − reserva − PED) − Σ pendente das outras linhas reservadas
+```
+
+**Fase financeira do processo:** calculada, não gravada, a partir dos valores PED autorizado, empenhado líquido,
+liquidado e pago (`fin_peds` + `fin_empenhos`): Pago (pago ≥ empenhado > 0), Pago em parte, Liquidado, Empenhado,
+PED autorizado, Reservado (só reserva do sistema), Sem movimento financeiro. Aparece na lista (coluna e filtro) e na
+ficha.
+
+**Telas (troca a seção 5 onde diferir):** a aba Empenhos da ficha vira **Financeiro**: a fase, os quatro valores e as
+listas de PEDs e de empenhos. A aba **Reservas** não tem "Informar PED": cada linha mostra reservado, já no FIPLAN e
+pendente. A Central de Importações ganha o importador "PEDs do FIPLAN". O resto da seção 5 (programação por
+natureza, cartão no painel do Financeiro, "Puxar do PCA") fica como estava.
