@@ -2,12 +2,14 @@
  * QUADRO DE DETALHAMENTO DE DESPESA (QDD)
  * 
  * Visualização completa do orçamento no formato QDD padrão,
- * com importação do PDF do FIPLAN (Central de Importações) e exportação XLSX.
+ * com importação do QDD do FIPLAN (PDF ou Excel, Central de Importações) e exportação XLSX.
+ * A dotação comum e as emendas (IDU) aparecem separadas: o saldo de emenda é vinculado
+ * ao objeto da emenda e não se soma ao saldo livre da natureza.
  * 
  * @version 1.0.0
  */
 
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +60,7 @@ import { KpiCard } from "@/components/design-system";
 import { useAuth } from "@/contexts/AuthContext";
 import { ImportacaoWizard } from "@/components/importacao";
 import { importadorQddFiplan } from "@/lib/importacao/importadores/qddFiplan";
+import { agruparPorNatureza, ehEmenda, NOMES_EMENDA, resumirPorOrigem, rotuloOrigem } from "@/lib/financeiro/origemDotacao";
 import * as XLSX from "xlsx";
 
 export default function QDDPage() {
@@ -65,7 +68,8 @@ export default function QDDPage() {
   const { exercicio, setExercicio, comExercicio } = useExercicioFinanceiro();
   const [importOpen, setImportOpen] = useState(false);
   const [importando, setImportando] = useState(false);
-  const [filterIDU, setFilterIDU] = useState("todos");
+  /** "todos", "comum", "emendas" ou a sigla de uma emenda (ECI, EII...) */
+  const [filtroOrigem, setFiltroOrigem] = useState("todos");
   const { hasPermission } = useAuth();
   const podeImportar = hasPermission(importadorQddFiplan.permissao);
 
@@ -86,10 +90,18 @@ export default function QDDPage() {
         d.programa?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         d.acao?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         d.paoe?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchIDU = filterIDU === "todos" || d.idu === filterIDU;
-      return matchSearch && matchIDU;
+      const matchOrigem =
+        filtroOrigem === "todos" ||
+        (filtroOrigem === "comum" && !ehEmenda(d.idu)) ||
+        (filtroOrigem === "emendas" && ehEmenda(d.idu)) ||
+        (ehEmenda(d.idu) && d.idu?.trim() === filtroOrigem);
+      return matchSearch && matchOrigem;
     });
-  }, [dotacoes, searchTerm, filterIDU]);
+  }, [dotacoes, searchTerm, filtroOrigem]);
+
+  // Dotação comum × emendas, no exercício inteiro (não acompanha os filtros da tabela)
+  const origem = useMemo(() => resumirPorOrigem(dotacoes ?? []), [dotacoes]);
+  const grupos = useMemo(() => agruparPorNatureza(filtered), [filtered]);
 
   // Totais
   const totais = useMemo(() => {
@@ -129,6 +141,7 @@ export default function QDDPage() {
       "Fonte": d.fonte_recurso?.codigo || "",
       "Cod. Acomp.": d.cod_acompanhamento || "",
       "IDU": d.idu || "",
+      "Origem": rotuloOrigem(d.idu),
       "TRO": d.tro || "",
       "Inicial": d.valor_inicial || 0,
       "Suplementado": d.valor_suplementado || 0,
@@ -151,12 +164,6 @@ export default function QDDPage() {
     XLSX.writeFile(wb, `QDD_${exercicio}.xlsx`);
   };
 
-  // IDU options from data
-  const iduOptions = useMemo(() => {
-    const set = new Set<string>();
-    dotacoes?.forEach(d => { if (d.idu) set.add(d.idu); });
-    return Array.from(set).sort();
-  }, [dotacoes]);
 
   if (isLoading) {
     return (
@@ -217,7 +224,12 @@ export default function QDDPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard rotulo="Dotação atual" valor={formatCurrency(resumo?.dotacao_atual || 0)} icone={PieChart} carregando={carregandoResumo} />
           <KpiCard rotulo="Empenhado" valor={formatCurrency(resumo?.empenhado || 0)} icone={TrendingUp} carregando={carregandoResumo} />
-          <KpiCard rotulo="Saldo disponível" valor={formatCurrency(resumo?.saldo_disponivel || 0)} icone={PiggyBank} carregando={carregandoResumo} />
+          <KpiCard
+            rotulo="Saldo disponível (comum + emendas)"
+            valor={formatCurrency(resumo?.saldo_disponivel || 0)}
+            icone={PiggyBank}
+            carregando={carregandoResumo}
+          />
           <Card>
             <CardContent className="space-y-2 p-4">
               <p className="text-body text-muted-foreground" id="qdd-execucao">Execução (pago / dotação)</p>
@@ -234,6 +246,65 @@ export default function QDDPage() {
         </div>
       </section>
 
+      {/* Dotação comum × emendas */}
+      {(dotacoes?.length ?? 0) > 0 && (
+        <section aria-labelledby="qdd-origem" className="space-y-3">
+          <div>
+            <h2 id="qdd-origem" className="text-h3 font-semibold text-foreground">Dotação comum e emendas</h2>
+            <p className="text-body text-muted-foreground">
+              O disponível de emenda é vinculado ao objeto da emenda. Para uma despesa comum, conte só com o disponível da dotação comum.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <KpiCard
+              rotulo="Disponível da dotação comum (livre)"
+              valor={formatCurrency(origem.comum.disponivel)}
+              detalhe={`Atual ${formatCurrency(origem.comum.atual)} · reservado ${formatCurrency(origem.comum.reserva)} · empenhado ${formatCurrency(origem.comum.empenhado)}`}
+              icone={PiggyBank}
+            />
+            <Card className="lg:col-span-2">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="text-xs">
+                      <TableHead>Emendas (disponível vinculado ao objeto)</TableHead>
+                      <TableHead className="text-right">Atual</TableHead>
+                      <TableHead className="text-right">Reservado</TableHead>
+                      <TableHead className="text-right">Empenhado</TableHead>
+                      <TableHead className="text-right font-bold">Disponível</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {origem.porTipo.map(({ idu, totais }) => (
+                      <TableRow key={idu} className="text-xs">
+                        <TableCell>{rotuloOrigem(idu)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(totais.atual)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(totais.reserva)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(totais.empenhado)}</TableCell>
+                        <TableCell className="text-right font-mono font-bold">{formatCurrency(totais.disponivel)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {origem.porTipo.length === 0 ? (
+                      <TableRow className="text-xs">
+                        <TableCell colSpan={5} className="text-muted-foreground">Nenhuma emenda no QDD de {exercicio}.</TableCell>
+                      </TableRow>
+                    ) : (
+                      <TableRow className="text-xs font-bold bg-muted/50">
+                        <TableCell>Total de emendas</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(origem.emendas.atual)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(origem.emendas.reserva)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(origem.emendas.empenhado)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(origem.emendas.disponivel)}</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-md">
@@ -245,15 +316,17 @@ export default function QDDPage() {
             className="pl-10"
           />
         </div>
-        {iduOptions.length > 1 && (
-          <Select value={filterIDU} onValueChange={setFilterIDU}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Filtrar IDU" />
+        {origem.porTipo.length > 0 && (
+          <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
+            <SelectTrigger className="w-full sm:w-72" aria-label="Filtrar por origem">
+              <SelectValue placeholder="Origem" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todos IDU</SelectItem>
-              {iduOptions.map(o => (
-                <SelectItem key={o} value={o}>{o}</SelectItem>
+              <SelectItem value="todos">Comum e emendas</SelectItem>
+              <SelectItem value="comum">Só dotação comum</SelectItem>
+              <SelectItem value="emendas">Só emendas</SelectItem>
+              {origem.porTipo.map(({ idu }) => (
+                <SelectItem key={idu} value={idu}>{rotuloOrigem(idu)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -271,7 +344,7 @@ export default function QDDPage() {
                   <TableHead className="min-w-[80px]">Natureza</TableHead>
                   <TableHead>Fonte</TableHead>
                   <TableHead>Regional</TableHead>
-                  <TableHead>IDU</TableHead>
+                  <TableHead>Origem (IDU)</TableHead>
                   <TableHead className="text-right min-w-[110px]">Inicial</TableHead>
                   <TableHead className="text-right min-w-[110px]">Suplementado</TableHead>
                   <TableHead className="text-right min-w-[110px]">Anulado</TableHead>
@@ -288,7 +361,9 @@ export default function QDDPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((d) => (
+                {grupos.map((g) => (
+                  <Fragment key={g.chave}>
+                  {g.dotacoes.map((d) => (
                   <TableRow key={d.id} className="text-xs">
                     <TableCell className="sticky left-0 bg-background z-10">
                       <div className="max-w-[200px]">
@@ -302,10 +377,12 @@ export default function QDDPage() {
                     <TableCell className="font-mono">{d.fonte_recurso?.codigo || "—"}</TableCell>
                     <TableCell className="text-[10px]">{d.regional || "—"}</TableCell>
                     <TableCell>
-                      {d.idu && d.idu !== "Não" ? (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{d.idu}</Badge>
+                      {ehEmenda(d.idu) ? (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0" title={rotuloOrigem(d.idu)}>
+                          Emenda {d.idu}
+                        </Badge>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">Comum</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right font-mono">{formatCurrency(d.valor_inicial)}</TableCell>
@@ -326,6 +403,27 @@ export default function QDDPage() {
                     </TableCell>
                     <TableCell className="text-right font-mono">{d.valor_restos_pagar ? formatCurrency(d.valor_restos_pagar) : "—"}</TableCell>
                   </TableRow>
+                )}
+                  {g.subtotal && (
+                    <TableRow className="text-xs font-semibold bg-muted/30">
+                      <TableCell colSpan={5}>
+                        Subtotal {g.natureza} · fonte {g.fonte}
+                        <span className="block font-normal text-muted-foreground">
+                          Livre (dotação comum): {formatCurrency(g.disponivelComum)} · vinculado a emendas: {formatCurrency(g.subtotal.disponivel - g.disponivelComum)}
+                        </span>
+                      </TableCell>
+                      <TableCell colSpan={3}></TableCell>
+                      <TableCell className="text-right font-mono">{formatCurrency(g.subtotal.atual)}</TableCell>
+                      <TableCell className="text-right font-mono">{g.subtotal.bloqueado ? formatCurrency(g.subtotal.bloqueado) : "—"}</TableCell>
+                      <TableCell className="text-right font-mono">{g.subtotal.reserva ? formatCurrency(g.subtotal.reserva) : "—"}</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell className="text-right font-mono">{g.subtotal.empenhado ? formatCurrency(g.subtotal.empenhado) : "—"}</TableCell>
+                      <TableCell colSpan={3}></TableCell>
+                      <TableCell className="text-right font-mono">{formatCurrency(g.subtotal.disponivel)}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  )}
+                  </Fragment>
                 ))}
 
                 {/* Total Row */}
@@ -352,11 +450,18 @@ export default function QDDPage() {
             </Table>
           </div>
 
+          {filtered.length > 0 && (
+            <p className="border-t px-4 py-3 text-caption text-muted-foreground">
+              Origem (coluna IDU do FIPLAN): "Não" é dotação comum;{" "}
+              {Object.entries(NOMES_EMENDA).map(([sigla, nome]) => `${sigla}: ${nome.toLowerCase()}`).join("; ")}.
+            </p>
+          )}
+
           {filtered.length === 0 && !isLoading && (
             <div className="text-center py-12 text-muted-foreground">
               <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="font-medium">Nenhuma dotação encontrada</p>
-              <p className="text-sm mt-1">Importe o PDF do QDD do FIPLAN para carregar as dotações orçamentárias.</p>
+              <p className="text-sm mt-1">Importe o QDD do FIPLAN (PDF ou Excel) para carregar as dotações orçamentárias.</p>
               {podeImportar && (
                 <Button variant="outline" className="mt-4" onClick={() => setImportOpen(true)}>
                   <Upload className="h-4 w-4 mr-2" />
