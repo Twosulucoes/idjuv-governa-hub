@@ -96,6 +96,8 @@ export type PermissaoInstitucional =
   | 'contratos.criar'
   | 'contratos.tramitar'
   | 'contratos.aprovar'
+  | 'contratos.passagens.visualizar'
+  | 'contratos.passagens.editar'
   // RH
   // Código sem ponto = o módulo (hasPermission confere user_modules): para itens cuja rota pede só requiredModule
   | 'rh'
@@ -286,6 +288,20 @@ export const menuConfig: MenuSection[] = [
             route: "/processos/compras?tab=execucao",
             icon: TrendingUp,
             permission: "contratos.tramitar",
+          },
+          {
+            id: "passagens",
+            label: "Passagens aéreas",
+            route: "/contratos/passagens",
+            icon: Plane,
+            permission: "contratos.passagens.visualizar",
+          },
+          {
+            id: "passagens-novo",
+            label: "Novo pedido de passagem",
+            route: "/contratos/passagens?novo=1",
+            icon: FileText,
+            permission: "contratos.passagens.editar",
           },
         ],
       },

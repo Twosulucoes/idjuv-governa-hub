@@ -1018,6 +1018,23 @@ por padrão: concedem-se por usuário (`user_permissions`). O papel `admin` pass
 - **Modelos de fluxo**: além da RLS (módulo **e** `workflow.admin` para escrever), o trigger `wf_recusar_etapa_em_uso`
   recusa (`22023`) apagar ou renumerar etapa onde há processo, para qualquer papel.
 
+### Contratos: passagens aéreas
+
+Migração `20261031090000_contratos_passagens.sql` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#compras-licitações-e-contratos)).
+Duas permissões novas, concedidas pela migração a todo papel, usuário e módulo que já tinha `contratos.criar`.
+
+| Ação | Permissão | Onde é cobrada |
+|---|---|---|
+| Ver pedidos, passageiros, trechos, cotações, beneficiários e histórico | módulo `contratos` **e** `contratos.passagens.visualizar` ou `contratos.passagens.editar` | RLS de SELECT (`mapa.csv`, classe `permissao`; histórico na classe `trilha`) e `ProtectedRoute` das três rotas |
+| Registrar e editar pedido, passageiro, trecho, cotação e beneficiário; mudar situação | `contratos.passagens.editar` | RLS de INSERT/UPDATE |
+| Apagar passageiro, trecho ou cotação | `contratos.passagens.editar`; trecho com localizador não se apaga (`passagem_proteger_emitido`, `42501`) | RLS de DELETE e gatilho |
+| Apagar pedido ou beneficiário | ninguém pela API (pedido cancela, beneficiário fica inativo) | `excluir=ninguem` no `mapa.csv` |
+| Buscar servidor e listar as viagens dele | módulo `contratos` **e** permissão de passagens | `passagem_buscar_servidores` e `passagem_viagens_servidor` (SECURITY DEFINER, devolvem só nome, matrícula, cargo e as viagens) |
+
+- Quem tem passagens não lê `servidores` nem `instituicoes`: o nome do passageiro e do solicitante é copiado pelo
+  gatilho `passagem_copiar_nome` (SECURITY DEFINER), que também confere se a viagem do RH é do servidor.
+- O histórico (`passagem_historico`) só é escrito pelo gatilho `passagem_registrar_historico`.
+
 ## Enforcement de rota (`ProtectedRoute`)
 
 O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso
