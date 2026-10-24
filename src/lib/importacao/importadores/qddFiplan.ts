@@ -1,7 +1,7 @@
 /**
- * IMPORTADOR: QDD do FIPLAN (PDF) → fin_dotacoes
+ * IMPORTADOR: QDD do FIPLAN (PDF ou Excel) → fin_dotacoes
  *
- * Lê o PDF "Quadro de Detalhamento da Despesa - QDD" exportado do FIPLAN e
+ * Lê o "Quadro de Detalhamento da Despesa - QDD" exportado do FIPLAN (PDF ou o .xls em HTML) e
  * atualiza as dotações do exercício pela RPC `importar_qdd_fiplan`, que confere
  * a permissão `orcamento.importar` e grava tudo numa transação.
  */
@@ -10,8 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/formatters";
 import { lerLinhasPdf } from "../pdfTexto";
+import { decodificarHtml, linhasDaTabelaHtml, pareceTabelaHtml } from "../tabelaHtml";
 import type { Importador, ResultadoBanco } from "../types";
-import { interpretarQddFiplan, type LinhaQdd } from "./qddFiplanParser";
+import { interpretarQddFiplan, linhasQddDoExcel, type LinhaQdd } from "./qddFiplanParser";
 
 const moeda = (v: number) => (v ? formatCurrency(v) : "—");
 
@@ -21,9 +22,9 @@ export const importadorQddFiplan: Importador<LinhaQdd> = {
   descricao: "Atualiza as dotações orçamentárias a partir do Quadro de Detalhamento da Despesa exportado do FIPLAN.",
   modulo: "financeiro",
   permissao: "orcamento.importar",
-  aceita: "application/pdf,.pdf",
+  aceita: "application/pdf,.pdf,.xls",
   instrucoes:
-    "No FIPLAN, gere o relatório \"Quadro de Detalhamento da Despesa - QDD\" do exercício e salve em PDF. " +
+    "No FIPLAN, gere o relatório \"Quadro de Detalhamento da Despesa - QDD\" do exercício e salve em PDF ou em Excel. " +
     "Dotações que já existem são atualizadas; as novas são criadas. Nada é apagado.",
   colunas: [
     { id: "paoe", rotulo: "PAOE", valor: (l) => l.paoe_codigo },
@@ -53,8 +54,21 @@ export const importadorQddFiplan: Importador<LinhaQdd> = {
   },
 
   async ler(arquivo) {
-    const linhas = await lerLinhasPdf(await arquivo.arrayBuffer());
-    return interpretarQddFiplan(linhas);
+    const dados = await arquivo.arrayBuffer();
+    if (pareceTabelaHtml(dados)) {
+      return interpretarQddFiplan(linhasQddDoExcel(linhasDaTabelaHtml(decodificarHtml(dados))));
+    }
+    if (/\.xlsx?$/i.test(arquivo.name)) {
+      return {
+        linhas: [],
+        problemas: [
+          { gravidade: "erro", mensagem: "Este Excel não é o que o FIPLAN exporta. Gere o QDD de novo no FIPLAN, em Excel ou em PDF." },
+        ],
+        cabecalho: {},
+        parametros: {},
+      };
+    }
+    return interpretarQddFiplan(await lerLinhasPdf(dados));
   },
 
   async enviar(leitura, arquivo, simular) {
