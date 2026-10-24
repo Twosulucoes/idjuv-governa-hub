@@ -35,8 +35,8 @@ export function FaixaAtualizacao({ qdd, fip614, hoje, encerrado = false }: Faixa
         {fip614 ? `empenhos de ${data.format(new Date(fip614))} (FIP 614)` : "FIP 614 ainda não importado"}
         {atrasado && ` · o QDD tem ${diasQdd} dias`}
       </span>
-      <Link to="/admin/importacoes" className="font-medium underline underline-offset-2 hover:text-foreground">
-        Atualizar na Central de Importações
+      <Link to="/financeiro/atualizar" className="font-medium underline underline-offset-2 hover:text-foreground">
+        Ver o que atualizar
       </Link>
     </div>
   );

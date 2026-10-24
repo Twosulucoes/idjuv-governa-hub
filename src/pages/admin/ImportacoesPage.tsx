@@ -4,9 +4,12 @@
  * Lista os importadores que o usuário pode usar (permissão de cada um) e o
  * histórico das importações aplicadas. Cada importador roda no mesmo assistente
  * (ImportacaoWizard): arquivo → conferência → confirmação.
+ * `?importador=<id>` abre direto o assistente desse importador, se o usuário tiver a permissão dele
+ * (links da tela Atualizar o Financeiro).
  */
 
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { FileUp } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -20,9 +23,19 @@ import type { Importador } from "@/lib/importacao/types";
 
 export default function ImportacoesPage() {
   const { hasPermission } = useAuth();
-  const [aberto, setAberto] = useState<Importador<unknown> | null>(null);
-  const [ocupado, setOcupado] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const disponiveis = IMPORTADORES.filter((i) => hasPermission(i.permissao));
+  const pedido = searchParams.get("importador");
+  const [aberto, setAberto] = useState<Importador<unknown> | null>(
+    () => disponiveis.find((i) => i.id === pedido) ?? null,
+  );
+  const [ocupado, setOcupado] = useState(false);
+
+  const fechar = () => {
+    setAberto(null);
+    // Tira o parâmetro para o assistente não reabrir ao recarregar a página
+    if (pedido) setSearchParams((p) => { p.delete("importador"); return p; }, { replace: true });
+  };
 
   return (
     <ModuleLayout module="admin">
@@ -69,7 +82,7 @@ export default function ImportacoesPage() {
         </Card>
       </div>
 
-      <Dialog open={!!aberto} onOpenChange={(open) => !open && !ocupado && setAberto(null)}>
+      <Dialog open={!!aberto} onOpenChange={(open) => !open && !ocupado && fechar()}>
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Importar {aberto?.titulo}</DialogTitle>

@@ -237,6 +237,7 @@ import {
   AlteracoesOrcamentariasPage,
   RestosAPagarPage,
   SubEmpenhosPage,
+  AtualizarFinanceiroPage,
 } from "./pages/financeiro";
 import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage";
 import PcaListaPage from "./pages/compras/PcaListaPage";
@@ -1306,6 +1307,11 @@ const App = () => (
               <Route path="/financeiro/restos-a-pagar" element={
                 <ProtectedRoute requiredPermissions="orcamento.visualizar">
                   <RestosAPagarPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/atualizar" element={
+                <ProtectedRoute requiredModule="financeiro">
+                  <AtualizarFinanceiroPage />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/conciliacao" element={

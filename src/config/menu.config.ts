@@ -723,6 +723,14 @@ export const menuConfig: MenuSection[] = [
         permission: "orcamento.visualizar",
         priority: 10,
       },
+      {
+        id: "fin-atualizar",
+        label: "Atualizar dados",
+        labelShort: "Atualizar",
+        route: "/financeiro/atualizar",
+        icon: Upload,
+        priority: 10,
+      },
     ],
   },
 
