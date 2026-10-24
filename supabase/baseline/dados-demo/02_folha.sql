@@ -23,7 +23,8 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.servidores WHERE id = 'c0000000-0000-4000-8000-000000000001') THEN
     RAISE EXCEPTION 'recusado: rode antes o supabase/baseline/dados-teste.sql';
   END IF;
-  IF EXISTS (SELECT 1 FROM public.folhas_pagamento) THEN
+  -- só a folha desta demonstração conta: o banco de teste pode já ter folha criada por quem testou a tela
+  IF EXISTS (SELECT 1 FROM public.folhas_pagamento WHERE id = 'd2000000-0000-4000-8000-000000000001') THEN
     RAISE EXCEPTION 'recusado: os dados de demonstração deste módulo já foram carregados';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE servidor_id = 'c0000000-0000-4000-8000-000000000001') THEN
@@ -337,8 +338,14 @@ INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_
   ('d2000000-0000-4000-8000-000000000001', 2026, 7, 'mensal', 'Folha mensal de julho/2026'),
   ('d2000000-0000-4000-8000-000000000002', 2026, 7, '13_1a_parcela', 'Adiantamento da 1ª parcela do 13º salário, paga com a folha de julho'),
   ('d2000000-0000-4000-8000-000000000003', 2026, 8, 'mensal', 'Folha mensal de agosto/2026 (com a revisão geral da Lei nº 2.214/2026)'),
-  ('d2000000-0000-4000-8000-000000000004', 2026, 9, 'mensal', 'Folha mensal de setembro/2026'),
+  ('d2000000-0000-4000-8000-000000000004', 2026, 9, 'mensal', 'Folha mensal de setembro/2026');
+-- outubro só entra se ninguém criou essa folha testando a tela (competência e tipo são únicos)
+SELECT NOT EXISTS (SELECT 1 FROM public.folhas_pagamento WHERE competencia_ano = 2026 AND competencia_mes = 10
+                   AND tipo_folha = 'mensal') AS criar_outubro \gset
+\if :criar_outubro
+INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_folha, observacoes) VALUES
   ('d2000000-0000-4000-8000-000000000005', 2026, 10, 'mensal', 'Folha mensal de outubro/2026');
+\endif
 INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_folha, status, observacoes) VALUES
   ('d2000000-0000-4000-8000-000000000006', 2026, 12, '13_2a_parcela', 'previa', 'Prévia da 2ª parcela do 13º salário (ainda não processada)');
 
@@ -396,12 +403,14 @@ SELECT pg_temp.processar('d2000000-0000-4000-8000-000000000004') AS _ \gset
 SELECT pg_temp.ok(public.enviar_folha_conferencia('d2000000-0000-4000-8000-000000000004'), 'conferência 09') AS _ \gset
 
 -- ---------- outubro/2026: processada, aberta para lançamentos
+\if :criar_outubro
 SELECT pg_temp.processar('d2000000-0000-4000-8000-000000000005') AS _ \gset
 SELECT pg_temp.lancar('d2000000-0000-4000-8000-000000000005', (SELECT array_agg(g) FROM generate_series(1, 18) g), '1210', 650.00) AS _ \gset
 SELECT pg_temp.lancar('d2000000-0000-4000-8000-000000000005', ARRAY[11, 12, 18], '1220', 220.00) AS _ \gset
 SELECT pg_temp.lancar('d2000000-0000-4000-8000-000000000005', ARRAY[13, 14], '1130', 803.25, '15%', 5355.00, 15) AS _ \gset
 SELECT pg_temp.lancar('d2000000-0000-4000-8000-000000000005', ARRAY[9], '1105', 591.00, '6 h (oficina de arbitragem)', 98.50) AS _ \gset
 SELECT pg_temp.processar('d2000000-0000-4000-8000-000000000005') AS _ \gset
+\endif
 
 -- lançamentos avulsos também no registro de lançamentos (rubrica, valor e incidências de cada um)
 INSERT INTO public.lancamentos_folha (ficha_id, rubrica_id, rubrica_codigo, rubrica_descricao, rubrica_tipo, referencia, valor_base,
@@ -411,7 +420,7 @@ SELECT i.ficha_id, r.id, r.codigo, r.descricao, r.tipo, i.percentual, i.base_cal
   FROM public.itens_ficha_financeira i
   JOIN public.rubricas r ON r.id = i.rubrica_id
   JOIN public.fichas_financeiras f ON f.id = i.ficha_id
- WHERE i.origem = 'manual';
+ WHERE i.origem = 'manual' AND f.folha_id::text LIKE 'd2000000-%';
 
 -- ===================================================================== remessas, retornos, eSocial e exportações
 -- julho: remessa de servidores (retorno final, um crédito recusado) e de pensão (retorno final)
@@ -538,11 +547,12 @@ UPDATE public.remessas_bancarias SET data_geracao = v.ger, enviado_em = CASE WHE
 -- reabrir_folha não mantém reaberto/quantidade_reaberturas: registra-se aqui a reabertura de agosto
 UPDATE public.folhas_pagamento SET reaberto = true, quantidade_reaberturas = 1 WHERE id = 'd2000000-0000-4000-8000-000000000003';
 UPDATE public.eventos_esocial SET data_geracao = CASE folha_id WHEN 'd2000000-0000-4000-8000-000000000001' THEN timestamptz '2026-08-05 10:20-04'
-                                                               ELSE timestamptz '2026-09-04 11:02-04' END;
+                                                               ELSE timestamptz '2026-09-04 11:02-04' END
+ WHERE folha_id::text LIKE 'd2000000-%';
 UPDATE public.retornos_bancarios SET data_processamento = coalesce(data_arquivo, data_processamento);
 UPDATE public.exportacoes_folha e SET gerado_em = f.data_fechamento + interval '1 hour'
   FROM public.folhas_pagamento f
- WHERE f.id = e.folha_id AND e.tipo_exportacao <> 'cnab240';
+ WHERE f.id = e.folha_id AND e.tipo_exportacao <> 'cnab240' AND f.id::text LIKE 'd2000000-%';
 UPDATE public.exportacoes_folha e SET gerado_em = r.data_geracao, enviado_em = CASE WHEN e.enviado_em IS NOT NULL THEN r.enviado_em END
   FROM public.remessas_bancarias r WHERE r.nome_arquivo = e.nome_arquivo;
 
