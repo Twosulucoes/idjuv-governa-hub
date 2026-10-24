@@ -67,7 +67,7 @@ importação no exercício, aparece um estado vazio que explica o que importar e
 | Empenhado | Soma de `valor_empenhado`, com % do autorizado | `/financeiro/empenhos` |
 | Liquidado | Soma de `valor_liquidado`, com % do autorizado | `/financeiro/liquidacoes` |
 | Pago | Soma de `valor_pago`, com % do autorizado | `/financeiro/pagamentos` |
-| Saldo para empenhar | autorizado − empenhado − bloqueado − reserva − PED | `/financeiro/qdd` |
+| Saldo para empenhar | autorizado − bloqueado − PED (o PED do QDD já soma empenhado e reserva; corrigido em 24/10/2026, PR #175) | `/financeiro/qdd` |
 | Reservado (PED) | Soma de `valor_ped` + `valor_reserva`, com o bloqueado em texto menor | `/financeiro/qdd` |
 
 A coluna `saldo_disponivel` do banco **não** desconta bloqueado nem PED. O painel usa a conta do FIPLAN, que dá os

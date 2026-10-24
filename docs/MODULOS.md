@@ -213,7 +213,8 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
   - faixa com a data da última importação do QDD e do FIP 614 (amarela quando o QDD tem mais de 7 dias), com o
     link "Ver o que atualizar" para `/financeiro/atualizar`;
   - cartões de autorizado, empenhado, liquidado, pago, saldo para empenhar e reservado (PED). O saldo usa a conta
-    do FIPLAN (autorizado − empenhado − bloqueado − reserva − PED), não a coluna `saldo_disponivel`;
+    do FIPLAN (autorizado − bloqueado − PED, sendo o PED do QDD a soma do empenhado com a Cont./Reserva; vale o
+    maior entre o PED e empenhado + reserva), não a coluna `saldo_disponivel`;
   - execução por grupo de despesa, com gráfico e tabela;
   - alertas de saldo: dotações cujo saldo não cobre o resto do ano no ritmo do que já foi liquidado. Os
     vencimentos e as obrigações patronais contam o 13º;
