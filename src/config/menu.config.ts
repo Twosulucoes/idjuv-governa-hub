@@ -253,6 +253,13 @@ export const menuConfig: MenuSection[] = [
             permission: "compras.processos.visualizar",
           },
           {
+            id: "programacao-natureza",
+            label: "Programação por natureza",
+            route: "/compras/processos/programacao",
+            icon: Landmark,
+            permission: "compras.processos.visualizar",
+          },
+          {
             id: "nova-licitacao",
             label: "Novo processo",
             route: "/compras/processos?novo=1",

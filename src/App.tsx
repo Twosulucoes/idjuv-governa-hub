@@ -243,6 +243,7 @@ import PcaListaPage from "./pages/compras/PcaListaPage";
 import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
 import ProcessosListaPage from "./pages/compras/ProcessosListaPage";
 import ProcessoFichaPage from "./pages/compras/ProcessoFichaPage";
+import ProgramacaoNaturezaPage from "./pages/compras/ProgramacaoNaturezaPage";
 import PagamentoDetalhePage from "./pages/financeiro/PagamentoDetalhePage";
 import EmpenhoDetalhePage from "./pages/financeiro/EmpenhoDetalhePage";
 
@@ -497,6 +498,11 @@ const App = () => (
               <Route path="/compras/processos" element={
                 <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.processos.visualizar", "compras.processos.editar"]}>
                   <ProcessosListaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compras/processos/programacao" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.processos.visualizar", "compras.processos.editar"]}>
+                  <ProgramacaoNaturezaPage />
                 </ProtectedRoute>
               } />
               <Route path="/compras/processos/:id" element={
