@@ -18358,6 +18358,529 @@ export type Database = {
           },
         ]
       }
+      passagem_beneficiarios: {
+        Row: {
+          ativo: boolean
+          cpf: string
+          created_at: string
+          created_by: string | null
+          data_nascimento: string | null
+          documento_numero: string | null
+          documento_orgao: string | null
+          documento_tipo: string | null
+          email: string | null
+          id: string
+          instituicao_id: string | null
+          instituicao_nome: string | null
+          nome: string
+          observacoes: string | null
+          telefone: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          cpf: string
+          created_at?: string
+          created_by?: string | null
+          data_nascimento?: string | null
+          documento_numero?: string | null
+          documento_orgao?: string | null
+          documento_tipo?: string | null
+          email?: string | null
+          id?: string
+          instituicao_id?: string | null
+          instituicao_nome?: string | null
+          nome: string
+          observacoes?: string | null
+          telefone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          cpf?: string
+          created_at?: string
+          created_by?: string | null
+          data_nascimento?: string | null
+          documento_numero?: string | null
+          documento_orgao?: string | null
+          documento_tipo?: string | null
+          email?: string | null
+          id?: string
+          instituicao_id?: string | null
+          instituicao_nome?: string | null
+          nome?: string
+          observacoes?: string | null
+          telefone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_beneficiarios_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_beneficiarios_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "v_instituicoes_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_cotacoes: {
+        Row: {
+          chegada: string | null
+          companhia: string
+          created_at: string
+          created_by: string | null
+          escolhida: boolean
+          id: string
+          observacoes: string | null
+          partida: string | null
+          trecho_id: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+          voo: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          chegada?: string | null
+          companhia: string
+          created_at?: string
+          created_by?: string | null
+          escolhida?: boolean
+          id?: string
+          observacoes?: string | null
+          partida?: string | null
+          trecho_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+          voo?: string | null
+        }
+        Update: {
+          chegada?: string | null
+          companhia?: string
+          created_at?: string
+          created_by?: string | null
+          escolhida?: boolean
+          id?: string
+          observacoes?: string | null
+          partida?: string | null
+          trecho_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+          voo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_cotacoes_trecho_id_fkey"
+            columns: ["trecho_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_trechos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_historico: {
+        Row: {
+          acao: string
+          antes: Json | null
+          depois: Json | null
+          feito_em: string
+          feito_por: string | null
+          id: string
+          pedido_id: string
+          trecho_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          acao: string
+          antes?: Json | null
+          depois?: Json | null
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          pedido_id: string
+          trecho_id?: string | null
+        }
+        Update: {
+          acao?: string
+          antes?: Json | null
+          depois?: Json | null
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          pedido_id?: string
+          trecho_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_historico_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_passageiros: {
+        Row: {
+          beneficiario_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          nome: string | null
+          observacoes: string | null
+          pedido_id: string
+          servidor_id: string | null
+          updated_at: string
+          updated_by: string | null
+          viagem_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          beneficiario_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome?: string | null
+          observacoes?: string | null
+          pedido_id: string
+          servidor_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          viagem_id?: string | null
+        }
+        Update: {
+          beneficiario_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome?: string | null
+          observacoes?: string | null
+          pedido_id?: string
+          servidor_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          viagem_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_passageiros_beneficiario_id_fkey"
+            columns: ["beneficiario_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_beneficiarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_viagem_id_fkey"
+            columns: ["viagem_id"]
+            isOneToOne: false
+            referencedRelation: "viagens_diarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_pedidos: {
+        Row: {
+          aprovacao_data: string | null
+          aprovacao_documento_sei: string | null
+          cancelamento_motivo: string | null
+          contrato_id: string | null
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          data_pedido: string
+          destino_cidade: string | null
+          destino_uf: string | null
+          evento: string | null
+          finalidade: string
+          id: string
+          numero_sei: string
+          observacoes: string | null
+          origem: string
+          prestacao_contas: string
+          situacao: string
+          solicitante_beneficiario_id: string | null
+          solicitante_instituicao_id: string | null
+          solicitante_nome: string | null
+          solicitante_servidor_id: string | null
+          solicitante_tipo: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          aprovacao_data?: string | null
+          aprovacao_documento_sei?: string | null
+          cancelamento_motivo?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          data_pedido?: string
+          destino_cidade?: string | null
+          destino_uf?: string | null
+          evento?: string | null
+          finalidade: string
+          id?: string
+          numero_sei: string
+          observacoes?: string | null
+          origem?: string
+          prestacao_contas?: string
+          situacao?: string
+          solicitante_beneficiario_id?: string | null
+          solicitante_instituicao_id?: string | null
+          solicitante_nome?: string | null
+          solicitante_servidor_id?: string | null
+          solicitante_tipo: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          aprovacao_data?: string | null
+          aprovacao_documento_sei?: string | null
+          cancelamento_motivo?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          data_pedido?: string
+          destino_cidade?: string | null
+          destino_uf?: string | null
+          evento?: string | null
+          finalidade?: string
+          id?: string
+          numero_sei?: string
+          observacoes?: string | null
+          origem?: string
+          prestacao_contas?: string
+          situacao?: string
+          solicitante_beneficiario_id?: string | null
+          solicitante_instituicao_id?: string | null
+          solicitante_nome?: string | null
+          solicitante_servidor_id?: string | null
+          solicitante_tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_pedidos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_beneficiario_id_fkey"
+            columns: ["solicitante_beneficiario_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_beneficiarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_instituicao_id_fkey"
+            columns: ["solicitante_instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_instituicao_id_fkey"
+            columns: ["solicitante_instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "v_instituicoes_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_servidor_id_fkey"
+            columns: ["solicitante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_servidor_id_fkey"
+            columns: ["solicitante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_servidor_id_fkey"
+            columns: ["solicitante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_servidor_id_fkey"
+            columns: ["solicitante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_servidor_id_fkey"
+            columns: ["solicitante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_trechos: {
+        Row: {
+          chegada: string | null
+          companhia: string | null
+          created_at: string
+          created_by: string | null
+          data_emissao: string | null
+          data_voo: string
+          destino: string
+          id: string
+          localizador: string | null
+          numero_bilhete: string | null
+          observacoes: string | null
+          ordem: number
+          origem: string
+          partida: string | null
+          passageiro_id: string
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+          valor_desconto: number
+          valor_emissao: number | null
+          valor_multa: number
+          valor_reembolso: number
+          valor_tarifa: number
+          valor_taxa_embarque: number
+          valor_taxa_servico: number
+          voo: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          chegada?: string | null
+          companhia?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string | null
+          data_voo: string
+          destino: string
+          id?: string
+          localizador?: string | null
+          numero_bilhete?: string | null
+          observacoes?: string | null
+          ordem?: number
+          origem: string
+          partida?: string | null
+          passageiro_id: string
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_desconto?: number
+          valor_emissao?: never
+          valor_multa?: number
+          valor_reembolso?: number
+          valor_tarifa?: number
+          valor_taxa_embarque?: number
+          valor_taxa_servico?: number
+          voo?: string | null
+        }
+        Update: {
+          chegada?: string | null
+          companhia?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string | null
+          data_voo?: string
+          destino?: string
+          id?: string
+          localizador?: string | null
+          numero_bilhete?: string | null
+          observacoes?: string | null
+          ordem?: number
+          origem?: string
+          partida?: string | null
+          passageiro_id?: string
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_desconto?: number
+          valor_emissao?: never
+          valor_multa?: number
+          valor_reembolso?: number
+          valor_tarifa?: number
+          valor_taxa_embarque?: number
+          valor_taxa_servico?: number
+          voo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_trechos_passageiro_id_fkey"
+            columns: ["passageiro_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_passageiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patrimonio_unidade: {
         Row: {
           anexos: string[] | null
@@ -25747,6 +26270,25 @@ export type Database = {
       }
       obter_protocolo_arbitro: { Args: { p_id: string }; Returns: string }
       obter_remessa_bancaria: { Args: { p_id: string }; Returns: Json }
+      passagem_buscar_servidores: {
+        Args: { _termo: string }
+        Returns: {
+          cargo: string
+          id: string
+          matricula: string
+          nome: string
+        }[]
+      }
+      passagem_viagens_servidor: {
+        Args: { _servidor_id: string }
+        Returns: {
+          data_retorno: string
+          data_saida: string
+          destino: string
+          id: string
+          status: string
+        }[]
+      }
       patrimonio_buscar_bem_por_codigo: {
         Args: { p_codigo: string }
         Returns: {
