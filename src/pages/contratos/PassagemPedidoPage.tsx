@@ -18,6 +18,7 @@ import { PedidoFormDialog } from "@/components/contratos/passagens/PedidoFormDia
 import { SituacaoDialog } from "@/components/contratos/passagens/SituacaoDialog";
 import { TOM_PEDIDO } from "@/components/contratos/passagens/tons";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/core/tenant";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { resumoPedido } from "@/lib/passagens/regras";
 import { useContratosPassagens, useHistoricoPedido, usePedido, useSalvarPedido } from "@/hooks/usePassagens";
@@ -33,6 +34,7 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
 }
 
 function Dados({ p, contrato }: { p: PedidoCompleto; contrato: string }) {
+  const cargoDirigente = useTenant().legal?.dirigenteCargo;
   const r = resumoPedido(p.passageiros);
   const periodo = p.data_inicio ? `${formatDateBR(p.data_inicio)}${p.data_fim ? ` a ${formatDateBR(p.data_fim)}` : ""}` : "—";
   return (
@@ -50,7 +52,7 @@ function Dados({ p, contrato }: { p: PedidoCompleto; contrato: string }) {
           <Campo rotulo="Período">{periodo}</Campo>
           <Campo rotulo="Contrato">{contrato}</Campo>
           <Campo rotulo="Prestação de contas">{rotuloPrestacao(p.prestacao_contas)}</Campo>
-          <Campo rotulo="Aprovação do Presidente">
+          <Campo rotulo={cargoDirigente ? `Aprovação (${cargoDirigente})` : "Aprovação"}>
             {p.aprovacao_documento_sei ? `Documento SEI ${p.aprovacao_documento_sei}, ${formatDateBR(p.aprovacao_data)}` : "ainda não registrada"}
           </Campo>
           <Campo rotulo="Passageiros e trechos">{r.passageiros} passageiros · {r.trechos} trechos ({r.emitidos} emitidos)</Campo>

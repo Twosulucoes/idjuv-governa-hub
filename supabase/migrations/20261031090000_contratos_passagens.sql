@@ -11,6 +11,7 @@
 --   passagem_trechos         origem, destino, data e a emissão (localizador, bilhete e valores).
 --   passagem_cotacoes        opções da agência por trecho; uma escolhida.
 --   passagem_historico       trilha da criação e das mudanças de situação (gatilho).
+--   contratos.controla_passagens  marca o contrato da agência (o saldo das passagens só olha esses).
 --   passagem_buscar_servidores / passagem_viagens_servidor
 --                            leitura estreita do RH (nome, matrícula, cargo; viagens do servidor) para quem tem passagens.
 --
@@ -195,6 +196,11 @@ ALTER TABLE public.passagem_trechos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.passagem_cotacoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.passagem_historico ENABLE ROW LEVEL SECURITY;
 
+-- Contrato da agência: só os contratos marcados entram no saldo e na escolha do pedido.
+ALTER TABLE public.contratos ADD COLUMN IF NOT EXISTS controla_passagens boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.contratos.controla_passagens IS
+  'Contrato de agenciamento de passagens: aparece em Contratos → Passagens aéreas (saldo e escolha no pedido).';
+
 -- ----------------------------------------------------------------------------
 -- 2. Autoria, nomes copiados, proteção do trecho emitido e trilha
 -- ----------------------------------------------------------------------------
@@ -231,6 +237,9 @@ BEGIN
     ELSE
       SELECT b.nome INTO NEW.nome FROM public.passagem_beneficiarios b WHERE b.id = NEW.beneficiario_id;
     END IF;
+    IF NEW.nome IS NULL THEN
+      RAISE EXCEPTION 'Passageiro não encontrado.' USING ERRCODE = '22023';
+    END IF;
     IF NEW.viagem_id IS NOT NULL AND NOT EXISTS (
       SELECT 1 FROM public.viagens_diarias v WHERE v.id = NEW.viagem_id AND v.servidor_id = NEW.servidor_id) THEN
       RAISE EXCEPTION 'A viagem escolhida não é deste servidor.' USING ERRCODE = '22023';
@@ -242,6 +251,11 @@ BEGIN
       ELSE COALESCE((SELECT i.nome_razao_social FROM public.instituicoes i WHERE i.id = NEW.solicitante_instituicao_id),
                     NEW.solicitante_nome)
     END;
+    IF NEW.solicitante_nome IS NULL
+       OR (NEW.solicitante_instituicao_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM public.instituicoes i WHERE i.id = NEW.solicitante_instituicao_id)) THEN
+      RAISE EXCEPTION 'Solicitante não encontrado.' USING ERRCODE = '22023';
+    END IF;
   END IF;
   RETURN NEW;
 END;
@@ -324,6 +338,23 @@ DROP TRIGGER IF EXISTS trg_passagem_passageiros_nome ON public.passagem_passagei
 CREATE TRIGGER trg_passagem_passageiros_nome BEFORE INSERT OR UPDATE ON public.passagem_passageiros
   FOR EACH ROW EXECUTE FUNCTION public.passagem_copiar_nome();
 
+-- Nome do beneficiário corrigido: os passageiros e solicitantes ligados a ele recopiam o nome (gatilhos acima).
+CREATE OR REPLACE FUNCTION public.passagem_propagar_nome_beneficiario()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE public.passagem_passageiros SET nome = NEW.nome WHERE beneficiario_id = NEW.id;
+  UPDATE public.passagem_pedidos SET solicitante_nome = NEW.nome WHERE solicitante_beneficiario_id = NEW.id;
+  RETURN NEW;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.passagem_propagar_nome_beneficiario() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS trg_passagem_beneficiarios_nome ON public.passagem_beneficiarios;
+CREATE TRIGGER trg_passagem_beneficiarios_nome AFTER UPDATE OF nome ON public.passagem_beneficiarios
+  FOR EACH ROW WHEN (NEW.nome IS DISTINCT FROM OLD.nome) EXECUTE FUNCTION public.passagem_propagar_nome_beneficiario();
+
 DROP TRIGGER IF EXISTS trg_passagem_trechos_proteger ON public.passagem_trechos;
 CREATE TRIGGER trg_passagem_trechos_proteger BEFORE DELETE ON public.passagem_trechos
   FOR EACH ROW EXECUTE FUNCTION public.passagem_proteger_emitido();
@@ -366,7 +397,8 @@ UPDATE public.user_modules
 -- ----------------------------------------------------------------------------
 -- 4. Leitura estreita do RH para quem tem passagens
 -- ----------------------------------------------------------------------------
--- Servidores ativos por nome ou matrícula: só id, nome, matrícula e cargo (nada de CPF nem ficha).
+-- Servidores ativos por nome ou matrícula: só id, nome, matrícula e cargo (nada de CPF nem ficha). Só para quem
+-- edita passagens (é a busca do diálogo de passageiro); % e _ do termo valem como texto, não como curinga.
 CREATE OR REPLACE FUNCTION public.passagem_buscar_servidores(_termo text)
 RETURNS TABLE (id uuid, nome text, matricula text, cargo text)
 LANGUAGE plpgsql
@@ -376,11 +408,10 @@ SET search_path = public
 AS $$
 BEGIN
   IF NOT (public.can_access_module(auth.uid(), 'contratos')
-          AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
-               OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))) THEN
-    RAISE EXCEPTION 'Requer a permissão de ver passagens.' USING ERRCODE = '42501';
+          AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar')) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar passagens.' USING ERRCODE = '42501';
   END IF;
-  IF char_length(btrim(COALESCE(_termo, ''))) < 3 THEN
+  IF char_length(regexp_replace(COALESCE(_termo, ''), '[^[:alnum:]]', '', 'g')) < 3 THEN
     RETURN;
   END IF;
   RETURN QUERY
@@ -388,7 +419,8 @@ BEGIN
     FROM public.servidores s
     LEFT JOIN public.cargos c ON c.id = s.cargo_atual_id
    WHERE s.ativo IS NOT FALSE
-     AND (s.nome_completo ILIKE '%' || btrim(_termo) || '%' OR s.matricula = btrim(_termo))
+     AND (s.nome_completo ILIKE '%' || replace(replace(replace(btrim(_termo), '\', '\\'), '%', '\%'), '_', '\_') || '%'
+          OR s.matricula = btrim(_termo))
    ORDER BY s.nome_completo
    LIMIT 20;
 END;
@@ -406,9 +438,8 @@ SET search_path = public
 AS $$
 BEGIN
   IF NOT (public.can_access_module(auth.uid(), 'contratos')
-          AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
-               OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))) THEN
-    RAISE EXCEPTION 'Requer a permissão de ver passagens.' USING ERRCODE = '42501';
+          AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar')) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar passagens.' USING ERRCODE = '42501';
   END IF;
   RETURN QUERY
   SELECT v.id, v.destino_cidade || '/' || v.destino_uf, v.data_saida, v.data_retorno, v.status
@@ -455,7 +486,7 @@ CREATE POLICY "rls_delete" ON public.passagem_cotacoes FOR DELETE TO authenticat
 -- passagem_historico  [trilha: contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_historico;
 CREATE POLICY "rls_select" ON public.passagem_historico FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')));
+  USING ((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar')));
 
 -- passagem_passageiros  [permissao: contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_passageiros;

@@ -1,5 +1,5 @@
 /**
- * Muda a situação do pedido. A aprovação do Presidente acontece no SEI: aqui se registra o nº do documento e a data.
+ * Muda a situação do pedido. A aprovação do dirigente acontece no SEI: aqui se registra o nº do documento e a data.
  * Cancelar pede o motivo. O que faltar (trecho emitido, trechos em aberto) aparece antes de salvar.
  */
 

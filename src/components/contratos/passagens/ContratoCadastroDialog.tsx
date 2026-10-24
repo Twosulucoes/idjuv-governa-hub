@@ -1,6 +1,6 @@
 /**
- * Cadastro mínimo do contrato da agência (número, fornecedor, objeto, valor e vigência), até o módulo Contratos ter a
- * sua tela. O fornecedor já precisa existir (Financeiro → Favorecidos).
+ * Contrato da agência: marca um contrato já cadastrado ou faz o cadastro mínimo (número, fornecedor, objeto, valor e
+ * vigência), até o módulo Contratos ter a sua tela. O fornecedor já precisa existir (Financeiro → Favorecidos).
  */
 
 import { useEffect, useState } from "react";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { lerNumeroBr } from "@/lib/pca/numero";
-import { useCadastrarContrato, useFornecedoresContrato } from "@/hooks/usePassagens";
+import { useCadastrarContrato, useFornecedoresContrato, useMarcarContratoPassagens, useOutrosContratos } from "@/hooks/usePassagens";
 
 interface Props {
   open: boolean;
@@ -22,6 +22,9 @@ interface Props {
 export function ContratoCadastroDialog({ open, onOpenChange, aoCadastrar }: Props) {
   const fornecedores = useFornecedoresContrato();
   const cadastrar = useCadastrarContrato();
+  const outros = useOutrosContratos(open);
+  const marcar = useMarcarContratoPassagens();
+  const [existente, setExistente] = useState("");
   const [c, setC] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setC((x) => ({ ...x, [k]: e.target.value }));
@@ -30,7 +33,17 @@ export function ContratoCadastroDialog({ open, onOpenChange, aoCadastrar }: Prop
     if (!open) return;
     setC({ ano: String(new Date().getFullYear()), objeto: "Agenciamento de viagens: reserva, emissão, remarcação e cancelamento de passagens aéreas" });
     setErro(null);
+    setExistente("");
   }, [open]);
+
+  const usarExistente = async () => {
+    try {
+      aoCadastrar?.(await marcar.mutateAsync(existente));
+      onOpenChange(false);
+    } catch {
+      // erro já exibido pelo toast da mutation
+    }
+  };
 
   const gravar = async () => {
     const valor = lerNumeroBr(c.valor ?? "");
@@ -75,6 +88,25 @@ export function ContratoCadastroDialog({ open, onOpenChange, aoCadastrar }: Prop
           <DialogTitle>Cadastrar contrato da agência</DialogTitle>
           <DialogDescription>Os dados como estão no contrato assinado. O saldo das passagens sai deste valor.</DialogDescription>
         </DialogHeader>
+        {(outros.data?.length ?? 0) > 0 && (
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <Label htmlFor="ct-existente">O contrato já está cadastrado no sistema?</Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Select value={existente} onValueChange={setExistente}>
+                <SelectTrigger id="ct-existente" className="sm:flex-1"><SelectValue placeholder="Escolha o contrato" /></SelectTrigger>
+                <SelectContent>
+                  {outros.data!.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.numero_contrato}/{o.ano} · {o.fornecedor?.nome_fantasia || o.fornecedor?.razao_social || o.objeto_resumido || "—"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" variant="outline" onClick={usarExistente} disabled={!existente || marcar.isPending}>Usar este</Button>
+            </div>
+            <p className="text-sm text-muted-foreground">Se não estiver na lista, preencha abaixo.</p>
+          </div>
+        )}
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-[1fr_7rem]">
             {campo("numero", "Nº do contrato", { placeholder: "Ex.: 01" })}

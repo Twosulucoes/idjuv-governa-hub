@@ -10605,11 +10605,10 @@ CREATE FUNCTION public.passagem_buscar_servidores(_termo text) RETURNS TABLE(id 
     AS $$
 BEGIN
   IF NOT (public.can_access_module(auth.uid(), 'contratos')
-          AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
-               OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))) THEN
-    RAISE EXCEPTION 'Requer a permissão de ver passagens.' USING ERRCODE = '42501';
+          AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar')) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar passagens.' USING ERRCODE = '42501';
   END IF;
-  IF char_length(btrim(COALESCE(_termo, ''))) < 3 THEN
+  IF char_length(regexp_replace(COALESCE(_termo, ''), '[^[:alnum:]]', '', 'g')) < 3 THEN
     RETURN;
   END IF;
   RETURN QUERY
@@ -10617,7 +10616,8 @@ BEGIN
     FROM public.servidores s
     LEFT JOIN public.cargos c ON c.id = s.cargo_atual_id
    WHERE s.ativo IS NOT FALSE
-     AND (s.nome_completo ILIKE '%' || btrim(_termo) || '%' OR s.matricula = btrim(_termo))
+     AND (s.nome_completo ILIKE '%' || replace(replace(replace(btrim(_termo), '\', '\\'), '%', '\%'), '_', '\_') || '%'
+          OR s.matricula = btrim(_termo))
    ORDER BY s.nome_completo
    LIMIT 20;
 END;
@@ -10661,6 +10661,9 @@ BEGIN
     ELSE
       SELECT b.nome INTO NEW.nome FROM public.passagem_beneficiarios b WHERE b.id = NEW.beneficiario_id;
     END IF;
+    IF NEW.nome IS NULL THEN
+      RAISE EXCEPTION 'Passageiro não encontrado.' USING ERRCODE = '22023';
+    END IF;
     IF NEW.viagem_id IS NOT NULL AND NOT EXISTS (
       SELECT 1 FROM public.viagens_diarias v WHERE v.id = NEW.viagem_id AND v.servidor_id = NEW.servidor_id) THEN
       RAISE EXCEPTION 'A viagem escolhida não é deste servidor.' USING ERRCODE = '22023';
@@ -10672,7 +10675,28 @@ BEGIN
       ELSE COALESCE((SELECT i.nome_razao_social FROM public.instituicoes i WHERE i.id = NEW.solicitante_instituicao_id),
                     NEW.solicitante_nome)
     END;
+    IF NEW.solicitante_nome IS NULL
+       OR (NEW.solicitante_instituicao_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM public.instituicoes i WHERE i.id = NEW.solicitante_instituicao_id)) THEN
+      RAISE EXCEPTION 'Solicitante não encontrado.' USING ERRCODE = '22023';
+    END IF;
   END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_propagar_nome_beneficiario(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_propagar_nome_beneficiario() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  UPDATE public.passagem_passageiros SET nome = NEW.nome WHERE beneficiario_id = NEW.id;
+  UPDATE public.passagem_pedidos SET solicitante_nome = NEW.nome WHERE solicitante_beneficiario_id = NEW.id;
   RETURN NEW;
 END;
 $$;
@@ -10745,9 +10769,8 @@ CREATE FUNCTION public.passagem_viagens_servidor(_servidor_id uuid) RETURNS TABL
     AS $$
 BEGIN
   IF NOT (public.can_access_module(auth.uid(), 'contratos')
-          AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
-               OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))) THEN
-    RAISE EXCEPTION 'Requer a permissão de ver passagens.' USING ERRCODE = '42501';
+          AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar')) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar passagens.' USING ERRCODE = '42501';
   END IF;
   RETURN QUERY
   SELECT v.id, v.destino_cidade || '/' || v.destino_uf, v.data_saida, v.data_retorno, v.status
@@ -19690,8 +19713,16 @@ CREATE TABLE public.contratos (
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
-    updated_by uuid
+    updated_by uuid,
+    controla_passagens boolean DEFAULT false NOT NULL
 );
+
+
+--
+-- Name: COLUMN contratos.controla_passagens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.controla_passagens IS 'Contrato de agenciamento de passagens: aparece em Contratos → Passagens aéreas (saldo e escolha no pedido).';
 
 
 --

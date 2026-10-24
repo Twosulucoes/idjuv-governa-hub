@@ -10316,6 +10316,13 @@ CREATE TRIGGER trg_passagem_beneficiarios_carimbar BEFORE INSERT OR UPDATE ON pu
 
 
 --
+-- Name: passagem_beneficiarios trg_passagem_beneficiarios_nome; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_beneficiarios_nome AFTER UPDATE OF nome ON public.passagem_beneficiarios FOR EACH ROW WHEN ((new.nome IS DISTINCT FROM old.nome)) EXECUTE FUNCTION public.passagem_propagar_nome_beneficiario();
+
+
+--
 -- Name: passagem_cotacoes trg_passagem_cotacoes_carimbar; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -25096,7 +25103,7 @@ CREATE POLICY rls_select ON public.passagem_cotacoes FOR SELECT TO authenticated
 -- Name: passagem_historico rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_historico FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'contratos'::text));
+CREATE POLICY rls_select ON public.passagem_historico FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --

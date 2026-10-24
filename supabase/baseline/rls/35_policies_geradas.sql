@@ -2985,7 +2985,7 @@ CREATE POLICY "rls_delete" ON public.passagem_cotacoes FOR DELETE TO authenticat
 -- passagem_historico  [trilha: contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_historico;
 CREATE POLICY "rls_select" ON public.passagem_historico FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')));
+  USING ((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar')));
 
 -- passagem_passageiros  [permissao: contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_passageiros;

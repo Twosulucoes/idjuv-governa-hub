@@ -6325,6 +6325,7 @@ export type Database = {
       contratos: {
         Row: {
           ano: number
+          controla_passagens: boolean
           created_at: string | null
           created_by: string | null
           data_assinatura: string
@@ -6358,6 +6359,7 @@ export type Database = {
         ComputedFields: never
         Insert: {
           ano?: number
+          controla_passagens?: boolean
           created_at?: string | null
           created_by?: string | null
           data_assinatura: string
@@ -6390,6 +6392,7 @@ export type Database = {
         }
         Update: {
           ano?: number
+          controla_passagens?: boolean
           created_at?: string | null
           created_by?: string | null
           data_assinatura?: string

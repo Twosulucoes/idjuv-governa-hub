@@ -26,6 +26,8 @@ const TODOS = "todos";
 export default function PassagensPedidosPage() {
   const { hasPermission } = useAuth();
   const podeEditar = hasPermission("contratos.passagens.editar");
+  // o contrato é da tabela contratos: cadastrar ou ligar um exige também a permissão de contratos
+  const podeCadastrarContrato = podeEditar && hasPermission("contratos.criar");
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const pedidos = usePedidos();
@@ -138,6 +140,7 @@ export default function PassagensPedidosPage() {
                   {contrato.fornecedor?.nome_fantasia ?? contrato.fornecedor?.razao_social ?? "—"} · vigência até {formatDateBR(contrato.data_fim_atual ?? contrato.data_fim)}
                 </span>
               </h2>
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               {(contratos.data?.length ?? 0) > 1 && (
                 <Select value={contrato.id} onValueChange={setContratoId}>
                   <SelectTrigger className="w-full sm:w-56" aria-label="Contrato"><SelectValue /></SelectTrigger>
@@ -146,6 +149,8 @@ export default function PassagensPedidosPage() {
                   </SelectContent>
                 </Select>
               )}
+              {podeCadastrarContrato && <Button variant="outline" onClick={() => setNovoContrato(true)}>Outro contrato</Button>}
+              </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <KpiCard rotulo="Valor do contrato" valor={formatCurrency(saldo.valor)} icone={FileSignature} />
@@ -162,8 +167,8 @@ export default function PassagensPedidosPage() {
           !contratos.isLoading && (
             <Card>
               <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted-foreground">Nenhum contrato cadastrado. Cadastre o contrato da agência para acompanhar o saldo.</p>
-                {podeEditar && <Button variant="outline" onClick={() => setNovoContrato(true)}>Cadastrar contrato</Button>}
+                <p className="text-sm text-muted-foreground">Nenhum contrato da agência ligado às passagens. Cadastre ou escolha o contrato para acompanhar o saldo.</p>
+                {podeCadastrarContrato && <Button variant="outline" onClick={() => setNovoContrato(true)}>Cadastrar contrato</Button>}
               </CardContent>
             </Card>
           )

@@ -80,7 +80,7 @@ describe("proximasSituacoes", () => {
 describe("pendenciasParaSituacao", () => {
   const pedido = { aprovacao_documento_sei: null, aprovacao_data: null };
   it("aprovado exige documento e data da aprovação", () => {
-    expect(pendenciasParaSituacao("aprovado", pedido, [])).toEqual(["Informe o nº do documento SEI e a data da aprovação do Presidente."]);
+    expect(pendenciasParaSituacao("aprovado", pedido, [])).toEqual(["Informe o nº do documento SEI e a data da aprovação."]);
     expect(pendenciasParaSituacao("aprovado", { aprovacao_documento_sei: "123", aprovacao_data: "2026-10-24" }, [])).toEqual([]);
   });
   it("emitido exige ao menos um trecho emitido", () => {

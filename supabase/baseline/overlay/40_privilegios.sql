@@ -361,6 +361,7 @@ REVOKE EXECUTE ON FUNCTION public.passagem_carimbar() FROM PUBLIC, anon, authent
 REVOKE EXECUTE ON FUNCTION public.passagem_copiar_nome() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.passagem_proteger_emitido() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.passagem_registrar_historico() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_propagar_nome_beneficiario() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.passagem_buscar_servidores(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.passagem_buscar_servidores(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.passagem_viagens_servidor(uuid) FROM PUBLIC, anon;

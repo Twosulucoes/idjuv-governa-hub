@@ -12,6 +12,7 @@ import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import type {
   ContratoPassagens,
   PassagemBeneficiario,
+  PassagemCotacao,
   PassagemHistorico,
   PassagemPedido,
   PedidoCompleto,
@@ -257,12 +258,21 @@ export function useSalvarCotacao(pedidoId: string) {
   });
 }
 
+/** Apaga a cotação; se era a escolhida, o trecho ainda não emitido volta a "a cotar" sem o voo dela. */
 export function useRemoverCotacao(pedidoId: string) {
-  const { qc, ok, falha } = useAvisos();
+  const { qc, falha } = useAvisos();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('passagem_cotacoes').delete().eq('id', id);
+    mutationFn: async (c: Pick<PassagemCotacao, 'id' | 'trecho_id' | 'escolhida'>) => {
+      const { error } = await supabase.from('passagem_cotacoes').delete().eq('id', c.id);
       if (error) throw error;
+      if (c.escolhida) {
+        const trecho = await supabase
+          .from('passagem_trechos')
+          .update({ situacao: 'a_cotar', companhia: null, voo: null, partida: null, chegada: null })
+          .eq('id', c.trecho_id)
+          .eq('situacao', 'cotado');
+        if (trecho.error) throw trecho.error;
+      }
     },
     onSuccess: () => invalidarPedido(qc, pedidoId),
     onError: falha('Não foi possível remover a cotação'),
@@ -287,7 +297,7 @@ export function useEscolherCotacao(pedidoId: string) {
         .from('passagem_trechos')
         .update({ situacao: 'cotado', companhia: data.companhia, voo: data.voo, partida: data.partida, chegada: data.chegada })
         .eq('id', trechoId)
-        .eq('situacao', 'a_cotar');
+        .in('situacao', ['a_cotar', 'cotado']);
       if (trecho.error) throw trecho.error;
     },
     onSuccess: () => {
@@ -328,6 +338,7 @@ export function useSalvarBeneficiario() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [CHAVE_BENEF] });
+      qc.invalidateQueries({ queryKey: [CHAVE] }); // o banco recopia o nome nos pedidos
       ok('Beneficiário salvo');
     },
     onError: falha('Não foi possível salvar o beneficiário'),
@@ -369,11 +380,47 @@ export function useContratosPassagens() {
       const { data, error } = await supabase
         .from('contratos')
         .select('id, numero_contrato, ano, objeto, objeto_resumido, valor_atual, data_inicio, data_fim, data_fim_atual, fornecedor:fornecedores(razao_social, nome_fantasia)')
+        .eq('controla_passagens', true)
         .order('ano', { ascending: false })
         .order('numero_contrato');
       if (error) throw error;
       return (data ?? []) as unknown as ContratoPassagens[];
     },
+  });
+}
+
+/** Contratos já cadastrados que ainda não são da agência (para marcar um deles em vez de cadastrar de novo). */
+export function useOutrosContratos(habilitado: boolean) {
+  return useQuery({
+    queryKey: ['passagens-outros-contratos'],
+    enabled: habilitado,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contratos')
+        .select('id, numero_contrato, ano, objeto_resumido, fornecedor:fornecedores(razao_social, nome_fantasia)')
+        .eq('controla_passagens', false)
+        .order('ano', { ascending: false })
+        .order('numero_contrato');
+      if (error) throw error;
+      return (data ?? []) as unknown as Pick<ContratoPassagens, 'id' | 'numero_contrato' | 'ano' | 'objeto_resumido' | 'fornecedor'>[];
+    },
+  });
+}
+
+export function useMarcarContratoPassagens() {
+  const { qc, ok, falha } = useAvisos();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('contratos').update({ controla_passagens: true }).eq('id', id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['passagens-contratos'] });
+      qc.invalidateQueries({ queryKey: ['passagens-outros-contratos'] });
+      ok('Contrato ligado às passagens');
+    },
+    onError: falha('Não foi possível usar o contrato'),
   });
 }
 
@@ -394,7 +441,7 @@ export function useCadastrarContrato() {
     mutationFn: async (dados: ContratoInput) => {
       const { data, error } = await supabase
         .from('contratos')
-        .insert({ ...dados, valor_atual: dados.valor_inicial, status: 'vigente' })
+        .insert({ ...dados, valor_atual: dados.valor_inicial, status: 'vigente', controla_passagens: true })
         .select('id')
         .single();
       if (error) throw error;

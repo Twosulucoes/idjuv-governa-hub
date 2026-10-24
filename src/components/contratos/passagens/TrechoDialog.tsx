@@ -30,15 +30,20 @@ export function TrechoDialog({ open, onOpenChange, pedidoId, passageiroId, proxi
   const [dataVolta, setDataVolta] = useState("");
   const [erro, setErro] = useState<string | null>(null);
 
+  // sugestão em valores simples: o objeto muda a cada render e não pode reabrir o formulário
+  const sDestino = sugestao?.destino;
+  const sIda = sugestao?.ida;
+  const sVolta = sugestao?.volta;
+
   useEffect(() => {
     if (!open) return;
     setOrigem(trecho?.origem ?? "");
-    setDestino(trecho?.destino ?? sugestao?.destino ?? "");
-    setData(trecho?.data_voo ?? sugestao?.ida ?? "");
+    setDestino(trecho?.destino ?? sDestino ?? "");
+    setData(trecho?.data_voo ?? sIda ?? "");
     setVolta(!trecho);
-    setDataVolta(sugestao?.volta ?? "");
+    setDataVolta(sVolta ?? "");
     setErro(null);
-  }, [open, trecho, sugestao]);
+  }, [open, trecho, sDestino, sIda, sVolta]);
 
   const gravar = async () => {
     if (origem.trim().length < 2 || destino.trim().length < 2 || !data) {
@@ -52,7 +57,10 @@ export function TrechoDialog({ open, onOpenChange, pedidoId, passageiroId, proxi
     try {
       await salvar.mutateAsync({ id: trecho?.id, passageiro_id: passageiroId, ordem: trecho?.ordem ?? proximaOrdem, origem: origem.trim(), destino: destino.trim(), data_voo: data });
       if (!trecho && volta) {
-        await salvar.mutateAsync({ passageiro_id: passageiroId, ordem: proximaOrdem + 1, origem: destino.trim(), destino: origem.trim(), data_voo: dataVolta });
+        // a ida já está gravada: se a volta falhar (aviso no toast), fecha mesmo assim para não gravar a ida de novo
+        await salvar
+          .mutateAsync({ passageiro_id: passageiroId, ordem: proximaOrdem + 1, origem: destino.trim(), destino: origem.trim(), data_voo: dataVolta })
+          .catch(() => undefined);
       }
       onOpenChange(false);
     } catch {

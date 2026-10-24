@@ -54,7 +54,7 @@ export function ServidorBusca({ escolhido, aoEscolher, id }: Props) {
         busca.data.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum servidor ativo encontrado.</p>
         ) : (
-          <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-md border border-border" role="listbox" aria-label="Servidores encontrados">
+          <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-md border border-border" aria-label="Servidores encontrados">
             {busca.data.map((s) => (
               <li key={s.id}>
                 <button

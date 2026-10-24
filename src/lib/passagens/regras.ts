@@ -62,7 +62,7 @@ export function pendenciasParaSituacao(
 ): string[] {
   const trechos = passageiros.flatMap((p) => p.trechos);
   if (nova === "aprovado" && (!pedido.aprovacao_documento_sei || !pedido.aprovacao_data)) {
-    return ["Informe o nº do documento SEI e a data da aprovação do Presidente."];
+    return ["Informe o nº do documento SEI e a data da aprovação."];
   }
   if (nova === "emitido" && !trechos.some((t) => t.localizador)) {
     return ["Registre a emissão de ao menos um trecho."];

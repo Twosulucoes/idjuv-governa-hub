@@ -63,7 +63,7 @@ export function BeneficiarioBusca({ escolhido, aoEscolher, podeCadastrar, id }: 
         achados.length === 0 ? (
           <p className="text-sm text-muted-foreground">Ninguém encontrado. {podeCadastrar && "Use “Novo” para cadastrar."}</p>
         ) : (
-          <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-md border border-border" role="listbox" aria-label="Beneficiários encontrados">
+          <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-md border border-border" aria-label="Beneficiários encontrados">
             {achados.map((b) => (
               <li key={b.id}>
                 <button

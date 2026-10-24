@@ -90,6 +90,8 @@
  *                    nascem em triggers SECURITY DEFINER e na service role).
  *                    extra opcional `sigilo_workflow` (só em audit_log_licitacoes): a linha copiada de uma tabela do
  *                    processo do workflow exige também wf_pode_ver_processo ou o papel admin (migração 20261015100000).
+ *                    extra opcional `leitura=<código>[|<código>...]`: além do módulo, o leitor precisa de um dos códigos
+ *                    (ex.: passagem_historico, migração 20261031090000).
  *   admin            só o papel admin (is_admin_user(auth.uid())).
  *   admin_leitura    SELECT só do papel admin; ninguém escreve por API (ex.: audit_logs).
  *   publico_admin    SELECT para anon e authenticated (configuração do portal público); escrita só do papel admin.
@@ -409,7 +411,14 @@ for (const r of dados) {
       break;
     }
     case "trilha": {
-      if (extra !== "" && extra !== "sigilo_workflow") { erros.push(`${t}: trilha só aceita extra=sigilo_workflow`); break; }
+      // leitura=a|b: além do módulo, o leitor precisa de um dos códigos (ex.: passagem_historico)
+      const ml = /^leitura=(.+)$/.exec(extra);
+      const codLeitura = ml ? ml[1].split("|") : null;
+      if (codLeitura && codLeitura.some((c) => !RE_CODIGO.test(c))) { erros.push(`${t}: código inválido em leitura=`); break; }
+      if (extra !== "" && extra !== "sigilo_workflow" && !codLeitura) {
+        erros.push(`${t}: trilha só aceita extra=sigilo_workflow ou leitura=<código>[|<código>...]`);
+        break;
+      }
       // sigilo_workflow: a trilha copia a linha de origem (dados_anteriores/dados_novos); a linha de processo do
       // workflow só aparece para quem vê o processo (wf_pode_ver_processo) ou para o papel admin.
       const S = extra === "sigilo_workflow"
@@ -418,7 +427,11 @@ for (const r of dados) {
           ` OR public.wf_pode_ver_processo(CASE WHEN tabela_origem = 'processos_administrativos' THEN registro_id` +
           ` ELSE (coalesce(dados_novos, dados_anteriores) ->> 'processo_id')::uuid END))`
         : "";
-      politica("rls_select", "SELECT", M + S, null);
+      const hpl = (c) => `public.has_permission_code(auth.uid(), ${q(c)})`;
+      const LC = !codLeitura ? ""
+        : codLeitura.length === 1 ? ` AND ${hpl(codLeitura[0])}`
+        : ` AND (${codLeitura.map(hpl).join(" OR ")})`;
+      politica("rls_select", "SELECT", M + S + LC, null);
       break;
     }
     case "admin_leitura":

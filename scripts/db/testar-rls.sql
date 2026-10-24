@@ -349,9 +349,9 @@ $$;
 CREATE FUNCTION pg_temp.excluir_de(classe text, extra text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE WHEN classe IN ('permissao', 'proprio_leitura', 'modulo', 'catalogo_admin') THEN (regexp_match(extra, '(^|;)excluir=([^;]+)'))[2] END
 $$;
--- ;leitura=a|b (permissao, E3): códigos exigidos, além do módulo, para ler; NULL se não há (o módulo lê)
+-- ;leitura=a|b (permissao, E3; trilha, passagens): códigos exigidos, além do módulo, para ler; NULL se não há (o módulo lê)
 CREATE FUNCTION pg_temp.codigos_leitura(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
-  SELECT CASE WHEN classe = 'permissao' THEN string_to_array((regexp_match(extra, '(^|;)leitura=([^;]+)'))[2], '|') END
+  SELECT CASE WHEN classe IN ('permissao', 'trilha') THEN string_to_array((regexp_match(extra, '(^|;)leitura=([^;]+)'))[2], '|') END
 $$;
 -- altera=a|b (modulo, P14 entrega 4): códigos exigidos, além do módulo, para o UPDATE; NULL se não há
 CREATE FUNCTION pg_temp.codigos_altera(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
@@ -7900,7 +7900,8 @@ END $$;
 --   * o banco copia o nome do solicitante e do passageiro (servidor ou beneficiário);
 --   * aprovado sem documento SEI e emitido sem localizador = 23514; valor_emissao = tarifa + taxas − desconto;
 --   * trecho com localizador não se apaga (42501); trilha da criação e das situações com o autor;
---   * passagem_buscar_servidores só com a permissão; gatilhos sem EXECUTE para a API.
+--   * passagem_buscar_servidores e passagem_viagens_servidor só com editar (% e _ do termo são texto);
+--   * trilha lida só com a permissão de passagens; gatilhos sem EXECUTE para a API.
 DO $$
 DECLARE
   u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.editar');
@@ -7911,7 +7912,8 @@ DECLARE
 BEGIN
   PERFORM set_config('request.jwt.claims', '', true);
   FOREACH x IN ARRAY ARRAY['public.passagem_carimbar()', 'public.passagem_copiar_nome()',
-                           'public.passagem_proteger_emitido()', 'public.passagem_registrar_historico()'] LOOP
+                           'public.passagem_proteger_emitido()', 'public.passagem_registrar_historico()',
+                           'public.passagem_propagar_nome_beneficiario()'] LOOP
     IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
       PERFORM pg_temp.falha('PASSAGENS: ' || x || ' executável pela API');
     END IF;
@@ -7972,16 +7974,49 @@ BEGIN
     PERFORM pg_temp.falha('PASSAGENS: trilha do pedido incompleta');
   END IF;
 
-  -- busca de servidores: visualizar lê; módulo sem a permissão = 42501
+  -- busca de servidores e viagens do RH: só quem edita; visualizar e módulo sem a permissão = 42501; curinga não lista
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_buscar_servidores(%L)', left(srv_nome, 5)));
+  IF r IS NULL OR r !~ '^[1-9]' THEN PERFORM pg_temp.falha('PASSAGENS: editar não acha o servidor (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated',
+    'SELECT count(*)::text FROM public.passagem_buscar_servidores(''%%%_'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('PASSAGENS: busca com curinga listou servidores (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_buscar_servidores(%L)', '%' || substr(srv_nome, 2, 3) || '_%'));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('PASSAGENS: % e _ do termo valeram como curinga (' || coalesce(r, 'nulo') || ')'); END IF;
   r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
     format('SELECT count(*)::text FROM public.passagem_buscar_servidores(%L)', left(srv_nome, 5)));
-  IF r IS NULL OR r !~ '^[1-9]' THEN PERFORM pg_temp.falha('PASSAGENS: visualizar não acha o servidor (' || coalesce(r, 'nulo') || ')'); END IF;
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS: só visualizar busca servidores (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_viagens_servidor(%L)', srv));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS: só visualizar lista viagens do servidor (' || r || ')'); END IF;
   r := pg_temp.valor_desfeito_como((SELECT uid FROM persona WHERE nome = 'mod_contratos'), 'authenticated',
     'SELECT count(*)::text FROM public.passagem_buscar_servidores(''abc'')');
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS: módulo sem permissão busca servidores (' || r || ')'); END IF;
 
+  -- trilha: visualizar lê; o módulo sem a permissão de passagens não lê
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_historico WHERE pedido_id = %L', pedido));
+  IF r IS NULL OR r !~ '^[1-9]' THEN PERFORM pg_temp.falha('PASSAGENS: visualizar não lê a trilha (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como((SELECT uid FROM persona WHERE nome = 'mod_contratos'), 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_historico WHERE pedido_id = %L', pedido));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('PASSAGENS: módulo sem a permissão lê a trilha (' || coalesce(r, 'nulo') || ')'); END IF;
+
+  -- nome do beneficiário corrigido chega ao passageiro e ao solicitante
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_beneficiarios SET nome = 'Atleta Teste Corrigido' WHERE id = benef;
+  IF (SELECT nome FROM public.passagem_passageiros WHERE id = pass_b) IS DISTINCT FROM 'Atleta Teste Corrigido'
+     OR (SELECT solicitante_nome FROM public.passagem_pedidos WHERE id = pedido) IS DISTINCT FROM 'Atleta Teste Corrigido' THEN
+    PERFORM pg_temp.falha('PASSAGENS: nome corrigido do beneficiário não chegou ao pedido');
+  END IF;
+
+  -- passageiro ou instituição inexistente: o gatilho recusa (não serve de leitura indireta por id)
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.passagem_passageiros (pedido_id, servidor_id) VALUES (%L, gen_random_uuid()) RETURNING id::text', pedido));
+  IF r NOT LIKE 'erro:%' THEN PERFORM pg_temp.falha('PASSAGENS: passageiro com servidor inexistente aceito (' || r || ')'); END IF;
+
   PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM pg_temp.nota('PASSAGENS: gravação só com contratos.passagens.editar, nº SEI e CPF únicos, nomes copiados, aprovação e emissão exigidas, valor da emissão, trecho emitido protegido, trilha e busca de servidores verificados');
+  PERFORM pg_temp.nota('PASSAGENS: gravação só com contratos.passagens.editar, nº SEI e CPF únicos, nomes copiados, aprovação e emissão exigidas, valor da emissão, trecho emitido protegido, trilha só com a permissão, busca de servidores e viagens só para quem edita e sem curinga verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

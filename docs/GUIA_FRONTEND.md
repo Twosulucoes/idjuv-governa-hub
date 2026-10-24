@@ -77,7 +77,8 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useMudarSituacao`, `useSalvarPassageiro`, `useRemoverPassageiro`, `useSalvarTrecho`, `useAlterarTrecho`,
   `useRemoverTrecho`, `useSalvarCotacao`, `useRemoverCotacao`, `useEscolherCotacao`, `useBeneficiarios`,
   `useSalvarBeneficiario`, `useBuscarServidores`, `useViagensServidor`, `useContratosPassagens`,
-  `useFornecedoresContrato`, `useCadastrarContrato`): telas `/contratos/passagens*` (componentes em
+  `useOutrosContratos`, `useMarcarContratoPassagens`, `useFornecedoresContrato`, `useCadastrarContrato`; o saldo só olha
+  contratos com `controla_passagens`): telas `/contratos/passagens*` (componentes em
   `src/components/contratos/passagens/`; tipos e rótulos em `src/types/passagens.ts`). Valor do trecho, saldo do
   contrato, fluxo de situações e máscara de CPF em `src/lib/passagens/regras.ts` (testes vitest). A busca de servidor
   usa a RPC `passagem_buscar_servidores`, que devolve só nome, matrícula e cargo.

@@ -47,6 +47,8 @@ interface Props {
 export function PassageirosTab({ pedido, podeEditar }: Props) {
   const encerrado = pedido.situacao === "cancelado" || pedido.situacao === "concluido";
   const edita = podeEditar && !encerrado;
+  // a emissão vem depois da aprovação (spec §3): antes disso, só cotação
+  const podeEmitir = pedido.situacao === "aprovado" || pedido.situacao === "emitido";
   const [novoPassageiro, setNovoPassageiro] = useState(false);
   const [trechoForm, setTrechoForm] = useState<{ passageiro: PassageiroComTrechos; trecho: TrechoComCotacoes | null } | null>(null);
   const [cotacaoDe, setCotacaoDe] = useState<TrechoComCotacoes | null>(null);
@@ -69,7 +71,7 @@ export function PassageirosTab({ pedido, podeEditar }: Props) {
     const itens: { rotulo: string; aoClicar: () => void }[] = [];
     if (t.situacao === "a_cotar" || t.situacao === "cotado") {
       itens.push({ rotulo: "Registrar cotação", aoClicar: () => setCotacaoDe(t) });
-      itens.push({ rotulo: "Registrar emissão", aoClicar: () => setBilhete({ trecho: t, acao: "emitir" }) });
+      if (podeEmitir) itens.push({ rotulo: "Registrar emissão", aoClicar: () => setBilhete({ trecho: t, acao: "emitir" }) });
       itens.push({ rotulo: "Editar trecho", aoClicar: () => setTrechoForm({ passageiro: p, trecho: t }) });
     }
     if (t.situacao === "emitido" || t.situacao === "remarcado") {
@@ -188,7 +190,7 @@ export function PassageirosTab({ pedido, podeEditar }: Props) {
                                 {!c.escolhida && (
                                   <Button variant="ghost" size="sm" onClick={() => escolher.mutate({ trechoId: t.id, cotacaoId: c.id })}>Escolher</Button>
                                 )}
-                                <Button variant="ghost" size="sm" aria-label="Apagar cotação" onClick={() => removerCotacao.mutate(c.id)}>
+                                <Button variant="ghost" size="sm" aria-label="Apagar cotação" onClick={() => removerCotacao.mutate(c)}>
                                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                                 </Button>
                               </span>

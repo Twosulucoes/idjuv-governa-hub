@@ -115,7 +115,12 @@ export function BeneficiarioFormDialog({ open, onOpenChange, beneficiario, aoSal
           <DialogDescription>Pessoa que viaja e não é servidor. Os dados ficam só para quem controla as passagens.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <form
+            // o submit do React atravessa o portal: sem isto, salvar o beneficiário dentro do pedido envia o pedido também
+            onSubmit={(e) => { e.stopPropagation(); form.handleSubmit(onSubmit)(e); }}
+            className="space-y-4"
+            noValidate
+          >
             {texto("nome", "Nome completo *", { autoComplete: "off" })}
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField

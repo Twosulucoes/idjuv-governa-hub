@@ -1253,12 +1253,17 @@ histórico de migrações; o baseline já as remove); a correção no banco ao v
   multa, reembolso); `valor_emissao` é coluna gerada. Emitido, remarcado e reembolsado exigem localizador e data da
   emissão; trecho com localizador não se apaga (cancela).
 - `passagem_cotacoes`: opções da agência por trecho; no máximo uma `escolhida`.
-- `passagem_historico`: trilha (pedido criado, mudança de situação do pedido e dos trechos), escrita só por gatilho.
+- `passagem_historico`: trilha (pedido criado, mudança de situação do pedido e dos trechos), escrita só por gatilho e
+  lida só com a permissão de passagens (classe `trilha` com `leitura=`).
+- `contratos.controla_passagens` (coluna nova, padrão `false`): marca o contrato da agência; só os marcados entram no
+  saldo e na escolha do pedido. A tela de passagens cadastra o contrato já marcado ou marca um que já existe.
 
 Permissões novas `contratos.passagens.visualizar` e `contratos.passagens.editar`, dadas a quem já tinha
 `contratos.criar`. RLS pelo `mapa.csv` (classe `permissao`; histórico na classe `trilha`). Funções:
-`passagem_buscar_servidores(_termo)` e `passagem_viagens_servidor(_servidor_id)` (SECURITY DEFINER, exigem a
-permissão de passagens e devolvem só o necessário) e os gatilhos `passagem_carimbar`, `passagem_copiar_nome`,
+`passagem_buscar_servidores(_termo)` e `passagem_viagens_servidor(_servidor_id)` (SECURITY DEFINER, só para quem tem
+`contratos.passagens.editar`, devolvem só o necessário; na busca, `%` e `_` do termo valem como texto e são exigidas 3
+letras ou dígitos) e os gatilhos `passagem_carimbar`, `passagem_copiar_nome` (recusa servidor, beneficiário ou
+instituição inexistente), `passagem_propagar_nome_beneficiario` (nome corrigido chega aos pedidos),
 `passagem_proteger_emitido` e `passagem_registrar_historico`.
 
 ### Processos administrativos (workflow)

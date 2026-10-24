@@ -294,7 +294,7 @@ export const menuConfig: MenuSection[] = [
             label: "Passagens aéreas",
             route: "/contratos/passagens",
             icon: Plane,
-            permission: "contratos.passagens.visualizar",
+            permissions: ["contratos.passagens.visualizar", "contratos.passagens.editar"],
           },
           {
             id: "passagens-novo",
