@@ -81,7 +81,12 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   contratos com `controla_passagens`): telas `/contratos/passagens*` (componentes em
   `src/components/contratos/passagens/`; tipos e rótulos em `src/types/passagens.ts`). Valor do trecho, saldo do
   contrato, fluxo de situações e máscara de CPF em `src/lib/passagens/regras.ts` (testes vitest). A busca de servidor
-  usa a RPC `passagem_buscar_servidores`, que devolve só nome, matrícula e cargo.
+  usa a RPC `passagem_buscar_servidores`, que devolve só nome, matrícula e cargo. Prestação de contas (entrega 2):
+  `usePrazoPrestacao`, `useSalvarPrazoPrestacao`, `useRelatorioRh`, `useSalvarPrestacaoPassageiro`,
+  `useSalvarPrestacaoPedido`, `usePedidosParaPendencias`, `useAnexosPedido`, `useEnviarAnexo`, `useRemoverAnexo` e
+  `abrirAnexo` (bucket privado `passagens`, URL assinada de 60 s por `abrirArquivoPrivado`); retorno, vencimento, atraso e
+  pendências por modo em `src/lib/passagens/prestacao.ts` (vitest). Aba em `PrestacaoTab.tsx`; tela
+  `PassagensPendenciasPage`.
 - **Exercício do Financeiro** (`src/hooks/useExercicioFinanceiro.ts`): ano orçamentário compartilhado pelas telas
   do módulo. Lê `?exercicio=` da URL; sem ele, o último ano escolhido no navegador (`localStorage`,
   chave `financeiro:exercicio`); sem nenhum, o ano atual. Faixa: 2024 até o ano seguinte ao atual. Devolve
