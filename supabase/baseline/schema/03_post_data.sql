@@ -2510,6 +2510,22 @@ ALTER TABLE ONLY public.participantes_reuniao
 
 
 --
+-- Name: passagem_anexos passagem_anexos_caminho_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_caminho_key UNIQUE (caminho);
+
+
+--
+-- Name: passagem_anexos passagem_anexos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: passagem_beneficiarios passagem_beneficiarios_cpf_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8363,6 +8379,34 @@ CREATE INDEX limite_requisicoes_publicas_criado_em_idx ON public.limite_requisic
 
 
 --
+-- Name: passagem_anexos_created_by_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX passagem_anexos_created_by_idx ON public.passagem_anexos USING btree (created_by);
+
+
+--
+-- Name: passagem_anexos_passageiro_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX passagem_anexos_passageiro_idx ON public.passagem_anexos USING btree (passageiro_id);
+
+
+--
+-- Name: passagem_anexos_pedido_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX passagem_anexos_pedido_idx ON public.passagem_anexos USING btree (pedido_id);
+
+
+--
+-- Name: passagem_anexos_updated_by_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX passagem_anexos_updated_by_idx ON public.passagem_anexos USING btree (updated_by);
+
+
+--
 -- Name: pre_cadastros_ip_hash_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10309,6 +10353,20 @@ CREATE TRIGGER trg_parametros_folha_normalizar_nome BEFORE INSERT OR UPDATE OF t
 
 
 --
+-- Name: passagem_anexos trg_passagem_anexos_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_anexos_carimbar BEFORE INSERT OR UPDATE ON public.passagem_anexos FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_anexos trg_passagem_anexos_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_anexos_conferir BEFORE INSERT OR UPDATE ON public.passagem_anexos FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_anexo();
+
+
+--
 -- Name: passagem_beneficiarios trg_passagem_beneficiarios_carimbar; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -10344,6 +10402,13 @@ CREATE TRIGGER trg_passagem_passageiros_nome BEFORE INSERT OR UPDATE ON public.p
 
 
 --
+-- Name: passagem_passageiros trg_passagem_passageiros_prestacao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_passageiros_prestacao AFTER UPDATE ON public.passagem_passageiros FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_prestacao();
+
+
+--
 -- Name: passagem_pedidos trg_passagem_pedidos_carimbar; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -10362,6 +10427,20 @@ CREATE TRIGGER trg_passagem_pedidos_historico AFTER INSERT OR UPDATE ON public.p
 --
 
 CREATE TRIGGER trg_passagem_pedidos_nome BEFORE INSERT OR UPDATE ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_copiar_nome();
+
+
+--
+-- Name: passagem_pedidos trg_passagem_pedidos_prestacao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_pedidos_prestacao AFTER UPDATE ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_prestacao();
+
+
+--
+-- Name: passagem_pedidos trg_passagem_pedidos_responsavel; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_pedidos_responsavel BEFORE INSERT OR UPDATE OF responsavel_passageiro_id ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_responsavel();
 
 
 --
@@ -17370,6 +17449,38 @@ ALTER TABLE ONLY public.participantes_reuniao
 
 
 --
+-- Name: passagem_anexos passagem_anexos_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
+
+
+--
+-- Name: passagem_anexos passagem_anexos_passageiro_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_passageiro_id_fkey FOREIGN KEY (passageiro_id) REFERENCES public.passagem_passageiros(id) ON DELETE CASCADE;
+
+
+--
+-- Name: passagem_anexos passagem_anexos_pedido_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_pedido_id_fkey FOREIGN KEY (pedido_id) REFERENCES public.passagem_pedidos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: passagem_anexos passagem_anexos_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id);
+
+
+--
 -- Name: passagem_beneficiarios passagem_beneficiarios_instituicao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17431,6 +17542,14 @@ ALTER TABLE ONLY public.passagem_passageiros
 
 ALTER TABLE ONLY public.passagem_pedidos
     ADD CONSTRAINT passagem_pedidos_contrato_id_fkey FOREIGN KEY (contrato_id) REFERENCES public.contratos(id);
+
+
+--
+-- Name: passagem_pedidos passagem_pedidos_responsavel_passageiro_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_pedidos
+    ADD CONSTRAINT passagem_pedidos_responsavel_passageiro_id_fkey FOREIGN KEY (responsavel_passageiro_id) REFERENCES public.passagem_passageiros(id) ON DELETE SET NULL;
 
 
 --
@@ -20122,6 +20241,12 @@ ALTER TABLE public.pareceres_tecnicos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.participantes_reuniao ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: passagem_anexos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_anexos ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: passagem_beneficiarios; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -21649,6 +21774,13 @@ CREATE POLICY rls_delete ON public.pareceres_tecnicos FOR DELETE TO authenticate
 --
 
 CREATE POLICY rls_delete ON public.participantes_reuniao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: passagem_anexos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.passagem_anexos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
@@ -23300,6 +23432,13 @@ CREATE POLICY rls_insert ON public.pareceres_tecnicos FOR INSERT TO authenticate
 --
 
 CREATE POLICY rls_insert ON public.participantes_reuniao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: passagem_anexos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.passagem_anexos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
@@ -25086,6 +25225,13 @@ CREATE POLICY rls_select ON public.participantes_reuniao FOR SELECT TO authentic
 
 
 --
+-- Name: passagem_anexos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_anexos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+
+
+--
 -- Name: passagem_beneficiarios rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -26813,6 +26959,13 @@ CREATE POLICY rls_update ON public.pareceres_tecnicos FOR UPDATE TO authenticate
 --
 
 CREATE POLICY rls_update ON public.participantes_reuniao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: passagem_anexos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.passagem_anexos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
