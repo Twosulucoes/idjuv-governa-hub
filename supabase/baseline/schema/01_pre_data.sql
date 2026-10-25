@@ -10647,6 +10647,92 @@ $$;
 
 
 --
+-- Name: passagem_conferir_anexo(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_conferir_anexo() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = OLD.pedido_id AND p.situacao = 'concluido') THEN
+      RAISE EXCEPTION 'Pedido concluído: o anexo da prestação de contas não se apaga.' USING ERRCODE = '42501';
+    END IF;
+    RETURN OLD;
+  END IF;
+  IF TG_OP = 'UPDATE' AND (NEW.caminho, NEW.pedido_id) IS DISTINCT FROM (OLD.caminho, OLD.pedido_id) THEN
+    RAISE EXCEPTION 'O arquivo e o pedido do anexo não mudam: apague e anexe de novo.' USING ERRCODE = '42501';
+  END IF;
+  IF NEW.passageiro_id IS NOT NULL AND NOT EXISTS (
+     SELECT 1 FROM public.passagem_passageiros p WHERE p.id = NEW.passageiro_id AND p.pedido_id = NEW.pedido_id) THEN
+    RAISE EXCEPTION 'O passageiro do anexo não é deste pedido.' USING ERRCODE = '22023';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_conferir_conclusao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_conferir_conclusao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE n int;
+BEGIN
+  IF TG_TABLE_NAME = 'passagem_passageiros' THEN
+    IF (NEW.embarque_entregue_em, NEW.relatorio_entregue_em, NEW.relatorio_documento_sei, NEW.prestacao_dispensada,
+        NEW.prestacao_dispensa_motivo)
+       IS DISTINCT FROM
+       (OLD.embarque_entregue_em, OLD.relatorio_entregue_em, OLD.relatorio_documento_sei, OLD.prestacao_dispensada,
+        OLD.prestacao_dispensa_motivo)
+       AND EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = NEW.pedido_id AND p.situacao = 'concluido') THEN
+      RAISE EXCEPTION 'Pedido concluído: a prestação de contas não muda mais.' USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF OLD.situacao = 'concluido'
+     AND (NEW.prestacao_contas, NEW.prestacao_dispensa_motivo, NEW.responsavel_passageiro_id,
+          NEW.relatorio_evento_entregue_em, NEW.relatorio_evento_documento_sei)
+         IS DISTINCT FROM
+         (OLD.prestacao_contas, OLD.prestacao_dispensa_motivo, OLD.responsavel_passageiro_id,
+          OLD.relatorio_evento_entregue_em, OLD.relatorio_evento_documento_sei) THEN
+    RAISE EXCEPTION 'Pedido concluído: a prestação de contas não muda mais.' USING ERRCODE = '42501';
+  END IF;
+  IF NEW.situacao = 'concluido' AND OLD.situacao IS DISTINCT FROM 'concluido' THEN
+    n := public.passagem_prestacao_em_aberto(NEW.id);
+    IF n > 0 THEN
+      RAISE EXCEPTION 'Prestação de contas em aberto (% item(ns)): registre a entrega ou a dispensa antes de concluir.', n
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_conferir_responsavel(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_conferir_responsavel() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.responsavel_passageiro_id IS NOT NULL AND NOT EXISTS (
+     SELECT 1 FROM public.passagem_passageiros p WHERE p.id = NEW.responsavel_passageiro_id AND p.pedido_id = NEW.id) THEN
+    RAISE EXCEPTION 'O responsável da delegação precisa ser passageiro deste pedido.' USING ERRCODE = '22023';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: passagem_copiar_nome(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -10687,6 +10773,32 @@ $$;
 
 
 --
+-- Name: passagem_prestacao_em_aberto(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_prestacao_em_aberto(_pedido_id uuid) RETURNS integer
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  WITH viajam AS (
+    SELECT p.* FROM public.passagem_passageiros p
+     WHERE p.pedido_id = _pedido_id AND NOT p.prestacao_dispensada
+       AND EXISTS (SELECT 1 FROM public.passagem_trechos t
+                    WHERE t.passageiro_id = p.id AND t.localizador IS NOT NULL
+                      AND t.situacao NOT IN ('cancelado', 'reembolsado'))
+  )
+  SELECT (SELECT count(*) FROM viajam WHERE embarque_entregue_em IS NULL)::int
+       + (SELECT count(*) FROM viajam v, public.passagem_pedidos pd
+           WHERE pd.id = _pedido_id AND pd.prestacao_contas = 'individual' AND v.relatorio_entregue_em IS NULL
+             AND NOT EXISTS (SELECT 1 FROM public.viagens_diarias d
+                              WHERE d.id = v.viagem_id AND d.servidor_id = v.servidor_id AND d.relatorio_apresentado))::int
+       + (SELECT count(*) FROM public.passagem_pedidos pd
+           WHERE pd.id = _pedido_id AND pd.prestacao_contas = 'evento' AND pd.relatorio_evento_entregue_em IS NULL
+             AND EXISTS (SELECT 1 FROM viajam))::int;
+$$;
+
+
+--
 -- Name: passagem_propagar_nome_beneficiario(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -10715,6 +10827,29 @@ BEGIN
     RAISE EXCEPTION 'Trecho já emitido não pode ser apagado: marque como cancelado ou reembolsado.' USING ERRCODE = '42501';
   END IF;
   RETURN OLD;
+END;
+$$;
+
+
+--
+-- Name: passagem_registrar_anexo(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_registrar_anexo() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  a public.passagem_anexos := CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = a.pedido_id) THEN
+    INSERT INTO public.passagem_historico (pedido_id, acao, antes, depois, feito_por)
+    VALUES (a.pedido_id, CASE WHEN TG_OP = 'DELETE' THEN 'anexo_removido' ELSE 'anexo_incluido' END, NULL,
+            jsonb_build_object('tipo', a.tipo, 'nome_arquivo', a.nome_arquivo,
+                               'passageiro', (SELECT nome FROM public.passagem_passageiros WHERE id = a.passageiro_id)),
+            auth.uid());
+  END IF;
+  RETURN NULL;
 END;
 $$;
 
@@ -10760,10 +10895,75 @@ $$;
 
 
 --
+-- Name: passagem_registrar_prestacao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_registrar_prestacao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'passagem_passageiros' THEN
+    IF (NEW.embarque_entregue_em, NEW.relatorio_entregue_em, NEW.relatorio_documento_sei, NEW.prestacao_dispensada,
+        NEW.prestacao_dispensa_motivo)
+       IS DISTINCT FROM
+       (OLD.embarque_entregue_em, OLD.relatorio_entregue_em, OLD.relatorio_documento_sei, OLD.prestacao_dispensada,
+        OLD.prestacao_dispensa_motivo) THEN
+      INSERT INTO public.passagem_historico (pedido_id, acao, antes, depois, feito_por)
+      VALUES (NEW.pedido_id, 'prestacao_passageiro',
+              jsonb_build_object('embarque_entregue_em', OLD.embarque_entregue_em, 'relatorio_entregue_em', OLD.relatorio_entregue_em,
+                                 'prestacao_dispensada', OLD.prestacao_dispensada),
+              jsonb_build_object('passageiro', NEW.nome, 'embarque_entregue_em', NEW.embarque_entregue_em,
+                                 'relatorio_entregue_em', NEW.relatorio_entregue_em, 'relatorio_documento_sei', NEW.relatorio_documento_sei,
+                                 'prestacao_dispensada', NEW.prestacao_dispensada, 'prestacao_dispensa_motivo', NEW.prestacao_dispensa_motivo),
+              auth.uid());
+    END IF;
+  ELSIF (NEW.prestacao_contas, NEW.prestacao_dispensa_motivo, NEW.responsavel_passageiro_id, NEW.relatorio_evento_entregue_em,
+         NEW.relatorio_evento_documento_sei)
+        IS DISTINCT FROM
+        (OLD.prestacao_contas, OLD.prestacao_dispensa_motivo, OLD.responsavel_passageiro_id, OLD.relatorio_evento_entregue_em,
+         OLD.relatorio_evento_documento_sei) THEN
+    INSERT INTO public.passagem_historico (pedido_id, acao, antes, depois, feito_por)
+    VALUES (NEW.id, 'prestacao_pedido',
+            jsonb_build_object('prestacao_contas', OLD.prestacao_contas, 'relatorio_evento_entregue_em', OLD.relatorio_evento_entregue_em),
+            jsonb_build_object('prestacao_contas', NEW.prestacao_contas, 'prestacao_dispensa_motivo', NEW.prestacao_dispensa_motivo,
+                               'relatorio_evento_entregue_em', NEW.relatorio_evento_entregue_em,
+                               'relatorio_evento_documento_sei', NEW.relatorio_evento_documento_sei),
+            auth.uid());
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_relatorio_rh(uuid[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_relatorio_rh(_passageiro_ids uuid[]) RETURNS TABLE(passageiro_id uuid, relatorio_apresentado boolean, relatorio_data date)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT (public.can_access_module(auth.uid(), 'contratos')
+          AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
+               OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))) THEN
+    RAISE EXCEPTION 'Requer a permissão de ver passagens.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT p.id, COALESCE(v.relatorio_apresentado, false), v.relatorio_data
+    FROM public.passagem_passageiros p
+    JOIN public.viagens_diarias v ON v.id = p.viagem_id AND v.servidor_id = p.servidor_id
+   WHERE p.id = ANY (_passageiro_ids);
+END;
+$$;
+
+
+--
 -- Name: passagem_viagens_servidor(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.passagem_viagens_servidor(_servidor_id uuid) RETURNS TABLE(id uuid, destino text, data_saida date, data_retorno date, status text)
+CREATE FUNCTION public.passagem_viagens_servidor(_servidor_id uuid) RETURNS TABLE(id uuid, destino text, data_saida date, data_retorno date, status text, relatorio_apresentado boolean, relatorio_data date)
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -10773,7 +10973,8 @@ BEGIN
     RAISE EXCEPTION 'Requer a permissão de editar passagens.' USING ERRCODE = '42501';
   END IF;
   RETURN QUERY
-  SELECT v.id, v.destino_cidade || '/' || v.destino_uf, v.data_saida, v.data_retorno, v.status
+  SELECT v.id, v.destino_cidade || '/' || v.destino_uf, v.data_saida, v.data_retorno, v.status,
+         COALESCE(v.relatorio_apresentado, false), v.relatorio_data
     FROM public.viagens_diarias v
    WHERE v.servidor_id = _servidor_id AND v.status <> 'cancelada'
    ORDER BY v.data_saida DESC
@@ -23934,6 +24135,39 @@ CREATE TABLE public.participantes_reuniao (
 
 
 --
+-- Name: passagem_anexos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_anexos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    pedido_id uuid NOT NULL,
+    passageiro_id uuid,
+    tipo text NOT NULL,
+    caminho text NOT NULL,
+    nome_arquivo text NOT NULL,
+    tamanho_bytes bigint,
+    mime_type text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT passagem_anexos_caminho_check CHECK ((char_length(caminho) <= 500)),
+    CONSTRAINT passagem_anexos_caminho_pedido_check CHECK ((caminho ~~ ((pedido_id)::text || '/%'::text))),
+    CONSTRAINT passagem_anexos_mime_type_check CHECK ((char_length(mime_type) <= 100)),
+    CONSTRAINT passagem_anexos_nome_arquivo_check CHECK (((char_length(btrim(nome_arquivo)) >= 1) AND (char_length(btrim(nome_arquivo)) <= 255))),
+    CONSTRAINT passagem_anexos_tamanho_bytes_check CHECK ((tamanho_bytes >= 0)),
+    CONSTRAINT passagem_anexos_tipo_check CHECK ((tipo = ANY (ARRAY['cartao_embarque'::text, 'bilhete'::text, 'relatorio'::text, 'outro'::text])))
+);
+
+
+--
+-- Name: TABLE passagem_anexos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_anexos IS 'Anexos das passagens (cartão de embarque, bilhete, relatório): o arquivo fica no bucket privado passagens, em <pedido_id>/...';
+
+
+--
 -- Name: passagem_beneficiarios; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -24019,7 +24253,7 @@ CREATE TABLE public.passagem_historico (
     depois jsonb,
     feito_por uuid DEFAULT auth.uid(),
     feito_em timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT passagem_historico_acao_check CHECK ((acao = ANY (ARRAY['pedido_criado'::text, 'pedido_situacao'::text, 'trecho_situacao'::text])))
+    CONSTRAINT passagem_historico_acao_check CHECK ((acao = ANY (ARRAY['pedido_criado'::text, 'pedido_situacao'::text, 'trecho_situacao'::text, 'prestacao_pedido'::text, 'prestacao_passageiro'::text, 'anexo_incluido'::text, 'anexo_removido'::text])))
 );
 
 
@@ -24046,8 +24280,16 @@ CREATE TABLE public.passagem_passageiros (
     created_by uuid DEFAULT auth.uid(),
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_by uuid,
+    embarque_entregue_em date,
+    relatorio_entregue_em date,
+    relatorio_documento_sei text,
+    prestacao_dispensada boolean DEFAULT false NOT NULL,
+    prestacao_dispensa_motivo text,
+    CONSTRAINT passagem_passageiros_dispensa_check CHECK (((NOT prestacao_dispensada) OR (char_length(btrim(COALESCE(prestacao_dispensa_motivo, ''::text))) >= 3))),
     CONSTRAINT passagem_passageiros_observacoes_check CHECK ((char_length(observacoes) <= 1000)),
     CONSTRAINT passagem_passageiros_pessoa_check CHECK (((servidor_id IS NULL) <> (beneficiario_id IS NULL))),
+    CONSTRAINT passagem_passageiros_prestacao_dispensa_motivo_check CHECK ((char_length(prestacao_dispensa_motivo) <= 1000)),
+    CONSTRAINT passagem_passageiros_relatorio_documento_sei_check CHECK ((char_length(relatorio_documento_sei) <= 60)),
     CONSTRAINT passagem_passageiros_viagem_check CHECK (((viagem_id IS NULL) OR (servidor_id IS NOT NULL)))
 );
 
@@ -24057,6 +24299,27 @@ CREATE TABLE public.passagem_passageiros (
 --
 
 COMMENT ON TABLE public.passagem_passageiros IS 'Passageiros do pedido: servidor (RH) ou beneficiário. nome é copiado pelo gatilho passagem_copiar_nome. viagem_id liga à viagem do RH (diárias e relatório).';
+
+
+--
+-- Name: COLUMN passagem_passageiros.embarque_entregue_em; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_passageiros.embarque_entregue_em IS 'Entrega do(s) cartão(ões) de embarque.';
+
+
+--
+-- Name: COLUMN passagem_passageiros.relatorio_entregue_em; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_passageiros.relatorio_entregue_em IS 'Entrega do relatório individual (modo individual).';
+
+
+--
+-- Name: COLUMN passagem_passageiros.prestacao_dispensada; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_passageiros.prestacao_dispensada IS 'Passageiro dispensado da prestação (ex.: não viajou).';
 
 
 --
@@ -24090,6 +24353,10 @@ CREATE TABLE public.passagem_pedidos (
     created_by uuid DEFAULT auth.uid(),
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_by uuid,
+    prestacao_dispensa_motivo text,
+    responsavel_passageiro_id uuid,
+    relatorio_evento_entregue_em date,
+    relatorio_evento_documento_sei text,
     CONSTRAINT passagem_pedidos_aprovacao_check CHECK (((situacao <> ALL (ARRAY['aprovado'::text, 'emitido'::text, 'concluido'::text])) OR ((aprovacao_documento_sei IS NOT NULL) AND (aprovacao_data IS NOT NULL)))),
     CONSTRAINT passagem_pedidos_aprovacao_documento_sei_check CHECK ((char_length(aprovacao_documento_sei) <= 60)),
     CONSTRAINT passagem_pedidos_cancelamento_check CHECK (((situacao <> 'cancelado'::text) OR (cancelamento_motivo IS NOT NULL))),
@@ -24097,12 +24364,15 @@ CREATE TABLE public.passagem_pedidos (
     CONSTRAINT passagem_pedidos_datas_check CHECK (((data_fim IS NULL) OR (data_inicio IS NULL) OR (data_fim >= data_inicio))),
     CONSTRAINT passagem_pedidos_destino_cidade_check CHECK ((char_length(destino_cidade) <= 120)),
     CONSTRAINT passagem_pedidos_destino_uf_check CHECK ((destino_uf ~ '^[A-Z]{2}$'::text)),
+    CONSTRAINT passagem_pedidos_dispensa_check CHECK (((prestacao_contas <> 'dispensado'::text) OR (char_length(btrim(COALESCE(prestacao_dispensa_motivo, ''::text))) >= 3))),
     CONSTRAINT passagem_pedidos_evento_check CHECK ((char_length(evento) <= 300)),
     CONSTRAINT passagem_pedidos_finalidade_check CHECK (((char_length(btrim(finalidade)) >= 3) AND (char_length(btrim(finalidade)) <= 2000))),
     CONSTRAINT passagem_pedidos_numero_sei_check CHECK (((char_length(btrim(numero_sei)) >= 1) AND (char_length(btrim(numero_sei)) <= 60))),
     CONSTRAINT passagem_pedidos_observacoes_check CHECK ((char_length(observacoes) <= 2000)),
     CONSTRAINT passagem_pedidos_origem_check CHECK ((origem = ANY (ARRAY['sei'::text, 'email'::text, 'oficio'::text, 'outro'::text]))),
     CONSTRAINT passagem_pedidos_prestacao_contas_check CHECK ((prestacao_contas = ANY (ARRAY['individual'::text, 'evento'::text, 'dispensado'::text]))),
+    CONSTRAINT passagem_pedidos_prestacao_dispensa_motivo_check CHECK ((char_length(prestacao_dispensa_motivo) <= 1000)),
+    CONSTRAINT passagem_pedidos_relatorio_evento_documento_sei_check CHECK ((char_length(relatorio_evento_documento_sei) <= 60)),
     CONSTRAINT passagem_pedidos_situacao_check CHECK ((situacao = ANY (ARRAY['recebido'::text, 'cotacao_solicitada'::text, 'cotacao_recebida'::text, 'aprovado'::text, 'emitido'::text, 'concluido'::text, 'cancelado'::text]))),
     CONSTRAINT passagem_pedidos_solicitante_check CHECK ((((solicitante_tipo = 'servidor'::text) AND (solicitante_servidor_id IS NOT NULL)) OR ((solicitante_tipo = 'beneficiario'::text) AND (solicitante_beneficiario_id IS NOT NULL)) OR ((solicitante_tipo = 'instituicao'::text) AND ((solicitante_instituicao_id IS NOT NULL) OR (solicitante_nome IS NOT NULL))))),
     CONSTRAINT passagem_pedidos_solicitante_nome_check CHECK ((char_length(solicitante_nome) <= 200)),
@@ -24115,6 +24385,27 @@ CREATE TABLE public.passagem_pedidos (
 --
 
 COMMENT ON TABLE public.passagem_pedidos IS 'Pedido de passagem: um por processo SEI. O SEI tramita e assina; aqui ficam a situação, a data e o nº do documento da aprovação do Presidente. Sai por situacao = cancelado.';
+
+
+--
+-- Name: COLUMN passagem_pedidos.prestacao_dispensa_motivo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_pedidos.prestacao_dispensa_motivo IS 'Por que o pedido não tem relatório (modo dispensado).';
+
+
+--
+-- Name: COLUMN passagem_pedidos.responsavel_passageiro_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_pedidos.responsavel_passageiro_id IS 'Passageiro que entrega o relatório único do evento.';
+
+
+--
+-- Name: COLUMN passagem_pedidos.relatorio_evento_entregue_em; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_pedidos.relatorio_evento_entregue_em IS 'Entrega do relatório único do evento (modo evento).';
 
 
 --

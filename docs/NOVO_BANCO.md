@@ -206,6 +206,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
   mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- As passagens aéreas, entrega 2 (migração `20261101090000`), entraram no mapa (`passagem_anexos`, classe `permissao`
+  com leitura por `visualizar` ou `editar`), no schema regenerado, no `overlay/40_privilegios.sql` e no
+  `overlay/50_storage.sql` (bucket privado `passagens`); testes no bloco "PASSAGENS PRESTAÇÃO" de
+  `scripts/db/testar-rls.sql`.
 - As passagens aéreas, entrega 1 (migração `20261031090000`), entraram no mapa (`passagem_beneficiarios`,
   `passagem_pedidos`, `passagem_passageiros`, `passagem_trechos` e `passagem_cotacoes`, classe `permissao` com
   `contratos.passagens.editar`; `passagem_historico`, classe `trilha`), no schema do baseline regenerado, no catálogo

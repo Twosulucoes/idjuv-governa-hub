@@ -18361,6 +18361,67 @@ export type Database = {
           },
         ]
       }
+      passagem_anexos: {
+        Row: {
+          caminho: string
+          created_at: string
+          created_by: string | null
+          id: string
+          mime_type: string | null
+          nome_arquivo: string
+          passageiro_id: string | null
+          pedido_id: string
+          tamanho_bytes: number | null
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          caminho: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mime_type?: string | null
+          nome_arquivo: string
+          passageiro_id?: string | null
+          pedido_id: string
+          tamanho_bytes?: number | null
+          tipo: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          caminho?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mime_type?: string | null
+          nome_arquivo?: string
+          passageiro_id?: string | null
+          pedido_id?: string
+          tamanho_bytes?: number | null
+          tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_anexos_passageiro_id_fkey"
+            columns: ["passageiro_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_passageiros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_anexos_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       passagem_beneficiarios: {
         Row: {
           ativo: boolean
@@ -18541,10 +18602,15 @@ export type Database = {
           beneficiario_id: string | null
           created_at: string
           created_by: string | null
+          embarque_entregue_em: string | null
           id: string
           nome: string | null
           observacoes: string | null
           pedido_id: string
+          prestacao_dispensa_motivo: string | null
+          prestacao_dispensada: boolean
+          relatorio_documento_sei: string | null
+          relatorio_entregue_em: string | null
           servidor_id: string | null
           updated_at: string
           updated_by: string | null
@@ -18555,10 +18621,15 @@ export type Database = {
           beneficiario_id?: string | null
           created_at?: string
           created_by?: string | null
+          embarque_entregue_em?: string | null
           id?: string
           nome?: string | null
           observacoes?: string | null
           pedido_id: string
+          prestacao_dispensa_motivo?: string | null
+          prestacao_dispensada?: boolean
+          relatorio_documento_sei?: string | null
+          relatorio_entregue_em?: string | null
           servidor_id?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -18568,10 +18639,15 @@ export type Database = {
           beneficiario_id?: string | null
           created_at?: string
           created_by?: string | null
+          embarque_entregue_em?: string | null
           id?: string
           nome?: string | null
           observacoes?: string | null
           pedido_id?: string
+          prestacao_dispensa_motivo?: string | null
+          prestacao_dispensada?: boolean
+          relatorio_documento_sei?: string | null
+          relatorio_entregue_em?: string | null
           servidor_id?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -18656,6 +18732,10 @@ export type Database = {
           observacoes: string | null
           origem: string
           prestacao_contas: string
+          prestacao_dispensa_motivo: string | null
+          relatorio_evento_documento_sei: string | null
+          relatorio_evento_entregue_em: string | null
+          responsavel_passageiro_id: string | null
           situacao: string
           solicitante_beneficiario_id: string | null
           solicitante_instituicao_id: string | null
@@ -18685,6 +18765,10 @@ export type Database = {
           observacoes?: string | null
           origem?: string
           prestacao_contas?: string
+          prestacao_dispensa_motivo?: string | null
+          relatorio_evento_documento_sei?: string | null
+          relatorio_evento_entregue_em?: string | null
+          responsavel_passageiro_id?: string | null
           situacao?: string
           solicitante_beneficiario_id?: string | null
           solicitante_instituicao_id?: string | null
@@ -18713,6 +18797,10 @@ export type Database = {
           observacoes?: string | null
           origem?: string
           prestacao_contas?: string
+          prestacao_dispensa_motivo?: string | null
+          relatorio_evento_documento_sei?: string | null
+          relatorio_evento_entregue_em?: string | null
+          responsavel_passageiro_id?: string | null
           situacao?: string
           solicitante_beneficiario_id?: string | null
           solicitante_instituicao_id?: string | null
@@ -18728,6 +18816,13 @@ export type Database = {
             columns: ["contrato_id"]
             isOneToOne: false
             referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_responsavel_passageiro_id_fkey"
+            columns: ["responsavel_passageiro_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_passageiros"
             referencedColumns: ["id"]
           },
           {
@@ -26282,6 +26377,18 @@ export type Database = {
           nome: string
         }[]
       }
+      passagem_prestacao_em_aberto: {
+        Args: { _pedido_id: string }
+        Returns: number
+      }
+      passagem_relatorio_rh: {
+        Args: { _passageiro_ids: string[] }
+        Returns: {
+          passageiro_id: string
+          relatorio_apresentado: boolean
+          relatorio_data: string
+        }[]
+      }
       passagem_viagens_servidor: {
         Args: { _servidor_id: string }
         Returns: {
@@ -26289,6 +26396,8 @@ export type Database = {
           data_saida: string
           destino: string
           id: string
+          relatorio_apresentado: boolean
+          relatorio_data: string
           status: string
         }[]
       }

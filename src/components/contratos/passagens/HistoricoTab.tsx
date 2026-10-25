@@ -1,14 +1,15 @@
 /**
- * Trilha do pedido (passagem_historico): criação e mudanças de situação do pedido e dos trechos.
+ * Trilha do pedido (passagem_historico): criação e mudanças de situação do pedido e dos trechos, e a prestação de
+ * contas (entregas e dispensas do pedido e dos passageiros).
  */
 
 import { History } from "lucide-react";
 import { EmptyState } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { formatarDataHora } from "@/lib/passagens/regras";
-import { rotuloSituacaoPedido, rotuloSituacaoTrecho, type PassagemHistorico } from "@/types/passagens";
+import { rotuloAnexo, rotuloPrestacao, rotuloSituacaoPedido, rotuloSituacaoTrecho, type PassagemHistorico } from "@/types/passagens";
 
 interface Props {
   historico: PassagemHistorico[] | undefined;
@@ -17,11 +18,42 @@ interface Props {
   aoTentarNovamente: () => void;
 }
 
-type Json = Record<string, string | number | null> | null;
+type Json = Record<string, string | number | boolean | null> | null;
+
+const entrega = (rotulo: string, antes: unknown, depois: unknown, sei?: unknown) => {
+  if (antes === depois) return null;
+  if (!depois) return `${rotulo}: entrega desfeita`;
+  return `${rotulo} entregue em ${formatDateBR(depois as string)}${sei ? ` (SEI ${sei})` : ""}`;
+};
+
+function descreverPrestacao(h: PassagemHistorico, antes: Json, depois: Json): string {
+  if (h.acao === "prestacao_pedido") {
+    const partes = [
+      antes?.prestacao_contas !== depois?.prestacao_contas
+        ? `modo ${rotuloPrestacao(depois?.prestacao_contas as string)}${depois?.prestacao_contas === "dispensado" ? ` (${depois?.prestacao_dispensa_motivo ?? ""})` : ""}`
+        : null,
+      entrega("relatório do evento", antes?.relatorio_evento_entregue_em, depois?.relatorio_evento_entregue_em, depois?.relatorio_evento_documento_sei),
+    ].filter(Boolean);
+    return `Prestação de contas do pedido: ${partes.join(" · ") || "responsável ou dados atualizados"}`;
+  }
+  const quem = depois?.passageiro ?? "passageiro";
+  const partes = [
+    antes?.prestacao_dispensada !== depois?.prestacao_dispensada
+      ? (depois?.prestacao_dispensada ? `dispensado (${depois?.prestacao_dispensa_motivo ?? ""})` : "dispensa retirada")
+      : null,
+    entrega("cartão de embarque", antes?.embarque_entregue_em, depois?.embarque_entregue_em),
+    entrega("relatório", antes?.relatorio_entregue_em, depois?.relatorio_entregue_em, depois?.relatorio_documento_sei),
+  ].filter(Boolean);
+  return `Prestação de contas de ${quem}: ${partes.join(" · ") || "dados atualizados"}`;
+}
 
 function descrever(h: PassagemHistorico): string {
   const antes = h.antes as Json;
   const depois = h.depois as Json;
+  if (h.acao === "prestacao_pedido" || h.acao === "prestacao_passageiro") return descreverPrestacao(h, antes, depois);
+  if (h.acao === "anexo_incluido" || h.acao === "anexo_removido") {
+    return `Anexo ${h.acao === "anexo_incluido" ? "incluído" : "removido"}: ${depois?.nome_arquivo ?? ""} (${rotuloAnexo(depois?.tipo as string)}${depois?.passageiro ? `, ${depois.passageiro}` : ""})`;
+  }
   if (h.acao === "pedido_criado") return `Pedido registrado (processo SEI ${depois?.numero_sei ?? "—"})`;
   if (h.acao === "pedido_situacao") {
     const extra = depois?.situacao === "aprovado"

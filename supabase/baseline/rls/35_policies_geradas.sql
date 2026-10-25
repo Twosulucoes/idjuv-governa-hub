@@ -2954,6 +2954,21 @@ DROP POLICY IF EXISTS "rls_delete" ON public.participantes_reuniao;
 CREATE POLICY "rls_delete" ON public.participantes_reuniao FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'admin')));
 
+-- passagem_anexos  [permissao: contratos]
+DROP POLICY IF EXISTS "rls_select" ON public.passagem_anexos;
+CREATE POLICY "rls_select" ON public.passagem_anexos FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.passagem_anexos;
+CREATE POLICY "rls_insert" ON public.passagem_anexos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.passagem_anexos;
+CREATE POLICY "rls_update" ON public.passagem_anexos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.passagem_anexos;
+CREATE POLICY "rls_delete" ON public.passagem_anexos FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+
 -- passagem_beneficiarios  [permissao: contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_beneficiarios;
 CREATE POLICY "rls_select" ON public.passagem_beneficiarios FOR SELECT TO authenticated

@@ -243,6 +243,7 @@ import PcaListaPage from "./pages/compras/PcaListaPage";
 import PassagensPedidosPage from "./pages/contratos/PassagensPedidosPage";
 import PassagemPedidoPage from "./pages/contratos/PassagemPedidoPage";
 import PassagensBeneficiariosPage from "./pages/contratos/PassagensBeneficiariosPage";
+import PassagensPendenciasPage from "./pages/contratos/PassagensPendenciasPage";
 import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
 import ProcessosListaPage from "./pages/compras/ProcessosListaPage";
 import ProcessoFichaPage from "./pages/compras/ProcessoFichaPage";
@@ -516,6 +517,11 @@ const App = () => (
               <Route path="/contratos/passagens/beneficiarios" element={
                 <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
                   <PassagensBeneficiariosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/contratos/passagens/pendencias" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
+                  <PassagensPendenciasPage />
                 </ProtectedRoute>
               } />
               <Route path="/contratos/passagens/:id" element={

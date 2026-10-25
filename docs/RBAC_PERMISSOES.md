@@ -1037,7 +1037,18 @@ Duas permissões novas, concedidas pela migração a todo papel, usuário e mód
   inexistente (não serve de leitura indireta por id).
 - A lista de beneficiários traz o CPF inteiro ao navegador de quem lê e o mascara só na tela; levar a lista para uma
   consulta sem CPF fica como melhoria (minimização da LGPD).
-- O histórico (`passagem_historico`) só é escrito pelo gatilho `passagem_registrar_historico`.
+- O histórico (`passagem_historico`) só é escrito pelos gatilhos `passagem_registrar_historico` e
+  `passagem_registrar_prestacao`.
+
+Prestação de contas (entrega 2, migração `20261101090000_contratos_passagens_prestacao.sql`):
+
+| Ação | Permissão | Onde é cobrada |
+|---|---|---|
+| Ver a aba Prestação de contas, a tela de Pendências e baixar anexos | módulo `contratos` **e** `visualizar` ou `editar` | RLS de `passagem_anexos` (`mapa.csv`), `st_passagens_select` no bucket privado `passagens` (URL assinada de 60 s) e `ProtectedRoute` de `/contratos/passagens/pendencias` |
+| Registrar entrega, dispensa e responsável; enviar e apagar anexo | `contratos.passagens.editar` | RLS de UPDATE/INSERT/DELETE; `st_passagens_insert` (pasta de pedido existente) e `st_passagens_delete`; sem policy de UPDATE no bucket |
+| Ver se o relatório da viagem do RH foi apresentado | módulo `contratos` **e** `visualizar` ou `editar` | `passagem_relatorio_rh` (SECURITY DEFINER; só `passageiro_id`, situação e data) |
+| Mudar o prazo da prestação | papel admin | `module_settings` (classe `catalogo_admin`) |
+| Concluir o pedido | `contratos.passagens.editar`, só sem pendência; depois disso a prestação e os anexos ficam travados | gatilhos `passagem_conferir_conclusao` e `passagem_conferir_anexo` |
 
 ## Enforcement de rota (`ProtectedRoute`)
 
