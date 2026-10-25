@@ -210,6 +210,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   (migração `20261030091000`) entraram no schema do baseline (`schema/01_pre_data.sql`; `reabrir_folha` também no
   `overlay/18_funcoes_rpc.sql`); sem tabela nova nem mudança no `rls/mapa.csv`; testes nos blocos "Financeiro e
   contratos: gatilhos de saldo", "E1 folha" e "I4/M3" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- As passagens aéreas, entrega 1 (migração `20261031090000`), entraram no mapa (`passagem_beneficiarios`,
+  `passagem_pedidos`, `passagem_passageiros`, `passagem_trechos` e `passagem_cotacoes`, classe `permissao` com
+  `contratos.passagens.editar`; `passagem_historico`, classe `trilha`), no schema do baseline regenerado, no catálogo
+  (as duas permissões) e no `overlay/40_privilegios.sql`; testes no bloco "PASSAGENS" de `scripts/db/testar-rls.sql`
+  ([detalhe](./BANCO_DE_DADOS.md)).
 - Os processos de contratação, entrega 1 (migração `20261029090000`), entraram no mapa (`processo_andamentos`, classe
   `permissao` com `compras.processos.editar`), no schema do baseline regenerado, no catálogo (as duas permissões e a
   concessão aos papéis `admin` e `manager`) e no `overlay/40_privilegios.sql`; testes no bloco "Compras: processos de

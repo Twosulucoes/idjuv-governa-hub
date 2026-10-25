@@ -1,5 +1,5 @@
 /**
- * INTERPRETADOR DO QDD EXPORTADO DO FIPLAN (PDF)
+ * INTERPRETADOR DO QDD EXPORTADO DO FIPLAN (PDF ou Excel)
  *
  * O relatório "Quadro de Detalhamento da Despesa - QDD" do FIPLAN traz, por bloco:
  *   - cabeçalho rótulo/valor (Exercício, Unidade Orçamentária, Programa de Governo, PAOE, Regional...)
@@ -16,6 +16,7 @@
  */
 
 import type { LinhaPdf, TrechoPdf } from "../pdfTexto";
+import type { CelulaHtml } from "../tabelaHtml";
 import type { ProblemaLeitura, ResultadoLeitura } from "../types";
 
 export const CAMPOS_VALOR_QDD = [
@@ -168,7 +169,9 @@ function lerAncoras(trechos: TrechoPdf[], ancoras: Ancoras) {
 function lerAncorasTexto(trechos: TrechoPdf[]): AncorasTexto {
   const ancoras: AncorasTexto = [];
   for (const t of trechos) {
-    const achado = TITULOS_TEXTO.find(([titulo]) => normalizar(t.texto) === titulo);
+    // No PDF "Cod." e "Acomp." vêm em trechos separados; no Excel, numa célula só ("Cod. Acomp.").
+    const n = normalizar(t.texto);
+    const achado = TITULOS_TEXTO.find(([titulo]) => n === titulo || n.startsWith(`${titulo} `));
     if (achado && !ancoras.some((a) => a.campo === achado[1])) ancoras.push({ campo: achado[1], centro: centro(t) });
   }
   return ancoras;
@@ -220,6 +223,31 @@ function atribuirValores(
     valores[melhor.campo] = valorBR(t.texto);
   }
   return { valores, textos, perdidos };
+}
+
+/** Largura fictícia de cada coluna do Excel, em "pontos", para reaproveitar a leitura posicional do PDF. */
+const LARGURA_COLUNA_EXCEL = 100;
+
+/**
+ * O QDD exportado do FIPLAN em "Excel" (.xls que é uma tabela HTML) vira linhas no formato do PDF: cada célula
+ * ocupa a sua coluna, com o texto alinhado à direita da coluna. Assim o mesmo interpretador lê os dois formatos,
+ * com as mesmas conferências (Atual e Total Geral).
+ */
+export function linhasQddDoExcel(linhas: CelulaHtml[][]): LinhaPdf[] {
+  return linhas.map((celulas, i) => {
+    const y = (i + 1) * 12;
+    return {
+      pagina: 1,
+      y,
+      trechos: celulas.map(({ coluna, texto }) => ({
+        texto,
+        x: coluna * LARGURA_COLUNA_EXCEL,
+        xFim: coluna * LARGURA_COLUNA_EXCEL + LARGURA_COLUNA_EXCEL - 10,
+        y,
+        pagina: 1,
+      })),
+    };
+  });
 }
 
 const centavos = (v: number) => Math.round(v * 100);
@@ -386,7 +414,7 @@ export function interpretarQddFiplan(linhasPdf: LinhaPdf[]): ResultadoLeitura<Li
   if (linhas.length === 0) {
     problemas.push({
       gravidade: "erro",
-      mensagem: "Nenhuma dotação encontrada. Confira se o PDF é o \"Quadro de Detalhamento da Despesa - QDD\" do FIPLAN.",
+      mensagem: "Nenhuma dotação encontrada. Confira se o arquivo é o \"Quadro de Detalhamento da Despesa - QDD\" do FIPLAN.",
     });
   } else if (totaisConferidos === 0) {
     problemas.push({ gravidade: "aviso", mensagem: "O relatório não trouxe \"Total Geral\"; a soma das linhas não pôde ser conferida." });

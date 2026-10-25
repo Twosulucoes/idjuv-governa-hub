@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil } from "lucide-react";
+import { LinhaDoTempoFases } from "@/components/compras/processos/EvolucaoProcesso";
 import { ModuleLayout } from "@/components/layout";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
@@ -152,6 +153,7 @@ export default function ProcessoFichaPage() {
             ) : undefined
           }
         />
+        {p && <LinhaDoTempoFases processo={p} andamentos={andamentos.data ?? []} />}
         {conteudo}
       </div>
 

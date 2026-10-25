@@ -181,7 +181,15 @@ Licitações, aquisições e gestão contratual. Operados via
 (`ComprasDashboardPage`, `ContratosDashboardPage`). Backend: `processos_licitatorios`,
 `contratos`, `atas_registro_preco`, `fornecedores`, etc. Atas SRP, fornecedores e as telas de contratos (lista,
 execução, aditivos, vencimentos) ainda não existem; saíram do menu no P09 e voltam no P20/P21. A barra do módulo
-Contratos tem só o painel.
+Contratos tem o painel e as passagens aéreas.
+
+- **Passagens aéreas (Contratos, entrega 1 de 3):** `/contratos/passagens` lista os pedidos, um por processo SEI, com
+  quem pediu, evento, passageiros, situação e valor emitido, e no alto o valor do contrato da agência, o emitido e o
+  saldo. A ficha (`/contratos/passagens/:id`) tem as abas Passageiros e trechos (cotações, emissão, remarcação,
+  cancelamento e reembolso de cada trecho), Dados e Histórico. Passageiro é servidor (com a viagem do RH, quando houver)
+  ou beneficiário de fora, cadastrado em `/contratos/passagens/beneficiarios` ou na hora. O ato fica no SEI: a aprovação
+  do Presidente é só registrada (nº do documento e data). Prestação de contas e faturas da agência entram nas entregas
+  2 e 3 ([spec](./superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md)).
 
 ## Financeiro (`financeiro`)
 
