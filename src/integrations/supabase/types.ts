@@ -26294,6 +26294,21 @@ export type Database = {
           tipo_acao: string
         }[]
       }
+      localizar_processos_sei: {
+        Args: { p_limite?: number; p_termo: string }
+        Returns: {
+          atualizado_em: string
+          chave: string
+          numero_sei: string
+          onde: string
+          origem: string
+          ref: string
+          registro_id: string
+          situacao: string
+          titulo: string
+          valor: number
+        }[]
+      }
       log_audit: {
         Args: {
           _action: Database["public"]["Enums"]["audit_action"]
@@ -26667,6 +26682,20 @@ export type Database = {
           valor_pago: number
         }[]
       }
+      processos_parados: {
+        Args: { p_dias?: number }
+        Returns: {
+          atualizado_em: string
+          chave: string
+          dias: number
+          numero_sei: string
+          onde: string
+          origem: string
+          registro_id: string
+          situacao: string
+          titulo: string
+        }[]
+      }
       promover_rascunho: {
         Args: { p_justificativa?: string; p_rascunho_id: string }
         Returns: boolean
@@ -26892,6 +26921,8 @@ export type Database = {
           unidade_atual_nome: string
         }[]
       }
+      sei_normalizar: { Args: { p_texto: string }; Returns: string }
+      texto_busca: { Args: { p_texto: string }; Returns: string }
       transparencia_cargos_publicos: {
         Args: Record<PropertyKey, never>
         Returns: {
