@@ -193,7 +193,8 @@ Licitações, aquisições e gestão contratual. Operados via
 (`ComprasDashboardPage`, `ContratosDashboardPage`). Backend: `processos_licitatorios`,
 `contratos`, `atas_registro_preco`, `fornecedores`, etc. Atas SRP, fornecedores e as telas de contratos (lista,
 execução, aditivos, vencimentos) ainda não existem; saíram do menu no P09 e voltam no P20/P21. Os menus seguem
-o ciclo: Compras tem PCA, Processos de contratação e "Como funciona uma compra" (o guia `/processos/compras`, por
+o ciclo: Compras tem PCA, Programação por natureza (`/compras/programacao`: disponível do QDD, reservado em
+processos e saldo livre), Processos de contratação e "Como funciona uma compra" (o guia `/processos/compras`, por
 último); Contratos tem o que vem depois do contrato assinado (Passagens aéreas, Beneficiários e Pendências de
 passagens). Os atalhos do painel de Contratos levam a passagens, pendências, processos de contratação e contratos
 publicados; nenhum aponta mais para o guia de Compras.

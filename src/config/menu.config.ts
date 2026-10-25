@@ -237,6 +237,13 @@ export const menuConfig: MenuSection[] = [
             permission: "compras.pca.visualizar",
           },
           {
+            id: "programacao-natureza",
+            label: "Programação por natureza",
+            route: "/compras/programacao",
+            icon: Landmark,
+            permission: "compras.processos.visualizar",
+          },
+          {
             id: "licitacoes",
             label: "Processos de contratação",
             route: "/compras/processos",

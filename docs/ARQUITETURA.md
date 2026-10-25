@@ -91,10 +91,14 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   de dados abertos do Compras.gov.br pela Edge Function `catalogo-compras` (o navegador não chama o portal: CORS e CSP).
 - **Processos de contratação (Compras)** em `/compras/processos` e `/compras/processos/:id` (`ProcessosListaPage`,
   `ProcessoFichaPage`, `requiredModule="compras"` e `compras.processos.visualizar` ou `compras.processos.editar`): lista
-  com etapa, setor, dias parado, valor estimado e empenhado; ficha com Dados, Andamento (linha do tempo do SEI) e
-  Empenhos (FIP 614 pelo nº SEI). Menu em Compras → "Processos de contratação" (o antigo "Licitações"; "Novo processo"
-  abre `/compras/processos?novo=1`); a página-guia `/processos/compras` continua como "Como funciona uma compra", o último item de Compras, que segue o
-  ciclo: PCA, processos de contratação e o manual.
+  com etapa e setor, dias parado, valor estimado, empenhado e fase financeira (com filtro); ficha com Dados, Reservas
+  (natureza × ação × fonte do QDD, saldo livre ao vivo e justificativa quando falta saldo, "Puxar do PCA"), Andamento
+  (linha do tempo do SEI) e Financeiro (fase, PEDs do "Consultar PED" e empenhos do FIP 614 pelo nº do processo). Menu
+  em Compras → "Processos de contratação" (o antigo "Licitações"; "Novo processo" abre `/compras/processos?novo=1`) e
+  "Programação por natureza" (`/compras/programacao`, `ProgramacaoNaturezaPage`, mesma exigência de rota: disponível
+  no FIPLAN, reservado em processos e saldo livre por natureza); a página-guia `/processos/compras` continua como
+  "Como funciona uma compra", o último item de Compras, que segue o ciclo: PCA, programação por natureza, processos de
+  contratação e o manual. O painel do Financeiro (`/financeiro`) ganha o cartão "Reservado em processos".
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
