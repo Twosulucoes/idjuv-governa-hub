@@ -1,27 +1,36 @@
 /**
  * Reserva do processo numa combinação ação × fonte × natureza do QDD. Mostra o saldo livre da combinação (QDD menos o
  * pendente das outras reservas) enquanto se digita; quando o valor não cabe, a justificativa é obrigatória (o banco
- * confere de novo). "Puxar do PCA" preenche com o item do PCA que tem o mesmo nº SEI.
+ * confere de novo). "Puxar do PCA" preenche com o item do PCA que tem o mesmo nº SEI. As combinações cuja natureza é
+ * indicada (pelo PED, pelo empenho, pelo PCA ou pelo catálogo do governo, nessa ordem de força) sobem para o topo.
  */
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertTriangle, ClipboardList } from "lucide-react";
+import { AlertTriangle, BookOpen, ClipboardList } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { faltaNoSaldo } from "@/lib/compras/faseFinanceira";
 import { formatarNatureza } from "@/lib/financeiro/painelExecucao";
 import { formatCurrency } from "@/lib/formatters";
 import { lerNumeroBr } from "@/lib/pca/numero";
+import { casarNaturezasDoCatalogo, origensPorNatureza, ORIGENS_SUGESTAO, ROTULO_ORIGEM, type PistaNatureza } from "@/lib/pca/naturezaCatalogo";
+import { CatalogoBusca, type EscolhaCatalogo } from "@/components/compras/pca/CatalogoBusca";
+import { useNaturezasDoCatalogo } from "@/hooks/usePca";
 import {
+  useEmpenhosDosProcessos,
   useItensPcaDoProcesso,
+  usePedsDoProcesso,
   useProgramacaoPorNatureza,
   useSaldoLivre,
   type ReservaDoProcesso,
@@ -44,6 +53,7 @@ interface Combinacao {
   acao_id: string;
   fonte_recurso_id: string;
   natureza_despesa_id: string;
+  natureza_codigo: string;
   rotulo: string;
 }
 
@@ -79,6 +89,7 @@ export function ReservaFormDialog({ open, onOpenChange, processo, reserva, salva
         acao_id: l.acao_id,
         fonte_recurso_id: l.fonte_recurso_id,
         natureza_despesa_id: l.natureza_despesa_id,
+        natureza_codigo: l.natureza_codigo,
         rotulo: `${formatarNatureza(l.natureza_codigo)} ${l.natureza_nome} · ação ${l.acao_codigo} · fonte ${l.fonte_codigo}`,
       }))
       .sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"));
@@ -91,6 +102,7 @@ export function ReservaFormDialog({ open, onOpenChange, processo, reserva, salva
           acao_id: reserva.acao_id,
           fonte_recurso_id: reserva.fonte_recurso_id,
           natureza_despesa_id: reserva.natureza_despesa_id,
+          natureza_codigo: reserva.natureza_codigo,
           rotulo: `${formatarNatureza(reserva.natureza_codigo)} ${reserva.natureza_nome} · ação ${reserva.acao_codigo} · fonte ${reserva.fonte_codigo} (sem dotação no QDD)`,
         });
       }
@@ -98,7 +110,52 @@ export function ReservaFormDialog({ open, onOpenChange, processo, reserva, salva
     return lista;
   }, [programacao.data, reserva, exercicio]);
 
+  // Natureza indicada: PED e empenho do processo, item do PCA com o mesmo nº SEI e, se pedido, o catálogo do governo
+  const peds = usePedsDoProcesso(open ? processo.id : undefined);
+  const empenhos = useEmpenhosDosProcessos(processo.id);
+  const { hasPermission } = useAuth();
+  // A busca no catálogo usa as tabelas e a função do PCA: o botão só aparece para quem tem o PCA
+  const podeCatalogo = hasPermission("compras.pca.visualizar") || hasPermission("compras.pca.editar");
+  const [abrirCatalogo, setAbrirCatalogo] = useState(false);
+  const [tipoCatalogo, setTipoCatalogo] = useState<"material" | "servico">("servico");
+  const [escolhaCatalogo, setEscolhaCatalogo] = useState<EscolhaCatalogo | null>(null);
+  const naturezasPortal = useNaturezasDoCatalogo(tipoCatalogo, open ? escolhaCatalogo?.codigo : null);
+
+  const naturezasQdd = useMemo(() => {
+    const unicas = new Map(combinacoes.map((c) => [c.natureza_despesa_id, { id: c.natureza_despesa_id, codigo: c.natureza_codigo }]));
+    return [...unicas.values()];
+  }, [combinacoes]);
+
+  const doCatalogo = useMemo(
+    () => casarNaturezasDoCatalogo(naturezasPortal.data ?? [], naturezasQdd),
+    [naturezasPortal.data, naturezasQdd],
+  );
+
+  const origens = useMemo(() => {
+    const pistas: PistaNatureza[] = [
+      ...(peds.data ?? []).map((p) => ({ origem: "ped" as const, naturezaCodigo: p.natureza })),
+      ...(empenhos.data ?? []).map((e) => ({ origem: "empenho" as const, naturezaCodigo: e.natureza })),
+      ...(itensPca.data ?? []).map((i) => ({ origem: "pca" as const, naturezaId: i.natureza_despesa_id })),
+      ...doCatalogo.map((n) => ({ origem: "catalogo" as const, naturezaId: n.id })),
+    ];
+    // Só as naturezas do QDD contam: pista fora dele daria aviso sem combinação que o resolva
+    const doQdd = new Set(naturezasQdd.map((n) => n.id));
+    return new Map([...origensPorNatureza(pistas, naturezasQdd)].filter(([id]) => doQdd.has(id)));
+  }, [peds.data, empenhos.data, itensPca.data, doCatalogo, naturezasQdd]);
+
+  // Indicadas primeiro (pela força da origem), depois as demais em ordem alfabética
+  const ordenadas = useMemo(() => {
+    const forca = (c: Combinacao) => {
+      const o = origens.get(c.natureza_despesa_id);
+      return o ? ORIGENS_SUGESTAO.indexOf(o) : ORIGENS_SUGESTAO.length;
+    };
+    return [...combinacoes].sort((a, b) => forca(a) - forca(b));
+  }, [combinacoes, origens]);
+  const indicadas = useMemo(() => ordenadas.filter((c) => origens.has(c.natureza_despesa_id)), [ordenadas, origens]);
+
+
   const escolhida = combinacoes.find((c) => c.chave === combinacao);
+  const foraDaIndicada = !!escolhida && origens.size > 0 && !origens.has(escolhida.natureza_despesa_id);
   const saldo = useSaldoLivre(exercicio, escolhida?.acao_id, escolhida?.fonte_recurso_id, escolhida?.natureza_despesa_id, reserva?.id);
   const valor = lerNumeroBr(valorTexto ?? "");
   const falta = escolhida && saldo.isSuccess && valor > 0 ? faltaNoSaldo(valor, saldo.data) : undefined;
@@ -114,7 +171,15 @@ export function ReservaFormDialog({ open, onOpenChange, processo, reserva, salva
       justificativa: reserva?.justificativa_saldo ?? "",
       pca_item_id: reserva?.pca_item_id ?? "",
     });
+    setAbrirCatalogo(false);
+    setEscolhaCatalogo(null);
   }, [open, reserva, processo, form]);
+
+  // Depois do reset (ordem dos efeitos importa): nova reserva sem escolha e uma só combinação indicada já vem escolhida
+  useEffect(() => {
+    if (!open || reserva || indicadas.length !== 1 || combinacao) return;
+    form.setValue("combinacao", indicadas[0].chave, { shouldValidate: true });
+  }, [open, reserva, indicadas, combinacao, form]);
 
   const puxarDoPca = (id: string) => {
     const item = itensPca.data?.find((i) => i.id === id);
@@ -179,6 +244,48 @@ export function ReservaFormDialog({ open, onOpenChange, processo, reserva, salva
                 </Select>
               </div>
             )}
+            {abrirCatalogo ? (
+              <div className="space-y-3 rounded-md border p-3">
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  <BookOpen className="h-4 w-4" aria-hidden="true" />
+                  Classificar pelo catálogo do governo
+                </p>
+                <RadioGroup
+                  className="flex gap-6"
+                  value={tipoCatalogo}
+                  onValueChange={(v) => { setTipoCatalogo(v as "material" | "servico"); setEscolhaCatalogo(null); }}
+                  aria-label="Material ou serviço"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="reserva-tipo-servico" value="servico" />
+                    <Label htmlFor="reserva-tipo-servico">Serviço</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="reserva-tipo-material" value="material" />
+                    <Label htmlFor="reserva-tipo-material">Material</Label>
+                  </div>
+                </RadioGroup>
+                <CatalogoBusca
+                  tipo={tipoCatalogo}
+                  escolha={escolhaCatalogo}
+                  aoEscolher={setEscolhaCatalogo}
+                  codigoItem={null}
+                  aoEscolherItem={() => undefined}
+                  comItemExato={false}
+                />
+                {escolhaCatalogo && naturezasPortal.isError && (
+                  <p className="text-sm text-muted-foreground">Não foi possível consultar a natureza no catálogo; escolha à mão.</p>
+                )}
+                {escolhaCatalogo && naturezasPortal.isSuccess && doCatalogo.length === 0 && (
+                  <p className="text-sm text-muted-foreground">O catálogo não indica nenhuma natureza que esteja no QDD deste exercício.</p>
+                )}
+              </div>
+            ) : podeCatalogo && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setAbrirCatalogo(true)}>
+                <BookOpen className="h-4 w-4" aria-hidden="true" />
+                Classificar pelo catálogo
+              </Button>
+            )}
             <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
               <FormField
                 control={form.control}
@@ -204,9 +311,25 @@ export function ReservaFormDialog({ open, onOpenChange, processo, reserva, salva
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {combinacoes.map((c) => <SelectItem key={c.chave} value={c.chave}>{c.rotulo}</SelectItem>)}
+                        {ordenadas.map((c) => {
+                          const origem = origens.get(c.natureza_despesa_id);
+                          return (
+                            <SelectItem key={c.chave} value={c.chave}>
+                              {origem ? `${c.rotulo} · ${ROTULO_ORIGEM[origem]}` : c.rotulo}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
+                    {escolhida && origens.has(escolhida.natureza_despesa_id) && (
+                      <FormDescription>Natureza indicada {ROTULO_ORIGEM[origens.get(escolhida.natureza_despesa_id)!]}.</FormDescription>
+                    )}
+                    {foraDaIndicada && (
+                      <p className="flex items-start gap-1.5 text-sm" role="status">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                        Esta natureza não é a indicada para o processo ({[...new Set(origens.values())].map((o) => ROTULO_ORIGEM[o]).join(", ")}). Confira antes de salvar.
+                      </p>
+                    )}
                     {exercicio && programacao.isSuccess && combinacoes.length === 0 && (
                       <FormDescription>Não há QDD de {exercicio} importado. Peça ao Financeiro para importar o QDD.</FormDescription>
                     )}
