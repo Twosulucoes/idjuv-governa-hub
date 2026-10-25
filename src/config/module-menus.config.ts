@@ -166,7 +166,10 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
   contratos: {
     dashboard: { label: "Painel de Contratos", route: "/contratos" },
     // Lista, execução, aditivos e vencimentos voltam quando as telas existirem (P21).
-    items: [],
+    items: [
+      { id: "passagens", label: "Passagens aéreas", icon: Plane, route: "/contratos/passagens", permission: "contratos.passagens.visualizar" },
+      { id: "passagens-beneficiarios", label: "Beneficiários de passagem", icon: Users, route: "/contratos/passagens/beneficiarios", permission: "contratos.passagens.visualizar" },
+    ],
   },
 
   // Patrimônio

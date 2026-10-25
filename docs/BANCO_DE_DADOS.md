@@ -1237,6 +1237,35 @@ histórico de migrações; o baseline já as remove); a correção no banco ao v
 `itens_ata_registro_preco`, `fornecedores`, `contratos`, `itens_contrato`,
 `aditivos_contrato`, `medicoes_contrato`.
 
+**Passagens aéreas (entrega 1, migração `20261031090000_contratos_passagens.sql`).** Controle e cadastro; o ato
+(aprovação do Presidente, pedido à agência) continua no SEI e aqui fica só o registro.
+
+- `passagem_beneficiarios`: quem viaja e não é servidor (atleta, técnico, convidado). CPF só com 11 dígitos e único;
+  `ativo` em vez de apagar (ninguém exclui).
+- `passagem_pedidos`: um por processo SEI (`numero_sei` único). Situação `recebido → cotacao_solicitada →
+  cotacao_recebida → aprovado → emitido → concluido` (ou `cancelado`, com motivo). Aprovado, emitido e concluído exigem
+  o nº do documento SEI e a data da aprovação. Quem pediu (servidor, beneficiário, instituição ou o próprio órgão),
+  contrato da agência (`contrato_id` → `contratos`) e modo da prestação de contas (individual, único do evento ou
+  dispensada com motivo). Ninguém exclui: cancela.
+- `passagem_passageiros`: servidor **ou** beneficiário (um dos dois), com o nome copiado no momento do cadastro e, para
+  servidor, a viagem do RH (`viagem_id`, conferida contra o servidor).
+- `passagem_trechos`: origem, destino, data, voo, localizador, bilhete e valores (tarifa, embarque, serviço, desconto,
+  multa, reembolso); `valor_emissao` é coluna gerada. Emitido, remarcado e reembolsado exigem localizador e data da
+  emissão; trecho com localizador não se apaga (cancela).
+- `passagem_cotacoes`: opções da agência por trecho; no máximo uma `escolhida`.
+- `passagem_historico`: trilha (pedido criado, mudança de situação do pedido e dos trechos), escrita só por gatilho e
+  lida só com a permissão de passagens (classe `trilha` com `leitura=`).
+- `contratos.controla_passagens` (coluna nova, padrão `false`): marca o contrato da agência; só os marcados entram no
+  saldo e na escolha do pedido. A tela de passagens cadastra o contrato já marcado ou marca um que já existe.
+
+Permissões novas `contratos.passagens.visualizar` e `contratos.passagens.editar`, dadas a quem já tinha
+`contratos.criar`. RLS pelo `mapa.csv` (classe `permissao`; histórico na classe `trilha`). Funções:
+`passagem_buscar_servidores(_termo)` e `passagem_viagens_servidor(_servidor_id)` (SECURITY DEFINER, só para quem tem
+`contratos.passagens.editar`, devolvem só o necessário; na busca, `%` e `_` do termo valem como texto e são exigidas 3
+letras ou dígitos) e os gatilhos `passagem_carimbar`, `passagem_copiar_nome` (recusa servidor, beneficiário ou
+instituição inexistente), `passagem_propagar_nome_beneficiario` (nome corrigido chega aos pedidos),
+`passagem_proteger_emitido` e `passagem_registrar_historico`.
+
 ### Processos administrativos (workflow)
 `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`,
 `despachos`, `encaminhamentos`, `pareceres_tecnicos`, `prazos_processo`,

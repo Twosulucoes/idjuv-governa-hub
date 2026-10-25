@@ -1018,6 +1018,27 @@ por padrão: concedem-se por usuário (`user_permissions`). O papel `admin` pass
 - **Modelos de fluxo**: além da RLS (módulo **e** `workflow.admin` para escrever), o trigger `wf_recusar_etapa_em_uso`
   recusa (`22023`) apagar ou renumerar etapa onde há processo, para qualquer papel.
 
+### Contratos: passagens aéreas
+
+Migração `20261031090000_contratos_passagens.sql` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#compras-licitações-e-contratos)).
+Duas permissões novas, concedidas pela migração a todo papel, usuário e módulo que já tinha `contratos.criar`.
+
+| Ação | Permissão | Onde é cobrada |
+|---|---|---|
+| Ver pedidos, passageiros, trechos, cotações, beneficiários e histórico | módulo `contratos` **e** `contratos.passagens.visualizar` ou `contratos.passagens.editar` | RLS de SELECT (`mapa.csv`, classe `permissao`; histórico na classe `trilha` com `leitura=`) e `ProtectedRoute` das três rotas |
+| Registrar e editar pedido, passageiro, trecho, cotação e beneficiário; mudar situação | `contratos.passagens.editar` | RLS de INSERT/UPDATE |
+| Apagar passageiro, trecho ou cotação | `contratos.passagens.editar`; trecho com localizador não se apaga (`passagem_proteger_emitido`, `42501`) | RLS de DELETE e gatilho |
+| Apagar pedido ou beneficiário | ninguém pela API (pedido cancela, beneficiário fica inativo) | `excluir=ninguem` no `mapa.csv` |
+| Buscar servidor e listar as viagens dele | módulo `contratos` **e** `contratos.passagens.editar` (quem só vê não percorre o RH) | `passagem_buscar_servidores` e `passagem_viagens_servidor` (SECURITY DEFINER, devolvem só nome, matrícula, cargo e as viagens; `%` e `_` da busca não são curinga) |
+| Cadastrar o contrato da agência ou ligar um contrato existente às passagens | `contratos.passagens.editar` **e** `contratos.criar` (botão); no banco, a escrita em `contratos` segue a policy do módulo | `PassagensPedidosPage` |
+
+- Quem tem passagens não lê `servidores` nem `instituicoes`: o nome do passageiro e do solicitante é copiado pelo
+  gatilho `passagem_copiar_nome` (SECURITY DEFINER), que também confere se a viagem do RH é do servidor e recusa id
+  inexistente (não serve de leitura indireta por id).
+- A lista de beneficiários traz o CPF inteiro ao navegador de quem lê e o mascara só na tela; levar a lista para uma
+  consulta sem CPF fica como melhoria (minimização da LGPD).
+- O histórico (`passagem_historico`) só é escrito pelo gatilho `passagem_registrar_historico`.
+
 ## Enforcement de rota (`ProtectedRoute`)
 
 O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso
