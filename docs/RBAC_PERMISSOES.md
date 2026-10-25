@@ -1050,6 +1050,21 @@ Prestação de contas (entrega 2, migração `20261101090000_contratos_passagens
 | Mudar o prazo da prestação | papel admin | `module_settings` (classe `catalogo_admin`) |
 | Concluir o pedido | `contratos.passagens.editar`, só sem pendência; depois disso a prestação e os anexos ficam travados | gatilhos `passagem_conferir_conclusao` e `passagem_conferir_anexo` |
 
+Faturas e empenhos (entrega 3, migração `20261102090000_contratos_passagens_faturas.sql`), com a permissão nova
+`contratos.passagens.financeiro` ("Faturas e empenhos das passagens aéreas", dada pela migração a quem já tinha
+`contratos.criar`):
+
+| Ação | Permissão | Onde é cobrada |
+|---|---|---|
+| Ver faturas, bilhetes da nota, a faturar, saldo e os empenhos ligados | módulo `contratos` **e** `visualizar`, `editar` ou `financeiro` | RLS de `passagem_faturas`, `passagem_fatura_itens` e `passagem_contrato_empenhos` (`mapa.csv`); `passagem_empenhos_contrato` (só totais); `ProtectedRoute` de `/contratos/passagens/faturas` |
+| Lançar e editar fatura com os bilhetes; apagar só fatura recebida; mudar a situação pelo fluxo até paga (com a OB) | `contratos.passagens.financeiro` | RLS de INSERT/UPDATE/DELETE; `passagem_salvar_fatura` (SECURITY INVOKER: a RLS vale); gatilhos `passagem_conferir_fatura` e `passagem_conferir_fatura_item` (fluxo, paga travada, bilhete numa nota só, só do mesmo contrato) |
+| Listar empenhos candidatos e ligar ou desligar empenho do contrato | `contratos.passagens.financeiro` | `passagem_empenhos_candidatos` (SECURITY DEFINER, contrato da agência); RLS de `passagem_contrato_empenhos` e gatilho `passagem_conferir_ligacao_empenho` (só empenho candidato: elemento 33 ou que aponta para o contrato) |
+
+- Quem tem só `editar` (cuida dos pedidos) não lança fatura: separa quem emite de quem paga.
+- `financeiro` sozinha não lê os pedidos nem os bilhetes (essas tabelas seguem com `visualizar` ou `editar`): dê junto
+  com `visualizar` para montar a nota.
+- Quem tem passagens não lê `fin_empenhos`: o saldo do empenho chega só pelas duas RPCs.
+
 ## Enforcement de rota (`ProtectedRoute`)
 
 O componente `src/components/auth/ProtectedRoute.tsx` aplica o controle de acesso

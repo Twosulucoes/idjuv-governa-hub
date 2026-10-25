@@ -86,7 +86,13 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useSalvarPrestacaoPedido`, `usePedidosParaPendencias`, `useAnexosPedido`, `useEnviarAnexo`, `useRemoverAnexo` e
   `abrirAnexo` (bucket privado `passagens`, URL assinada de 60 s por `abrirArquivoPrivado`); retorno, vencimento, atraso e
   pendências por modo em `src/lib/passagens/prestacao.ts` (vitest). Aba em `PrestacaoTab.tsx`; tela
-  `PassagensPendenciasPage`.
+  `PassagensPendenciasPage`. Faturas e empenhos (entrega 3): `usePassagensFaturas` (`useBilhetesContrato`,
+  `useFaturas` e `buscarBilhetesPeriodo` (paginados com `buscarTodasPaginas`), `useFaturasDosTrechos`,
+  `useSalvarFatura` (RPC `passagem_salvar_fatura`: nota e bilhetes numa transação só), `useMudarSituacaoFatura` (falha
+  se nenhuma linha mudou), `useEmpenhosContrato`, `useEmpenhosCandidatos` (por exercício) e `useLigarEmpenho`); conferência da nota, a faturar (30 dias), saldo do
+  contrato e empenho por exercício em `src/lib/passagens/faturas.ts` e linhas das planilhas em
+  `src/lib/passagens/planilhas.ts` (vitest). Tela `PassagensFaturasPage`; diálogos `FaturaDialog`,
+  `SituacaoFaturaDialog`, `PlanilhaPassagensDialog`; aba `EmpenhosContratoTab`.
 - **Exercício do Financeiro** (`src/hooks/useExercicioFinanceiro.ts`): ano orçamentário compartilhado pelas telas
   do módulo. Lê `?exercicio=` da URL; sem ele, o último ano escolhido no navegador (`localStorage`,
   chave `financeiro:exercicio`); sem nenhum, o ano atual. Faixa: 2024 até o ano seguinte ao atual. Devolve

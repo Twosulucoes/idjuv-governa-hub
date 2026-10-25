@@ -1,6 +1,6 @@
 /**
- * Regras puras das passagens aéreas: quanto cada trecho custa ao contrato, resumo do pedido, saldo do contrato e
- * o que falta para mudar a situação do pedido. Spec: docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md
+ * Regras puras das passagens aéreas: quanto cada trecho custa ao contrato, resumo do pedido e o que falta para
+ * mudar a situação do pedido (saldo do contrato em faturas.ts). Spec: docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md
  */
 
 import type { PassagemTrecho, SituacaoPedido } from "@/types/passagens";
@@ -31,13 +31,6 @@ export function resumoPedido(passageiros: ComTrechos[]) {
     pendentes: trechos.filter((t) => ABERTOS.has(t.situacao)).length,
     valor: centavos(trechos.reduce((s, t) => s + valorTrecho(t), 0)),
   };
-}
-
-/** Saldo do contrato a partir dos bilhetes emitidos (faturado e pago entram na entrega 3). */
-export function saldoContrato(valorContrato: number | string, pedidos: { passageiros: ComTrechos[] }[]) {
-  const emitido = centavos(pedidos.reduce((s, p) => s + resumoPedido(p.passageiros).valor, 0));
-  const valor = num(valorContrato);
-  return { valor, emitido, saldo: centavos(valor - emitido) };
 }
 
 const FLUXO: Record<SituacaoPedido, SituacaoPedido[]> = {

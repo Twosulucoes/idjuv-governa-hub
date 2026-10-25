@@ -18498,6 +18498,52 @@ export type Database = {
           },
         ]
       }
+      passagem_contrato_empenhos: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          empenho_id: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          empenho_id: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          empenho_id?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_contrato_empenhos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_contrato_empenhos_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       passagem_cotacoes: {
         Row: {
           chegada: string | null
@@ -18551,6 +18597,127 @@ export type Database = {
             columns: ["trecho_id"]
             isOneToOne: false
             referencedRelation: "passagem_trechos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_fatura_itens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          fatura_id: string
+          id: string
+          trecho_id: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          fatura_id: string
+          id?: string
+          trecho_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          fatura_id?: string
+          id?: string
+          trecho_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_fatura_itens_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_fatura_itens_trecho_id_fkey"
+            columns: ["trecho_id"]
+            isOneToOne: true
+            referencedRelation: "passagem_trechos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_faturas: {
+        Row: {
+          atesto_data: string | null
+          atesto_documento_sei: string | null
+          cancelamento_motivo: string | null
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          data_emissao: string
+          id: string
+          liquidacao_data: string | null
+          numero: string
+          ob_numero: string | null
+          observacoes: string | null
+          pagamento_data: string | null
+          processo_sei_pagamento: string | null
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          atesto_data?: string | null
+          atesto_documento_sei?: string | null
+          cancelamento_motivo?: string | null
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          data_emissao: string
+          id?: string
+          liquidacao_data?: string | null
+          numero: string
+          ob_numero?: string | null
+          observacoes?: string | null
+          pagamento_data?: string | null
+          processo_sei_pagamento?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          atesto_data?: string | null
+          atesto_documento_sei?: string | null
+          cancelamento_motivo?: string | null
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string
+          id?: string
+          liquidacao_data?: string | null
+          numero?: string
+          ob_numero?: string | null
+          observacoes?: string | null
+          pagamento_data?: string | null
+          processo_sei_pagamento?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_faturas_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
             referencedColumns: ["id"]
           },
         ]
@@ -26377,6 +26544,40 @@ export type Database = {
           nome: string
         }[]
       }
+      passagem_empenho_candidato: {
+        Args: { _contrato_id: string; _empenho_id: string }
+        Returns: boolean
+      }
+      passagem_empenhos_candidatos: {
+        Args: { _contrato_id: string; _exercicio?: number }
+        Returns: {
+          credor: string
+          data_empenho: string
+          empenho_id: string
+          exercicio: number
+          ligado: boolean
+          natureza: string
+          numero: string
+          processo_sei: string
+          valor_anulado: number
+          valor_empenhado: number
+        }[]
+      }
+      passagem_empenhos_contrato: {
+        Args: { _contrato_id: string }
+        Returns: {
+          credor: string
+          data_empenho: string
+          empenho_id: string
+          exercicio: number
+          natureza: string
+          numero: string
+          valor_anulado: number
+          valor_empenhado: number
+          valor_liquidado: number
+          valor_pago: number
+        }[]
+      }
       passagem_prestacao_em_aberto: {
         Args: { _pedido_id: string }
         Returns: number
@@ -26388,6 +26589,10 @@ export type Database = {
           relatorio_apresentado: boolean
           relatorio_data: string
         }[]
+      }
+      passagem_salvar_fatura: {
+        Args: { _fatura: Json; _itens: Json }
+        Returns: string
       }
       passagem_viagens_servidor: {
         Args: { _servidor_id: string }

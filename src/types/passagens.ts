@@ -1,6 +1,7 @@
 /**
  * Passagens aéreas (módulo Contratos): pedidos por processo SEI, passageiros, trechos, cotações e beneficiários.
- * Banco: tabelas passagem_* (migrações 20261031090000 e 20261101090000, prestação de contas e anexos).
+ * Banco: tabelas passagem_* (migrações 20261031090000, 20261101090000 com a prestação de contas e os anexos, e
+ * 20261102090000 com as faturas da agência e os empenhos do contrato).
  * Spec: docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md
  */
 
@@ -15,6 +16,8 @@ export type PassagemTrecho = Tabelas["passagem_trechos"]["Row"];
 export type PassagemCotacao = Tabelas["passagem_cotacoes"]["Row"];
 export type PassagemHistorico = Tabelas["passagem_historico"]["Row"];
 export type PassagemAnexo = Tabelas["passagem_anexos"]["Row"];
+export type PassagemFatura = Tabelas["passagem_faturas"]["Row"];
+export type PassagemFaturaItem = Tabelas["passagem_fatura_itens"]["Row"];
 
 export type TrechoComCotacoes = PassagemTrecho & { cotacoes: PassagemCotacao[] };
 export type PassageiroComTrechos = PassagemPassageiro & { trechos: TrechoComCotacoes[] };
@@ -136,4 +139,60 @@ export interface ContratoPassagens {
   data_fim: string;
   data_fim_atual: string | null;
   fornecedor: { razao_social: string | null; nome_fantasia: string | null } | null;
+}
+
+/** Situações da fatura da agência (mesma lista do CHECK de passagem_faturas). */
+export const SITUACOES_FATURA = [
+  { value: "recebida", label: "Recebida" },
+  { value: "atestada", label: "Atestada" },
+  { value: "liquidada", label: "Liquidada" },
+  { value: "paga", label: "Paga" },
+  { value: "cancelada", label: "Cancelada" },
+] as const;
+export const rotuloSituacaoFatura = (v: string | null | undefined) => rotulo(SITUACOES_FATURA, v);
+
+/** Bilhete (trecho com localizador) de um pedido do contrato, com o passageiro e o pedido. */
+export type BilheteDoContrato = Pick<
+  PassagemTrecho,
+  | "id" | "origem" | "destino" | "data_voo" | "situacao" | "localizador" | "numero_bilhete" | "companhia" | "data_emissao"
+  | "valor_emissao" | "valor_multa" | "valor_reembolso"
+> & {
+  passageiro: Pick<PassagemPassageiro, "id" | "nome"> & {
+    pedido: Pick<PassagemPedido, "id" | "numero_sei" | "evento" | "solicitante_nome" | "contrato_id">;
+  };
+};
+
+export type FaturaComItens = PassagemFatura & { itens: Pick<PassagemFaturaItem, "id" | "trecho_id" | "valor">[] };
+
+/** Fatura de um trecho, para a ficha do pedido (coluna "Fatura / pago"). */
+export type FaturaDoTrecho = Pick<PassagemFaturaItem, "trecho_id" | "valor"> & {
+  fatura: Pick<PassagemFatura, "id" | "numero" | "situacao" | "pagamento_data" | "ob_numero">;
+};
+
+/** Empenho ligado ao contrato (passagem_empenhos_contrato): só nº, exercício e totais. */
+export interface EmpenhoDoContrato {
+  empenho_id: string;
+  numero: string;
+  exercicio: number;
+  data_empenho: string;
+  natureza: string | null;
+  credor: string | null;
+  valor_empenhado: number;
+  valor_anulado: number;
+  valor_liquidado: number;
+  valor_pago: number;
+}
+
+/** Empenho que pode ser ligado (passagem_empenhos_candidatos; só com o financeiro das passagens). */
+export interface EmpenhoCandidato {
+  empenho_id: string;
+  numero: string;
+  exercicio: number;
+  data_empenho: string;
+  natureza: string | null;
+  credor: string | null;
+  processo_sei: string | null;
+  valor_empenhado: number;
+  valor_anulado: number;
+  ligado: boolean;
 }

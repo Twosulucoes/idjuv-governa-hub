@@ -11,3 +11,12 @@ export const TOM_PEDIDO: Record<string, TomStatus> = {
   concluido: "sucesso",
   cancelado: "neutro",
 };
+
+/** Tom visual da situação da fatura da agência. */
+export const TOM_FATURA: Record<string, TomStatus> = {
+  recebida: "pendente",
+  atestada: "andamento",
+  liquidada: "destaque",
+  paga: "sucesso",
+  cancelada: "neutro",
+};
