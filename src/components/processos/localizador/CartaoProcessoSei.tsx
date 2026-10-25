@@ -40,8 +40,8 @@ function LinhaRegistro({ r }: { r: RegistroLocalizado }) {
         to={origem.link(r)}
         className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="w-44 shrink-0 text-caption font-medium text-muted-foreground">{origem.rotulo}</span>
-        <span className="min-w-0 flex-1 truncate text-body">{r.titulo ?? "Sem título"}</span>
+        <span className="w-full shrink-0 text-caption font-medium text-muted-foreground sm:w-44">{origem.rotulo}</span>
+        <span className="w-full min-w-0 text-body sm:w-auto sm:flex-1 sm:truncate">{r.titulo ?? "Sem título"}</span>
         {r.origem === "contratacao" ? (
           <BarraEvolucao processo={{ etapa: r.situacao, atualizado_em: r.atualizado_em }} />
         ) : (

@@ -41,6 +41,7 @@ describe("agruparPorProcesso", () => {
 
   it("resume as fontes do cartão", () => {
     expect(resumoDasFontes(grupos[0].registros)).toBe("1 processo de contratação · 2 empenhos");
+    expect(resumoDasFontes([registro({ origem: "pca" })])).toBe("1 demanda do PCA");
   });
 });
 

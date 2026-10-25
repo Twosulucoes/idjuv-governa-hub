@@ -32,20 +32,21 @@ export interface RegistroLocalizado {
 
 interface InfoOrigem {
   rotulo: string;
-  /** Plural para o resumo do cartão ("2 empenhos"). */
+  /** Singular e plural para o resumo do cartão ("1 empenho", "2 empenhos"). */
+  singular: string;
   plural: string;
   link: (r: Pick<RegistroLocalizado, "registro_id" | "ref">) => string;
 }
 
 export const ORIGENS: Record<OrigemLocalizador, InfoOrigem> = {
-  workflow: { rotulo: "Processo acompanhado", plural: "processos acompanhados", link: (r) => `/workflow/processos/${r.registro_id}` },
-  contratacao: { rotulo: "Processo de contratação", plural: "processos de contratação", link: (r) => `/compras/processos/${r.registro_id}` },
-  passagem: { rotulo: "Pedido de passagem", plural: "pedidos de passagem", link: (r) => `/contratos/passagens/${r.registro_id}` },
-  pca: { rotulo: "Demanda do PCA", plural: "demandas do PCA", link: (r) => (r.ref ? `/compras/pca/${r.ref}` : "/compras/pca") },
-  empenho: { rotulo: "Empenho", plural: "empenhos", link: (r) => `/financeiro/empenhos/${r.registro_id}` },
-  documento: { rotulo: "Ato", plural: "atos", link: (r) => (r.ref === "portaria" ? "/gabinete/portarias" : "/admin/documentos") },
-  termo_cessao: { rotulo: "Termo de cessão", plural: "termos de cessão", link: (r) => (r.ref ? `/unidades/${r.ref}` : "/unidades") },
-  diaria: { rotulo: "Diária", plural: "diárias", link: () => "/rh/viagens" },
+  workflow: { rotulo: "Processo acompanhado", singular: "processo acompanhado", plural: "processos acompanhados", link: (r) => `/workflow/processos/${r.registro_id}` },
+  contratacao: { rotulo: "Processo de contratação", singular: "processo de contratação", plural: "processos de contratação", link: (r) => `/compras/processos/${r.registro_id}` },
+  passagem: { rotulo: "Pedido de passagem", singular: "pedido de passagem", plural: "pedidos de passagem", link: (r) => `/contratos/passagens/${r.registro_id}` },
+  pca: { rotulo: "Demanda do PCA", singular: "demanda do PCA", plural: "demandas do PCA", link: (r) => (r.ref ? `/compras/pca/${r.ref}` : "/compras/pca") },
+  empenho: { rotulo: "Empenho", singular: "empenho", plural: "empenhos", link: (r) => `/financeiro/empenhos/${r.registro_id}` },
+  documento: { rotulo: "Ato", singular: "ato", plural: "atos", link: (r) => (r.ref === "portaria" ? "/gabinete/portarias" : "/admin/documentos") },
+  termo_cessao: { rotulo: "Termo de cessão", singular: "termo de cessão", plural: "termos de cessão", link: (r) => (r.ref ? `/unidades/${r.ref}` : "/unidades") },
+  diaria: { rotulo: "Diária", singular: "diária", plural: "diárias", link: () => "/rh/viagens" },
 };
 
 /** Ordem das fontes dentro do cartão: o processo primeiro, o dinheiro depois, os atos por último. */
@@ -101,7 +102,7 @@ export function resumoDasFontes(registros: RegistroLocalizado[]): string {
   return ORDEM.filter((o) => contagem.has(o))
     .map((o) => {
       const n = contagem.get(o)!;
-      return n === 1 ? `1 ${ORIGENS[o].rotulo.toLowerCase()}` : `${n} ${ORIGENS[o].plural}`;
+      return n === 1 ? `1 ${ORIGENS[o].singular}` : `${n} ${ORIGENS[o].plural}`;
     })
     .join(" · ");
 }

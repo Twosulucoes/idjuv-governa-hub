@@ -78,7 +78,7 @@ export default function LocalizarProcessoPage() {
   };
 
   return (
-    <ModuleLayout>
+    <ModuleLayout module="workflow">
       <div className="space-y-4">
         <PageHeader
           migalhas={[{ rotulo: "Processos", href: "/processos" }, { rotulo: "Localizar processo" }]}
