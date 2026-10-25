@@ -12,6 +12,8 @@ import { DataTable, PageHeader, StatusBadge, type ColunaTabela } from "@/compone
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BarraEvolucao } from "@/components/compras/processos/EvolucaoProcesso";
+import { evolucaoDoProcesso } from "@/lib/compras/evolucaoProcesso";
 import { ImportacaoWizard } from "@/components/importacao";
 import { ProcessoFormDialog } from "@/components/compras/processos/ProcessoFormDialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -70,6 +72,13 @@ export default function ProcessosListaPage() {
       ordenarPor: (p) => p.numero_processo,
       buscarPor: (p) => p.numero_processo,
       mobile: "titulo",
+    },
+    {
+      id: "evolucao",
+      cabecalho: "Evolução",
+      celula: (p) => <BarraEvolucao processo={p} />,
+      ordenarPor: (p) => evolucaoDoProcesso(p).percentual,
+      buscarPor: (p) => evolucaoDoProcesso(p).fase?.rotulo,
     },
     {
       id: "objeto",
