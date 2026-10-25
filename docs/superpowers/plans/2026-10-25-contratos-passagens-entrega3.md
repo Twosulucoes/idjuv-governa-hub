@@ -67,7 +67,7 @@ bilhetes "a faturar" e tirar os relatórios (planilha e PDF).
 ### Task 1: Migração, RLS, catálogo, baseline e tipos (agente `dev-banco-supabase`)
 
 **Files:**
-- `supabase/migrations/20261102090000_contratos_passagens_faturas.sql` (novo).
+- `supabase/migrations/20261103090000_contratos_passagens_faturas.sql` (novo).
 - `supabase/baseline/rls/mapa.csv` e `rls/35_policies_geradas.sql` (gerado).
 - `overlay/40_privilegios.sql`.
 - `schema/*`, regenerados; em `02_dados_catalogo.sql` só as linhas da permissão e das concessões.

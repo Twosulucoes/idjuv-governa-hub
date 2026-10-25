@@ -169,6 +169,16 @@ escrita é por RPC `wf_*`).
   `workflow.visualizar`). Patrimônio tem duas abas, Tombamento e Baixa; Distribuição e Inventário saíram do guia, por
   não terem fluxo nem checklist próprio.
 - **Veículos `/processos/veiculos`**: sem dados; mostra "Controle de frota ainda não implantado".
+- **Localizar processo `/processos/localizar`** (`src/pages/processos/LocalizarProcessoPage`, dados de
+  `useLocalizadorSei`, rota transversal com login; primeiro item do menu de Processos): uma caixa de busca aceita o nº
+  SEI em qualquer formato ou palavras do objeto, do assunto ou do setor, e mostra um cartão por processo SEI com o
+  objeto, onde está, a última movimentação, o botão "Copiar número" (para colar na pesquisa do SEI) e cada registro
+  que o sistema tem dele (processo acompanhado, contratação com a barra de evolução, passagem, demanda do PCA, empenho,
+  ato, termo de cessão, diária), com link para a tela dele. A aba Parados (`?aba=parados`, item "Parados" do menu)
+  lista contratações e processos acompanhados em andamento sem movimentação há mais de 15 dias, com filtro por setor.
+  Só lê; a pessoa só acha o que já veria nos módulos dela (funções em
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md), spec
+  [2026-10-25-localizador-processos-sei-design](./superpowers/specs/2026-10-25-localizador-processos-sei-design.md)).
 - **Etapas, prazos e checklist** vêm da carga inicial das migrações; os marcados "(proposta)" na spec aguardam
   confirmação do órgão. Não há tela de edição de modelo.
 - **Unidades**: a etapa aponta para a unidade pela sigla em `estrutura_organizacional`; sigla sem cadastro deixa a

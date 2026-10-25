@@ -1,6 +1,6 @@
 /**
  * Regras puras das faturas da agência de passagens: conferência da nota com os bilhetes, bilhetes a faturar, saldo
- * do contrato (emitido, faturado, pago) e empenho do exercício × emitido. O banco (migração 20261102090000) também
+ * do contrato (emitido, faturado, pago) e empenho do exercício × emitido. O banco (migração 20261103090000) também
  * exige atesto, liquidação, OB e motivo; aqui ficam as mensagens para a tela.
  * Plano: docs/superpowers/plans/2026-10-25-contratos-passagens-entrega3.md
  */

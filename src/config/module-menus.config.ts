@@ -8,6 +8,8 @@
 
 import {
   LayoutDashboard,
+  Search,
+  Hourglass,
   Users,
   UserCog,
   FileText,
@@ -209,6 +211,8 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
   workflow: {
     dashboard: { label: "Painel de Processos", route: "/workflow" },
     items: [
+      { id: "localizar", label: "Localizar processo", icon: Search, route: "/processos/localizar" },
+      { id: "parados", label: "Parados", icon: Hourglass, route: "/processos/localizar?aba=parados" },
       { id: "processos", label: "Processos", icon: Workflow, route: "/workflow/processos" },
       { id: "novo", label: "Novo Processo", icon: FileText, route: "/workflow/processos?acao=novo" },
       { id: "tramitacao", label: "Em Tramitação", icon: Send, route: "/workflow/processos?status=em_tramitacao" },

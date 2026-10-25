@@ -64,9 +64,20 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse, b
       });
   }, [menuConfig, module, getDisabledFeatures, hasPermission]);
 
+  // Rota com filtro na URL (?aba=, ?status=) só fica ativa com o filtro; a rota sem filtro cede a vez a uma irmã de
+  // mesmo caminho cujo filtro está na URL (em "Parados" não acende também "Localizar processo").
+  const filtroBate = (route: string) => {
+    const filtro = new URLSearchParams(route.split('?')[1] ?? '');
+    const atual = new URLSearchParams(location.search);
+    return [...filtro.keys()].length > 0 && [...filtro.entries()].every(([k, v]) => atual.get(k) === v);
+  };
   const isActive = (route: string) => {
-    const cleanRoute = route.split('?')[0];
-    return location.pathname === cleanRoute || location.pathname.startsWith(cleanRoute + '/');
+    const [cleanRoute, filtro] = route.split('?');
+    const caminho = location.pathname === cleanRoute || location.pathname.startsWith(cleanRoute + '/');
+    if (!caminho) return false;
+    if (filtro) return filtroBate(route);
+    const irmas = filteredItems.flatMap((i) => [i, ...(i.children ?? [])]);
+    return !irmas.some((i) => i.route.split('?')[0] === cleanRoute && i.route.includes('?') && filtroBate(i.route));
   };
 
   // Abre o grupo que contém a tela atual (quem chega por link vê onde está)

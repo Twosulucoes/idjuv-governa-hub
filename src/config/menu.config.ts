@@ -10,6 +10,8 @@
 import {
   LayoutDashboard,
   Workflow,
+  Search,
+  Hourglass,
   FileText,
   Archive,
   ShoppingCart,
@@ -197,6 +199,21 @@ export const menuConfig: MenuSection[] = [
     icon: Workflow,
     priority: 1,
     items: [
+      {
+        id: "processos-localizar",
+        label: "Localizar processo",
+        labelShort: "Localizar",
+        route: "/processos/localizar",
+        icon: Search,
+        priority: 0,
+      },
+      {
+        id: "processos-parados",
+        label: "Parados",
+        route: "/processos/localizar?aba=parados",
+        icon: Hourglass,
+        priority: 0,
+      },
       {
         id: "processos-lista",
         label: "Processos",

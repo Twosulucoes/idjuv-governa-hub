@@ -49,6 +49,7 @@ import PatrimonioProcessoPage from "./pages/processos/PatrimonioProcessoPage";
 import AlmoxarifadoProcessoPage from "./pages/processos/AlmoxarifadoProcessoPage";
 import ConveniosProcessoPage from "./pages/processos/ConveniosProcessoPage";
 import VeiculosProcessoPage from "./pages/processos/VeiculosProcessoPage";
+import LocalizarProcessoPage from "./pages/processos/LocalizarProcessoPage";
 import PagamentosProcessoPage from "./pages/processos/PagamentosProcessoPage";
 import DenunciasPage from "./pages/integridade/DenunciasPage";
 import GestaoDenunciasPage from "./pages/integridade/GestaoDenunciasPage";
@@ -1023,6 +1024,7 @@ const App = () => (
               {/* PROCESSOS - Com permissões mapeadas */}
               {/* ============================================ */}
               <Route path="/processos" element={<ProtectedRoute><ProcessosPage /></ProtectedRoute>} />
+              <Route path="/processos/localizar" element={<ProtectedRoute><LocalizarProcessoPage /></ProtectedRoute>} />
               <Route path="/processos/compras" element={
                 <ProtectedRoute requiredPermissions="processos.compras.visualizar">
                   <ComprasProcessoPage />

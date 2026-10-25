@@ -100,6 +100,11 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `docs/GUIA_FRONTEND.md` (Importação de dados). A rota usa a própria `PERMISSOES_IMPORTACAO` e o item de menu repete a mesma lista
   (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`, `compras.processos.editar`); `src/lib/importacao/registro.test.ts`
   reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha".
+- **Localizar processo** em `/processos/localizar` (`LocalizarProcessoPage`, `ProtectedRoute` só com login: rota
+  transversal, listada em `TRANSVERSAIS` de `src/shared/config/modules.config.test.ts`; quem pode ver cada registro é a
+  RLS da fonte, pelas funções INVOKER `localizar_processos_sei` e `processos_parados`). Menu: "Localizar processo" e
+  "Parados" (`/processos/localizar?aba=parados`) como primeiros itens de Processos, nos dois arquivos de menu. Spec:
+  `docs/superpowers/specs/2026-10-25-localizador-processos-sei-design.md`.
 - **Passagens aéreas (Contratos)** em `/contratos/passagens`, `/contratos/passagens/:id` e
   `/contratos/passagens/beneficiarios` (`PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,
   `requiredModule="contratos"` e `contratos.passagens.visualizar` ou `contratos.passagens.editar`): um pedido por

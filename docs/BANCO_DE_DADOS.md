@@ -1123,6 +1123,20 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
+- **Localizador de processos do SEI** (`20261102090000`, só funções; spec
+  [2026-10-25-localizador-processos-sei-design.md](./superpowers/specs/2026-10-25-localizador-processos-sei-design.md)).
+  Nenhuma tabela, coluna, policy ou permissão nova:
+  - `sei_normalizar(text)` (IMMUTABLE): chave `NNNNNN/AA-DV` do nº SEI completo (`17302.000885/2026.92`) ou
+    abreviado do FIPLAN (`000885/26-92`), `NULL` se o texto não é nº SEI; espelhada em `src/lib/processos/numeroSei.ts`;
+  - `texto_busca(text)` (IMMUTABLE): minúsculas e sem acento por `translate` (o baseline não instala `unaccent`);
+  - `localizar_processos_sei(p_termo, p_limite default 50)` (INVOKER, cada fonte com a RLS dela): busca pelo nº (chave
+    normalizada, ou os dígitos quando o termo só tem número) ou por palavras em `processos_administrativos`,
+    `processos_licitatorios`, `passagem_pedidos`, `pca_itens`, `fin_empenhos`, `documentos`, `termos_cessao` e
+    `viagens_diarias`; termo com menos de 3 caracteres não devolve nada; limite de 1 a 200;
+  - `processos_parados(p_dias default 15)` (INVOKER): contratação fora de encerrado/cancelado e processo do workflow
+    aberto ou em tramitação sem movimentação há mais de N dias (por `current_date`), até 200;
+  - `EXECUTE` só para `authenticated`; testes no bloco "LOCALIZADOR" de `scripts/db/testar-rls.sql` (processo
+    sigiloso escondido, sem módulo não acha, anon sem acesso).
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver
@@ -1290,7 +1304,7 @@ instituição inexistente), `passagem_propagar_nome_beneficiario` (nome corrigid
 - O prazo (padrão 5 dias corridos depois do último voo) fica em `module_settings.settings.passagens_prazo_prestacao_dias`
   do módulo `contratos`, gravado só pelo papel admin.
 
-**Passagens aéreas (entrega 3, migração `20261102090000_contratos_passagens_faturas.sql`).** Faturas da agência e
+**Passagens aéreas (entrega 3, migração `20261103090000_contratos_passagens_faturas.sql`).** Faturas da agência e
 empenhos do contrato. O FIPLAN continua sendo o oficial; aqui fica o que cada nota cobre.
 - `passagem_faturas`: nota da agência (`numero` único por contrato, `data_emissao`, `valor > 0`,
   `processo_sei_pagamento`) e a situação `recebida → atestada → liquidada → paga`, ou `cancelada`. CHECKs: atestada pede

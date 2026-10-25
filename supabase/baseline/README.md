@@ -285,7 +285,7 @@ de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termo
 `doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
 `ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
 
-A migração `20261102090000_contratos_passagens_faturas.sql` (passagens aéreas, entrega 3) entrou no schema regenerado
+A migração `20261103090000_contratos_passagens_faturas.sql` (passagens aéreas, entrega 3) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_catalogo.sql`: só a linha de
 `contratos.passagens.financeiro` e as concessões aos papéis, copiadas da regeneração), no `rls/mapa.csv`
 (`passagem_faturas`, `passagem_fatura_itens` e `passagem_contrato_empenhos`, classe `permissao` com `leitura=`) e no
@@ -298,6 +298,11 @@ regenerado (`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no 
 `permissao` com `leitura=`), no `overlay/40_privilegios.sql` (gatilhos sem EXECUTE; `passagem_relatorio_rh` só para
 `authenticated`) e no `overlay/50_storage.sql` (bucket privado `passagens` e as policies de SELECT, INSERT e DELETE);
 testes no bloco "PASSAGENS PRESTAÇÃO" de `scripts/db/testar-rls.sql`, com semente de `passagem_anexos` em `seed_ov`.
+
+A migração `20261102090000_localizador_processos_sei.sql` (localizador de processos do SEI) é só de funções:
+`sei_normalizar`, `texto_busca`, `localizar_processos_sei` e `processos_parados` entraram à mão em `01_pre_data.sql`
+(depois de `processo_empenhos`) e os grants em `overlay/40_privilegios.sql`; as duas de busca são SECURITY INVOKER, então
+cada fonte continua com a RLS dela. `rls/mapa.csv` sem mudança; testes no bloco "LOCALIZADOR" de `scripts/db/testar-rls.sql`.
 
 A migração `20261031090000_contratos_passagens.sql` (passagens aéreas, entrega 1) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões

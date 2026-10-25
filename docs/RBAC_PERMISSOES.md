@@ -1050,7 +1050,7 @@ Prestação de contas (entrega 2, migração `20261101090000_contratos_passagens
 | Mudar o prazo da prestação | papel admin | `module_settings` (classe `catalogo_admin`) |
 | Concluir o pedido | `contratos.passagens.editar`, só sem pendência; depois disso a prestação e os anexos ficam travados | gatilhos `passagem_conferir_conclusao` e `passagem_conferir_anexo` |
 
-Faturas e empenhos (entrega 3, migração `20261102090000_contratos_passagens_faturas.sql`), com a permissão nova
+Faturas e empenhos (entrega 3, migração `20261103090000_contratos_passagens_faturas.sql`), com a permissão nova
 `contratos.passagens.financeiro` ("Faturas e empenhos das passagens aéreas", dada pela migração a quem já tinha
 `contratos.criar`):
 

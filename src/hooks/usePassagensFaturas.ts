@@ -1,5 +1,5 @@
 /**
- * Faturas da agência de passagens e empenhos do contrato (migração 20261102090000). Leitura com uma das permissões de
+ * Faturas da agência de passagens e empenhos do contrato (migração 20261103090000). Leitura com uma das permissões de
  * passagens; escrita (fatura, bilhetes da fatura, situação e ligação de empenho) só com `contratos.passagens.financeiro`.
  * Os empenhos chegam pelas RPCs estreitas passagem_empenhos_contrato e passagem_empenhos_candidatos: quem tem
  * passagens não lê fin_empenhos. Regras de conferência e saldo em src/lib/passagens/faturas.ts.

@@ -1,7 +1,7 @@
 /**
  * Passagens aéreas (módulo Contratos): pedidos por processo SEI, passageiros, trechos, cotações e beneficiários.
  * Banco: tabelas passagem_* (migrações 20261031090000, 20261101090000 com a prestação de contas e os anexos, e
- * 20261102090000 com as faturas da agência e os empenhos do contrato).
+ * 20261103090000 com as faturas da agência e os empenhos do contrato).
  * Spec: docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md
  */
 
