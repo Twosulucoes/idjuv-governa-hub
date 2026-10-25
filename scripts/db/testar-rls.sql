@@ -8019,6 +8019,71 @@ BEGIN
   PERFORM pg_temp.nota('PASSAGENS: gravação só com contratos.passagens.editar, nº SEI e CPF únicos, nomes copiados, aprovação e emissão exigidas, valor da emissão, trecho emitido protegido, trilha só com a permissão, busca de servidores e viagens só para quem edita e sem curinga verificados');
 END $$;
 
+-- ---------------------------------------------------------------- Localizador de processos do SEI (migração 20261102090000) (TRIGGERS LIGADOS)
+-- Migração 20261102090000_localizador_processos_sei.sql (spec docs/superpowers/specs/2026-10-25-localizador-processos-sei-design.md):
+--   * sei_normalizar junta o nº completo e o abreviado do FIPLAN; texto que não é nº devolve nulo;
+--   * a busca é INVOKER: quem vê processos de contratação acha o processo pelo nº abreviado e pela palavra sem acento;
+--     quem não tem o módulo não acha; processo sigiloso do workflow não aparece para quem só tem workflow.visualizar;
+--   * termo curto não devolve nada; processos_parados lista a contratação parada; anon não executa.
+DO $$
+DECLARE
+  u_cmp uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.visualizar');
+  u_ctr uuid := (SELECT uid FROM persona WHERE nome = 'mod_rh');
+  u_wf uuid := md5('localizador_wf')::uuid;
+  r text; x text; y record;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOR y IN SELECT * FROM (VALUES ('17302.000885/2026.92', '000885/26-92'), ('17302.000885/2026-92', '000885/26-92'),
+      ('000885/26-92', '000885/26-92'), (' 17302 . 000885 / 2026 . 92 ', '000885/26-92'), ('17302000885202692', '000885/26-92'),
+      ('agência', NULL), ('2026', NULL)) v(entrada, esperado) LOOP
+    IF public.sei_normalizar(y.entrada) IS DISTINCT FROM y.esperado THEN
+      PERFORM pg_temp.falha('LOCALIZADOR: sei_normalizar(' || y.entrada || ') = ' || coalesce(public.sei_normalizar(y.entrada), 'nulo'));
+    END IF;
+  END LOOP;
+  IF public.texto_busca('Água MINERAL São') <> 'agua mineral sao' THEN PERFORM pg_temp.falha('LOCALIZADOR: texto_busca'); END IF;
+  FOREACH x IN ARRAY ARRAY['public.localizar_processos_sei(text, integer)', 'public.processos_parados(integer)'] LOOP
+    IF has_function_privilege('anon', x, 'EXECUTE') THEN PERFORM pg_temp.falha('LOCALIZADOR: anon executa ' || x); END IF;
+  END LOOP;
+
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_wf, 'localizador_wf@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id = u_wf;
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES (u_wf, 'workflow', '{workflow.visualizar}');
+
+  SET LOCAL session_replication_role = replica;
+  PERFORM pg_temp.seed_row('processos_licitatorios', jsonb_build_object('id', 'f7000000-0000-0000-0000-000000000001',
+    'numero_processo', '99999.000885/2099.92', 'ano', 2099, 'objeto', 'Aquisição de água mineral', 'etapa', 'tr',
+    'atualizado_em', current_date - 30));
+  PERFORM pg_temp.seed_row('processos_administrativos', jsonb_build_object('id', 'f7000000-0000-0000-0000-000000000002',
+    'numero_processo', 'LOC-TESTE-1', 'ano', 2099, 'assunto', 'Água sigilosa', 'interessado_nome', 'Teste',
+    'sigilo', 'sigiloso', 'created_by', u_ctr, 'numero_sei', '99999.000885/2099.92', 'status', 'em_tramitacao'));
+  SET LOCAL session_replication_role = origin;
+
+  r := pg_temp.valor_desfeito_como(u_cmp, 'authenticated',
+    'SELECT string_agg(origem, '','' ORDER BY origem) FROM public.localizar_processos_sei(''000885/99-92'')');
+  IF r IS DISTINCT FROM 'contratacao' THEN PERFORM pg_temp.falha('LOCALIZADOR: compras pelo nº abreviado (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_cmp, 'authenticated',
+    'SELECT count(*)::text FROM public.localizar_processos_sei(''agua MINERAL'') WHERE origem = ''contratacao''');
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('LOCALIZADOR: busca por palavra sem acento (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_cmp, 'authenticated', 'SELECT count(*)::text FROM public.localizar_processos_sei(''ag'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: termo curto devolveu linhas (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ctr, 'authenticated',
+    'SELECT count(*)::text FROM public.localizar_processos_sei(''99999.000885/2099.92'') WHERE origem = ''contratacao''');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: módulo sem permissão acha a contratação (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_wf, 'authenticated',
+    'SELECT count(*)::text FROM public.localizar_processos_sei(''99999.000885/2099.92'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: sigiloso do workflow aparece na busca (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_cmp, 'authenticated',
+    'SELECT string_agg(origem || '':'' || dias, '','') FROM public.processos_parados(15) WHERE registro_id = ''f7000000-0000-0000-0000-000000000001''');
+  IF r IS DISTINCT FROM 'contratacao:30' THEN PERFORM pg_temp.falha('LOCALIZADOR: contratação parada (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_wf, 'authenticated',
+    'SELECT count(*)::text FROM public.processos_parados(1) WHERE registro_id = ''f7000000-0000-0000-0000-000000000002''');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: sigiloso nos parados (' || coalesce(r, 'nulo') || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('LOCALIZADOR: nº completo e abreviado, palavra sem acento, RLS de cada fonte (módulo e sigilo), termo curto, parados e anon sem EXECUTE verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off
