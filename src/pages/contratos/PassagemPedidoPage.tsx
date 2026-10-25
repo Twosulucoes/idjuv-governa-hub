@@ -1,10 +1,10 @@
 /**
- * Ficha do pedido de passagem: abas Dados, Passageiros e trechos (cotação e emissão) e Histórico.
- * A aba Prestação de contas entra na entrega 2 da spec 2026-10-24-contratos-passagens-aereas-design.md.
+ * Ficha do pedido de passagem: abas Passageiros e trechos (cotação e emissão), Prestação de contas (entrega 2),
+ * Dados e Histórico. Spec 2026-10-24-contratos-passagens-aereas-design.md.
  */
 
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowRightLeft, Pencil } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/design-system";
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HistoricoTab } from "@/components/contratos/passagens/HistoricoTab";
 import { PassageirosTab } from "@/components/contratos/passagens/PassageirosTab";
 import { PedidoFormDialog } from "@/components/contratos/passagens/PedidoFormDialog";
+import { PrestacaoTab } from "@/components/contratos/passagens/PrestacaoTab";
 import { SituacaoDialog } from "@/components/contratos/passagens/SituacaoDialog";
 import { TOM_PEDIDO } from "@/components/contratos/passagens/tons";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,7 +52,12 @@ function Dados({ p, contrato }: { p: PedidoCompleto; contrato: string }) {
           <Campo rotulo="Destino">{p.destino_cidade ? `${p.destino_cidade}${p.destino_uf ? `/${p.destino_uf}` : ""}` : "—"}</Campo>
           <Campo rotulo="Período">{periodo}</Campo>
           <Campo rotulo="Contrato">{contrato}</Campo>
-          <Campo rotulo="Prestação de contas">{rotuloPrestacao(p.prestacao_contas)}</Campo>
+          <Campo rotulo="Prestação de contas">
+            {rotuloPrestacao(p.prestacao_contas)}
+            {p.prestacao_contas === "dispensado" && p.prestacao_dispensa_motivo && (
+              <span className="block text-muted-foreground">{p.prestacao_dispensa_motivo}</span>
+            )}
+          </Campo>
           <Campo rotulo={cargoDirigente ? `Aprovação (${cargoDirigente})` : "Aprovação"}>
             {p.aprovacao_documento_sei ? `Documento SEI ${p.aprovacao_documento_sei}, ${formatDateBR(p.aprovacao_data)}` : "ainda não registrada"}
           </Campo>
@@ -68,6 +74,8 @@ function Dados({ p, contrato }: { p: PedidoCompleto; contrato: string }) {
 
 export default function PassagemPedidoPage() {
   const { id } = useParams();
+  const [busca] = useSearchParams();
+  const abaInicial = busca.get("aba") === "prestacao" ? "prestacao" : "passageiros";
   const { hasPermission } = useAuth();
   const podeEditar = hasPermission("contratos.passagens.editar");
   const pedido = usePedido(id);
@@ -91,14 +99,18 @@ export default function PassagemPedidoPage() {
     conteudo = <EmptyState titulo="Pedido não encontrado" acao={<Button asChild variant="outline"><Link to="/contratos/passagens">Voltar à lista</Link></Button>} />;
   } else {
     conteudo = (
-      <Tabs defaultValue="passageiros">
+      <Tabs defaultValue={abaInicial}>
         <TabsList>
           <TabsTrigger value="passageiros">Passageiros e trechos</TabsTrigger>
+          <TabsTrigger value="prestacao">Prestação de contas</TabsTrigger>
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
         <TabsContent value="passageiros" className="mt-4">
           <PassageirosTab pedido={p} podeEditar={podeEditar} />
+        </TabsContent>
+        <TabsContent value="prestacao" className="mt-4">
+          <PrestacaoTab pedido={p} podeEditar={podeEditar} />
         </TabsContent>
         <TabsContent value="dados" className="mt-4">
           <Dados p={p} contrato={contrato} />

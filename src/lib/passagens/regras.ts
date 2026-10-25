@@ -54,11 +54,12 @@ export function proximasSituacoes(atual: string): SituacaoPedido[] {
   return FLUXO[atual as SituacaoPedido] ?? [];
 }
 
-/** O que falta para o pedido ir para `nova` (lista vazia = pode ir). */
+/** O que falta para o pedido ir para `nova` (lista vazia = pode ir). `pendenciasPrestacao`: itens de prestacao.ts em aberto. */
 export function pendenciasParaSituacao(
   nova: SituacaoPedido,
   pedido: { aprovacao_documento_sei: string | null; aprovacao_data: string | null },
   passageiros: ComTrechos[],
+  pendenciasPrestacao = 0,
 ): string[] {
   const trechos = passageiros.flatMap((p) => p.trechos);
   if (nova === "aprovado" && (!pedido.aprovacao_documento_sei || !pedido.aprovacao_data)) {
@@ -71,6 +72,9 @@ export function pendenciasParaSituacao(
     const abertos = trechos.filter((t) => ABERTOS.has(t.situacao)).length;
     if (abertos) {
       return [`${abertos} ${abertos === 1 ? "trecho ainda está" : "trechos ainda estão"} a cotar ou cotado: emita ou cancele antes de concluir.`];
+    }
+    if (pendenciasPrestacao) {
+      return [`A prestação de contas tem ${pendenciasPrestacao} ${pendenciasPrestacao === 1 ? "item em aberto" : "itens em aberto"}: registre a entrega ou a dispensa na aba Prestação de contas.`];
     }
   }
   return [];

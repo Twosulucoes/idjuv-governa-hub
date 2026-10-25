@@ -3,19 +3,26 @@
  * e o contrato da agência. Migração 20261031090000; leitura com `contratos.passagens.visualizar`, escrita com
  * `contratos.passagens.editar`. O servidor e as viagens do RH chegam só pelas RPCs estreitas
  * (passagem_buscar_servidores, passagem_viagens_servidor), porque quem tem passagens não lê o RH.
+ * Prestação de contas (migração 20261101090000): entregas e dispensas no pedido e no passageiro, anexos no bucket
+ * privado `passagens` (`<pedido>/<passageiro ou "pedido">/<uuid>-<nome>`, baixados por URL assinada de 60 s), prazo
+ * em module_settings (contratos) e a situação do relatório do RH por passagem_relatorio_rh.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import type { Json, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { CHAVE_PRAZO, lerPrazo } from '@/lib/passagens/prestacao';
+import { abrirArquivoPrivado } from '@/lib/storageArquivos';
 import type {
   ContratoPassagens,
+  PassagemAnexo,
   PassagemBeneficiario,
   PassagemCotacao,
   PassagemHistorico,
   PassagemPedido,
   PedidoCompleto,
+  PedidoParaPendencias,
   PedidoResumo,
   ServidorParaPassagem,
   ViagemDoServidor,
@@ -28,6 +35,14 @@ export type TrechoInput = Pick<TablesInsert<'passagem_trechos'>, 'passageiro_id'
 export type TrechoAlteracao = TablesUpdate<'passagem_trechos'> & { id: string };
 export type CotacaoInput = Pick<TablesInsert<'passagem_cotacoes'>, 'trecho_id' | 'companhia' | 'voo' | 'partida' | 'chegada' | 'valor' | 'observacoes'>;
 export type SituacaoInput = Pick<TablesUpdate<'passagem_pedidos'>, 'situacao' | 'aprovacao_documento_sei' | 'aprovacao_data' | 'cancelamento_motivo'> & { id: string };
+export type PrestacaoPassageiroInput = Pick<
+  TablesUpdate<'passagem_passageiros'>,
+  'embarque_entregue_em' | 'relatorio_entregue_em' | 'relatorio_documento_sei' | 'prestacao_dispensada' | 'prestacao_dispensa_motivo'
+> & { id: string };
+export type PrestacaoPedidoInput = Pick<
+  TablesUpdate<'passagem_pedidos'>,
+  'prestacao_contas' | 'prestacao_dispensa_motivo' | 'responsavel_passageiro_id' | 'relatorio_evento_entregue_em' | 'relatorio_evento_documento_sei'
+>;
 export type ContratoInput = Pick<
   TablesInsert<'contratos'>,
   'numero_contrato' | 'ano' | 'fornecedor_id' | 'objeto' | 'objeto_resumido' | 'valor_inicial' | 'data_assinatura' | 'data_inicio' | 'data_fim'
@@ -47,7 +62,11 @@ function mensagemErro(e: unknown): string {
     return 'Registro repetido.';
   }
   if (erro?.code === '42501') return erro.message?.includes('emitido') ? erro.message : 'Você não tem permissão para editar passagens.';
-  if (erro?.code === '23514') return 'Faltam dados obrigatórios para esta situação.';
+  if (erro?.code === '23514') {
+    if (texto.includes('dispensa')) return 'Escreva o motivo da dispensa.';
+    return 'Faltam dados obrigatórios para esta situação.';
+  }
+  if (erro?.code === '22023' && erro.message) return erro.message;
   return erro?.message || 'Erro inesperado.';
 }
 
@@ -184,11 +203,16 @@ export function useRemoverPassageiro(pedidoId: string) {
   const { qc, ok, falha } = useAvisos();
   return useMutation({
     mutationFn: async (id: string) => {
+      // os anexos do passageiro saem em cascata no banco; os arquivos, aqui
+      const anexos = await supabase.from('passagem_anexos').select('caminho').eq('passageiro_id', id);
       const { error } = await supabase.from('passagem_passageiros').delete().eq('id', id);
       if (error) throw error;
+      const caminhos = (anexos.data ?? []).map((a) => a.caminho);
+      if (caminhos.length) await supabase.storage.from(BUCKET_PASSAGENS).remove(caminhos);
     },
     onSuccess: () => {
       invalidarPedido(qc, pedidoId);
+      qc.invalidateQueries({ queryKey: ['passagem-anexos', pedidoId] });
       ok('Passageiro removido');
     },
     onError: falha('Não foi possível remover o passageiro'),
@@ -454,3 +478,190 @@ export function useCadastrarContrato() {
     onError: falha('Não foi possível cadastrar o contrato'),
   });
 }
+
+// ---------------------------------------------------------------------------- prestação de contas
+export const BUCKET_PASSAGENS = 'passagens';
+const CHAVE_PRAZO_Q = 'passagens-prazo-prestacao';
+const CHAVE_PENDENCIAS = 'passagens-pendencias';
+
+/** Prazo da prestação (dias depois do retorno), em module_settings.settings do módulo contratos. */
+export function usePrazoPrestacao() {
+  return useQuery({
+    queryKey: [CHAVE_PRAZO_Q],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('module_settings').select('settings').eq('module_code', 'contratos').maybeSingle();
+      if (error) throw error;
+      return lerPrazo(data?.settings);
+    },
+  });
+}
+
+/** Só o papel admin grava module_settings (RLS catalogo_admin). Mantém as outras chaves de `settings`. */
+export function useSalvarPrazoPrestacao() {
+  const { qc, ok, falha } = useAvisos();
+  return useMutation({
+    mutationFn: async (dias: number) => {
+      const { data, error } = await supabase.from('module_settings').select('id, settings').eq('module_code', 'contratos').single();
+      if (error) throw error;
+      const atual = data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings) ? data.settings : {};
+      const { error: e2 } = await supabase
+        .from('module_settings')
+        .update({ settings: { ...atual, [CHAVE_PRAZO]: dias } as Json })
+        .eq('id', data.id);
+      if (e2) throw e2;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [CHAVE_PRAZO_Q] });
+      ok('Prazo atualizado');
+    },
+    onError: falha('Não foi possível mudar o prazo'),
+  });
+}
+
+/** Relatório de viagem apresentado no RH, por passageiro servidor com viagem ligada (só a situação). */
+export function useRelatorioRh(passageiroIds: string[]) {
+  const ids = [...passageiroIds].sort();
+  return useQuery({
+    queryKey: ['passagens-relatorio-rh', ids],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('passagem_relatorio_rh', { _passageiro_ids: ids });
+      if (error) throw error;
+      const mapa: Record<string, boolean> = {};
+      for (const r of data ?? []) mapa[r.passageiro_id] = !!r.relatorio_apresentado;
+      return mapa;
+    },
+  });
+}
+
+function invalidarPrestacao(qc: ReturnType<typeof useQueryClient>, pedidoId: string) {
+  invalidarPedido(qc, pedidoId);
+  qc.invalidateQueries({ queryKey: [CHAVE_PENDENCIAS] });
+}
+
+export function useSalvarPrestacaoPassageiro(pedidoId: string) {
+  const { qc, ok, falha } = useAvisos();
+  return useMutation({
+    mutationFn: async ({ id, ...dados }: PrestacaoPassageiroInput) => {
+      const { error } = await supabase.from('passagem_passageiros').update(dados).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidarPrestacao(qc, pedidoId);
+      ok('Prestação de contas atualizada');
+    },
+    onError: falha('Não foi possível salvar a prestação de contas'),
+  });
+}
+
+export function useSalvarPrestacaoPedido(pedidoId: string) {
+  const { qc, ok, falha } = useAvisos();
+  return useMutation({
+    mutationFn: async (dados: PrestacaoPedidoInput) => {
+      const { error } = await supabase.from('passagem_pedidos').update(dados).eq('id', pedidoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidarPrestacao(qc, pedidoId);
+      ok('Prestação de contas atualizada');
+    },
+    onError: falha('Não foi possível salvar a prestação de contas'),
+  });
+}
+
+/** Pedidos emitidos com os passageiros e os voos: a tela de Pendências calcula o que falta (prestacao.ts). */
+export function usePedidosParaPendencias() {
+  return useQuery({
+    queryKey: [CHAVE_PENDENCIAS],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('passagem_pedidos')
+        .select(
+          'id, numero_sei, evento, solicitante_nome, prestacao_contas, relatorio_evento_entregue_em, '
+            + 'passageiros:passagem_passageiros(id, nome, servidor_id, viagem_id, embarque_entregue_em, relatorio_entregue_em, prestacao_dispensada, '
+            + 'trechos:passagem_trechos(data_voo, situacao, localizador))',
+        )
+        .eq('situacao', 'emitido');
+      if (error) throw error;
+      return (data ?? []) as unknown as PedidoParaPendencias[];
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------- anexos (bucket privado)
+export function useAnexosPedido(pedidoId: string | undefined) {
+  return useQuery({
+    queryKey: ['passagem-anexos', pedidoId],
+    enabled: !!pedidoId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('passagem_anexos').select('*').eq('pedido_id', pedidoId!).order('created_at');
+      if (error) throw error;
+      return (data ?? []) as PassagemAnexo[];
+    },
+  });
+}
+
+/** Nome seguro para o caminho no bucket: sem acento, sem barra nem `%`, até 80 caracteres. */
+export function nomeParaCaminho(nome: string): string {
+  const base = nome
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[-.]+/, '')
+    .slice(-80);
+  return base || 'arquivo';
+}
+
+export const TIPOS_ARQUIVO_ANEXO = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+export const TAMANHO_MAX_ANEXO = 10 * 1024 * 1024;
+
+export function useEnviarAnexo(pedidoId: string) {
+  const { qc, ok, falha } = useAvisos();
+  return useMutation({
+    mutationFn: async ({ arquivo, tipo, passageiroId }: { arquivo: File; tipo: PassagemAnexo['tipo']; passageiroId: string | null }) => {
+      if (!TIPOS_ARQUIVO_ANEXO.includes(arquivo.type)) throw new Error('Envie PDF, JPG, PNG ou WEBP.');
+      if (arquivo.size > TAMANHO_MAX_ANEXO) throw new Error('O arquivo passa de 10 MB.');
+      const caminho = `${pedidoId}/${passageiroId ?? 'pedido'}/${crypto.randomUUID()}-${nomeParaCaminho(arquivo.name)}`;
+      const envio = await supabase.storage.from(BUCKET_PASSAGENS).upload(caminho, arquivo, { contentType: arquivo.type, upsert: false });
+      if (envio.error) throw new Error('Não foi possível enviar o arquivo. Verifique sua permissão.');
+      const { error } = await supabase.from('passagem_anexos').insert({
+        pedido_id: pedidoId,
+        passageiro_id: passageiroId,
+        tipo,
+        caminho,
+        nome_arquivo: arquivo.name.slice(0, 255),
+        tamanho_bytes: arquivo.size,
+        mime_type: arquivo.type,
+      });
+      if (error) {
+        await supabase.storage.from(BUCKET_PASSAGENS).remove([caminho]);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['passagem-anexos', pedidoId] });
+      ok('Arquivo anexado');
+    },
+    onError: falha('Não foi possível anexar o arquivo'),
+  });
+}
+
+export function useRemoverAnexo(pedidoId: string) {
+  const { qc, ok, falha } = useAvisos();
+  return useMutation({
+    mutationFn: async (anexo: Pick<PassagemAnexo, 'id' | 'caminho'>) => {
+      const { error } = await supabase.from('passagem_anexos').delete().eq('id', anexo.id);
+      if (error) throw error;
+      await supabase.storage.from(BUCKET_PASSAGENS).remove([anexo.caminho]);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['passagem-anexos', pedidoId] });
+      ok('Anexo removido');
+    },
+    onError: falha('Não foi possível remover o anexo'),
+  });
+}
+
+/** Abre o anexo por URL assinada de 60 s (bucket privado). */
+export const abrirAnexo = (caminho: string) => abrirArquivoPrivado(BUCKET_PASSAGENS, caminho, { validadeSegundos: 60 });

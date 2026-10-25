@@ -91,6 +91,13 @@ describe("pendenciasParaSituacao", () => {
     expect(pendenciasParaSituacao("concluido", pedido, [{ trechos: [trecho({ situacao: "emitido", localizador: "A" }), trecho({ situacao: "cotado" })] }]))
       .toEqual(["1 trecho ainda está a cotar ou cotado: emita ou cancele antes de concluir."]);
   });
+  it("concluído exige a prestação de contas em dia", () => {
+    const fechados = [{ trechos: [trecho({ situacao: "emitido", localizador: "A" })] }];
+    expect(pendenciasParaSituacao("concluido", pedido, fechados, 2)).toEqual([
+      "A prestação de contas tem 2 itens em aberto: registre a entrega ou a dispensa na aba Prestação de contas.",
+    ]);
+    expect(pendenciasParaSituacao("concluido", pedido, fechados, 0)).toEqual([]);
+  });
 });
 
 describe("CPF", () => {
