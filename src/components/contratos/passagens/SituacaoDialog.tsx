@@ -121,13 +121,16 @@ export function SituacaoDialog({ open, onOpenChange, pedido }: Props) {
             {pendencias.map((p) => (
               <p key={p} className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm" role="status">{p}</p>
             ))}
+            {nova === "concluido" && rh.isError && (
+              <p className="text-sm text-destructive" role="alert">Não foi possível ver os relatórios apresentados no RH; tente de novo.</p>
+            )}
             {erro && <p className="text-sm font-medium text-destructive" role="alert">{erro}</p>}
           </div>
         )}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Voltar</Button>
           {opcoes.length > 0 && (
-            <Button onClick={gravar} disabled={mudar.isPending || !nova || pendencias.length > 0}>Salvar</Button>
+            <Button onClick={gravar} disabled={mudar.isPending || !nova || pendencias.length > 0 || (nova === "concluido" && (rh.isLoading || prazo.isLoading))}>Salvar</Button>
           )}
         </DialogFooter>
       </DialogContent>

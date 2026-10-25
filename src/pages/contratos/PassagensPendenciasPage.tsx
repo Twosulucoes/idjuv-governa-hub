@@ -118,9 +118,9 @@ export default function PassagensPendenciasPage() {
           dados={linhas}
           colunas={colunas}
           chaveLinha={(l) => l.chave}
-          carregando={pedidos.isLoading || prazo.isLoading}
-          erro={pedidos.isError ? "Não foi possível carregar as pendências." : null}
-          aoTentarNovamente={() => pedidos.refetch()}
+          carregando={pedidos.isLoading || prazo.isLoading || (servidores.length > 0 && rh.isLoading)}
+          erro={pedidos.isError || rh.isError ? "Não foi possível carregar as pendências." : null}
+          aoTentarNovamente={() => { pedidos.refetch(); rh.refetch(); }}
           busca={{ placeholder: "Buscar por passageiro, processo ou evento" }}
           filtros={
             <div className="flex items-center gap-2">

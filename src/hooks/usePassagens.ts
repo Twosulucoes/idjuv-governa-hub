@@ -61,9 +61,14 @@ function mensagemErro(e: unknown): string {
     if (texto.includes('escolhida')) return 'Este trecho já tem uma cotação escolhida.';
     return 'Registro repetido.';
   }
-  if (erro?.code === '42501') return erro.message?.includes('emitido') ? erro.message : 'Você não tem permissão para editar passagens.';
+  if (erro?.code === '42501') {
+    return erro.message?.includes('emitido') || erro.message?.includes('concluído') || erro.message?.includes('anexo')
+      ? erro.message
+      : 'Você não tem permissão para editar passagens.';
+  }
   if (erro?.code === '23514') {
-    if (texto.includes('dispensa')) return 'Escreva o motivo da dispensa.';
+    if (texto.includes('dispensa_check')) return 'Escreva o motivo da dispensa.';
+    if (texto.includes('Prestação de contas em aberto')) return erro.message!;
     return 'Faltam dados obrigatórios para esta situação.';
   }
   if (erro?.code === '22023' && erro.message) return erro.message;
@@ -205,10 +210,14 @@ export function useRemoverPassageiro(pedidoId: string) {
     mutationFn: async (id: string) => {
       // os anexos do passageiro saem em cascata no banco; os arquivos, aqui
       const anexos = await supabase.from('passagem_anexos').select('caminho').eq('passageiro_id', id);
+      if (anexos.error) throw anexos.error;
       const { error } = await supabase.from('passagem_passageiros').delete().eq('id', id);
       if (error) throw error;
-      const caminhos = (anexos.data ?? []).map((a) => a.caminho);
-      if (caminhos.length) await supabase.storage.from(BUCKET_PASSAGENS).remove(caminhos);
+      const caminhos = anexos.data.map((a) => a.caminho);
+      if (caminhos.length) {
+        const arquivos = await supabase.storage.from(BUCKET_PASSAGENS).remove(caminhos);
+        if (arquivos.error) throw new Error('O passageiro saiu do pedido, mas os arquivos dele não foram apagados. Avise o suporte.');
+      }
     },
     onSuccess: () => {
       invalidarPedido(qc, pedidoId);
@@ -501,13 +510,13 @@ export function useSalvarPrazoPrestacao() {
   const { qc, ok, falha } = useAvisos();
   return useMutation({
     mutationFn: async (dias: number) => {
-      const { data, error } = await supabase.from('module_settings').select('id, settings').eq('module_code', 'contratos').single();
+      const { data, error } = await supabase.from('module_settings').select('id, settings').eq('module_code', 'contratos').maybeSingle();
       if (error) throw error;
-      const atual = data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings) ? data.settings : {};
-      const { error: e2 } = await supabase
-        .from('module_settings')
-        .update({ settings: { ...atual, [CHAVE_PRAZO]: dias } as Json })
-        .eq('id', data.id);
+      const atual = data?.settings && typeof data.settings === 'object' && !Array.isArray(data.settings) ? data.settings : {};
+      const settings = { ...atual, [CHAVE_PRAZO]: dias } as Json;
+      const { error: e2 } = data
+        ? await supabase.from('module_settings').update({ settings }).eq('id', data.id)
+        : await supabase.from('module_settings').insert({ module_code: 'contratos', enabled: true, settings });
       if (e2) throw e2;
     },
     onSuccess: () => {
@@ -651,9 +660,11 @@ export function useRemoverAnexo(pedidoId: string) {
   const { qc, ok, falha } = useAvisos();
   return useMutation({
     mutationFn: async (anexo: Pick<PassagemAnexo, 'id' | 'caminho'>) => {
+      // a linha primeiro: o banco recusa apagar anexo de pedido concluído, e aí o arquivo fica
       const { error } = await supabase.from('passagem_anexos').delete().eq('id', anexo.id);
       if (error) throw error;
-      await supabase.storage.from(BUCKET_PASSAGENS).remove([anexo.caminho]);
+      const arquivo = await supabase.storage.from(BUCKET_PASSAGENS).remove([anexo.caminho]);
+      if (arquivo.error) throw new Error('O anexo saiu da lista, mas o arquivo não foi apagado. Tente de novo mais tarde ou avise o suporte.');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['passagem-anexos', pedidoId] });

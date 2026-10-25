@@ -99,13 +99,23 @@ CREATE INDEX IF NOT EXISTS passagem_anexos_created_by_idx ON public.passagem_ane
 CREATE INDEX IF NOT EXISTS passagem_anexos_updated_by_idx ON public.passagem_anexos (updated_by);
 ALTER TABLE public.passagem_anexos ENABLE ROW LEVEL SECURITY;
 
--- O passageiro do anexo é do mesmo pedido.
+-- O passageiro do anexo é do mesmo pedido; caminho e pedido não mudam depois de gravados; anexo de pedido concluído
+-- não se apaga (é a prova da prestação de contas).
 CREATE OR REPLACE FUNCTION public.passagem_conferir_anexo()
 RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
 BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = OLD.pedido_id AND p.situacao = 'concluido') THEN
+      RAISE EXCEPTION 'Pedido concluído: o anexo da prestação de contas não se apaga.' USING ERRCODE = '42501';
+    END IF;
+    RETURN OLD;
+  END IF;
+  IF TG_OP = 'UPDATE' AND (NEW.caminho, NEW.pedido_id) IS DISTINCT FROM (OLD.caminho, OLD.pedido_id) THEN
+    RAISE EXCEPTION 'O arquivo e o pedido do anexo não mudam: apague e anexe de novo.' USING ERRCODE = '42501';
+  END IF;
   IF NEW.passageiro_id IS NOT NULL AND NOT EXISTS (
      SELECT 1 FROM public.passagem_passageiros p WHERE p.id = NEW.passageiro_id AND p.pedido_id = NEW.pedido_id) THEN
     RAISE EXCEPTION 'O passageiro do anexo não é deste pedido.' USING ERRCODE = '22023';
@@ -119,7 +129,7 @@ DROP TRIGGER IF EXISTS trg_passagem_anexos_carimbar ON public.passagem_anexos;
 CREATE TRIGGER trg_passagem_anexos_carimbar BEFORE INSERT OR UPDATE ON public.passagem_anexos
   FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
 DROP TRIGGER IF EXISTS trg_passagem_anexos_conferir ON public.passagem_anexos;
-CREATE TRIGGER trg_passagem_anexos_conferir BEFORE INSERT OR UPDATE ON public.passagem_anexos
+CREATE TRIGGER trg_passagem_anexos_conferir BEFORE INSERT OR UPDATE OR DELETE ON public.passagem_anexos
   FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_anexo();
 
 -- ----------------------------------------------------------------------------
@@ -127,7 +137,8 @@ CREATE TRIGGER trg_passagem_anexos_conferir BEFORE INSERT OR UPDATE ON public.pa
 -- ----------------------------------------------------------------------------
 ALTER TABLE public.passagem_historico DROP CONSTRAINT IF EXISTS passagem_historico_acao_check;
 ALTER TABLE public.passagem_historico ADD CONSTRAINT passagem_historico_acao_check
-  CHECK (acao IN ('pedido_criado', 'pedido_situacao', 'trecho_situacao', 'prestacao_pedido', 'prestacao_passageiro'));
+  CHECK (acao IN ('pedido_criado', 'pedido_situacao', 'trecho_situacao', 'prestacao_pedido', 'prestacao_passageiro',
+                  'anexo_incluido', 'anexo_removido'));
 
 CREATE OR REPLACE FUNCTION public.passagem_registrar_prestacao()
 RETURNS trigger
@@ -175,6 +186,106 @@ CREATE TRIGGER trg_passagem_passageiros_prestacao AFTER UPDATE ON public.passage
 DROP TRIGGER IF EXISTS trg_passagem_pedidos_prestacao ON public.passagem_pedidos;
 CREATE TRIGGER trg_passagem_pedidos_prestacao AFTER UPDATE ON public.passagem_pedidos
   FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_prestacao();
+
+-- Anexo incluído ou removido entra na trilha (tipo, passageiro e nome do arquivo; nunca o conteúdo).
+CREATE OR REPLACE FUNCTION public.passagem_registrar_anexo()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  a public.passagem_anexos := CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = a.pedido_id) THEN
+    INSERT INTO public.passagem_historico (pedido_id, acao, antes, depois, feito_por)
+    VALUES (a.pedido_id, CASE WHEN TG_OP = 'DELETE' THEN 'anexo_removido' ELSE 'anexo_incluido' END, NULL,
+            jsonb_build_object('tipo', a.tipo, 'nome_arquivo', a.nome_arquivo,
+                               'passageiro', (SELECT nome FROM public.passagem_passageiros WHERE id = a.passageiro_id)),
+            auth.uid());
+  END IF;
+  RETURN NULL;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_anexo() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_passagem_anexos_trilha ON public.passagem_anexos;
+CREATE TRIGGER trg_passagem_anexos_trilha AFTER INSERT OR DELETE ON public.passagem_anexos
+  FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_anexo();
+
+-- Concluir só com a prestação em dia (a mesma regra de src/lib/passagens/prestacao.ts, sem olhar a data), e a
+-- prestação de pedido concluído não muda mais. Cartão: todo passageiro não dispensado com bilhete ativo. Relatório:
+-- individual, de cada um (vale o apresentado na viagem do RH ligada); evento, o único do pedido.
+CREATE OR REPLACE FUNCTION public.passagem_prestacao_em_aberto(_pedido_id uuid)
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH viajam AS (
+    SELECT p.* FROM public.passagem_passageiros p
+     WHERE p.pedido_id = _pedido_id AND NOT p.prestacao_dispensada
+       AND EXISTS (SELECT 1 FROM public.passagem_trechos t
+                    WHERE t.passageiro_id = p.id AND t.localizador IS NOT NULL
+                      AND t.situacao NOT IN ('cancelado', 'reembolsado'))
+  )
+  SELECT (SELECT count(*) FROM viajam WHERE embarque_entregue_em IS NULL)::int
+       + (SELECT count(*) FROM viajam v, public.passagem_pedidos pd
+           WHERE pd.id = _pedido_id AND pd.prestacao_contas = 'individual' AND v.relatorio_entregue_em IS NULL
+             AND NOT EXISTS (SELECT 1 FROM public.viagens_diarias d
+                              WHERE d.id = v.viagem_id AND d.servidor_id = v.servidor_id AND d.relatorio_apresentado))::int
+       + (SELECT count(*) FROM public.passagem_pedidos pd
+           WHERE pd.id = _pedido_id AND pd.prestacao_contas = 'evento' AND pd.relatorio_evento_entregue_em IS NULL
+             AND EXISTS (SELECT 1 FROM viajam))::int;
+$$;
+REVOKE EXECUTE ON FUNCTION public.passagem_prestacao_em_aberto(uuid) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.passagem_conferir_conclusao()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE n int;
+BEGIN
+  IF TG_TABLE_NAME = 'passagem_passageiros' THEN
+    IF (NEW.embarque_entregue_em, NEW.relatorio_entregue_em, NEW.relatorio_documento_sei, NEW.prestacao_dispensada,
+        NEW.prestacao_dispensa_motivo)
+       IS DISTINCT FROM
+       (OLD.embarque_entregue_em, OLD.relatorio_entregue_em, OLD.relatorio_documento_sei, OLD.prestacao_dispensada,
+        OLD.prestacao_dispensa_motivo)
+       AND EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = NEW.pedido_id AND p.situacao = 'concluido') THEN
+      RAISE EXCEPTION 'Pedido concluído: a prestação de contas não muda mais.' USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF OLD.situacao = 'concluido'
+     AND (NEW.prestacao_contas, NEW.prestacao_dispensa_motivo, NEW.responsavel_passageiro_id,
+          NEW.relatorio_evento_entregue_em, NEW.relatorio_evento_documento_sei)
+         IS DISTINCT FROM
+         (OLD.prestacao_contas, OLD.prestacao_dispensa_motivo, OLD.responsavel_passageiro_id,
+          OLD.relatorio_evento_entregue_em, OLD.relatorio_evento_documento_sei) THEN
+    RAISE EXCEPTION 'Pedido concluído: a prestação de contas não muda mais.' USING ERRCODE = '42501';
+  END IF;
+  IF NEW.situacao = 'concluido' AND OLD.situacao IS DISTINCT FROM 'concluido' THEN
+    n := public.passagem_prestacao_em_aberto(NEW.id);
+    IF n > 0 THEN
+      RAISE EXCEPTION 'Prestação de contas em aberto (% item(ns)): registre a entrega ou a dispensa antes de concluir.', n
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_conclusao() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_passagem_pedidos_conclusao ON public.passagem_pedidos;
+CREATE TRIGGER trg_passagem_pedidos_conclusao BEFORE UPDATE ON public.passagem_pedidos
+  FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_conclusao();
+DROP TRIGGER IF EXISTS trg_passagem_passageiros_conclusao ON public.passagem_passageiros;
+CREATE TRIGGER trg_passagem_passageiros_conclusao BEFORE UPDATE ON public.passagem_passageiros
+  FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_conclusao();
 
 -- ----------------------------------------------------------------------------
 -- 4. Relatório de viagem do RH (só a situação, para quem lê passagens)

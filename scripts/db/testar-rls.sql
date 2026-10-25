@@ -8039,7 +8039,8 @@ DECLARE
 BEGIN
   PERFORM set_config('request.jwt.claims', '', true);
   FOREACH x IN ARRAY ARRAY['public.passagem_conferir_responsavel()', 'public.passagem_conferir_anexo()',
-                           'public.passagem_registrar_prestacao()'] LOOP
+                           'public.passagem_registrar_prestacao()', 'public.passagem_registrar_anexo()',
+                           'public.passagem_prestacao_em_aberto(uuid)', 'public.passagem_conferir_conclusao()'] LOOP
     IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
       PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: ' || x || ' executável pela API');
     END IF;
@@ -8104,11 +8105,22 @@ BEGIN
     format('SELECT count(*)::text FROM public.passagem_anexos WHERE pedido_id = %L', pedido));
   IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: módulo sem a permissão lê anexo (' || coalesce(r, 'nulo') || ')'); END IF;
   r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'UPDATE public.passagem_anexos SET tipo = ''outro'' WHERE pedido_id = %L RETURNING id::text', pedido));
+  IF r IS DISTINCT FROM 'vazio' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: só visualizar altera anexo (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_anexos SET caminho = caminho || ''x'' WHERE pedido_id = %L RETURNING id::text', pedido));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: caminho do anexo alterado (' || r || ')'); END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.passagem_historico WHERE pedido_id = pedido AND acao = 'anexo_incluido' AND feito_por = u_ed) THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: anexo incluído fora da trilha');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
     'DELETE FROM public.passagem_anexos WHERE pedido_id = %L RETURNING id::text', pedido));
   IF r IS DISTINCT FROM 'vazio' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: só visualizar apaga anexo (' || r || ')'); END IF;
 
   -- bucket privado passagens
-  IF (SELECT NOT public AND file_size_limit = 10485760 FROM storage.buckets WHERE id = 'passagens') IS NOT TRUE THEN
+  IF (SELECT NOT public AND file_size_limit = 10485760
+             AND allowed_mime_types::text[] @> ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+             AND cardinality(allowed_mime_types) = 4 FROM storage.buckets WHERE id = 'passagens') IS NOT TRUE THEN
     PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: bucket passagens ausente, público ou sem o limite de 10 MB');
   END IF;
   IF pg_temp.ins_obj(u_ed, 'authenticated', 'passagens', pedido || '/pedido/r.pdf') <> 'passou' THEN
@@ -8131,6 +8143,8 @@ BEGIN
   IF pg_temp.sel_obj(u_vis, 'authenticated', 'passagens') <> 1 THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: visualizar não lê o arquivo'); END IF;
   IF pg_temp.sel_obj(u_mod, 'authenticated', 'passagens') <> 0 THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: módulo sem a permissão lê o arquivo'); END IF;
   IF pg_temp.sel_obj(u_anon, 'anon', 'passagens') > 0 THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: anon lê o arquivo'); END IF;
+  r := pg_temp.sql_como(u_mod, 'authenticated', 'DELETE FROM storage.objects WHERE bucket_id = ''passagens''');
+  IF r IS DISTINCT FROM 'ok:0' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: módulo sem a permissão apaga arquivo (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_vis, 'authenticated', 'DELETE FROM storage.objects WHERE bucket_id = ''passagens''');
   IF r IS DISTINCT FROM 'ok:0' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: só visualizar apaga arquivo (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_ed, 'authenticated', 'UPDATE storage.objects SET name = name WHERE bucket_id = ''passagens''');
@@ -8147,8 +8161,28 @@ BEGIN
     format('SELECT count(*)::text FROM public.passagem_relatorio_rh(ARRAY[%L]::uuid[])', pass_b));
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: módulo sem a permissão consulta o relatório do RH (' || r || ')'); END IF;
 
+  -- concluir só com a prestação em dia; depois de concluído, a prestação e os anexos não mudam
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_pedidos SET situacao = 'emitido' WHERE id = pedido;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_pedidos SET situacao = ''concluido'' WHERE id = %L RETURNING situacao', pedido));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: concluído sem o relatório do evento (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_pedidos SET relatorio_evento_entregue_em = DATE '2099-03-03' WHERE id = pedido;
+  r := pg_temp.exec_como(u_ed, 'authenticated', format('UPDATE public.passagem_pedidos SET situacao = ''concluido'' WHERE id = %L', pedido));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: prestação em dia não conclui (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_passageiros SET embarque_entregue_em = NULL WHERE id = %L RETURNING id::text', pass_b));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: entrega desfeita em pedido concluído (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_pedidos SET relatorio_evento_entregue_em = NULL WHERE id = %L RETURNING id::text', pedido));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: relatório desfeito em pedido concluído (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'DELETE FROM public.passagem_anexos WHERE pedido_id = %L RETURNING id::text', pedido));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: anexo de pedido concluído apagado (' || r || ')'); END IF;
+
   PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM pg_temp.nota('PASSAGENS PRESTAÇÃO: dispensa com motivo, responsável do mesmo pedido, trilha da prestação, anexos (caminho, passageiro, só editar grava, só a permissão lê), bucket privado passagens e relatório do RH só com a permissão verificados');
+  PERFORM pg_temp.nota('PASSAGENS PRESTAÇÃO: conclusão só com a prestação em dia, prestação e anexos travados depois de concluir, trilha dos anexos, dispensa com motivo, responsável do mesmo pedido, trilha da prestação, anexos (caminho, passageiro, só editar grava, só a permissão lê), bucket privado passagens e relatório do RH só com a permissão verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

@@ -1279,7 +1279,12 @@ instituição inexistente), `passagem_propagar_nome_beneficiario` (nome corrigid
   `editar`, grava e apaga com `editar`.
 - Bucket `passagens`: privado, 10 MB, PDF/JPEG/PNG/WEBP; ler com o módulo e a permissão de passagens, enviar e apagar
   com `editar` (o envio exige pasta de pedido existente); sem UPDATE.
-- Trilha: `passagem_registrar_prestacao` grava `prestacao_pedido` e `prestacao_passageiro` em `passagem_historico`.
+- Trilha: `passagem_registrar_prestacao` grava `prestacao_pedido` e `prestacao_passageiro` em `passagem_historico`;
+  `passagem_registrar_anexo` grava `anexo_incluido` e `anexo_removido` (tipo, passageiro e nome do arquivo).
+- Conclusão no banco: `passagem_conferir_conclusao` recusa ir para `concluido` com prestação em aberto (`23514`; conta
+  por `passagem_prestacao_em_aberto`, sem olhar a data) e, depois de concluído, recusa mudar a prestação do pedido ou
+  do passageiro (`42501`). Anexo de pedido concluído não se apaga e o caminho de um anexo não muda
+  (`passagem_conferir_anexo`, `42501`).
 - `passagem_relatorio_rh(_passageiro_ids)` (SECURITY DEFINER, quem lê passagens) devolve só se o relatório da viagem
   do RH ligada foi apresentado e a data; `passagem_viagens_servidor` passa a devolver também essas duas colunas.
 - O prazo (padrão 5 dias corridos depois do último voo) fica em `module_settings.settings.passagens_prazo_prestacao_dias`

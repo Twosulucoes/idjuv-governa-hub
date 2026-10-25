@@ -10363,7 +10363,14 @@ CREATE TRIGGER trg_passagem_anexos_carimbar BEFORE INSERT OR UPDATE ON public.pa
 -- Name: passagem_anexos trg_passagem_anexos_conferir; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_passagem_anexos_conferir BEFORE INSERT OR UPDATE ON public.passagem_anexos FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_anexo();
+CREATE TRIGGER trg_passagem_anexos_conferir BEFORE INSERT OR DELETE OR UPDATE ON public.passagem_anexos FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_anexo();
+
+
+--
+-- Name: passagem_anexos trg_passagem_anexos_trilha; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_anexos_trilha AFTER INSERT OR DELETE ON public.passagem_anexos FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_anexo();
 
 
 --
@@ -10395,6 +10402,13 @@ CREATE TRIGGER trg_passagem_passageiros_carimbar BEFORE INSERT OR UPDATE ON publ
 
 
 --
+-- Name: passagem_passageiros trg_passagem_passageiros_conclusao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_passageiros_conclusao BEFORE UPDATE ON public.passagem_passageiros FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_conclusao();
+
+
+--
 -- Name: passagem_passageiros trg_passagem_passageiros_nome; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -10413,6 +10427,13 @@ CREATE TRIGGER trg_passagem_passageiros_prestacao AFTER UPDATE ON public.passage
 --
 
 CREATE TRIGGER trg_passagem_pedidos_carimbar BEFORE INSERT OR UPDATE ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_pedidos trg_passagem_pedidos_conclusao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_pedidos_conclusao BEFORE UPDATE ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_conclusao();
 
 
 --

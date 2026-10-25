@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { formatarDataHora } from "@/lib/passagens/regras";
-import { rotuloPrestacao, rotuloSituacaoPedido, rotuloSituacaoTrecho, type PassagemHistorico } from "@/types/passagens";
+import { rotuloAnexo, rotuloPrestacao, rotuloSituacaoPedido, rotuloSituacaoTrecho, type PassagemHistorico } from "@/types/passagens";
 
 interface Props {
   historico: PassagemHistorico[] | undefined;
@@ -51,6 +51,9 @@ function descrever(h: PassagemHistorico): string {
   const antes = h.antes as Json;
   const depois = h.depois as Json;
   if (h.acao === "prestacao_pedido" || h.acao === "prestacao_passageiro") return descreverPrestacao(h, antes, depois);
+  if (h.acao === "anexo_incluido" || h.acao === "anexo_removido") {
+    return `Anexo ${h.acao === "anexo_incluido" ? "incluído" : "removido"}: ${depois?.nome_arquivo ?? ""} (${rotuloAnexo(depois?.tipo as string)}${depois?.passageiro ? `, ${depois.passageiro}` : ""})`;
+  }
   if (h.acao === "pedido_criado") return `Pedido registrado (processo SEI ${depois?.numero_sei ?? "—"})`;
   if (h.acao === "pedido_situacao") {
     const extra = depois?.situacao === "aprovado"

@@ -10655,9 +10655,59 @@ CREATE FUNCTION public.passagem_conferir_anexo() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = OLD.pedido_id AND p.situacao = 'concluido') THEN
+      RAISE EXCEPTION 'Pedido concluído: o anexo da prestação de contas não se apaga.' USING ERRCODE = '42501';
+    END IF;
+    RETURN OLD;
+  END IF;
+  IF TG_OP = 'UPDATE' AND (NEW.caminho, NEW.pedido_id) IS DISTINCT FROM (OLD.caminho, OLD.pedido_id) THEN
+    RAISE EXCEPTION 'O arquivo e o pedido do anexo não mudam: apague e anexe de novo.' USING ERRCODE = '42501';
+  END IF;
   IF NEW.passageiro_id IS NOT NULL AND NOT EXISTS (
      SELECT 1 FROM public.passagem_passageiros p WHERE p.id = NEW.passageiro_id AND p.pedido_id = NEW.pedido_id) THEN
     RAISE EXCEPTION 'O passageiro do anexo não é deste pedido.' USING ERRCODE = '22023';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_conferir_conclusao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_conferir_conclusao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE n int;
+BEGIN
+  IF TG_TABLE_NAME = 'passagem_passageiros' THEN
+    IF (NEW.embarque_entregue_em, NEW.relatorio_entregue_em, NEW.relatorio_documento_sei, NEW.prestacao_dispensada,
+        NEW.prestacao_dispensa_motivo)
+       IS DISTINCT FROM
+       (OLD.embarque_entregue_em, OLD.relatorio_entregue_em, OLD.relatorio_documento_sei, OLD.prestacao_dispensada,
+        OLD.prestacao_dispensa_motivo)
+       AND EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = NEW.pedido_id AND p.situacao = 'concluido') THEN
+      RAISE EXCEPTION 'Pedido concluído: a prestação de contas não muda mais.' USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF OLD.situacao = 'concluido'
+     AND (NEW.prestacao_contas, NEW.prestacao_dispensa_motivo, NEW.responsavel_passageiro_id,
+          NEW.relatorio_evento_entregue_em, NEW.relatorio_evento_documento_sei)
+         IS DISTINCT FROM
+         (OLD.prestacao_contas, OLD.prestacao_dispensa_motivo, OLD.responsavel_passageiro_id,
+          OLD.relatorio_evento_entregue_em, OLD.relatorio_evento_documento_sei) THEN
+    RAISE EXCEPTION 'Pedido concluído: a prestação de contas não muda mais.' USING ERRCODE = '42501';
+  END IF;
+  IF NEW.situacao = 'concluido' AND OLD.situacao IS DISTINCT FROM 'concluido' THEN
+    n := public.passagem_prestacao_em_aberto(NEW.id);
+    IF n > 0 THEN
+      RAISE EXCEPTION 'Prestação de contas em aberto (% item(ns)): registre a entrega ou a dispensa antes de concluir.', n
+        USING ERRCODE = '23514';
+    END IF;
   END IF;
   RETURN NEW;
 END;
@@ -10723,6 +10773,32 @@ $$;
 
 
 --
+-- Name: passagem_prestacao_em_aberto(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_prestacao_em_aberto(_pedido_id uuid) RETURNS integer
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  WITH viajam AS (
+    SELECT p.* FROM public.passagem_passageiros p
+     WHERE p.pedido_id = _pedido_id AND NOT p.prestacao_dispensada
+       AND EXISTS (SELECT 1 FROM public.passagem_trechos t
+                    WHERE t.passageiro_id = p.id AND t.localizador IS NOT NULL
+                      AND t.situacao NOT IN ('cancelado', 'reembolsado'))
+  )
+  SELECT (SELECT count(*) FROM viajam WHERE embarque_entregue_em IS NULL)::int
+       + (SELECT count(*) FROM viajam v, public.passagem_pedidos pd
+           WHERE pd.id = _pedido_id AND pd.prestacao_contas = 'individual' AND v.relatorio_entregue_em IS NULL
+             AND NOT EXISTS (SELECT 1 FROM public.viagens_diarias d
+                              WHERE d.id = v.viagem_id AND d.servidor_id = v.servidor_id AND d.relatorio_apresentado))::int
+       + (SELECT count(*) FROM public.passagem_pedidos pd
+           WHERE pd.id = _pedido_id AND pd.prestacao_contas = 'evento' AND pd.relatorio_evento_entregue_em IS NULL
+             AND EXISTS (SELECT 1 FROM viajam))::int;
+$$;
+
+
+--
 -- Name: passagem_propagar_nome_beneficiario(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -10751,6 +10827,29 @@ BEGIN
     RAISE EXCEPTION 'Trecho já emitido não pode ser apagado: marque como cancelado ou reembolsado.' USING ERRCODE = '42501';
   END IF;
   RETURN OLD;
+END;
+$$;
+
+
+--
+-- Name: passagem_registrar_anexo(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_registrar_anexo() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  a public.passagem_anexos := CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = a.pedido_id) THEN
+    INSERT INTO public.passagem_historico (pedido_id, acao, antes, depois, feito_por)
+    VALUES (a.pedido_id, CASE WHEN TG_OP = 'DELETE' THEN 'anexo_removido' ELSE 'anexo_incluido' END, NULL,
+            jsonb_build_object('tipo', a.tipo, 'nome_arquivo', a.nome_arquivo,
+                               'passageiro', (SELECT nome FROM public.passagem_passageiros WHERE id = a.passageiro_id)),
+            auth.uid());
+  END IF;
+  RETURN NULL;
 END;
 $$;
 
@@ -24154,7 +24253,7 @@ CREATE TABLE public.passagem_historico (
     depois jsonb,
     feito_por uuid DEFAULT auth.uid(),
     feito_em timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT passagem_historico_acao_check CHECK ((acao = ANY (ARRAY['pedido_criado'::text, 'pedido_situacao'::text, 'trecho_situacao'::text, 'prestacao_pedido'::text, 'prestacao_passageiro'::text])))
+    CONSTRAINT passagem_historico_acao_check CHECK ((acao = ANY (ARRAY['pedido_criado'::text, 'pedido_situacao'::text, 'trecho_situacao'::text, 'prestacao_pedido'::text, 'prestacao_passageiro'::text, 'anexo_incluido'::text, 'anexo_removido'::text])))
 );
 
 

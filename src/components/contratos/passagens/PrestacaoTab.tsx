@@ -82,7 +82,9 @@ export function PrestacaoTab({ pedido, podeEditar }: Props) {
   if (prazo.isLoading) return <Skeleton className="h-48" />;
   const prazoDias = prazo.data ?? PRAZO_PADRAO_DIAS;
   const ctx = { prazoDias, hoje: hoje(), relatorioRh: rh.data ?? {} };
-  const pendentes = pendenciasDoPedido(pedido, ctx);
+  // pendência só conta com o pedido emitido (mesmo critério da tela de Pendências)
+  const emitido = pedido.situacao === "emitido";
+  const pendentes = emitido ? pendenciasDoPedido(pedido, ctx) : [];
   const modo = pedido.prestacao_contas;
 
   const anexar = (tipo: PassagemAnexo["tipo"], passageiroId: string | null) => {
@@ -161,6 +163,8 @@ export function PrestacaoTab({ pedido, podeEditar }: Props) {
             <p className="text-muted-foreground">A prestação de contas começa quando o pedido estiver emitido.</p>
           )}
           {modo === "dispensado" && <p className="text-muted-foreground">Sem relatório; o cartão de embarque continua sendo pedido.</p>}
+          {rh.isError && <p className="text-destructive" role="alert">Não foi possível ver os relatórios apresentados no RH; os de servidor podem aparecer como pendentes.</p>}
+          {pedido.situacao === "concluido" && <p className="text-muted-foreground">Pedido concluído: a prestação de contas não muda mais.</p>}
         </CardContent>
       </Card>
 
@@ -180,7 +184,9 @@ export function PrestacaoTab({ pedido, podeEditar }: Props) {
                   <SelectTrigger id="prest-responsavel" className="sm:max-w-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={SEM_RESPONSAVEL}>Não indicado</SelectItem>
-                    {pedido.passageiros.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome ?? "—"}</SelectItem>)}
+                    {pedido.passageiros
+                      .filter((p) => !p.prestacao_dispensada || p.id === pedido.responsavel_passageiro_id)
+                      .map((p) => <SelectItem key={p.id} value={p.id}>{p.nome ?? "—"}</SelectItem>)}
                   </SelectContent>
                 </Select>
               ) : (
@@ -216,7 +222,7 @@ export function PrestacaoTab({ pedido, podeEditar }: Props) {
       {pedido.passageiros.map((p) => {
         const retorno = retornoDoPassageiro(p.trechos);
         const vencimento = retorno ? somarDias(retorno, prazoDias) : null;
-        const lista = pendenciasDoPassageiro(modo, p, { ...ctx, relatorioRh: !!ctx.relatorioRh[p.id] });
+        const lista = emitido ? pendenciasDoPassageiro(modo, p, { ...ctx, relatorioRh: !!ctx.relatorioRh[p.id] }) : [];
         const relatorioRh = !!ctx.relatorioRh[p.id];
         return (
           <Card key={p.id}>

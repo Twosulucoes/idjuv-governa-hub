@@ -26377,6 +26377,10 @@ export type Database = {
           nome: string
         }[]
       }
+      passagem_prestacao_em_aberto: {
+        Args: { _pedido_id: string }
+        Returns: number
+      }
       passagem_relatorio_rh: {
         Args: { _passageiro_ids: string[] }
         Returns: {
