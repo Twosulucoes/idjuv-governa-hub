@@ -19,6 +19,7 @@ const TRANSVERSAIS = [
   "/meu-perfil",
   "/trocar-senha-obrigatoria",
   "/processos",
+  "/processos/localizar",
   "/formularios/termo-demanda",
   "/formularios/requisicao-material",
   "/formularios/termo-responsabilidade",

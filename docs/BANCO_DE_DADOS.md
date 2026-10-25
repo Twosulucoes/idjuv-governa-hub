@@ -1144,6 +1144,20 @@ Todas idempotentes.
     por processo) e `programacao_por_natureza` (QDD × reservas por combinação, com os processos);
   - sem permissão nova; RLS classe `preservar` nas duas tabelas (policies na migração); testes no bloco
     "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
+- **Localizador de processos do SEI** (`20261102090000`, só funções; spec
+  [2026-10-25-localizador-processos-sei-design.md](./superpowers/specs/2026-10-25-localizador-processos-sei-design.md)).
+  Nenhuma tabela, coluna, policy ou permissão nova:
+  - `sei_normalizar(text)` (IMMUTABLE): chave `NNNNNN/AA-DV` do nº SEI completo (`17302.000885/2026.92`) ou
+    abreviado do FIPLAN (`000885/26-92`), `NULL` se o texto não é nº SEI; espelhada em `src/lib/processos/numeroSei.ts`;
+  - `texto_busca(text)` (IMMUTABLE): minúsculas e sem acento por `translate` (o baseline não instala `unaccent`);
+  - `localizar_processos_sei(p_termo, p_limite default 50)` (INVOKER, cada fonte com a RLS dela): busca pelo nº (chave
+    normalizada, ou os dígitos quando o termo só tem número) ou por palavras em `processos_administrativos`,
+    `processos_licitatorios`, `passagem_pedidos`, `pca_itens`, `fin_empenhos`, `documentos`, `termos_cessao` e
+    `viagens_diarias`; termo com menos de 3 caracteres não devolve nada; limite de 1 a 200;
+  - `processos_parados(p_dias default 15)` (INVOKER): contratação fora de encerrado/cancelado e processo do workflow
+    aberto ou em tramitação sem movimentação há mais de N dias (por `current_date`), até 200;
+  - `EXECUTE` só para `authenticated`; testes no bloco "LOCALIZADOR" de `scripts/db/testar-rls.sql` (processo
+    sigiloso escondido, sem módulo não acha, anon sem acesso).
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver
@@ -1257,6 +1271,59 @@ histórico de migrações; o baseline já as remove); a correção no banco ao v
 `propostas_licitacao`, `documentos_preparatorios_licitacao`, `atas_registro_preco`,
 `itens_ata_registro_preco`, `fornecedores`, `contratos`, `itens_contrato`,
 `aditivos_contrato`, `medicoes_contrato`.
+
+**Passagens aéreas (entrega 1, migração `20261031090000_contratos_passagens.sql`).** Controle e cadastro; o ato
+(aprovação do Presidente, pedido à agência) continua no SEI e aqui fica só o registro.
+
+- `passagem_beneficiarios`: quem viaja e não é servidor (atleta, técnico, convidado). CPF só com 11 dígitos e único;
+  `ativo` em vez de apagar (ninguém exclui).
+- `passagem_pedidos`: um por processo SEI (`numero_sei` único). Situação `recebido → cotacao_solicitada →
+  cotacao_recebida → aprovado → emitido → concluido` (ou `cancelado`, com motivo). Aprovado, emitido e concluído exigem
+  o nº do documento SEI e a data da aprovação. Quem pediu (servidor, beneficiário, instituição ou o próprio órgão),
+  contrato da agência (`contrato_id` → `contratos`) e modo da prestação de contas (individual, único do evento ou
+  dispensada com motivo). Ninguém exclui: cancela.
+- `passagem_passageiros`: servidor **ou** beneficiário (um dos dois), com o nome copiado no momento do cadastro e, para
+  servidor, a viagem do RH (`viagem_id`, conferida contra o servidor).
+- `passagem_trechos`: origem, destino, data, voo, localizador, bilhete e valores (tarifa, embarque, serviço, desconto,
+  multa, reembolso); `valor_emissao` é coluna gerada. Emitido, remarcado e reembolsado exigem localizador e data da
+  emissão; trecho com localizador não se apaga (cancela).
+- `passagem_cotacoes`: opções da agência por trecho; no máximo uma `escolhida`.
+- `passagem_historico`: trilha (pedido criado, mudança de situação do pedido e dos trechos), escrita só por gatilho e
+  lida só com a permissão de passagens (classe `trilha` com `leitura=`).
+- `contratos.controla_passagens` (coluna nova, padrão `false`): marca o contrato da agência; só os marcados entram no
+  saldo e na escolha do pedido. A tela de passagens cadastra o contrato já marcado ou marca um que já existe.
+
+Permissões novas `contratos.passagens.visualizar` e `contratos.passagens.editar`, dadas a quem já tinha
+`contratos.criar`. RLS pelo `mapa.csv` (classe `permissao`; histórico na classe `trilha`). Funções:
+`passagem_buscar_servidores(_termo)` e `passagem_viagens_servidor(_servidor_id)` (SECURITY DEFINER, só para quem tem
+`contratos.passagens.editar`, devolvem só o necessário; na busca, `%` e `_` do termo valem como texto e são exigidas 3
+letras ou dígitos) e os gatilhos `passagem_carimbar`, `passagem_copiar_nome` (recusa servidor, beneficiário ou
+instituição inexistente), `passagem_propagar_nome_beneficiario` (nome corrigido chega aos pedidos),
+`passagem_proteger_emitido` e `passagem_registrar_historico`.
+
+**Passagens aéreas (entrega 2, migração `20261101090000_contratos_passagens_prestacao.sql`).** Prestação de contas:
+- `passagem_pedidos` ganha `prestacao_dispensa_motivo` (CHECK `passagem_pedidos_dispensa_check`: pedido dispensado só
+  com motivo; os dispensados antigos recebem "Não informado (registro anterior à prestação de contas)"),
+  `responsavel_passageiro_id` (responsável da delegação no modo evento; o gatilho `passagem_conferir_responsavel` exige
+  passageiro do próprio pedido, `22023`), `relatorio_evento_entregue_em` e `relatorio_evento_documento_sei`.
+- `passagem_passageiros` ganha `embarque_entregue_em`, `relatorio_entregue_em`, `relatorio_documento_sei`,
+  `prestacao_dispensada` e `prestacao_dispensa_motivo` (CHECK `passagem_passageiros_dispensa_check`).
+- `passagem_anexos` (nova): cartão de embarque, bilhete, relatório ou outro, com o caminho no bucket privado
+  `passagens` (`<pedido_id>/<passageiro_id ou "pedido">/<uuid>-<nome>`; CHECK `passagem_anexos_caminho_pedido_check`) e
+  o passageiro conferido pelo gatilho `passagem_conferir_anexo`. RLS classe `permissao`: lê com `visualizar` ou
+  `editar`, grava e apaga com `editar`.
+- Bucket `passagens`: privado, 10 MB, PDF/JPEG/PNG/WEBP; ler com o módulo e a permissão de passagens, enviar e apagar
+  com `editar` (o envio exige pasta de pedido existente); sem UPDATE.
+- Trilha: `passagem_registrar_prestacao` grava `prestacao_pedido` e `prestacao_passageiro` em `passagem_historico`;
+  `passagem_registrar_anexo` grava `anexo_incluido` e `anexo_removido` (tipo, passageiro e nome do arquivo).
+- Conclusão no banco: `passagem_conferir_conclusao` recusa ir para `concluido` com prestação em aberto (`23514`; conta
+  por `passagem_prestacao_em_aberto`, sem olhar a data) e, depois de concluído, recusa mudar a prestação do pedido ou
+  do passageiro (`42501`). Anexo de pedido concluído não se apaga e o caminho de um anexo não muda
+  (`passagem_conferir_anexo`, `42501`).
+- `passagem_relatorio_rh(_passageiro_ids)` (SECURITY DEFINER, quem lê passagens) devolve só se o relatório da viagem
+  do RH ligada foi apresentado e a data; `passagem_viagens_servidor` passa a devolver também essas duas colunas.
+- O prazo (padrão 5 dias corridos depois do último voo) fica em `module_settings.settings.passagens_prazo_prestacao_dias`
+  do módulo `contratos`, gravado só pelo papel admin.
 
 ### Processos administrativos (workflow)
 `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`,

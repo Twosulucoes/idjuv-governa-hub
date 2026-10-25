@@ -49,6 +49,7 @@ import PatrimonioProcessoPage from "./pages/processos/PatrimonioProcessoPage";
 import AlmoxarifadoProcessoPage from "./pages/processos/AlmoxarifadoProcessoPage";
 import ConveniosProcessoPage from "./pages/processos/ConveniosProcessoPage";
 import VeiculosProcessoPage from "./pages/processos/VeiculosProcessoPage";
+import LocalizarProcessoPage from "./pages/processos/LocalizarProcessoPage";
 import PagamentosProcessoPage from "./pages/processos/PagamentosProcessoPage";
 import DenunciasPage from "./pages/integridade/DenunciasPage";
 import GestaoDenunciasPage from "./pages/integridade/GestaoDenunciasPage";
@@ -240,6 +241,10 @@ import {
 } from "./pages/financeiro";
 import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage";
 import PcaListaPage from "./pages/compras/PcaListaPage";
+import PassagensPedidosPage from "./pages/contratos/PassagensPedidosPage";
+import PassagemPedidoPage from "./pages/contratos/PassagemPedidoPage";
+import PassagensBeneficiariosPage from "./pages/contratos/PassagensBeneficiariosPage";
+import PassagensPendenciasPage from "./pages/contratos/PassagensPendenciasPage";
 import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
 import ProcessosListaPage from "./pages/compras/ProcessosListaPage";
 import ProcessoFichaPage from "./pages/compras/ProcessoFichaPage";
@@ -511,6 +516,26 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/contratos" element={<ProtectedRoute requiredModule="contratos"><ContratosDashboardPage /></ProtectedRoute>} />
+              <Route path="/contratos/passagens" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
+                  <PassagensPedidosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/contratos/passagens/beneficiarios" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
+                  <PassagensBeneficiariosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/contratos/passagens/pendencias" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
+                  <PassagensPendenciasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/contratos/passagens/:id" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
+                  <PassagemPedidoPage />
+                </ProtectedRoute>
+              } />
               <Route path="/workflow" element={<ProtectedRoute requiredModule="workflow"><WorkflowDashboardPage /></ProtectedRoute>} />
               <Route path="/comunicacao" element={<ProtectedRoute requiredModule="comunicacao"><ComunicacaoDashboardPage /></ProtectedRoute>} />
               <Route path="/comunicacao/cms/conteudos" element={
@@ -999,6 +1024,7 @@ const App = () => (
               {/* PROCESSOS - Com permissões mapeadas */}
               {/* ============================================ */}
               <Route path="/processos" element={<ProtectedRoute><ProcessosPage /></ProtectedRoute>} />
+              <Route path="/processos/localizar" element={<ProtectedRoute><LocalizarProcessoPage /></ProtectedRoute>} />
               <Route path="/processos/compras" element={
                 <ProtectedRoute requiredPermissions="processos.compras.visualizar">
                   <ComprasProcessoPage />

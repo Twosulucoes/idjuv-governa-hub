@@ -73,6 +73,26 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `src/components/compras/processos/`; etapas e formas em `src/types/processos.ts`). A planilha de acompanhamento
   entra pelo importador `processos_planilha` (abas "Processos" e "Andamento"; leitor em `lerAbas` de
   `src/lib/importacao/planilha.ts`), aberto pelo botão "Importar planilha" da lista ou pela Central.
+- **Contratos (passagens aéreas):** `usePassagens` (`usePedidos`, `usePedido`, `useHistoricoPedido`, `useSalvarPedido`,
+  `useMudarSituacao`, `useSalvarPassageiro`, `useRemoverPassageiro`, `useSalvarTrecho`, `useAlterarTrecho`,
+  `useRemoverTrecho`, `useSalvarCotacao`, `useRemoverCotacao`, `useEscolherCotacao`, `useBeneficiarios`,
+  `useSalvarBeneficiario`, `useBuscarServidores`, `useViagensServidor`, `useContratosPassagens`,
+  `useOutrosContratos`, `useMarcarContratoPassagens`, `useFornecedoresContrato`, `useCadastrarContrato`; o saldo só olha
+  contratos com `controla_passagens`): telas `/contratos/passagens*` (componentes em
+  `src/components/contratos/passagens/`; tipos e rótulos em `src/types/passagens.ts`). Valor do trecho, saldo do
+  contrato, fluxo de situações e máscara de CPF em `src/lib/passagens/regras.ts` (testes vitest). A busca de servidor
+  usa a RPC `passagem_buscar_servidores`, que devolve só nome, matrícula e cargo. Prestação de contas (entrega 2):
+  `usePrazoPrestacao`, `useSalvarPrazoPrestacao`, `useRelatorioRh`, `useSalvarPrestacaoPassageiro`,
+  `useSalvarPrestacaoPedido`, `usePedidosParaPendencias`, `useAnexosPedido`, `useEnviarAnexo`, `useRemoverAnexo` e
+  `abrirAnexo` (bucket privado `passagens`, URL assinada de 60 s por `abrirArquivoPrivado`); retorno, vencimento, atraso e
+  pendências por modo em `src/lib/passagens/prestacao.ts` (vitest). Aba em `PrestacaoTab.tsx`; tela
+  `PassagensPendenciasPage`.
+- **Localizador de processos do SEI** (`src/hooks/useLocalizadorSei.ts`: `useLocalizarProcessos(termo)`, com 300 ms de
+  espera depois da última tecla e só com 3 caracteres ou mais, e `useProcessosParados()`): RPCs INVOKER
+  `localizar_processos_sei` e `processos_parados`, tipadas pelo `types.ts` (a `origem` é estreitada para as oito fontes). Chave do nº SEI em `src/lib/processos/numeroSei.ts` (espelha `sei_normalizar` do banco) e
+  agrupamento por processo e links de cada fonte em `src/lib/processos/localizador.ts`, os dois com testes vitest.
+  Tela `/processos/localizar`. No menu lateral do módulo (`ModuleSidebar`), item com filtro na URL (`?aba=`,
+  `?status=`) só acende com o filtro, e o item sem filtro de mesmo caminho cede a vez a ele.
 - **Exercício do Financeiro** (`src/hooks/useExercicioFinanceiro.ts`): ano orçamentário compartilhado pelas telas
   do módulo. Lê `?exercicio=` da URL; sem ele, o último ano escolhido no navegador (`localStorage`,
   chave `financeiro:exercicio`); sem nenhum, o ano atual. Faixa: 2024 até o ano seguinte ao atual. Devolve

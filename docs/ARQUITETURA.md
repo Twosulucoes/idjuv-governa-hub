@@ -97,13 +97,28 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   em Compras → "Processos de contratação" (o antigo "Licitações"; "Novo processo" abre `/compras/processos?novo=1`) e
   "Programação por natureza" (`/compras/programacao`, `ProgramacaoNaturezaPage`, mesma exigência de rota: disponível
   no FIPLAN, reservado em processos e saldo livre por natureza); a página-guia `/processos/compras` continua como
-  "Guia do processo de compras". O painel do Financeiro (`/financeiro`) ganha o cartão "Reservado em processos".
+  "Como funciona uma compra", o último item de Compras, que segue o ciclo: PCA, programação por natureza, processos de
+  contratação e o manual. O painel do Financeiro (`/financeiro`) ganha o cartão "Reservado em processos".
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
   `docs/GUIA_FRONTEND.md` (Importação de dados). A rota usa a própria `PERMISSOES_IMPORTACAO` e o item de menu repete a mesma lista
   (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`, `compras.processos.editar`); `src/lib/importacao/registro.test.ts`
   reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha".
+- **Localizar processo** em `/processos/localizar` (`LocalizarProcessoPage`, `ProtectedRoute` só com login: rota
+  transversal, listada em `TRANSVERSAIS` de `src/shared/config/modules.config.test.ts`; quem pode ver cada registro é a
+  RLS da fonte, pelas funções INVOKER `localizar_processos_sei` e `processos_parados`). Menu: "Localizar processo" e
+  "Parados" (`/processos/localizar?aba=parados`) como os únicos itens de Processos SEI, nos dois arquivos de menu (a
+  tramitação é no SEI: a lista `/workflow/processos` e o "Novo processo" saíram do menu e abrem pelo painel `/workflow`). Spec:
+  `docs/superpowers/specs/2026-10-25-localizador-processos-sei-design.md`.
+- **Passagens aéreas (Contratos)** em `/contratos/passagens`, `/contratos/passagens/:id` e
+  `/contratos/passagens/beneficiarios` (`PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,
+  `requiredModule="contratos"` e `contratos.passagens.visualizar` ou `contratos.passagens.editar`): um pedido por
+  processo SEI, com passageiros (servidor ou beneficiário de fora), trechos, cotações e emissão; o saldo do contrato da
+  agência sai dos bilhetes emitidos. Menu em Contratos → "Passagens aéreas", "Beneficiários de passagem" e "Novo pedido
+  de passagem" (`/contratos/passagens?novo=1`). Spec: `docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md`.
+  A entrega 2 acrescenta `/contratos/passagens/pendencias` (`PassagensPendenciasPage`, mesma proteção; menu "Pendências
+  de passagens") e a aba Prestação de contas na ficha (`?aba=prestacao` abre direto nela).
 - Financeiro: `/financeiro/empenhos/:id` (`EmpenhoDetalhePage`, `requiredPermissions="orcamento.criar"`): dados,
   valores, histórico do FIPLAN e escolha da dotação do empenho importado do FIP 614.
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"

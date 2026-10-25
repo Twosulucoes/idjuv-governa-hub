@@ -388,3 +388,33 @@ REVOKE ALL ON FUNCTION public.processos_financeiro(integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.processos_financeiro(integer) TO authenticated;
 REVOKE ALL ON FUNCTION public.programacao_por_natureza(integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.programacao_por_natureza(integer) TO authenticated;
+
+-- ---- Localizador de processos do SEI (migração 20261102090000): busca INVOKER, cada fonte com a RLS dela ----
+REVOKE ALL ON FUNCTION public.sei_normalizar(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.sei_normalizar(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.texto_busca(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.texto_busca(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.localizar_processos_sei(text, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.localizar_processos_sei(text, integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.processos_parados(integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processos_parados(integer) TO authenticated;
+
+-- ---- Contratos: passagens aéreas (migração 20261031090000): gatilhos sem EXECUTE para a API ----
+REVOKE EXECUTE ON FUNCTION public.passagem_carimbar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_copiar_nome() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_proteger_emitido() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_historico() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_propagar_nome_beneficiario() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.passagem_buscar_servidores(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_buscar_servidores(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.passagem_viagens_servidor(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_viagens_servidor(uuid) TO authenticated;
+-- Prestação de contas (migração 20261101090000)
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_responsavel() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_anexo() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_prestacao() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_anexo() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_prestacao_em_aberto(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_conclusao() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.passagem_relatorio_rh(uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_relatorio_rh(uuid[]) TO authenticated;

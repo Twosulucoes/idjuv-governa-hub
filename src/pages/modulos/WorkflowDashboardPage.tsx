@@ -90,8 +90,8 @@ export default function WorkflowDashboardPage() {
     <ModuleLayout module="workflow">
       <div className="space-y-6">
         <PageHeader
-          titulo="Processos administrativos"
-          descricao="Tramitação e gestão de processos"
+          titulo="Processos SEI"
+          descricao="Acompanhamento dos processos que correm no SEI"
         />
 
         {isError && (
