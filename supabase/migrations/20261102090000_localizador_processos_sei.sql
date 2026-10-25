@@ -62,7 +62,7 @@ COMMENT ON FUNCTION public.texto_busca(text) IS 'Minúsculas e sem acento, para 
 -- ----------------------------------------------------------------------------
 -- Termo com nº SEI (sei_normalizar não nulo): compara a chave. Termo só de dígitos e separadores (4+ dígitos): procura
 -- os dígitos dentro do número. Outro termo: palavras do título, do interessado, do setor etc., sem acento. Termo com
--- menos de 3 caracteres não devolve nada. ref leva o que a tela precisa para o link além do id (PCA: o exercício).
+-- menos de 3 caracteres não devolve nada. ref leva o que a tela precisa para o link além do id (PCA: o exercício; documento: o tipo; termo de cessão: a unidade).
 CREATE OR REPLACE FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer DEFAULT 50)
 RETURNS TABLE (
   chave text,
@@ -120,13 +120,13 @@ AS $$
       FROM public.fin_empenhos e
      WHERE nullif(btrim(e.processo_sei), '') IS NOT NULL
     UNION ALL
-    SELECT d.processo_sei, 'documento', d.id, NULL, concat_ws(' · ', d.numero, d.titulo), d.status::text, NULL,
+    SELECT d.processo_sei, 'documento', d.id, d.tipo::text, concat_ws(' · ', d.numero, d.titulo), d.status::text, NULL,
            coalesce(d.data_documento, d.created_at::date), NULL,
            concat_ws(' ', d.numero, d.titulo, d.ementa)
       FROM public.documentos d
      WHERE nullif(btrim(d.processo_sei), '') IS NOT NULL
     UNION ALL
-    SELECT c.processo_sei, 'termo_cessao', c.id, NULL, concat_ws(' · ', 'Termo ' || c.numero_termo, c.cessionario_nome),
+    SELECT c.processo_sei, 'termo_cessao', c.id, c.unidade_local_id::text, concat_ws(' · ', 'Termo ' || c.numero_termo, c.cessionario_nome),
            c.status::text, NULL, coalesce(c.data_emissao::date, c.created_at::date), NULL,
            concat_ws(' ', c.numero_termo, c.cessionario_nome, c.finalidade)
       FROM public.termos_cessao c

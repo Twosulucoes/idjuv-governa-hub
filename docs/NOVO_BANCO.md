@@ -206,6 +206,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
   mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- O localizador de processos do SEI (migração `20261102090000`, só funções: `sei_normalizar`, `texto_busca`,
+  `localizar_processos_sei` e `processos_parados`) entrou no `schema/01_pre_data.sql` e no `overlay/40_privilegios.sql`
+  (`EXECUTE` só para `authenticated`); sem tabela nova nem mudança no `rls/mapa.csv`; testes no bloco "LOCALIZADOR" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - As passagens aéreas, entrega 1 (migração `20261031090000`), entraram no mapa (`passagem_beneficiarios`,
   `passagem_pedidos`, `passagem_passageiros`, `passagem_trechos` e `passagem_cotacoes`, classe `permissao` com
   `contratos.passagens.editar`; `passagem_historico`, classe `trilha`), no schema do baseline regenerado, no catálogo
