@@ -93,7 +93,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `ProcessoFichaPage`, `requiredModule="compras"` e `compras.processos.visualizar` ou `compras.processos.editar`): lista
   com etapa, setor, dias parado, valor estimado e empenhado; ficha com Dados, Andamento (linha do tempo do SEI) e
   Empenhos (FIP 614 pelo nº SEI). Menu em Compras → "Processos de contratação" (o antigo "Licitações"; "Novo processo"
-  abre `/compras/processos?novo=1`); a página-guia `/processos/compras` continua como "Guia do processo de compras".
+  abre `/compras/processos?novo=1`); a página-guia `/processos/compras` continua como "Como funciona uma compra", o último item de Compras, que segue o
+  ciclo: PCA, processos de contratação e o manual.
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
@@ -103,7 +104,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
 - **Localizar processo** em `/processos/localizar` (`LocalizarProcessoPage`, `ProtectedRoute` só com login: rota
   transversal, listada em `TRANSVERSAIS` de `src/shared/config/modules.config.test.ts`; quem pode ver cada registro é a
   RLS da fonte, pelas funções INVOKER `localizar_processos_sei` e `processos_parados`). Menu: "Localizar processo" e
-  "Parados" (`/processos/localizar?aba=parados`) como primeiros itens de Processos, nos dois arquivos de menu. Spec:
+  "Parados" (`/processos/localizar?aba=parados`) como os únicos itens de Processos SEI, nos dois arquivos de menu (a
+  tramitação é no SEI: a lista `/workflow/processos` e o "Novo processo" saíram do menu e abrem pelo painel `/workflow`). Spec:
   `docs/superpowers/specs/2026-10-25-localizador-processos-sei-design.md`.
 - **Passagens aéreas (Contratos)** em `/contratos/passagens`, `/contratos/passagens/:id` e
   `/contratos/passagens/beneficiarios` (`PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,

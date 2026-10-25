@@ -4,7 +4,7 @@
  * (PageHeader, KpiCard).
  */
 
-import { FileText, Calendar, FileEdit, BarChart3, TrendingUp, Gavel, Globe, AlertCircle } from "lucide-react";
+import { FileText, Calendar, FileEdit, BarChart3, Globe, AlertCircle, Plane, ClipboardCheck, ShoppingCart } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { useContratosDashboardStats } from "@/hooks/dashboard";
@@ -55,11 +55,11 @@ export default function ContratosDashboardPage() {
     },
   ];
 
-  // Só rotas registradas em App.tsx (as mesmas de src/config/menu.config.ts); ainda não há tela própria de lista de contratos
+  // Só rotas registradas em App.tsx; a lista de contratos, aditivos e vencimentos entra quando as telas existirem (P21)
   const quickActions = [
-    { label: "Contratos", description: "Processo de compras e contratos", href: "/processos/compras?tab=contratos", icon: FileText },
-    { label: "Execução contratual", description: "Acompanhar execução", href: "/processos/compras?tab=execucao", icon: TrendingUp },
-    { label: "Licitações", description: "Processo de compras", href: "/processos/compras", icon: Gavel },
+    { label: "Passagens aéreas", description: "Pedidos e emissões", href: "/contratos/passagens", icon: Plane },
+    { label: "Pendências de passagens", description: "Prestação de contas em aberto", href: "/contratos/passagens/pendencias", icon: ClipboardCheck },
+    { label: "Processos de contratação", description: "Compras até virar contrato", href: "/compras/processos", icon: ShoppingCart },
     { label: "Contratos publicados", description: "Portal da transparência", href: "/transparencia/contratos", icon: Globe },
   ];
 
@@ -71,9 +71,9 @@ export default function ContratosDashboardPage() {
           descricao="Gestão e execução contratual"
           acoes={
             <Button asChild>
-              <Link to="/processos/compras?tab=contratos">
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Ver contratos
+              <Link to="/contratos/passagens">
+                <Plane className="h-4 w-4" aria-hidden="true" />
+                Passagens aéreas
               </Link>
             </Button>
           }

@@ -93,7 +93,7 @@ Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.
 |---|---|---:|---:|
 | `admin` | Administração | 33 | 0 |
 | `rh` | Recursos Humanos | 33 | 3 |
-| `workflow` | Processos | 3 | 0 |
+| `workflow` | Processos SEI | 3 | 0 |
 | `compras` | Compras | 9 | 0 |
 | `contratos` | Contratos | 5 | 0 |
 | `financeiro` | Financeiro | 19 | 0 |
