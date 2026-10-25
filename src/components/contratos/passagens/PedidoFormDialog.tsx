@@ -39,12 +39,17 @@ const schema = z
     data_inicio: z.string().optional(),
     data_fim: z.string().optional(),
     prestacao_contas: z.string(),
+    prestacao_dispensa_motivo: z.string().trim().max(1000).optional(),
     observacoes: z.string().trim().max(2000).optional(),
   })
   .refine((d) => d.solicitante_tipo !== "servidor" || d.servidor, { message: "Escolha o servidor", path: ["servidor"] })
   .refine((d) => d.solicitante_tipo !== "beneficiario" || d.beneficiario, { message: "Escolha a pessoa", path: ["beneficiario"] })
   .refine((d) => d.solicitante_tipo !== "instituicao" || d.instituicao_nome, { message: "Informe a instituição", path: ["instituicao_nome"] })
-  .refine((d) => !d.data_inicio || !d.data_fim || d.data_fim >= d.data_inicio, { message: "O fim vem depois do início", path: ["data_fim"] });
+  .refine((d) => !d.data_inicio || !d.data_fim || d.data_fim >= d.data_inicio, { message: "O fim vem depois do início", path: ["data_fim"] })
+  .refine((d) => d.prestacao_contas !== "dispensado" || (d.prestacao_dispensa_motivo ?? "").length >= 3, {
+    message: "Escreva o motivo da dispensa",
+    path: ["prestacao_dispensa_motivo"],
+  });
 
 type FormData = z.infer<typeof schema>;
 
@@ -63,6 +68,7 @@ export function PedidoFormDialog({ open, onOpenChange, pedido, salvando, podeCad
   const contratos = useContratosPassagens();
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const tipo = form.watch("solicitante_tipo");
+  const modoPrestacao = form.watch("prestacao_contas");
 
   useEffect(() => {
     if (!open) return;
@@ -83,6 +89,7 @@ export function PedidoFormDialog({ open, onOpenChange, pedido, salvando, podeCad
       data_inicio: pedido?.data_inicio ?? "",
       data_fim: pedido?.data_fim ?? "",
       prestacao_contas: pedido?.prestacao_contas ?? "individual",
+      prestacao_dispensa_motivo: pedido?.prestacao_dispensa_motivo ?? "",
       observacoes: pedido?.observacoes ?? "",
     });
   }, [open, pedido, form, contratos.data]);
@@ -107,6 +114,7 @@ export function PedidoFormDialog({ open, onOpenChange, pedido, salvando, podeCad
         data_inicio: d.data_inicio || null,
         data_fim: d.data_fim || null,
         prestacao_contas: d.prestacao_contas,
+        prestacao_dispensa_motivo: d.prestacao_contas === "dispensado" ? d.prestacao_dispensa_motivo : null,
         observacoes: d.observacoes || null,
       });
       onOpenChange(false);
@@ -245,6 +253,20 @@ export function PedidoFormDialog({ open, onOpenChange, pedido, salvando, podeCad
               )}
             />
             {lista("prestacao_contas", "Prestação de contas", MODOS_PRESTACAO)}
+            {modoPrestacao === "dispensado" && (
+              <FormField
+                control={form.control}
+                name="prestacao_dispensa_motivo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Motivo da dispensa</FormLabel>
+                    <FormControl><Textarea rows={2} {...field} /></FormControl>
+                    <FormDescription>O cartão de embarque continua sendo pedido.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name="observacoes"

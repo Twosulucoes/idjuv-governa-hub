@@ -366,3 +366,12 @@ REVOKE ALL ON FUNCTION public.passagem_buscar_servidores(text) FROM PUBLIC, anon
 GRANT EXECUTE ON FUNCTION public.passagem_buscar_servidores(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.passagem_viagens_servidor(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.passagem_viagens_servidor(uuid) TO authenticated;
+-- Prestação de contas (migração 20261101090000)
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_responsavel() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_anexo() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_prestacao() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_anexo() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_prestacao_em_aberto(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_conclusao() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.passagem_relatorio_rh(uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_relatorio_rh(uuid[]) TO authenticated;
