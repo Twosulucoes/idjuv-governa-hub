@@ -1,11 +1,11 @@
 /**
- * Ficha do pedido de passagem: abas Passageiros e trechos (cotação e emissão), Prestação de contas (entrega 2),
- * Dados e Histórico. Spec 2026-10-24-contratos-passagens-aereas-design.md.
+ * Ficha do pedido de passagem: abas Passageiros e trechos (cotação, emissão e a fatura de cada bilhete), Prestação
+ * de contas (entrega 2), Dados e Histórico, e a ficha em PDF para juntar no SEI. Spec 2026-10-24-contratos-passagens-aereas-design.md.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { ArrowRightLeft, Pencil } from "lucide-react";
+import { ArrowRightLeft, FileDown, Pencil } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,20 @@ import { TOM_PEDIDO } from "@/components/contratos/passagens/tons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/core/tenant";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
-import { resumoPedido } from "@/lib/passagens/regras";
+import { resumoPedido, valorTrecho } from "@/lib/passagens/regras";
 import { useContratosPassagens, useHistoricoPedido, usePedido, useSalvarPedido } from "@/hooks/usePassagens";
-import { rotuloOrigem, rotuloPrestacao, rotuloSituacaoPedido, TIPOS_SOLICITANTE, type PedidoCompleto } from "@/types/passagens";
+import { useToast } from "@/hooks/use-toast";
+import { useFaturasDosTrechos } from "@/hooks/usePassagensFaturas";
+import {
+  rotuloOrigem,
+  rotuloPrestacao,
+  rotuloSituacaoFatura,
+  rotuloSituacaoPedido,
+  rotuloSituacaoTrecho,
+  TIPOS_SOLICITANTE,
+  type FaturaDoTrecho,
+  type PedidoCompleto,
+} from "@/types/passagens";
 
 function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
@@ -72,13 +83,79 @@ function Dados({ p, contrato }: { p: PedidoCompleto; contrato: string }) {
   );
 }
 
+/** Prestação de contas do passageiro numa linha (dispensa, cartão de embarque e relatório entregues). */
+function prestacaoDoPassageiro(x: PedidoCompleto["passageiros"][number]): string {
+  if (x.prestacao_dispensada) return `dispensada (${x.prestacao_dispensa_motivo ?? ""})`;
+  const partes = [
+    x.embarque_entregue_em ? `cartão de embarque entregue em ${formatDateBR(x.embarque_entregue_em)}` : "cartão de embarque pendente",
+    x.relatorio_entregue_em
+      ? `relatório entregue em ${formatDateBR(x.relatorio_entregue_em)}`
+      : x.servidor_id && x.viagem_id ? "relatório pela viagem do RH" : "relatório pendente",
+  ];
+  return partes.join(" · ");
+}
+
+/** Dados do PDF "Ficha do pedido" (modelo contratos-passagem-ficha-pedido). */
+function dadosDaFicha(p: PedidoCompleto, contrato: string, faturas: Record<string, FaturaDoTrecho>) {
+  const r = resumoPedido(p.passageiros);
+  const bilhetes = p.passageiros.flatMap((x) => x.trechos).filter((t) => t.localizador);
+  const somar = (filtro: (f: FaturaDoTrecho) => boolean) =>
+    Math.round(bilhetes.reduce((s, t) => s + (faturas[t.id] && filtro(faturas[t.id]) ? Number(faturas[t.id].valor) : 0), 0) * 100) / 100;
+  const fatura = (id: string) => {
+    const f = faturas[id]?.fatura;
+    if (!f) return undefined;
+    return f.situacao === "paga"
+      ? `NF ${f.numero} · paga em ${formatDateBR(f.pagamento_data)} (OB ${f.ob_numero})`
+      : `NF ${f.numero} · ${rotuloSituacaoFatura(f.situacao).toLowerCase()}`;
+  };
+  return {
+    numeroSei: p.numero_sei,
+    dataPedido: formatDateBR(p.data_pedido),
+    origem: rotuloOrigem(p.origem),
+    solicitante: p.solicitante_nome ?? "—",
+    evento: p.evento ?? undefined,
+    finalidade: p.finalidade,
+    destino: p.destino_cidade ? `${p.destino_cidade}${p.destino_uf ? `/${p.destino_uf}` : ""}` : undefined,
+    periodo: p.data_inicio ? `${formatDateBR(p.data_inicio)}${p.data_fim ? ` a ${formatDateBR(p.data_fim)}` : ""}` : undefined,
+    contrato,
+    situacao: rotuloSituacaoPedido(p.situacao),
+    aprovacao: p.aprovacao_documento_sei ? `Documento SEI ${p.aprovacao_documento_sei}, ${formatDateBR(p.aprovacao_data)}` : undefined,
+    prestacaoContas: rotuloPrestacao(p.prestacao_contas),
+    passageiros: p.passageiros.map((x) => ({
+      nome: x.nome ?? "—",
+      tipo: x.servidor_id ? "servidor" : "beneficiário",
+      prestacao: p.prestacao_contas === "individual" ? prestacaoDoPassageiro(x) : undefined,
+      trechos: x.trechos.map((t) => ({
+        trecho: `${t.origem} - ${t.destino}`,
+        dataVoo: formatDateBR(t.data_voo),
+        voo: t.companhia ? `${t.companhia}${t.voo ? ` ${t.voo}` : ""}` : undefined,
+        situacao: rotuloSituacaoTrecho(t.situacao),
+        localizador: t.localizador ?? undefined,
+        valor: t.localizador ? valorTrecho(t) : undefined,
+        fatura: t.localizador ? fatura(t.id) ?? (valorTrecho(t) > 0 ? "a faturar" : undefined) : undefined,
+      })),
+    })),
+    totalEmitido: r.valor,
+    totalFaturado: somar(() => true),
+    totalPago: somar((f) => f.fatura.situacao === "paga"),
+    observacoes: p.observacoes ?? undefined,
+  };
+}
+
 export default function PassagemPedidoPage() {
   const { id } = useParams();
   const [busca] = useSearchParams();
   const abaInicial = busca.get("aba") === "prestacao" ? "prestacao" : "passageiros";
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const podeEditar = hasPermission("contratos.passagens.editar");
   const pedido = usePedido(id);
+  const trechoIds = useMemo(
+    () => (pedido.data?.passageiros ?? []).flatMap((x) => x.trechos.filter((t) => t.localizador).map((t) => t.id)),
+    [pedido.data],
+  );
+  const faturas = useFaturasDosTrechos(trechoIds);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const { toast } = useToast();
   const historico = useHistoricoPedido(id);
   const contratos = useContratosPassagens();
   const salvar = useSalvarPedido();
@@ -89,6 +166,21 @@ export default function PassagemPedidoPage() {
   const c = contratos.data?.find((x) => x.id === p?.contrato_id);
   const contrato = c ? `${c.numero_contrato}/${c.ano} · ${c.fornecedor?.nome_fantasia ?? c.fornecedor?.razao_social ?? ""}` : "sem contrato definido";
   const encerrado = p?.situacao === "cancelado" || p?.situacao === "concluido";
+
+  const baixarFicha = async () => {
+    if (!p) return;
+    setGerandoPdf(true);
+    try {
+      const { baixarDocumento, emitirDocumento } = await import("@/lib/documentos");
+      const quem = user?.fullName ?? user?.email ?? undefined;
+      const doc = await emitirDocumento("contratos-passagem-ficha-pedido", dadosDaFicha(p, contrato, faturas.data ?? {}), { emitidoPor: quem });
+      baixarDocumento(doc);
+    } catch {
+      toast({ title: "Não foi possível gerar o PDF", description: "Tente de novo em instantes.", variant: "destructive" });
+    } finally {
+      setGerandoPdf(false);
+    }
+  };
 
   let conteudo: React.ReactNode;
   if (pedido.isLoading) {
@@ -107,7 +199,7 @@ export default function PassagemPedidoPage() {
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
         <TabsContent value="passageiros" className="mt-4">
-          <PassageirosTab pedido={p} podeEditar={podeEditar} />
+          <PassageirosTab pedido={p} podeEditar={podeEditar} faturas={faturas.data} />
         </TabsContent>
         <TabsContent value="prestacao" className="mt-4">
           <PrestacaoTab pedido={p} podeEditar={podeEditar} />
@@ -135,8 +227,14 @@ export default function PassagemPedidoPage() {
           ]}
           status={p && <StatusBadge tom={TOM_PEDIDO[p.situacao] ?? "neutro"} icone={false}>{rotuloSituacaoPedido(p.situacao)}</StatusBadge>}
           acoes={
-            podeEditar && p && !encerrado ? (
+            p ? (
               <>
+                <Button variant="outline" onClick={baixarFicha} disabled={gerandoPdf || (trechoIds.length > 0 && faturas.isLoading)}>
+                  <FileDown className="h-4 w-4" aria-hidden="true" />
+                  Ficha (PDF)
+                </Button>
+                {podeEditar && !encerrado && (
+                <>
                 <Button variant="outline" onClick={() => setEditando(true)}>
                   <Pencil className="h-4 w-4" aria-hidden="true" />
                   Editar dados
@@ -145,6 +243,8 @@ export default function PassagemPedidoPage() {
                   <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
                   Mudar situação
                 </Button>
+                </>
+                )}
               </>
             ) : undefined
           }

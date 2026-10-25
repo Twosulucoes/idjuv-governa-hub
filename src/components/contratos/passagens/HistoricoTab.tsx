@@ -1,6 +1,7 @@
 /**
  * Trilha do pedido (passagem_historico): criação e mudanças de situação do pedido e dos trechos, e a prestação de
- * contas (entregas e dispensas do pedido e dos passageiros).
+ * contas (entregas e dispensas do pedido e dos passageiros) e as faturas da agência (bilhete incluído ou retirado de
+ * uma nota e a situação da nota).
  */
 
 import { History } from "lucide-react";
@@ -9,7 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { formatarDataHora } from "@/lib/passagens/regras";
-import { rotuloAnexo, rotuloPrestacao, rotuloSituacaoPedido, rotuloSituacaoTrecho, type PassagemHistorico } from "@/types/passagens";
+import {
+  rotuloAnexo,
+  rotuloPrestacao,
+  rotuloSituacaoFatura,
+  rotuloSituacaoPedido,
+  rotuloSituacaoTrecho,
+  type PassagemHistorico,
+} from "@/types/passagens";
 
 interface Props {
   historico: PassagemHistorico[] | undefined;
@@ -53,6 +61,18 @@ function descrever(h: PassagemHistorico): string {
   if (h.acao === "prestacao_pedido" || h.acao === "prestacao_passageiro") return descreverPrestacao(h, antes, depois);
   if (h.acao === "anexo_incluido" || h.acao === "anexo_removido") {
     return `Anexo ${h.acao === "anexo_incluido" ? "incluído" : "removido"}: ${depois?.nome_arquivo ?? ""} (${rotuloAnexo(depois?.tipo as string)}${depois?.passageiro ? `, ${depois.passageiro}` : ""})`;
+  }
+  if (h.acao === "fatura_item") {
+    if (!antes) return `Bilhete incluído na fatura ${depois?.fatura ?? ""} (${formatCurrency(Number(depois?.valor ?? 0))})`;
+    if (!depois) return `Bilhete retirado da fatura ${antes.fatura ?? ""}`;
+    return `Valor do bilhete na fatura ${depois.fatura ?? ""}: ${formatCurrency(Number(antes.valor ?? 0))} → ${formatCurrency(Number(depois.valor ?? 0))}`;
+  }
+  if (h.acao === "fatura_situacao") {
+    const extra = depois?.situacao === "paga"
+      ? ` · OB ${depois?.ob_numero ?? "—"}, ${formatDateBR(depois?.pagamento_data as string)}`
+      : depois?.situacao === "atestada" ? ` · atesto SEI ${depois?.atesto_documento_sei ?? "—"}`
+      : depois?.situacao === "cancelada" ? ` · ${depois?.cancelamento_motivo ?? ""}` : "";
+    return `Fatura ${depois?.fatura ?? ""}: ${rotuloSituacaoFatura(antes?.situacao as string)} → ${rotuloSituacaoFatura(depois?.situacao as string)}${extra}`;
   }
   if (h.acao === "pedido_criado") return `Pedido registrado (processo SEI ${depois?.numero_sei ?? "—"})`;
   if (h.acao === "pedido_situacao") {

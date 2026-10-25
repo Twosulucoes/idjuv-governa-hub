@@ -198,7 +198,7 @@ o ciclo: Compras tem PCA, Processos de contratação e "Como funciona uma compra
 passagens). Os atalhos do painel de Contratos levam a passagens, pendências, processos de contratação e contratos
 publicados; nenhum aponta mais para o guia de Compras.
 
-- **Passagens aéreas (Contratos, entregas 1 e 2 de 3):** `/contratos/passagens` lista os pedidos, um por processo SEI, com
+- **Passagens aéreas (Contratos, entregas 1 a 3):** `/contratos/passagens` lista os pedidos, um por processo SEI, com
   quem pediu, evento, passageiros, situação e valor emitido, e no alto o valor do contrato da agência, o emitido e o
   saldo. A ficha (`/contratos/passagens/:id`) tem as abas Passageiros e trechos (cotações, emissão, remarcação,
   cancelamento e reembolso de cada trecho), Prestação de contas, Dados e Histórico. Passageiro é servidor (com a viagem do RH, quando houver)
@@ -206,8 +206,14 @@ publicados; nenhum aponta mais para o guia de Compras.
   do Presidente é só registrada (nº do documento e data). Na Prestação de contas, cada passageiro entrega o cartão de
   embarque e, no modo individual, o relatório (para servidor, vale o relatório apresentado no RH); no modo evento, um
   relatório só, do responsável da delegação; dispensa sempre com motivo; anexos privados. `/contratos/passagens/pendencias`
-  lista quem voltou e não entregou, com vencimento e atraso; o pedido só conclui sem pendência. Faturas da agência
-  entram na entrega 3 ([spec](./superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md)).
+  lista quem voltou e não entregou, com vencimento e atraso; o pedido só conclui sem pendência.
+  `/contratos/passagens/faturas` (entrega 3) mostra o valor do contrato, o emitido, o faturado, o pago, o a faturar e o
+  saldo; a aba Faturas lança cada nota da agência com os bilhetes que ela cobre (a conferência mostra a diferença entre a
+  nota e os bilhetes) e anda com ela até paga, com o atesto, a liquidação e a OB; a aba A faturar lista os bilhetes sem
+  nota, com destaque depois de 30 dias; a aba Empenhos liga os empenhos do FIP 614 ao contrato e mostra o empenho de cada
+  ano × emitido. Lançar fatura e ligar empenho pedem `contratos.passagens.financeiro`. Saem a planilha de passagens por
+  período (filtre por pessoa ou instituição), a planilha de faturas e os PDFs do saldo e da ficha do pedido
+  ([spec](./superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md)).
 
 ## Financeiro (`financeiro`)
 

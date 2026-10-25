@@ -114,7 +114,10 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   agência sai dos bilhetes emitidos. Menu em Contratos → "Passagens aéreas", "Beneficiários de passagem" e "Novo pedido
   de passagem" (`/contratos/passagens?novo=1`). Spec: `docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md`.
   A entrega 2 acrescenta `/contratos/passagens/pendencias` (`PassagensPendenciasPage`, mesma proteção; menu "Pendências
-  de passagens") e a aba Prestação de contas na ficha (`?aba=prestacao` abre direto nela).
+  de passagens") e a aba Prestação de contas na ficha (`?aba=prestacao` abre direto nela). A entrega 3 acrescenta
+  `/contratos/passagens/faturas` (`PassagensFaturasPage`, `requiredModule="contratos"` e `visualizar`, `editar` ou
+  `contratos.passagens.financeiro`; menu "Faturas de passagens"): faturas da agência, a faturar, empenhos do contrato,
+  planilhas e o PDF do saldo; a ficha do pedido mostra a fatura de cada bilhete e baixa a ficha em PDF.
 - Financeiro: `/financeiro/empenhos/:id` (`EmpenhoDetalhePage`, `requiredPermissions="orcamento.criar"`): dados,
   valores, histórico do FIPLAN e escolha da dotação do empenho importado do FIP 614.
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"

@@ -285,6 +285,14 @@ de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termo
 `doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
 `ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
 
+A migração `20261103090000_contratos_passagens_faturas.sql` (passagens aéreas, entrega 3) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_catalogo.sql`: só a linha de
+`contratos.passagens.financeiro` e as concessões aos papéis, copiadas da regeneração), no `rls/mapa.csv`
+(`passagem_faturas`, `passagem_fatura_itens` e `passagem_contrato_empenhos`, classe `permissao` com `leitura=`) e no
+`overlay/40_privilegios.sql` (gatilhos e `passagem_empenho_candidato` sem EXECUTE; `passagem_empenhos_contrato`,
+`passagem_empenhos_candidatos` e `passagem_salvar_fatura` só para `authenticated`); testes no bloco "PASSAGENS FATURAS" de `scripts/db/testar-rls.sql`, com semente de
+`passagem_faturas` em `seed_ov`.
+
 A migração `20261101090000_contratos_passagens_prestacao.sql` (passagens aéreas, entrega 2) entrou no schema
 regenerado (`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (`passagem_anexos`, classe
 `permissao` com `leitura=`), no `overlay/40_privilegios.sql` (gatilhos sem EXECUTE; `passagem_relatorio_rh` só para

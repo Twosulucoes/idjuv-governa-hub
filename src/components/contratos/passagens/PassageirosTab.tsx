@@ -1,6 +1,7 @@
 /**
  * Aba "Passageiros e trechos" da ficha do pedido: cada passageiro com seus trechos, as cotações da agência e as
- * ações do bilhete (emitir, remarcar, cancelar, reembolsar). Quem só vê não recebe botões.
+ * ações do bilhete (emitir, remarcar, cancelar, reembolsar). Quem só vê não recebe botões. Cada bilhete mostra a
+ * fatura da agência que o cobre e se ela já foi paga (entrega 3).
  */
 
 import { useState } from "react";
@@ -22,7 +23,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { formatarDataHora, valorTrecho } from "@/lib/passagens/regras";
 import { useEscolherCotacao, useRemoverCotacao, useRemoverPassageiro, useRemoverTrecho } from "@/hooks/usePassagens";
-import { rotuloSituacaoTrecho, type PassageiroComTrechos, type PedidoCompleto, type TrechoComCotacoes } from "@/types/passagens";
+import { rotuloSituacaoFatura, rotuloSituacaoTrecho, type FaturaDoTrecho, type PassageiroComTrechos, type PedidoCompleto, type TrechoComCotacoes } from "@/types/passagens";
 import { BilheteDialog, type AcaoBilhete } from "./BilheteDialog";
 import { CotacaoDialog } from "./CotacaoDialog";
 import { PassageiroDialog } from "./PassageiroDialog";
@@ -42,9 +43,19 @@ type Confirmacao = { titulo: string; texto: string; acao: () => void } | null;
 interface Props {
   pedido: PedidoCompleto;
   podeEditar: boolean;
+  /** Fatura de cada trecho (por id do trecho). */
+  faturas?: Record<string, FaturaDoTrecho>;
 }
 
-export function PassageirosTab({ pedido, podeEditar }: Props) {
+function textoFatura(f: FaturaDoTrecho | undefined): string {
+  if (!f) return "a faturar";
+  const { numero, situacao, pagamento_data, ob_numero } = f.fatura;
+  return situacao === "paga"
+    ? `fatura ${numero} paga em ${formatDateBR(pagamento_data)} (OB ${ob_numero})`
+    : `fatura ${numero} ${rotuloSituacaoFatura(situacao).toLowerCase()}`;
+}
+
+export function PassageirosTab({ pedido, podeEditar, faturas }: Props) {
   const encerrado = pedido.situacao === "cancelado" || pedido.situacao === "concluido";
   const edita = podeEditar && !encerrado;
   // a emissão vem depois da aprovação (spec §3): antes disso, só cotação
@@ -157,6 +168,11 @@ export function PassageirosTab({ pedido, podeEditar }: Props) {
                             Localizador <span className="font-mono font-medium">{t.localizador}</span>
                             {t.numero_bilhete && ` · bilhete ${t.numero_bilhete}`}
                             {" · "}<span className="tabular-nums">{formatCurrency(valorTrecho(t))}</span>
+                          </p>
+                        )}
+                        {t.localizador && faturas && valorTrecho(t) > 0 && (
+                          <p className={`text-sm ${faturas[t.id]?.fatura.situacao === "paga" ? "font-medium text-success" : "text-muted-foreground"}`}>
+                            {textoFatura(faturas[t.id])}
                           </p>
                         )}
                       </div>
