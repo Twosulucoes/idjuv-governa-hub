@@ -1,6 +1,6 @@
 /**
  * Muda a situação do pedido. A aprovação do dirigente acontece no SEI: aqui se registra o nº do documento e a data.
- * Cancelar pede o motivo. O que faltar (trecho emitido, trechos em aberto) aparece antes de salvar.
+ * Cancelar pede o motivo. O que faltar (trecho emitido, trechos em aberto, prestação de contas) aparece antes de salvar.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import { PRAZO_PADRAO_DIAS, pendenciasDoPedido } from "@/lib/passagens/prestacao";
 import { pendenciasParaSituacao, proximasSituacoes } from "@/lib/passagens/regras";
-import { useMudarSituacao } from "@/hooks/usePassagens";
+import { useMudarSituacao, usePrazoPrestacao, useRelatorioRh } from "@/hooks/usePassagens";
 import { rotuloSituacaoPedido, type PedidoCompleto, type SituacaoPedido } from "@/types/passagens";
 
 interface Props {
@@ -24,6 +25,8 @@ const hoje = () => new Date().toLocaleDateString("sv-SE");
 
 export function SituacaoDialog({ open, onOpenChange, pedido }: Props) {
   const mudar = useMudarSituacao();
+  const prazo = usePrazoPrestacao();
+  const rh = useRelatorioRh(pedido.passageiros.filter((p) => p.servidor_id && p.viagem_id).map((p) => p.id));
   const opcoes = proximasSituacoes(pedido.situacao);
   const [nova, setNova] = useState<SituacaoPedido | "">("");
   const [documento, setDocumento] = useState("");
@@ -43,8 +46,16 @@ export function SituacaoDialog({ open, onOpenChange, pedido }: Props) {
 
   const pendencias = useMemo(() => {
     if (!nova || nova === "aprovado" || nova === "cancelado") return [];
-    return pendenciasParaSituacao(nova, pedido, pedido.passageiros);
-  }, [nova, pedido]);
+    const prestacao = nova === "concluido"
+      ? pendenciasDoPedido(pedido, {
+          prazoDias: prazo.data ?? PRAZO_PADRAO_DIAS,
+          hoje: hoje(),
+          relatorioRh: rh.data ?? {},
+          ignorarData: true,
+        }).length
+      : 0;
+    return pendenciasParaSituacao(nova, pedido, pedido.passageiros, prestacao);
+  }, [nova, pedido, prazo.data, rh.data]);
 
   const gravar = async () => {
     if (!nova) return;
@@ -110,13 +121,16 @@ export function SituacaoDialog({ open, onOpenChange, pedido }: Props) {
             {pendencias.map((p) => (
               <p key={p} className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm" role="status">{p}</p>
             ))}
+            {nova === "concluido" && rh.isError && (
+              <p className="text-sm text-destructive" role="alert">Não foi possível ver os relatórios apresentados no RH; tente de novo.</p>
+            )}
             {erro && <p className="text-sm font-medium text-destructive" role="alert">{erro}</p>}
           </div>
         )}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Voltar</Button>
           {opcoes.length > 0 && (
-            <Button onClick={gravar} disabled={mudar.isPending || !nova || pendencias.length > 0}>Salvar</Button>
+            <Button onClick={gravar} disabled={mudar.isPending || !nova || pendencias.length > 0 || (nova === "concluido" && (rh.isLoading || prazo.isLoading))}>Salvar</Button>
           )}
         </DialogFooter>
       </DialogContent>

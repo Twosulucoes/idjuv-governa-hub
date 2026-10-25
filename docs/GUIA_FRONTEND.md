@@ -81,7 +81,12 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   contratos com `controla_passagens`): telas `/contratos/passagens*` (componentes em
   `src/components/contratos/passagens/`; tipos e rótulos em `src/types/passagens.ts`). Valor do trecho, saldo do
   contrato, fluxo de situações e máscara de CPF em `src/lib/passagens/regras.ts` (testes vitest). A busca de servidor
-  usa a RPC `passagem_buscar_servidores`, que devolve só nome, matrícula e cargo.
+  usa a RPC `passagem_buscar_servidores`, que devolve só nome, matrícula e cargo. Prestação de contas (entrega 2):
+  `usePrazoPrestacao`, `useSalvarPrazoPrestacao`, `useRelatorioRh`, `useSalvarPrestacaoPassageiro`,
+  `useSalvarPrestacaoPedido`, `usePedidosParaPendencias`, `useAnexosPedido`, `useEnviarAnexo`, `useRemoverAnexo` e
+  `abrirAnexo` (bucket privado `passagens`, URL assinada de 60 s por `abrirArquivoPrivado`); retorno, vencimento, atraso e
+  pendências por modo em `src/lib/passagens/prestacao.ts` (vitest). Aba em `PrestacaoTab.tsx`; tela
+  `PassagensPendenciasPage`.
 - **Localizador de processos do SEI** (`src/hooks/useLocalizadorSei.ts`: `useLocalizarProcessos(termo)`, com 300 ms de
   espera depois da última tecla e só com 3 caracteres ou mais, e `useProcessosParados()`): RPCs INVOKER
   `localizar_processos_sei` e `processos_parados`, ainda fora dos tipos gerados (chamada tipada à mão, como em

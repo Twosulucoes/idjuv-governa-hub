@@ -1280,6 +1280,30 @@ letras ou dígitos) e os gatilhos `passagem_carimbar`, `passagem_copiar_nome` (r
 instituição inexistente), `passagem_propagar_nome_beneficiario` (nome corrigido chega aos pedidos),
 `passagem_proteger_emitido` e `passagem_registrar_historico`.
 
+**Passagens aéreas (entrega 2, migração `20261101090000_contratos_passagens_prestacao.sql`).** Prestação de contas:
+- `passagem_pedidos` ganha `prestacao_dispensa_motivo` (CHECK `passagem_pedidos_dispensa_check`: pedido dispensado só
+  com motivo; os dispensados antigos recebem "Não informado (registro anterior à prestação de contas)"),
+  `responsavel_passageiro_id` (responsável da delegação no modo evento; o gatilho `passagem_conferir_responsavel` exige
+  passageiro do próprio pedido, `22023`), `relatorio_evento_entregue_em` e `relatorio_evento_documento_sei`.
+- `passagem_passageiros` ganha `embarque_entregue_em`, `relatorio_entregue_em`, `relatorio_documento_sei`,
+  `prestacao_dispensada` e `prestacao_dispensa_motivo` (CHECK `passagem_passageiros_dispensa_check`).
+- `passagem_anexos` (nova): cartão de embarque, bilhete, relatório ou outro, com o caminho no bucket privado
+  `passagens` (`<pedido_id>/<passageiro_id ou "pedido">/<uuid>-<nome>`; CHECK `passagem_anexos_caminho_pedido_check`) e
+  o passageiro conferido pelo gatilho `passagem_conferir_anexo`. RLS classe `permissao`: lê com `visualizar` ou
+  `editar`, grava e apaga com `editar`.
+- Bucket `passagens`: privado, 10 MB, PDF/JPEG/PNG/WEBP; ler com o módulo e a permissão de passagens, enviar e apagar
+  com `editar` (o envio exige pasta de pedido existente); sem UPDATE.
+- Trilha: `passagem_registrar_prestacao` grava `prestacao_pedido` e `prestacao_passageiro` em `passagem_historico`;
+  `passagem_registrar_anexo` grava `anexo_incluido` e `anexo_removido` (tipo, passageiro e nome do arquivo).
+- Conclusão no banco: `passagem_conferir_conclusao` recusa ir para `concluido` com prestação em aberto (`23514`; conta
+  por `passagem_prestacao_em_aberto`, sem olhar a data) e, depois de concluído, recusa mudar a prestação do pedido ou
+  do passageiro (`42501`). Anexo de pedido concluído não se apaga e o caminho de um anexo não muda
+  (`passagem_conferir_anexo`, `42501`).
+- `passagem_relatorio_rh(_passageiro_ids)` (SECURITY DEFINER, quem lê passagens) devolve só se o relatório da viagem
+  do RH ligada foi apresentado e a data; `passagem_viagens_servidor` passa a devolver também essas duas colunas.
+- O prazo (padrão 5 dias corridos depois do último voo) fica em `module_settings.settings.passagens_prazo_prestacao_dias`
+  do módulo `contratos`, gravado só pelo papel admin.
+
 ### Processos administrativos (workflow)
 `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`,
 `despachos`, `encaminhamentos`, `pareceres_tecnicos`, `prazos_processo`,

@@ -111,6 +111,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   processo SEI, com passageiros (servidor ou beneficiário de fora), trechos, cotações e emissão; o saldo do contrato da
   agência sai dos bilhetes emitidos. Menu em Contratos → "Passagens aéreas", "Beneficiários de passagem" e "Novo pedido
   de passagem" (`/contratos/passagens?novo=1`). Spec: `docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md`.
+  A entrega 2 acrescenta `/contratos/passagens/pendencias` (`PassagensPendenciasPage`, mesma proteção; menu "Pendências
+  de passagens") e a aba Prestação de contas na ficha (`?aba=prestacao` abre direto nela).
 - Financeiro: `/financeiro/empenhos/:id` (`EmpenhoDetalhePage`, `requiredPermissions="orcamento.criar"`): dados,
   valores, histórico do FIPLAN e escolha da dotação do empenho importado do FIP 614.
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"

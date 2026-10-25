@@ -314,6 +314,13 @@ export const menuConfig: MenuSection[] = [
             permissions: ["contratos.passagens.visualizar", "contratos.passagens.editar"],
           },
           {
+            id: "passagens-pendencias",
+            label: "Pendências de passagens",
+            route: "/contratos/passagens/pendencias",
+            icon: ClipboardCheck,
+            permissions: ["contratos.passagens.visualizar", "contratos.passagens.editar"],
+          },
+          {
             id: "passagens-novo",
             label: "Novo pedido de passagem",
             route: "/contratos/passagens?novo=1",

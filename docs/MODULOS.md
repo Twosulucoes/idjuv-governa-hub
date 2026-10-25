@@ -193,13 +193,16 @@ Licitações, aquisições e gestão contratual. Operados via
 execução, aditivos, vencimentos) ainda não existem; saíram do menu no P09 e voltam no P20/P21. A barra do módulo
 Contratos tem o painel e as passagens aéreas.
 
-- **Passagens aéreas (Contratos, entrega 1 de 3):** `/contratos/passagens` lista os pedidos, um por processo SEI, com
+- **Passagens aéreas (Contratos, entregas 1 e 2 de 3):** `/contratos/passagens` lista os pedidos, um por processo SEI, com
   quem pediu, evento, passageiros, situação e valor emitido, e no alto o valor do contrato da agência, o emitido e o
   saldo. A ficha (`/contratos/passagens/:id`) tem as abas Passageiros e trechos (cotações, emissão, remarcação,
-  cancelamento e reembolso de cada trecho), Dados e Histórico. Passageiro é servidor (com a viagem do RH, quando houver)
+  cancelamento e reembolso de cada trecho), Prestação de contas, Dados e Histórico. Passageiro é servidor (com a viagem do RH, quando houver)
   ou beneficiário de fora, cadastrado em `/contratos/passagens/beneficiarios` ou na hora. O ato fica no SEI: a aprovação
-  do Presidente é só registrada (nº do documento e data). Prestação de contas e faturas da agência entram nas entregas
-  2 e 3 ([spec](./superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md)).
+  do Presidente é só registrada (nº do documento e data). Na Prestação de contas, cada passageiro entrega o cartão de
+  embarque e, no modo individual, o relatório (para servidor, vale o relatório apresentado no RH); no modo evento, um
+  relatório só, do responsável da delegação; dispensa sempre com motivo; anexos privados. `/contratos/passagens/pendencias`
+  lista quem voltou e não entregou, com vencimento e atraso; o pedido só conclui sem pendência. Faturas da agência
+  entram na entrega 3 ([spec](./superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md)).
 
 ## Financeiro (`financeiro`)
 
