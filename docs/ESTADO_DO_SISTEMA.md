@@ -25,7 +25,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 111 |
 | Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 76 |
 | Linhas de `src/App.tsx` | 1426 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 28789 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 28820 |
 
 ### Páginas por pasta de `src/pages`
 

@@ -1,9 +1,8 @@
 /**
  * Localizador de processos do SEI: a busca única pelo nº (qualquer formato) ou por palavras e a lista de parados, sobre
  * as RPCs `localizar_processos_sei` e `processos_parados` (migração 20261102090000). As duas são SECURITY INVOKER:
- * cada fonte vem com a RLS dela, então a pessoa só acha o que já veria no módulo.
- *
- * `types.ts` é gerado e ainda não conhece estas funções; por isso a chamada tipada à mão.
+ * cada fonte vem com a RLS dela, então a pessoa só acha o que já veria no módulo. `origem` chega como texto e é
+ * estreitada para as oito fontes de `ORIGENS`.
  */
 
 import { useEffect, useState } from 'react';
@@ -12,18 +11,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { termoBuscavel } from '@/lib/processos/numeroSei';
 import type { RegistroLocalizado } from '@/lib/processos/localizador';
 import { DIAS_PARA_PARADO } from '@/lib/compras/evolucaoProcesso';
-
-interface RpcResposta {
-  data: unknown;
-  error: { message: string } | null;
-}
-
-async function chamar<T>(nome: string, args: Record<string, unknown>): Promise<T> {
-  const cliente = supabase as unknown as { rpc: (n: string, a: Record<string, unknown>) => PromiseLike<RpcResposta> };
-  const { data, error } = await cliente.rpc(nome, args);
-  if (error) throw new Error(error.message);
-  return data as T;
-}
 
 export type ProcessoParado = Omit<RegistroLocalizado, 'ref' | 'valor'> & { dias: number };
 
@@ -41,7 +28,11 @@ export function useLocalizarProcessos(termo: string) {
   const termoAtrasado = useValorAtrasado(termo.trim(), 300);
   const consulta = useQuery({
     queryKey: ['localizar_processos_sei', termoAtrasado],
-    queryFn: () => chamar<RegistroLocalizado[]>('localizar_processos_sei', { p_termo: termoAtrasado, p_limite: 100 }),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('localizar_processos_sei', { p_termo: termoAtrasado, p_limite: 100 });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as RegistroLocalizado[];
+    },
     enabled: termoBuscavel(termoAtrasado),
   });
   return { ...consulta, termoBuscado: termoAtrasado, digitando: termo.trim() !== termoAtrasado };
@@ -50,6 +41,10 @@ export function useLocalizarProcessos(termo: string) {
 export function useProcessosParados(dias: number = DIAS_PARA_PARADO) {
   return useQuery({
     queryKey: ['processos_parados', dias],
-    queryFn: () => chamar<ProcessoParado[]>('processos_parados', { p_dias: dias }),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('processos_parados', { p_dias: dias });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ProcessoParado[];
+    },
   });
 }

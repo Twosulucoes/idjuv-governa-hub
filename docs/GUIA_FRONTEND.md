@@ -89,8 +89,7 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `PassagensPendenciasPage`.
 - **Localizador de processos do SEI** (`src/hooks/useLocalizadorSei.ts`: `useLocalizarProcessos(termo)`, com 300 ms de
   espera depois da última tecla e só com 3 caracteres ou mais, e `useProcessosParados()`): RPCs INVOKER
-  `localizar_processos_sei` e `processos_parados`, ainda fora dos tipos gerados (chamada tipada à mão, como em
-  `src/lib/rhRpc.ts`). Chave do nº SEI em `src/lib/processos/numeroSei.ts` (espelha `sei_normalizar` do banco) e
+  `localizar_processos_sei` e `processos_parados`, tipadas pelo `types.ts` (a `origem` é estreitada para as oito fontes). Chave do nº SEI em `src/lib/processos/numeroSei.ts` (espelha `sei_normalizar` do banco) e
   agrupamento por processo e links de cada fonte em `src/lib/processos/localizador.ts`, os dois com testes vitest.
   Tela `/processos/localizar`. No menu lateral do módulo (`ModuleSidebar`), item com filtro na URL (`?aba=`,
   `?status=`) só acende com o filtro, e o item sem filtro de mesmo caminho cede a vez a ele.
