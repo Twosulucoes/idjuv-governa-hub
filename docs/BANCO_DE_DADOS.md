@@ -1325,6 +1325,38 @@ instituição inexistente), `passagem_propagar_nome_beneficiario` (nome corrigid
 - O prazo (padrão 5 dias corridos depois do último voo) fica em `module_settings.settings.passagens_prazo_prestacao_dias`
   do módulo `contratos`, gravado só pelo papel admin.
 
+**Passagens aéreas (entrega 3, migração `20261103090000_contratos_passagens_faturas.sql`).** Faturas da agência e
+empenhos do contrato. O FIPLAN continua sendo o oficial; aqui fica o que cada nota cobre.
+- `passagem_faturas`: nota da agência (`numero` único por contrato, `data_emissao`, `valor > 0`,
+  `processo_sei_pagamento`) e a situação `recebida → atestada → liquidada → paga`, ou `cancelada`. CHECKs: atestada pede
+  `atesto_data` e `atesto_documento_sei`; liquidada pede `liquidacao_data`; paga pede `pagamento_data` e `ob_numero`;
+  cancelada pede `cancelamento_motivo` (3 letras ou mais). O gatilho `passagem_conferir_fatura` aceita só contrato com
+  `controla_passagens`, não deixa trocar o contrato e segue o fluxo: nasce `recebida`; recebida vai para atestada ou
+  cancelada; atestada para liquidada, recebida ou cancelada; liquidada para paga, atestada ou cancelada; paga só volta
+  para liquidada (estorno). Fatura paga não muda nº, data nem valor (nem na volta) e, enquanto paga, não muda a OB nem
+  a data do pagamento; cancelada não muda mais (`22023`). Só fatura `recebida` se apaga (`42501` nas outras); os
+  bilhetes saem antes, para a trilha guardar o nº da nota.
+- `passagem_fatura_itens`: os bilhetes da nota (`trecho_id` único: um bilhete numa nota só) com o `valor` cobrado. O
+  gatilho `passagem_conferir_fatura_item` aceita só trecho com localizador de pedido do mesmo contrato e recusa incluir,
+  mudar ou tirar bilhete de fatura paga (`22023`). Fatura cancelada solta os bilhetes (o gatilho
+  `passagem_registrar_fatura` apaga os itens depois de registrar a trilha).
+- `passagem_contrato_empenhos`: empenhos (`fin_empenhos`) ligados ao contrato da agência (`contrato_id` + `empenho_id`
+  únicos), porque o FIP 614 não traz o contrato. `passagem_conferir_ligacao_empenho` aceita só contrato da agência e
+  empenho candidato (`passagem_empenho_candidato`: aponta para o contrato ou é do elemento 33, pela natureza ligada ou
+  pelos dígitos 5 e 6 do código; sem EXECUTE para a API).
+- Trilha: `passagem_historico` ganha as ações `fatura_item` (bilhete entrou, saiu ou mudou de valor na nota) e
+  `fatura_situacao` (um registro em cada pedido coberto pela nota).
+- RPCs (SECURITY DEFINER, `search_path` fixo): `passagem_empenhos_contrato(_contrato_id)` devolve nº, exercício, data,
+  natureza, credor e os totais (empenhado, anulado, liquidado, pago) só dos empenhos ligados, para quem lê passagens;
+  `passagem_empenhos_candidatos(_contrato_id, _exercicio)` lista os candidatos do exercício (padrão: o ano corrente) e
+  os já ligados (até 300), só para `contratos.passagens.financeiro`. As duas recusam contrato que não é da agência
+  (`22023`). `fin_empenhos` continua lido só pelo Financeiro.
+- `passagem_salvar_fatura(_fatura jsonb, _itens jsonb)` (SECURITY INVOKER, `authenticated`): grava a nota e acerta os
+  bilhetes (inclui, tira, corrige valor) numa transação só; sem bilhete recusa (`22023`) e com bilhete inválido desfaz
+  tudo. A RLS e os gatilhos acima valem do mesmo jeito.
+- RLS (classe `permissao`): ler com o módulo e `visualizar`, `editar` ou `financeiro`; gravar e apagar com
+  `contratos.passagens.financeiro` (permissão nova, dada a quem já tinha `contratos.criar`).
+
 ### Processos administrativos (workflow)
 `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`,
 `despachos`, `encaminhamentos`, `pareceres_tecnicos`, `prazos_processo`,

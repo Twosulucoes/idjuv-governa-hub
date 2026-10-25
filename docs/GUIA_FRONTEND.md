@@ -86,7 +86,13 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useSalvarPrestacaoPedido`, `usePedidosParaPendencias`, `useAnexosPedido`, `useEnviarAnexo`, `useRemoverAnexo` e
   `abrirAnexo` (bucket privado `passagens`, URL assinada de 60 s por `abrirArquivoPrivado`); retorno, vencimento, atraso e
   pendências por modo em `src/lib/passagens/prestacao.ts` (vitest). Aba em `PrestacaoTab.tsx`; tela
-  `PassagensPendenciasPage`.
+  `PassagensPendenciasPage`. Faturas e empenhos (entrega 3): `usePassagensFaturas` (`useBilhetesContrato`,
+  `useFaturas` e `buscarBilhetesPeriodo` (paginados com `buscarTodasPaginas`), `useFaturasDosTrechos`,
+  `useSalvarFatura` (RPC `passagem_salvar_fatura`: nota e bilhetes numa transação só), `useMudarSituacaoFatura` (falha
+  se nenhuma linha mudou), `useEmpenhosContrato`, `useEmpenhosCandidatos` (por exercício) e `useLigarEmpenho`); conferência da nota, a faturar (30 dias), saldo do
+  contrato e empenho por exercício em `src/lib/passagens/faturas.ts` e linhas das planilhas em
+  `src/lib/passagens/planilhas.ts` (vitest). Tela `PassagensFaturasPage`; diálogos `FaturaDialog`,
+  `SituacaoFaturaDialog`, `PlanilhaPassagensDialog`; aba `EmpenhosContratoTab`.
 - **Localizador de processos do SEI** (`src/hooks/useLocalizadorSei.ts`: `useLocalizarProcessos(termo)`, com 300 ms de
   espera depois da última tecla e só com 3 caracteres ou mais, e `useProcessosParados()`): RPCs INVOKER
   `localizar_processos_sei` e `processos_parados`, tipadas pelo `types.ts` (a `origem` é estreitada para as oito fontes). Chave do nº SEI em `src/lib/processos/numeroSei.ts` (espelha `sei_normalizar` do banco) e

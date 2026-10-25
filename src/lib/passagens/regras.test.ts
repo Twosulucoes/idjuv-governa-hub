@@ -6,7 +6,6 @@ import {
   pendenciasParaSituacao,
   proximasSituacoes,
   resumoPedido,
-  saldoContrato,
   somenteDigitos,
   valorTrecho,
 } from "./regras";
@@ -53,17 +52,6 @@ describe("resumoPedido", () => {
       { trechos: [trecho({ situacao: "cotado" })] },
     ]);
     expect(r).toEqual({ passageiros: 2, trechos: 3, emitidos: 1, pendentes: 2, valor: 100 });
-  });
-});
-
-describe("saldoContrato", () => {
-  it("soma o emitido dos pedidos não cancelados e também dos cancelados com bilhete", () => {
-    const pedidos = [
-      { situacao: "emitido", passageiros: [{ trechos: [trecho({ situacao: "emitido", localizador: "A", valor_emissao: 300 })] }] },
-      { situacao: "cancelado", passageiros: [{ trechos: [trecho({ situacao: "cancelado", localizador: "B", valor_emissao: 200, valor_multa: 50 })] }] },
-      { situacao: "recebido", passageiros: [{ trechos: [trecho()] }] },
-    ];
-    expect(saldoContrato(1000, pedidos)).toEqual({ valor: 1000, emitido: 550, saldo: 450 });
   });
 });
 

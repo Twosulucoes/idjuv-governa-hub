@@ -173,6 +173,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "passagens", label: "Passagens aéreas", icon: Plane, route: "/contratos/passagens", permission: "contratos.passagens.visualizar" },
       { id: "passagens-beneficiarios", label: "Beneficiários de passagem", icon: Users, route: "/contratos/passagens/beneficiarios", permission: "contratos.passagens.visualizar" },
       { id: "passagens-pendencias", label: "Pendências de passagens", icon: ClipboardCheck, route: "/contratos/passagens/pendencias", permission: "contratos.passagens.visualizar" },
+      { id: "passagens-faturas", label: "Faturas de passagens", icon: Receipt, route: "/contratos/passagens/faturas", permission: "contratos.passagens.visualizar" },
     ],
   },
 

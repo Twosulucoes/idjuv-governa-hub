@@ -1,12 +1,12 @@
 /**
  * Passagens aéreas: pedidos (um por processo SEI) com passageiros, situação e valor emitido, e o saldo do contrato
- * da agência a partir dos bilhetes emitidos. Faturas e pagamento entram na entrega 3.
+ * da agência (emitido, faturado e pago). As faturas ficam em Faturas e saldo (/contratos/passagens/faturas).
  * Spec: docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md
  */
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FileSignature, Plane, Plus, Users, Wallet } from "lucide-react";
+import { Banknote, FileSignature, Plane, Plus, Receipt, Users, Wallet } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,10 @@ import { PedidoFormDialog } from "@/components/contratos/passagens/PedidoFormDia
 import { TOM_PEDIDO } from "@/components/contratos/passagens/tons";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
-import { resumoPedido, saldoContrato } from "@/lib/passagens/regras";
+import { saldoContratoCompleto } from "@/lib/passagens/faturas";
+import { resumoPedido } from "@/lib/passagens/regras";
 import { useContratosPassagens, usePedidos, useSalvarPedido } from "@/hooks/usePassagens";
+import { useFaturas } from "@/hooks/usePassagensFaturas";
 import { SITUACOES_PEDIDO, rotuloSituacaoPedido, type PedidoResumo } from "@/types/passagens";
 
 const TODOS = "todos";
@@ -51,9 +53,16 @@ export default function PassagensPedidosPage() {
     const todos = contratos.data ?? [];
     return todos.find((c) => c.id === contratoId) ?? todos.find((c) => lista.some((p) => p.contrato_id === c.id)) ?? todos[0] ?? null;
   }, [contratos.data, contratoId, lista]);
+  const faturas = useFaturas(contrato?.id);
   const saldo = useMemo(
-    () => (contrato ? saldoContrato(contrato.valor_atual, lista.filter((p) => p.contrato_id === contrato.id)) : null),
-    [contrato, lista],
+    () => (contrato
+      ? saldoContratoCompleto(
+          contrato.valor_atual,
+          lista.filter((p) => p.contrato_id === contrato.id).flatMap((p) => p.passageiros.flatMap((x) => x.trechos)),
+          faturas.data ?? [],
+        )
+      : null),
+    [contrato, lista, faturas.data],
   );
   const filtrados = lista.filter((p) => situacao === TODOS || p.situacao === situacao);
 
@@ -117,6 +126,10 @@ export default function PassagensPedidosPage() {
           migalhas={[{ rotulo: "Contratos", href: "/contratos" }, { rotulo: "Passagens aéreas" }]}
           acoes={
             <>
+              <Button variant="outline" onClick={() => navigate("/contratos/passagens/faturas")}>
+                <Receipt className="h-4 w-4" aria-hidden="true" />
+                Faturas e saldo
+              </Button>
               <Button variant="outline" onClick={() => navigate("/contratos/passagens/beneficiarios")}>
                 <Users className="h-4 w-4" aria-hidden="true" />
                 Beneficiários
@@ -152,13 +165,15 @@ export default function PassagensPedidosPage() {
               {podeCadastrarContrato && <Button variant="outline" onClick={() => setNovoContrato(true)}>Outro contrato</Button>}
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <KpiCard rotulo="Valor do contrato" valor={formatCurrency(saldo.valor)} icone={FileSignature} />
               <KpiCard rotulo="Emitido" valor={formatCurrency(saldo.emitido)} detalhe="bilhetes com localizador, com multas e reembolsos" icone={Plane} />
+              <KpiCard rotulo="Faturado" valor={formatCurrency(saldo.faturado)} detalhe={`a faturar ${formatCurrency(saldo.aFaturar)}`} icone={Receipt} carregando={faturas.isLoading} />
+              <KpiCard rotulo="Pago" valor={formatCurrency(saldo.pago)} detalhe="notas pagas (com OB)" icone={Banknote} carregando={faturas.isLoading} />
               <KpiCard
                 rotulo="Saldo"
                 valor={formatCurrency(saldo.saldo)}
-                detalhe={saldo.saldo < 0 ? "emitido passou do valor do contrato" : "faturado e pago entram na próxima etapa"}
+                detalhe={saldo.saldo < 0 ? "faturado e a faturar passaram do contrato" : "valor menos faturado e a faturar"}
                 icone={Wallet}
               />
             </div>

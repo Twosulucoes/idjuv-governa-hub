@@ -418,3 +418,16 @@ REVOKE EXECUTE ON FUNCTION public.passagem_prestacao_em_aberto(uuid) FROM PUBLIC
 REVOKE EXECUTE ON FUNCTION public.passagem_conferir_conclusao() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.passagem_relatorio_rh(uuid[]) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.passagem_relatorio_rh(uuid[]) TO authenticated;
+-- Faturas e empenhos (migração 20261103090000)
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_fatura() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_ligacao_empenho() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_empenho_candidato(uuid, uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_fatura_item() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_fatura_item() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_fatura() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.passagem_empenhos_contrato(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_empenhos_contrato(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.passagem_empenhos_candidatos(uuid, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_empenhos_candidatos(uuid, integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.passagem_salvar_fatura(jsonb, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_salvar_fatura(jsonb, jsonb) TO authenticated;

@@ -56,6 +56,14 @@
 > "Sem dados cadastrados no exercício."; capacitações, resumo executivo e metas saíram (não há tabela de origem). Sem
 > nenhum cadastro, o PDF traz só o aviso "Dados ilustrativos — sem cadastro de governança", sem números.
 
+> **Passagens aéreas (25/10/2026, dois documentos novos):** `contratos-passagem-ficha-pedido` (ficha) imprime o pedido
+> de passagem para juntar ao processo no SEI quando quiser: dados do pedido, aprovação registrada, cada passageiro com os
+> trechos (voo, situação, localizador, valor e a fatura de cada bilhete) e os totais emitido, em fatura e pago. Não é
+> ato: o pedido e a aprovação são do SEI. `contratos-passagens-saldo-contrato` (relatório, retrato) imprime o saldo do
+> contrato da agência (valor, emitido, faturado, pago, a faturar e saldo), o empenho por exercício × emitido e a lista
+> das faturas. Chamados pelo botão "Ficha (PDF)" da ficha do pedido e por "Saldo do contrato (PDF)" em Faturas e saldo;
+> testes em `__testes__/contratos-passagens.test.ts` (amostras em `amostras.test.ts`).
+
 > **Conciliação mensal (21/10/2026, documento novo):** `financeiro-conciliacao-mensal` (relatório, retrato) imprime o
 > quadro da conciliação bancária no formato da SEFAZ (saldo do razão, as quatro listas, ajustado, extrato e diferença),
 > com local e data (`localDaSede()`) e "Feito por"; em página nova, um anexo por lista com data, documento, histórico e
