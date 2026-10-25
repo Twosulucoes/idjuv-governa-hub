@@ -43,7 +43,6 @@ import {
   School,
   Database,
   HelpCircle,
-  Archive,
   Upload,
   Send,
   Workflow,
@@ -158,9 +157,10 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
   compras: {
     dashboard: { label: "Painel de Compras", route: "/compras" },
     items: [
-      { id: "processos", label: "Processos de contratação", icon: ShoppingCart, route: "/compras/processos", permission: "compras.processos.visualizar" },
-      { id: "guia-compras", label: "Guia do processo de compras", icon: FileText, route: "/processos/compras" },
+      // Na ordem do ciclo: planejar (PCA), contratar (processos) e, por último, o manual.
       { id: "pca", label: "Plano de Contratações (PCA)", icon: ClipboardList, route: "/compras/pca", permission: "compras.pca.visualizar" },
+      { id: "processos", label: "Processos de contratação", icon: ShoppingCart, route: "/compras/processos", permission: "compras.processos.visualizar" },
+      { id: "guia-compras", label: "Como funciona uma compra", icon: FileText, route: "/processos/compras" },
     ],
   },
 
@@ -206,16 +206,13 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     ],
   },
 
-  // Workflow/Processos
+  // Workflow/Processos: só localizar; a tramitação é no SEI (as telas do workflow
+  // seguem abrindo pelo painel, sem atalho no menu)
   workflow: {
     dashboard: { label: "Painel de Processos", route: "/workflow" },
     items: [
       { id: "localizar", label: "Localizar processo", icon: Search, route: "/processos/localizar" },
       { id: "parados", label: "Parados", icon: Hourglass, route: "/processos/localizar?aba=parados" },
-      { id: "processos", label: "Processos", icon: Workflow, route: "/workflow/processos" },
-      { id: "novo", label: "Novo Processo", icon: FileText, route: "/workflow/processos?acao=novo" },
-      { id: "tramitacao", label: "Em Tramitação", icon: Send, route: "/workflow/processos?status=em_tramitacao" },
-      { id: "arquivados", label: "Arquivados", icon: Archive, route: "/workflow/processos?status=arquivado" },
     ],
   },
 

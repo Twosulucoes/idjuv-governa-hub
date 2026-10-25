@@ -147,6 +147,8 @@ banco e RPCs em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#acompanhamento-de-proces
 `src/hooks/useAcompanhamentoProcessos.ts` (tabelas e view tipadas por `types.ts`; toda
 escrita é por RPC `wf_*`).
 
+- **Menu:** o módulo aparece como "Processos SEI" e o menu tem só "Localizar processo" e "Parados" (a tramitação é
+  no SEI). A lista e o "Novo processo" continuam abrindo pelos atalhos do painel.
 - **Painel `/workflow`** (`src/pages/modulos/WorkflowDashboardPage`, dados de `useWorkflowDashboardStats`): processos
   ativos, na minha unidade, vencidos, e contagem por tipo e por etapa, com links para a lista filtrada. Os agrupamentos
   leem até 1000 linhas e avisam quando o limite é atingido.
@@ -190,8 +192,11 @@ Licitações, aquisições e gestão contratual. Operados via
 `src/pages/processos/ComprasProcessoPage` e dashboards de módulo
 (`ComprasDashboardPage`, `ContratosDashboardPage`). Backend: `processos_licitatorios`,
 `contratos`, `atas_registro_preco`, `fornecedores`, etc. Atas SRP, fornecedores e as telas de contratos (lista,
-execução, aditivos, vencimentos) ainda não existem; saíram do menu no P09 e voltam no P20/P21. A barra do módulo
-Contratos tem o painel e as passagens aéreas.
+execução, aditivos, vencimentos) ainda não existem; saíram do menu no P09 e voltam no P20/P21. Os menus seguem
+o ciclo: Compras tem PCA, Processos de contratação e "Como funciona uma compra" (o guia `/processos/compras`, por
+último); Contratos tem o que vem depois do contrato assinado (Passagens aéreas, Beneficiários e Pendências de
+passagens). Os atalhos do painel de Contratos levam a passagens, pendências, processos de contratação e contratos
+publicados; nenhum aponta mais para o guia de Compras.
 
 - **Passagens aéreas (Contratos, entregas 1 e 2 de 3):** `/contratos/passagens` lista os pedidos, um por processo SEI, com
   quem pediu, evento, passageiros, situação e valor emitido, e no alto o valor do contrato da agência, o emitido e o
