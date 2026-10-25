@@ -24,14 +24,16 @@ interface CatalogoBuscaProps {
   aoEscolher: (e: EscolhaCatalogo | null) => void;
   codigoItem: number | null;
   aoEscolherItem: (codigoItem: number | null, descricao: string | null) => void;
+  /** false = só o tipo de material (PDM), sem a escolha do item exato (ex.: classificar a reserva do processo). */
+  comItemExato?: boolean;
 }
 
 const SEM_ITEM = "sem-item";
 
-export function CatalogoBusca({ tipo, escolha, aoEscolher, codigoItem, aoEscolherItem }: CatalogoBuscaProps) {
+export function CatalogoBusca({ tipo, escolha, aoEscolher, codigoItem, aoEscolherItem, comItemExato = true }: CatalogoBuscaProps) {
   const [termo, setTermo] = useState("");
   const { data: resultados, isFetching, isError } = useBuscarCatalogo(termo, tipo);
-  const itens = useItensDoPdm(tipo === "material" ? escolha?.codigo ?? null : null);
+  const itens = useItensDoPdm(tipo === "material" && comItemExato ? escolha?.codigo ?? null : null);
 
   const opcoes: EscolhaCatalogo[] = (resultados ?? []).map((r) =>
     tipo === "material"
@@ -100,7 +102,7 @@ export function CatalogoBusca({ tipo, escolha, aoEscolher, codigoItem, aoEscolhe
         )}
       </div>
 
-      {tipo === "material" && escolha && (
+      {tipo === "material" && comItemExato && escolha && (
         <div className="space-y-2">
           <Label htmlFor="pca-item-catalogo">Item exato (opcional)</Label>
           {itens.isLoading ? (
