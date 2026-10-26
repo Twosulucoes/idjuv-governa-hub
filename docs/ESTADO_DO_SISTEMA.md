@@ -11,20 +11,20 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Arquivo | Total | Protegidas | Públicas | Redirecionamentos | Curinga |
 |---|---:|---:|---:|---:|---:|
-| `src/App.tsx` (sistema) | 261 | 211 | 34 | 15 | 1 |
+| `src/App.tsx` (sistema) | 262 | 212 | 34 | 15 | 1 |
 | `src/AppSite.tsx` (site) | 32 | 0 | 29 | 2 | 1 |
 
 ## Código do front
 
 | Item | Quantidade |
 |---|---:|
-| Páginas (`*Page.tsx` em `src/pages`) | 224 |
-| Componentes (`.tsx` em `src/components`) | 364 |
+| Páginas (`*Page.tsx` em `src/pages`) | 225 |
+| Componentes (`.tsx` em `src/components`) | 365 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 321 |
+| — fora de `ui/` | 322 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 112 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 82 |
-| Linhas de `src/App.tsx` | 1438 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 83 |
+| Linhas de `src/App.tsx` | 1444 |
 | Linhas de `src/integrations/supabase/types.ts` (gerado) | 29384 |
 
 ### Páginas por pasta de `src/pages`
@@ -44,7 +44,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | `curriculo/` | 4 |
 | `eventos/` | 3 |
 | `federacoes/` | 3 |
-| `financeiro/` | 16 |
+| `financeiro/` | 17 |
 | `folha/` | 4 |
 | `formularios/` | 5 |
 | `gabinete/` | 1 |
@@ -96,7 +96,7 @@ Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.
 | `workflow` | Processos SEI | 3 | 0 |
 | `compras` | Compras | 10 | 0 |
 | `contratos` | Contratos | 6 | 0 |
-| `financeiro` | Financeiro | 19 | 0 |
+| `financeiro` | Financeiro | 20 | 0 |
 | `patrimonio` | Patrimônio | 30 | 0 |
 | `governanca` | Governança | 10 | 2 |
 | `integridade` | Integridade | 5 | 1 |

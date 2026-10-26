@@ -233,12 +233,21 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
   continua). O topo da tela traz os cartões de resumo do exercício (dotação atual, empenhado, saldo disponível)
   e o aviso "Atualizado pelo FIPLAN em <data> · <arquivo>" (ou "Ainda não importado"), lido do último registro
   em `importacoes`. Não há mais "Nova dotação": dotação vem do FIPLAN.
+- **Atualizar o Financeiro `/financeiro/atualizar`** (menu "Atualizar dados"): a rotina de arquivos que mantém o
+  módulo em dia, com um cartão por item: QDD e FIP 614 (semanal), retorno do banco (depois de cada remessa),
+  conciliação do mês (FIP 630, FIP 103, OFX e extrato do fundo; em dia até o dia 10 do mês seguinte) e Tabelas do
+  FIPLAN (anual). Cada cartão traz os passos no FIPLAN, a última importação (`importacoes`) ou o último mês fechado
+  (`fin_conciliacoes_mensais`), o selo em dia / atrasado / nunca importado e o botão que abre o importador
+  (`/admin/importacoes?importador=<id>`, só com a permissão dele). Rotina e regras em
+  `src/lib/financeiro/rotinaAtualizacao.ts` (com testes). O sistema não baixa nada do FIPLAN sozinho.
 - **Painel `/financeiro` (execução do exercício)**, calculado no navegador sobre o QDD (`fin_dotacoes`) e o
   FIP 614 (`fin_empenhos`), sem tabela própria. As contas ficam em `src/lib/financeiro/painelExecucao.ts` (com
   testes) e os quadros em `src/components/financeiro/painel/`:
-  - faixa com a data da última importação do QDD e do FIP 614 (amarela quando o QDD tem mais de 7 dias);
+  - faixa com a data da última importação do QDD e do FIP 614 (amarela quando o QDD tem mais de 7 dias), com o
+    link "Ver o que atualizar" para `/financeiro/atualizar`;
   - cartões de autorizado, empenhado, liquidado, pago, saldo para empenhar e reservado (PED). O saldo usa a conta
-    do FIPLAN (autorizado − empenhado − bloqueado − reserva − PED), não a coluna `saldo_disponivel`;
+    do FIPLAN (autorizado − bloqueado − PED, sendo o PED do QDD a soma do empenhado com a Cont./Reserva; vale o
+    maior entre o PED e empenhado + reserva), não a coluna `saldo_disponivel`;
   - execução por grupo de despesa, com gráfico e tabela;
   - alertas de saldo: dotações cujo saldo não cobre o resto do ano no ritmo do que já foi liquidado. Os
     vencimentos e as obrigações patronais contam o 13º;
