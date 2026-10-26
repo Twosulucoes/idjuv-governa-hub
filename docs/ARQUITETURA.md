@@ -91,9 +91,14 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   de dados abertos do Compras.gov.br pela Edge Function `catalogo-compras` (o navegador não chama o portal: CORS e CSP).
 - **Processos de contratação (Compras)** em `/compras/processos` e `/compras/processos/:id` (`ProcessosListaPage`,
   `ProcessoFichaPage`, `requiredModule="compras"` e `compras.processos.visualizar` ou `compras.processos.editar`): lista
-  com etapa, setor, dias parado, valor estimado e empenhado; ficha com Dados, Andamento (linha do tempo do SEI) e
-  Empenhos (FIP 614 pelo nº SEI). Menu em Compras → "Processos de contratação" (o antigo "Licitações"; "Novo processo"
-  abre `/compras/processos?novo=1`); a página-guia `/processos/compras` continua como "Guia do processo de compras".
+  com etapa e setor, dias parado, valor estimado, empenhado e fase financeira (com filtro); ficha com Dados, Reservas
+  (natureza × ação × fonte do QDD, saldo livre ao vivo e justificativa quando falta saldo, "Puxar do PCA"), Andamento
+  (linha do tempo do SEI) e Financeiro (fase, PEDs do "Consultar PED" e empenhos do FIP 614 pelo nº do processo). Menu
+  em Compras → "Processos de contratação" (o antigo "Licitações"; "Novo processo" abre `/compras/processos?novo=1`) e
+  "Programação por natureza" (`/compras/programacao`, `ProgramacaoNaturezaPage`, mesma exigência de rota: disponível
+  no FIPLAN, reservado em processos e saldo livre por natureza); a página-guia `/processos/compras` continua como
+  "Como funciona uma compra", o último item de Compras, que segue o ciclo: PCA, programação por natureza, processos de
+  contratação e o manual. O painel do Financeiro (`/financeiro`) ganha o cartão "Reservado em processos".
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
@@ -101,6 +106,23 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`, `compras.processos.editar`); `src/lib/importacao/registro.test.ts`
   reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha". `?importador=<id>` abre direto o assistente
   desse importador quando o usuário tem a permissão dele (atalhos de `/financeiro/atualizar`).
+- **Localizar processo** em `/processos/localizar` (`LocalizarProcessoPage`, `ProtectedRoute` só com login: rota
+  transversal, listada em `TRANSVERSAIS` de `src/shared/config/modules.config.test.ts`; quem pode ver cada registro é a
+  RLS da fonte, pelas funções INVOKER `localizar_processos_sei` e `processos_parados`). Menu: "Localizar processo" e
+  "Parados" (`/processos/localizar?aba=parados`) como os únicos itens de Processos SEI, nos dois arquivos de menu (a
+  tramitação é no SEI: a lista `/workflow/processos` e o "Novo processo" saíram do menu e abrem pelo painel `/workflow`). Spec:
+  `docs/superpowers/specs/2026-10-25-localizador-processos-sei-design.md`.
+- **Passagens aéreas (Contratos)** em `/contratos/passagens`, `/contratos/passagens/:id` e
+  `/contratos/passagens/beneficiarios` (`PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,
+  `requiredModule="contratos"` e `contratos.passagens.visualizar` ou `contratos.passagens.editar`): um pedido por
+  processo SEI, com passageiros (servidor ou beneficiário de fora), trechos, cotações e emissão; o saldo do contrato da
+  agência sai dos bilhetes emitidos. Menu em Contratos → "Passagens aéreas", "Beneficiários de passagem" e "Novo pedido
+  de passagem" (`/contratos/passagens?novo=1`). Spec: `docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md`.
+  A entrega 2 acrescenta `/contratos/passagens/pendencias` (`PassagensPendenciasPage`, mesma proteção; menu "Pendências
+  de passagens") e a aba Prestação de contas na ficha (`?aba=prestacao` abre direto nela). A entrega 3 acrescenta
+  `/contratos/passagens/faturas` (`PassagensFaturasPage`, `requiredModule="contratos"` e `visualizar`, `editar` ou
+  `contratos.passagens.financeiro`; menu "Faturas de passagens"): faturas da agência, a faturar, empenhos do contrato,
+  planilhas e o PDF do saldo; a ficha do pedido mostra a fatura de cada bilhete e baixa a ficha em PDF.
 - Financeiro: `/financeiro/empenhos/:id` (`EmpenhoDetalhePage`, `requiredPermissions="orcamento.criar"`): dados,
   valores, histórico do FIPLAN e escolha da dotação do empenho importado do FIP 614.
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"

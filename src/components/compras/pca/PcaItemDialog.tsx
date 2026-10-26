@@ -1,13 +1,14 @@
 /**
  * Lançamento (ou edição) de um item do PCA a partir de um DFD do SEI: número do processo, setor, item do catálogo,
- * quantidade, valor estimado, mês desejado, prioridade, ação orçamentária e fonte.
+ * quantidade, valor estimado, mês desejado, prioridade, ação orçamentária e fonte. A natureza vem indicada pelo
+ * catálogo (portal do Compras.gov.br, casada com as naturezas do estado): uma só = preenchida; outra escolhida = aviso.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -18,8 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/formatters";
 import { lerNumeroBr } from "@/lib/pca/numero";
+import { casarNaturezasDoCatalogo } from "@/lib/pca/naturezaCatalogo";
 import { useUnidadesEstrutura } from "@/hooks/useLancamentoPorSetor";
-import type { ClassificadoresPca, PcaItem, PcaItemInput } from "@/hooks/usePca";
+import { useNaturezasDoCatalogo, type ClassificadoresPca, type PcaItem, type PcaItemInput } from "@/hooks/usePca";
 import { CatalogoBusca, type EscolhaCatalogo } from "./CatalogoBusca";
 import { MESES, PRIORIDADE_LABEL, rotuloClassificador } from "./rotulos";
 
@@ -64,13 +66,19 @@ export function PcaItemDialog({ open, onOpenChange, item, escolhaInicial, classi
   const [escolha, setEscolha] = useState<EscolhaCatalogo | null>(null);
   const [codigoItem, setCodigoItem] = useState<number | null>(null);
   const [erroCatalogo, setErroCatalogo] = useState(false);
+  const preenchidaPeloCatalogo = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Fechado: limpa a escolha, para a próxima abertura não consultar o catálogo do item anterior
+      setEscolha(null);
+      return;
+    }
     setTipo((item?.tipo as "material" | "servico") ?? "material");
     setEscolha(escolhaInicial ?? null);
     setCodigoItem(item?.codigo_item ?? null);
     setErroCatalogo(false);
+    preenchidaPeloCatalogo.current = null;
     form.reset({
       numero_sei: item?.numero_sei ?? "",
       setor_id: item?.setor_id ?? SEM_VALOR,
@@ -86,6 +94,29 @@ export function PcaItemDialog({ open, onOpenChange, item, escolhaInicial, classi
       justificativa: item?.justificativa ?? "",
     });
   }, [open, item, escolhaInicial, form]);
+
+  // Natureza indicada pelo catálogo para o PDM ou serviço escolhido
+  const naturezasPortal = useNaturezasDoCatalogo(tipo, open ? escolha?.codigo : null);
+  const indicadas = useMemo(
+    () => casarNaturezasDoCatalogo(naturezasPortal.data ?? [], classificadores?.naturezas ?? []),
+    [naturezasPortal.data, classificadores?.naturezas],
+  );
+  const idsIndicados = useMemo(() => new Set(indicadas.map((n) => n.id)), [indicadas]);
+  const naturezasOrdenadas = useMemo(
+    () => [...(classificadores?.naturezas ?? [])].sort((a, b) => Number(idsIndicados.has(b.id)) - Number(idsIndicados.has(a.id))),
+    [classificadores?.naturezas, idsIndicados],
+  );
+  const naturezaEscolhida = form.watch("natureza_despesa_id");
+
+  useEffect(() => {
+    // Item novo, uma só indicada e nada escolhido ainda: preenche (na edição, "Não informada" pode ser de propósito)
+    if (item || indicadas.length !== 1) return;
+    const atual = form.getValues("natureza_despesa_id");
+    if (!atual || atual === SEM_VALOR) {
+      form.setValue("natureza_despesa_id", indicadas[0].id, { shouldDirty: true });
+      preenchidaPeloCatalogo.current = indicadas[0].id;
+    }
+  }, [item, indicadas, form]);
 
   const quantidade = numeroBr(form.watch("quantidade") ?? "");
   const valorUnitario = numeroBr(form.watch("valor_unitario") ?? "");
@@ -194,7 +225,15 @@ export function PcaItemDialog({ open, onOpenChange, item, escolhaInicial, classi
               <RadioGroup
                 className="flex gap-6"
                 value={tipo}
-                onValueChange={(v) => { setTipo(v as "material" | "servico"); setEscolha(null); setCodigoItem(null); }}
+                onValueChange={(v) => {
+                  setTipo(v as "material" | "servico");
+                  setEscolha(null);
+                  setCodigoItem(null);
+                  if (preenchidaPeloCatalogo.current && form.getValues("natureza_despesa_id") === preenchidaPeloCatalogo.current) {
+                    form.setValue("natureza_despesa_id", SEM_VALOR);
+                  }
+                  preenchidaPeloCatalogo.current = null;
+                }}
               >
                 <div className="flex items-center gap-2">
                   <RadioGroupItem id="pca-tipo-material" value="material" />
@@ -213,6 +252,11 @@ export function PcaItemDialog({ open, onOpenChange, item, escolhaInicial, classi
               aoEscolher={(e) => {
                 setEscolha(e);
                 setErroCatalogo(false);
+                // Trocou o item: a natureza que o catálogo tinha preenchido sai, para vir a do item novo
+                if (preenchidaPeloCatalogo.current && form.getValues("natureza_despesa_id") === preenchidaPeloCatalogo.current) {
+                  form.setValue("natureza_despesa_id", SEM_VALOR);
+                }
+                preenchidaPeloCatalogo.current = null;
                 if (e && !form.getValues("descricao")) form.setValue("descricao", e.nome);
               }}
               codigoItem={codigoItem}
@@ -330,11 +374,34 @@ export function PcaItemDialog({ open, onOpenChange, item, escolhaInicial, classi
                     </FormControl>
                     <SelectContent>
                       <SelectItem value={SEM_VALOR}>Não informada</SelectItem>
-                      {(classificadores?.naturezas ?? []).map((n) => (
-                        <SelectItem key={n.id} value={n.id}>{rotuloClassificador(n)}</SelectItem>
+                      {naturezasOrdenadas.map((n) => (
+                        <SelectItem key={n.id} value={n.id}>
+                          {idsIndicados.has(n.id) ? `${rotuloClassificador(n)} · do catálogo` : rotuloClassificador(n)}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {escolha && naturezasPortal.isError && (
+                    <p className="text-sm text-muted-foreground">Não foi possível consultar a natureza no catálogo; escolha à mão.</p>
+                  )}
+                  {indicadas.length > 1 && (!naturezaEscolhida || naturezaEscolhida === SEM_VALOR) && (
+                    <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      O catálogo do governo indica {indicadas.length} naturezas para este item; elas aparecem primeiro na lista.
+                    </p>
+                  )}
+                  {idsIndicados.has(naturezaEscolhida ?? "") && (
+                    <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      {indicadas.length === 1 ? "Sugerida pelo catálogo do governo." : "Uma das indicadas pelo catálogo do governo."}
+                    </p>
+                  )}
+                  {indicadas.length > 0 && naturezaEscolhida && naturezaEscolhida !== SEM_VALOR && !idsIndicados.has(naturezaEscolhida) && (
+                    <p className="flex items-start gap-1.5 text-sm" role="status">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                      Esta natureza não é a indicada no catálogo para este item. Confira antes de salvar.
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

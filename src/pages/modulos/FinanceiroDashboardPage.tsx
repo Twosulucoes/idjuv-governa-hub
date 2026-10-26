@@ -20,6 +20,7 @@ import { ExecucaoPorGrupo } from "@/components/financeiro/painel/ExecucaoPorGrup
 import { AlertasSaldo } from "@/components/financeiro/painel/AlertasSaldo";
 import { FilaPagamento } from "@/components/financeiro/painel/FilaPagamento";
 import { MaioresDespesas } from "@/components/financeiro/painel/MaioresDespesas";
+import { ReservadoEmProcessos } from "@/components/financeiro/painel/ReservadoEmProcessos";
 import {
   alertasDeSaldo,
   execucaoPorGrupo,
@@ -108,6 +109,8 @@ export default function FinanceiroDashboardPage() {
               <ExecucaoPorGrupo grupos={painel?.grupos ?? []} {...estadoDotacoes} />
               <AlertasSaldo alertas={painel?.alertas ?? []} {...estadoDotacoes} />
             </div>
+
+            <ReservadoEmProcessos exercicio={exercicio} />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 [&>*]:min-w-0">
               <div className="lg:col-span-3">

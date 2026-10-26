@@ -3825,6 +3825,57 @@ $$;
 
 
 --
+-- Name: fin_dotacao_disponivel(numeric, numeric, numeric, numeric, numeric); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_dotacao_disponivel(p_atual numeric, p_bloqueado numeric, p_empenhado numeric, p_reserva numeric, p_ped numeric) RETURNS numeric
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    SET search_path TO 'public'
+    AS $$
+  SELECT COALESCE(p_atual, 0) - COALESCE(p_bloqueado, 0)
+         - GREATEST(COALESCE(p_ped, 0), COALESCE(p_empenhado, 0) + COALESCE(p_reserva, 0));
+$$;
+
+
+--
+-- Name: fin_dotacao_do_fiplan(integer, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_dotacao_do_fiplan(p_exercicio integer, p_dotacao text) RETURNS uuid
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_digitos text;
+  v_candidatas uuid[];
+  v_por_idu uuid[];
+  v_idu text;
+BEGIN
+  IF p_dotacao IS NULL OR cardinality(string_to_array(p_dotacao, '.')) < 9 THEN
+    RETURN NULL;
+  END IF;
+  v_digitos := regexp_replace(array_to_string((string_to_array(p_dotacao, '.'))[3:9], ''), '\D', '', 'g');
+  SELECT array_agg(id ORDER BY codigo_dotacao) INTO v_candidatas
+    FROM public.fin_dotacoes
+   WHERE exercicio = p_exercicio
+     AND regexp_replace(codigo_dotacao, '\D', '', 'g') LIKE v_digitos || '%';
+  IF cardinality(v_candidatas) > 1 THEN
+    v_idu := CASE (string_to_array(p_dotacao, '.'))[11]
+               WHEN '1' THEN 'NAO' WHEN '4' THEN 'ECNI' WHEN '5' THEN 'ECI' WHEN '6' THEN 'EII' END;
+    SELECT array_agg(id) INTO v_por_idu
+      FROM public.fin_dotacoes
+     WHERE id = ANY (v_candidatas)
+       AND translate(upper(split_part(codigo_dotacao, '.', 10)), 'ÃÁ', 'AA') = v_idu;
+    IF cardinality(v_por_idu) = 1 THEN
+      v_candidatas := v_por_idu;
+    END IF;
+  END IF;
+  RETURN CASE WHEN cardinality(v_candidatas) = 1 THEN v_candidatas[1] END;
+END;
+$$;
+
+
+--
 -- Name: fin_marcar_pagamento_pago(uuid, date); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -8847,6 +8898,217 @@ COMMENT ON FUNCTION public.importar_folha_sigrh(p_competencia jsonb, p_fichas js
 
 
 --
+-- Name: importar_peds_fiplan(integer, jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.importar_peds_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  c_numero constant text := '^\d{5}\.\d{4}\.\d{2}\.\d{5}-\d$';
+  c_campos constant text[] := ARRAY['empenho_numero', 'processo_fiplan', 'processo_sei', 'valor', 'situacao',
+    'estorno', 'data_solicitacao', 'data_criacao', 'data_autorizacao', 'tipo_empenho', 'dotacao_fiplan', 'dotacao_id',
+    'licitacao', 'historico', 'credor_codigo', 'credor_nome'];
+  v_uid uuid := auth.uid();
+  v_linha jsonb;
+  v_ind integer;
+  v_numero text;
+  v_estorno_num text;
+  v_chaves text[] := '{}';
+  v_chave text;
+  v_novo jsonb;
+  v_antigo jsonb;
+  v_mudancas jsonb;
+  v_avisos text[];
+  v_campo text;
+  v_existente public.fin_peds%ROWTYPE;
+  v_acao text;
+  v_linhas_res jsonb := '[]'::jsonb;
+  v_erros jsonb := '[]'::jsonb;
+  v_ins integer := 0; v_atu integer := 0; v_igual integer := 0;
+  v_ausentes text[];
+  v_totais jsonb;
+  v_import_id uuid;
+BEGIN
+  p_simular := COALESCE(p_simular, true);
+
+  -- COALESCE: um NULL em qualquer checagem nega (NOT NULL não dispararia o RAISE).
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'orcamento.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar dados do FIPLAN (orcamento.importar).' USING ERRCODE = '42501';
+  END IF;
+  IF p_exercicio IS NULL OR p_exercicio NOT BETWEEN 2000 AND 2100 THEN
+    RAISE EXCEPTION 'Exercício inválido: %', p_exercicio USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_linhas) IS DISTINCT FROM 'array'
+     OR jsonb_array_length(p_linhas) NOT BETWEEN 1 AND 10000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 10000 PEDs.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT p_simular AND (
+       char_length(COALESCE(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
+       OR COALESCE(p_arquivo->>'sha256', '') !~ '^[0-9a-f]{64}$'
+       OR COALESCE(p_arquivo->>'tamanho', '') !~ '^\d{1,15}$') THEN
+    RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Uma importação de PEDs por exercício de cada vez
+  PERFORM pg_advisory_xact_lock(hashtext('importar_peds_fiplan'), p_exercicio);
+
+  BEGIN
+    IF NOT p_simular THEN
+      INSERT INTO public.importacoes (tipo, modulo, arquivo_nome, arquivo_sha256, arquivo_tamanho, exercicio, created_by)
+      VALUES ('peds_fiplan', 'financeiro', p_arquivo->>'nome', p_arquivo->>'sha256',
+              (p_arquivo->>'tamanho')::bigint, p_exercicio, v_uid)
+      RETURNING id INTO v_import_id;
+    END IF;
+
+    FOR v_linha IN SELECT value FROM jsonb_array_elements(p_linhas) LOOP
+      v_ind := COALESCE((v_linha->>'indice')::integer, -1);
+      BEGIN
+        v_numero := btrim(COALESCE(v_linha->>'numero', ''));
+        v_estorno_num := NULLIF(btrim(COALESCE(v_linha->>'numero_estorno', '')), '');
+        IF v_numero !~ c_numero OR split_part(v_numero, '.', 3) <> right(p_exercicio::text, 2) THEN
+          RAISE EXCEPTION 'PED "%" fora do padrão ou de outro exercício.', left(v_numero, 30) USING ERRCODE = '22023';
+        END IF;
+        IF v_estorno_num IS NOT NULL AND v_estorno_num !~ c_numero THEN
+          RAISE EXCEPTION 'PED %: número do estorno fora do padrão.', v_numero USING ERRCODE = '22023';
+        END IF;
+        v_chave := v_numero || '|' || COALESCE(v_estorno_num, '');
+        IF v_chave = ANY (v_chaves) THEN
+          RAISE EXCEPTION 'PED % repetido no arquivo.', v_numero USING ERRCODE = '22023';
+        END IF;
+        v_chaves := v_chaves || v_chave;
+        IF (v_linha->>'valor') IS NULL OR (v_linha->>'valor')::numeric < 0 THEN
+          RAISE EXCEPTION 'PED %: valor inválido.', v_numero USING ERRCODE = '22023';
+        END IF;
+        IF NULLIF(btrim(v_linha->>'situacao'), '') IS NULL THEN
+          RAISE EXCEPTION 'PED %: sem situação.', v_numero USING ERRCODE = '22023';
+        END IF;
+
+        v_avisos := '{}';
+        v_novo := jsonb_build_object(
+          'empenho_numero',   NULLIF(btrim(v_linha->>'empenho_numero'), ''),
+          'processo_fiplan',  NULLIF(btrim(v_linha->>'processo_fiplan'), ''),
+          'processo_sei',     NULLIF(btrim(v_linha->>'processo_sei'), ''),
+          'valor',            round((v_linha->>'valor')::numeric, 2),
+          'situacao',         btrim(v_linha->>'situacao'),
+          'estorno',          COALESCE((v_linha->>'estorno')::boolean, false),
+          'data_solicitacao', (v_linha->>'data_solicitacao')::date,
+          'data_criacao',     (v_linha->>'data_criacao')::date,
+          'data_autorizacao', (v_linha->>'data_autorizacao')::date,
+          'tipo_empenho',     NULLIF(btrim(v_linha->>'tipo_empenho'), ''),
+          'dotacao_fiplan',   NULLIF(btrim(v_linha->>'dotacao'), ''),
+          'dotacao_id',       public.fin_dotacao_do_fiplan(p_exercicio, NULLIF(btrim(v_linha->>'dotacao'), '')),
+          'licitacao',        NULLIF(btrim(v_linha->>'licitacao'), ''),
+          'historico',        left(NULLIF(btrim(v_linha->>'historico'), ''), 4000),
+          'credor_codigo',    NULLIF(btrim(v_linha->>'credor_codigo'), ''),
+          'credor_nome',      left(NULLIF(btrim(v_linha->>'credor_nome'), ''), 300));
+        IF v_novo->>'dotacao_id' IS NULL AND v_novo->>'dotacao_fiplan' IS NOT NULL THEN
+          v_avisos := v_avisos || 'Dotação sem correspondente único no QDD do exercício: importe o QDD e importe de novo.'::text;
+        END IF;
+
+        SELECT * INTO v_existente FROM public.fin_peds
+         WHERE exercicio = p_exercicio AND numero = v_numero AND numero_estorno IS NOT DISTINCT FROM v_estorno_num
+         FOR UPDATE;
+        IF NOT FOUND THEN
+          INSERT INTO public.fin_peds
+            (exercicio, numero, numero_estorno, empenho_numero, processo_fiplan, processo_sei, valor, situacao, estorno,
+             data_solicitacao, data_criacao, data_autorizacao, tipo_empenho, dotacao_fiplan, dotacao_id, licitacao,
+             historico, credor_codigo, credor_nome, importacao_id)
+          VALUES
+            (p_exercicio, v_numero, v_estorno_num, v_novo->>'empenho_numero', v_novo->>'processo_fiplan',
+             v_novo->>'processo_sei', (v_novo->>'valor')::numeric, v_novo->>'situacao', (v_novo->>'estorno')::boolean,
+             (v_novo->>'data_solicitacao')::date, (v_novo->>'data_criacao')::date, (v_novo->>'data_autorizacao')::date,
+             v_novo->>'tipo_empenho', v_novo->>'dotacao_fiplan', (v_novo->>'dotacao_id')::uuid, v_novo->>'licitacao',
+             v_novo->>'historico', v_novo->>'credor_codigo', v_novo->>'credor_nome', v_import_id);
+          v_acao := 'inserir';
+          v_mudancas := NULL;
+          v_ins := v_ins + 1;
+        ELSE
+          v_antigo := to_jsonb(v_existente);
+          v_mudancas := '{}'::jsonb;
+          FOREACH v_campo IN ARRAY c_campos LOOP
+            -- valor numérico compara como número (15000 = 15000.00)
+            IF (CASE WHEN v_campo = 'valor' THEN (v_antigo->>v_campo)::numeric IS DISTINCT FROM (v_novo->>v_campo)::numeric
+                     ELSE v_antigo->v_campo IS DISTINCT FROM v_novo->v_campo END) THEN
+              v_mudancas := v_mudancas || jsonb_build_object(v_campo, jsonb_build_array(v_antigo->v_campo, v_novo->v_campo));
+            END IF;
+          END LOOP;
+          IF v_mudancas = '{}'::jsonb THEN
+            v_acao := 'sem_alteracao';
+            v_mudancas := NULL;
+            v_igual := v_igual + 1;
+          ELSE
+            UPDATE public.fin_peds
+               SET empenho_numero = v_novo->>'empenho_numero', processo_fiplan = v_novo->>'processo_fiplan',
+                   processo_sei = v_novo->>'processo_sei', valor = (v_novo->>'valor')::numeric,
+                   situacao = v_novo->>'situacao', estorno = (v_novo->>'estorno')::boolean,
+                   data_solicitacao = (v_novo->>'data_solicitacao')::date, data_criacao = (v_novo->>'data_criacao')::date,
+                   data_autorizacao = (v_novo->>'data_autorizacao')::date, tipo_empenho = v_novo->>'tipo_empenho',
+                   dotacao_fiplan = v_novo->>'dotacao_fiplan', dotacao_id = (v_novo->>'dotacao_id')::uuid,
+                   licitacao = v_novo->>'licitacao', historico = v_novo->>'historico',
+                   credor_codigo = v_novo->>'credor_codigo', credor_nome = v_novo->>'credor_nome',
+                   importacao_id = COALESCE(v_import_id, importacao_id), updated_at = now()
+             WHERE id = v_existente.id;
+            v_acao := 'atualizar';
+            v_atu := v_atu + 1;
+          END IF;
+        END IF;
+
+        v_linhas_res := v_linhas_res || jsonb_build_object('indice', v_ind, 'acao', v_acao, 'mudancas', v_mudancas,
+          'avisos', CASE WHEN cardinality(v_avisos) > 0 THEN to_jsonb(v_avisos) END);
+      EXCEPTION
+        WHEN OTHERS THEN
+          v_erros := v_erros || jsonb_build_object('indice', v_ind, 'mensagem',
+            CASE WHEN left(SQLSTATE, 2) IN ('22', '23') OR SQLSTATE IN ('P0001', '42501') THEN SQLERRM
+                 ELSE format('Erro inesperado ao gravar a linha (código %s).', SQLSTATE) END);
+      END;
+    END LOOP;
+
+    IF p_simular OR jsonb_array_length(v_erros) > 0 THEN
+      RAISE EXCEPTION 'importação desfeita' USING ERRCODE = 'PED01';
+    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'PED01' THEN v_import_id := NULL;  -- desfaz tudo, inclusive o log; as variáveis continuam valendo
+  END;
+
+  -- PEDs do exercício que não vieram no arquivo: só avisados, nunca apagados.
+  SELECT array_agg(DISTINCT numero ORDER BY numero) INTO v_ausentes
+    FROM public.fin_peds
+   WHERE exercicio = p_exercicio
+     AND NOT ((numero || '|' || COALESCE(numero_estorno, '')) = ANY (v_chaves));
+
+  v_totais := jsonb_build_object('inserir', v_ins, 'atualizar', v_atu, 'sem_alteracao', v_igual);
+
+  IF v_import_id IS NOT NULL THEN
+    UPDATE public.importacoes
+       SET resumo = jsonb_build_object('totais', v_totais, 'ausentes', to_jsonb(COALESCE(v_ausentes, '{}'::text[])))
+     WHERE id = v_import_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'simulacao', p_simular,
+    'importacao_id', v_import_id,
+    'totais', v_totais,
+    'ausentes', to_jsonb(COALESCE(v_ausentes, '{}'::text[])),
+    'linhas', v_linhas_res,
+    'erros', v_erros
+  );
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION importar_peds_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.importar_peds_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o relatório "Consultar Pedido de Empenho da Despesa (PED)" do FIPLAN para fin_peds (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e orcamento.importar.';
+
+
+--
 -- Name: importar_portarias_planilha(jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -10109,6 +10371,91 @@ $$;
 
 
 --
+-- Name: localizar_processos_sei(text, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer DEFAULT 50) RETURNS TABLE(chave text, numero_sei text, origem text, registro_id uuid, ref text, titulo text, situacao text, onde text, atualizado_em date, valor numeric)
+    LANGUAGE sql STABLE
+    SET search_path TO 'public', 'pg_temp'
+    AS $_$
+  WITH termo AS (
+    SELECT btrim(coalesce(p_termo, '')) AS t
+  ), busca AS (
+    SELECT t,
+           public.sei_normalizar(t) AS chave,
+           regexp_replace(t, '\D', '', 'g') AS digitos,
+           t ~ '^[0-9\s./-]+$' AS so_numero,
+           '%' || replace(replace(replace(public.texto_busca(t), '\', '\\'), '%', '\%'), '_', '\_') || '%' AS padrao
+      FROM termo
+     WHERE char_length(t) >= 3
+  ), fontes AS (
+    SELECT p.numero_sei, 'workflow'::text AS origem, p.id, NULL::text AS ref, p.assunto AS titulo, p.status::text AS situacao,
+           u.sigla AS onde, coalesce(p.etapa_iniciada_em, p.updated_at)::date AS atualizado_em, NULL::numeric AS valor,
+           concat_ws(' ', p.numero_processo, p.assunto, p.interessado_nome, u.sigla, u.nome) AS texto
+      FROM public.processos_administrativos p
+      LEFT JOIN public.estrutura_organizacional u ON u.id = p.unidade_atual_id
+    UNION ALL
+    SELECT l.numero_processo, 'contratacao', l.id, NULL, coalesce(l.objeto_resumido, l.objeto), l.etapa, l.setor_atual,
+           l.atualizado_em, l.valor_estimado,
+           concat_ws(' ', l.objeto, l.objeto_resumido, l.setor_atual, l.situacao_atual)
+      FROM public.processos_licitatorios l
+    UNION ALL
+    SELECT pp.numero_sei, 'passagem', pp.id, NULL, coalesce(pp.evento, pp.finalidade), pp.situacao,
+           concat_ws('/', pp.destino_cidade, pp.destino_uf), pp.updated_at::date, NULL,
+           concat_ws(' ', pp.finalidade, pp.evento, pp.solicitante_nome, pp.destino_cidade)
+      FROM public.passagem_pedidos pp
+    UNION ALL
+    SELECT i.numero_sei, 'pca', i.id, pl.exercicio::text, i.descricao, i.situacao, 'PCA ' || pl.exercicio,
+           i.updated_at::date, i.valor_total, i.descricao
+      FROM public.pca_itens i
+      JOIN public.pca_planos pl ON pl.id = i.plano_id
+     WHERE i.situacao <> 'excluido'
+    UNION ALL
+    SELECT e.processo_sei, 'empenho', e.id, NULL, concat_ws(' · ', 'Empenho ' || e.numero, e.credor_nome), e.status::text,
+           NULL, e.data_empenho, e.valor_empenhado,
+           concat_ws(' ', e.numero, e.objeto, e.credor_nome, e.ped_numero)
+      FROM public.fin_empenhos e
+     WHERE nullif(btrim(e.processo_sei), '') IS NOT NULL
+    UNION ALL
+    SELECT d.processo_sei, 'documento', d.id, d.tipo::text, concat_ws(' · ', d.numero, d.titulo), d.status::text, NULL,
+           coalesce(d.data_documento, d.created_at::date), NULL,
+           concat_ws(' ', d.numero, d.titulo, d.ementa)
+      FROM public.documentos d
+     WHERE nullif(btrim(d.processo_sei), '') IS NOT NULL
+    UNION ALL
+    SELECT c.processo_sei, 'termo_cessao', c.id, c.unidade_local_id::text, concat_ws(' · ', 'Termo ' || c.numero_termo, c.cessionario_nome),
+           c.status::text, NULL, coalesce(c.data_emissao::date, c.created_at::date), NULL,
+           concat_ws(' ', c.numero_termo, c.cessionario_nome, c.finalidade)
+      FROM public.termos_cessao c
+     WHERE nullif(btrim(c.processo_sei), '') IS NOT NULL
+    UNION ALL
+    SELECT v.numero_sei_diarias, 'diaria', v.id, NULL, concat_ws(' · ', 'Diária', v.destino_cidade, v.finalidade), v.status,
+           concat_ws('/', v.destino_cidade, v.destino_uf), v.data_saida, v.valor_total,
+           concat_ws(' ', v.destino_cidade, v.finalidade, v.portaria_numero)
+      FROM public.viagens_diarias v
+     WHERE nullif(btrim(v.numero_sei_diarias), '') IS NOT NULL
+  )
+  SELECT public.sei_normalizar(f.numero_sei), f.numero_sei, f.origem, f.id, f.ref, f.titulo, f.situacao, f.onde,
+         f.atualizado_em, f.valor
+    FROM fontes f, busca b
+   WHERE (b.chave IS NOT NULL AND public.sei_normalizar(f.numero_sei) = b.chave)
+      OR (b.chave IS NULL AND b.so_numero AND char_length(b.digitos) >= 4
+          AND regexp_replace(coalesce(f.numero_sei, ''), '\D', '', 'g') LIKE '%' || b.digitos || '%')
+      OR (b.chave IS NULL AND NOT b.so_numero
+          AND public.texto_busca(concat_ws(' ', f.numero_sei, f.texto)) LIKE b.padrao ESCAPE '\')
+   ORDER BY f.atualizado_em DESC NULLS LAST, f.origem, f.id
+   LIMIT least(greatest(coalesce(p_limite, 50), 1), 200)
+$_$;
+
+
+--
+-- Name: FUNCTION localizar_processos_sei(p_termo text, p_limite integer); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer) IS 'Localizador de processos do SEI: busca pelo nº (qualquer formato) ou por palavras em oito fontes; INVOKER (cada fonte com a RLS dela).';
+
+
+--
 -- Name: log_alteracao_pagina(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -10591,6 +10938,712 @@ BEGIN
       'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'))),
       '[\s-]+', '_', 'g');
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_buscar_servidores(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_buscar_servidores(_termo text) RETURNS TABLE(id uuid, nome text, matricula text, cargo text)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT (public.can_access_module(auth.uid(), 'contratos')
+          AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar')) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar passagens.' USING ERRCODE = '42501';
+  END IF;
+  IF char_length(regexp_replace(COALESCE(_termo, ''), '[^[:alnum:]]', '', 'g')) < 3 THEN
+    RETURN;
+  END IF;
+  RETURN QUERY
+  SELECT s.id, s.nome_completo, s.matricula, c.nome
+    FROM public.servidores s
+    LEFT JOIN public.cargos c ON c.id = s.cargo_atual_id
+   WHERE s.ativo IS NOT FALSE
+     AND (s.nome_completo ILIKE '%' || replace(replace(replace(btrim(_termo), '\', '\\'), '%', '\%'), '_', '\_') || '%'
+          OR s.matricula = btrim(_termo))
+   ORDER BY s.nome_completo
+   LIMIT 20;
+END;
+$$;
+
+
+--
+-- Name: passagem_carimbar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_carimbar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.created_by := COALESCE(auth.uid(), NEW.created_by);
+  ELSE
+    NEW.created_at := OLD.created_at;
+    NEW.created_by := OLD.created_by;
+  END IF;
+  NEW.updated_at := now();
+  NEW.updated_by := auth.uid();
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_conferir_anexo(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_conferir_anexo() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = OLD.pedido_id AND p.situacao = 'concluido') THEN
+      RAISE EXCEPTION 'Pedido concluído: o anexo da prestação de contas não se apaga.' USING ERRCODE = '42501';
+    END IF;
+    RETURN OLD;
+  END IF;
+  IF TG_OP = 'UPDATE' AND (NEW.caminho, NEW.pedido_id) IS DISTINCT FROM (OLD.caminho, OLD.pedido_id) THEN
+    RAISE EXCEPTION 'O arquivo e o pedido do anexo não mudam: apague e anexe de novo.' USING ERRCODE = '42501';
+  END IF;
+  IF NEW.passageiro_id IS NOT NULL AND NOT EXISTS (
+     SELECT 1 FROM public.passagem_passageiros p WHERE p.id = NEW.passageiro_id AND p.pedido_id = NEW.pedido_id) THEN
+    RAISE EXCEPTION 'O passageiro do anexo não é deste pedido.' USING ERRCODE = '22023';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_conferir_conclusao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_conferir_conclusao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE n int;
+BEGIN
+  IF TG_TABLE_NAME = 'passagem_passageiros' THEN
+    IF (NEW.embarque_entregue_em, NEW.relatorio_entregue_em, NEW.relatorio_documento_sei, NEW.prestacao_dispensada,
+        NEW.prestacao_dispensa_motivo)
+       IS DISTINCT FROM
+       (OLD.embarque_entregue_em, OLD.relatorio_entregue_em, OLD.relatorio_documento_sei, OLD.prestacao_dispensada,
+        OLD.prestacao_dispensa_motivo)
+       AND EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = NEW.pedido_id AND p.situacao = 'concluido') THEN
+      RAISE EXCEPTION 'Pedido concluído: a prestação de contas não muda mais.' USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF OLD.situacao = 'concluido'
+     AND (NEW.prestacao_contas, NEW.prestacao_dispensa_motivo, NEW.responsavel_passageiro_id,
+          NEW.relatorio_evento_entregue_em, NEW.relatorio_evento_documento_sei)
+         IS DISTINCT FROM
+         (OLD.prestacao_contas, OLD.prestacao_dispensa_motivo, OLD.responsavel_passageiro_id,
+          OLD.relatorio_evento_entregue_em, OLD.relatorio_evento_documento_sei) THEN
+    RAISE EXCEPTION 'Pedido concluído: a prestação de contas não muda mais.' USING ERRCODE = '42501';
+  END IF;
+  IF NEW.situacao = 'concluido' AND OLD.situacao IS DISTINCT FROM 'concluido' THEN
+    n := public.passagem_prestacao_em_aberto(NEW.id);
+    IF n > 0 THEN
+      RAISE EXCEPTION 'Prestação de contas em aberto (% item(ns)): registre a entrega ou a dispensa antes de concluir.', n
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_conferir_fatura(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_conferir_fatura() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.situacao <> 'recebida' THEN
+      RAISE EXCEPTION 'Só fatura recebida pode ser apagada: depois do atesto, cancele com o motivo.' USING ERRCODE = '42501';
+    END IF;
+    -- tira os bilhetes antes, para a trilha (passagem_registrar_fatura_item) ainda achar o nº da nota
+    DELETE FROM public.passagem_fatura_itens WHERE fatura_id = OLD.id;
+    RETURN OLD;
+  END IF;
+
+  IF TG_OP = 'INSERT' OR NEW.contrato_id IS DISTINCT FROM OLD.contrato_id THEN
+    IF TG_OP = 'UPDATE' THEN
+      RAISE EXCEPTION 'O contrato da fatura não muda: cancele e lance de novo.' USING ERRCODE = '22023';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.contratos c WHERE c.id = NEW.contrato_id AND c.controla_passagens) THEN
+      RAISE EXCEPTION 'O contrato não é de passagens aéreas.' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.situacao <> 'recebida' THEN
+      RAISE EXCEPTION 'A fatura nasce recebida.' USING ERRCODE = '22023';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF OLD.situacao = 'cancelada' THEN
+    RAISE EXCEPTION 'Fatura cancelada não muda: lance uma nova.' USING ERRCODE = '22023';
+  END IF;
+  -- fluxo: um passo à frente ou atrás; cancela antes de paga (mesmo FLUXO de src/lib/passagens/faturas.ts)
+  IF NEW.situacao IS DISTINCT FROM OLD.situacao AND NOT (OLD.situacao, NEW.situacao) IN (
+       ('recebida', 'atestada'), ('recebida', 'cancelada'),
+       ('atestada', 'liquidada'), ('atestada', 'recebida'), ('atestada', 'cancelada'),
+       ('liquidada', 'paga'), ('liquidada', 'atestada'), ('liquidada', 'cancelada'),
+       ('paga', 'liquidada')) THEN
+    RAISE EXCEPTION 'A fatura não vai de % para % (anda um passo por vez; paga só volta para liquidada).', OLD.situacao, NEW.situacao
+      USING ERRCODE = '22023';
+  END IF;
+  -- paga: nº, data e valor não mudam nem no estorno; a OB e a data do pagamento só mudam voltando para liquidada
+  IF OLD.situacao = 'paga'
+     AND ((NEW.numero, NEW.data_emissao, NEW.valor) IS DISTINCT FROM (OLD.numero, OLD.data_emissao, OLD.valor)
+          OR (NEW.situacao = 'paga' AND (NEW.ob_numero, NEW.pagamento_data) IS DISTINCT FROM (OLD.ob_numero, OLD.pagamento_data))) THEN
+    RAISE EXCEPTION 'Fatura paga não muda de nº, data, valor nem OB: volte para liquidada antes.' USING ERRCODE = '22023';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_conferir_fatura_item(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_conferir_fatura_item() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_situacao text;
+  v_contrato uuid;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    SELECT f.situacao INTO v_situacao FROM public.passagem_faturas f WHERE f.id = OLD.fatura_id;
+    IF v_situacao = 'paga' THEN
+      RAISE EXCEPTION 'Fatura paga não muda de bilhetes.' USING ERRCODE = '22023';
+    END IF;
+    RETURN OLD;
+  END IF;
+
+  IF TG_OP = 'UPDATE' AND NEW.fatura_id IS DISTINCT FROM OLD.fatura_id THEN
+    RAISE EXCEPTION 'O bilhete não muda de fatura: tire de uma e ponha na outra.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT f.situacao, f.contrato_id INTO v_situacao, v_contrato FROM public.passagem_faturas f WHERE f.id = NEW.fatura_id;
+  IF v_situacao IN ('paga', 'cancelada') THEN
+    RAISE EXCEPTION 'Fatura % não muda de bilhetes.', CASE v_situacao WHEN 'paga' THEN 'paga' ELSE 'cancelada' END
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF TG_OP = 'INSERT' OR NEW.trecho_id IS DISTINCT FROM OLD.trecho_id THEN
+    IF NOT EXISTS (
+      SELECT 1
+        FROM public.passagem_trechos t
+        JOIN public.passagem_passageiros pa ON pa.id = t.passageiro_id
+        JOIN public.passagem_pedidos pe ON pe.id = pa.pedido_id
+       WHERE t.id = NEW.trecho_id AND t.localizador IS NOT NULL AND pe.contrato_id = v_contrato) THEN
+      RAISE EXCEPTION 'Só entra na fatura bilhete emitido (com localizador) de pedido deste contrato.' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_conferir_ligacao_empenho(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_conferir_ligacao_empenho() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.contratos c WHERE c.id = NEW.contrato_id AND c.controla_passagens) THEN
+    RAISE EXCEPTION 'O contrato não é de passagens aéreas.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT public.passagem_empenho_candidato(NEW.contrato_id, NEW.empenho_id) THEN
+    RAISE EXCEPTION 'Só se liga empenho de passagens (elemento 33) ou que já aponta para este contrato.' USING ERRCODE = '22023';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_conferir_responsavel(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_conferir_responsavel() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.responsavel_passageiro_id IS NOT NULL AND NOT EXISTS (
+     SELECT 1 FROM public.passagem_passageiros p WHERE p.id = NEW.responsavel_passageiro_id AND p.pedido_id = NEW.id) THEN
+    RAISE EXCEPTION 'O responsável da delegação precisa ser passageiro deste pedido.' USING ERRCODE = '22023';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_copiar_nome(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_copiar_nome() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'passagem_passageiros' THEN
+    IF NEW.servidor_id IS NOT NULL THEN
+      SELECT s.nome_completo INTO NEW.nome FROM public.servidores s WHERE s.id = NEW.servidor_id;
+    ELSE
+      SELECT b.nome INTO NEW.nome FROM public.passagem_beneficiarios b WHERE b.id = NEW.beneficiario_id;
+    END IF;
+    IF NEW.nome IS NULL THEN
+      RAISE EXCEPTION 'Passageiro não encontrado.' USING ERRCODE = '22023';
+    END IF;
+    IF NEW.viagem_id IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM public.viagens_diarias v WHERE v.id = NEW.viagem_id AND v.servidor_id = NEW.servidor_id) THEN
+      RAISE EXCEPTION 'A viagem escolhida não é deste servidor.' USING ERRCODE = '22023';
+    END IF;
+  ELSE
+    NEW.solicitante_nome := CASE NEW.solicitante_tipo
+      WHEN 'servidor' THEN (SELECT s.nome_completo FROM public.servidores s WHERE s.id = NEW.solicitante_servidor_id)
+      WHEN 'beneficiario' THEN (SELECT b.nome FROM public.passagem_beneficiarios b WHERE b.id = NEW.solicitante_beneficiario_id)
+      ELSE COALESCE((SELECT i.nome_razao_social FROM public.instituicoes i WHERE i.id = NEW.solicitante_instituicao_id),
+                    NEW.solicitante_nome)
+    END;
+    IF NEW.solicitante_nome IS NULL
+       OR (NEW.solicitante_instituicao_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM public.instituicoes i WHERE i.id = NEW.solicitante_instituicao_id)) THEN
+      RAISE EXCEPTION 'Solicitante não encontrado.' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_empenho_candidato(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_empenho_candidato(_contrato_id uuid, _empenho_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT EXISTS (
+    SELECT 1
+      FROM public.fin_empenhos e
+      LEFT JOIN public.fin_naturezas_despesa nd ON nd.id = e.natureza_despesa_id
+     WHERE e.id = _empenho_id
+       AND (e.contrato_id = _contrato_id
+            OR nd.elemento = '33'
+            OR substr(regexp_replace(COALESCE(nd.codigo, ''), '[^0-9]', '', 'g'), 5, 2) = '33'));
+$$;
+
+
+--
+-- Name: passagem_empenhos_candidatos(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_empenhos_candidatos(_contrato_id uuid, _exercicio integer DEFAULT NULL::integer) RETURNS TABLE(empenho_id uuid, numero text, exercicio integer, data_empenho date, natureza text, credor text, processo_sei text, valor_empenhado numeric, valor_anulado numeric, ligado boolean)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT COALESCE(public.can_access_module(auth.uid(), 'contratos')
+                  AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'), false) THEN
+    RAISE EXCEPTION 'Requer a permissão de faturas e empenhos das passagens.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.contratos c WHERE c.id = _contrato_id AND c.controla_passagens) THEN
+    RAISE EXCEPTION 'O contrato não é de passagens aéreas.' USING ERRCODE = '22023';
+  END IF;
+  RETURN QUERY
+  SELECT e.id, e.numero::text, e.exercicio, e.data_empenho, nd.codigo::text, e.credor_nome, e.processo_sei::text,
+         e.valor_empenhado, COALESCE(e.valor_anulado, 0), (l.empenho_id IS NOT NULL)
+    FROM public.fin_empenhos e
+    LEFT JOIN public.fin_naturezas_despesa nd ON nd.id = e.natureza_despesa_id
+    LEFT JOIN public.passagem_contrato_empenhos l ON l.empenho_id = e.id AND l.contrato_id = _contrato_id
+   WHERE (e.exercicio = COALESCE(_exercicio, extract(year FROM current_date)::integer) OR l.empenho_id IS NOT NULL)
+     AND (l.empenho_id IS NOT NULL OR public.passagem_empenho_candidato(_contrato_id, e.id))
+   ORDER BY (l.empenho_id IS NOT NULL) DESC, e.exercicio DESC, e.data_empenho DESC, e.numero
+   LIMIT 300;
+END;
+$$;
+
+
+--
+-- Name: passagem_empenhos_contrato(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_empenhos_contrato(_contrato_id uuid) RETURNS TABLE(empenho_id uuid, numero text, exercicio integer, data_empenho date, natureza text, credor text, valor_empenhado numeric, valor_anulado numeric, valor_liquidado numeric, valor_pago numeric)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT COALESCE(public.can_access_module(auth.uid(), 'contratos')
+                  AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
+                       OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar')
+                       OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro')), false) THEN
+    RAISE EXCEPTION 'Requer a permissão de ver passagens.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.contratos c WHERE c.id = _contrato_id AND c.controla_passagens) THEN
+    RAISE EXCEPTION 'O contrato não é de passagens aéreas.' USING ERRCODE = '22023';
+  END IF;
+  RETURN QUERY
+  SELECT e.id, e.numero::text, e.exercicio, e.data_empenho, nd.codigo::text, e.credor_nome,
+         e.valor_empenhado, COALESCE(e.valor_anulado, 0), COALESCE(e.valor_liquidado, 0), COALESCE(e.valor_pago, 0)
+    FROM public.passagem_contrato_empenhos l
+    JOIN public.fin_empenhos e ON e.id = l.empenho_id
+    LEFT JOIN public.fin_naturezas_despesa nd ON nd.id = e.natureza_despesa_id
+   WHERE l.contrato_id = _contrato_id
+   ORDER BY e.exercicio DESC, e.data_empenho DESC, e.numero;
+END;
+$$;
+
+
+--
+-- Name: passagem_prestacao_em_aberto(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_prestacao_em_aberto(_pedido_id uuid) RETURNS integer
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  WITH viajam AS (
+    SELECT p.* FROM public.passagem_passageiros p
+     WHERE p.pedido_id = _pedido_id AND NOT p.prestacao_dispensada
+       AND EXISTS (SELECT 1 FROM public.passagem_trechos t
+                    WHERE t.passageiro_id = p.id AND t.localizador IS NOT NULL
+                      AND t.situacao NOT IN ('cancelado', 'reembolsado'))
+  )
+  SELECT (SELECT count(*) FROM viajam WHERE embarque_entregue_em IS NULL)::int
+       + (SELECT count(*) FROM viajam v, public.passagem_pedidos pd
+           WHERE pd.id = _pedido_id AND pd.prestacao_contas = 'individual' AND v.relatorio_entregue_em IS NULL
+             AND NOT EXISTS (SELECT 1 FROM public.viagens_diarias d
+                              WHERE d.id = v.viagem_id AND d.servidor_id = v.servidor_id AND d.relatorio_apresentado))::int
+       + (SELECT count(*) FROM public.passagem_pedidos pd
+           WHERE pd.id = _pedido_id AND pd.prestacao_contas = 'evento' AND pd.relatorio_evento_entregue_em IS NULL
+             AND EXISTS (SELECT 1 FROM viajam))::int;
+$$;
+
+
+--
+-- Name: passagem_propagar_nome_beneficiario(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_propagar_nome_beneficiario() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  UPDATE public.passagem_passageiros SET nome = NEW.nome WHERE beneficiario_id = NEW.id;
+  UPDATE public.passagem_pedidos SET solicitante_nome = NEW.nome WHERE solicitante_beneficiario_id = NEW.id;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_proteger_emitido(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_proteger_emitido() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF OLD.localizador IS NOT NULL THEN
+    RAISE EXCEPTION 'Trecho já emitido não pode ser apagado: marque como cancelado ou reembolsado.' USING ERRCODE = '42501';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+
+--
+-- Name: passagem_registrar_anexo(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_registrar_anexo() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  a public.passagem_anexos := CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id = a.pedido_id) THEN
+    INSERT INTO public.passagem_historico (pedido_id, acao, antes, depois, feito_por)
+    VALUES (a.pedido_id, CASE WHEN TG_OP = 'DELETE' THEN 'anexo_removido' ELSE 'anexo_incluido' END, NULL,
+            jsonb_build_object('tipo', a.tipo, 'nome_arquivo', a.nome_arquivo,
+                               'passageiro', (SELECT nome FROM public.passagem_passageiros WHERE id = a.passageiro_id)),
+            auth.uid());
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: passagem_registrar_fatura(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_registrar_fatura() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.situacao IS NOT DISTINCT FROM OLD.situacao THEN
+    RETURN NEW;
+  END IF;
+  INSERT INTO public.passagem_historico (pedido_id, acao, antes, depois, feito_por)
+  SELECT DISTINCT pa.pedido_id, 'fatura_situacao',
+         jsonb_build_object('fatura', OLD.numero, 'situacao', OLD.situacao),
+         jsonb_build_object('fatura', NEW.numero, 'situacao', NEW.situacao, 'atesto_data', NEW.atesto_data,
+                            'atesto_documento_sei', NEW.atesto_documento_sei, 'liquidacao_data', NEW.liquidacao_data,
+                            'pagamento_data', NEW.pagamento_data, 'ob_numero', NEW.ob_numero,
+                            'cancelamento_motivo', NEW.cancelamento_motivo),
+         auth.uid()
+    FROM public.passagem_fatura_itens i
+    JOIN public.passagem_trechos t ON t.id = i.trecho_id
+    JOIN public.passagem_passageiros pa ON pa.id = t.passageiro_id
+   WHERE i.fatura_id = NEW.id;
+  IF NEW.situacao = 'cancelada' THEN
+    DELETE FROM public.passagem_fatura_itens WHERE fatura_id = NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_registrar_fatura_item(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_registrar_fatura_item() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_item public.passagem_fatura_itens;
+  v_pedido uuid;
+  v_fatura text;
+BEGIN
+  v_item := CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  IF TG_OP = 'UPDATE' AND NEW.valor IS NOT DISTINCT FROM OLD.valor THEN
+    RETURN NEW;
+  END IF;
+  SELECT pa.pedido_id INTO v_pedido
+    FROM public.passagem_trechos t JOIN public.passagem_passageiros pa ON pa.id = t.passageiro_id
+   WHERE t.id = v_item.trecho_id;
+  SELECT f.numero INTO v_fatura FROM public.passagem_faturas f WHERE f.id = v_item.fatura_id;
+  IF v_pedido IS NOT NULL THEN
+    INSERT INTO public.passagem_historico (pedido_id, trecho_id, acao, antes, depois, feito_por)
+    VALUES (v_pedido, v_item.trecho_id, 'fatura_item',
+            CASE WHEN TG_OP <> 'INSERT' THEN jsonb_build_object('fatura', v_fatura, 'valor', OLD.valor) END,
+            CASE WHEN TG_OP <> 'DELETE' THEN jsonb_build_object('fatura', v_fatura, 'valor', NEW.valor) END,
+            auth.uid());
+  END IF;
+  RETURN v_item;
+END;
+$$;
+
+
+--
+-- Name: passagem_registrar_historico(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_registrar_historico() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_pedido uuid;
+BEGIN
+  IF TG_TABLE_NAME = 'passagem_pedidos' THEN
+    IF TG_OP = 'INSERT' THEN
+      INSERT INTO public.passagem_historico (pedido_id, acao, depois, feito_por)
+      VALUES (NEW.id, 'pedido_criado', jsonb_build_object('situacao', NEW.situacao, 'numero_sei', NEW.numero_sei), auth.uid());
+    ELSIF NEW.situacao IS DISTINCT FROM OLD.situacao THEN
+      INSERT INTO public.passagem_historico (pedido_id, acao, antes, depois, feito_por)
+      VALUES (NEW.id, 'pedido_situacao', jsonb_build_object('situacao', OLD.situacao),
+              jsonb_build_object('situacao', NEW.situacao, 'aprovacao_documento_sei', NEW.aprovacao_documento_sei,
+                                 'aprovacao_data', NEW.aprovacao_data, 'cancelamento_motivo', NEW.cancelamento_motivo),
+              auth.uid());
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'UPDATE' AND NEW.situacao IS NOT DISTINCT FROM OLD.situacao THEN
+    RETURN NEW;
+  END IF;
+  SELECT p.pedido_id INTO v_pedido FROM public.passagem_passageiros p WHERE p.id = NEW.passageiro_id;
+  INSERT INTO public.passagem_historico (pedido_id, trecho_id, acao, antes, depois, feito_por)
+  VALUES (v_pedido, NEW.id, 'trecho_situacao',
+          CASE WHEN TG_OP = 'UPDATE' THEN jsonb_build_object('situacao', OLD.situacao) END,
+          jsonb_build_object('situacao', NEW.situacao, 'origem', NEW.origem, 'destino', NEW.destino,
+                             'localizador', NEW.localizador, 'valor_emissao', NEW.valor_emissao),
+          auth.uid());
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_registrar_prestacao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_registrar_prestacao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'passagem_passageiros' THEN
+    IF (NEW.embarque_entregue_em, NEW.relatorio_entregue_em, NEW.relatorio_documento_sei, NEW.prestacao_dispensada,
+        NEW.prestacao_dispensa_motivo)
+       IS DISTINCT FROM
+       (OLD.embarque_entregue_em, OLD.relatorio_entregue_em, OLD.relatorio_documento_sei, OLD.prestacao_dispensada,
+        OLD.prestacao_dispensa_motivo) THEN
+      INSERT INTO public.passagem_historico (pedido_id, acao, antes, depois, feito_por)
+      VALUES (NEW.pedido_id, 'prestacao_passageiro',
+              jsonb_build_object('embarque_entregue_em', OLD.embarque_entregue_em, 'relatorio_entregue_em', OLD.relatorio_entregue_em,
+                                 'prestacao_dispensada', OLD.prestacao_dispensada),
+              jsonb_build_object('passageiro', NEW.nome, 'embarque_entregue_em', NEW.embarque_entregue_em,
+                                 'relatorio_entregue_em', NEW.relatorio_entregue_em, 'relatorio_documento_sei', NEW.relatorio_documento_sei,
+                                 'prestacao_dispensada', NEW.prestacao_dispensada, 'prestacao_dispensa_motivo', NEW.prestacao_dispensa_motivo),
+              auth.uid());
+    END IF;
+  ELSIF (NEW.prestacao_contas, NEW.prestacao_dispensa_motivo, NEW.responsavel_passageiro_id, NEW.relatorio_evento_entregue_em,
+         NEW.relatorio_evento_documento_sei)
+        IS DISTINCT FROM
+        (OLD.prestacao_contas, OLD.prestacao_dispensa_motivo, OLD.responsavel_passageiro_id, OLD.relatorio_evento_entregue_em,
+         OLD.relatorio_evento_documento_sei) THEN
+    INSERT INTO public.passagem_historico (pedido_id, acao, antes, depois, feito_por)
+    VALUES (NEW.id, 'prestacao_pedido',
+            jsonb_build_object('prestacao_contas', OLD.prestacao_contas, 'relatorio_evento_entregue_em', OLD.relatorio_evento_entregue_em),
+            jsonb_build_object('prestacao_contas', NEW.prestacao_contas, 'prestacao_dispensa_motivo', NEW.prestacao_dispensa_motivo,
+                               'relatorio_evento_entregue_em', NEW.relatorio_evento_entregue_em,
+                               'relatorio_evento_documento_sei', NEW.relatorio_evento_documento_sei),
+            auth.uid());
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: passagem_relatorio_rh(uuid[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_relatorio_rh(_passageiro_ids uuid[]) RETURNS TABLE(passageiro_id uuid, relatorio_apresentado boolean, relatorio_data date)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT (public.can_access_module(auth.uid(), 'contratos')
+          AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
+               OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))) THEN
+    RAISE EXCEPTION 'Requer a permissão de ver passagens.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT p.id, COALESCE(v.relatorio_apresentado, false), v.relatorio_data
+    FROM public.passagem_passageiros p
+    JOIN public.viagens_diarias v ON v.id = p.viagem_id AND v.servidor_id = p.servidor_id
+   WHERE p.id = ANY (_passageiro_ids);
+END;
+$$;
+
+
+--
+-- Name: passagem_salvar_fatura(jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_salvar_fatura(_fatura jsonb, _itens jsonb) RETURNS uuid
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid := NULLIF(_fatura->>'id', '')::uuid;
+  v_trechos uuid[];
+  n int;
+BEGIN
+  IF jsonb_typeof(_itens) IS DISTINCT FROM 'array' OR jsonb_array_length(_itens) = 0 THEN
+    RAISE EXCEPTION 'Marque os bilhetes que a nota cobre.' USING ERRCODE = '22023';
+  END IF;
+  SELECT array_agg((i->>'trecho_id')::uuid) INTO v_trechos FROM jsonb_array_elements(_itens) i;
+
+  IF v_id IS NULL THEN
+    INSERT INTO public.passagem_faturas (contrato_id, numero, data_emissao, valor, processo_sei_pagamento, observacoes)
+    VALUES ((_fatura->>'contrato_id')::uuid, btrim(_fatura->>'numero'), (_fatura->>'data_emissao')::date,
+            (_fatura->>'valor')::numeric, NULLIF(btrim(_fatura->>'processo_sei_pagamento'), ''),
+            NULLIF(btrim(_fatura->>'observacoes'), ''))
+    RETURNING id INTO v_id;
+  ELSE
+    UPDATE public.passagem_faturas
+       SET numero = btrim(_fatura->>'numero'),
+           data_emissao = (_fatura->>'data_emissao')::date,
+           valor = (_fatura->>'valor')::numeric,
+           processo_sei_pagamento = NULLIF(btrim(_fatura->>'processo_sei_pagamento'), ''),
+           observacoes = NULLIF(btrim(_fatura->>'observacoes'), '')
+     WHERE id = v_id;
+    GET DIAGNOSTICS n = ROW_COUNT;
+    IF n = 0 THEN
+      RAISE EXCEPTION 'Fatura não encontrada ou sem permissão para alterar.' USING ERRCODE = '42501';
+    END IF;
+    DELETE FROM public.passagem_fatura_itens WHERE fatura_id = v_id AND NOT (trecho_id = ANY (v_trechos));
+  END IF;
+
+  UPDATE public.passagem_fatura_itens f
+     SET valor = (i->>'valor')::numeric
+    FROM jsonb_array_elements(_itens) i
+   WHERE f.fatura_id = v_id AND f.trecho_id = (i->>'trecho_id')::uuid AND f.valor IS DISTINCT FROM (i->>'valor')::numeric;
+  INSERT INTO public.passagem_fatura_itens (fatura_id, trecho_id, valor)
+  SELECT v_id, (i->>'trecho_id')::uuid, (i->>'valor')::numeric
+    FROM jsonb_array_elements(_itens) i
+   WHERE NOT EXISTS (SELECT 1 FROM public.passagem_fatura_itens f WHERE f.fatura_id = v_id AND f.trecho_id = (i->>'trecho_id')::uuid);
+  RETURN v_id;
+END;
+$$;
+
+
+--
+-- Name: passagem_viagens_servidor(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_viagens_servidor(_servidor_id uuid) RETURNS TABLE(id uuid, destino text, data_saida date, data_retorno date, status text, relatorio_apresentado boolean, relatorio_data date)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT (public.can_access_module(auth.uid(), 'contratos')
+          AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar')) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar passagens.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT v.id, v.destino_cidade || '/' || v.destino_uf, v.data_saida, v.data_retorno, v.status,
+         COALESCE(v.relatorio_apresentado, false), v.relatorio_data
+    FROM public.viagens_diarias v
+   WHERE v.servidor_id = _servidor_id AND v.status <> 'cancelada'
+   ORDER BY v.data_saida DESC
+   LIMIT 30;
 END;
 $$;
 
@@ -11648,6 +12701,27 @@ $$;
 
 
 --
+-- Name: processo_chave_fiplan(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_chave_fiplan(p text) RETURNS text
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    SET search_path TO 'public'
+    AS $_$
+  SELECT CASE WHEN m IS NULL THEN NULL
+              ELSE COALESCE(NULLIF(ltrim(m[1], '0'), ''), '0') || '/' || right(m[2], 2) || '-' || m[3] END
+    FROM (SELECT regexp_match(btrim(p), '(\d+)/(\d{4}|\d{2})[.-](\d{2})$') AS m) x;
+$_$;
+
+
+--
+-- Name: FUNCTION processo_chave_fiplan(p text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.processo_chave_fiplan(p text) IS 'Chave comum do processo no SEI e no FIPLAN: 17302.000885/2026.92, 000885/26-92 e 00000885/26-92 dão 885/26-92.';
+
+
+--
 -- Name: processo_empenhos(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -11667,7 +12741,8 @@ BEGIN
          nd.codigo::text, fr.codigo::text, e.credor_nome,
          e.valor_empenhado, COALESCE(e.valor_anulado, 0), COALESCE(e.valor_liquidado, 0), COALESCE(e.valor_pago, 0)
     FROM public.processos_licitatorios p
-    JOIN public.fin_empenhos e ON btrim(e.processo_sei) = p.numero_processo
+    JOIN public.fin_empenhos e
+      ON public.processo_chave_fiplan(COALESCE(e.processo_sei, e.processo_fiplan)) = public.processo_chave_fiplan(p.numero_processo)
     LEFT JOIN public.fin_naturezas_despesa nd ON nd.id = e.natureza_despesa_id
     LEFT JOIN public.fin_fontes_recurso fr ON fr.id = e.fonte_recurso_id
    WHERE _processo_id IS NULL OR p.id = _processo_id
@@ -11689,6 +12764,389 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: processo_peds(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_peds(_processo_id uuid) RETURNS TABLE(ped_id uuid, exercicio integer, numero text, empenho_numero text, valor numeric, situacao text, data_solicitacao date, data_autorizacao date, natureza text, fonte text, licitacao text)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT public.processos_leitura_permitida() THEN
+    RAISE EXCEPTION 'Requer a permissão de ver processos de contratação.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT DISTINCT ON (f.exercicio, f.numero)
+         f.id, f.exercicio, f.numero, f.empenho_numero, f.valor, f.situacao, f.data_solicitacao, f.data_autorizacao,
+         nd.codigo::text, fr.codigo::text, f.licitacao
+    FROM public.processos_licitatorios p
+    JOIN public.fin_peds f ON f.processo_chave = public.processo_chave_fiplan(p.numero_processo)
+    LEFT JOIN public.fin_dotacoes d ON d.id = f.dotacao_id
+    LEFT JOIN public.fin_naturezas_despesa nd ON nd.id = d.natureza_despesa_id
+    LEFT JOIN public.fin_fontes_recurso fr ON fr.id = d.fonte_recurso_id
+   WHERE p.id = _processo_id AND NOT f.estorno
+   ORDER BY f.exercicio DESC, f.numero DESC;
+END;
+$$;
+
+
+--
+-- Name: processo_reserva_cancelar(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_reserva_cancelar(p_id uuid, p_motivo text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'compras')
+                     AND public.has_permission_code(v_uid, 'compras.processos.editar'), false) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar processos de contratação.' USING ERRCODE = '42501';
+  END IF;
+  IF char_length(COALESCE(btrim(p_motivo), '')) < 5 THEN
+    RAISE EXCEPTION 'Escreva o motivo do cancelamento.' USING ERRCODE = '22023';
+  END IF;
+  UPDATE public.processo_reservas
+     SET situacao = 'cancelada', motivo_cancelamento = left(btrim(p_motivo), 1000), updated_at = now(), updated_by = v_uid
+   WHERE id = p_id AND situacao = 'reservada';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Reserva não encontrada ou já cancelada.' USING ERRCODE = '22023';
+  END IF;
+END;
+$$;
+
+
+--
+-- Name: processo_reserva_salvar(uuid, uuid, integer, uuid, uuid, uuid, numeric, uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_reserva_salvar(p_id uuid, p_processo_id uuid, p_exercicio integer, p_acao uuid, p_fonte uuid, p_natureza uuid, p_valor numeric, p_pca_item_id uuid DEFAULT NULL::uuid, p_justificativa text DEFAULT NULL::text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_etapa text;
+  v_atual public.processo_reservas%ROWTYPE;
+  v_saldo numeric;
+  v_faltou boolean;
+  v_just text := NULLIF(btrim(p_justificativa), '');
+  v_id uuid;
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'compras')
+                     AND public.has_permission_code(v_uid, 'compras.processos.editar'), false) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar processos de contratação.' USING ERRCODE = '42501';
+  END IF;
+  IF p_exercicio IS NULL OR p_exercicio NOT BETWEEN 2000 AND 2100 THEN
+    RAISE EXCEPTION 'Exercício inválido.' USING ERRCODE = '22023';
+  END IF;
+  IF p_acao IS NULL OR p_fonte IS NULL OR p_natureza IS NULL THEN
+    RAISE EXCEPTION 'Informe ação, fonte e natureza.' USING ERRCODE = '22023';
+  END IF;
+  IF p_valor IS NULL OR p_valor <= 0 THEN
+    RAISE EXCEPTION 'O valor da reserva deve ser maior que zero.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT etapa INTO v_etapa FROM public.processos_licitatorios WHERE id = p_processo_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Processo não encontrado.' USING ERRCODE = '22023';
+  END IF;
+  IF v_etapa = 'cancelado' THEN
+    RAISE EXCEPTION 'Processo cancelado não recebe reserva.' USING ERRCODE = '22023';
+  END IF;
+  IF p_id IS NOT NULL THEN
+    SELECT * INTO v_atual FROM public.processo_reservas WHERE id = p_id FOR UPDATE;
+    IF NOT FOUND OR v_atual.processo_id <> p_processo_id THEN
+      RAISE EXCEPTION 'Reserva não encontrada neste processo.' USING ERRCODE = '22023';
+    END IF;
+    IF v_atual.situacao <> 'reservada' THEN
+      RAISE EXCEPTION 'Reserva cancelada não pode ser alterada.' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  IF p_pca_item_id IS NOT NULL AND NOT EXISTS (
+       SELECT 1 FROM public.pca_itens WHERE id = p_pca_item_id AND situacao = 'ativo') THEN
+    RAISE EXCEPTION 'Item do PCA não encontrado.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Uma gravação por combinação de cada vez, para duas reservas não usarem o mesmo saldo.
+  PERFORM pg_advisory_xact_lock(hashtext('processo_reserva'), hashtext(concat_ws('|', p_exercicio, p_acao, p_fonte, p_natureza)));
+
+  v_saldo := public.processo_saldo_livre_calc(p_exercicio, p_acao, p_fonte, p_natureza, p_id);
+  v_faltou := v_saldo IS NULL OR round(p_valor, 2) > v_saldo;
+  IF v_faltou AND char_length(COALESCE(v_just, '')) < 10 THEN
+    IF v_saldo IS NULL THEN
+      RAISE EXCEPTION 'Não há dotação no QDD de % para esta ação, fonte e natureza: escreva a justificativa.', p_exercicio
+        USING ERRCODE = 'P0001';
+    END IF;
+    RAISE EXCEPTION 'Saldo livre de R$ % não cobre a reserva (faltam R$ %): escreva a justificativa.',
+      to_char(v_saldo, 'FM999G999G999G990D00'), to_char(round(p_valor, 2) - v_saldo, 'FM999G999G999G990D00')
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  BEGIN
+    IF p_id IS NULL THEN
+      INSERT INTO public.processo_reservas
+        (processo_id, exercicio, acao_id, fonte_recurso_id, natureza_despesa_id, pca_item_id, valor,
+         justificativa_saldo, saldo_livre_no_momento, created_by, updated_by)
+      VALUES
+        (p_processo_id, p_exercicio, p_acao, p_fonte, p_natureza, p_pca_item_id, round(p_valor, 2),
+         CASE WHEN v_faltou THEN left(v_just, 2000) END, v_saldo, v_uid, v_uid)
+      RETURNING id INTO v_id;
+    ELSE
+      UPDATE public.processo_reservas
+         SET exercicio = p_exercicio, acao_id = p_acao, fonte_recurso_id = p_fonte, natureza_despesa_id = p_natureza,
+             pca_item_id = p_pca_item_id, valor = round(p_valor, 2),
+             justificativa_saldo = CASE WHEN v_faltou THEN left(v_just, 2000) END,
+             saldo_livre_no_momento = v_saldo, updated_at = now(), updated_by = v_uid
+       WHERE id = p_id
+      RETURNING id INTO v_id;
+    END IF;
+  EXCEPTION
+    WHEN unique_violation THEN
+      RAISE EXCEPTION 'Este processo já tem uma reserva nesta ação, fonte e natureza: altere a linha existente.'
+        USING ERRCODE = '23505';
+  END;
+
+  RETURN jsonb_build_object('id', v_id, 'saldo_livre', v_saldo, 'faltou', v_faltou);
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION processo_reserva_salvar(p_id uuid, p_processo_id uuid, p_exercicio integer, p_acao uuid, p_fonte uuid, p_natureza uuid, p_valor numeric, p_pca_item_id uuid, p_justificativa text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.processo_reserva_salvar(p_id uuid, p_processo_id uuid, p_exercicio integer, p_acao uuid, p_fonte uuid, p_natureza uuid, p_valor numeric, p_pca_item_id uuid, p_justificativa text) IS 'Cria ou altera a reserva do processo; faltando saldo livre, exige justificativa. Exige o módulo compras e compras.processos.editar.';
+
+
+--
+-- Name: processo_reservas_detalhe(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_reservas_detalhe(_processo_id uuid) RETURNS TABLE(id uuid, exercicio integer, acao_id uuid, acao_codigo text, acao_nome text, fonte_recurso_id uuid, fonte_codigo text, natureza_despesa_id uuid, natureza_codigo text, natureza_nome text, pca_item_id uuid, valor numeric, situacao text, justificativa_saldo text, saldo_livre_no_momento numeric, motivo_cancelamento text, materializado numeric, pendente numeric, saldo_livre numeric, created_at timestamp with time zone)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT public.processos_leitura_permitida() THEN
+    RAISE EXCEPTION 'Requer a permissão de ver processos de contratação.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT r.id, r.exercicio, r.acao_id, a.codigo::text, a.nome::text, r.fonte_recurso_id, f.codigo::text,
+         r.natureza_despesa_id, n.codigo::text, n.nome::text, r.pca_item_id, r.valor, r.situacao,
+         r.justificativa_saldo, r.saldo_livre_no_momento, r.motivo_cancelamento,
+         COALESCE(p.materializado, 0), COALESCE(p.pendente, 0),
+         CASE WHEN r.situacao = 'reservada'
+              THEN public.processo_saldo_livre_calc(r.exercicio, r.acao_id, r.fonte_recurso_id, r.natureza_despesa_id) END,
+         r.created_at
+    FROM public.processo_reservas r
+    JOIN public.fin_acoes_orcamentarias a ON a.id = r.acao_id
+    JOIN public.fin_fontes_recurso f ON f.id = r.fonte_recurso_id
+    JOIN public.fin_naturezas_despesa n ON n.id = r.natureza_despesa_id
+    LEFT JOIN public.processo_reservas_pendentes(NULL) p ON p.reserva_id = r.id
+   WHERE r.processo_id = _processo_id
+   ORDER BY (r.situacao = 'cancelada'), r.exercicio DESC, n.codigo, a.codigo, f.codigo;
+END;
+$$;
+
+
+--
+-- Name: processo_reservas_pendentes(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_reservas_pendentes(_exercicio integer DEFAULT NULL::integer) RETURNS TABLE(reserva_id uuid, processo_id uuid, exercicio integer, acao_id uuid, fonte_recurso_id uuid, natureza_despesa_id uuid, valor numeric, materializado numeric, pendente numeric)
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT r.id, r.processo_id, r.exercicio, r.acao_id, r.fonte_recurso_id, r.natureza_despesa_id, r.valor,
+         COALESCE(x.ped_autorizado, 0) + COALESCE(x.empenhado, 0),
+         GREATEST(0, r.valor - COALESCE(x.ped_autorizado, 0) - COALESCE(x.empenhado, 0))
+    FROM public.processo_reservas r
+    LEFT JOIN public.processos_execucao(_exercicio) x
+      ON x.processo_id = r.processo_id AND x.exercicio = r.exercicio AND x.acao_id = r.acao_id
+     AND x.fonte_recurso_id = r.fonte_recurso_id AND x.natureza_despesa_id = r.natureza_despesa_id
+   WHERE r.situacao = 'reservada' AND (_exercicio IS NULL OR r.exercicio = _exercicio);
+$$;
+
+
+--
+-- Name: processo_saldo_livre(integer, uuid, uuid, uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_saldo_livre(p_exercicio integer, p_acao uuid, p_fonte uuid, p_natureza uuid, p_ignorar_reserva uuid DEFAULT NULL::uuid) RETURNS numeric
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT public.processos_leitura_permitida() THEN
+    RAISE EXCEPTION 'Requer a permissão de ver processos de contratação.' USING ERRCODE = '42501';
+  END IF;
+  RETURN public.processo_saldo_livre_calc(p_exercicio, p_acao, p_fonte, p_natureza, p_ignorar_reserva);
+END;
+$$;
+
+
+--
+-- Name: processo_saldo_livre_calc(integer, uuid, uuid, uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_saldo_livre_calc(p_exercicio integer, p_acao uuid, p_fonte uuid, p_natureza uuid, p_ignorar_reserva uuid DEFAULT NULL::uuid) RETURNS numeric
+    LANGUAGE plpgsql STABLE
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_qdd numeric;
+  v_n integer;
+  v_pendente numeric;
+BEGIN
+  SELECT sum(public.fin_dotacao_disponivel(valor_atual, valor_bloqueado, valor_empenhado, valor_reserva, valor_ped)), count(*)
+    INTO v_qdd, v_n
+    FROM public.fin_dotacoes
+   WHERE exercicio = p_exercicio AND acao_id = p_acao AND fonte_recurso_id = p_fonte
+     AND natureza_despesa_id = p_natureza AND ativo IS NOT FALSE;
+  IF v_n = 0 THEN
+    RETURN NULL;
+  END IF;
+  SELECT COALESCE(sum(pendente), 0) INTO v_pendente
+    FROM public.processo_reservas_pendentes(p_exercicio)
+   WHERE acao_id = p_acao AND fonte_recurso_id = p_fonte AND natureza_despesa_id = p_natureza
+     AND reserva_id IS DISTINCT FROM p_ignorar_reserva;
+  RETURN round(v_qdd - v_pendente, 2);
+END;
+$$;
+
+
+--
+-- Name: processos_execucao(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processos_execucao(_exercicio integer DEFAULT NULL::integer) RETURNS TABLE(processo_id uuid, exercicio integer, acao_id uuid, fonte_recurso_id uuid, natureza_despesa_id uuid, ped_autorizado numeric, empenhado numeric, liquidado numeric, pago numeric)
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  WITH proc AS (
+    SELECT p.id, public.processo_chave_fiplan(p.numero_processo) AS chave
+      FROM public.processos_licitatorios p
+     WHERE public.processo_chave_fiplan(p.numero_processo) IS NOT NULL
+  ),
+  peds AS (
+    SELECT DISTINCT ON (f.exercicio, f.numero)
+           f.exercicio, f.processo_chave AS chave, d.acao_id, d.fonte_recurso_id AS fonte,
+           d.natureza_despesa_id AS natureza, f.valor
+      FROM public.fin_peds f
+      LEFT JOIN public.fin_dotacoes d ON d.id = f.dotacao_id
+     WHERE NOT f.estorno AND f.situacao = 'Pedido (PED) autorizado'
+       AND (_exercicio IS NULL OR f.exercicio = _exercicio)
+     ORDER BY f.exercicio, f.numero
+  ),
+  emps AS (
+    SELECT e.exercicio, public.processo_chave_fiplan(COALESCE(e.processo_sei, e.processo_fiplan)) AS chave,
+           d.acao_id, COALESCE(e.fonte_recurso_id, d.fonte_recurso_id) AS fonte,
+           COALESCE(e.natureza_despesa_id, d.natureza_despesa_id) AS natureza,
+           e.valor_empenhado - COALESCE(e.valor_anulado, 0) AS emp,
+           COALESCE(e.valor_liquidado, 0) AS liq, COALESCE(e.valor_pago, 0) AS pago
+      FROM public.fin_empenhos e
+      LEFT JOIN public.fin_dotacoes d ON d.id = e.dotacao_id
+     WHERE _exercicio IS NULL OR e.exercicio = _exercicio
+  ),
+  tudo AS (
+    SELECT exercicio, chave, acao_id, fonte, natureza, valor AS ped, 0::numeric AS emp, 0::numeric AS liq, 0::numeric AS pago FROM peds
+    UNION ALL
+    SELECT exercicio, chave, acao_id, fonte, natureza, 0, emp, liq, pago FROM emps
+  )
+  SELECT pr.id, t.exercicio, t.acao_id, t.fonte, t.natureza, sum(t.ped), sum(t.emp), sum(t.liq), sum(t.pago)
+    FROM tudo t
+    JOIN proc pr ON pr.chave = t.chave
+   GROUP BY pr.id, t.exercicio, t.acao_id, t.fonte, t.natureza;
+$$;
+
+
+--
+-- Name: processos_financeiro(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processos_financeiro(_exercicio integer DEFAULT NULL::integer) RETURNS TABLE(processo_id uuid, reservado numeric, pendente numeric, ped_autorizado numeric, empenhado numeric, liquidado numeric, pago numeric)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT public.processos_leitura_permitida() THEN
+    RAISE EXCEPTION 'Requer a permissão de ver processos de contratação.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  WITH r AS (
+    SELECT q.processo_id, sum(q.valor) AS reservado, sum(q.pendente) AS pendente
+      FROM public.processo_reservas_pendentes(_exercicio) q GROUP BY q.processo_id
+  ), x AS (
+    SELECT e.processo_id, sum(e.ped_autorizado) AS ped, sum(e.empenhado) AS emp, sum(e.liquidado) AS liq, sum(e.pago) AS pago
+      FROM public.processos_execucao(_exercicio) e GROUP BY e.processo_id
+  )
+  SELECT COALESCE(r.processo_id, x.processo_id), COALESCE(r.reservado, 0), COALESCE(r.pendente, 0),
+         COALESCE(x.ped, 0), COALESCE(x.emp, 0), COALESCE(x.liq, 0), COALESCE(x.pago, 0)
+    FROM r FULL JOIN x ON x.processo_id = r.processo_id;
+END;
+$$;
+
+
+--
+-- Name: processos_leitura_permitida(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processos_leitura_permitida() RETURNS boolean
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT COALESCE(auth.uid() IS NOT NULL
+    AND public.perfil_ativo_atual()
+    AND ((public.can_access_module(auth.uid(), 'compras')
+          AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar')
+               OR public.has_permission_code(auth.uid(), 'compras.processos.editar')))
+         OR public.can_access_module(auth.uid(), 'financeiro')), false);
+$$;
+
+
+--
+-- Name: processos_parados(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processos_parados(p_dias integer DEFAULT 15) RETURNS TABLE(chave text, numero_sei text, origem text, registro_id uuid, titulo text, situacao text, onde text, atualizado_em date, dias integer)
+    LANGUAGE sql STABLE
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+  WITH parados AS (
+    SELECT l.numero_processo AS numero_sei, 'contratacao'::text AS origem, l.id, coalesce(l.objeto_resumido, l.objeto) AS titulo,
+           l.etapa AS situacao, l.setor_atual AS onde, l.atualizado_em
+      FROM public.processos_licitatorios l
+     WHERE l.etapa NOT IN ('encerrado', 'cancelado') AND l.atualizado_em IS NOT NULL
+    UNION ALL
+    SELECT p.numero_sei, 'workflow', p.id, p.assunto, p.status::text, u.sigla, coalesce(p.etapa_iniciada_em, p.updated_at)::date
+      FROM public.processos_administrativos p
+      LEFT JOIN public.estrutura_organizacional u ON u.id = p.unidade_atual_id
+     WHERE p.status IN ('aberto', 'em_tramitacao')
+  )
+  SELECT public.sei_normalizar(x.numero_sei), x.numero_sei, x.origem, x.id, x.titulo, x.situacao, x.onde, x.atualizado_em,
+         (current_date - x.atualizado_em)::integer
+    FROM parados x
+   WHERE current_date - x.atualizado_em > greatest(coalesce(p_dias, 15), 1)
+   ORDER BY current_date - x.atualizado_em DESC, x.origem, x.id
+   LIMIT 200
+$$;
+
+
+--
+-- Name: FUNCTION processos_parados(p_dias integer); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.processos_parados(p_dias integer) IS 'Contratação e processo do workflow em andamento sem movimentação há mais de N dias; INVOKER (RLS de cada fonte).';
 
 
 --
@@ -11716,6 +13174,60 @@ BEGIN
     END IF;
   END IF;
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: programacao_por_natureza(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.programacao_por_natureza(_exercicio integer) RETURNS TABLE(acao_id uuid, acao_codigo text, fonte_recurso_id uuid, fonte_codigo text, natureza_despesa_id uuid, natureza_codigo text, natureza_nome text, tem_qdd boolean, dotacao_atual numeric, empenhado numeric, bloqueado numeric, reserva_fiplan numeric, saldo_fiplan numeric, pendente_processos numeric, saldo_livre numeric, processos jsonb)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT public.processos_leitura_permitida() THEN
+    RAISE EXCEPTION 'Requer a permissão de ver processos de contratação.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  WITH qdd AS (
+    SELECT d.acao_id, d.fonte_recurso_id AS fonte, d.natureza_despesa_id AS natureza,
+           sum(d.valor_atual) AS atual, sum(COALESCE(d.valor_empenhado, 0)) AS emp,
+           sum(COALESCE(d.valor_bloqueado, 0)) AS bloq,
+           sum(COALESCE(d.valor_reserva, 0)) AS res,
+           sum(public.fin_dotacao_disponivel(d.valor_atual, d.valor_bloqueado, d.valor_empenhado, d.valor_reserva, d.valor_ped)) AS disp
+      FROM public.fin_dotacoes d
+     WHERE d.exercicio = _exercicio AND d.ativo IS NOT FALSE
+       AND d.acao_id IS NOT NULL AND d.fonte_recurso_id IS NOT NULL AND d.natureza_despesa_id IS NOT NULL
+     GROUP BY 1, 2, 3
+  ), pend AS (
+    SELECT q.acao_id, q.fonte_recurso_id AS fonte, q.natureza_despesa_id AS natureza, sum(q.pendente) AS pendente,
+           jsonb_agg(jsonb_build_object('id', p.id, 'numero_processo', p.numero_processo,
+                       'objeto', COALESCE(p.objeto_resumido, left(p.objeto, 200)), 'reservado', q.valor, 'pendente', q.pendente)
+                     ORDER BY p.numero_processo) AS processos
+      FROM public.processo_reservas_pendentes(_exercicio) q
+      JOIN public.processos_licitatorios p ON p.id = q.processo_id
+     GROUP BY 1, 2, 3
+  ), k AS (
+    SELECT qdd.acao_id, qdd.fonte, qdd.natureza FROM qdd
+    UNION
+    SELECT pend.acao_id, pend.fonte, pend.natureza FROM pend
+  )
+  SELECT k.acao_id, a.codigo::text, k.fonte, f.codigo::text, k.natureza, n.codigo::text, n.nome::text,
+         qdd.acao_id IS NOT NULL,
+         COALESCE(qdd.atual, 0), COALESCE(qdd.emp, 0), COALESCE(qdd.bloq, 0), COALESCE(qdd.res, 0),
+         COALESCE(qdd.disp, 0),
+         COALESCE(pend.pendente, 0),
+         COALESCE(qdd.disp, 0) - COALESCE(pend.pendente, 0),
+         COALESCE(pend.processos, '[]'::jsonb)
+    FROM k
+    LEFT JOIN qdd ON qdd.acao_id = k.acao_id AND qdd.fonte = k.fonte AND qdd.natureza = k.natureza
+    LEFT JOIN pend ON pend.acao_id = k.acao_id AND pend.fonte = k.fonte AND pend.natureza = k.natureza
+    JOIN public.fin_acoes_orcamentarias a ON a.id = k.acao_id
+    JOIN public.fin_fontes_recurso f ON f.id = k.fonte
+    JOIN public.fin_naturezas_despesa n ON n.id = k.natureza
+   ORDER BY n.codigo, a.codigo, f.codigo;
 END;
 $$;
 
@@ -14608,6 +16120,30 @@ $$;
 
 
 --
+-- Name: sei_normalizar(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.sei_normalizar(p_texto text) RETURNS text
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    AS $_$
+  SELECT CASE
+           WHEN x.completo IS NOT NULL THEN x.completo[2] || '/' || right(x.completo[3], 2) || '-' || x.completo[4]
+           WHEN x.abreviado IS NOT NULL THEN x.abreviado[1] || '/' || x.abreviado[2] || '-' || x.abreviado[3]
+         END
+    FROM (SELECT regexp_match(coalesce(p_texto, ''), '(\d{5})\D{0,3}(\d{6})\D{0,3}(\d{4})\D{0,3}(\d{2})') AS completo,
+                 regexp_match(coalesce(p_texto, ''), '^\D*(\d{6})\D{0,3}(\d{2})\D{0,3}(\d{2})\D*$') AS abreviado) x
+$_$;
+
+
+--
+-- Name: FUNCTION sei_normalizar(p_texto text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.sei_normalizar(p_texto text) IS 'Chave NNNNNN/AA-DV do nº SEI (completo ou abreviado do FIPLAN); NULL se o texto não parece um nº SEI.';
+
+
+--
 -- Name: servidores_proteger_cpf(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -14672,6 +16208,27 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: texto_busca(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.texto_busca(p_texto text) RETURNS text
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    SET search_path TO 'pg_catalog', 'pg_temp'
+    AS $$
+  SELECT lower(translate(coalesce(p_texto, ''),
+    'ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇçÑñ',
+    'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCcNn'))
+$$;
+
+
+--
+-- Name: FUNCTION texto_busca(p_texto text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.texto_busca(p_texto text) IS 'Minúsculas e sem acento, para comparar na busca.';
 
 
 --
@@ -19526,8 +21083,16 @@ CREATE TABLE public.contratos (
     created_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
-    updated_by uuid
+    updated_by uuid,
+    controla_passagens boolean DEFAULT false NOT NULL
 );
+
+
+--
+-- Name: COLUMN contratos.controla_passagens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.controla_passagens IS 'Contrato de agenciamento de passagens: aparece em Contratos → Passagens aéreas (saldo e escolha no pedido).';
 
 
 --
@@ -21784,6 +23349,59 @@ ALTER TABLE ONLY public.fin_parametros FORCE ROW LEVEL SECURITY;
 
 
 --
+-- Name: fin_peds; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_peds (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    exercicio integer NOT NULL,
+    numero text NOT NULL,
+    numero_estorno text,
+    empenho_numero text,
+    processo_fiplan text,
+    processo_sei text,
+    processo_chave text GENERATED ALWAYS AS (public.processo_chave_fiplan(COALESCE(processo_sei, processo_fiplan))) STORED,
+    valor numeric(15,2) NOT NULL,
+    situacao text NOT NULL,
+    estorno boolean DEFAULT false NOT NULL,
+    data_solicitacao date,
+    data_criacao date,
+    data_autorizacao date,
+    tipo_empenho text,
+    dotacao_fiplan text,
+    dotacao_id uuid,
+    licitacao text,
+    historico text,
+    credor_codigo text,
+    credor_nome text,
+    importacao_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_peds_credor_codigo_check CHECK ((char_length(credor_codigo) <= 20)),
+    CONSTRAINT fin_peds_credor_nome_check CHECK ((char_length(credor_nome) <= 300)),
+    CONSTRAINT fin_peds_dotacao_fiplan_check CHECK ((char_length(dotacao_fiplan) <= 80)),
+    CONSTRAINT fin_peds_empenho_numero_check CHECK ((empenho_numero ~ '^\d{5}\.\d{4}\.\d{2}\.\d{5}-\d$'::text)),
+    CONSTRAINT fin_peds_exercicio_check CHECK (((exercicio >= 2000) AND (exercicio <= 2100))),
+    CONSTRAINT fin_peds_historico_check CHECK ((char_length(historico) <= 4000)),
+    CONSTRAINT fin_peds_licitacao_check CHECK ((char_length(licitacao) <= 80)),
+    CONSTRAINT fin_peds_numero_check CHECK ((numero ~ '^\d{5}\.\d{4}\.\d{2}\.\d{5}-\d$'::text)),
+    CONSTRAINT fin_peds_numero_estorno_check CHECK ((numero_estorno ~ '^\d{5}\.\d{4}\.\d{2}\.\d{5}-\d$'::text)),
+    CONSTRAINT fin_peds_processo_fiplan_check CHECK ((char_length(processo_fiplan) <= 30)),
+    CONSTRAINT fin_peds_processo_sei_check CHECK ((char_length(processo_sei) <= 50)),
+    CONSTRAINT fin_peds_situacao_check CHECK (((char_length(btrim(situacao)) >= 1) AND (char_length(btrim(situacao)) <= 120))),
+    CONSTRAINT fin_peds_tipo_empenho_check CHECK ((char_length(tipo_empenho) <= 40)),
+    CONSTRAINT fin_peds_valor_check CHECK ((valor >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE fin_peds; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_peds IS 'PEDs (pedidos de empenho) do FIPLAN, do relatório "Consultar Pedido de Empenho da Despesa (PED)". Uma linha por PED ou documento de estorno (o mesmo PED aparece uma vez por estorno). Escrita só pela RPC importar_peds_fiplan.';
+
+
+--
 -- Name: fin_plano_contas; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -23739,6 +25357,429 @@ CREATE TABLE public.participantes_reuniao (
 
 
 --
+-- Name: passagem_anexos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_anexos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    pedido_id uuid NOT NULL,
+    passageiro_id uuid,
+    tipo text NOT NULL,
+    caminho text NOT NULL,
+    nome_arquivo text NOT NULL,
+    tamanho_bytes bigint,
+    mime_type text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT passagem_anexos_caminho_check CHECK ((char_length(caminho) <= 500)),
+    CONSTRAINT passagem_anexos_caminho_pedido_check CHECK ((caminho ~~ ((pedido_id)::text || '/%'::text))),
+    CONSTRAINT passagem_anexos_mime_type_check CHECK ((char_length(mime_type) <= 100)),
+    CONSTRAINT passagem_anexos_nome_arquivo_check CHECK (((char_length(btrim(nome_arquivo)) >= 1) AND (char_length(btrim(nome_arquivo)) <= 255))),
+    CONSTRAINT passagem_anexos_tamanho_bytes_check CHECK ((tamanho_bytes >= 0)),
+    CONSTRAINT passagem_anexos_tipo_check CHECK ((tipo = ANY (ARRAY['cartao_embarque'::text, 'bilhete'::text, 'relatorio'::text, 'outro'::text])))
+);
+
+
+--
+-- Name: TABLE passagem_anexos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_anexos IS 'Anexos das passagens (cartão de embarque, bilhete, relatório): o arquivo fica no bucket privado passagens, em <pedido_id>/...';
+
+
+--
+-- Name: passagem_beneficiarios; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_beneficiarios (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nome text NOT NULL,
+    cpf text NOT NULL,
+    data_nascimento date,
+    documento_tipo text,
+    documento_numero text,
+    documento_orgao text,
+    telefone text,
+    email text,
+    instituicao_id uuid,
+    instituicao_nome text,
+    observacoes text,
+    ativo boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT passagem_beneficiarios_cpf_check CHECK ((cpf ~ '^[0-9]{11}$'::text)),
+    CONSTRAINT passagem_beneficiarios_documento_numero_check CHECK ((char_length(documento_numero) <= 40)),
+    CONSTRAINT passagem_beneficiarios_documento_orgao_check CHECK ((char_length(documento_orgao) <= 40)),
+    CONSTRAINT passagem_beneficiarios_documento_tipo_check CHECK ((documento_tipo = ANY (ARRAY['rg'::text, 'cnh'::text, 'passaporte'::text, 'outro'::text]))),
+    CONSTRAINT passagem_beneficiarios_email_check CHECK ((char_length(email) <= 200)),
+    CONSTRAINT passagem_beneficiarios_instituicao_nome_check CHECK ((char_length(instituicao_nome) <= 200)),
+    CONSTRAINT passagem_beneficiarios_nome_check CHECK (((char_length(btrim(nome)) >= 3) AND (char_length(btrim(nome)) <= 200))),
+    CONSTRAINT passagem_beneficiarios_observacoes_check CHECK ((char_length(observacoes) <= 2000)),
+    CONSTRAINT passagem_beneficiarios_telefone_check CHECK ((char_length(telefone) <= 30))
+);
+
+
+--
+-- Name: TABLE passagem_beneficiarios; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_beneficiarios IS 'Beneficiários de passagem que não são servidores (atletas, técnicos, convidados). Dado pessoal: só o módulo contratos com a permissão de passagens lê. Sai por ativo = false.';
+
+
+--
+-- Name: passagem_contrato_empenhos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_contrato_empenhos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    contrato_id uuid NOT NULL,
+    empenho_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid
+);
+
+
+--
+-- Name: TABLE passagem_contrato_empenhos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_contrato_empenhos IS 'Empenhos ligados ao contrato da agência de passagens (o FIP 614 não traz o contrato). O saldo chega por passagem_empenhos_contrato.';
+
+
+--
+-- Name: passagem_cotacoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_cotacoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    trecho_id uuid NOT NULL,
+    companhia text NOT NULL,
+    voo text,
+    partida timestamp with time zone,
+    chegada timestamp with time zone,
+    valor numeric(12,2) NOT NULL,
+    escolhida boolean DEFAULT false NOT NULL,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT passagem_cotacoes_companhia_check CHECK (((char_length(btrim(companhia)) >= 1) AND (char_length(btrim(companhia)) <= 80))),
+    CONSTRAINT passagem_cotacoes_observacoes_check CHECK ((char_length(observacoes) <= 1000)),
+    CONSTRAINT passagem_cotacoes_valor_check CHECK ((valor >= (0)::numeric)),
+    CONSTRAINT passagem_cotacoes_voo_check CHECK ((char_length(voo) <= 30))
+);
+
+
+--
+-- Name: TABLE passagem_cotacoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_cotacoes IS 'Opções de voo que a agência mandou para cada trecho; no máximo uma escolhida.';
+
+
+--
+-- Name: passagem_fatura_itens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_fatura_itens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    fatura_id uuid NOT NULL,
+    trecho_id uuid NOT NULL,
+    valor numeric(12,2) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT passagem_fatura_itens_valor_check CHECK ((valor >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE passagem_fatura_itens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_fatura_itens IS 'Bilhetes (trechos com localizador) cobertos por cada nota da agência; cada trecho entra numa nota só. O valor vem do bilhete e pode ser ajustado.';
+
+
+--
+-- Name: passagem_faturas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_faturas (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    contrato_id uuid NOT NULL,
+    numero text NOT NULL,
+    data_emissao date NOT NULL,
+    valor numeric(12,2) NOT NULL,
+    processo_sei_pagamento text,
+    situacao text DEFAULT 'recebida'::text NOT NULL,
+    atesto_data date,
+    atesto_documento_sei text,
+    liquidacao_data date,
+    pagamento_data date,
+    ob_numero text,
+    cancelamento_motivo text,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT passagem_faturas_atesto_check CHECK (((situacao <> ALL (ARRAY['atestada'::text, 'liquidada'::text, 'paga'::text])) OR ((atesto_data IS NOT NULL) AND (char_length(btrim(COALESCE(atesto_documento_sei, ''::text))) >= 1)))),
+    CONSTRAINT passagem_faturas_atesto_documento_sei_check CHECK ((char_length(atesto_documento_sei) <= 60)),
+    CONSTRAINT passagem_faturas_cancelamento_check CHECK (((situacao <> 'cancelada'::text) OR (char_length(btrim(COALESCE(cancelamento_motivo, ''::text))) >= 3))),
+    CONSTRAINT passagem_faturas_cancelamento_motivo_check CHECK ((char_length(cancelamento_motivo) <= 1000)),
+    CONSTRAINT passagem_faturas_liquidacao_check CHECK (((situacao <> ALL (ARRAY['liquidada'::text, 'paga'::text])) OR (liquidacao_data IS NOT NULL))),
+    CONSTRAINT passagem_faturas_numero_check CHECK (((char_length(btrim(numero)) >= 1) AND (char_length(btrim(numero)) <= 40))),
+    CONSTRAINT passagem_faturas_ob_numero_check CHECK ((char_length(ob_numero) <= 40)),
+    CONSTRAINT passagem_faturas_observacoes_check CHECK ((char_length(observacoes) <= 2000)),
+    CONSTRAINT passagem_faturas_pagamento_check CHECK (((situacao <> 'paga'::text) OR ((pagamento_data IS NOT NULL) AND (char_length(btrim(COALESCE(ob_numero, ''::text))) >= 1)))),
+    CONSTRAINT passagem_faturas_processo_sei_pagamento_check CHECK ((char_length(processo_sei_pagamento) <= 60)),
+    CONSTRAINT passagem_faturas_situacao_check CHECK ((situacao = ANY (ARRAY['recebida'::text, 'atestada'::text, 'liquidada'::text, 'paga'::text, 'cancelada'::text]))),
+    CONSTRAINT passagem_faturas_valor_check CHECK ((valor > (0)::numeric))
+);
+
+
+--
+-- Name: TABLE passagem_faturas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_faturas IS 'Notas fiscais da agência de passagens e a situação até paga (com a OB). O FIPLAN é o oficial; aqui fica quais bilhetes cada nota cobre. Paga não se apaga; cancelada solta os bilhetes.';
+
+
+--
+-- Name: passagem_historico; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_historico (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    pedido_id uuid NOT NULL,
+    trecho_id uuid,
+    acao text NOT NULL,
+    antes jsonb,
+    depois jsonb,
+    feito_por uuid DEFAULT auth.uid(),
+    feito_em timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT passagem_historico_acao_check CHECK ((acao = ANY (ARRAY['pedido_criado'::text, 'pedido_situacao'::text, 'trecho_situacao'::text, 'prestacao_pedido'::text, 'prestacao_passageiro'::text, 'anexo_incluido'::text, 'anexo_removido'::text, 'fatura_situacao'::text, 'fatura_item'::text])))
+);
+
+
+--
+-- Name: TABLE passagem_historico; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_historico IS 'Trilha do pedido de passagem: criação e mudanças de situação do pedido e dos trechos (gatilho).';
+
+
+--
+-- Name: passagem_passageiros; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_passageiros (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    pedido_id uuid NOT NULL,
+    servidor_id uuid,
+    beneficiario_id uuid,
+    nome text,
+    viagem_id uuid,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    embarque_entregue_em date,
+    relatorio_entregue_em date,
+    relatorio_documento_sei text,
+    prestacao_dispensada boolean DEFAULT false NOT NULL,
+    prestacao_dispensa_motivo text,
+    CONSTRAINT passagem_passageiros_dispensa_check CHECK (((NOT prestacao_dispensada) OR (char_length(btrim(COALESCE(prestacao_dispensa_motivo, ''::text))) >= 3))),
+    CONSTRAINT passagem_passageiros_observacoes_check CHECK ((char_length(observacoes) <= 1000)),
+    CONSTRAINT passagem_passageiros_pessoa_check CHECK (((servidor_id IS NULL) <> (beneficiario_id IS NULL))),
+    CONSTRAINT passagem_passageiros_prestacao_dispensa_motivo_check CHECK ((char_length(prestacao_dispensa_motivo) <= 1000)),
+    CONSTRAINT passagem_passageiros_relatorio_documento_sei_check CHECK ((char_length(relatorio_documento_sei) <= 60)),
+    CONSTRAINT passagem_passageiros_viagem_check CHECK (((viagem_id IS NULL) OR (servidor_id IS NOT NULL)))
+);
+
+
+--
+-- Name: TABLE passagem_passageiros; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_passageiros IS 'Passageiros do pedido: servidor (RH) ou beneficiário. nome é copiado pelo gatilho passagem_copiar_nome. viagem_id liga à viagem do RH (diárias e relatório).';
+
+
+--
+-- Name: COLUMN passagem_passageiros.embarque_entregue_em; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_passageiros.embarque_entregue_em IS 'Entrega do(s) cartão(ões) de embarque.';
+
+
+--
+-- Name: COLUMN passagem_passageiros.relatorio_entregue_em; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_passageiros.relatorio_entregue_em IS 'Entrega do relatório individual (modo individual).';
+
+
+--
+-- Name: COLUMN passagem_passageiros.prestacao_dispensada; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_passageiros.prestacao_dispensada IS 'Passageiro dispensado da prestação (ex.: não viajou).';
+
+
+--
+-- Name: passagem_pedidos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_pedidos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    numero_sei text NOT NULL,
+    data_pedido date DEFAULT CURRENT_DATE NOT NULL,
+    origem text DEFAULT 'sei'::text NOT NULL,
+    solicitante_tipo text NOT NULL,
+    solicitante_servidor_id uuid,
+    solicitante_beneficiario_id uuid,
+    solicitante_instituicao_id uuid,
+    solicitante_nome text,
+    contrato_id uuid,
+    finalidade text NOT NULL,
+    evento text,
+    destino_cidade text,
+    destino_uf text,
+    data_inicio date,
+    data_fim date,
+    prestacao_contas text DEFAULT 'individual'::text NOT NULL,
+    situacao text DEFAULT 'recebido'::text NOT NULL,
+    aprovacao_documento_sei text,
+    aprovacao_data date,
+    cancelamento_motivo text,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    prestacao_dispensa_motivo text,
+    responsavel_passageiro_id uuid,
+    relatorio_evento_entregue_em date,
+    relatorio_evento_documento_sei text,
+    CONSTRAINT passagem_pedidos_aprovacao_check CHECK (((situacao <> ALL (ARRAY['aprovado'::text, 'emitido'::text, 'concluido'::text])) OR ((aprovacao_documento_sei IS NOT NULL) AND (aprovacao_data IS NOT NULL)))),
+    CONSTRAINT passagem_pedidos_aprovacao_documento_sei_check CHECK ((char_length(aprovacao_documento_sei) <= 60)),
+    CONSTRAINT passagem_pedidos_cancelamento_check CHECK (((situacao <> 'cancelado'::text) OR (cancelamento_motivo IS NOT NULL))),
+    CONSTRAINT passagem_pedidos_cancelamento_motivo_check CHECK ((char_length(cancelamento_motivo) <= 1000)),
+    CONSTRAINT passagem_pedidos_datas_check CHECK (((data_fim IS NULL) OR (data_inicio IS NULL) OR (data_fim >= data_inicio))),
+    CONSTRAINT passagem_pedidos_destino_cidade_check CHECK ((char_length(destino_cidade) <= 120)),
+    CONSTRAINT passagem_pedidos_destino_uf_check CHECK ((destino_uf ~ '^[A-Z]{2}$'::text)),
+    CONSTRAINT passagem_pedidos_dispensa_check CHECK (((prestacao_contas <> 'dispensado'::text) OR (char_length(btrim(COALESCE(prestacao_dispensa_motivo, ''::text))) >= 3))),
+    CONSTRAINT passagem_pedidos_evento_check CHECK ((char_length(evento) <= 300)),
+    CONSTRAINT passagem_pedidos_finalidade_check CHECK (((char_length(btrim(finalidade)) >= 3) AND (char_length(btrim(finalidade)) <= 2000))),
+    CONSTRAINT passagem_pedidos_numero_sei_check CHECK (((char_length(btrim(numero_sei)) >= 1) AND (char_length(btrim(numero_sei)) <= 60))),
+    CONSTRAINT passagem_pedidos_observacoes_check CHECK ((char_length(observacoes) <= 2000)),
+    CONSTRAINT passagem_pedidos_origem_check CHECK ((origem = ANY (ARRAY['sei'::text, 'email'::text, 'oficio'::text, 'outro'::text]))),
+    CONSTRAINT passagem_pedidos_prestacao_contas_check CHECK ((prestacao_contas = ANY (ARRAY['individual'::text, 'evento'::text, 'dispensado'::text]))),
+    CONSTRAINT passagem_pedidos_prestacao_dispensa_motivo_check CHECK ((char_length(prestacao_dispensa_motivo) <= 1000)),
+    CONSTRAINT passagem_pedidos_relatorio_evento_documento_sei_check CHECK ((char_length(relatorio_evento_documento_sei) <= 60)),
+    CONSTRAINT passagem_pedidos_situacao_check CHECK ((situacao = ANY (ARRAY['recebido'::text, 'cotacao_solicitada'::text, 'cotacao_recebida'::text, 'aprovado'::text, 'emitido'::text, 'concluido'::text, 'cancelado'::text]))),
+    CONSTRAINT passagem_pedidos_solicitante_check CHECK ((((solicitante_tipo = 'servidor'::text) AND (solicitante_servidor_id IS NOT NULL)) OR ((solicitante_tipo = 'beneficiario'::text) AND (solicitante_beneficiario_id IS NOT NULL)) OR ((solicitante_tipo = 'instituicao'::text) AND ((solicitante_instituicao_id IS NOT NULL) OR (solicitante_nome IS NOT NULL))))),
+    CONSTRAINT passagem_pedidos_solicitante_nome_check CHECK ((char_length(solicitante_nome) <= 200)),
+    CONSTRAINT passagem_pedidos_solicitante_tipo_check CHECK ((solicitante_tipo = ANY (ARRAY['servidor'::text, 'beneficiario'::text, 'instituicao'::text])))
+);
+
+
+--
+-- Name: TABLE passagem_pedidos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_pedidos IS 'Pedido de passagem: um por processo SEI. O SEI tramita e assina; aqui ficam a situação, a data e o nº do documento da aprovação do Presidente. Sai por situacao = cancelado.';
+
+
+--
+-- Name: COLUMN passagem_pedidos.prestacao_dispensa_motivo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_pedidos.prestacao_dispensa_motivo IS 'Por que o pedido não tem relatório (modo dispensado).';
+
+
+--
+-- Name: COLUMN passagem_pedidos.responsavel_passageiro_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_pedidos.responsavel_passageiro_id IS 'Passageiro que entrega o relatório único do evento.';
+
+
+--
+-- Name: COLUMN passagem_pedidos.relatorio_evento_entregue_em; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.passagem_pedidos.relatorio_evento_entregue_em IS 'Entrega do relatório único do evento (modo evento).';
+
+
+--
+-- Name: passagem_trechos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.passagem_trechos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    passageiro_id uuid NOT NULL,
+    ordem integer DEFAULT 1 NOT NULL,
+    origem text NOT NULL,
+    destino text NOT NULL,
+    data_voo date NOT NULL,
+    situacao text DEFAULT 'a_cotar'::text NOT NULL,
+    companhia text,
+    voo text,
+    partida timestamp with time zone,
+    chegada timestamp with time zone,
+    localizador text,
+    numero_bilhete text,
+    data_emissao date,
+    valor_tarifa numeric(12,2) DEFAULT 0 NOT NULL,
+    valor_taxa_embarque numeric(12,2) DEFAULT 0 NOT NULL,
+    valor_taxa_servico numeric(12,2) DEFAULT 0 NOT NULL,
+    valor_desconto numeric(12,2) DEFAULT 0 NOT NULL,
+    valor_multa numeric(12,2) DEFAULT 0 NOT NULL,
+    valor_reembolso numeric(12,2) DEFAULT 0 NOT NULL,
+    valor_emissao numeric(12,2) GENERATED ALWAYS AS ((((valor_tarifa + valor_taxa_embarque) + valor_taxa_servico) - valor_desconto)) STORED,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT passagem_trechos_companhia_check CHECK ((char_length(companhia) <= 80)),
+    CONSTRAINT passagem_trechos_destino_check CHECK (((char_length(btrim(destino)) >= 2) AND (char_length(btrim(destino)) <= 120))),
+    CONSTRAINT passagem_trechos_emissao_check CHECK (((situacao <> ALL (ARRAY['emitido'::text, 'remarcado'::text, 'reembolsado'::text])) OR ((localizador IS NOT NULL) AND (data_emissao IS NOT NULL)))),
+    CONSTRAINT passagem_trechos_horario_check CHECK (((chegada IS NULL) OR (partida IS NULL) OR (chegada >= partida))),
+    CONSTRAINT passagem_trechos_localizador_check CHECK ((char_length(localizador) <= 20)),
+    CONSTRAINT passagem_trechos_numero_bilhete_check CHECK ((char_length(numero_bilhete) <= 30)),
+    CONSTRAINT passagem_trechos_observacoes_check CHECK ((char_length(observacoes) <= 1000)),
+    CONSTRAINT passagem_trechos_ordem_check CHECK (((ordem >= 1) AND (ordem <= 20))),
+    CONSTRAINT passagem_trechos_origem_check CHECK (((char_length(btrim(origem)) >= 2) AND (char_length(btrim(origem)) <= 120))),
+    CONSTRAINT passagem_trechos_situacao_check CHECK ((situacao = ANY (ARRAY['a_cotar'::text, 'cotado'::text, 'emitido'::text, 'remarcado'::text, 'cancelado'::text, 'reembolsado'::text]))),
+    CONSTRAINT passagem_trechos_valor_desconto_check CHECK ((valor_desconto >= (0)::numeric)),
+    CONSTRAINT passagem_trechos_valor_multa_check CHECK ((valor_multa >= (0)::numeric)),
+    CONSTRAINT passagem_trechos_valor_reembolso_check CHECK ((valor_reembolso >= (0)::numeric)),
+    CONSTRAINT passagem_trechos_valor_tarifa_check CHECK ((valor_tarifa >= (0)::numeric)),
+    CONSTRAINT passagem_trechos_valor_taxa_embarque_check CHECK ((valor_taxa_embarque >= (0)::numeric)),
+    CONSTRAINT passagem_trechos_valor_taxa_servico_check CHECK ((valor_taxa_servico >= (0)::numeric)),
+    CONSTRAINT passagem_trechos_voo_check CHECK ((char_length(voo) <= 30))
+);
+
+
+--
+-- Name: TABLE passagem_trechos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.passagem_trechos IS 'Trechos de cada passageiro e a emissão (localizador, bilhete, valores). Trecho com localizador não se apaga: vai para cancelado ou reembolsado.';
+
+
+--
 -- Name: patrimonio_unidade; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -24178,6 +26219,43 @@ CREATE TABLE public.processo_modelos (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: processo_reservas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processo_reservas (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    processo_id uuid NOT NULL,
+    exercicio integer NOT NULL,
+    acao_id uuid NOT NULL,
+    fonte_recurso_id uuid NOT NULL,
+    natureza_despesa_id uuid NOT NULL,
+    pca_item_id uuid,
+    valor numeric(15,2) NOT NULL,
+    situacao text DEFAULT 'reservada'::text NOT NULL,
+    justificativa_saldo text,
+    saldo_livre_no_momento numeric(15,2),
+    motivo_cancelamento text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT processo_reservas_cancelada_check CHECK (((situacao = 'reservada'::text) OR (motivo_cancelamento IS NOT NULL))),
+    CONSTRAINT processo_reservas_exercicio_check CHECK (((exercicio >= 2000) AND (exercicio <= 2100))),
+    CONSTRAINT processo_reservas_justificativa_saldo_check CHECK ((char_length(justificativa_saldo) <= 2000)),
+    CONSTRAINT processo_reservas_motivo_cancelamento_check CHECK ((char_length(motivo_cancelamento) <= 1000)),
+    CONSTRAINT processo_reservas_situacao_check CHECK ((situacao = ANY (ARRAY['reservada'::text, 'cancelada'::text]))),
+    CONSTRAINT processo_reservas_valor_check CHECK ((valor > (0)::numeric))
+);
+
+
+--
+-- Name: TABLE processo_reservas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.processo_reservas IS 'Reserva gerencial do processo de contratação por exercício × ação × fonte × natureza (não cria reserva nem PED no FIPLAN). Escrita só pelas RPCs processo_reserva_salvar e processo_reserva_cancelar.';
 
 
 --

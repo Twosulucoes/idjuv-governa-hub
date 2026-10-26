@@ -4,7 +4,7 @@
 export const HOST_PORTAL = "dadosabertos.compras.gov.br";
 export const TAMANHO_PAGINA = 500;
 
-export type AcaoPortal = "pdm" | "servico" | "itens_pdm" | "item";
+export type AcaoPortal = "pdm" | "servico" | "itens_pdm" | "item" | "naturezas_pdm" | "naturezas_servico";
 
 export interface LinhaPdm {
   codigo_pdm: number;
@@ -30,6 +30,13 @@ export interface LinhaServico {
   ativo: boolean;
 }
 
+/** Natureza de despesa indicada pelo catálogo para um PDM ou serviço (código federal de 8 dígitos). */
+export interface LinhaNatureza {
+  codigo: string;
+  nome: string | null;
+  ativo: boolean;
+}
+
 export interface LinhaItem {
   codigo_item: number;
   codigo_pdm: number;
@@ -51,12 +58,17 @@ function textoLimpo(v: unknown): string | null {
 
 const pagina = (n: unknown) => inteiro(n) ?? 1;
 
-export function urlPortal(acao: AcaoPortal, p: { pagina?: number; codigoPdm?: number; codigoItem?: number }): string {
+export function urlPortal(
+  acao: AcaoPortal,
+  p: { pagina?: number; codigoPdm?: number; codigoItem?: number; codigoServico?: number },
+): string {
   const caminho = {
     pdm: "modulo-material/3_consultarPdmMaterial",
     servico: "modulo-servico/6_consultarItemServico",
     itens_pdm: "modulo-material/4_consultarItemMaterial",
     item: "modulo-material/4_consultarItemMaterial",
+    naturezas_pdm: "modulo-material/5_consultarMaterialNaturezaDespesa",
+    naturezas_servico: "modulo-servico/8_consultarNaturezaDespesaServico",
   }[acao];
   const busca = new URLSearchParams();
   busca.set("pagina", String(pagina(p.pagina)));
@@ -66,6 +78,8 @@ export function urlPortal(acao: AcaoPortal, p: { pagina?: number; codigoPdm?: nu
     busca.set("statusItem", "true");
   }
   if (acao === "item") busca.set("codigoItem", String(inteiro(p.codigoItem) ?? 0));
+  if (acao === "naturezas_pdm") busca.set("codigoPdm", String(inteiro(p.codigoPdm) ?? 0));
+  if (acao === "naturezas_servico") busca.set("codigoServico", String(inteiro(p.codigoServico) ?? 0));
   return `https://${HOST_PORTAL}/${caminho}?${busca.toString()}`;
 }
 
@@ -96,4 +110,13 @@ export function mapearItemMaterial(j: Bruto): LinhaItem | null {
   const codigo_item = inteiro(j.codigoItem), codigo_pdm = inteiro(j.codigoPdm), descricao = textoLimpo(j.descricaoItem);
   if (!codigo_item || !codigo_pdm || !descricao) return null;
   return { codigo_item, codigo_pdm, descricao, sustentavel: j.itemSustentavel === true, ativo: j.statusItem !== false };
+}
+
+/** Natureza do portal: o status vem como booleano (serviço) ou "1"/"0" (material), às vezes null (= sem informação). */
+export function mapearNatureza(j: Bruto): LinhaNatureza | null {
+  const bruto = j.codigoNaturezaDespesa;
+  const codigo = typeof bruto === "string" ? bruto.trim() : typeof bruto === "number" && Number.isInteger(bruto) ? String(bruto) : "";
+  if (!/^\d{8}$/.test(codigo)) return null;
+  const status = j.statusNaturezaDespesa;
+  return { codigo, nome: textoLimpo(j.nomeNaturezaDespesa), ativo: !(status === false || status === "0" || status === 0) };
 }

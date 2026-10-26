@@ -10,8 +10,9 @@
 import {
   LayoutDashboard,
   Workflow,
+  Search,
+  Hourglass,
   FileText,
-  Archive,
   ShoppingCart,
   FileCheck,
   Users,
@@ -96,6 +97,9 @@ export type PermissaoInstitucional =
   | 'contratos.criar'
   | 'contratos.tramitar'
   | 'contratos.aprovar'
+  | 'contratos.passagens.visualizar'
+  | 'contratos.passagens.editar'
+  | 'contratos.passagens.financeiro'
   // RH
   // Código sem ponto = o módulo (hasPermission confere user_modules): para itens cuja rota pede só requiredModule
   | 'rh'
@@ -189,45 +193,25 @@ export const menuConfig: MenuSection[] = [
   // ========== 1. PROCESSOS ADMINISTRATIVOS ==========
   {
     id: "processos",
-    label: "Processos Administrativos",
+    label: "Processos SEI",
     labelShort: "Processos",
     icon: Workflow,
     priority: 1,
     items: [
       {
-        id: "processos-lista",
-        label: "Processos",
-        labelShort: "Lista",
-        route: "/workflow/processos",
-        icon: Workflow,
-        permission: "workflow.visualizar",
-        priority: 1,
+        id: "processos-localizar",
+        label: "Localizar processo",
+        labelShort: "Localizar",
+        route: "/processos/localizar",
+        icon: Search,
+        priority: 0,
       },
       {
-        id: "processos-novo",
-        label: "Novo Processo",
-        labelShort: "Novo",
-        route: "/workflow/processos?acao=novo",
-        icon: FileText,
-        permission: "workflow.criar",
-        priority: 2,
-      },
-      {
-        id: "processos-tramitacao",
-        label: "Em Tramitação",
-        labelShort: "Tramitação",
-        route: "/workflow/processos?status=em_tramitacao",
-        icon: Send,
-        permission: "workflow.tramitar",
-        priority: 3,
-      },
-      {
-        id: "processos-arquivados",
-        label: "Arquivados",
-        route: "/workflow/processos?status=arquivado",
-        icon: Archive,
-        permission: "workflow.visualizar",
-        priority: 10,
+        id: "processos-parados",
+        label: "Parados",
+        route: "/processos/localizar?aba=parados",
+        icon: Hourglass,
+        priority: 0,
       },
     ],
   },
@@ -246,6 +230,20 @@ export const menuConfig: MenuSection[] = [
         icon: ShoppingCart,
         children: [
           {
+            id: "pca",
+            label: "Plano de Contratações (PCA)",
+            route: "/compras/pca",
+            icon: ClipboardList,
+            permission: "compras.pca.visualizar",
+          },
+          {
+            id: "programacao-natureza",
+            label: "Programação por natureza",
+            route: "/compras/programacao",
+            icon: Landmark,
+            permission: "compras.processos.visualizar",
+          },
+          {
             id: "licitacoes",
             label: "Processos de contratação",
             route: "/compras/processos",
@@ -260,11 +258,10 @@ export const menuConfig: MenuSection[] = [
             permission: "compras.processos.editar",
           },
           {
-            id: "pca",
-            label: "Plano de Contratações (PCA)",
-            route: "/compras/pca",
-            icon: ClipboardList,
-            permission: "compras.pca.visualizar",
+            id: "guia-compras",
+            label: "Como funciona uma compra",
+            route: "/processos/compras",
+            icon: BookOpen,
           },
         ],
       },
@@ -274,18 +271,32 @@ export const menuConfig: MenuSection[] = [
         icon: FileCheck,
         children: [
           {
-            id: "contratos-lista",
-            label: "Contratos",
-            route: "/processos/compras?tab=contratos",
-            icon: FileCheck,
-            permission: "contratos.visualizar",
+            id: "passagens",
+            label: "Passagens aéreas",
+            route: "/contratos/passagens",
+            icon: Plane,
+            permissions: ["contratos.passagens.visualizar", "contratos.passagens.editar"],
           },
           {
-            id: "contratos-execucao",
-            label: "Execução Contratual",
-            route: "/processos/compras?tab=execucao",
-            icon: TrendingUp,
-            permission: "contratos.tramitar",
+            id: "passagens-pendencias",
+            label: "Pendências de passagens",
+            route: "/contratos/passagens/pendencias",
+            icon: ClipboardCheck,
+            permissions: ["contratos.passagens.visualizar", "contratos.passagens.editar"],
+          },
+          {
+            id: "passagens-faturas",
+            label: "Faturas de passagens",
+            route: "/contratos/passagens/faturas",
+            icon: Receipt,
+            permissions: ["contratos.passagens.visualizar", "contratos.passagens.editar", "contratos.passagens.financeiro"],
+          },
+          {
+            id: "passagens-novo",
+            label: "Novo pedido de passagem",
+            route: "/contratos/passagens?novo=1",
+            icon: FileText,
+            permission: "contratos.passagens.editar",
           },
         ],
       },

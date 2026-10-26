@@ -6325,6 +6325,7 @@ export type Database = {
       contratos: {
         Row: {
           ano: number
+          controla_passagens: boolean
           created_at: string | null
           created_by: string | null
           data_assinatura: string
@@ -6358,6 +6359,7 @@ export type Database = {
         ComputedFields: never
         Insert: {
           ano?: number
+          controla_passagens?: boolean
           created_at?: string | null
           created_by?: string | null
           data_assinatura: string
@@ -6390,6 +6392,7 @@ export type Database = {
         }
         Update: {
           ano?: number
+          controla_passagens?: boolean
           created_at?: string | null
           created_by?: string | null
           data_assinatura?: string
@@ -12366,6 +12369,103 @@ export type Database = {
           valor?: string
         }
         Relationships: []
+      }
+      fin_peds: {
+        Row: {
+          created_at: string
+          credor_codigo: string | null
+          credor_nome: string | null
+          data_autorizacao: string | null
+          data_criacao: string | null
+          data_solicitacao: string | null
+          dotacao_fiplan: string | null
+          dotacao_id: string | null
+          empenho_numero: string | null
+          estorno: boolean
+          exercicio: number
+          historico: string | null
+          id: string
+          importacao_id: string | null
+          licitacao: string | null
+          numero: string
+          numero_estorno: string | null
+          processo_chave: string | null
+          processo_fiplan: string | null
+          processo_sei: string | null
+          situacao: string
+          tipo_empenho: string | null
+          updated_at: string
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          credor_codigo?: string | null
+          credor_nome?: string | null
+          data_autorizacao?: string | null
+          data_criacao?: string | null
+          data_solicitacao?: string | null
+          dotacao_fiplan?: string | null
+          dotacao_id?: string | null
+          empenho_numero?: string | null
+          estorno?: boolean
+          exercicio: number
+          historico?: string | null
+          id?: string
+          importacao_id?: string | null
+          licitacao?: string | null
+          numero: string
+          numero_estorno?: string | null
+          processo_chave?: never
+          processo_fiplan?: string | null
+          processo_sei?: string | null
+          situacao: string
+          tipo_empenho?: string | null
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          credor_codigo?: string | null
+          credor_nome?: string | null
+          data_autorizacao?: string | null
+          data_criacao?: string | null
+          data_solicitacao?: string | null
+          dotacao_fiplan?: string | null
+          dotacao_id?: string | null
+          empenho_numero?: string | null
+          estorno?: boolean
+          exercicio?: number
+          historico?: string | null
+          id?: string
+          importacao_id?: string | null
+          licitacao?: string | null
+          numero?: string
+          numero_estorno?: string | null
+          processo_chave?: never
+          processo_fiplan?: string | null
+          processo_sei?: string | null
+          situacao?: string
+          tipo_empenho?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_peds_dotacao_id_fkey"
+            columns: ["dotacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_peds_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fin_plano_contas: {
         Row: {
@@ -18358,6 +18458,791 @@ export type Database = {
           },
         ]
       }
+      passagem_anexos: {
+        Row: {
+          caminho: string
+          created_at: string
+          created_by: string | null
+          id: string
+          mime_type: string | null
+          nome_arquivo: string
+          passageiro_id: string | null
+          pedido_id: string
+          tamanho_bytes: number | null
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          caminho: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mime_type?: string | null
+          nome_arquivo: string
+          passageiro_id?: string | null
+          pedido_id: string
+          tamanho_bytes?: number | null
+          tipo: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          caminho?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mime_type?: string | null
+          nome_arquivo?: string
+          passageiro_id?: string | null
+          pedido_id?: string
+          tamanho_bytes?: number | null
+          tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_anexos_passageiro_id_fkey"
+            columns: ["passageiro_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_passageiros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_anexos_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_beneficiarios: {
+        Row: {
+          ativo: boolean
+          cpf: string
+          created_at: string
+          created_by: string | null
+          data_nascimento: string | null
+          documento_numero: string | null
+          documento_orgao: string | null
+          documento_tipo: string | null
+          email: string | null
+          id: string
+          instituicao_id: string | null
+          instituicao_nome: string | null
+          nome: string
+          observacoes: string | null
+          telefone: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          cpf: string
+          created_at?: string
+          created_by?: string | null
+          data_nascimento?: string | null
+          documento_numero?: string | null
+          documento_orgao?: string | null
+          documento_tipo?: string | null
+          email?: string | null
+          id?: string
+          instituicao_id?: string | null
+          instituicao_nome?: string | null
+          nome: string
+          observacoes?: string | null
+          telefone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          cpf?: string
+          created_at?: string
+          created_by?: string | null
+          data_nascimento?: string | null
+          documento_numero?: string | null
+          documento_orgao?: string | null
+          documento_tipo?: string | null
+          email?: string | null
+          id?: string
+          instituicao_id?: string | null
+          instituicao_nome?: string | null
+          nome?: string
+          observacoes?: string | null
+          telefone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_beneficiarios_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_beneficiarios_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "v_instituicoes_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_contrato_empenhos: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          empenho_id: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          empenho_id: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          empenho_id?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_contrato_empenhos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_contrato_empenhos_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_cotacoes: {
+        Row: {
+          chegada: string | null
+          companhia: string
+          created_at: string
+          created_by: string | null
+          escolhida: boolean
+          id: string
+          observacoes: string | null
+          partida: string | null
+          trecho_id: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+          voo: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          chegada?: string | null
+          companhia: string
+          created_at?: string
+          created_by?: string | null
+          escolhida?: boolean
+          id?: string
+          observacoes?: string | null
+          partida?: string | null
+          trecho_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+          voo?: string | null
+        }
+        Update: {
+          chegada?: string | null
+          companhia?: string
+          created_at?: string
+          created_by?: string | null
+          escolhida?: boolean
+          id?: string
+          observacoes?: string | null
+          partida?: string | null
+          trecho_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+          voo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_cotacoes_trecho_id_fkey"
+            columns: ["trecho_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_trechos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_fatura_itens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          fatura_id: string
+          id: string
+          trecho_id: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          fatura_id: string
+          id?: string
+          trecho_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          fatura_id?: string
+          id?: string
+          trecho_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_fatura_itens_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_fatura_itens_trecho_id_fkey"
+            columns: ["trecho_id"]
+            isOneToOne: true
+            referencedRelation: "passagem_trechos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_faturas: {
+        Row: {
+          atesto_data: string | null
+          atesto_documento_sei: string | null
+          cancelamento_motivo: string | null
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          data_emissao: string
+          id: string
+          liquidacao_data: string | null
+          numero: string
+          ob_numero: string | null
+          observacoes: string | null
+          pagamento_data: string | null
+          processo_sei_pagamento: string | null
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          atesto_data?: string | null
+          atesto_documento_sei?: string | null
+          cancelamento_motivo?: string | null
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          data_emissao: string
+          id?: string
+          liquidacao_data?: string | null
+          numero: string
+          ob_numero?: string | null
+          observacoes?: string | null
+          pagamento_data?: string | null
+          processo_sei_pagamento?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          atesto_data?: string | null
+          atesto_documento_sei?: string | null
+          cancelamento_motivo?: string | null
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string
+          id?: string
+          liquidacao_data?: string | null
+          numero?: string
+          ob_numero?: string | null
+          observacoes?: string | null
+          pagamento_data?: string | null
+          processo_sei_pagamento?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_faturas_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_historico: {
+        Row: {
+          acao: string
+          antes: Json | null
+          depois: Json | null
+          feito_em: string
+          feito_por: string | null
+          id: string
+          pedido_id: string
+          trecho_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          acao: string
+          antes?: Json | null
+          depois?: Json | null
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          pedido_id: string
+          trecho_id?: string | null
+        }
+        Update: {
+          acao?: string
+          antes?: Json | null
+          depois?: Json | null
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          pedido_id?: string
+          trecho_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_historico_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_passageiros: {
+        Row: {
+          beneficiario_id: string | null
+          created_at: string
+          created_by: string | null
+          embarque_entregue_em: string | null
+          id: string
+          nome: string | null
+          observacoes: string | null
+          pedido_id: string
+          prestacao_dispensa_motivo: string | null
+          prestacao_dispensada: boolean
+          relatorio_documento_sei: string | null
+          relatorio_entregue_em: string | null
+          servidor_id: string | null
+          updated_at: string
+          updated_by: string | null
+          viagem_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          beneficiario_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          embarque_entregue_em?: string | null
+          id?: string
+          nome?: string | null
+          observacoes?: string | null
+          pedido_id: string
+          prestacao_dispensa_motivo?: string | null
+          prestacao_dispensada?: boolean
+          relatorio_documento_sei?: string | null
+          relatorio_entregue_em?: string | null
+          servidor_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          viagem_id?: string | null
+        }
+        Update: {
+          beneficiario_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          embarque_entregue_em?: string | null
+          id?: string
+          nome?: string | null
+          observacoes?: string | null
+          pedido_id?: string
+          prestacao_dispensa_motivo?: string | null
+          prestacao_dispensada?: boolean
+          relatorio_documento_sei?: string | null
+          relatorio_entregue_em?: string | null
+          servidor_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          viagem_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_passageiros_beneficiario_id_fkey"
+            columns: ["beneficiario_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_beneficiarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_passageiros_viagem_id_fkey"
+            columns: ["viagem_id"]
+            isOneToOne: false
+            referencedRelation: "viagens_diarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_pedidos: {
+        Row: {
+          aprovacao_data: string | null
+          aprovacao_documento_sei: string | null
+          cancelamento_motivo: string | null
+          contrato_id: string | null
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          data_pedido: string
+          destino_cidade: string | null
+          destino_uf: string | null
+          evento: string | null
+          finalidade: string
+          id: string
+          numero_sei: string
+          observacoes: string | null
+          origem: string
+          prestacao_contas: string
+          prestacao_dispensa_motivo: string | null
+          relatorio_evento_documento_sei: string | null
+          relatorio_evento_entregue_em: string | null
+          responsavel_passageiro_id: string | null
+          situacao: string
+          solicitante_beneficiario_id: string | null
+          solicitante_instituicao_id: string | null
+          solicitante_nome: string | null
+          solicitante_servidor_id: string | null
+          solicitante_tipo: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          aprovacao_data?: string | null
+          aprovacao_documento_sei?: string | null
+          cancelamento_motivo?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          data_pedido?: string
+          destino_cidade?: string | null
+          destino_uf?: string | null
+          evento?: string | null
+          finalidade: string
+          id?: string
+          numero_sei: string
+          observacoes?: string | null
+          origem?: string
+          prestacao_contas?: string
+          prestacao_dispensa_motivo?: string | null
+          relatorio_evento_documento_sei?: string | null
+          relatorio_evento_entregue_em?: string | null
+          responsavel_passageiro_id?: string | null
+          situacao?: string
+          solicitante_beneficiario_id?: string | null
+          solicitante_instituicao_id?: string | null
+          solicitante_nome?: string | null
+          solicitante_servidor_id?: string | null
+          solicitante_tipo: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          aprovacao_data?: string | null
+          aprovacao_documento_sei?: string | null
+          cancelamento_motivo?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          data_pedido?: string
+          destino_cidade?: string | null
+          destino_uf?: string | null
+          evento?: string | null
+          finalidade?: string
+          id?: string
+          numero_sei?: string
+          observacoes?: string | null
+          origem?: string
+          prestacao_contas?: string
+          prestacao_dispensa_motivo?: string | null
+          relatorio_evento_documento_sei?: string | null
+          relatorio_evento_entregue_em?: string | null
+          responsavel_passageiro_id?: string | null
+          situacao?: string
+          solicitante_beneficiario_id?: string | null
+          solicitante_instituicao_id?: string | null
+          solicitante_nome?: string | null
+          solicitante_servidor_id?: string | null
+          solicitante_tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_pedidos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_responsavel_passageiro_id_fkey"
+            columns: ["responsavel_passageiro_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_passageiros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_beneficiario_id_fkey"
+            columns: ["solicitante_beneficiario_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_beneficiarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_instituicao_id_fkey"
+            columns: ["solicitante_instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_instituicao_id_fkey"
+            columns: ["solicitante_instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "v_instituicoes_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_servidor_id_fkey"
+            columns: ["solicitante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_servidor_id_fkey"
+            columns: ["solicitante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_servidor_id_fkey"
+            columns: ["solicitante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_servidor_id_fkey"
+            columns: ["solicitante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "passagem_pedidos_solicitante_servidor_id_fkey"
+            columns: ["solicitante_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_trechos: {
+        Row: {
+          chegada: string | null
+          companhia: string | null
+          created_at: string
+          created_by: string | null
+          data_emissao: string | null
+          data_voo: string
+          destino: string
+          id: string
+          localizador: string | null
+          numero_bilhete: string | null
+          observacoes: string | null
+          ordem: number
+          origem: string
+          partida: string | null
+          passageiro_id: string
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+          valor_desconto: number
+          valor_emissao: number | null
+          valor_multa: number
+          valor_reembolso: number
+          valor_tarifa: number
+          valor_taxa_embarque: number
+          valor_taxa_servico: number
+          voo: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          chegada?: string | null
+          companhia?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string | null
+          data_voo: string
+          destino: string
+          id?: string
+          localizador?: string | null
+          numero_bilhete?: string | null
+          observacoes?: string | null
+          ordem?: number
+          origem: string
+          partida?: string | null
+          passageiro_id: string
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_desconto?: number
+          valor_emissao?: never
+          valor_multa?: number
+          valor_reembolso?: number
+          valor_tarifa?: number
+          valor_taxa_embarque?: number
+          valor_taxa_servico?: number
+          voo?: string | null
+        }
+        Update: {
+          chegada?: string | null
+          companhia?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string | null
+          data_voo?: string
+          destino?: string
+          id?: string
+          localizador?: string | null
+          numero_bilhete?: string | null
+          observacoes?: string | null
+          ordem?: number
+          origem?: string
+          partida?: string | null
+          passageiro_id?: string
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_desconto?: number
+          valor_emissao?: never
+          valor_multa?: number
+          valor_reembolso?: number
+          valor_tarifa?: number
+          valor_taxa_embarque?: number
+          valor_taxa_servico?: number
+          voo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_trechos_passageiro_id_fkey"
+            columns: ["passageiro_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_passageiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patrimonio_unidade: {
         Row: {
           anexos: string[] | null
@@ -20023,6 +20908,100 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      processo_reservas: {
+        Row: {
+          acao_id: string
+          created_at: string
+          created_by: string | null
+          exercicio: number
+          fonte_recurso_id: string
+          id: string
+          justificativa_saldo: string | null
+          motivo_cancelamento: string | null
+          natureza_despesa_id: string
+          pca_item_id: string | null
+          processo_id: string
+          saldo_livre_no_momento: number | null
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          acao_id: string
+          created_at?: string
+          created_by?: string | null
+          exercicio: number
+          fonte_recurso_id: string
+          id?: string
+          justificativa_saldo?: string | null
+          motivo_cancelamento?: string | null
+          natureza_despesa_id: string
+          pca_item_id?: string | null
+          processo_id: string
+          saldo_livre_no_momento?: number | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          acao_id?: string
+          created_at?: string
+          created_by?: string | null
+          exercicio?: number
+          fonte_recurso_id?: string
+          id?: string
+          justificativa_saldo?: string | null
+          motivo_cancelamento?: string | null
+          natureza_despesa_id?: string
+          pca_item_id?: string | null
+          processo_id?: string
+          saldo_livre_no_momento?: number | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_reservas_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_acoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_natureza_despesa_id_fkey"
+            columns: ["natureza_despesa_id"]
+            isOneToOne: false
+            referencedRelation: "fin_naturezas_despesa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_pca_item_id_fkey"
+            columns: ["pca_item_id"]
+            isOneToOne: false
+            referencedRelation: "pca_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       processos_administrativos: {
         Row: {
@@ -25312,6 +26291,20 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      fin_dotacao_disponivel: {
+        Args: {
+          p_atual: number
+          p_bloqueado: number
+          p_empenhado: number
+          p_ped: number
+          p_reserva: number
+        }
+        Returns: number
+      }
+      fin_dotacao_do_fiplan: {
+        Args: { p_dotacao: string; p_exercicio: number }
+        Returns: string
+      }
       fin_marcar_pagamento_pago: {
         Args: { p_data: string; p_pagamento_id: string }
         Returns: string
@@ -25621,6 +26614,15 @@ export type Database = {
         }
         Returns: Json
       }
+      importar_peds_fiplan: {
+        Args: {
+          p_arquivo: Json
+          p_exercicio: number
+          p_linhas: Json
+          p_simular?: boolean
+        }
+        Returns: Json
+      }
       importar_portarias_planilha: {
         Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
         Returns: Json
@@ -25671,6 +26673,21 @@ export type Database = {
           rota: string
           submodulo: string
           tipo_acao: string
+        }[]
+      }
+      localizar_processos_sei: {
+        Args: { p_limite?: number; p_termo: string }
+        Returns: {
+          atualizado_em: string
+          chave: string
+          numero_sei: string
+          onde: string
+          origem: string
+          ref: string
+          registro_id: string
+          situacao: string
+          titulo: string
+          valor: number
         }[]
       }
       log_audit: {
@@ -25747,6 +26764,77 @@ export type Database = {
       }
       obter_protocolo_arbitro: { Args: { p_id: string }; Returns: string }
       obter_remessa_bancaria: { Args: { p_id: string }; Returns: Json }
+      passagem_buscar_servidores: {
+        Args: { _termo: string }
+        Returns: {
+          cargo: string
+          id: string
+          matricula: string
+          nome: string
+        }[]
+      }
+      passagem_empenho_candidato: {
+        Args: { _contrato_id: string; _empenho_id: string }
+        Returns: boolean
+      }
+      passagem_empenhos_candidatos: {
+        Args: { _contrato_id: string; _exercicio?: number }
+        Returns: {
+          credor: string
+          data_empenho: string
+          empenho_id: string
+          exercicio: number
+          ligado: boolean
+          natureza: string
+          numero: string
+          processo_sei: string
+          valor_anulado: number
+          valor_empenhado: number
+        }[]
+      }
+      passagem_empenhos_contrato: {
+        Args: { _contrato_id: string }
+        Returns: {
+          credor: string
+          data_empenho: string
+          empenho_id: string
+          exercicio: number
+          natureza: string
+          numero: string
+          valor_anulado: number
+          valor_empenhado: number
+          valor_liquidado: number
+          valor_pago: number
+        }[]
+      }
+      passagem_prestacao_em_aberto: {
+        Args: { _pedido_id: string }
+        Returns: number
+      }
+      passagem_relatorio_rh: {
+        Args: { _passageiro_ids: string[] }
+        Returns: {
+          passageiro_id: string
+          relatorio_apresentado: boolean
+          relatorio_data: string
+        }[]
+      }
+      passagem_salvar_fatura: {
+        Args: { _fatura: Json; _itens: Json }
+        Returns: string
+      }
+      passagem_viagens_servidor: {
+        Args: { _servidor_id: string }
+        Returns: {
+          data_retorno: string
+          data_saida: string
+          destino: string
+          id: string
+          relatorio_apresentado: boolean
+          relatorio_data: string
+          status: string
+        }[]
+      }
       patrimonio_buscar_bem_por_codigo: {
         Args: { p_codigo: string }
         Returns: {
@@ -25996,6 +27084,7 @@ export type Database = {
         Returns: Json
       }
       processar_folha_pagamento: { Args: { p_folha_id: string }; Returns: Json }
+      processo_chave_fiplan: { Args: { p: string }; Returns: string }
       processo_empenhos: {
         Args: { _processo_id?: string }
         Returns: {
@@ -26011,6 +27100,164 @@ export type Database = {
           valor_empenhado: number
           valor_liquidado: number
           valor_pago: number
+        }[]
+      }
+      processo_peds: {
+        Args: { _processo_id: string }
+        Returns: {
+          data_autorizacao: string
+          data_solicitacao: string
+          empenho_numero: string
+          exercicio: number
+          fonte: string
+          licitacao: string
+          natureza: string
+          numero: string
+          ped_id: string
+          situacao: string
+          valor: number
+        }[]
+      }
+      processo_reserva_cancelar: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: undefined
+      }
+      processo_reserva_salvar: {
+        Args: {
+          p_acao: string
+          p_exercicio: number
+          p_fonte: string
+          p_id: string
+          p_justificativa?: string
+          p_natureza: string
+          p_pca_item_id?: string
+          p_processo_id: string
+          p_valor: number
+        }
+        Returns: Json
+      }
+      processo_reservas_detalhe: {
+        Args: { _processo_id: string }
+        Returns: {
+          acao_codigo: string
+          acao_id: string
+          acao_nome: string
+          created_at: string
+          exercicio: number
+          fonte_codigo: string
+          fonte_recurso_id: string
+          id: string
+          justificativa_saldo: string
+          materializado: number
+          motivo_cancelamento: string
+          natureza_codigo: string
+          natureza_despesa_id: string
+          natureza_nome: string
+          pca_item_id: string
+          pendente: number
+          saldo_livre: number
+          saldo_livre_no_momento: number
+          situacao: string
+          valor: number
+        }[]
+      }
+      processo_reservas_pendentes: {
+        Args: { _exercicio?: number }
+        Returns: {
+          acao_id: string
+          exercicio: number
+          fonte_recurso_id: string
+          materializado: number
+          natureza_despesa_id: string
+          pendente: number
+          processo_id: string
+          reserva_id: string
+          valor: number
+        }[]
+      }
+      processo_saldo_livre: {
+        Args: {
+          p_acao: string
+          p_exercicio: number
+          p_fonte: string
+          p_ignorar_reserva?: string
+          p_natureza: string
+        }
+        Returns: number
+      }
+      processo_saldo_livre_calc: {
+        Args: {
+          p_acao: string
+          p_exercicio: number
+          p_fonte: string
+          p_ignorar_reserva?: string
+          p_natureza: string
+        }
+        Returns: number
+      }
+      processos_execucao: {
+        Args: { _exercicio?: number }
+        Returns: {
+          acao_id: string
+          empenhado: number
+          exercicio: number
+          fonte_recurso_id: string
+          liquidado: number
+          natureza_despesa_id: string
+          pago: number
+          ped_autorizado: number
+          processo_id: string
+        }[]
+      }
+      processos_financeiro: {
+        Args: { _exercicio?: number }
+        Returns: {
+          empenhado: number
+          liquidado: number
+          pago: number
+          ped_autorizado: number
+          pendente: number
+          processo_id: string
+          reservado: number
+        }[]
+      }
+      processos_leitura_permitida: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      processos_parados: {
+        Args: { p_dias?: number }
+        Returns: {
+          atualizado_em: string
+          chave: string
+          dias: number
+          numero_sei: string
+          onde: string
+          origem: string
+          registro_id: string
+          situacao: string
+          titulo: string
+        }[]
+      }
+      programacao_por_natureza: {
+        Args: { _exercicio: number }
+        Returns: {
+          acao_codigo: string
+          acao_id: string
+          bloqueado: number
+          dotacao_atual: number
+          empenhado: number
+          fonte_codigo: string
+          fonte_recurso_id: string
+          natureza_codigo: string
+          natureza_despesa_id: string
+          natureza_nome: string
+          pendente_processos: number
+          processos: Json
+          reserva_fiplan: number
+          saldo_fiplan: number
+          saldo_livre: number
+          tem_qdd: boolean
         }[]
       }
       promover_rascunho: {
@@ -26238,6 +27485,8 @@ export type Database = {
           unidade_atual_nome: string
         }[]
       }
+      sei_normalizar: { Args: { p_texto: string }; Returns: string }
+      texto_busca: { Args: { p_texto: string }; Returns: string }
       transparencia_cargos_publicos: {
         Args: Record<PropertyKey, never>
         Returns: {

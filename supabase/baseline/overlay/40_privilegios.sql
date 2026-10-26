@@ -355,3 +355,79 @@ REVOKE ALL ON FUNCTION public.processo_empenhos(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.processo_empenhos(uuid) TO authenticated;
 REVOKE ALL ON FUNCTION public.importar_processos_planilha(jsonb, jsonb, boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.importar_processos_planilha(jsonb, jsonb, boolean) TO authenticated;
+
+-- ---- Compras: reservas dos processos e PEDs do FIPLAN (migração 20261030090000) ----
+-- fin_peds e processo_reservas: só leitura pela API; escrita pelas RPCs importar_peds_fiplan e processo_reserva_*
+REVOKE ALL ON public.fin_peds FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_peds FROM authenticated;
+REVOKE ALL ON public.processo_reservas FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.processo_reservas FROM authenticated;
+-- contas internas sem EXECUTE para a API
+REVOKE ALL ON FUNCTION public.fin_dotacao_do_fiplan(integer, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.fin_dotacao_disponivel(numeric, numeric, numeric, numeric, numeric) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.processos_leitura_permitida() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.processos_execucao(integer) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.processo_reservas_pendentes(integer) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.processo_saldo_livre_calc(integer, uuid, uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+-- chamadas pela tela
+REVOKE ALL ON FUNCTION public.processo_chave_fiplan(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_chave_fiplan(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.importar_peds_fiplan(integer, jsonb, jsonb, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.importar_peds_fiplan(integer, jsonb, jsonb, boolean) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_saldo_livre(integer, uuid, uuid, uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_saldo_livre(integer, uuid, uuid, uuid, uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_reserva_salvar(uuid, uuid, integer, uuid, uuid, uuid, numeric, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_reserva_salvar(uuid, uuid, integer, uuid, uuid, uuid, numeric, uuid, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_reserva_cancelar(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_reserva_cancelar(uuid, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_reservas_detalhe(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_reservas_detalhe(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_peds(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_peds(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.processos_financeiro(integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processos_financeiro(integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.programacao_por_natureza(integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.programacao_por_natureza(integer) TO authenticated;
+
+-- ---- Localizador de processos do SEI (migração 20261102090000): busca INVOKER, cada fonte com a RLS dela ----
+REVOKE ALL ON FUNCTION public.sei_normalizar(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.sei_normalizar(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.texto_busca(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.texto_busca(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.localizar_processos_sei(text, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.localizar_processos_sei(text, integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.processos_parados(integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processos_parados(integer) TO authenticated;
+
+-- ---- Contratos: passagens aéreas (migração 20261031090000): gatilhos sem EXECUTE para a API ----
+REVOKE EXECUTE ON FUNCTION public.passagem_carimbar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_copiar_nome() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_proteger_emitido() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_historico() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_propagar_nome_beneficiario() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.passagem_buscar_servidores(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_buscar_servidores(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.passagem_viagens_servidor(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_viagens_servidor(uuid) TO authenticated;
+-- Prestação de contas (migração 20261101090000)
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_responsavel() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_anexo() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_prestacao() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_anexo() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_prestacao_em_aberto(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_conclusao() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.passagem_relatorio_rh(uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_relatorio_rh(uuid[]) TO authenticated;
+-- Faturas e empenhos (migração 20261103090000)
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_fatura() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_ligacao_empenho() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_empenho_candidato(uuid, uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_conferir_fatura_item() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_fatura_item() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.passagem_registrar_fatura() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.passagem_empenhos_contrato(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_empenhos_contrato(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.passagem_empenhos_candidatos(uuid, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_empenhos_candidatos(uuid, integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.passagem_salvar_fatura(jsonb, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_salvar_fatura(jsonb, jsonb) TO authenticated;

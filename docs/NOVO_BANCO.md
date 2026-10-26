@@ -206,6 +206,29 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
   mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os processos de contratação, entrega 2 (migração `20261030090000`), entraram no mapa (`fin_peds` e
+  `processo_reservas`, classe `preservar`: SELECT pelas policies da migração e escrita só pelas RPCs), no schema do
+  baseline regenerado e no `overlay/40_privilegios.sql`; sem linha nova no catálogo; testes no bloco "Compras:
+  reservas e PEDs" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- As passagens aéreas, entrega 3 (migração `20261103090000`), entraram no mapa (`passagem_faturas`,
+  `passagem_fatura_itens` e `passagem_contrato_empenhos`, classe `permissao` com escrita e exclusão por
+  `contratos.passagens.financeiro` e leitura por `visualizar`, `editar` ou `financeiro`), no schema regenerado, no
+  catálogo (permissão nova e concessões, copiadas da regeneração) e no `overlay/40_privilegios.sql` (inclui
+  `passagem_empenho_candidato` sem EXECUTE e `passagem_salvar_fatura` para `authenticated`); testes no bloco
+  "PASSAGENS FATURAS" de `scripts/db/testar-rls.sql`.
+- As passagens aéreas, entrega 2 (migração `20261101090000`), entraram no mapa (`passagem_anexos`, classe `permissao`
+  com leitura por `visualizar` ou `editar`), no schema regenerado, no `overlay/40_privilegios.sql` e no
+  `overlay/50_storage.sql` (bucket privado `passagens`); testes no bloco "PASSAGENS PRESTAÇÃO" de
+  `scripts/db/testar-rls.sql`.
+- O localizador de processos do SEI (migração `20261102090000`, só funções: `sei_normalizar`, `texto_busca`,
+  `localizar_processos_sei` e `processos_parados`) entrou no `schema/01_pre_data.sql` e no `overlay/40_privilegios.sql`
+  (`EXECUTE` só para `authenticated`); sem tabela nova nem mudança no `rls/mapa.csv`; testes no bloco "LOCALIZADOR" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- As passagens aéreas, entrega 1 (migração `20261031090000`), entraram no mapa (`passagem_beneficiarios`,
+  `passagem_pedidos`, `passagem_passageiros`, `passagem_trechos` e `passagem_cotacoes`, classe `permissao` com
+  `contratos.passagens.editar`; `passagem_historico`, classe `trilha`), no schema do baseline regenerado, no catálogo
+  (as duas permissões) e no `overlay/40_privilegios.sql`; testes no bloco "PASSAGENS" de `scripts/db/testar-rls.sql`
+  ([detalhe](./BANCO_DE_DADOS.md)).
 - Os processos de contratação, entrega 1 (migração `20261029090000`), entraram no mapa (`processo_andamentos`, classe
   `permissao` com `compras.processos.editar`), no schema do baseline regenerado, no catálogo (as duas permissões e a
   concessão aos papéis `admin` e `manager`) e no `overlay/40_privilegios.sql`; testes no bloco "Compras: processos de
