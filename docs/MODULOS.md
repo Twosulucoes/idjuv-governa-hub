@@ -225,6 +225,13 @@ ERP orçamentário. `src/pages/financeiro/` (15 arquivos em 2026-10-11; o painel
 `RelatoriosFinanceiroPage` e `PlaceholderDetalheFinanceiroPage` (ainda usada em
 `/financeiro/solicitacoes/:id` e `/financeiro/empenhos/:id`).
 Fluxo: dotação (FIPLAN) → solicitação → empenho → liquidação → pagamento → arquivo do banco.
+- **Menu enxuto (26/10/2026).** O orçamento é do FIPLAN, então o menu traz só o que lê o FIPLAN ou o
+  complementa: Painel, QDD, Empenhos (FIP 614), Favorecidos, Contas Bancárias e Conciliação. Liquidações e
+  Pagamentos ficam no submenu **"Contingência (regularizar no FIPLAN)"**: lançamentos que não entram direto no
+  FIPLAN (FIPLAN fechado de janeiro a abril, tarifas bancárias, contas de convênio) e saem pela remessa OBN600,
+  regularizados depois no FIPLAN. O botão da tela de Empenhos virou "Empenho de contingência". Solicitações,
+  Sub-Empenhos, Restos a Pagar, Alterações Orçamentárias, Adiantamentos e Relatórios saíram do menu (e dos
+  atalhos do painel e do QDD); as rotas continuam no `App.tsx` até a limpeza do banco.
 Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md).
 
 - **O FIPLAN é a fonte da verdade do orçamento.** O `QDDPage` importa o PDF "Quadro de Detalhamento da

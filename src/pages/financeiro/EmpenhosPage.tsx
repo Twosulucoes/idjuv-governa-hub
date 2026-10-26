@@ -138,7 +138,7 @@ export default function EmpenhosPage() {
               <SeletorExercicio />
               <Button onClick={() => setFormOpen(true)}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                Novo empenho
+                Empenho de contingência
               </Button>
             </>
           }
