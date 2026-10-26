@@ -104,7 +104,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
   `docs/GUIA_FRONTEND.md` (Importação de dados). A rota usa a própria `PERMISSOES_IMPORTACAO` e o item de menu repete a mesma lista
   (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`, `compras.processos.editar`); `src/lib/importacao/registro.test.ts`
-  reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha".
+  reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha". `?importador=<id>` abre direto o assistente
+  desse importador quando o usuário tem a permissão dele (atalhos de `/financeiro/atualizar`).
 - **Localizar processo** em `/processos/localizar` (`LocalizarProcessoPage`, `ProtectedRoute` só com login: rota
   transversal, listada em `TRANSVERSAIS` de `src/shared/config/modules.config.test.ts`; quem pode ver cada registro é a
   RLS da fonte, pelas funções INVOKER `localizar_processos_sei` e `processos_parados`). Menu: "Localizar processo" e
@@ -130,7 +131,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   a mesma dos empenhos; item "Favorecidos" no menu do Financeiro); `/financeiro/pagamentos/:id` abre o detalhe real do pagamento
   (`orcamento.aprovar`); `/financeiro/orcamento` só redireciona para `/financeiro/qdd`. O ano das telas do
   módulo vai na query `?exercicio=` (ver [MODULOS.md](./MODULOS.md)). `/financeiro` é declarada uma vez só
-  (painel do módulo, `FinanceiroDashboardPage`, `requiredModule="financeiro"`). Menu do Financeiro (26/10/2026): Liquidações e
+  (painel do módulo, `FinanceiroDashboardPage`, `requiredModule="financeiro"`). `/financeiro/atualizar`
+  (`AtualizarFinanceiroPage`, `requiredModule="financeiro"`, item "Atualizar dados" no menu): rotina de importações
+  do FIPLAN, só leitura; cada botão leva ao importador, que confere a própria permissão. Menu do Financeiro (26/10/2026): Liquidações e
   Pagamentos ficam no submenu "Contingência (regularizar no FIPLAN)"; `/financeiro/solicitacoes`, `/sub-empenhos`,
   `/restos-a-pagar`, `/alteracoes-orcamentarias`, `/adiantamentos` e `/relatorios` saíram dos menus, mas as rotas
   continuam registradas (ver [MODULOS.md](./MODULOS.md)).

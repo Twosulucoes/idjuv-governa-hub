@@ -700,6 +700,14 @@ export const menuConfig: MenuSection[] = [
         permission: "pagamento.conciliar",
         priority: 5,
       },
+      {
+        id: "fin-atualizar",
+        label: "Atualizar dados",
+        labelShort: "Atualizar",
+        route: "/financeiro/atualizar",
+        icon: Upload,
+        priority: 10,
+      },
     ],
   },
 

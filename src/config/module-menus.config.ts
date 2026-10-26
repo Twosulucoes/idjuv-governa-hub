@@ -152,6 +152,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "favorecidos", label: "Favorecidos", icon: Users, route: "/financeiro/favorecidos", permission: "orcamento.criar" },
       { id: "contas", label: "Contas Bancárias", icon: Building2, route: "/financeiro/contas-bancarias" },
       { id: "conciliacao", label: "Conciliação Bancária", icon: ArrowLeftRight, route: "/financeiro/conciliacao", permission: "pagamento.conciliar" },
+      { id: "atualizar", label: "Atualizar dados", icon: Upload, route: "/financeiro/atualizar" },
     ],
   },
 

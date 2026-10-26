@@ -18,7 +18,9 @@ export interface DotacaoPainel {
   valor_liquidado: number | null;
   valor_pago: number | null;
   valor_bloqueado: number | null;
+  /** Coluna "Cont./Reserva" do QDD: reservado para empenho e ainda não empenhado */
   valor_reserva: number | null;
+  /** Coluna "PED" do QDD: acumulada, já inclui o empenhado e a reserva (PED = empenhado + reserva) */
   valor_ped: number | null;
 }
 
@@ -37,7 +39,7 @@ export interface ResumoExecucao {
   liquidado: number;
   pago: number;
   bloqueado: number;
-  /** PED + reserva */
+  /** Reservado para empenho e ainda não empenhado (o PED menos o empenhado) */
   reservado: number;
   saldoEmpenhar: number;
   /** Percentuais de 0 a 100 sobre o autorizado (0 quando não há autorizado) */
@@ -97,9 +99,15 @@ const n = (v: number | null | undefined) => v ?? 0;
 const digitos = (natureza: string | null) => (natureza ?? "").replace(/\D/g, "");
 const pct = (parte: number, todo: number) => (todo > 0 ? (parte / todo) * 100 : 0);
 
-/** Conta do FIPLAN (FIP 608): autorizado − empenhado − bloqueado − reserva − PED */
-const saldoEmpenhar = (d: DotacaoPainel) =>
-  n(d.valor_atual) - n(d.valor_empenhado) - n(d.valor_bloqueado) - n(d.valor_reserva) - n(d.valor_ped);
+/**
+ * Comprometido: o PED do QDD, que já soma o empenhado e a reserva. O maior dos dois cobre a linha em que o PED
+ * vier zerado ou atrasado em relação ao empenhado.
+ */
+const comprometido = (d: DotacaoPainel) =>
+  Math.max(n(d.valor_ped), n(d.valor_empenhado) + n(d.valor_reserva));
+
+/** Conta do FIPLAN (FIP 608 e FIP 613): autorizado − bloqueado − PED */
+const saldoEmpenhar = (d: DotacaoPainel) => n(d.valor_atual) - n(d.valor_bloqueado) - comprometido(d);
 
 const grupoDe = (d: DotacaoPainel) => {
   const dig = digitos(d.natureza);
@@ -114,7 +122,7 @@ export function resumirExecucao(dotacoes: DotacaoPainel[]): ResumoExecucao {
     r.liquidado += n(d.valor_liquidado);
     r.pago += n(d.valor_pago);
     r.bloqueado += n(d.valor_bloqueado);
-    r.reservado += n(d.valor_ped) + n(d.valor_reserva);
+    r.reservado += comprometido(d) - n(d.valor_empenhado);
     r.saldoEmpenhar += saldoEmpenhar(d);
   }
   return {
