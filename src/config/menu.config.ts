@@ -641,25 +641,23 @@ export const menuConfig: MenuSection[] = [
         priority: 2,
       },
       {
-        id: "fin-despesas-submenu",
-        label: "Despesas",
-        icon: FileText,
+        // Empenhos do FIPLAN (FIP 614); o "Novo empenho" fica para a contingência
+        id: "fin-empenhos",
+        label: "Empenhos",
+        route: "/financeiro/empenhos",
+        icon: FileCheck,
+        permission: "orcamento.criar",
         priority: 3,
+      },
+      {
+        // Lançamentos fora do FIPLAN (FIPLAN fechado de janeiro a abril, tarifas, contas de convênio),
+        // regularizados depois no FIPLAN; os pagamentos saem pela remessa OBN600 da Conciliação
+        id: "fin-contingencia-submenu",
+        label: "Contingência (regularizar no FIPLAN)",
+        labelShort: "Contingência",
+        icon: ClipboardCheck,
+        priority: 4,
         children: [
-          {
-            id: "fin-solicitacoes",
-            label: "Solicitações",
-            route: "/financeiro/solicitacoes",
-            icon: FileText,
-            permission: "orcamento.visualizar",
-          },
-          {
-            id: "fin-empenhos",
-            label: "Empenhos",
-            route: "/financeiro/empenhos",
-            icon: FileCheck,
-            permission: "orcamento.criar",
-          },
           {
             id: "fin-liquidacoes",
             label: "Liquidações",
@@ -675,32 +673,6 @@ export const menuConfig: MenuSection[] = [
             permission: "orcamento.aprovar",
           },
         ],
-      },
-      {
-        id: "fin-sub-empenhos",
-        label: "Sub-Empenhos",
-        labelShort: "Sub-Emp.",
-        route: "/financeiro/sub-empenhos",
-        icon: FileCheck,
-        permission: "orcamento.criar",
-        priority: 3,
-      },
-      {
-        id: "fin-restos-pagar",
-        label: "Restos a Pagar",
-        labelShort: "RAP",
-        route: "/financeiro/restos-a-pagar",
-        icon: FileCheck,
-        permission: "orcamento.visualizar",
-        priority: 3,
-      },
-      {
-        id: "fin-adiantamentos",
-        label: "Adiantamentos",
-        route: "/financeiro/adiantamentos",
-        icon: Wallet,
-        permission: "orcamento.visualizar",
-        priority: 4,
       },
       {
         id: "fin-favorecidos",
@@ -727,14 +699,6 @@ export const menuConfig: MenuSection[] = [
         icon: ArrowLeftRight,
         permission: "pagamento.conciliar",
         priority: 5,
-      },
-      {
-        id: "fin-relatorios",
-        label: "Relatórios",
-        route: "/financeiro/relatorios",
-        icon: BarChart3,
-        permission: "orcamento.visualizar",
-        priority: 10,
       },
       {
         id: "fin-atualizar",

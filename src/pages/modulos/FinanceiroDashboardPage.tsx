@@ -62,10 +62,10 @@ export default function FinanceiroDashboardPage() {
   const semDados = !dotacoes.isLoading && !dotacoes.isError && (linhas?.length ?? 0) === 0;
 
   const quickActions = [
-    { label: "Solicitações", description: "Solicitações de despesa", href: "/financeiro/solicitacoes", icon: Receipt },
-    { label: "Empenhos", description: "Gerenciar empenhos", href: "/financeiro/empenhos", icon: FileText },
-    { label: "Liquidações", description: "Processar liquidações", href: "/financeiro/liquidacoes", icon: Calculator },
-    { label: "Pagamentos", description: "Ordens de pagamento", href: "/financeiro/pagamentos", icon: CreditCard },
+    { label: "QDD", description: "Dotações do FIPLAN", href: "/financeiro/qdd", icon: Calculator },
+    { label: "Empenhos", description: "Empenhos do FIPLAN (FIP 614)", href: "/financeiro/empenhos", icon: FileText },
+    { label: "Conciliação", description: "Banco e fechamento mensal", href: "/financeiro/conciliacao", icon: Receipt },
+    { label: "Pagamentos", description: "Contingência: regularizar no FIPLAN", href: "/financeiro/pagamentos", icon: CreditCard },
   ];
 
   return (
