@@ -1214,7 +1214,7 @@ BEGIN
     SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef AND p.prorettype <> 'trigger'::regtype
       AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
-      AND NOT (p.prosrc ~* 'auth\.uid\(\)|can_access_module|is_admin_user|is_admin_atual|usuario_tem_permissao|has_permission_code|usuario_eh_admin|usuario_eh_super_admin|is_active_user|perfil_ativo_atual|pode_gerenciar_avisos|pode_configurar_envios|pode_ver_envios|wf_pode_ver_processo|processos_leitura_permitida')
+      AND NOT (p.prosrc ~* 'auth\.uid\(\)|can_access_module|is_admin_user|is_admin_atual|usuario_tem_permissao|has_permission_code|usuario_eh_admin|usuario_eh_super_admin|is_active_user|perfil_ativo_atual|pode_gerenciar_avisos|pode_configurar_envios|pode_ver_envios|wf_pode_ver_processo|processos_leitura_permitida|contrato_pode_gravar')
       AND p.proname <> ALL (permitidas)
   LOOP
     PERFORM pg_temp.falha('SECURITY DEFINER sem checagem de quem chama e executável por authenticated: ' || f.proname || '(' || f.args || ')');
@@ -8656,6 +8656,186 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('PASSAGENS FATURAS: gravação só com contratos.passagens.financeiro, fatura só em contrato da agência, bilhete emitido do mesmo contrato e numa fatura só, fluxo da situação, paga com OB e travada (bilhetes, valor, OB, cancelamento, exclusão), só recebida se apaga, salvar fatura numa transação, cancelada com motivo solta os bilhetes, trilha no pedido, leitura com a permissão e RPCs de empenhos estreitas verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Contratos C1: cadastro, ficha e responsáveis (migração 20261104090000) (TRIGGERS LIGADOS)
+-- Migração 20261104090000_contratos_c1_cadastro.sql (plano docs/superpowers/plans/2026-10-27-contratos-c1-cadastro-ficha.md):
+--   * cadastrar exige contratos.criar (módulo sozinho, editar e passagens.editar = 42501); alterar exige contratos.editar;
+--     passagens.editar e criar só marcam controla_passagens; apagar só rascunho, com editar (vigente = 42501);
+--   * número único por ano (23505 no mesmo ano, aceito em outro); data_fim_atual = data_fim quando vazia;
+--   * responsáveis: nome copiado pelo banco, um gestor ativo (23505), saída exige motivo (23514), não muda de contrato
+--     (22023), módulo sem permissão não grava (42501), trilha em audit_log_licitacoes;
+--   * contrato_buscar_servidores e contrato_servidor_por_matricula só com criar ou editar;
+--   * contratos_importar_planilha: só com criar; simula sem gravar; linha repetida vira erro; grava contrato, contratado e
+--     gestor; contrato existente só ganha o que está vazio (completar exige editar, erro por linha);
+--   * localizador: o contrato com nº SEI aparece para quem tem o módulo; gatilhos sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_criar uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.criar');
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.editar');
+  u_pass uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.editar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_contratos');
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome = 'nenhum');
+  u_admin uuid := (SELECT uid FROM persona WHERE nome = 'admin');
+  forn uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'fornecedores');
+  srv uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'servidores');
+  srv_nome text; srv_mat text;
+  ins text; ct uuid; rasc uuid; resp uuid; r text; x text; j jsonb;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.contrato_resp_preparar()', 'public.contratos_preparar()',
+                           'public.contratos_conferir_permissao()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('CONTRATOS C1: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  FOREACH x IN ARRAY ARRAY['public.contrato_pode_gravar()', 'public.contrato_buscar_servidores(text)',
+                           'public.contrato_servidor_por_matricula(text)', 'public.contratos_importar_planilha(jsonb, boolean)'] LOOP
+    IF has_function_privilege('anon', x, 'EXECUTE') THEN PERFORM pg_temp.falha('CONTRATOS C1: anon executa ' || x); END IF;
+  END LOOP;
+  IF u_criar IS NULL OR u_ed IS NULL OR u_pass IS NULL OR forn IS NULL OR srv IS NULL THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: persona, fornecedor ou servidor ausente'); RETURN;
+  END IF;
+  -- servidor semeado com matrícula e ativo (a busca e a importação usam os dois)
+  UPDATE public.servidores SET matricula = 'C1-MAT-01', ativo = true WHERE id = srv;
+  SELECT nome_completo, matricula INTO srv_nome, srv_mat FROM public.servidores WHERE id = srv;
+
+  -- cadastrar: só com contratos.criar
+  ins := format('INSERT INTO public.contratos (numero_contrato, ano, fornecedor_id, objeto, valor_inicial, valor_atual, '
+    || 'data_assinatura, data_inicio, data_fim, status, processo_sei) VALUES (''C1-01'', 2099, %L, ''Limpeza'', 100, 100, '
+    || '''2099-01-01'', ''2099-01-01'', ''2099-12-31'', ''vigente'', ''  99999.000777/2099.11  '') RETURNING id::text', forn);
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', ins);
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão cadastra (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', ins);
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: só editar cadastra (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_pass, 'authenticated', ins);
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: só passagens.editar cadastra (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_criar, 'authenticated', ins);
+  IF r LIKE 'erro:%' OR r IS NULL THEN PERFORM pg_temp.falha('CONTRATOS C1: criar não cadastra (' || coalesce(r, 'nulo') || ')'); RETURN; END IF;
+  ct := r::uuid;
+  IF (SELECT data_fim_atual FROM public.contratos WHERE id = ct) IS DISTINCT FROM DATE '2099-12-31'
+     OR (SELECT processo_sei FROM public.contratos WHERE id = ct) IS DISTINCT FROM '99999.000777/2099.11' THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: fim atual não preenchido ou nº SEI sem aparar');
+  END IF;
+
+  -- número único por ano
+  r := pg_temp.valor_desfeito_como(u_criar, 'authenticated', replace(ins, '  99999.000777/2099.11  ', ''));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: mesmo nº no mesmo ano aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_criar, 'authenticated', replace(replace(ins, ', 2099, ', ', 2098, '), '  99999.000777/2099.11  ', ''));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: mesmo nº em outro ano recusado (' || r || ')'); END IF;
+
+  -- alterar: editar sim; criar e passagens só marcam o contrato da agência
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('UPDATE public.contratos SET objeto = ''Outro'' WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: criar altera o contrato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_pass, 'authenticated', format('UPDATE public.contratos SET objeto = ''Outro'' WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: passagens.editar altera o contrato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_pass, 'authenticated', format('UPDATE public.contratos SET controla_passagens = true WHERE id = %L', ct));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: passagens.editar não marca o contrato da agência (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('UPDATE public.contratos SET controla_passagens = true WHERE id = %L', ct));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: criar não marca o contrato da agência (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mod, 'authenticated', format('UPDATE public.contratos SET objeto = ''Outro'' WHERE id = %L', ct));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão altera (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contratos SET objeto = ''Outro'' WHERE id = %L', ct));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: editar não altera (' || r || ')'); END IF;
+
+  -- apagar: só rascunho e só com editar
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('DELETE FROM public.contratos WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: contrato vigente apagado (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('DELETE FROM public.contratos WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: admin apaga contrato vigente (' || r || ')'); END IF;
+  rasc := pg_temp.valor_como(u_criar, 'authenticated', replace(replace(replace(ins, 'C1-01', 'C1-02'), '''vigente''', '''rascunho'''),
+    '  99999.000777/2099.11  ', ''))::uuid;
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('DELETE FROM public.contratos WHERE id = %L', rasc));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('CONTRATOS C1: criar apaga rascunho (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('DELETE FROM public.contratos WHERE id = %L', rasc));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: editar não apaga rascunho (' || r || ')'); END IF;
+
+  -- responsáveis
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format(
+    'INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, data_inicio) VALUES (%L, %L, ''gestor'', ''2099-01-01'') RETURNING id::text', ct, srv));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão designa (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, nome, data_inicio, portaria_numero) '
+    || 'VALUES (%L, %L, ''gestor'', ''Nome forjado'', ''2099-01-01'', ''Portaria 1/2099'') RETURNING id::text', ct, srv));
+  IF r LIKE 'erro:%' OR r IS NULL THEN PERFORM pg_temp.falha('CONTRATOS C1: editar não designa gestor (' || coalesce(r, 'nulo') || ')'); RETURN; END IF;
+  resp := r::uuid;
+  IF (SELECT nome FROM public.contrato_responsaveis WHERE id = resp) IS DISTINCT FROM srv_nome THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: nome do responsável não copiado do RH');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.audit_log_licitacoes WHERE tabela_origem = 'contrato_responsaveis' AND registro_id = resp) THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: designação sem trilha em audit_log_licitacoes');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, data_inicio) VALUES (%L, %L, ''gestor'', ''2099-02-01'') RETURNING id::text',
+    ct, (SELECT id_b::uuid FROM semeado WHERE tabela = 'servidores')));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: segundo gestor ativo aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contrato_responsaveis SET data_fim = ''2099-06-30'' WHERE id = %L', resp));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: saída sem motivo aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contrato_responsaveis SET contrato_id = %L WHERE id = %L',
+    (SELECT id_a::uuid FROM semeado WHERE tabela = 'contratos'), resp));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: designação mudou de contrato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'UPDATE public.contrato_responsaveis SET data_fim = ''2099-06-30'', motivo_saida = ''Exonerado'' WHERE id = %L', resp));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: encerrar designação com motivo falhou (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('DELETE FROM public.contrato_responsaveis WHERE id = %L', resp));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('CONTRATOS C1: criar apaga designação (' || r || ')'); END IF;
+
+  -- busca estreita no RH
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT count(*)::text FROM public.contrato_buscar_servidores(%L)', srv_mat));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão busca servidores (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT string_agg(id::text, '','') FROM public.contrato_buscar_servidores(%L)', srv_mat));
+  IF r IS DISTINCT FROM srv::text THEN PERFORM pg_temp.falha('CONTRATOS C1: busca por matrícula (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', 'SELECT count(*)::text FROM public.contrato_buscar_servidores(''%%'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('CONTRATOS C1: curinga na busca de servidores (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT coalesce(public.contrato_servidor_por_matricula(%L)::text, ''nulo'')', srv_mat));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão resolve matrícula (' || r || ')'); END IF;
+
+  -- importação
+  j := jsonb_build_array(jsonb_build_object('numero', 'IMP-1', 'ano', '2099', 'documento', '11.222.333/0001-81',
+    'razao_social', 'Empresa Importada', 'objeto', 'Vigilância', 'valor_inicial', '1200.50', 'data_assinatura', '2099-01-10',
+    'data_inicio', '2099-01-10', 'data_fim', '2099-12-31', 'setor_sigla', 'SETOR-QUE-NAO-EXISTE', 'prorrogavel', 'true',
+    'gestor_matricula', srv_mat, 'portaria_numero', 'Portaria 9/2099'));
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, true)::text', j));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: editar importa sem criar (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, false)::text', j || j));
+  IF r::jsonb->>'gravado' <> 'false' OR jsonb_array_length(r::jsonb->'erros') <> 1 OR r::jsonb->'erros'->0->>'erro' NOT LIKE '%duas vezes%' THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: linha repetida na importação (' || r || ')');
+  END IF;
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, false)::text', j));
+  IF r::jsonb->>'gravado' <> 'false' OR r::jsonb->>'criados' <> '1' OR r::jsonb->>'responsaveis' <> '1'
+     OR jsonb_array_length(r::jsonb->'avisos') <> 1 OR EXISTS (SELECT 1 FROM public.contratos WHERE numero_contrato = 'IMP-1') THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: simulação da importação (' || r || ')');
+  END IF;
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, true)::text', j));
+  IF r::jsonb->>'gravado' <> 'true' OR r::jsonb->>'fornecedores_criados' <> '1'
+     OR NOT EXISTS (SELECT 1 FROM public.contratos c JOIN public.contrato_responsaveis cr ON cr.contrato_id = c.id
+                     WHERE c.numero_contrato = 'IMP-1' AND c.ano = 2099 AND c.prorrogavel AND c.valor_atual = 1200.50
+                       AND cr.papel = 'gestor' AND cr.servidor_id = srv AND cr.portaria_numero = 'Portaria 9/2099') THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: importação não gravou contrato, contratado e gestor (' || r || ')');
+  END IF;
+  j := jsonb_build_array(j->0 || jsonb_build_object('processo_sei', '99999.000555/2099.55', 'objeto', 'Objeto trocado',
+    'valor_inicial', '1', 'gestor_matricula', ''));
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, true)::text', j));
+  IF r::jsonb->>'gravado' <> 'false' OR jsonb_array_length(r::jsonb->'erros') <> 1 THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: criar completou contrato existente sem editar (' || r || ')');
+  END IF;
+  r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, true)::text', j));
+  IF r::jsonb->>'completados' <> '1'
+     OR NOT EXISTS (SELECT 1 FROM public.contratos WHERE numero_contrato = 'IMP-1' AND processo_sei = '99999.000555/2099.55'
+                     AND objeto = 'Vigilância' AND valor_inicial = 1200.50) THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: importação sobrescreveu ou não completou o contrato existente (' || r || ')');
+  END IF;
+
+  -- localizador
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated',
+    'SELECT string_agg(origem || '':'' || ref, '','') FROM public.localizar_processos_sei(''000777/99-11'')');
+  IF r IS DISTINCT FROM 'contrato:C1-01/2099' THEN PERFORM pg_temp.falha('LOCALIZADOR: contrato pelo nº SEI (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_nenhum, 'authenticated',
+    'SELECT count(*)::text FROM public.localizar_processos_sei(''000777/99-11'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: contrato visto sem o módulo (' || coalesce(r, 'nulo') || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('CONTRATOS C1: cadastrar com criar, alterar com editar (passagens só marca a agência), apagar só rascunho com editar, nº único por ano, responsáveis (nome do RH, um gestor ativo, saída com motivo, trilha), busca estreita no RH, importação (simula, repete, grava, só completa) e localizador verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

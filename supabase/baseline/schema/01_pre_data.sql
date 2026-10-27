@@ -2935,6 +2935,403 @@ $$;
 
 
 --
+-- Name: contrato_buscar_servidores(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.contrato_buscar_servidores(_termo text) RETURNS TABLE(id uuid, nome text, matricula text, cargo text)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT public.contrato_pode_gravar() THEN
+    RAISE EXCEPTION 'Requer a permissão de criar ou editar contratos.' USING ERRCODE = '42501';
+  END IF;
+  IF char_length(regexp_replace(coalesce(_termo, ''), '[^[:alnum:]]', '', 'g')) < 3 THEN
+    RETURN;
+  END IF;
+  RETURN QUERY
+  SELECT s.id, s.nome_completo, s.matricula, c.nome
+    FROM public.servidores s
+    LEFT JOIN public.cargos c ON c.id = s.cargo_atual_id
+   WHERE s.ativo IS NOT FALSE
+     AND (s.nome_completo ILIKE '%' || replace(replace(replace(btrim(_termo), '\', '\\'), '%', '\%'), '_', '\_') || '%'
+          OR s.matricula = btrim(_termo))
+   ORDER BY s.nome_completo
+   LIMIT 20;
+END;
+$$;
+
+
+--
+-- Name: contrato_pode_gravar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.contrato_pode_gravar() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT (public.can_access_module(auth.uid(), 'compras') OR public.can_access_module(auth.uid(), 'contratos'))
+     AND (public.has_permission_code(auth.uid(), 'contratos.criar')
+          OR public.has_permission_code(auth.uid(), 'contratos.editar'));
+$$;
+
+
+--
+-- Name: contrato_resp_preparar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.contrato_resp_preparar() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.created_by := coalesce(auth.uid(), NEW.created_by);
+    NEW.created_at := now();
+  ELSE
+    NEW.created_at := OLD.created_at;
+    NEW.created_by := OLD.created_by;
+    IF NEW.contrato_id IS DISTINCT FROM OLD.contrato_id THEN
+      RAISE EXCEPTION 'A designação não muda de contrato: encerre esta e crie outra.' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  NEW.updated_at := now();
+  NEW.updated_by := auth.uid();
+  IF TG_OP = 'INSERT' OR NEW.servidor_id IS DISTINCT FROM OLD.servidor_id THEN
+    SELECT s.nome_completo INTO NEW.nome FROM public.servidores s WHERE s.id = NEW.servidor_id;
+    IF NEW.nome IS NULL THEN
+      RAISE EXCEPTION 'Servidor não encontrado.' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: contrato_servidor_por_matricula(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.contrato_servidor_por_matricula(_matricula text) RETURNS uuid
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  IF NOT public.contrato_pode_gravar() THEN
+    RAISE EXCEPTION 'Requer a permissão de criar ou editar contratos.' USING ERRCODE = '42501';
+  END IF;
+  SELECT s.id INTO v_id FROM public.servidores s
+   WHERE s.matricula = btrim(_matricula) AND s.ativo IS NOT FALSE
+   LIMIT 1;
+  RETURN v_id;
+END;
+$$;
+
+
+--
+-- Name: contratos_conferir_permissao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.contratos_conferir_permissao() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_mudou text[];
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    IF NOT public.has_permission_code(v_uid, 'contratos.criar') THEN
+      RAISE EXCEPTION 'Cadastrar contrato exige a permissão "Criar contratos".' USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.status IS DISTINCT FROM 'rascunho' THEN
+      RAISE EXCEPTION 'Contrato assinado não se apaga: marque como rescindido ou encerrado.' USING ERRCODE = '42501';
+    END IF;
+    IF NOT public.has_permission_code(v_uid, 'contratos.editar') THEN
+      RAISE EXCEPTION 'Apagar o rascunho exige a permissão "Editar contratos".' USING ERRCODE = '42501';
+    END IF;
+    RETURN OLD;
+  END IF;
+
+  IF public.has_permission_code(v_uid, 'contratos.editar') THEN
+    RETURN NEW;
+  END IF;
+  SELECT coalesce(array_agg(n.key), '{}') INTO v_mudou
+    FROM jsonb_each(to_jsonb(NEW)) n
+    JOIN jsonb_each(to_jsonb(OLD)) o ON o.key = n.key
+   WHERE n.value IS DISTINCT FROM o.value
+     AND n.key NOT IN ('updated_at', 'updated_by');
+  -- Marcar o contrato da agência em Passagens aéreas (usePassagens) não exige editar o contrato.
+  IF v_mudou <@ ARRAY['controla_passagens']
+     AND (public.has_permission_code(v_uid, 'contratos.criar')
+          OR public.has_permission_code(v_uid, 'contratos.passagens.editar')) THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'Alterar contrato exige a permissão "Editar contratos".' USING ERRCODE = '42501';
+END;
+$$;
+
+
+--
+-- Name: contratos_importar_planilha(jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.contratos_importar_planilha(p_linhas jsonb, p_gravar boolean DEFAULT false) RETURNS jsonb
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  c_simulacao constant text := 'contratos_importar_planilha: simulação';
+  l jsonb;
+  i int := 0;
+  v_erros jsonb := '[]'::jsonb;
+  v_avisos jsonb := '[]'::jsonb;
+  v_criados int := 0;
+  v_completados int := 0;
+  v_iguais int := 0;
+  v_fornecedores int := 0;
+  v_responsaveis int := 0;
+  v_gravado boolean := false;
+  v_chaves text[] := '{}';
+  v_chave text;
+  v_numero text;
+  v_ano int;
+  v_doc text;
+  v_digitos text;
+  v_fornecedor uuid;
+  v_unidade uuid;
+  v_contrato uuid;
+  v_existe boolean;
+  v_situacao public.status_contrato;
+  v_inicio date;
+  v_fim date;
+  v_valor_inicial numeric;
+  v_valor_atual numeric;
+  v_mat text;
+  v_servidor uuid;
+  v_papel text;
+  n int;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.has_permission_code(auth.uid(), 'contratos.criar') THEN
+    RAISE EXCEPTION 'Importar contratos exige a permissão "Criar contratos".' USING ERRCODE = '42501';
+  END IF;
+  IF p_linhas IS NULL OR jsonb_typeof(p_linhas) <> 'array' THEN
+    RAISE EXCEPTION 'Envie as linhas da planilha como uma lista.';
+  END IF;
+  IF jsonb_array_length(p_linhas) > 1000 THEN
+    RAISE EXCEPTION 'Planilha grande demais (% linhas; máximo 1000).', jsonb_array_length(p_linhas);
+  END IF;
+
+  BEGIN
+    FOR l IN SELECT x FROM jsonb_array_elements(p_linhas) AS x LOOP
+      i := i + 1;
+      BEGIN
+        IF jsonb_typeof(l) <> 'object' THEN
+          RAISE EXCEPTION 'linha em formato inválido';
+        END IF;
+        v_numero := nullif(btrim(l->>'numero'), '');
+        v_ano := nullif(btrim(l->>'ano'), '')::int;
+        IF v_numero IS NULL OR v_ano IS NULL THEN
+          RAISE EXCEPTION 'falta o número ou o ano do contrato';
+        END IF;
+        IF v_ano NOT BETWEEN 1990 AND 2100 THEN
+          RAISE EXCEPTION 'ano % fora do intervalo', v_ano;
+        END IF;
+        v_chave := lower(v_numero) || '/' || v_ano;
+        IF v_chave = ANY (v_chaves) THEN
+          RAISE EXCEPTION 'o contrato %/% aparece duas vezes na planilha', v_numero, v_ano;
+        END IF;
+        v_chaves := v_chaves || v_chave;
+
+        v_situacao := coalesce(nullif(btrim(l->>'situacao'), ''), 'vigente')::public.status_contrato;
+        v_inicio := nullif(l->>'data_inicio', '')::date;
+        v_fim := nullif(l->>'data_fim', '')::date;
+        v_valor_inicial := nullif(l->>'valor_inicial', '')::numeric;
+        v_valor_atual := coalesce(nullif(l->>'valor_atual', '')::numeric, v_valor_inicial);
+
+        -- setor que pediu (sigla da estrutura)
+        v_unidade := NULL;
+        IF nullif(btrim(l->>'setor_sigla'), '') IS NOT NULL THEN
+          SELECT u.id INTO v_unidade FROM public.estrutura_organizacional u
+           WHERE lower(u.sigla) = lower(btrim(l->>'setor_sigla')) AND u.ativo IS NOT FALSE
+           ORDER BY u.nivel LIMIT 1;
+          IF v_unidade IS NULL THEN
+            v_avisos := v_avisos || jsonb_build_object('linha', i, 'aviso',
+              format('setor "%s" não encontrado na estrutura: ficou em branco', l->>'setor_sigla'));
+          END IF;
+        END IF;
+
+        SELECT c.id INTO v_contrato FROM public.contratos c
+         WHERE lower(c.numero_contrato) = lower(v_numero) AND c.ano = v_ano;
+        v_existe := v_contrato IS NOT NULL;
+
+        IF NOT v_existe THEN
+          -- contratado: pelo documento (só dígitos); cadastra se não existir
+          v_doc := nullif(btrim(l->>'documento'), '');
+          v_digitos := regexp_replace(coalesce(v_doc, ''), '\D', '', 'g');
+          IF char_length(v_digitos) NOT IN (11, 14) THEN
+            RAISE EXCEPTION 'CPF ou CNPJ do contratado ausente ou inválido';
+          END IF;
+          SELECT f.id INTO v_fornecedor FROM public.fornecedores f
+           WHERE regexp_replace(f.cpf_cnpj, '\D', '', 'g') = v_digitos
+           ORDER BY f.ativo DESC NULLS LAST LIMIT 1;
+          IF v_fornecedor IS NULL THEN
+            IF nullif(btrim(l->>'razao_social'), '') IS NULL THEN
+              RAISE EXCEPTION 'contratado % não cadastrado e sem razão social na planilha', v_doc;
+            END IF;
+            INSERT INTO public.fornecedores (tipo_pessoa, cpf_cnpj, razao_social, created_by)
+            VALUES (CASE WHEN char_length(v_digitos) = 14 THEN 'PJ' ELSE 'PF' END, v_doc, btrim(l->>'razao_social'), auth.uid())
+            RETURNING id INTO v_fornecedor;
+            v_fornecedores := v_fornecedores + 1;
+          END IF;
+          IF nullif(btrim(l->>'objeto'), '') IS NULL THEN
+            RAISE EXCEPTION 'falta o objeto';
+          END IF;
+          IF v_valor_inicial IS NULL OR v_inicio IS NULL OR v_fim IS NULL
+             OR nullif(l->>'data_assinatura', '') IS NULL THEN
+            RAISE EXCEPTION 'faltam valor inicial, assinatura, início ou fim da vigência';
+          END IF;
+
+          INSERT INTO public.contratos (
+            numero_contrato, ano, processo_sei, numero_pncp, fornecedor_id, objeto, objeto_resumido, tipo_contrato,
+            fundamento_legal, valor_inicial, valor_atual, data_assinatura, data_inicio, data_fim, status,
+            unidade_demandante_id, natureza_despesa, prorrogavel, prazo_maximo_meses, data_publicacao_doe, numero_doe,
+            created_by)
+          VALUES (
+            v_numero, v_ano, nullif(btrim(l->>'processo_sei'), ''), nullif(btrim(l->>'numero_pncp'), ''), v_fornecedor,
+            btrim(l->>'objeto'), nullif(btrim(l->>'objeto_resumido'), ''), nullif(btrim(l->>'tipo_contrato'), ''),
+            nullif(btrim(l->>'fundamento_legal'), ''), v_valor_inicial, v_valor_atual,
+            (l->>'data_assinatura')::date, v_inicio, v_fim, v_situacao,
+            v_unidade, nullif(btrim(l->>'natureza_despesa'), ''), coalesce((l->>'prorrogavel')::boolean, false),
+            nullif(l->>'prazo_maximo_meses', '')::int, nullif(l->>'data_publicacao_doe', '')::date,
+            nullif(btrim(l->>'numero_doe'), ''), auth.uid())
+          RETURNING id INTO v_contrato;
+          v_criados := v_criados + 1;
+        ELSE
+          -- só completa o que está vazio
+          UPDATE public.contratos c SET
+            processo_sei = coalesce(c.processo_sei, nullif(btrim(l->>'processo_sei'), '')),
+            numero_pncp = coalesce(c.numero_pncp, nullif(btrim(l->>'numero_pncp'), '')),
+            objeto_resumido = coalesce(c.objeto_resumido, nullif(btrim(l->>'objeto_resumido'), '')),
+            tipo_contrato = coalesce(c.tipo_contrato, nullif(btrim(l->>'tipo_contrato'), '')),
+            fundamento_legal = coalesce(c.fundamento_legal, nullif(btrim(l->>'fundamento_legal'), '')),
+            unidade_demandante_id = coalesce(c.unidade_demandante_id, v_unidade),
+            natureza_despesa = coalesce(c.natureza_despesa, nullif(btrim(l->>'natureza_despesa'), '')),
+            prazo_maximo_meses = coalesce(c.prazo_maximo_meses, nullif(l->>'prazo_maximo_meses', '')::int),
+            data_publicacao_doe = coalesce(c.data_publicacao_doe, nullif(l->>'data_publicacao_doe', '')::date),
+            numero_doe = coalesce(c.numero_doe, nullif(btrim(l->>'numero_doe'), ''))
+           WHERE c.id = v_contrato
+             AND (c.processo_sei IS NULL AND nullif(btrim(l->>'processo_sei'), '') IS NOT NULL
+               OR c.numero_pncp IS NULL AND nullif(btrim(l->>'numero_pncp'), '') IS NOT NULL
+               OR c.objeto_resumido IS NULL AND nullif(btrim(l->>'objeto_resumido'), '') IS NOT NULL
+               OR c.tipo_contrato IS NULL AND nullif(btrim(l->>'tipo_contrato'), '') IS NOT NULL
+               OR c.fundamento_legal IS NULL AND nullif(btrim(l->>'fundamento_legal'), '') IS NOT NULL
+               OR c.unidade_demandante_id IS NULL AND v_unidade IS NOT NULL
+               OR c.natureza_despesa IS NULL AND nullif(btrim(l->>'natureza_despesa'), '') IS NOT NULL
+               OR c.prazo_maximo_meses IS NULL AND nullif(l->>'prazo_maximo_meses', '') IS NOT NULL
+               OR c.data_publicacao_doe IS NULL AND nullif(l->>'data_publicacao_doe', '') IS NOT NULL
+               OR c.numero_doe IS NULL AND nullif(btrim(l->>'numero_doe'), '') IS NOT NULL);
+          GET DIAGNOSTICS n = ROW_COUNT;
+          IF n > 0 THEN
+            v_completados := v_completados + 1;
+          ELSE
+            v_iguais := v_iguais + 1;
+          END IF;
+        END IF;
+
+        -- responsáveis (matrícula); a portaria vale para os três
+        FOREACH v_papel IN ARRAY ARRAY['gestor', 'fiscal_tecnico', 'fiscal_administrativo'] LOOP
+          v_mat := nullif(btrim(l->>(v_papel || '_matricula')), '');
+          CONTINUE WHEN v_mat IS NULL;
+          v_servidor := public.contrato_servidor_por_matricula(v_mat);
+          IF v_servidor IS NULL THEN
+            v_avisos := v_avisos || jsonb_build_object('linha', i, 'aviso',
+              format('matrícula %s (%s) não encontrada entre os servidores ativos', v_mat, v_papel));
+            CONTINUE;
+          END IF;
+          IF EXISTS (SELECT 1 FROM public.contrato_responsaveis r
+                      WHERE r.contrato_id = v_contrato AND r.data_fim IS NULL
+                        AND (r.servidor_id = v_servidor AND r.papel = v_papel
+                             OR v_papel = 'gestor' AND r.papel = 'gestor')) THEN
+            CONTINUE;
+          END IF;
+          INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, portaria_numero, portaria_data, data_inicio)
+          VALUES (v_contrato, v_servidor, v_papel, nullif(btrim(l->>'portaria_numero'), ''),
+                  nullif(l->>'portaria_data', '')::date,
+                  coalesce(nullif(l->>'portaria_data', '')::date, v_inicio,
+                           (SELECT c.data_inicio FROM public.contratos c WHERE c.id = v_contrato)));
+          v_responsaveis := v_responsaveis + 1;
+        END LOOP;
+      EXCEPTION
+        WHEN raise_exception OR check_violation OR not_null_violation OR invalid_text_representation
+          OR invalid_datetime_format OR datetime_field_overflow OR numeric_value_out_of_range
+          OR string_data_right_truncation OR foreign_key_violation OR unique_violation OR insufficient_privilege
+          OR invalid_parameter_value THEN
+          v_erros := v_erros || jsonb_build_object('linha', i, 'erro', SQLERRM);
+      END;
+    END LOOP;
+
+    IF jsonb_array_length(v_erros) > 0 OR NOT p_gravar THEN
+      RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = c_simulacao;
+    END IF;
+    v_gravado := true;
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> c_simulacao THEN
+      RAISE;
+    END IF;
+  END;
+
+  RETURN jsonb_build_object(
+    'gravado', v_gravado,
+    'linhas', i,
+    'criados', v_criados,
+    'completados', v_completados,
+    'sem_mudanca', v_iguais,
+    'fornecedores_criados', v_fornecedores,
+    'responsaveis', v_responsaveis,
+    'erros', v_erros,
+    'avisos', v_avisos);
+END;
+$$;
+
+
+--
+-- Name: FUNCTION contratos_importar_planilha(p_linhas jsonb, p_gravar boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.contratos_importar_planilha(p_linhas jsonb, p_gravar boolean) IS 'Importa a planilha de contratos (simula com p_gravar=false). Nunca apaga nem sobrescreve: contrato existente só ganha o que está vazio. Exige contratos.criar (completar existente exige também contratos.editar). Migração 20261104090000.';
+
+
+--
+-- Name: contratos_preparar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.contratos_preparar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.data_fim_atual IS NULL THEN
+    NEW.data_fim_atual := NEW.data_fim;
+  END IF;
+  NEW.processo_sei := nullif(btrim(NEW.processo_sei), '');
+  NEW.numero_pncp := nullif(btrim(NEW.numero_pncp), '');
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: corrigir_conta_movimento(uuid, text, text, text, text, text, text, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -10400,6 +10797,14 @@ CREATE FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer DE
            concat_ws(' ', l.objeto, l.objeto_resumido, l.setor_atual, l.situacao_atual)
       FROM public.processos_licitatorios l
     UNION ALL
+    SELECT ct.processo_sei, 'contrato', ct.id, ct.numero_contrato || '/' || ct.ano,
+           concat_ws(' · ', 'Contrato ' || ct.numero_contrato || '/' || ct.ano, coalesce(ct.objeto_resumido, ct.objeto)),
+           ct.status::text, f.razao_social, coalesce(ct.updated_at, ct.created_at)::date, ct.valor_atual,
+           concat_ws(' ', ct.numero_contrato, ct.objeto, ct.objeto_resumido, f.razao_social, f.nome_fantasia)
+      FROM public.contratos ct
+      LEFT JOIN public.fornecedores f ON f.id = ct.fornecedor_id
+     WHERE nullif(btrim(ct.processo_sei), '') IS NOT NULL
+    UNION ALL
     SELECT pp.numero_sei, 'passagem', pp.id, NULL, coalesce(pp.evento, pp.finalidade), pp.situacao,
            concat_ws('/', pp.destino_cidade, pp.destino_uf), pp.updated_at::date, NULL,
            concat_ws(' ', pp.finalidade, pp.evento, pp.solicitante_nome, pp.destino_cidade)
@@ -10452,7 +10857,7 @@ $_$;
 -- Name: FUNCTION localizar_processos_sei(p_termo text, p_limite integer); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer) IS 'Localizador de processos do SEI: busca pelo nº (qualquer formato) ou por palavras em oito fontes; INVOKER (cada fonte com a RLS dela).';
+COMMENT ON FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer) IS 'Localizador de processos do SEI: busca pelo nº (qualquer formato) ou por palavras em nove fontes (o contrato desde a migração 20261104090000); INVOKER (cada fonte com a RLS dela).';
 
 
 --
@@ -21050,6 +21455,44 @@ CREATE TABLE public.conteudo_rascunho (
 
 
 --
+-- Name: contrato_responsaveis; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contrato_responsaveis (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    contrato_id uuid NOT NULL,
+    servidor_id uuid NOT NULL,
+    nome text DEFAULT ''::text NOT NULL,
+    papel text NOT NULL,
+    portaria_numero text,
+    portaria_documento_sei text,
+    portaria_data date,
+    data_inicio date NOT NULL,
+    data_fim date,
+    motivo_saida text,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT contrato_responsaveis_motivo_saida_check CHECK ((char_length(motivo_saida) <= 500)),
+    CONSTRAINT contrato_responsaveis_observacoes_check CHECK ((char_length(observacoes) <= 2000)),
+    CONSTRAINT contrato_responsaveis_papel_check CHECK ((papel = ANY (ARRAY['gestor'::text, 'gestor_substituto'::text, 'fiscal_tecnico'::text, 'fiscal_administrativo'::text, 'fiscal_substituto'::text]))),
+    CONSTRAINT contrato_responsaveis_periodo_check CHECK (((data_fim IS NULL) OR (data_fim >= data_inicio))),
+    CONSTRAINT contrato_responsaveis_portaria_documento_sei_check CHECK ((char_length(portaria_documento_sei) <= 60)),
+    CONSTRAINT contrato_responsaveis_portaria_numero_check CHECK ((char_length(portaria_numero) <= 60)),
+    CONSTRAINT contrato_responsaveis_saida_check CHECK (((data_fim IS NULL) OR (NULLIF(btrim(motivo_saida), ''::text) IS NOT NULL)))
+);
+
+
+--
+-- Name: TABLE contrato_responsaveis; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.contrato_responsaveis IS 'Gestor e fiscais do contrato, designados por portaria no SEI (aqui ficam nº, documento e data). Sai com data_fim e motivo; o nome do servidor é copiado pelo banco.';
+
+
+--
 -- Name: contratos; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -21084,8 +21527,43 @@ CREATE TABLE public.contratos (
     created_by uuid,
     updated_at timestamp with time zone DEFAULT now(),
     updated_by uuid,
-    controla_passagens boolean DEFAULT false NOT NULL
+    controla_passagens boolean DEFAULT false NOT NULL,
+    processo_sei text,
+    numero_pncp text,
+    fundamento_legal text,
+    tipo_contrato text,
+    prorrogavel boolean DEFAULT false NOT NULL,
+    prazo_maximo_meses integer,
+    unidade_demandante_id uuid,
+    natureza_despesa text,
+    CONSTRAINT contratos_fundamento_legal_check CHECK (((fundamento_legal IS NULL) OR (char_length(fundamento_legal) <= 500))),
+    CONSTRAINT contratos_natureza_despesa_check CHECK (((natureza_despesa IS NULL) OR (char_length(natureza_despesa) <= 30))),
+    CONSTRAINT contratos_numero_pncp_check CHECK (((numero_pncp IS NULL) OR ((char_length(btrim(numero_pncp)) >= 1) AND (char_length(btrim(numero_pncp)) <= 80)))),
+    CONSTRAINT contratos_prazo_maximo_meses_check CHECK (((prazo_maximo_meses IS NULL) OR ((prazo_maximo_meses >= 1) AND (prazo_maximo_meses <= 600)))),
+    CONSTRAINT contratos_processo_sei_check CHECK (((processo_sei IS NULL) OR ((char_length(btrim(processo_sei)) >= 1) AND (char_length(btrim(processo_sei)) <= 60)))),
+    CONSTRAINT contratos_tipo_contrato_check CHECK (((tipo_contrato IS NULL) OR (tipo_contrato = ANY (ARRAY['servico_continuo'::text, 'servico_escopo'::text, 'fornecimento'::text, 'obra'::text, 'locacao'::text, 'outro'::text]))))
 );
+
+
+--
+-- Name: COLUMN contratos.data_fim_atual; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.data_fim_atual IS 'Fim da vigência depois das alterações; igual a data_fim até a entrega C2 (aditivos).';
+
+
+--
+-- Name: COLUMN contratos.gestor_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.gestor_id IS 'Histórico: a designação vive em contrato_responsaveis desde a migração 20261104090000.';
+
+
+--
+-- Name: COLUMN contratos.fiscal_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.fiscal_id IS 'Histórico: a designação vive em contrato_responsaveis desde a migração 20261104090000.';
 
 
 --
@@ -21093,6 +21571,41 @@ CREATE TABLE public.contratos (
 --
 
 COMMENT ON COLUMN public.contratos.controla_passagens IS 'Contrato de agenciamento de passagens: aparece em Contratos → Passagens aéreas (saldo e escolha no pedido).';
+
+
+--
+-- Name: COLUMN contratos.processo_sei; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.processo_sei IS 'Processo SEI do contrato (como digitado; o localizador normaliza).';
+
+
+--
+-- Name: COLUMN contratos.numero_pncp; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.numero_pncp IS 'Número de controle do contrato no PNCP.';
+
+
+--
+-- Name: COLUMN contratos.fundamento_legal; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.fundamento_legal IS 'Modalidade e fundamento (ex.: Pregão eletrônico 05/2025, Lei 14.133/2021).';
+
+
+--
+-- Name: COLUMN contratos.tipo_contrato; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.tipo_contrato IS 'servico_continuo, servico_escopo, fornecimento, obra, locacao ou outro.';
+
+
+--
+-- Name: COLUMN contratos.unidade_demandante_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.unidade_demandante_id IS 'Setor que pediu a contratação (estrutura organizacional).';
 
 
 --
