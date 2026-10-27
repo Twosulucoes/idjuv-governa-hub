@@ -24,6 +24,7 @@
 | [RBAC_PERMISSOES.md](./RBAC_PERMISSOES.md) | Modelo de permissões, perfis, rotas protegidas |
 | [GUIA_FRONTEND.md](./GUIA_FRONTEND.md) | Estrutura do front, hooks, libs, padrões de código |
 | [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md) | Funções serverless (Deno) do Supabase |
+| [INTEGRACOES_EXTERNAS.md](./INTEGRACOES_EXTERNAS.md) | APIs e bases públicas de fora do sistema (Compras.gov.br, BrasilAPI, Banco do Brasil, Gemini, Resend, WhatsApp, Transferegov, PNCP): onde são chamadas, chave, situação e o que falta |
 | [EMAILS_AUTH.md](./EMAILS_AUTH.md) | E-mails do Supabase Auth com o design system: gerador, templates por tenant e como aplicar na VPS |
 | [PADRAO_DOCUMENTOS.md](./PADRAO_DOCUMENTOS.md) | Padrão único de impressão (PDF): famílias, tokens, como criar documento novo |
 | [CONFIGURACAO_CLIENTE.md](./CONFIGURACAO_CLIENTE.md) | Identidade da instituição cadastrada em `/admin/configuracao-cliente` |
