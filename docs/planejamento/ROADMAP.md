@@ -34,14 +34,14 @@ do merge; "—" quando não registrada aqui.
 | P11 | 4. Segurança e limpeza | Banco: auditoria de licitações com o papel certo, `search_path` fixo, índices nas FKs de dados, fim do Realtime ([BANCO_DE_DADOS.md](../BANCO_DE_DADOS.md#limpeza-e-desempenho-p11-16102026)) | feito | #118 | 16/10/2026 |
 | P12 | 4. Segurança e limpeza | Auditoria de segurança sem achado crítico ou alto: limite por IP nos formulários públicos, CORS em falha fechada, cabeçalhos de segurança versionados, `xlsx` do CDN da SheetJS ([AUDITORIA_USUARIOS.md](../AUDITORIA_USUARIOS.md#auditoria-de-segurança-p12-17102026)) | feito | #119 | 17/10/2026 |
 | P13 | 4. Documentação com fonte única | `docs/ESTADO_DO_SISTEMA.md` gerado do código (`npm run estado`, guard no gate); guard de número escrito à mão (`npm run check:numeros`); docs obsoletos e `supabase/disaster-recovery/` em `docs/historico/`; tela de Disaster Recovery só informativa; tabelas `backup_*` apagadas ([BANCO_DE_DADOS.md](../BANCO_DE_DADOS.md#limpeza-do-p13-18102026)); este ROADMAP refeito | em andamento | este PR | 18/10/2026 |
-| P14 | 5. Módulos | Patrimônio: telas reais no lugar dos placeholders, relatórios "Em breve", próximas ondas da auditoria (dividido em 11 entregas; entregas 1 a 4 feitas: detalhe de movimentação, manutenção e baixa; editar bem e abas de manutenção/ocorrência na ficha; ver e editar item do almoxarifado; permissões do patrimônio e unidades no banco e nas rotas) | em andamento | | |
+| P14 | 5. Módulos | Patrimônio: telas reais no lugar dos placeholders, relatórios "Em breve", próximas ondas da auditoria (dividido em 11 entregas; entregas 1 a 4 feitas: detalhe de movimentação, manutenção e baixa; editar bem e abas de manutenção/ocorrência na ficha; ver e editar item do almoxarifado; permissões do patrimônio e unidades no banco e nas rotas). Prioridade do dono em 27/10/2026: o uso dos espaços das Unidades Locais do pedido ao termo, em seis entregas (U1 espaços e regras; U2 pedido pelo site e balcão; U3 triagem e alçada; U4 termo e agenda única; U5 uso, vistoria e pendências; U6 relatórios), [spec](../superpowers/specs/2026-10-27-unidades-locais-uso-espacos-design.md) aguardando o "sim" | em andamento | | |
 | P15 | 5. Módulos | Financeiro: detalhe de solicitação e empenho, regra de estorno, leitor OBN600 conferido, homologação da `bb-api` | a fazer | | |
 | P16 | 5. Módulos | Transparência: página LAI sem "em implementação", execução orçamentária completa | a fazer | | |
 | P17 | 5. Módulos | Workflow (SEI): unidades da Lei 2.301/2025 e etapas "(proposta)" confirmadas | a fazer | | |
 | P18 | 5. Módulos | Governança e Integridade: telas ou fora do menu (D4). Feito: relatório de governança com dados reais (tela e PDF `governanca-relatorio-anual` leem riscos, planos de tratamento, controles, checklists, matriz RACI e denúncias; sem número fixo no código). Falta fonte para capacitações e metas | em andamento | | 20/10/2026 |
 | P19 | 5. Módulos | Programas: admin da seleção gravando no banco (D4) | a fazer | | |
 | P20 | 5. Módulos | Compras, conforme o escopo (D1, D2) | a fazer | | |
-| P21 | 5. Módulos | Contratos, conforme o escopo (D1). Começou pelo controle de passagens aéreas (entrega 1 de 3: pedidos, passageiros, cotação e emissão; entrega 2: prestação de contas e pendências; entrega 3: faturas, pagas, saldo × empenho e relatórios; [spec](../superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md)) | em andamento | #176, #181, entrega 3 | |
+| P21 | 5. Módulos | Contratos, conforme o escopo (D1). Começou pelo controle de passagens aéreas (entrega 1 de 3: pedidos, passageiros, cotação e emissão; entrega 2: prestação de contas e pendências; entrega 3: faturas, pagas, saldo × empenho e relatórios; [spec](../superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md)). Prioridade do dono em 27/10/2026: o módulo inteiro, do cadastro ao encerramento, em seis entregas (C1 cadastro, lista e ficha; C2 alterações e vencimentos; C3 execução financeira; C4 fiscalização; C5 sanções, encerramento e transparência; C6 atas), [spec](../superpowers/specs/2026-10-27-contratos-gestao-completa-design.md) aguardando o "sim" | em andamento | #176, #181, entrega 3 | |
 | P22 | 5. Módulos | Gabinete: módulo próprio ou só atalhos (D4) | a fazer | | |
 | P23 | 6. Pronto para uso | PDFs no padrão único: migrar os geradores `src/lib/pdf*.ts` para `src/lib/documentos/` ([PADRAO_DOCUMENTOS.md](../PADRAO_DOCUMENTOS.md)), em ondas ([spec](../superpowers/specs/2026-10-19-padrao-relatorios-configuravel-design.md)). Onda 0: padronização configurável na tela Configuração do cliente, com pré-visualização ([CONFIGURACAO_CLIENTE.md](../CONFIGURACAO_CLIENTE.md#impressão-de-documentos-padronização-dos-pdfs)); onda 1: relatórios do RH (PR #133); onda 2: fichas ([plano](../superpowers/plans/2026-10-19-padrao-relatorios-onda2.md)); onda 3: comprovantes, contracheque, folha de frequência e reuniões ([plano](../superpowers/plans/2026-10-20-padrao-relatorios-onda3.md), bloco `quebraPagina` para lotes; PR #138, ajustes da revisão: `localDaSede()` único); onda 4: demais relatórios: unidades, cargos, governança, árbitros, federações e organograma ([plano](../superpowers/plans/2026-10-20-padrao-relatorios-onda4.md)); onda 5: limpeza (relatório de portarias migrado: `portarias-relatorio`; cartões do RH sem a base antiga; atos do SEI removidos: DFD/ETP/TR com a tela CPSI, PDF do termo de cessão e memorando de designação; declarações migradas: acumulação, bens, residência e relação de documentos, `declaracoes-*`; formulários administrativos migrados: termo de demanda, ordem de missão, relatório de viagem, requisição de material e termo de responsabilidade, preenchidos e em branco, `formularios-*`; base antiga apagada e travada no gate, [plano](../superpowers/plans/2026-10-20-padrao-relatorios-onda5.md)); termo de cessão e designação de chefia guardam o ciclo do SEI (processo, número do ato, assinatura e DOE; o termo nasce "aguardando SEI" em vez de "emitido" com número interno), com edição do registro nas duas abas (migração `20261023090000`, [BANCO_DE_DADOS.md](../BANCO_DE_DADOS.md#termo-de-cessão-e-designação-de-chefia-ciclo-do-sei)) | em andamento (ondas 0 a 4 entregues; onda 5 na PR #143; registro do SEI no termo e na designação nesta branch) | #143 | |
 | P24 | 6. Pronto para uso | White label: tirar os literais do cliente de `src/` e pôr trava no gate ([INVENTARIO_HARDCODE.md](../INVENTARIO_HARDCODE.md)). Fase A (21/10/2026, sem banco novo): PDFs, formulários, rótulos do RH, portal, painel, Apresentação, Estrutura Organizacional (de `estrutura_organizacional`), quadro de cargos calculado (sai o resumo estático de `public/data/`), Matriz RACI (de `matriz_raci_*`) e prazos da LAI (de `prazos_lai`) leem o cadastro. Faltam a Fase B (missão, visão, slogan, sede, tribunal de contas, setor das diárias no cadastro; textos do portal no CMS) e a Fase C (tabelas de diárias, férias por regime, Bolsa Atleta, municípios, normas e eventos); levantamento em `/mnt/project-files/levantamento/dados-instituicao-no-codigo.md` | em andamento | este PR | 21/10/2026 |
@@ -87,7 +87,7 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 
 | # | Decisão | Destrava | Situação |
 |---|---|---|---|
-| D1 | Escopo de Compras e Contratos: licitação, ata, fornecedor, contrato, aditivo e vencimento no sistema, ou só acompanhar o SEI/FIPLAN? | P20, P21 | aberta |
+| D1 | Escopo de Compras e Contratos: licitação, ata, fornecedor, contrato, aditivo e vencimento no sistema, ou só acompanhar o SEI/FIPLAN? | P20, P21 | parte de Contratos encaminhada em 27/10/2026: o dono quer o contrato inteiro no sistema (controle; ato no SEI, dinheiro no FIPLAN), spec de 2026-10-27 aguardando o "sim"; Compras segue aberta |
 | D2 | IA de compras (`cpsi-ai-assistant`, PR #94): seguir, reduzir a apoio de pesquisa ou abandonar (DFD/ETP/TR ficou no SEI; a tela CPSI saiu na onda 5 do P23 e a função ficou sem chamador)? | P20 | aberta |
 | D3 | Nomes reais na migração `20260110184920` (LGPD): reescrever o histórico do git ou registrar e aceitar? | P28 | aberta |
 | D4 | Governança, Integridade, Programas e Gabinete: construir as telas que o menu prometia ou deixar fora do menu (hoje fora, desde o P09)? | P18, P19, P22 | aberta |
@@ -143,6 +143,36 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   conferir na produção e corrigir por migração (cabe no P16).
 - [ ] **Patrimônio — inventário de campo, fases 2–3**: edificações e instalações, relatórios automáticos, conciliação
   com a relação da SEED, importação de planilha; confirmar os termos de uso da Esri World Imagery para uso institucional.
+
+### Evolução pela estrutura do IDJUV (27/10/2026)
+
+Levantada cruzando a função de cada unidade da Lei 2.301/2025 (art. 4º) e do Decreto 39.840-E/2026 (arts. 3º a 20)
+com o que o sistema tem. O dono pediu para não esquecer: entram depois de Contratos (P21) e do uso das Unidades
+Locais (P14), cada uma com spec e "sim" antes de começar.
+
+- [ ] **Unidades Locais completas** (`patrimonio`): relatório mensal do chefe da unidade pelo celular (Decreto, art. 20,
+  IV), pedido de manutenção da unidade com prazo e situação; contagem de público (vem da U6).
+- [ ] **Controle Interno** (`governanca`, junto do P18): plano anual de auditoria, recomendações com prazo e
+  responsável, diligências do TCE/CGE com prazo, checklist do processo de pagamento (Decreto, art. 10).
+- [ ] **Convênios, termos de fomento e apoio a eventos** (`contratos`): pedido de apoio (passagem, material,
+  premiação, recurso), termo no SEI, repasse, prazo e cobrança da prestação de contas (Decreto, art. 4º, III, o a s;
+  art. 5º, II). Reaproveita as tabelas de Contratos com `tipo_instrumento`.
+- [ ] **Frota** (`patrimonio`): veículos, motorista autorizado, saídas, abastecimento, manutenção, licenciamento no
+  DETRAN com aviso (Decreto, art. 4º, II, o e p). Hoje `/processos/veiculos` diz "não implantado".
+- [ ] **Indicadores e metas** (`governanca`): meta e realizado das ações do PPA por diretoria, relatório periódico à
+  SEED e relatório de gestão anual (Lei, art. 3º, IX; Decreto, art. 3º, XIV). Dá a fonte de metas que falta no P18.
+- [ ] **RH** (`rh`): estagiários (Decreto, art. 4º, I, f), avaliação de desempenho e estágio probatório, capacitação,
+  aviso de vencimento das cessões de servidores (os dados de cessão já existem em `cessoes`).
+- [ ] **Financeiro** (`financeiro`): suprimento de fundos com prazo de comprovação; cauções e garantias com vencimento
+  (Decreto, art. 4º, III, d e g).
+- [ ] **Assessoria Jurídica** (`gabinete`): controle de pareceres (processo SEI, prazo, situação) e banco de pareceres
+  por tema; processos judiciais, se houver.
+- [ ] **Gabinete** (`gabinete`, junto do P22): agenda do Presidente e pedidos de audiência; painel executivo único.
+- [ ] **Esporte** (`programas`): cadastro único de atletas e beneficiários (P19), núcleos e escolinhas esportivas
+  (turma, local, alunos, frequência), calendário de eventos esportivos, paradesporto, ProEsporte (Lei 1.859/2023).
+- [ ] **Juventude** (`programas`): Centro de Referência da Juventude (atendimentos, cursos e oficinas), articulação
+  com municípios (NuREL), campeonatos de jogos eletrônicos (Lei, art. 3º, IV).
+- [ ] **TI** (`admin`): chamados de suporte (pode ser o mesmo pedido de serviço das Unidades Locais).
 
 ## Concluído
 
