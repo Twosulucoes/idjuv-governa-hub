@@ -4,7 +4,7 @@
  * Uma linha por contrato, no modelo baixado pelo próprio assistente. A RPC `contratos_importar_planilha` confere o
  * módulo e a permissão `contratos.criar`, cadastra o contratado que falta (pelo CNPJ/CPF), designa gestor e fiscais
  * pela matrícula e grava tudo ou nada. Contrato que já existe (nº + ano) só tem os campos vazios completados, o que
- * exige também `contratos.editar`. Nada é apagado.
+ * exige também `contratos.editar`; designar gestor e fiscais pela matrícula basta `contratos.criar`. Nada é apagado.
  * Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md (C1)
  */
 

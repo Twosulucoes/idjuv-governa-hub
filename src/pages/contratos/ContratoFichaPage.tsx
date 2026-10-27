@@ -38,6 +38,7 @@ import {
   useSalvarContrato,
 } from "@/hooks/useContratos";
 import { useToast } from "@/hooks/use-toast";
+import { mascararDocumento } from "@/lib/bancario/comum";
 import { montarFichaContrato } from "@/lib/contratos/ficha";
 import { emVigor } from "@/lib/contratos/lista";
 import { situacaoVigencia, tomSituacaoContrato } from "@/lib/contratos/vigencia";
@@ -63,7 +64,7 @@ function Dados({ c, processoContratacao }: { c: ContratoFicha; processoContratac
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Campo rotulo="Contratado">
             {c.fornecedor?.razao_social ?? "—"}
-            {c.fornecedor?.cpf_cnpj && <span className="block text-muted-foreground">{c.fornecedor.cpf_cnpj}</span>}
+            {c.fornecedor?.cpf_cnpj && <span className="block text-muted-foreground">{mascararDocumento(c.fornecedor.cpf_cnpj)}</span>}
           </Campo>
           <Campo rotulo="Tipo">{c.tipo_contrato ? rotuloTipoContrato(c.tipo_contrato) : "—"}</Campo>
           <Campo rotulo="Setor que pediu">{c.unidade ? [c.unidade.sigla, c.unidade.nome].filter(Boolean).join(" · ") : "—"}</Campo>
@@ -222,7 +223,7 @@ export default function ContratoFichaPage() {
                     Copiar nº SEI
                   </Button>
                 )}
-                <Button variant="outline" onClick={baixarFicha} disabled={gerandoPdf || itens.isLoading || responsaveis.isLoading}>
+                <Button variant="outline" onClick={baixarFicha} disabled={gerandoPdf || itens.isLoading || responsaveis.isLoading || itens.isError || responsaveis.isError}>
                   <FileDown className="h-4 w-4" aria-hidden="true" />
                   Ficha (PDF)
                 </Button>

@@ -8661,10 +8661,13 @@ END $$;
 -- ---------------------------------------------------------------- Contratos C1: cadastro, ficha e responsáveis (migração 20261104090000) (TRIGGERS LIGADOS)
 -- Migração 20261104090000_contratos_c1_cadastro.sql (plano docs/superpowers/plans/2026-10-27-contratos-c1-cadastro-ficha.md):
 --   * cadastrar exige contratos.criar (módulo sozinho, editar e passagens.editar = 42501); alterar exige contratos.editar;
---     passagens.editar e criar só marcam controla_passagens; apagar só rascunho, com editar (vigente = 42501);
+--     passagens.editar e criar só marcam controla_passagens (desmarcar = 42501); apagar só rascunho, com editar
+--     (vigente = 42501); assinado não volta a rascunho nem com admin; created_by/updated_by fixados pelo banco;
+--     medição aprovada (gatilho atualizar_saldo_contrato) recalcula o saldo para quem só tem o módulo;
 --   * número único por ano (23505 no mesmo ano, aceito em outro); data_fim_atual = data_fim quando vazia;
---   * responsáveis: nome copiado pelo banco, um gestor ativo (23505), saída exige motivo (23514), não muda de contrato
---     (22023), módulo sem permissão não grava (42501), trilha em audit_log_licitacoes;
+--   * responsáveis: nome copiado pelo banco (e não se troca à mão), servidor inativo não se designa (22023), um gestor
+--     ativo (23505), saída exige motivo (23514), não muda de contrato (22023), módulo sem permissão não grava (42501),
+--     trilha em audit_log_licitacoes;
 --   * contrato_buscar_servidores só com criar ou editar (curinga é texto);
 --   * contratos_importar_planilha (Central de Importações): só com criar; simula sem gravar nem logar; linha repetida vira
 --     erro; grava contrato, contratado, gestor e o log em importacoes; contrato existente só ganha o que está vazio
@@ -8681,7 +8684,7 @@ DECLARE
   forn uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'fornecedores');
   srv uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'servidores');
   srv_b uuid := (SELECT id_b::uuid FROM semeado WHERE tabela = 'servidores');
-  srv_nome text; srv_mat text;
+  srv_nome text; srv_mat text; srv_b_ativo boolean;
   ins text; ct uuid; rasc uuid; resp uuid; r text; x text; j jsonb; arq jsonb;
 BEGIN
   PERFORM set_config('request.jwt.claims', '', true);
@@ -8738,6 +8741,26 @@ BEGIN
   IF r <> 'ok:0' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão altera (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contratos SET objeto = ''Outro'' WHERE id = %L', ct));
   IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: editar não altera (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_pass, 'authenticated', format('UPDATE public.contratos SET controla_passagens = false WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: passagens.editar desmarca o contrato da agência (' || r || ')'); END IF;
+  -- autoria: quem cadastrou não muda e quem alterou é o usuário da sessão, mesmo que o cliente mande outro
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.contratos SET objeto = ''Outro 2'', created_by = %L, updated_by = %L WHERE id = %L '
+    || 'RETURNING created_by::text || ''|'' || updated_by::text', u_admin, u_admin, ct));
+  IF r IS DISTINCT FROM u_criar::text || '|' || u_ed::text THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: created_by/updated_by aceitam o valor do cliente (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  -- medição aprovada recalcula o saldo do contrato pelo gatilho atualizar_saldo_contrato: quem só tem o módulo grava
+  -- (o gatilho de permissão não confere alteração que vem de outro gatilho)
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format(
+    'INSERT INTO public.medicoes_contrato (contrato_id, numero_medicao, periodo_inicio, periodo_fim, valor_medido, '
+    || 'valor_aprovado, status) VALUES (%L, 1, ''2099-01-01'', ''2099-01-31'', 10, 10, ''aprovada'') RETURNING id::text', ct));
+  IF r IS NULL OR r LIKE 'erro:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: medição não recalcula o saldo (' || coalesce(r, 'nulo') || ')'); END IF;
+  -- assinado não volta a rascunho (senão o "só rascunho se apaga" cairia em dois passos)
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contratos SET status = ''rascunho'' WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: editar volta contrato vigente a rascunho (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('UPDATE public.contratos SET status = ''rascunho'' WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: admin volta contrato vigente a rascunho (' || r || ')'); END IF;
 
   -- apagar: só rascunho e só com editar
   r := pg_temp.sql_como(u_ed, 'authenticated', format('DELETE FROM public.contratos WHERE id = %L', ct));
@@ -8766,6 +8789,16 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.audit_log_licitacoes WHERE tabela_origem = 'contrato_responsaveis' AND registro_id = resp) THEN
     PERFORM pg_temp.falha('CONTRATOS C1: designação sem trilha em audit_log_licitacoes');
   END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contrato_responsaveis SET nome = ''Nome forjado'' WHERE id = %L', resp));
+  IF r <> 'ok:1' OR (SELECT nome FROM public.contrato_responsaveis WHERE id = resp) IS DISTINCT FROM srv_nome THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: nome do responsável trocado à mão (' || r || ')');
+  END IF;
+  SELECT ativo INTO srv_b_ativo FROM public.servidores WHERE id = srv_b;
+  UPDATE public.servidores SET ativo = false WHERE id = srv_b;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, data_inicio) VALUES (%L, %L, ''fiscal_tecnico'', ''2099-01-01'') RETURNING id::text', ct, srv_b));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: servidor inativo designado (' || r || ')'); END IF;
+  UPDATE public.servidores SET ativo = srv_b_ativo WHERE id = srv_b;
   r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
     'INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, data_inicio) VALUES (%L, %L, ''gestor'', ''2099-02-01'') RETURNING id::text',
     ct, (SELECT id_b::uuid FROM semeado WHERE tabela = 'servidores')));
@@ -8844,6 +8877,14 @@ BEGIN
        OR jsonb_typeof(r::jsonb->'criados'->'Designações') = 'array' THEN
       PERFORM pg_temp.falha('CONTRATOS C1: importação trocou o gestor em exercício sem avisar (' || r || ')');
     END IF;
+    -- zeros à esquerda não contam ("00IMP-1" é o IMP-1) e o que difere do cadastro só vira aviso
+    j := jsonb_build_array(((j->0) - 'gestor_matricula') || jsonb_build_object('numero', '00IMP-1', 'valor_atual', '999'));
+    r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, true)::text', j, arq));
+    IF r::jsonb->'linhas'->0->>'acao' = 'inserir'
+       OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(r::jsonb->'linhas'->0->'avisos') a(t)
+                       WHERE a.t LIKE '%difere do cadastro em%valor atual%') THEN
+      PERFORM pg_temp.falha('CONTRATOS C1: importação com zero à esquerda ou valor diferente (' || r || ')');
+    END IF;
   END IF;
 
   -- localizador
@@ -8855,7 +8896,7 @@ BEGIN
   IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: contrato visto sem o módulo (' || coalesce(r, 'nulo') || ')'); END IF;
 
   PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM pg_temp.nota('CONTRATOS C1: cadastrar com criar, alterar com editar (passagens só marca a agência), apagar só rascunho com editar, nº único por ano, responsáveis (nome do RH, um gestor ativo, saída com motivo, trilha), busca estreita no RH, importação (simula, repete, grava, só completa, não troca o gestor em exercício) e localizador verificados');
+  PERFORM pg_temp.nota('CONTRATOS C1: cadastrar com criar, alterar com editar (passagens só marca a agência), apagar só rascunho com editar, nº único por ano, responsáveis (nome do RH, um gestor ativo, saída com motivo, trilha), busca estreita no RH, importação (simula, repete, grava, só completa, não troca o gestor em exercício, zero à esquerda, avisa o que difere), autoria, assinado não volta a rascunho, medição e localizador verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

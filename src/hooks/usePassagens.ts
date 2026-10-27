@@ -451,6 +451,8 @@ export function useMarcarContratoPassagens() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['passagens-contratos'] });
       qc.invalidateQueries({ queryKey: ['passagens-outros-contratos'] });
+      qc.invalidateQueries({ queryKey: ['contratos'] });
+      qc.invalidateQueries({ queryKey: ['contrato'] });
       ok('Contrato ligado às passagens');
     },
     onError: falha('Não foi possível usar o contrato'),
@@ -482,6 +484,8 @@ export function useCadastrarContrato() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['passagens-contratos'] });
+      qc.invalidateQueries({ queryKey: ['contratos'] });
+      qc.invalidateQueries({ queryKey: ['contratos-dashboard-stats'] });
       ok('Contrato cadastrado');
     },
     onError: falha('Não foi possível cadastrar o contrato'),

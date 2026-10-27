@@ -1028,8 +1028,8 @@ antes, qualquer pessoa com o módulo Compras ou Contratos gravava e apagava cont
 |---|---|---|
 | Ver a lista, a ficha, os itens, os responsáveis e o histórico | módulo `compras` ou `contratos` (RLS); a rota pede o módulo `contratos` **e** `contratos.visualizar`, `criar` ou `editar` | RLS de SELECT de `contratos`, `itens_contrato` e `contrato_responsaveis`; `ProtectedRoute` de `/contratos/lista` e `/contratos/:id` |
 | Cadastrar contrato | `contratos.criar` | RLS de INSERT e gatilho `contratos_conferir_permissao` (`42501`) |
-| Alterar contrato | `contratos.editar` (marcar só `controla_passagens` basta `criar` ou `contratos.passagens.editar`) | RLS de UPDATE e gatilho `contratos_conferir_permissao` |
-| Apagar contrato | `contratos.editar`, só em rascunho (assinado se marca como rescindido ou encerrado) | RLS de DELETE e gatilho `contratos_conferir_permissao` |
+| Alterar contrato | `contratos.editar` (marcar só `controla_passagens` basta `criar` ou `contratos.passagens.editar`; desmarcar pede `editar`) | RLS de UPDATE e gatilho `contratos_conferir_permissao` |
+| Apagar contrato | `contratos.editar`, só em rascunho (assinado se marca como rescindido ou encerrado e não volta a rascunho, nem com admin) | RLS de DELETE e gatilho `contratos_conferir_permissao` |
 | Incluir e alterar item; designar e encerrar gestor ou fiscal | `contratos.criar` ou `contratos.editar` | RLS de INSERT/UPDATE de `itens_contrato` e `contrato_responsaveis` |
 | Apagar item ou designação | `contratos.editar` | RLS de DELETE |
 | Buscar servidor para designar | módulo **e** `contratos.criar` ou `contratos.editar` | `contrato_buscar_servidores` (SECURITY DEFINER, só nome, matrícula e cargo; `%` e `_` não são curinga) |

@@ -9,7 +9,8 @@
 --   contrato_responsaveis     gestor e fiscais designados (portaria do SEI), com início, fim e motivo da saída.
 --                             Substitui contratos.gestor_id/fiscal_id, que ficam só como histórico.
 --   contratos_conferir_permissao  cadastrar exige contratos.criar; alterar exige contratos.editar (marcar o contrato
---                             da agência de passagens basta criar ou editar passagens); apagar só rascunho, com editar.
+--                             da agência de passagens basta criar ou editar passagens); apagar só rascunho, com editar;
+--                             contrato assinado não volta a rascunho; autoria (created_by/updated_by) fixada pelo banco.
 --   contrato_buscar_servidores    busca estreita no RH (nome, matrícula, cargo) para designar responsável.
 --   contratos_importar_planilha   carga pela Central de Importações, com simulação; nunca sobrescreve (só completa
 --                             o que está vazio).
@@ -36,6 +37,24 @@ ALTER TABLE public.contratos
   ADD COLUMN IF NOT EXISTS prazo_maximo_meses integer,
   ADD COLUMN IF NOT EXISTS unidade_demandante_id uuid REFERENCES public.estrutura_organizacional(id),
   ADD COLUMN IF NOT EXISTS natureza_despesa text;
+
+-- Fim atual = fim original onde está vazio. Antes dos CHECKs (NOT VALID só poupa linha que ninguém toca) e sem os
+-- gatilhos de trilha e de updated_at: é carga, não alteração de alguém.
+DO $$
+DECLARE
+  t text;
+  v_gatilhos text[] := ARRAY(SELECT tgname::text FROM pg_trigger
+                              WHERE tgrelid = 'public.contratos'::regclass
+                                AND tgname IN ('trg_audit_contratos', 'update_contratos_updated_at') AND tgenabled <> 'D');
+BEGIN
+  FOREACH t IN ARRAY v_gatilhos LOOP
+    EXECUTE format('ALTER TABLE public.contratos DISABLE TRIGGER %I', t);
+  END LOOP;
+  UPDATE public.contratos SET data_fim_atual = data_fim WHERE data_fim_atual IS NULL;
+  FOREACH t IN ARRAY v_gatilhos LOOP
+    EXECUTE format('ALTER TABLE public.contratos ENABLE TRIGGER %I', t);
+  END LOOP;
+END $$;
 
 ALTER TABLE public.contratos DROP CONSTRAINT IF EXISTS contratos_processo_sei_check;
 ALTER TABLE public.contratos ADD CONSTRAINT contratos_processo_sei_check
@@ -79,8 +98,6 @@ COMMENT ON COLUMN public.contratos.unidade_demandante_id IS 'Setor que pediu a c
 COMMENT ON COLUMN public.contratos.data_fim_atual IS 'Fim da vigência depois das alterações; igual a data_fim até a entrega C2 (aditivos).';
 COMMENT ON COLUMN public.contratos.gestor_id IS 'Histórico: a designação vive em contrato_responsaveis desde a migração 20261104090000.';
 COMMENT ON COLUMN public.contratos.fiscal_id IS 'Histórico: a designação vive em contrato_responsaveis desde a migração 20261104090000.';
-
-UPDATE public.contratos SET data_fim_atual = data_fim WHERE data_fim_atual IS NULL;
 
 -- ----------------------------------------------------------------------------
 -- 2. Responsáveis (gestor e fiscais)
@@ -158,11 +175,16 @@ BEGIN
   END IF;
   NEW.updated_at := now();
   NEW.updated_by := auth.uid();
+  -- O nome vem sempre do RH (não se digita); designar pede servidor ativo, como a busca.
   IF TG_OP = 'INSERT' OR NEW.servidor_id IS DISTINCT FROM OLD.servidor_id THEN
-    SELECT s.nome_completo INTO NEW.nome FROM public.servidores s WHERE s.id = NEW.servidor_id;
+    NEW.nome := NULL;
+    SELECT s.nome_completo INTO NEW.nome FROM public.servidores s
+     WHERE s.id = NEW.servidor_id AND s.ativo IS NOT FALSE;
     IF NEW.nome IS NULL THEN
-      RAISE EXCEPTION 'Servidor não encontrado.' USING ERRCODE = '22023';
+      RAISE EXCEPTION 'Servidor não encontrado entre os ativos.' USING ERRCODE = '22023';
     END IF;
+  ELSE
+    NEW.nome := OLD.nome;
   END IF;
   RETURN NEW;
 END;
@@ -176,13 +198,20 @@ DROP TRIGGER IF EXISTS trg_audit_contrato_responsaveis ON public.contrato_respon
 CREATE TRIGGER trg_audit_contrato_responsaveis AFTER INSERT OR DELETE OR UPDATE ON public.contrato_responsaveis
   FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
 
--- Fim da vigência atual: igual ao fim original enquanto não houver aditivo (C2).
+-- Fim da vigência atual: igual ao fim original enquanto não houver aditivo (C2). Autoria fixada pelo banco
+-- (quem cadastrou não muda; quem alterou é o usuário da sessão).
 CREATE OR REPLACE FUNCTION public.contratos_preparar()
 RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
 BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.created_by := coalesce(auth.uid(), NEW.created_by);
+  ELSE
+    NEW.created_by := OLD.created_by;
+    NEW.updated_by := coalesce(auth.uid(), NEW.updated_by);
+  END IF;
   IF NEW.data_fim_atual IS NULL THEN
     NEW.data_fim_atual := NEW.data_fim;
   END IF;
@@ -197,7 +226,9 @@ CREATE TRIGGER trg_contratos_preparar BEFORE INSERT OR UPDATE ON public.contrato
   FOR EACH ROW EXECUTE FUNCTION public.contratos_preparar();
 
 -- Quem grava o quê. A RLS deixa gravar com criar OU editar; aqui cada operação pede a sua permissão.
--- Sem usuário (service role, CI, migração) não confere. O papel admin passa (has_permission_code).
+-- Sem usuário (service role, CI, migração) não confere. O papel admin passa (has_permission_code), mas nem ele
+-- volta contrato assinado a rascunho (senão o "só rascunho se apaga" cairia em dois passos). Alteração feita por
+-- outro gatilho (saldo recalculado pelas medições, atualizar_saldo_contrato) não confere de novo.
 CREATE OR REPLACE FUNCTION public.contratos_conferir_permissao()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -207,7 +238,7 @@ DECLARE
   v_uid uuid := auth.uid();
   v_mudou text[];
 BEGIN
-  IF v_uid IS NULL THEN
+  IF v_uid IS NULL OR pg_trigger_depth() > 1 THEN
     RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
   END IF;
 
@@ -228,6 +259,9 @@ BEGIN
     RETURN OLD;
   END IF;
 
+  IF NEW.status = 'rascunho' AND OLD.status IS DISTINCT FROM 'rascunho' THEN
+    RAISE EXCEPTION 'Contrato assinado não volta a rascunho.' USING ERRCODE = '42501';
+  END IF;
   IF public.has_permission_code(v_uid, 'contratos.editar') THEN
     RETURN NEW;
   END IF;
@@ -236,8 +270,8 @@ BEGIN
     JOIN jsonb_each(to_jsonb(OLD)) o ON o.key = n.key
    WHERE n.value IS DISTINCT FROM o.value
      AND n.key NOT IN ('updated_at', 'updated_by');
-  -- Marcar o contrato da agência em Passagens aéreas (usePassagens) não exige editar o contrato.
-  IF v_mudou <@ ARRAY['controla_passagens']
+  -- Marcar o contrato da agência em Passagens aéreas (usePassagens) não exige editar o contrato; desmarcar exige.
+  IF v_mudou <@ ARRAY['controla_passagens'] AND NEW.controla_passagens
      AND (public.has_permission_code(v_uid, 'contratos.criar')
           OR public.has_permission_code(v_uid, 'contratos.passagens.editar')) THEN
     RETURN NEW;
@@ -309,7 +343,8 @@ GRANT EXECUTE ON FUNCTION public.contrato_buscar_servidores(text) TO authenticat
 --   fiscal_administrativo_matricula, portaria_numero, portaria_data, data_publicacao_doe, numero_doe.
 -- Contrato que já existe (número + ano) só ganha o que está vazio; nunca é sobrescrito nem apagado. SECURITY DEFINER
 -- como as outras importações (lê o RH para achar a matrícula e grava o log), mas os gatilhos de contratos continuam
--- valendo: cadastrar exige contratos.criar e completar contrato existente exige contratos.editar (erro na linha).
+-- valendo: cadastrar exige contratos.criar e completar campo vazio de contrato existente exige contratos.editar (erro
+-- na linha). Designar gestor e fiscais pela matrícula basta contratos.criar, como na ficha.
 CREATE OR REPLACE FUNCTION public.contratos_importar_planilha(
   p_linhas jsonb,
   p_arquivo jsonb,
@@ -343,6 +378,7 @@ DECLARE
   v_nome text;
   v_papel text;
   v_rotulo text;
+  v_difere text[];
   v_inicio_resp date;
   v_campo text;
   v_valor text;
@@ -388,7 +424,8 @@ BEGIN
         IF v_ano NOT BETWEEN 1990 AND 2100 THEN
           RAISE EXCEPTION 'Ano % fora do intervalo.', v_ano USING ERRCODE = '22023';
         END IF;
-        v_chave := lower(v_numero) || '/' || v_ano;
+        -- "1" e "01" são o mesmo contrato (zeros à esquerda não contam)
+        v_chave := ltrim(lower(v_numero), '0') || '/' || v_ano;
         IF v_chave = ANY (v_chaves) THEN
           RAISE EXCEPTION 'O contrato %/% aparece duas vezes na planilha.', v_numero, v_ano USING ERRCODE = '22023';
         END IF;
@@ -408,7 +445,9 @@ BEGIN
         END IF;
 
         SELECT * INTO v_ct FROM public.contratos c
-         WHERE lower(c.numero_contrato) = lower(v_numero) AND c.ano = v_ano
+         WHERE ltrim(lower(c.numero_contrato), '0') = ltrim(lower(v_numero), '0') AND c.ano = v_ano
+         ORDER BY (lower(c.numero_contrato) = lower(v_numero)) DESC
+         LIMIT 1
          FOR UPDATE;
         IF NOT FOUND THEN
           -- contratado: pelo documento (só dígitos); cadastra se não existir
@@ -457,6 +496,23 @@ BEGIN
           v_acao := 'inserir';
         ELSE
           v_id := v_ct.id;
+          -- o que a planilha traz diferente do cadastro não muda (o aditivo é da C2): só avisa
+          v_difere := array_remove(ARRAY[
+            CASE WHEN nullif(l->>'valor_inicial', '')::numeric IS DISTINCT FROM v_ct.valor_inicial
+                  AND nullif(l->>'valor_inicial', '') IS NOT NULL THEN 'valor inicial' END,
+            CASE WHEN nullif(l->>'valor_atual', '')::numeric IS DISTINCT FROM v_ct.valor_atual
+                  AND nullif(l->>'valor_atual', '') IS NOT NULL THEN 'valor atual' END,
+            CASE WHEN nullif(l->>'data_fim', '') IS NOT NULL
+                  AND (l->>'data_fim')::date IS DISTINCT FROM v_ct.data_fim
+                  AND (l->>'data_fim')::date IS DISTINCT FROM v_ct.data_fim_atual THEN 'fim da vigência' END,
+            CASE WHEN nullif(regexp_replace(coalesce(l->>'documento', ''), '\D', '', 'g'), '') IS DISTINCT FROM
+                      (SELECT regexp_replace(f.cpf_cnpj, '\D', '', 'g') FROM public.fornecedores f WHERE f.id = v_ct.fornecedor_id)
+                  AND nullif(btrim(l->>'documento'), '') IS NOT NULL THEN 'CNPJ ou CPF do contratado' END
+          ], NULL);
+          IF cardinality(v_difere) > 0 THEN
+            v_avisos := v_avisos || to_jsonb(format('A planilha difere do cadastro em %s: ficou o que está no sistema.',
+                                                   array_to_string(v_difere, ', ')));
+          END IF;
           -- só completa o que está vazio (campo → [antes, depois])
           FOR v_campo, v_valor IN
             SELECT k, v FROM (VALUES
@@ -575,7 +631,7 @@ BEGIN
 END;
 $$;
 COMMENT ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) IS
-  'Importa a planilha de contratos vigentes (p_simular = true só calcula; aplicação é tudo ou nada, com log em importacoes). Nunca apaga nem sobrescreve: contrato existente só ganha o que está vazio. Exige contratos.criar (completar existente exige também contratos.editar). Migração 20261104090000.';
+  'Importa a planilha de contratos vigentes (p_simular = true só calcula; aplicação é tudo ou nada, com log em importacoes). Nunca apaga nem sobrescreve: contrato existente só ganha o que está vazio. Exige contratos.criar (completar campo vazio de contrato existente exige também contratos.editar; designar pela matrícula basta criar). Migração 20261104090000.';
 REVOKE ALL ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) TO authenticated;
 

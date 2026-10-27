@@ -49,8 +49,9 @@ describe("passaNoFiltroPrazo", () => {
     const semFiscal = contrato({ responsaveis: [gestor] });
     const fiscalSaiu = contrato({ responsaveis: [gestor, { ...fiscal, data_fim: "2026-06-30" }] });
     const encerradoSem = contrato({ status: "encerrado", responsaveis: [] });
-    expect([em65, semFiscal, fiscalSaiu, encerradoSem].filter((c) => passaNoFiltroPrazo(c, "sem_responsavel", HOJE)))
-      .toEqual([semFiscal, fiscalSaiu]);
+    const soSubstituto = contrato({ responsaveis: [gestor, { ...fiscal, papel: "fiscal_substituto" }] });
+    expect([em65, semFiscal, fiscalSaiu, encerradoSem, soSubstituto].filter((c) => passaNoFiltroPrazo(c, "sem_responsavel", HOJE)))
+      .toEqual([semFiscal, fiscalSaiu, soSubstituto]);
   });
 
   it("reconhece os valores do filtro vindos da URL", () => {
@@ -85,6 +86,13 @@ describe("linhasPlanilhaContratos", () => {
       Prazo: "Vence em 65 dias",
       Gestor: "Ana",
       Fiscais: "Bia",
+      "CNPJ ou CPF": "11.222.333/0001-81",
     });
+  });
+
+  it("CPF de contratado pessoa física sai mascarado", () => {
+    const pf = contrato({});
+    pf.fornecedor = { ...pf.fornecedor!, cpf_cnpj: "52998224725" };
+    expect(linhasPlanilhaContratos([pf], HOJE)[0]["CNPJ ou CPF"]).toBe("***.982.247-**");
   });
 });

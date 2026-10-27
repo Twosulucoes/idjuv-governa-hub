@@ -68,5 +68,11 @@ describe("montarFichaContrato", () => {
       itens: [{ numero: 1, descricao: "Posto", unidade: "mês", quantidade: 12, valorUnitario: 1000, valorTotal: 12000 }],
     });
     expect(f.garantia).toMatch(/^Seguro-garantia · R\$\s6\.000,00 · vence em 01\/04\/2027$/);
+    expect(f.documentoContratado).toBe("11.222.333/0001-81");
+  });
+
+  it("CPF de contratado pessoa física sai mascarado", () => {
+    const pf = { ...contrato, fornecedor: { ...contrato.fornecedor, cpf_cnpj: "529.982.247-25" } } as ContratoFicha;
+    expect(montarFichaContrato(pf, [], [], undefined, "2026-10-27").documentoContratado).toBe("***.982.247-**");
   });
 });

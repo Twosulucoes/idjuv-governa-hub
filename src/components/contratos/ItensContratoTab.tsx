@@ -29,7 +29,7 @@ import { lerNumeroBr } from "@/lib/pca/numero";
 import type { ItemContrato } from "@/types/contratos";
 
 const QTD = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 });
-// sem separador de milhar: "1.234" sem vírgula seria lido como 1,234 por lerNumeroBr
+// sem separador de milhar no texto do campo (o usuário edita o número como digitou)
 const numeroTexto = (v: number | null | undefined) =>
   v === null || v === undefined ? "" : v.toLocaleString("pt-BR", { maximumFractionDigits: 4, useGrouping: false });
 

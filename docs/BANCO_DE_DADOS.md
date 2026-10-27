@@ -1364,27 +1364,34 @@ empenhos do contrato. O FIPLAN continua sendo o oficial; aqui fica o que cada no
 - `contratos` ganha `processo_sei`, `numero_pncp`, `fundamento_legal`, `tipo_contrato` (`servico_continuo`,
   `servico_escopo`, `fornecimento`, `obra`, `locacao`, `outro`), `prorrogavel`, `prazo_maximo_meses`,
   `unidade_demandante_id` (setor que pediu, `estrutura_organizacional`) e `natureza_despesa`, com CHECKs de tamanho e de
-  valores (`valor_inicial`/`valor_atual` não negativos, fim depois do início; os dois `NOT VALID` para não travar linha
-  antiga). O nº passa a ser único por ano (`contratos_numero_ano_key` em `numero_contrato, ano`, no lugar de
-  `contratos_numero_contrato_key`). `data_fim_atual` é preenchida com `data_fim` quando vazia (na carga e pelo gatilho
-  `contratos_preparar`, que também apara o nº SEI e o PNCP); muda de verdade só com os aditivos (C2).
+  valores (`valor_inicial`/`valor_atual` não negativos, fim depois do início; os dois `NOT VALID`: linha antiga fora da
+  regra continua lá, mas só se altera corrigindo o valor ou a data). O nº passa a ser único por ano
+  (`contratos_numero_ano_key` em `numero_contrato, ano`, no lugar de `contratos_numero_contrato_key`). `data_fim_atual`
+  é preenchida com `data_fim` quando vazia (na carga, antes dos CHECKs e sem trilha nem `updated_at`, e pelo gatilho
+  `contratos_preparar`, que também apara o nº SEI e o PNCP e fixa `created_by`/`updated_by` pelo usuário da sessão);
+  muda de verdade só com os aditivos (C2).
 - `contrato_responsaveis`: gestor, gestor substituto e fiscais (técnico, administrativo, substituto) designados por
   portaria (`portaria_numero`, `portaria_documento_sei`, `portaria_data`), com `data_inicio`, `data_fim` e
   `motivo_saida` (obrigatório quando há fim). Um gestor ativo por contrato (`uq_contrato_responsaveis_gestor_ativo`) e o
   mesmo servidor não fica duas vezes ativo no mesmo papel (`uq_contrato_responsaveis_papel_ativo`). O gatilho
-  `contrato_resp_preparar` (SECURITY DEFINER, quem tem Contratos não lê `servidores`) copia o nome do servidor, grava a
-  autoria e não deixa a designação mudar de contrato (`22023`); a trilha vai para `audit_log_licitacoes`. Carga: quem
+  `contrato_resp_preparar` (SECURITY DEFINER, quem tem Contratos não lê `servidores`) copia o nome do servidor (o nome
+  não se troca à mão), só designa servidor ativo, grava a autoria e não deixa a designação mudar de contrato (`22023`);
+  a trilha vai para `audit_log_licitacoes`. Carga: quem
   estava em `contratos.gestor_id`/`fiscal_id` virou gestor e fiscal técnico desde o início do contrato; as duas colunas
   ficam só como histórico.
 - `contratos_conferir_permissao` (gatilho em `contratos`): cadastrar pede `contratos.criar`; alterar pede
-  `contratos.editar`, salvo marcar só `controla_passagens` (basta `criar` ou `contratos.passagens.editar`); apagar só
-  rascunho, com `editar` (`42501` nos outros casos). Sem usuário (CI, migração, service role) não confere.
+  `contratos.editar`, salvo marcar só `controla_passagens` (basta `criar` ou `contratos.passagens.editar`; desmarcar
+  pede `editar`); apagar só rascunho, com `editar`; contrato assinado não volta a rascunho, nem com o papel admin
+  (`42501` nos outros casos). Sem usuário (CI, migração, service role) ou dentro de outro gatilho (saldo recalculado por
+  `atualizar_saldo_contrato`) não confere.
 - `contrato_buscar_servidores(_termo)` (SECURITY DEFINER, `authenticated`): servidores ativos por nome ou matrícula,
   só id, nome, matrícula e cargo, até 20, para quem passa em `contrato_pode_gravar()` (módulo e `criar` ou `editar`).
 - `contratos_importar_planilha(p_linhas, p_arquivo, p_simular)` (Central de Importações, mesmo contrato das outras
-  RPCs de importação): até 1000 contratos por nº + ano, com simulação; cadastra o contratado que falta (CPF ou CNPJ e
-  razão social); contrato que já existe só ganha o que está vazio; designa gestor e fiscais pela matrícula (aviso
-  quando a matrícula não existe e quando o contrato já tem gestor em exercício). Exige `contratos.criar`; os gatilhos
+  RPCs de importação): até 1000 contratos por nº + ano (zeros à esquerda não contam: `1` e `01` são o mesmo), com
+  simulação; cadastra o contratado que falta (CPF ou CNPJ e razão social); contrato que já existe só ganha o que está
+  vazio, e o que a planilha traz diferente (valores, fim da vigência, contratado) vira aviso, sem mudar o cadastro;
+  designa gestor e fiscais pela matrícula (aviso quando a matrícula não existe e quando o contrato já tem gestor em
+  exercício). Exige `contratos.criar`; os gatilhos
   continuam valendo (completar contrato existente pede `editar`). Tudo ou nada, com log em `importacoes`.
 - `localizar_processos_sei` passa a buscar também em `contratos` (origem `contrato`: nº SEI, nº do contrato, objeto e
   contratado).

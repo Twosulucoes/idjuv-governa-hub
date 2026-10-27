@@ -26,6 +26,7 @@ import {
   useProcessosContratacao,
   type ContratoInput,
 } from "@/hooks/useContratos";
+import { mascararDocumento } from "@/lib/bancario/comum";
 import { lerNumeroBr } from "@/lib/pca/numero";
 import { SITUACOES_CONTRATO, TIPOS_CONTRATO, type Contrato, type SituacaoContrato } from "@/types/contratos";
 
@@ -59,10 +60,10 @@ const schema = z
     prazo_maximo_meses: z.string().trim().refine((v) => !v || (/^\d+$/.test(v) && +v >= 1 && +v <= 600), "Entre 1 e 600 meses").optional(),
     natureza_despesa: z.string().trim().max(30).optional(),
     dotacao_orcamentaria: z.string().trim().max(200).optional(),
-    fonte_recurso: z.string().trim().max(100).optional(),
+    fonte_recurso: z.string().trim().max(50).optional(),
     data_publicacao_doe: z.string().optional(),
-    numero_doe: z.string().trim().max(30).optional(),
-    garantia_tipo: z.string().trim().max(100).optional(),
+    numero_doe: z.string().trim().max(20).optional(),
+    garantia_tipo: z.string().trim().max(50).optional(),
     garantia_valor: valorBr(false),
     garantia_vencimento: z.string().optional(),
     observacoes: z.string().trim().max(4000).optional(),
@@ -135,7 +136,7 @@ export function ContratoFormDialog({ open, onOpenChange, contrato, salvando, onS
   }, [open, contrato, form]);
 
   const opcoesContratados = useMemo(
-    () => (contratados.data ?? []).map((f) => ({ valor: f.id, rotulo: f.nome_fantasia || f.razao_social, detalhe: f.cpf_cnpj })),
+    () => (contratados.data ?? []).map((f) => ({ valor: f.id, rotulo: f.nome_fantasia || f.razao_social, detalhe: mascararDocumento(f.cpf_cnpj) })),
     [contratados.data],
   );
   const opcoesUnidades = useMemo(
@@ -260,7 +261,8 @@ export function ContratoFormDialog({ open, onOpenChange, contrato, salvando, onS
             <FormSection titulo="Identificação" colunas={3}>
               {campo("numero_contrato", "Nº do contrato *", { placeholder: "Ex.: 01" })}
               {campo("ano", "Ano *", { inputMode: "numeric", maxLength: 4 })}
-              {lista("status", "Situação *", [...SITUACOES_CONTRATO])}
+              {/* contrato assinado não volta a rascunho (o banco também recusa) */}
+              {lista("status", "Situação *", SITUACOES_CONTRATO.filter((s) => s.value !== "rascunho" || !contrato || contrato.status === "rascunho"))}
               {campo("processo_sei", "Processo SEI", { placeholder: "00000.000000/0000.00", largo: true })}
               {campo("numero_pncp", "Nº no PNCP")}
             </FormSection>

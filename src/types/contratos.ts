@@ -94,12 +94,14 @@ export const rotuloPapel = (v: string | null | undefined) => rotulo(PAPEIS_RESPO
 export const nomeContratado = (f: Pick<ContratadoResumo, "razao_social" | "nome_fantasia"> | null | undefined) =>
   f ? f.nome_fantasia || f.razao_social : "—";
 
-/** Gestor ativo e fiscais ativos (sem data de fim). */
+/** Gestor ativo e fiscais ativos (sem data de fim); `fiscaisTitulares` deixa de fora o substituto. */
 export function responsaveisAtivos<T extends Pick<ContratoResponsavel, "papel" | "data_fim">>(lista: T[]) {
   const ativos = lista.filter((r) => !r.data_fim);
+  const fiscais = ativos.filter((r) => r.papel.startsWith("fiscal"));
   return {
     gestor: ativos.find((r) => r.papel === "gestor") ?? null,
-    fiscais: ativos.filter((r) => r.papel.startsWith("fiscal")),
+    fiscais,
+    fiscaisTitulares: fiscais.filter((r) => r.papel !== "fiscal_substituto"),
     ativos,
   };
 }

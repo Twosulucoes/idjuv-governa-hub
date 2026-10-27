@@ -58,6 +58,7 @@ function mensagemErro(e: unknown): string {
     return 'Algum campo está fora do permitido.';
   }
   if (erro?.code === '23503') return 'Este registro está ligado a outro e não pode ser apagado.';
+  if (erro?.code === '22001') return 'Algum campo passou do tamanho máximo.';
   if (erro?.code === '22023' && erro.message) return erro.message;
   return erro?.message || 'Erro inesperado.';
 }

@@ -70,6 +70,8 @@ export interface ModuleMenuItem {
   route: string;
   /** Permissão exigida para mostrar o item (a mesma da rota; sem ela o item aparece para todos do módulo). */
   permission?: PermissionCode;
+  /** Como `permission`, mas basta uma da lista (rota com várias permissões aceitas). */
+  algumaPermissao?: PermissionCode[];
   children?: ModuleMenuItem[];
 }
 
@@ -173,7 +175,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel de Contratos", route: "/contratos" },
     // Execução, aditivos e avisos de vencimento entram com as entregas C2 a C6 (P21).
     items: [
-      { id: "contratos-lista", label: "Contratos", icon: FileCheck, route: "/contratos/lista", permission: "contratos.visualizar" },
+      { id: "contratos-lista", label: "Contratos", icon: FileCheck, route: "/contratos/lista", algumaPermissao: ["contratos.visualizar", "contratos.criar", "contratos.editar"] },
       { id: "passagens", label: "Passagens aéreas", icon: Plane, route: "/contratos/passagens", permission: "contratos.passagens.visualizar" },
       { id: "passagens-beneficiarios", label: "Beneficiários de passagem", icon: Users, route: "/contratos/passagens/beneficiarios", permission: "contratos.passagens.visualizar" },
       { id: "passagens-pendencias", label: "Pendências de passagens", icon: ClipboardCheck, route: "/contratos/passagens/pendencias", permission: "contratos.passagens.visualizar" },

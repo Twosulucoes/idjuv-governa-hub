@@ -153,7 +153,8 @@ export default function ContratosListaPage() {
         {lista.length >= LIMITE_LISTA && (
           <Alert>
             <AlertDescription>
-              A lista mostra os {LIMITE_LISTA} contratos mais recentes. Use a busca pelo número para achar os mais antigos.
+              A lista mostra os {LIMITE_LISTA} contratos mais recentes; os mais antigos não aparecem aqui nem na planilha.
+              Para achar um deles, use Processos SEI → Localizar processo.
             </AlertDescription>
           </Alert>
         )}

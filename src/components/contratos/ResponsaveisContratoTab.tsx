@@ -51,9 +51,9 @@ export function ResponsaveisContratoTab({ contratoId, podeGravar, avisarFalta }:
   }
 
   const todos = lista.data ?? [];
-  const { gestor, fiscais, ativos } = responsaveisAtivos(todos);
+  const { gestor, fiscaisTitulares, ativos } = responsaveisAtivos(todos);
   const encerrados = todos.filter((r) => r.data_fim);
-  const faltando = avisarFalta ? ([!gestor && "gestor", !fiscais.length && "fiscal"].filter(Boolean) as string[]) : [];
+  const faltando = avisarFalta ? ([!gestor && "gestor", !fiscaisTitulares.length && "fiscal"].filter(Boolean) as string[]) : [];
 
   return (
     <div className="space-y-4">
@@ -252,6 +252,7 @@ function EncerrarDialog({ designacao, onClose }: { designacao: ContratoResponsav
     if (!designacao) return;
     if (!fim) return setErro("Informe a data de fim.");
     if (fim < designacao.data_inicio) return setErro("O fim não pode ser antes do início da designação.");
+    if (fim > hojeIso()) return setErro("Encerre no último dia de exercício, até hoje. Saída futura se registra no dia.");
     if (motivo.trim().length < 3) return setErro("Escreva o motivo (ex.: substituído pela Portaria 20/2026).");
     try {
       await encerrar.mutateAsync({ id: designacao.id, contrato_id: designacao.contrato_id, data_fim: fim, motivo_saida: motivo.trim() });
@@ -273,7 +274,7 @@ function EncerrarDialog({ designacao, onClose }: { designacao: ContratoResponsav
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="enc-fim">Último dia *</Label>
-            <Input id="enc-fim" type="date" value={fim} onChange={(e) => { setFim(e.target.value); setErro(null); }} />
+            <Input id="enc-fim" type="date" value={fim} max={hojeIso()} onChange={(e) => { setFim(e.target.value); setErro(null); }} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="enc-motivo">Motivo *</Label>

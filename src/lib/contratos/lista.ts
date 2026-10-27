@@ -3,6 +3,7 @@
  * gestor ou fiscal), os números do painel e as linhas da planilha exportada.
  */
 
+import { mascararDocumento } from "@/lib/bancario/comum";
 import { formatDateBR } from "@/lib/formatters";
 import { descricaoVigencia, situacaoVigencia, FAIXAS_VENCIMENTO, dentroDoPrazo, type SituacaoVigencia } from "@/lib/contratos/vigencia";
 import {
@@ -34,8 +35,9 @@ type ContratoPrazo = Pick<ContratoLista, "status" | "data_fim" | "data_fim_atual
 export const emVigor = (s: SituacaoVigencia) => s.faixa !== "rascunho" && s.faixa !== "encerrado" && s.faixa !== "vencido";
 
 export function semGestorOuFiscal(responsaveis: Pick<ContratoResponsavel, "papel" | "data_fim">[]): boolean {
-  const { gestor, fiscais } = responsaveisAtivos(responsaveis);
-  return !gestor || fiscais.length === 0;
+  // substituto só atua na falta do titular: sozinho, o contrato continua sem fiscal (art. 117 da Lei 14.133)
+  const { gestor, fiscaisTitulares } = responsaveisAtivos(responsaveis);
+  return !gestor || fiscaisTitulares.length === 0;
 }
 
 export function passaNoFiltroPrazo(c: ContratoPrazo, filtro: FiltroPrazo, hoje: Date | string = new Date()): boolean {
@@ -78,7 +80,8 @@ export function linhasPlanilhaContratos(lista: ContratoLista[], hoje: Date | str
       "Contrato": `${c.numero_contrato}/${c.ano}`,
       "Processo SEI": c.processo_sei ?? "",
       "Contratado": nomeContratado(c.fornecedor),
-      "CNPJ ou CPF": c.fornecedor?.cpf_cnpj ?? "",
+      // CPF de contratado pessoa física sai mascarado (LGPD); CNPJ vai inteiro
+      "CNPJ ou CPF": c.fornecedor?.cpf_cnpj ? mascararDocumento(c.fornecedor.cpf_cnpj) : "",
       "Objeto": c.objeto_resumido || c.objeto,
       "Tipo": c.tipo_contrato ? rotuloTipoContrato(c.tipo_contrato) : "",
       "Setor": c.unidade?.sigla || c.unidade?.nome || "",

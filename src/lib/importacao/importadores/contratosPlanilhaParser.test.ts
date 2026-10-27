@@ -42,8 +42,9 @@ const valida: Partial<Record<CampoPlanilha, unknown>> = {
 };
 
 describe("separarNumeroAno e paraSimNao", () => {
-  it("separa 01/2026 quando o ano está vazio", () => {
+  it("separa 01/2026 quando o ano está vazio ou é o mesmo da coluna Ano", () => {
     expect(separarNumeroAno("01/2026", "")).toEqual({ numero: "01", ano: 2026 });
+    expect(separarNumeroAno("01/2026", "2026")).toEqual({ numero: "01", ano: 2026 });
     expect(separarNumeroAno("01/2026", "2025")).toEqual({ numero: "01/2026", ano: 2025 });
     expect(separarNumeroAno("07", "abc")).toEqual({ numero: "07", ano: null });
   });
@@ -93,6 +94,18 @@ describe("interpretarContratosPlanilha", () => {
       'Linha 5: situação "Ativo" desconhecida.',
       'Linha 5: "Prorrogável" deve ser sim ou não (veio "talvez").',
       "Linha 5: o fim da vigência vem antes do início.",
+    ]);
+  });
+
+  it("1 e 01 são o mesmo contrato; texto maior que a coluna do banco é erro da linha", () => {
+    const r = interpretarContratosPlanilha(planilha([
+      { ...valida, numero: "1" },
+      { ...valida, numero: "001/2026" },
+      { ...valida, numero: "05", numero_doe: "DOE 4567 de 05/01/2026" },
+    ]));
+    expect(r.problemas.filter((p) => p.gravidade === "erro").map((p) => p.mensagem)).toEqual([
+      "Linha 3: o contrato 001/2026 aparece duas vezes.",
+      "Linha 4: nº do DOE com mais de 20 caracteres.",
     ]);
   });
 

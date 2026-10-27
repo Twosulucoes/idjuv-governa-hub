@@ -107,7 +107,10 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `historico.ts` (texto de cada registro da trilha) e `ficha.ts` (dados do PDF). A carga entra pelo importador
   `contratos_planilha` da Central (`/admin/importacoes?importador=contratos_planilha`, botão "Importar planilha" da
   lista). O painel `/contratos` usa `resumoPainel` em `useContratosDashboardStats`. A busca de servidor reaproveita
-  `ServidorBusca` das passagens com a prop `useBusca`.
+  `ServidorBusca` das passagens com a prop `useBusca`. CPF de contratado pessoa física aparece mascarado na ficha, no
+  PDF e na planilha (`mascararDocumento` de `src/lib/bancario/comum.ts`). Valores digitados passam por `lerNumeroBr`
+  (`src/lib/pca/numero.ts`), que desde a C1 lê "120.000" como milhar, como nos outros formulários de Compras. No menu do
+  módulo, `algumaPermissao` (`ModuleMenuItem`) mostra o item para quem tem uma das permissões da rota.
 - **Localizador de processos do SEI** (`src/hooks/useLocalizadorSei.ts`: `useLocalizarProcessos(termo)`, com 300 ms de
   espera depois da última tecla e só com 3 caracteres ou mais, e `useProcessosParados()`): RPCs INVOKER
   `localizar_processos_sei` e `processos_parados`, tipadas pelo `types.ts` (a `origem` é estreitada para as fontes de `OrigemLocalizador`; o contrato entrou na C1). Chave do nº SEI em `src/lib/processos/numeroSei.ts` (espelha `sei_normalizar` do banco) e

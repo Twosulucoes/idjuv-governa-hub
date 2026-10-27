@@ -201,14 +201,31 @@ export function paraSimNao(texto: string): boolean | null | undefined {
   return undefined;
 }
 
-/** "01/2026" na coluna do número, com o ano vazio, vira número "01" e ano 2026. */
+/** "01/2026" na coluna do número vira número "01" e ano 2026 (com o ano vazio ou igual ao da coluna Ano). */
 export function separarNumeroAno(numero: string, ano: string): { numero: string; ano: number | null } {
   const n = numero.replace(/\s+/g, "");
   const m = n.match(/^(.+)\/(\d{4})$/);
   if (!ano.trim() && m) return { numero: m[1], ano: Number(m[2]) };
   const a = ano.trim() ? Number(ano.trim()) : null;
+  if (m && a === Number(m[2])) return { numero: m[1], ano: a };
   return { numero: n, ano: a !== null && Number.isInteger(a) ? a : null };
 }
+
+/** Chave do contrato na planilha: "1" e "01" são o mesmo (como na RPC, zeros à esquerda não contam). */
+export const chaveContrato = (numero: string, ano: number | null) => `${numero.toLowerCase().replace(/^0+/, "")}/${ano}`;
+
+// Tamanho máximo de cada coluna no banco (contratos e fornecedores)
+const LIMITES: Partial<Record<CampoPlanilha, [number, string]>> = {
+  numero: [30, "nº do contrato"],
+  processo_sei: [60, "processo SEI"],
+  numero_pncp: [80, "nº no PNCP"],
+  razao_social: [255, "razão social"],
+  objeto_resumido: [500, "objeto (resumo)"],
+  fundamento_legal: [500, "modalidade e fundamento"],
+  natureza_despesa: [30, "natureza da despesa"],
+  portaria_numero: [60, "portaria"],
+  numero_doe: [20, "nº do DOE"],
+};
 
 /** Interpreta as linhas lidas da primeira aba (ver `lerPrimeiraAba`). */
 export function interpretarContratosPlanilha({ cabecalhos, linhas: brutas }: PlanilhaLida): ResultadoLeitura<LinhaContratoPlanilha> {
@@ -238,7 +255,7 @@ export function interpretarContratosPlanilha({ cabecalhos, linhas: brutas }: Pla
     const { numero, ano } = separarNumeroAno(t("numero"), t("ano"));
     if (!numero) erro("sem o nº do contrato.");
     if (ano === null || ano < 1990 || ano > 2100) erro(`ano "${t("ano")}" inválido.`);
-    const chave = `${numero.toLowerCase()}/${ano}`;
+    const chave = chaveContrato(numero, ano);
     if (numero && vistos.has(chave)) erro(`o contrato ${numero}/${ano} aparece duas vezes.`);
     vistos.add(chave);
 
@@ -253,6 +270,11 @@ export function interpretarContratosPlanilha({ cabecalhos, linhas: brutas }: Pla
       if (v === null) erro(`${rotulo} "${t(campo)}" não é um valor.`);
       return v;
     };
+
+    for (const [campo, [max, rotulo]] of Object.entries(LIMITES) as [CampoPlanilha, [number, string]][]) {
+      const v = campo === "numero" ? numero : t(campo);
+      if (v.length > max) erro(`${rotulo} com mais de ${max} caracteres.`);
+    }
 
     const documento = t("documento") || null;
     const digitos = (documento ?? "").replace(/\D/g, "");

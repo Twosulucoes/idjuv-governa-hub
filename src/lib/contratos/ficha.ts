@@ -4,6 +4,7 @@
  */
 
 import type { DadosFichaContrato } from "@/lib/documentos/modelos/contratos/fichaContrato";
+import { mascararDocumento } from "@/lib/bancario/comum";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { descricaoPortaria, ordenarPorPapel, periodoDesignacao } from "@/lib/contratos/responsaveis";
 import { descricaoVigencia, situacaoVigencia } from "@/lib/contratos/vigencia";
@@ -45,7 +46,7 @@ export function montarFichaContrato(
     situacao: rotuloSituacaoContrato(c.status),
     vigenciaSituacao: descricaoVigencia(situacaoVigencia(c, hoje)),
     contratado: c.fornecedor?.razao_social ?? "—",
-    documentoContratado: ou(c.fornecedor?.cpf_cnpj),
+    documentoContratado: c.fornecedor?.cpf_cnpj ? mascararDocumento(c.fornecedor.cpf_cnpj) : undefined,
     objeto: c.objeto,
     tipo: c.tipo_contrato ? rotuloTipoContrato(c.tipo_contrato) : undefined,
     fundamento: ou(c.fundamento_legal),
