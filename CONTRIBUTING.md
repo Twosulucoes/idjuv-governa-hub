@@ -48,6 +48,7 @@ do código. Mudou algo que muda a contagem? Rode `npm run estado` e commite o ar
 `scripts/check-doc-links.mjs`, mais `CLAUDE.md`, `AGENTS.md`, `README.md` e este arquivo): aponte para o
 estado do sistema. Fato datado de uma entrega pode ficar, marcado com `<!-- numero-datado -->` na linha ou
 entre `<!-- numero-datado:inicio -->` e `<!-- numero-datado:fim -->`.
+Doc canônica nova entra em `LIVING_DOCS` para os dois guards valerem nela (a última foi `docs/INTEGRACOES_EXTERNAS.md`).
 Desde o P03 (tipos do banco gerados das migrações) a baseline do typecheck é 4.
 A baseline `jspdfForaDoCore` caiu a cada onda da padronização de PDFs (`docs/PADRAO_DOCUMENTOS.md`) e chegou a
 **zero** na onda 5: nenhum arquivo fora de `src/lib/documentos/core/` importa `jspdf`, e qualquer import novo reprova o

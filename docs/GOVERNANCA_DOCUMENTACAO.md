@@ -39,6 +39,7 @@
 | [`docs/RBAC_PERMISSOES.md`](./RBAC_PERMISSOES.md) | Modelo de permissões, perfis, rotas protegidas |
 | [`docs/GUIA_FRONTEND.md`](./GUIA_FRONTEND.md) | Estrutura do front, hooks, libs, padrões de código |
 | [`docs/EDGE_FUNCTIONS.md`](./EDGE_FUNCTIONS.md) | Funções serverless (Deno) do Supabase |
+| [`docs/INTEGRACOES_EXTERNAS.md`](./INTEGRACOES_EXTERNAS.md) | APIs e bases públicas externas: onde são chamadas, chave, situação, fontes registradas para uso futuro (Transferegov, PNCP) |
 | [`docs/EMAILS_AUTH.md`](./EMAILS_AUTH.md) | E-mails do Supabase Auth: gerador, templates por tenant, aplicação na VPS |
 | [`docs/DESENVOLVIMENTO.md`](./DESENVOLVIMENTO.md) | Setup, comandos, fluxo Git, deploy, como adicionar features |
 | [`docs/WHITE_LABEL.md`](./WHITE_LABEL.md) | Arquitetura-alvo, roadmap e critérios de aceite do modelo White Label |
@@ -78,6 +79,7 @@ Linhas sem caminho de arquivo que as identifique (ex.: "regra para agentes" fora
 | Backup da VPS (`scripts/backup/`, `.github/workflows/backup-restore-test.yml`) | `docs/BACKUP.md` | — |
 | Baseline do banco (`supabase/baseline/`), `rls/mapa.csv`, overlay, scripts `scripts/db/` | `docs/NOVO_BANCO.md` + `supabase/baseline/README.md` | `docs/BANCO_DE_DADOS.md`; rode `scripts/db/validar-baseline.sh` |
 | Edge Function nova ou alterada | `docs/EDGE_FUNCTIONS.md` | Checagem de auth (`AGENTS.md`) |
+| Chamada a API ou base externa nova, alterada ou removida (no front ou em Edge Function), ou fonte nova registrada | `docs/INTEGRACOES_EXTERNAS.md` | `connect-src` da CSP em `deploy/nginx/cabecalhos-seguranca.conf` se o navegador chamar direto |
 | E-mails do Supabase Auth (`scripts/emails/`, `tenants/<slug>/emails/`) | `docs/EMAILS_AUTH.md` | Regere com `bun scripts/emails/gerar-templates-email.ts` |
 | Permissão, papel, RBAC | `docs/RBAC_PERMISSOES.md` | `src/types/auth.ts`, `ProtectedRoute` em `src/App.tsx` |
 | Hook de dados, lib, padrão de front | `docs/GUIA_FRONTEND.md` | — |

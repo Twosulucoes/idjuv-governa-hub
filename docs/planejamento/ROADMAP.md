@@ -112,6 +112,14 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   [plano](../superpowers/plans/2026-10-09-design-system.md).
 - [ ] **Site**: página pública de estrutura organizacional (LAI); o card saiu da Transparência pública no #120 porque
   levava a uma tela com login.
+- [ ] **Convênios e emendas federais pelo Transferegov** (fonte registrada em 27/10/2026, sem código): ler do
+  Transferegov as propostas, convênios, empenhos, desembolsos e emendas com o CNPJ da instituição
+  ([INTEGRACOES_EXTERNAS.md](../INTEGRACOES_EXTERNAS.md) §4). Convênio e emenda das transferências discricionárias só
+  saem nos CSV diários (antigo Siconv); as APIs cobrem transferências especiais, parcerias, fundo a fundo e TED. Hoje o
+  IDJUV tem uma proposta lá (Arena Jovem, Ministério do Esporte, emenda de comissão). Aguarda o "sim" do dono.
+- [ ] **Integrações — achados da revisão de 27/10/2026** ([INTEGRACOES_EXTERNAS.md](../INTEGRACOES_EXTERNAS.md) §3): pôr
+  tempo limite nas chamadas ao Gemini (`cpsi-ai-assistant`, `conciliacao-ia-sugestoes`; uma sugestão de conciliação
+  ficou presa em 23/10) e fixar a versão do `supabase-js` nas funções que importam `@2` sem versão exata.
 - [ ] **Envio e avisos**: ligar os avisos ao envio de e-mail e WhatsApp (ação nova em `enviar-notificacao`).
 - [ ] **RH — Fases 2–7** (higiene, fundação de dados, autoatendimento, carreira, eSocial, seguridade) — ver
   [ANALISE_RH.md](./ANALISE_RH.md). Do RH ficam também: dono do bucket `documentos` e troca dos links públicos de
