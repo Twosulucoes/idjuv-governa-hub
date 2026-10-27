@@ -95,6 +95,7 @@ export type PermissaoInstitucional =
   // Contratos
   | 'contratos.visualizar'
   | 'contratos.criar'
+  | 'contratos.editar'
   | 'contratos.tramitar'
   | 'contratos.aprovar'
   | 'contratos.passagens.visualizar'
@@ -270,6 +271,20 @@ export const menuConfig: MenuSection[] = [
         label: "Contratos",
         icon: FileCheck,
         children: [
+          {
+            id: "contratos-lista",
+            label: "Contratos",
+            route: "/contratos/lista",
+            icon: FileCheck,
+            permissions: ["contratos.visualizar", "contratos.criar", "contratos.editar"],
+          },
+          {
+            id: "contratos-novo",
+            label: "Novo contrato",
+            route: "/contratos/lista?novo=1",
+            icon: FileText,
+            permission: "contratos.criar",
+          },
           {
             id: "passagens",
             label: "Passagens aéreas",
@@ -1255,7 +1270,7 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/importacoes",
         icon: Upload,
         // Qualquer permissão de importador (mesma lista de PERMISSOES_IMPORTACAO em src/lib/importacao/registro.ts)
-        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar", "financeiro.folha.processar", "compras.processos.editar"],
+        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar", "financeiro.folha.processar", "compras.processos.editar", "contratos.criar"],
       },
       {
         id: "envios",

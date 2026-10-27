@@ -26396,12 +26396,8 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
-      contrato_servidor_por_matricula: {
-        Args: { _matricula: string }
-        Returns: string
-      }
       contratos_importar_planilha: {
-        Args: { p_gravar?: boolean; p_linhas: Json }
+        Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
         Returns: Json
       }
       corrigir_conta_movimento: {

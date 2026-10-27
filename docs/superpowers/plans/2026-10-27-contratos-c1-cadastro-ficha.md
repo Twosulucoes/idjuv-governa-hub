@@ -48,7 +48,8 @@ React Query, vitest, motor de documentos.
 2. Passagens: o cadastro rápido do contrato da agência (`ContratoCadastroDialog`) continua funcionando para quem tem
    `contratos.criar`; a lista de pedidos e as faturas não mudam.
 3. Responsáveis: um gestor ativo por contrato; fiscal pode ter mais de um; encerrar a designação guarda a data e o
-   motivo; `contratos.gestor_id`/`fiscal_id` continuam espelhando o gestor e o primeiro fiscal técnico ativos.
+   motivo; `contratos.gestor_id`/`fiscal_id` ficam só como histórico (carregados uma vez para `contrato_responsaveis`
+   e não mais espelhados: quem lê o gestor usa a tabela nova).
 4. Importação: simula sem gravar; nunca sobrescreve contrato existente (só completa campo vazio); erro por linha em
    português.
 5. Vigência: a regra de faixa (vencido, 30, 60, 90, 120 dias, vigente) tem teste e usa a data de fim atual.
@@ -76,8 +77,9 @@ portaria_numero, portaria_documento_sei, portaria_data date, data_inicio date NO
 motivo_saida text, carimbos`. CHECK `data_fim >= data_inicio`; `data_fim` ⇒ `motivo_saida`. Índice único parcial: um
 `gestor` ativo por contrato; `(contrato, papel, servidor)` ativo único.
 
-**Gatilhos:** `contrato_resp_copiar_nome` (`SECURITY DEFINER`, só o nome do servidor);
-`contrato_resp_espelhar` (mantém `contratos.gestor_id` e `fiscal_id`); auditoria `fn_audit_log_licitacoes` também em
+**Gatilhos:** `contrato_resp_preparar` (`SECURITY DEFINER`: nome do servidor e autoria). Na execução, o espelho em
+`contratos.gestor_id`/`fiscal_id` saiu: designar com só `contratos.criar` alteraria o contrato e o gatilho de permissão
+recusaria; as duas colunas ficam só como histórico. Auditoria `fn_audit_log_licitacoes` também em
 `contrato_responsaveis` (a aba Histórico lê `audit_log_licitacoes`). Carga inicial: `gestor_id`/`fiscal_id` que já
 existem viram responsáveis com início na data de início do contrato.
 

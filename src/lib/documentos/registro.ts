@@ -28,6 +28,7 @@ import { fichaMiniCurriculo } from './modelos/curriculo/miniCurriculo';
 import { listaConvocados, listaPresenca, relatorioReuniao } from './modelos/reunioes/reunioes';
 import { contracheque } from './modelos/folha/contracheque';
 import { conciliacaoMensal } from './modelos/financeiro/conciliacaoMensal';
+import { fichaContrato } from './modelos/contratos/fichaContrato';
 import { fichaPedidoPassagem } from './modelos/passagens/fichaPedido';
 import { saldoContratoPassagens } from './modelos/passagens/saldoContrato';
 import { relatorioArbitros } from './modelos/arbitros/relatorioArbitros';
@@ -104,6 +105,8 @@ export const REGISTRO = {
   'folha-contracheque': contracheque,
   // Financeiro — quadro da conciliação bancária mensal (Conciliação → Fechamento mensal)
   'financeiro-conciliacao-mensal': conciliacaoMensal,
+  // Contratos — ficha do contrato (ContratoFichaPage)
+  'contratos-ficha-contrato': fichaContrato,
   // Contratos — passagens aéreas: ficha do pedido (PassagemPedidoPage) e saldo do contrato (PassagensFaturasPage)
   'contratos-passagem-ficha-pedido': fichaPedidoPassagem,
   'contratos-passagens-saldo-contrato': saldoContratoPassagens,

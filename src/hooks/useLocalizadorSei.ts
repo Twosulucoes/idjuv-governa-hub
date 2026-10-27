@@ -1,8 +1,8 @@
 /**
  * Localizador de processos do SEI: a busca única pelo nº (qualquer formato) ou por palavras e a lista de parados, sobre
- * as RPCs `localizar_processos_sei` e `processos_parados` (migração 20261102090000). As duas são SECURITY INVOKER:
- * cada fonte vem com a RLS dela, então a pessoa só acha o que já veria no módulo. `origem` chega como texto e é
- * estreitada para as oito fontes de `ORIGENS`.
+ * as RPCs `localizar_processos_sei` e `processos_parados` (migração 20261102090000; o contrato entrou na 20261104090000).
+ * As duas são SECURITY INVOKER: cada fonte vem com a RLS dela, então a pessoa só acha o que já veria no módulo.
+ * `origem` chega como texto e é estreitada para as fontes de `ORIGENS`.
  */
 
 import { useEffect, useState } from 'react';

@@ -171,8 +171,9 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
   // Contratos
   contratos: {
     dashboard: { label: "Painel de Contratos", route: "/contratos" },
-    // Lista, execução, aditivos e vencimentos voltam quando as telas existirem (P21).
+    // Execução, aditivos e avisos de vencimento entram com as entregas C2 a C6 (P21).
     items: [
+      { id: "contratos-lista", label: "Contratos", icon: FileCheck, route: "/contratos/lista", permission: "contratos.visualizar" },
       { id: "passagens", label: "Passagens aéreas", icon: Plane, route: "/contratos/passagens", permission: "contratos.passagens.visualizar" },
       { id: "passagens-beneficiarios", label: "Beneficiários de passagem", icon: Users, route: "/contratos/passagens/beneficiarios", permission: "contratos.passagens.visualizar" },
       { id: "passagens-pendencias", label: "Pendências de passagens", icon: ClipboardCheck, route: "/contratos/passagens/pendencias", permission: "contratos.passagens.visualizar" },

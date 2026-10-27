@@ -8665,9 +8665,10 @@ END $$;
 --   * número único por ano (23505 no mesmo ano, aceito em outro); data_fim_atual = data_fim quando vazia;
 --   * responsáveis: nome copiado pelo banco, um gestor ativo (23505), saída exige motivo (23514), não muda de contrato
 --     (22023), módulo sem permissão não grava (42501), trilha em audit_log_licitacoes;
---   * contrato_buscar_servidores e contrato_servidor_por_matricula só com criar ou editar;
---   * contratos_importar_planilha: só com criar; simula sem gravar; linha repetida vira erro; grava contrato, contratado e
---     gestor; contrato existente só ganha o que está vazio (completar exige editar, erro por linha);
+--   * contrato_buscar_servidores só com criar ou editar (curinga é texto);
+--   * contratos_importar_planilha (Central de Importações): só com criar; simula sem gravar nem logar; linha repetida vira
+--     erro; grava contrato, contratado, gestor e o log em importacoes; contrato existente só ganha o que está vazio
+--     (completar exige editar: erro na linha e nada gravado);
 --   * localizador: o contrato com nº SEI aparece para quem tem o módulo; gatilhos sem EXECUTE para a API.
 DO $$
 DECLARE
@@ -8679,8 +8680,9 @@ DECLARE
   u_admin uuid := (SELECT uid FROM persona WHERE nome = 'admin');
   forn uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'fornecedores');
   srv uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'servidores');
+  srv_b uuid := (SELECT id_b::uuid FROM semeado WHERE tabela = 'servidores');
   srv_nome text; srv_mat text;
-  ins text; ct uuid; rasc uuid; resp uuid; r text; x text; j jsonb;
+  ins text; ct uuid; rasc uuid; resp uuid; r text; x text; j jsonb; arq jsonb;
 BEGIN
   PERFORM set_config('request.jwt.claims', '', true);
   FOREACH x IN ARRAY ARRAY['public.contrato_resp_preparar()', 'public.contratos_preparar()',
@@ -8689,8 +8691,7 @@ BEGIN
       PERFORM pg_temp.falha('CONTRATOS C1: ' || x || ' executável pela API');
     END IF;
   END LOOP;
-  FOREACH x IN ARRAY ARRAY['public.contrato_pode_gravar()', 'public.contrato_buscar_servidores(text)',
-                           'public.contrato_servidor_por_matricula(text)', 'public.contratos_importar_planilha(jsonb, boolean)'] LOOP
+  FOREACH x IN ARRAY ARRAY['public.contrato_pode_gravar()', 'public.contrato_buscar_servidores(text)'] LOOP
     IF has_function_privilege('anon', x, 'EXECUTE') THEN PERFORM pg_temp.falha('CONTRATOS C1: anon executa ' || x); END IF;
   END LOOP;
   IF u_criar IS NULL OR u_ed IS NULL OR u_pass IS NULL OR forn IS NULL OR srv IS NULL THEN
@@ -8787,43 +8788,62 @@ BEGIN
   IF r IS DISTINCT FROM srv::text THEN PERFORM pg_temp.falha('CONTRATOS C1: busca por matrícula (' || coalesce(r, 'nulo') || ')'); END IF;
   r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', 'SELECT count(*)::text FROM public.contrato_buscar_servidores(''%%'')');
   IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('CONTRATOS C1: curinga na busca de servidores (' || coalesce(r, 'nulo') || ')'); END IF;
-  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT coalesce(public.contrato_servidor_por_matricula(%L)::text, ''nulo'')', srv_mat));
-  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão resolve matrícula (' || r || ')'); END IF;
-
-  -- importação
-  j := jsonb_build_array(jsonb_build_object('numero', 'IMP-1', 'ano', '2099', 'documento', '11.222.333/0001-81',
+  -- importação (mesmo contrato da Central de Importações: p_linhas, p_arquivo, p_simular)
+  arq := '{"nome":"contratos.xlsx","sha256":"' || repeat('a', 64) || '","tamanho":"10"}';
+  j := jsonb_build_array(jsonb_build_object('indice', 0, 'numero', 'IMP-1', 'ano', '2099', 'documento', '11.222.333/0001-81',
     'razao_social', 'Empresa Importada', 'objeto', 'Vigilância', 'valor_inicial', '1200.50', 'data_assinatura', '2099-01-10',
     'data_inicio', '2099-01-10', 'data_fim', '2099-12-31', 'setor_sigla', 'SETOR-QUE-NAO-EXISTE', 'prorrogavel', 'true',
     'gestor_matricula', srv_mat, 'portaria_numero', 'Portaria 9/2099'));
-  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, true)::text', j));
+  IF NOT (SELECT p.prosecdef FROM pg_proc p WHERE p.oid = 'public.contratos_importar_planilha(jsonb, jsonb, boolean)'::regprocedure)
+     OR has_function_privilege('anon', 'public.contratos_importar_planilha(jsonb, jsonb, boolean)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: importação não é SECURITY DEFINER ou anon executa');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, false)::text', j, arq));
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: editar importa sem criar (' || r || ')'); END IF;
-  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, false)::text', j || j));
-  IF r::jsonb->>'gravado' <> 'false' OR jsonb_array_length(r::jsonb->'erros') <> 1 OR r::jsonb->'erros'->0->>'erro' NOT LIKE '%duas vezes%' THEN
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, true)::text', j, arq));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão simula importação (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, true)::text', j || j, arq));
+  IF jsonb_array_length(r::jsonb->'erros') <> 1 OR r::jsonb->'erros'->0->>'mensagem' NOT LIKE '%duas vezes%' THEN
     PERFORM pg_temp.falha('CONTRATOS C1: linha repetida na importação (' || r || ')');
   END IF;
-  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, false)::text', j));
-  IF r::jsonb->>'gravado' <> 'false' OR r::jsonb->>'criados' <> '1' OR r::jsonb->>'responsaveis' <> '1'
-     OR jsonb_array_length(r::jsonb->'avisos') <> 1 OR EXISTS (SELECT 1 FROM public.contratos WHERE numero_contrato = 'IMP-1') THEN
-    PERFORM pg_temp.falha('CONTRATOS C1: simulação da importação (' || r || ')');
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, true)::text', j, arq));
+  IF r::jsonb->>'simulacao' <> 'true' OR r::jsonb->'totais'->>'inserir' <> '1' OR r::jsonb->'linhas'->0->>'acao' <> 'inserir'
+     OR jsonb_array_length(r::jsonb->'linhas'->0->'avisos') <> 1 OR jsonb_array_length(r::jsonb->'criados'->'Designações') <> 1
+     OR EXISTS (SELECT 1 FROM public.contratos WHERE numero_contrato = 'IMP-1')
+     OR EXISTS (SELECT 1 FROM public.importacoes WHERE tipo = 'contratos_planilha') THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: simulação da importação gravou ou não contou (' || r || ')');
   END IF;
-  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, true)::text', j));
-  IF r::jsonb->>'gravado' <> 'true' OR r::jsonb->>'fornecedores_criados' <> '1'
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, false)::text', j, arq));
+  IF r::jsonb->>'importacao_id' IS NULL OR jsonb_array_length(r::jsonb->'criados'->'Contratados') <> 1
      OR NOT EXISTS (SELECT 1 FROM public.contratos c JOIN public.contrato_responsaveis cr ON cr.contrato_id = c.id
                      WHERE c.numero_contrato = 'IMP-1' AND c.ano = 2099 AND c.prorrogavel AND c.valor_atual = 1200.50
-                       AND cr.papel = 'gestor' AND cr.servidor_id = srv AND cr.portaria_numero = 'Portaria 9/2099') THEN
-    PERFORM pg_temp.falha('CONTRATOS C1: importação não gravou contrato, contratado e gestor (' || r || ')');
+                       AND c.created_by = u_criar AND cr.papel = 'gestor' AND cr.servidor_id = srv
+                       AND cr.portaria_numero = 'Portaria 9/2099')
+     OR NOT EXISTS (SELECT 1 FROM public.importacoes WHERE tipo = 'contratos_planilha' AND modulo = 'contratos' AND created_by = u_criar) THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: importação não gravou contrato, contratado, gestor e log (' || r || ')');
   END IF;
   j := jsonb_build_array(j->0 || jsonb_build_object('processo_sei', '99999.000555/2099.55', 'objeto', 'Objeto trocado',
     'valor_inicial', '1', 'gestor_matricula', ''));
-  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, true)::text', j));
-  IF r::jsonb->>'gravado' <> 'false' OR jsonb_array_length(r::jsonb->'erros') <> 1 THEN
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, false)::text', j, arq));
+  IF r::jsonb->>'importacao_id' IS NOT NULL OR jsonb_array_length(r::jsonb->'erros') <> 1
+     OR EXISTS (SELECT 1 FROM public.contratos WHERE numero_contrato = 'IMP-1' AND processo_sei IS NOT NULL) THEN
     PERFORM pg_temp.falha('CONTRATOS C1: criar completou contrato existente sem editar (' || r || ')');
   END IF;
-  r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, true)::text', j));
-  IF r::jsonb->>'completados' <> '1'
+  r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, false)::text', j, arq));
+  IF r::jsonb->'totais'->>'atualizar' <> '1' OR r::jsonb->'linhas'->0->'mudancas'->'processo_sei'->>1 <> '99999.000555/2099.55'
      OR NOT EXISTS (SELECT 1 FROM public.contratos WHERE numero_contrato = 'IMP-1' AND processo_sei = '99999.000555/2099.55'
                      AND objeto = 'Vigilância' AND valor_inicial = 1200.50) THEN
     PERFORM pg_temp.falha('CONTRATOS C1: importação sobrescreveu ou não completou o contrato existente (' || r || ')');
+  END IF;
+  -- outro gestor pela planilha com gestor em exercício: só aviso (a troca é na ficha)
+  IF srv_b IS NOT NULL THEN
+    UPDATE public.servidores SET matricula = 'C1-MAT-02', ativo = true WHERE id = srv_b;
+    j := jsonb_build_array(j->0 || jsonb_build_object('gestor_matricula', 'C1-MAT-02'));
+    r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, true)::text', j, arq));
+    IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(r::jsonb->'linhas'->0->'avisos') a(t) WHERE a.t LIKE '%já tem gestor em exercício%')
+       OR jsonb_typeof(r::jsonb->'criados'->'Designações') = 'array' THEN
+      PERFORM pg_temp.falha('CONTRATOS C1: importação trocou o gestor em exercício sem avisar (' || r || ')');
+    END IF;
   END IF;
 
   -- localizador
@@ -8835,7 +8855,7 @@ BEGIN
   IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: contrato visto sem o módulo (' || coalesce(r, 'nulo') || ')'); END IF;
 
   PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM pg_temp.nota('CONTRATOS C1: cadastrar com criar, alterar com editar (passagens só marca a agência), apagar só rascunho com editar, nº único por ano, responsáveis (nome do RH, um gestor ativo, saída com motivo, trilha), busca estreita no RH, importação (simula, repete, grava, só completa) e localizador verificados');
+  PERFORM pg_temp.nota('CONTRATOS C1: cadastrar com criar, alterar com editar (passagens só marca a agência), apagar só rascunho com editar, nº único por ano, responsáveis (nome do RH, um gestor ativo, saída com motivo, trilha), busca estreita no RH, importação (simula, repete, grava, só completa, não troca o gestor em exercício) e localizador verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

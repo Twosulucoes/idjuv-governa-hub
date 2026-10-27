@@ -3009,28 +3009,6 @@ $$;
 
 
 --
--- Name: contrato_servidor_por_matricula(text); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.contrato_servidor_por_matricula(_matricula text) RETURNS uuid
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-DECLARE
-  v_id uuid;
-BEGIN
-  IF NOT public.contrato_pode_gravar() THEN
-    RAISE EXCEPTION 'Requer a permissão de criar ou editar contratos.' USING ERRCODE = '42501';
-  END IF;
-  SELECT s.id INTO v_id FROM public.servidores s
-   WHERE s.matricula = btrim(_matricula) AND s.ativo IS NOT FALSE
-   LIMIT 1;
-  RETURN v_id;
-END;
-$$;
-
-
---
 -- Name: contratos_conferir_permissao(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3083,81 +3061,88 @@ $$;
 
 
 --
--- Name: contratos_importar_planilha(jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+-- Name: contratos_importar_planilha(jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.contratos_importar_planilha(p_linhas jsonb, p_gravar boolean DEFAULT false) RETURNS jsonb
-    LANGUAGE plpgsql
+CREATE FUNCTION public.contratos_importar_planilha(p_linhas jsonb, p_arquivo jsonb, p_simular boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
-    AS $$
+    AS $_$
 DECLARE
-  c_simulacao constant text := 'contratos_importar_planilha: simulação';
+  v_uid uuid := auth.uid();
   l jsonb;
-  i int := 0;
-  v_erros jsonb := '[]'::jsonb;
-  v_avisos jsonb := '[]'::jsonb;
-  v_criados int := 0;
-  v_completados int := 0;
-  v_iguais int := 0;
-  v_fornecedores int := 0;
-  v_responsaveis int := 0;
-  v_gravado boolean := false;
-  v_chaves text[] := '{}';
-  v_chave text;
+  v_ind integer;
   v_numero text;
-  v_ano int;
+  v_ano integer;
+  v_chave text;
+  v_chaves text[] := '{}';
   v_doc text;
   v_digitos text;
+  v_razao text;
   v_fornecedor uuid;
   v_unidade uuid;
-  v_contrato uuid;
-  v_existe boolean;
-  v_situacao public.status_contrato;
-  v_inicio date;
-  v_fim date;
-  v_valor_inicial numeric;
-  v_valor_atual numeric;
+  v_ct public.contratos%ROWTYPE;
+  v_id uuid;
+  v_acao text;
+  v_mudancas jsonb;
+  v_avisos jsonb;
   v_mat text;
   v_servidor uuid;
+  v_nome text;
   v_papel text;
-  n int;
+  v_rotulo text;
+  v_inicio_resp date;
+  v_campo text;
+  v_valor text;
+  v_linhas_res jsonb := '[]'::jsonb;
+  v_erros jsonb := '[]'::jsonb;
+  v_detalhes jsonb := '[]'::jsonb;
+  v_contratados text[] := '{}';
+  v_designacoes text[] := '{}';
+  v_ins integer := 0; v_atu integer := 0; v_igual integer := 0;
+  v_totais jsonb;
+  v_import_id uuid;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.has_permission_code(auth.uid(), 'contratos.criar') THEN
+  p_simular := coalesce(p_simular, true);
+
+  IF v_uid IS NULL
+     OR NOT coalesce(public.perfil_ativo_atual()
+                     AND (public.can_access_module(v_uid, 'contratos') OR public.can_access_module(v_uid, 'compras'))
+                     AND public.has_permission_code(v_uid, 'contratos.criar'), false) THEN
     RAISE EXCEPTION 'Importar contratos exige a permissão "Criar contratos".' USING ERRCODE = '42501';
   END IF;
-  IF p_linhas IS NULL OR jsonb_typeof(p_linhas) <> 'array' THEN
-    RAISE EXCEPTION 'Envie as linhas da planilha como uma lista.';
+  IF jsonb_typeof(p_linhas) IS DISTINCT FROM 'array' OR jsonb_array_length(p_linhas) NOT BETWEEN 1 AND 1000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 1000 contratos.' USING ERRCODE = '22023';
   END IF;
-  IF jsonb_array_length(p_linhas) > 1000 THEN
-    RAISE EXCEPTION 'Planilha grande demais (% linhas; máximo 1000).', jsonb_array_length(p_linhas);
+  IF NOT p_simular AND (
+       char_length(coalesce(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
+       OR coalesce(p_arquivo->>'sha256', '') !~ '^[0-9a-f]{64}$'
+       OR coalesce(p_arquivo->>'tamanho', '') !~ '^\d{1,15}$') THEN
+    RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
   END IF;
 
   BEGIN
-    FOR l IN SELECT x FROM jsonb_array_elements(p_linhas) AS x LOOP
-      i := i + 1;
+    FOR l IN SELECT value FROM jsonb_array_elements(p_linhas) LOOP
+      v_ind := coalesce((l->>'indice')::integer, -1);
       BEGIN
         IF jsonb_typeof(l) <> 'object' THEN
-          RAISE EXCEPTION 'linha em formato inválido';
+          RAISE EXCEPTION 'Linha em formato inválido.' USING ERRCODE = '22023';
         END IF;
         v_numero := nullif(btrim(l->>'numero'), '');
-        v_ano := nullif(btrim(l->>'ano'), '')::int;
+        v_ano := nullif(btrim(l->>'ano'), '')::integer;
         IF v_numero IS NULL OR v_ano IS NULL THEN
-          RAISE EXCEPTION 'falta o número ou o ano do contrato';
+          RAISE EXCEPTION 'Falta o número ou o ano do contrato.' USING ERRCODE = '22023';
         END IF;
         IF v_ano NOT BETWEEN 1990 AND 2100 THEN
-          RAISE EXCEPTION 'ano % fora do intervalo', v_ano;
+          RAISE EXCEPTION 'Ano % fora do intervalo.', v_ano USING ERRCODE = '22023';
         END IF;
         v_chave := lower(v_numero) || '/' || v_ano;
         IF v_chave = ANY (v_chaves) THEN
-          RAISE EXCEPTION 'o contrato %/% aparece duas vezes na planilha', v_numero, v_ano;
+          RAISE EXCEPTION 'O contrato %/% aparece duas vezes na planilha.', v_numero, v_ano USING ERRCODE = '22023';
         END IF;
         v_chaves := v_chaves || v_chave;
-
-        v_situacao := coalesce(nullif(btrim(l->>'situacao'), ''), 'vigente')::public.status_contrato;
-        v_inicio := nullif(l->>'data_inicio', '')::date;
-        v_fim := nullif(l->>'data_fim', '')::date;
-        v_valor_inicial := nullif(l->>'valor_inicial', '')::numeric;
-        v_valor_atual := coalesce(nullif(l->>'valor_atual', '')::numeric, v_valor_inicial);
+        v_mudancas := '{}'::jsonb;
+        v_avisos := '[]'::jsonb;
 
         -- setor que pediu (sigla da estrutura)
         v_unidade := NULL;
@@ -3166,40 +3151,39 @@ BEGIN
            WHERE lower(u.sigla) = lower(btrim(l->>'setor_sigla')) AND u.ativo IS NOT FALSE
            ORDER BY u.nivel LIMIT 1;
           IF v_unidade IS NULL THEN
-            v_avisos := v_avisos || jsonb_build_object('linha', i, 'aviso',
-              format('setor "%s" não encontrado na estrutura: ficou em branco', l->>'setor_sigla'));
+            v_avisos := v_avisos || to_jsonb(format('Setor "%s" não encontrado na estrutura: fica em branco.', btrim(l->>'setor_sigla')));
           END IF;
         END IF;
 
-        SELECT c.id INTO v_contrato FROM public.contratos c
-         WHERE lower(c.numero_contrato) = lower(v_numero) AND c.ano = v_ano;
-        v_existe := v_contrato IS NOT NULL;
-
-        IF NOT v_existe THEN
+        SELECT * INTO v_ct FROM public.contratos c
+         WHERE lower(c.numero_contrato) = lower(v_numero) AND c.ano = v_ano
+         FOR UPDATE;
+        IF NOT FOUND THEN
           -- contratado: pelo documento (só dígitos); cadastra se não existir
           v_doc := nullif(btrim(l->>'documento'), '');
           v_digitos := regexp_replace(coalesce(v_doc, ''), '\D', '', 'g');
           IF char_length(v_digitos) NOT IN (11, 14) THEN
-            RAISE EXCEPTION 'CPF ou CNPJ do contratado ausente ou inválido';
+            RAISE EXCEPTION 'CPF ou CNPJ do contratado ausente ou inválido.' USING ERRCODE = '22023';
           END IF;
           SELECT f.id INTO v_fornecedor FROM public.fornecedores f
            WHERE regexp_replace(f.cpf_cnpj, '\D', '', 'g') = v_digitos
            ORDER BY f.ativo DESC NULLS LAST LIMIT 1;
           IF v_fornecedor IS NULL THEN
-            IF nullif(btrim(l->>'razao_social'), '') IS NULL THEN
-              RAISE EXCEPTION 'contratado % não cadastrado e sem razão social na planilha', v_doc;
+            v_razao := nullif(btrim(l->>'razao_social'), '');
+            IF v_razao IS NULL THEN
+              RAISE EXCEPTION 'Contratado % não cadastrado e sem razão social na planilha.', v_doc USING ERRCODE = '22023';
             END IF;
             INSERT INTO public.fornecedores (tipo_pessoa, cpf_cnpj, razao_social, created_by)
-            VALUES (CASE WHEN char_length(v_digitos) = 14 THEN 'PJ' ELSE 'PF' END, v_doc, btrim(l->>'razao_social'), auth.uid())
+            VALUES (CASE WHEN char_length(v_digitos) = 14 THEN 'PJ' ELSE 'PF' END, v_doc, v_razao, v_uid)
             RETURNING id INTO v_fornecedor;
-            v_fornecedores := v_fornecedores + 1;
+            v_contratados := v_contratados || v_razao;
           END IF;
           IF nullif(btrim(l->>'objeto'), '') IS NULL THEN
-            RAISE EXCEPTION 'falta o objeto';
+            RAISE EXCEPTION 'Falta o objeto.' USING ERRCODE = '22023';
           END IF;
-          IF v_valor_inicial IS NULL OR v_inicio IS NULL OR v_fim IS NULL
-             OR nullif(l->>'data_assinatura', '') IS NULL THEN
-            RAISE EXCEPTION 'faltam valor inicial, assinatura, início ou fim da vigência';
+          IF nullif(l->>'valor_inicial', '') IS NULL OR nullif(l->>'data_assinatura', '') IS NULL
+             OR nullif(l->>'data_inicio', '') IS NULL OR nullif(l->>'data_fim', '') IS NULL THEN
+            RAISE EXCEPTION 'Faltam valor inicial, assinatura, início ou fim da vigência.' USING ERRCODE = '22023';
           END IF;
 
           INSERT INTO public.contratos (
@@ -3210,106 +3194,141 @@ BEGIN
           VALUES (
             v_numero, v_ano, nullif(btrim(l->>'processo_sei'), ''), nullif(btrim(l->>'numero_pncp'), ''), v_fornecedor,
             btrim(l->>'objeto'), nullif(btrim(l->>'objeto_resumido'), ''), nullif(btrim(l->>'tipo_contrato'), ''),
-            nullif(btrim(l->>'fundamento_legal'), ''), v_valor_inicial, v_valor_atual,
-            (l->>'data_assinatura')::date, v_inicio, v_fim, v_situacao,
-            v_unidade, nullif(btrim(l->>'natureza_despesa'), ''), coalesce((l->>'prorrogavel')::boolean, false),
-            nullif(l->>'prazo_maximo_meses', '')::int, nullif(l->>'data_publicacao_doe', '')::date,
-            nullif(btrim(l->>'numero_doe'), ''), auth.uid())
-          RETURNING id INTO v_contrato;
-          v_criados := v_criados + 1;
+            nullif(btrim(l->>'fundamento_legal'), ''), (l->>'valor_inicial')::numeric,
+            coalesce(nullif(l->>'valor_atual', '')::numeric, (l->>'valor_inicial')::numeric),
+            (l->>'data_assinatura')::date, (l->>'data_inicio')::date, (l->>'data_fim')::date,
+            coalesce(nullif(btrim(l->>'situacao'), ''), 'vigente')::public.status_contrato,
+            v_unidade, nullif(btrim(l->>'natureza_despesa'), ''), coalesce(nullif(l->>'prorrogavel', '')::boolean, false),
+            nullif(l->>'prazo_maximo_meses', '')::integer, nullif(l->>'data_publicacao_doe', '')::date,
+            nullif(btrim(l->>'numero_doe'), ''), v_uid)
+          RETURNING id INTO v_id;
+          v_acao := 'inserir';
         ELSE
-          -- só completa o que está vazio
-          UPDATE public.contratos c SET
-            processo_sei = coalesce(c.processo_sei, nullif(btrim(l->>'processo_sei'), '')),
-            numero_pncp = coalesce(c.numero_pncp, nullif(btrim(l->>'numero_pncp'), '')),
-            objeto_resumido = coalesce(c.objeto_resumido, nullif(btrim(l->>'objeto_resumido'), '')),
-            tipo_contrato = coalesce(c.tipo_contrato, nullif(btrim(l->>'tipo_contrato'), '')),
-            fundamento_legal = coalesce(c.fundamento_legal, nullif(btrim(l->>'fundamento_legal'), '')),
-            unidade_demandante_id = coalesce(c.unidade_demandante_id, v_unidade),
-            natureza_despesa = coalesce(c.natureza_despesa, nullif(btrim(l->>'natureza_despesa'), '')),
-            prazo_maximo_meses = coalesce(c.prazo_maximo_meses, nullif(l->>'prazo_maximo_meses', '')::int),
-            data_publicacao_doe = coalesce(c.data_publicacao_doe, nullif(l->>'data_publicacao_doe', '')::date),
-            numero_doe = coalesce(c.numero_doe, nullif(btrim(l->>'numero_doe'), ''))
-           WHERE c.id = v_contrato
-             AND (c.processo_sei IS NULL AND nullif(btrim(l->>'processo_sei'), '') IS NOT NULL
-               OR c.numero_pncp IS NULL AND nullif(btrim(l->>'numero_pncp'), '') IS NOT NULL
-               OR c.objeto_resumido IS NULL AND nullif(btrim(l->>'objeto_resumido'), '') IS NOT NULL
-               OR c.tipo_contrato IS NULL AND nullif(btrim(l->>'tipo_contrato'), '') IS NOT NULL
-               OR c.fundamento_legal IS NULL AND nullif(btrim(l->>'fundamento_legal'), '') IS NOT NULL
-               OR c.unidade_demandante_id IS NULL AND v_unidade IS NOT NULL
-               OR c.natureza_despesa IS NULL AND nullif(btrim(l->>'natureza_despesa'), '') IS NOT NULL
-               OR c.prazo_maximo_meses IS NULL AND nullif(l->>'prazo_maximo_meses', '') IS NOT NULL
-               OR c.data_publicacao_doe IS NULL AND nullif(l->>'data_publicacao_doe', '') IS NOT NULL
-               OR c.numero_doe IS NULL AND nullif(btrim(l->>'numero_doe'), '') IS NOT NULL);
-          GET DIAGNOSTICS n = ROW_COUNT;
-          IF n > 0 THEN
-            v_completados := v_completados + 1;
-          ELSE
-            v_iguais := v_iguais + 1;
+          v_id := v_ct.id;
+          -- só completa o que está vazio (campo → [antes, depois])
+          FOR v_campo, v_valor IN
+            SELECT k, v FROM (VALUES
+              ('processo_sei', CASE WHEN v_ct.processo_sei IS NULL THEN nullif(btrim(l->>'processo_sei'), '') END),
+              ('numero_pncp', CASE WHEN v_ct.numero_pncp IS NULL THEN nullif(btrim(l->>'numero_pncp'), '') END),
+              ('objeto_resumido', CASE WHEN v_ct.objeto_resumido IS NULL THEN nullif(btrim(l->>'objeto_resumido'), '') END),
+              ('tipo_contrato', CASE WHEN v_ct.tipo_contrato IS NULL THEN nullif(btrim(l->>'tipo_contrato'), '') END),
+              ('fundamento_legal', CASE WHEN v_ct.fundamento_legal IS NULL THEN nullif(btrim(l->>'fundamento_legal'), '') END),
+              ('natureza_despesa', CASE WHEN v_ct.natureza_despesa IS NULL THEN nullif(btrim(l->>'natureza_despesa'), '') END),
+              ('prazo_maximo_meses', CASE WHEN v_ct.prazo_maximo_meses IS NULL THEN nullif(l->>'prazo_maximo_meses', '') END),
+              ('data_publicacao_doe', CASE WHEN v_ct.data_publicacao_doe IS NULL THEN nullif(l->>'data_publicacao_doe', '') END),
+              ('numero_doe', CASE WHEN v_ct.numero_doe IS NULL THEN nullif(btrim(l->>'numero_doe'), '') END),
+              ('unidade_demandante_id', CASE WHEN v_ct.unidade_demandante_id IS NULL AND v_unidade IS NOT NULL
+                                             THEN btrim(l->>'setor_sigla') END)
+            ) AS x(k, v) WHERE v IS NOT NULL
+          LOOP
+            v_mudancas := v_mudancas || jsonb_build_object(v_campo, jsonb_build_array(NULL, v_valor));
+          END LOOP;
+          IF v_mudancas <> '{}'::jsonb THEN
+            UPDATE public.contratos c SET
+              processo_sei = coalesce(c.processo_sei, nullif(btrim(l->>'processo_sei'), '')),
+              numero_pncp = coalesce(c.numero_pncp, nullif(btrim(l->>'numero_pncp'), '')),
+              objeto_resumido = coalesce(c.objeto_resumido, nullif(btrim(l->>'objeto_resumido'), '')),
+              tipo_contrato = coalesce(c.tipo_contrato, nullif(btrim(l->>'tipo_contrato'), '')),
+              fundamento_legal = coalesce(c.fundamento_legal, nullif(btrim(l->>'fundamento_legal'), '')),
+              natureza_despesa = coalesce(c.natureza_despesa, nullif(btrim(l->>'natureza_despesa'), '')),
+              prazo_maximo_meses = coalesce(c.prazo_maximo_meses, nullif(l->>'prazo_maximo_meses', '')::integer),
+              data_publicacao_doe = coalesce(c.data_publicacao_doe, nullif(l->>'data_publicacao_doe', '')::date),
+              numero_doe = coalesce(c.numero_doe, nullif(btrim(l->>'numero_doe'), '')),
+              unidade_demandante_id = coalesce(c.unidade_demandante_id, v_unidade)
+             WHERE c.id = v_id;
           END IF;
+          v_acao := 'sem_alteracao';
         END IF;
 
-        -- responsáveis (matrícula); a portaria vale para os três
+        -- responsáveis (matrícula); a portaria da linha vale para os três
         FOREACH v_papel IN ARRAY ARRAY['gestor', 'fiscal_tecnico', 'fiscal_administrativo'] LOOP
           v_mat := nullif(btrim(l->>(v_papel || '_matricula')), '');
           CONTINUE WHEN v_mat IS NULL;
-          v_servidor := public.contrato_servidor_por_matricula(v_mat);
+          v_rotulo := CASE v_papel WHEN 'gestor' THEN 'gestor' WHEN 'fiscal_tecnico' THEN 'fiscal técnico'
+                        ELSE 'fiscal administrativo' END;
+          SELECT s.id, s.nome_completo INTO v_servidor, v_nome FROM public.servidores s
+           WHERE s.matricula = v_mat AND s.ativo IS NOT FALSE
+           LIMIT 1;
           IF v_servidor IS NULL THEN
-            v_avisos := v_avisos || jsonb_build_object('linha', i, 'aviso',
-              format('matrícula %s (%s) não encontrada entre os servidores ativos', v_mat, v_papel));
+            v_avisos := v_avisos || to_jsonb(format('Matrícula %s (%s) não encontrada entre os servidores ativos.',
+              v_mat, v_rotulo));
             CONTINUE;
           END IF;
-          IF EXISTS (SELECT 1 FROM public.contrato_responsaveis r
-                      WHERE r.contrato_id = v_contrato AND r.data_fim IS NULL
-                        AND (r.servidor_id = v_servidor AND r.papel = v_papel
-                             OR v_papel = 'gestor' AND r.papel = 'gestor')) THEN
+          -- já designado neste papel: nada a fazer
+          CONTINUE WHEN EXISTS (SELECT 1 FROM public.contrato_responsaveis r
+                                 WHERE r.contrato_id = v_id AND r.data_fim IS NULL
+                                   AND r.servidor_id = v_servidor AND r.papel = v_papel);
+          -- só um gestor em exercício: a troca é na ficha (encerra a designação antiga e designa o novo)
+          IF v_papel = 'gestor' AND EXISTS (SELECT 1 FROM public.contrato_responsaveis r
+                                             WHERE r.contrato_id = v_id AND r.data_fim IS NULL AND r.papel = 'gestor') THEN
+            v_avisos := v_avisos || to_jsonb(format(
+              'O contrato já tem gestor em exercício: a matrícula %s não foi designada (troque na ficha do contrato).', v_mat));
             CONTINUE;
           END IF;
+          v_inicio_resp := coalesce(nullif(l->>'portaria_data', '')::date, nullif(l->>'data_inicio', '')::date,
+                                    (SELECT c.data_inicio FROM public.contratos c WHERE c.id = v_id));
           INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, portaria_numero, portaria_data, data_inicio)
-          VALUES (v_contrato, v_servidor, v_papel, nullif(btrim(l->>'portaria_numero'), ''),
-                  nullif(l->>'portaria_data', '')::date,
-                  coalesce(nullif(l->>'portaria_data', '')::date, v_inicio,
-                           (SELECT c.data_inicio FROM public.contratos c WHERE c.id = v_contrato)));
-          v_responsaveis := v_responsaveis + 1;
+          VALUES (v_id, v_servidor, v_papel, nullif(btrim(l->>'portaria_numero'), ''),
+                  nullif(l->>'portaria_data', '')::date, v_inicio_resp);
+          v_designacoes := v_designacoes || format('%s/%s: %s (%s)', v_numero, v_ano, v_nome, v_rotulo);
+          IF v_acao <> 'inserir' THEN
+            v_mudancas := v_mudancas || jsonb_build_object(v_papel, jsonb_build_array(NULL, v_nome));
+          END IF;
         END LOOP;
+        IF v_acao <> 'inserir' AND v_mudancas <> '{}'::jsonb THEN
+          v_acao := 'atualizar';
+        END IF;
+
+        CASE v_acao WHEN 'inserir' THEN v_ins := v_ins + 1; WHEN 'atualizar' THEN v_atu := v_atu + 1; ELSE v_igual := v_igual + 1; END CASE;
+        v_linhas_res := v_linhas_res || jsonb_build_object('indice', v_ind, 'acao', v_acao,
+          'mudancas', CASE WHEN v_mudancas <> '{}'::jsonb THEN v_mudancas END,
+          'avisos', CASE WHEN jsonb_array_length(v_avisos) > 0 THEN v_avisos END);
+        v_detalhes := v_detalhes || jsonb_build_object('indice', v_ind, 'contrato', v_numero || '/' || v_ano,
+          'acao', v_acao, 'contrato_id', v_id);
       EXCEPTION
-        WHEN raise_exception OR check_violation OR not_null_violation OR invalid_text_representation
-          OR invalid_datetime_format OR datetime_field_overflow OR numeric_value_out_of_range
-          OR string_data_right_truncation OR foreign_key_violation OR unique_violation OR insufficient_privilege
-          OR invalid_parameter_value THEN
-          v_erros := v_erros || jsonb_build_object('linha', i, 'erro', SQLERRM);
+        WHEN OTHERS THEN
+          v_erros := v_erros || jsonb_build_object('indice', v_ind, 'mensagem',
+            CASE WHEN left(SQLSTATE, 2) IN ('22', '23') OR SQLSTATE IN ('P0001', '42501') THEN SQLERRM
+                 ELSE format('Erro inesperado ao gravar a linha (código %s).', SQLSTATE) END);
       END;
     END LOOP;
 
-    IF jsonb_array_length(v_erros) > 0 OR NOT p_gravar THEN
-      RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = c_simulacao;
+    IF p_simular OR jsonb_array_length(v_erros) > 0 THEN
+      RAISE EXCEPTION 'importação desfeita' USING ERRCODE = 'PRI01';
     END IF;
-    v_gravado := true;
-  EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM <> c_simulacao THEN
-      RAISE;
-    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'PRI01' THEN NULL;  -- desfaz tudo o que as linhas gravaram; as variáveis continuam valendo
   END;
 
+  v_totais := jsonb_build_object('inserir', v_ins, 'atualizar', v_atu, 'sem_alteracao', v_igual);
+
+  IF NOT p_simular AND jsonb_array_length(v_erros) = 0 THEN
+    INSERT INTO public.importacoes
+      (tipo, modulo, arquivo_nome, arquivo_sha256, arquivo_tamanho, exercicio, resumo, detalhes, created_by)
+    VALUES
+      ('contratos_planilha', 'contratos', p_arquivo->>'nome', p_arquivo->>'sha256', (p_arquivo->>'tamanho')::bigint,
+       NULL, jsonb_build_object('totais', v_totais), v_detalhes, v_uid)
+    RETURNING id INTO v_import_id;
+  END IF;
+
   RETURN jsonb_build_object(
-    'gravado', v_gravado,
-    'linhas', i,
-    'criados', v_criados,
-    'completados', v_completados,
-    'sem_mudanca', v_iguais,
-    'fornecedores_criados', v_fornecedores,
-    'responsaveis', v_responsaveis,
+    'simulacao', p_simular,
+    'importacao_id', v_import_id,
+    'totais', v_totais,
+    'linhas', v_linhas_res,
     'erros', v_erros,
-    'avisos', v_avisos);
+    'criados', jsonb_strip_nulls(jsonb_build_object(
+      'Contratados', CASE WHEN cardinality(v_contratados) > 0 THEN to_jsonb(v_contratados) END,
+      'Designações', CASE WHEN cardinality(v_designacoes) > 0 THEN to_jsonb(v_designacoes) END)));
 END;
-$$;
+$_$;
 
 
 --
--- Name: FUNCTION contratos_importar_planilha(p_linhas jsonb, p_gravar boolean); Type: COMMENT; Schema: public; Owner: -
+-- Name: FUNCTION contratos_importar_planilha(p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.contratos_importar_planilha(p_linhas jsonb, p_gravar boolean) IS 'Importa a planilha de contratos (simula com p_gravar=false). Nunca apaga nem sobrescreve: contrato existente só ganha o que está vazio. Exige contratos.criar (completar existente exige também contratos.editar). Migração 20261104090000.';
+COMMENT ON FUNCTION public.contratos_importar_planilha(p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa a planilha de contratos vigentes (p_simular = true só calcula; aplicação é tudo ou nada, com log em importacoes). Nunca apaga nem sobrescreve: contrato existente só ganha o que está vazio. Exige contratos.criar (completar existente exige também contratos.editar). Migração 20261104090000.';
 
 
 --

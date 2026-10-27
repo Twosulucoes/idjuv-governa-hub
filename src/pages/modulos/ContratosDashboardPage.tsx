@@ -4,7 +4,7 @@
  * (PageHeader, KpiCard).
  */
 
-import { FileText, Calendar, FileEdit, BarChart3, Globe, AlertCircle, Plane, ClipboardCheck, ShoppingCart } from "lucide-react";
+import { FileText, Calendar, UserX, BarChart3, Globe, AlertCircle, Plane, ClipboardCheck, ShoppingCart, FileCheck, Upload } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { useContratosDashboardStats } from "@/hooks/dashboard";
@@ -13,18 +13,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { KpiCard, PageHeader } from "@/components/design-system";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const numero = new Intl.NumberFormat("pt-BR");
 
-function formatCurrency(value: number): string {
-  if (value >= 1000000) {
-    return `R$ ${(value / 1000000).toFixed(1)}M`;
-  }
-  if (value >= 1000) {
-    return `R$ ${(value / 1000).toFixed(0)}K`;
-  }
-  return `R$ ${value.toFixed(0)}`;
-}
+// Valor curto para o cartão: "R$ 1,9 mi", "R$ 480 mil"
+const moedaCurta = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", minimumFractionDigits: 0, maximumFractionDigits: 1 });
 
 interface Indicador {
   rotulo: string;
@@ -36,30 +30,34 @@ interface Indicador {
 
 export default function ContratosDashboardPage() {
   const { data: stats, isLoading, isError, refetch } = useContratosDashboardStats();
+  const { hasAnyPermission } = useAuth();
+  const PERMISSOES_LISTA = ["contratos.visualizar", "contratos.criar", "contratos.editar"];
+  const PERMISSOES_PASSAGENS = ["contratos.passagens.visualizar", "contratos.passagens.editar"];
+  const podeVerLista = hasAnyPermission(PERMISSOES_LISTA);
+  const lista = (prazo: string) => (podeVerLista ? `/contratos/lista?prazo=${prazo}` : undefined);
 
   // Sem dado (erro) mostra "—" em vez de um zero que parece real
   const valor = (n: number | undefined) => (stats ? numero.format(n || 0) : "—");
 
   const indicadores: Indicador[] = [
+    { rotulo: "Contratos em vigor", valor: valor(stats?.emVigor), icone: FileText, href: lista("em_vigor") },
+    { rotulo: "Vencem em até 90 dias", valor: valor(stats?.vencem90), icone: Calendar, href: lista("90") },
+    { rotulo: "Sem gestor ou fiscal", valor: valor(stats?.semResponsavel), icone: UserX, href: lista("sem_responsavel") },
     {
-      rotulo: "Contratos vigentes",
-      valor: valor(stats?.contratosVigentes),
-      icone: FileText,
-    },
-    { rotulo: "A vencer (90 dias)", valor: valor(stats?.aVencer90Dias), icone: Calendar },
-    { rotulo: "Aditivos pendentes", valor: valor(stats?.aditivosPendentes), icone: FileEdit },
-    {
-      rotulo: "Valor total",
-      valor: stats ? formatCurrency(stats.valorTotal || 0) : "—",
+      rotulo: "Valor em vigor",
+      valor: stats ? moedaCurta.format(stats.valorEmVigor || 0) : "—",
       icone: BarChart3,
+      href: lista("em_vigor"),
     },
   ];
 
-  // Só rotas registradas em App.tsx; a lista de contratos, aditivos e vencimentos entra quando as telas existirem (P21)
-  const quickActions = [
-    { label: "Passagens aéreas", description: "Pedidos e emissões", href: "/contratos/passagens", icon: Plane },
-    { label: "Pendências de passagens", description: "Prestação de contas em aberto", href: "/contratos/passagens/pendencias", icon: ClipboardCheck },
-    { label: "Processos de contratação", description: "Compras até virar contrato", href: "/compras/processos", icon: ShoppingCart },
+  // Só rotas registradas em App.tsx; aditivos, execução e avisos entram com as entregas C2 a C6 (P21)
+  const quickActions: { label: string; description: string; href: string; icon: LucideIcon; permissoes?: string[] }[] = [
+    { label: "Lista de contratos", description: "Vigência, gestor e fiscais", href: "/contratos/lista", icon: FileCheck, permissoes: PERMISSOES_LISTA },
+    { label: "Importar contratos", description: "Planilha dos contratos vigentes", href: "/admin/importacoes?importador=contratos_planilha", icon: Upload, permissoes: ["contratos.criar"] },
+    { label: "Passagens aéreas", description: "Pedidos e emissões", href: "/contratos/passagens", icon: Plane, permissoes: PERMISSOES_PASSAGENS },
+    { label: "Pendências de passagens", description: "Prestação de contas em aberto", href: "/contratos/passagens/pendencias", icon: ClipboardCheck, permissoes: PERMISSOES_PASSAGENS },
+    { label: "Processos de contratação", description: "Compras até virar contrato", href: "/compras/processos", icon: ShoppingCart, permissoes: ["compras.processos.visualizar", "compras.processos.editar"] },
     { label: "Contratos publicados", description: "Portal da transparência", href: "/transparencia/contratos", icon: Globe },
   ];
 
@@ -71,10 +69,17 @@ export default function ContratosDashboardPage() {
           descricao="Gestão e execução contratual"
           acoes={
             <Button asChild>
-              <Link to="/contratos/passagens">
-                <Plane className="h-4 w-4" aria-hidden="true" />
-                Passagens aéreas
-              </Link>
+              {podeVerLista ? (
+                <Link to="/contratos/lista">
+                  <FileCheck className="h-4 w-4" aria-hidden="true" />
+                  Lista de contratos
+                </Link>
+              ) : (
+                <Link to="/contratos/passagens">
+                  <Plane className="h-4 w-4" aria-hidden="true" />
+                  Passagens aéreas
+                </Link>
+              )}
             </Button>
           }
         />
@@ -131,7 +136,7 @@ export default function ContratosDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {quickActions.map((action) => {
+              {quickActions.filter((a) => !a.permissoes || hasAnyPermission(a.permissoes)).map((action) => {
                 const Icon = action.icon;
                 return (
                   <Button

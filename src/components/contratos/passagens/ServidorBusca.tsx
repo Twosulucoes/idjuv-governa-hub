@@ -1,5 +1,6 @@
 /**
- * Busca de servidor por nome ou matrícula (RPC passagem_buscar_servidores: só nome, matrícula e cargo).
+ * Busca de servidor por nome ou matrícula (RPC estreita: só nome, matrícula e cargo). Por padrão usa a das passagens
+ * (passagem_buscar_servidores); a ficha do contrato passa a sua (contrato_buscar_servidores) em `useBusca`.
  * Mostra o escolhido com um botão para trocar.
  */
 
@@ -14,11 +15,13 @@ interface Props {
   escolhido: { id: string; nome: string } | null;
   aoEscolher: (s: ServidorParaPassagem | null) => void;
   id?: string;
+  /** Hook de busca (fixo durante a vida do componente). */
+  useBusca?: typeof useBuscarServidores;
 }
 
-export function ServidorBusca({ escolhido, aoEscolher, id }: Props) {
+export function ServidorBusca({ escolhido, aoEscolher, id, useBusca = useBuscarServidores }: Props) {
   const [termo, setTermo] = useState("");
-  const busca = useBuscarServidores(termo);
+  const busca = useBusca(termo);
 
   if (escolhido) {
     return (
