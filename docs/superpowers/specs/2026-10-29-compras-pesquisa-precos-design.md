@@ -1,7 +1,7 @@
 # Compras: pesquisa de preços (entrega 1)
 
 **Data:** 2026-10-29 · **Módulo:** Compras · **Classificação:** bounded (tabelas novas com RLS, Edge Function nova,
-telas e documento novos) · **Migração:** `20261105090000_compras_pesquisa_precos.sql`
+telas e documento novos) · **Migração:** `20261106090000_compras_pesquisa_precos.sql`
 
 ## 1. Problema
 

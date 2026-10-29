@@ -210,6 +210,12 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `processo_reservas`, classe `preservar`: SELECT pelas policies da migração e escrita só pelas RPCs), no schema do
   baseline regenerado e no `overlay/40_privilegios.sql`; sem linha nova no catálogo; testes no bloco "Compras:
   reservas e PEDs" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os convênios federais (migração `20261105090000`) entraram no mapa (`fin_tg_propostas`, `fin_tg_emendas`,
+  `fin_tg_convenios`, `fin_tg_movimentos` e `fin_tg_sincronizacoes`, classe `trilha` com
+  `leitura=financeiro.convenios.visualizar`), no schema regenerado, no catálogo (a permissão nova e as concessões aos
+  papéis) e no `overlay/40_privilegios.sql` (sem escrita para `authenticated`, `fin_tg_carregar` só para
+  `service_role`); testes no bloco "Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`
+  ([detalhe](./BANCO_DE_DADOS.md)).
 - Os contratos, entrega C1 (migração `20261104090000`), mudaram no mapa: `contratos` e `itens_contrato` saíram da classe
   `modulo` para `permissao` (gravar com `contratos.criar` ou `contratos.editar`, apagar com `editar`) e entrou
   `contrato_responsaveis` na mesma classe; schema regenerado, catálogo sem mudança (as permissões já existiam) e
@@ -235,7 +241,7 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `contratos.passagens.editar`; `passagem_historico`, classe `trilha`), no schema do baseline regenerado, no catálogo
   (as duas permissões) e no `overlay/40_privilegios.sql`; testes no bloco "PASSAGENS" de `scripts/db/testar-rls.sql`
   ([detalhe](./BANCO_DE_DADOS.md)).
-- A pesquisa de preços, entrega 1 (migração `20261105090000`), entrou no mapa (`pesquisas_precos`,
+- A pesquisa de preços, entrega 1 (migração `20261106090000`), entrou no mapa (`pesquisas_precos`,
   `pesquisas_precos_itens` e `pesquisas_precos_amostras`, classe `permissao` com `compras.pesquisa_precos.editar`), no
   schema do baseline regenerado, no catálogo (as duas permissões e a concessão aos papéis que têm `compras.criar`) e no
   `overlay/40_privilegios.sql` (EXECUTE do gatilho `pesquisa_precos_conferir` revogado); testes no bloco "Compras:

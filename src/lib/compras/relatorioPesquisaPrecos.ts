@@ -126,7 +126,7 @@ export const pctBR = (fracao: number) => `${F2.format(fracao * 100)}%`;
 export const quantidadeBR = (n: number) => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 }).format(n);
 /** AAAA-MM-DD → DD/MM/AAAA (sem fuso). */
 export const dataBR = (iso: string | null | undefined) => (iso ? iso.slice(0, 10).split("-").reverse().join("/") : "sem data");
-/** Data e hora da consulta em UTC−4 (fuso da instituição; o banco guarda em UTC). */
+/** Data e hora da consulta em UTC-4 (fuso da instituição; o banco guarda em UTC). */
 export function dataHoraConsulta(iso: string): string {
   const d = new Date(new Date(iso).getTime() - 4 * 3600_000);
   const p = (n: number) => String(n).padStart(2, "0");
@@ -169,7 +169,7 @@ export function textoNotaTecnica(d: DadosNota): string {
     const doParametro = todas.filter((a) => a.parametro === p);
     const consultas = [...new Set(doParametro.map((a) => dataHoraConsulta(a.consultado_em).slice(0, 10)))].sort();
     linhas.push(`2.${n + 1}. ${PARAMETROS[p].rotulo} (Decreto nº 39.050-E/2025, art. 17, ${PARAMETROS[p].inciso}): ${doParametro.length} preço(s), `
-      + `consultados em ${consultas.join(", ")} (UTC−4), com prazo de até ${PARAMETROS[p].prazoMeses} meses antes de ${dataBR(d.dataReferencia)}.`);
+      + `consultados em ${consultas.join(", ")} (UTC-4), com prazo de até ${PARAMETROS[p].prazoMeses} meses antes de ${dataBR(d.dataReferencia)}.`);
   });
   if (!usados.includes(1) && !usados.includes(2)) {
     linhas.push(`2.${usados.length + 1}. Os parâmetros dos incisos I e II do art. 17 não foram usados: [JUSTIFICAR] (Decreto nº 39.050-E/2025, art. 17, § 1º).`);

@@ -44,3 +44,7 @@ verify_jwt = true
 
 [functions.enviar-notificacao]
 verify_jwt = true
+
+# Chamada pela rotina diária do GitHub Actions com a chave anon (JWT) e o segredo TRANSFEREGOV_TOKEN; sem usuário.
+[functions.transferegov]
+verify_jwt = true

@@ -2166,6 +2166,31 @@ DROP POLICY IF EXISTS "rls_delete" ON public.fin_sub_empenhos;
 CREATE POLICY "rls_delete" ON public.fin_sub_empenhos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
 
+-- fin_tg_convenios  [trilha: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_tg_convenios;
+CREATE POLICY "rls_select" ON public.fin_tg_convenios FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'));
+
+-- fin_tg_emendas  [trilha: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_tg_emendas;
+CREATE POLICY "rls_select" ON public.fin_tg_emendas FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'));
+
+-- fin_tg_movimentos  [trilha: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_tg_movimentos;
+CREATE POLICY "rls_select" ON public.fin_tg_movimentos FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'));
+
+-- fin_tg_propostas  [trilha: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_tg_propostas;
+CREATE POLICY "rls_select" ON public.fin_tg_propostas FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'));
+
+-- fin_tg_sincronizacoes  [trilha: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_tg_sincronizacoes;
+CREATE POLICY "rls_select" ON public.fin_tg_sincronizacoes FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'));
+
 -- folha_historico_status  [trilha: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.folha_historico_status;
 CREATE POLICY "rls_select" ON public.folha_historico_status FOR SELECT TO authenticated

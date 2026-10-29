@@ -90,7 +90,7 @@ function blocosDoItem(i: ItemRelatorio): Bloco[] {
       })),
     }));
     const consultas = [...new Set(i.amostras.map((s) => dataHoraConsulta(s.consultado_em)))].sort();
-    blocos.push(paragrafo({ texto: `Consulta às fontes (data e hora, UTC−4): ${consultas.join('; ')}.` }));
+    blocos.push(paragrafo({ texto: `Consulta às fontes (data e hora, UTC-4): ${consultas.join('; ')}.` }));
   }
   blocos.push(camposChaveValor({
     colunas: 3,
@@ -155,7 +155,7 @@ export const relatorioPesquisaPrecos: DocumentoModelo<DadosRelatorioPesquisaPrec
               unitario: i.valorUnitario === null ? '—' : precoBR(i.valorUnitario),
               total: i.valorTotal === null ? '—' : moedaBR(i.valorTotal),
             })),
-            totais: { numero: 'TOTAL', total: moedaBR(total) },
+            totais: { descricao: 'TOTAL', total: moedaBR(total) },
           }),
     ];
   },

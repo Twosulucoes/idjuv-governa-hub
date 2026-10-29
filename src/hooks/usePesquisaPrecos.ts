@@ -1,6 +1,6 @@
 /**
  * Pesquisa de preços do módulo Compras: pesquisas por processo SEI, itens e amostras com a fonte. Migração
- * 20261105090000; leitura com `compras.pesquisa_precos.visualizar`, escrita com `compras.pesquisa_precos.editar`
+ * 20261106090000; leitura com `compras.pesquisa_precos.visualizar`, escrita com `compras.pesquisa_precos.editar`
  * (RLS). Os preços do Compras.gov.br e do PNCP vêm da Edge Function `pesquisa-precos` (só leitura); a tela grava as
  * amostras escolhidas. O saneamento e o método são calculados em `src/lib/compras/pesquisaPrecos.ts`.
  */

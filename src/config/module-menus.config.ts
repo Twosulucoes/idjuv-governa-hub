@@ -59,6 +59,7 @@ import {
   Medal,
   Heart,
   Briefcase,
+  Handshake,
 } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
 import type { PermissionCode } from "@/types/auth";
@@ -151,6 +152,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
           { id: "pagamentos", label: "Pagamentos", icon: Receipt, route: "/financeiro/pagamentos" },
         ],
       },
+      { id: "convenios", label: "Convênios federais", icon: Handshake, route: "/financeiro/convenios", permission: "financeiro.convenios.visualizar" },
       { id: "favorecidos", label: "Favorecidos", icon: Users, route: "/financeiro/favorecidos", permission: "orcamento.criar" },
       { id: "contas", label: "Contas Bancárias", icon: Building2, route: "/financeiro/contas-bancarias" },
       { id: "conciliacao", label: "Conciliação Bancária", icon: ArrowLeftRight, route: "/financeiro/conciliacao", permission: "pagamento.conciliar" },

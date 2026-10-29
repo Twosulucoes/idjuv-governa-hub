@@ -1144,7 +1144,7 @@ Todas idempotentes.
     por processo) e `programacao_por_natureza` (QDD × reservas por combinação, com os processos);
   - sem permissão nova; RLS classe `preservar` nas duas tabelas (policies na migração); testes no bloco
     "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
-- **Pesquisa de preços, entrega 1** (`20261105090000_compras_pesquisa_precos.sql`, spec
+- **Pesquisa de preços, entrega 1** (`20261106090000_compras_pesquisa_precos.sql`, spec
   [2026-10-29-compras-pesquisa-precos-design.md](./superpowers/specs/2026-10-29-compras-pesquisa-precos-design.md)):
   - `pesquisas_precos`: uma por processo SEI (objeto, `finalidade`, `data_referencia`, responsáveis, observações,
     `pca_item_id` opcional para `pca_itens`), `situacao` `em_andamento`/`concluida`;
@@ -1285,6 +1285,28 @@ No baseline, `campanhas_inventario_unidades` é classe `modulo` e `fotos_vistori
 `preservar` (ver [`supabase/baseline/README.md`](../supabase/baseline/README.md)). O banco ao vivo
 ainda pode ter policies `acesso_total_*` em `campanhas_inventario` e `coletas_inventario` (vêm do
 histórico de migrações; o baseline já as remove); a correção no banco ao vivo aguarda decisão.
+
+### Convênios federais (espelho do Transferegov)
+
+Migração `20261105090000_fin_convenios_transferegov.sql` (spec
+[2026-10-29-convenios-federais-transferegov-design.md](./superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md)).
+Cópia, só para leitura, do que o Transferegov publica sobre o CNPJ da instituição (o da Configuração do cliente,
+`dados_oficiais` chave `cnpj`). Fonte e formato dos arquivos: [INTEGRACOES_EXTERNAS.md](./INTEGRACOES_EXTERNAS.md) §4.
+
+- `fin_tg_propostas` (chave `id_proposta`, o do Transferegov; `cnpj_proponente` com 14 dígitos), `fin_tg_emendas`
+  (chave `id_proposta` + `numero_emenda`), `fin_tg_convenios` (chave `numero`, uma por proposta) e
+  `fin_tg_movimentos` (chave `tipo` + `id_origem`; `tipo` é `empenho` ou `desembolso`, ligado a `numero_convenio`).
+  Filhos apagam em cascata com a proposta.
+- `fin_tg_sincronizacoes`: uma linha por carga (quando rodou, a data da carga do Transferegov, o CNPJ e as contagens).
+- **Ninguém escreve pela API.** `anon` não tem acesso; `authenticated` só tem `SELECT`. Leitura pela RLS classe
+  `trilha` com `leitura=financeiro.convenios.visualizar` (módulo `financeiro` + a permissão).
+- RPC `fin_tg_carregar(p_cnpj, p_data_carga, p_dados, p_forcar)` (`SECURITY DEFINER`, `search_path` fixo, `EXECUTE`
+  só para `service_role`): numa transação apaga o espelho e grava a carga nova. Recusa (`22023`) CNPJ diferente do da
+  Configuração do cliente, proposta de outro proponente e carga vazia quando o espelho tem dados (a não ser com
+  `p_forcar`). Quem chama é a Edge Function `transferegov`.
+- Permissão nova `financeiro.convenios.visualizar` (catálogo do financeiro), dada na migração a quem já tinha
+  `orcamento.visualizar` (papéis, usuários e concessões do módulo).
+- Testes no bloco "Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`.
 
 ### Compras, licitações e contratos
 `processos_licitatorios`, `itens_processo_licitatorio`, `itens_licitacao`,

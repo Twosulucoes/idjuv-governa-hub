@@ -1854,6 +1854,46 @@ ALTER TABLE ONLY public.fin_sub_empenhos
 
 
 --
+-- Name: fin_tg_convenios fin_tg_convenios_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_convenios
+    ADD CONSTRAINT fin_tg_convenios_pkey PRIMARY KEY (numero);
+
+
+--
+-- Name: fin_tg_emendas fin_tg_emendas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_emendas
+    ADD CONSTRAINT fin_tg_emendas_pkey PRIMARY KEY (id_proposta, numero_emenda);
+
+
+--
+-- Name: fin_tg_movimentos fin_tg_movimentos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_movimentos
+    ADD CONSTRAINT fin_tg_movimentos_pkey PRIMARY KEY (tipo, id_origem);
+
+
+--
+-- Name: fin_tg_propostas fin_tg_propostas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_propostas
+    ADD CONSTRAINT fin_tg_propostas_pkey PRIMARY KEY (id_proposta);
+
+
+--
+-- Name: fin_tg_sincronizacoes fin_tg_sincronizacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_sincronizacoes
+    ADD CONSTRAINT fin_tg_sincronizacoes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: folha_historico_status folha_historico_status_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6341,6 +6381,34 @@ CREATE INDEX idx_fin_sub_empenhos_empenho ON public.fin_sub_empenhos USING btree
 --
 
 CREATE INDEX idx_fin_sub_empenhos_tipo ON public.fin_sub_empenhos USING btree (tipo);
+
+
+--
+-- Name: idx_fin_tg_convenios_proposta; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_convenios_proposta ON public.fin_tg_convenios USING btree (id_proposta);
+
+
+--
+-- Name: idx_fin_tg_movimentos_convenio; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_movimentos_convenio ON public.fin_tg_movimentos USING btree (numero_convenio, data);
+
+
+--
+-- Name: idx_fin_tg_propostas_ano; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_propostas_ano ON public.fin_tg_propostas USING btree (ano DESC);
+
+
+--
+-- Name: idx_fin_tg_sincronizacoes_executada; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_sincronizacoes_executada ON public.fin_tg_sincronizacoes USING btree (executada_em DESC);
 
 
 --
@@ -16686,6 +16754,30 @@ ALTER TABLE ONLY public.fin_sub_empenhos
 
 
 --
+-- Name: fin_tg_convenios fin_tg_convenios_id_proposta_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_convenios
+    ADD CONSTRAINT fin_tg_convenios_id_proposta_fkey FOREIGN KEY (id_proposta) REFERENCES public.fin_tg_propostas(id_proposta) ON DELETE CASCADE;
+
+
+--
+-- Name: fin_tg_emendas fin_tg_emendas_id_proposta_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_emendas
+    ADD CONSTRAINT fin_tg_emendas_id_proposta_fkey FOREIGN KEY (id_proposta) REFERENCES public.fin_tg_propostas(id_proposta) ON DELETE CASCADE;
+
+
+--
+-- Name: fin_tg_movimentos fin_tg_movimentos_numero_convenio_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_movimentos
+    ADD CONSTRAINT fin_tg_movimentos_numero_convenio_fkey FOREIGN KEY (numero_convenio) REFERENCES public.fin_tg_convenios(numero) ON DELETE CASCADE;
+
+
+--
 -- Name: estrutura_organizacional fk_cargo_chefe; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20413,6 +20505,36 @@ ALTER TABLE public.fin_solicitacoes ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.fin_sub_empenhos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_convenios; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_convenios ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_emendas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_emendas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_movimentos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_movimentos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_propostas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_propostas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_sincronizacoes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_sincronizacoes ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: folha_historico_status; Type: ROW SECURITY; Schema: public; Owner: -
@@ -25512,6 +25634,41 @@ CREATE POLICY rls_select ON public.fin_solicitacoes FOR SELECT TO authenticated 
 --
 
 CREATE POLICY rls_select ON public.fin_sub_empenhos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_tg_convenios rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_convenios FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_emendas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_emendas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_movimentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_movimentos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_propostas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_propostas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_sincronizacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_sincronizacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
 
 
 --

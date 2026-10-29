@@ -1,0 +1,63 @@
+name: Convênios federais (Transferegov)
+
+# Todo dia baixa os arquivos públicos do Transferegov (antigo Siconv), guarda só as propostas, emendas, convênios,
+# empenhos e desembolsos do CNPJ da instituição e manda para a Edge Function `transferegov`, que troca o espelho no
+# banco (fin_tg_carregar). A tela é Financeiro → Convênios federais. Script: scripts/transferegov/sincronizar.mjs.
+#
+# O Transferegov publica a carga de madrugada (horário de Brasília); a rotina roda às 09:00 de Boa Vista.
+# Também roda à mão (Actions → "Convênios federais (Transferegov)" → Run workflow), na `main`.
+#
+# Configuração (guia em docs/INTEGRACOES_EXTERNAS.md §4.5):
+#   ambiente "transferegov" com o segredo TRANSFEREGOV_TOKEN (o mesmo valor do .env das funções na VPS);
+#   variáveis do repositório VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (as mesmas do front).
+# Sem a configuração o job FALHA com a explicação. O log é público: só contagens saem, nunca o conteúdo.
+on:
+  schedule:
+    - cron: "0 13 * * *" # 09:00 em Boa Vista
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: transferegov
+  cancel-in-progress: false
+
+jobs:
+  sincronizar:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: transferegov
+    steps:
+      - name: Conferir configuração
+        env:
+          TEM_TOKEN: ${{ secrets.TRANSFEREGOV_TOKEN != '' }}
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ "$TEM_TOKEN" != true ] || [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Transferegov não configurado (segredo TRANSFEREGOV_TOKEN no ambiente transferegov e variáveis VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY). Ver docs/INTEGRACOES_EXTERNAS.md §4.5."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Ler o Transferegov e gravar no banco
+        env:
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          TRANSFEREGOV_TOKEN: ${{ secrets.TRANSFEREGOV_TOKEN }}
+        run: |
+          node scripts/transferegov/sincronizar.mjs 2>&1 | tee /tmp/transferegov.txt
+          rc=${PIPESTATUS[0]}
+          { echo "### Convênios federais (Transferegov)"; sed 's/^/    /' /tmp/transferegov.txt; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
