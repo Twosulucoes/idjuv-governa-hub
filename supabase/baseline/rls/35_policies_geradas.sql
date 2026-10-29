@@ -3207,6 +3207,49 @@ DROP POLICY IF EXISTS "rls_delete" ON public.pensoes_alimenticias;
 CREATE POLICY "rls_delete" ON public.pensoes_alimenticias FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh')) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'));
 
+-- pesquisas_precos  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pesquisas_precos;
+CREATE POLICY "rls_select" ON public.pesquisas_precos FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.visualizar') OR public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.pesquisas_precos;
+CREATE POLICY "rls_insert" ON public.pesquisas_precos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.pesquisas_precos;
+CREATE POLICY "rls_update" ON public.pesquisas_precos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.pesquisas_precos;
+
+-- pesquisas_precos_amostras  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pesquisas_precos_amostras;
+CREATE POLICY "rls_select" ON public.pesquisas_precos_amostras FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.visualizar') OR public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.pesquisas_precos_amostras;
+CREATE POLICY "rls_insert" ON public.pesquisas_precos_amostras FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.pesquisas_precos_amostras;
+CREATE POLICY "rls_update" ON public.pesquisas_precos_amostras FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.pesquisas_precos_amostras;
+CREATE POLICY "rls_delete" ON public.pesquisas_precos_amostras FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'));
+
+-- pesquisas_precos_itens  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.pesquisas_precos_itens;
+CREATE POLICY "rls_select" ON public.pesquisas_precos_itens FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.visualizar') OR public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.pesquisas_precos_itens;
+CREATE POLICY "rls_insert" ON public.pesquisas_precos_itens FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.pesquisas_precos_itens;
+CREATE POLICY "rls_update" ON public.pesquisas_precos_itens FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.pesquisas_precos_itens;
+CREATE POLICY "rls_delete" ON public.pesquisas_precos_itens FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'));
+
 -- planos_tratamento_risco  [modulo: governanca]
 DROP POLICY IF EXISTS "rls_select" ON public.planos_tratamento_risco;
 CREATE POLICY "rls_select" ON public.planos_tratamento_risco FOR SELECT TO authenticated

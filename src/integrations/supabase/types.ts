@@ -20274,6 +20274,231 @@ export type Database = {
           },
         ]
       }
+      pesquisas_precos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_referencia: string
+          finalidade: string
+          id: string
+          numero_sei: string
+          objeto: string
+          observacoes: string | null
+          pca_item_id: string | null
+          responsaveis: string | null
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_referencia?: string
+          finalidade?: string
+          id?: string
+          numero_sei: string
+          objeto: string
+          observacoes?: string | null
+          pca_item_id?: string | null
+          responsaveis?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_referencia?: string
+          finalidade?: string
+          id?: string
+          numero_sei?: string
+          objeto?: string
+          observacoes?: string | null
+          pca_item_id?: string | null
+          responsaveis?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pesquisas_precos_pca_item_id_fkey"
+            columns: ["pca_item_id"]
+            isOneToOne: false
+            referencedRelation: "pca_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pesquisas_precos_amostras: {
+        Row: {
+          considerada: boolean
+          consultado_em: string
+          created_at: string
+          created_by: string | null
+          data_referencia: string | null
+          descricao: string | null
+          fornecedor_ni: string | null
+          fornecedor_nome: string | null
+          id: string
+          id_compra: string | null
+          id_externo: string | null
+          item_id: string
+          link: string | null
+          marca: string | null
+          modalidade: string | null
+          motivo_desconsideracao: string | null
+          municipio: string | null
+          numero_compra: string | null
+          orgao: string | null
+          origem: string
+          parametro: number
+          preco_unitario: number
+          quantidade: number | null
+          uasg: string | null
+          uf: string | null
+          unidade: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          considerada?: boolean
+          consultado_em?: string
+          created_at?: string
+          created_by?: string | null
+          data_referencia?: string | null
+          descricao?: string | null
+          fornecedor_ni?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          id_compra?: string | null
+          id_externo?: string | null
+          item_id: string
+          link?: string | null
+          marca?: string | null
+          modalidade?: string | null
+          motivo_desconsideracao?: string | null
+          municipio?: string | null
+          numero_compra?: string | null
+          orgao?: string | null
+          origem: string
+          parametro: number
+          preco_unitario: number
+          quantidade?: number | null
+          uasg?: string | null
+          uf?: string | null
+          unidade?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          considerada?: boolean
+          consultado_em?: string
+          created_at?: string
+          created_by?: string | null
+          data_referencia?: string | null
+          descricao?: string | null
+          fornecedor_ni?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          id_compra?: string | null
+          id_externo?: string | null
+          item_id?: string
+          link?: string | null
+          marca?: string | null
+          modalidade?: string | null
+          motivo_desconsideracao?: string | null
+          municipio?: string | null
+          numero_compra?: string | null
+          orgao?: string | null
+          origem?: string
+          parametro?: number
+          preco_unitario?: number
+          quantidade?: number | null
+          uasg?: string | null
+          uf?: string | null
+          unidade?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pesquisas_precos_amostras_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pesquisas_precos_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pesquisas_precos_itens: {
+        Row: {
+          catalogo_campo: string | null
+          codigo_catalogo: number | null
+          created_at: string
+          created_by: string | null
+          descricao: string
+          id: string
+          justificativa: string | null
+          metodo: string | null
+          nome_catalogo: string | null
+          numero: number
+          pesquisa_id: string
+          quantidade: number
+          tipo: string
+          unidade: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          catalogo_campo?: string | null
+          codigo_catalogo?: number | null
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          id?: string
+          justificativa?: string | null
+          metodo?: string | null
+          nome_catalogo?: string | null
+          numero: number
+          pesquisa_id: string
+          quantidade: number
+          tipo: string
+          unidade: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          catalogo_campo?: string | null
+          codigo_catalogo?: number | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          justificativa?: string | null
+          metodo?: string | null
+          nome_catalogo?: string | null
+          numero?: number
+          pesquisa_id?: string
+          quantidade?: number
+          tipo?: string
+          unidade?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pesquisas_precos_itens_pesquisa_id_fkey"
+            columns: ["pesquisa_id"]
+            isOneToOne: false
+            referencedRelation: "pesquisas_precos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planos_tratamento_risco: {
         Row: {
           acao_proposta: string

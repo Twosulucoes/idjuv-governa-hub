@@ -166,6 +166,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     items: [
       // Na ordem do ciclo: planejar (PCA e programação por natureza), contratar (processos) e, por último, o manual.
       { id: "pca", label: "Plano de Contratações (PCA)", icon: ClipboardList, route: "/compras/pca", permission: "compras.pca.visualizar" },
+      { id: "pesquisa-precos", label: "Pesquisa de preços", icon: Scale, route: "/compras/pesquisa-precos", algumaPermissao: ["compras.pesquisa_precos.visualizar", "compras.pesquisa_precos.editar"] },
       { id: "programacao-natureza", label: "Programação por natureza", icon: Landmark, route: "/compras/programacao", permission: "compras.processos.visualizar" },
       { id: "processos", label: "Processos de contratação", icon: ShoppingCart, route: "/compras/processos", permission: "compras.processos.visualizar" },
       { id: "guia-compras", label: "Como funciona uma compra", icon: FileText, route: "/processos/compras" },
