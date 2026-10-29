@@ -23,7 +23,8 @@ export const importadorEmpenhosFip614: Importador<LinhaEmpenhoFip614> = {
   titulo: "Empenhos do FIPLAN (FIP 614)",
   descricao: "Traz os empenhos do exercício, com liquidações, NOBs e estornos, do relatório FIP 614 – Situação de Empenho.",
   modulo: "financeiro",
-  permissao: "orcamento.importar",
+  permissao: "financeiro.execucao.importar",
+  local: { rota: "/financeiro/atualizar?importador=empenhos_fip614", caminho: "Financeiro → Atualizar dados" },
   aceita: "application/pdf,.pdf,.xls",
   instrucoes:
     "No FIPLAN, gere o relatório \"FIP 614 - Situação de Empenho\" do exercício e salve em Excel (melhor: traz a " +

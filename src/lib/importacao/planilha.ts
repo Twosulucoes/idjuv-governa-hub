@@ -2,7 +2,7 @@
  * HELPERS DE PLANILHA (XLSX, XLS, CSV) PARA IMPORTADORES
  *
  * Mesma lógica da importação do quadro de vagas (ImportarQuadroVagasDialog, que ainda tem a sua cópia),
- * aqui para servir a qualquer importador da Central de Importações:
+ * aqui para servir a qualquer importador:
  *
  *   - lerPrimeiraAba      lê a primeira aba e devolve as linhas com o número da linha no Excel
  *   - lerLinhasDasAbas    todas as linhas de todas as abas como arrays (relatórios com título, ex.: FIPLAN)

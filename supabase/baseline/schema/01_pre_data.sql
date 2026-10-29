@@ -8698,8 +8698,8 @@ BEGIN
   IF v_uid IS NULL
      OR NOT COALESCE(public.perfil_ativo_atual()
                      AND public.can_access_module(v_uid, 'financeiro')
-                     AND public.has_permission_code(v_uid, 'orcamento.importar'), false) THEN
-    RAISE EXCEPTION 'Sem permissão para importar dados do FIPLAN (orcamento.importar).' USING ERRCODE = '42501';
+                     AND public.has_permission_code(v_uid, 'financeiro.execucao.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar a execução do FIPLAN (financeiro.execucao.importar).' USING ERRCODE = '42501';
   END IF;
   IF p_exercicio IS NULL OR p_exercicio NOT BETWEEN 2000 AND 2100 THEN
     RAISE EXCEPTION 'Exercício inválido: %', p_exercicio USING ERRCODE = '22023';
@@ -9029,7 +9029,7 @@ $_$;
 -- Name: FUNCTION importar_empenhos_fip614(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_data_referencia date, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.importar_empenhos_fip614(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_data_referencia date, p_simular boolean) IS 'Importa os empenhos do FIP 614 do FIPLAN para fin_empenhos (origem fiplan) e o histórico de LIQ/NOB/GCV/estornos (p_simular = true só calcula as mudanças). Exige orcamento.importar.';
+COMMENT ON FUNCTION public.importar_empenhos_fip614(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_data_referencia date, p_simular boolean) IS 'Importa os empenhos do FIP 614 do FIPLAN para fin_empenhos (origem fiplan) e o histórico de LIQ/NOB/GCV/estornos (p_simular = true só calcula as mudanças). Exige financeiro.execucao.importar.';
 
 
 --
@@ -9388,8 +9388,8 @@ BEGIN
   IF v_uid IS NULL
      OR NOT COALESCE(public.perfil_ativo_atual()
                      AND public.can_access_module(v_uid, 'financeiro')
-                     AND public.has_permission_code(v_uid, 'orcamento.importar'), false) THEN
-    RAISE EXCEPTION 'Sem permissão para importar dados do FIPLAN (orcamento.importar).' USING ERRCODE = '42501';
+                     AND public.has_permission_code(v_uid, 'financeiro.execucao.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar a execução do FIPLAN (financeiro.execucao.importar).' USING ERRCODE = '42501';
   END IF;
   IF p_exercicio IS NULL OR p_exercicio NOT BETWEEN 2000 AND 2100 THEN
     RAISE EXCEPTION 'Exercício inválido: %', p_exercicio USING ERRCODE = '22023';
@@ -9556,7 +9556,7 @@ $_$;
 -- Name: FUNCTION importar_peds_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.importar_peds_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o relatório "Consultar Pedido de Empenho da Despesa (PED)" do FIPLAN para fin_peds (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e orcamento.importar.';
+COMMENT ON FUNCTION public.importar_peds_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o relatório "Consultar Pedido de Empenho da Despesa (PED)" do FIPLAN para fin_peds (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
 
 
 --

@@ -210,6 +210,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `processo_reservas`, classe `preservar`: SELECT pelas policies da migração e escrita só pelas RPCs), no schema do
   baseline regenerado e no `overlay/40_privilegios.sql`; sem linha nova no catálogo; testes no bloco "Compras:
   reservas e PEDs" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- A permissão própria da execução do FIPLAN (migração `20261105090000`) entrou à mão: no schema, a checagem e o comentário
+  de `importar_empenhos_fip614` e `importar_peds_fiplan` (de `orcamento.importar` para `financeiro.execucao.importar`);
+  no catálogo, a linha nova e o rótulo de `orcamento.importar`. Mapa e overlay sem mudança; testes nos blocos do FIP 614 e
+  dos PEDs de `scripts/db/testar-rls.sql` (só `orcamento.importar` passa a ser recusado).
 - Os contratos, entrega C1 (migração `20261104090000`), mudaram no mapa: `contratos` e `itens_contrato` saíram da classe
   `modulo` para `permissao` (gravar com `contratos.criar` ou `contratos.editar`, apagar com `editar`) e entrou
   `contrato_responsaveis` na mesma classe; schema regenerado, catálogo sem mudança (as permissões já existiam) e

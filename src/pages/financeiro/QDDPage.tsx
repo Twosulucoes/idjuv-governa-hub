@@ -2,7 +2,7 @@
  * QUADRO DE DETALHAMENTO DE DESPESA (QDD)
  * 
  * Visualização completa do orçamento no formato QDD padrão,
- * com importação do QDD do FIPLAN (PDF ou Excel, Central de Importações) e exportação XLSX.
+ * com importação do QDD do FIPLAN (PDF ou Excel, aqui ou em Atualizar dados) e exportação XLSX.
  * A dotação comum e as emendas (IDU) aparecem separadas: o saldo de emenda é vinculado
  * ao objeto da emenda e não se soma ao saldo livre da natureza.
  * 

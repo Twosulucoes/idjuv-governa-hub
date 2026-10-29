@@ -21,6 +21,7 @@ export const importadorClassificadoresFiplan: Importador<LinhaClassificador> = {
   descricao: "Atualiza as tabelas de classificação da despesa (fontes, elementos, programas…) a partir das consultas do FIPLAN.",
   modulo: "financeiro",
   permissao: "orcamento.importar",
+  local: { rota: "/financeiro/atualizar?importador=classificadores_fiplan", caminho: "Financeiro → Atualizar dados" },
   aceita: ".xls,.xlsx",
   instrucoes:
     `No FIPLAN, abra a consulta (${tabelas}), filtre o exercício e exporte em Excel. Uma tabela por arquivo. ` +

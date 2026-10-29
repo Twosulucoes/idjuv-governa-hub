@@ -90,10 +90,10 @@ export default function FinanceiroDashboardPage() {
           <EmptyState
             icone={Upload}
             titulo="Importe o QDD do FIPLAN para ver o painel"
-            descricao="O painel é calculado sobre o QDD (dotações) e o FIP 614 (empenhos) importados na Central de Importações."
+            descricao="O painel é calculado sobre o QDD (dotações) e o FIP 614 (empenhos) importados em Atualizar dados."
             acao={
               <Button asChild>
-                <Link to="/admin/importacoes">Ir para a Central de Importações</Link>
+                <Link to="/financeiro/atualizar">Ir para Atualizar dados</Link>
               </Button>
             }
           />

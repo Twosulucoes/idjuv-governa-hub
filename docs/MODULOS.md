@@ -34,8 +34,9 @@ Gestão do próprio sistema. Páginas em `src/pages/admin/` (~25):
   `DatabaseSchemaPage`, `CalibradorSegadPage`, `SobreSistemaPage`, `AdminHelpPage`.
   `DisasterRecoveryPage` (`/admin/disaster-recovery`) é informativa desde o P13: explica o backup diário, o banco
   novo pelo baseline e o front pelo CI, sem baixar arquivo (ver [BACKUP.md](./BACKUP.md)).
-- **Importação de dados**: `ImportacoesPage` (`/admin/importacoes`) lista os importadores que o usuário
-  pode usar e o histórico (`importacoes`). Importadores: QDD do FIPLAN, tabelas do FIPLAN (planilhas "Consultar
+- **Histórico de importações**: `ImportacoesPage` (`/admin/importacoes`, `admin.auditoria`) mostra o histórico
+  (`importacoes`) e onde cada arquivo é importado; desde 29/10/2026 cada setor importa no próprio menu (ver
+  [ARQUITETURA.md](./ARQUITETURA.md)). Importadores: QDD do FIPLAN, tabelas do FIPLAN (planilhas "Consultar
   ..." de função, programa, elemento, subelemento, fonte e finalidade de pagamento) e arquivo do banco
   (OBN600/CNAB 240), do financeiro, planilha de portarias, do gabinete (com botão "Baixar modelo"), e o espelho da
   folha do SIGRH (PDF FPAG10, relatório analítico de conferência ou planilha analítica), da folha, que grava a folha
@@ -202,7 +203,7 @@ pendências e processos de contratação, cada um só para quem tem a permissão
 
 - **Contratos (entrega C1):** `/contratos/lista` lista os contratos com nº, processo SEI, objeto, contratado, setor,
   gestor, valor atual e vigência (selo de prazo), com filtros de situação e de prazo (em vigor, vence em até 30, 60, 90
-  ou 120 dias, vencidos, sem gestor ou fiscal), busca, planilha e o botão "Importar planilha" (Central de Importações,
+  ou 120 dias, vencidos, sem gestor ou fiscal), busca, planilha e o botão "Importar planilha" (abre ali mesmo,
   importador `contratos_planilha`, com simulação antes de gravar). A ficha (`/contratos/:id`) tem as abas Dados, Itens
   (soma dos itens × valor do contrato), Gestor e fiscais (designar com a portaria do SEI, encerrar com data e motivo;
   aviso quando falta gestor ou fiscal, art. 117 da Lei 14.133) e Histórico (quem mudou o quê); os botões copiam o nº SEI,
@@ -256,7 +257,8 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
   conciliação do mês (FIP 630, FIP 103, OFX e extrato do fundo; em dia até o dia 10 do mês seguinte) e Tabelas do
   FIPLAN (anual). Cada cartão traz os passos no FIPLAN, a última importação (`importacoes`) ou o último mês fechado
   (`fin_conciliacoes_mensais`), o selo em dia / atrasado / nunca importado e o botão que abre o importador
-  (`/admin/importacoes?importador=<id>`, só com a permissão dele). Rotina e regras em
+  (abre na própria tela, `/financeiro/atualizar?importador=<id>`, só com a permissão dele; os PEDs do FIPLAN entram
+  como item semanal). Rotina e regras em
   `src/lib/financeiro/rotinaAtualizacao.ts` (com testes). O sistema não baixa nada do FIPLAN sozinho.
 - **Painel `/financeiro` (execução do exercício)**, calculado no navegador sobre o QDD (`fin_dotacoes`) e o
   FIP 614 (`fin_empenhos`), sem tabela própria. As contas ficam em `src/lib/financeiro/painelExecucao.ts` (com
@@ -414,8 +416,8 @@ Painel executivo da Presidência. `src/pages/gabinete/GabineteDashboardPage` +
 rotas que reaproveitam Central de Portarias, pré-cadastros, ordem de missão e
 relatório de viagem. O item "Workflow RH" saiu do menu no P09 (não havia tela); volta no P22 se for construído.
 
-- **Importar portarias por planilha:** quem tem `gabinete.portarias.importar` registra portarias já feitas no SEI em
-  `/admin/importacoes` (importador "Portarias (planilha)"): baixa o modelo, preenche uma linha por portaria
+- **Importar portarias por planilha:** quem tem `gabinete.portarias.importar` registra portarias já feitas no SEI pelo botão
+  "Importar planilha" da Central de Portarias (`/gabinete/portarias`, importador "Portarias (planilha)"): baixa o modelo, preenche uma linha por portaria
   (servidores por matrícula), simula e confirma. Tudo ou nada; portaria que já existe só ganha o que falta. Ver
   [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-portarias-importar_portarias_planilha).
 

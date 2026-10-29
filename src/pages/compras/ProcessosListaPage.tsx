@@ -11,11 +11,10 @@ import { FileUp, FolderKanban, Landmark, Plus } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { DataTable, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarraEvolucao } from "@/components/compras/processos/EvolucaoProcesso";
 import { evolucaoDoProcesso } from "@/lib/compras/evolucaoProcesso";
-import { ImportacaoWizard } from "@/components/importacao";
+import { ImportacaoDialog, useImportadorDaUrl } from "@/components/importacao";
 import { ProcessoFormDialog } from "@/components/compras/processos/ProcessoFormDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
@@ -51,8 +50,8 @@ export default function ProcessosListaPage() {
   const financeiro = useFinanceiroDosProcessos();
   const salvar = useSalvarProcesso();
   const [novo, setNovo] = useState(false);
-  const [importando, setImportando] = useState(false);
-  const [ocupado, setOcupado] = useState(false);
+  // Planilha de acompanhamento, importada aqui mesmo (?importador=processos_planilha)
+  const importacao = useImportadorDaUrl([importadorProcessosPlanilha.id]);
   const [ano, setAno] = useState(TODOS);
   const [etapa, setEtapa] = useState(TODOS);
   const [setor, setSetor] = useState(TODOS);
@@ -178,7 +177,7 @@ export default function ProcessosListaPage() {
               </Button>
               {podeEditar && (
                 <>
-                  <Button variant="outline" onClick={() => setImportando(true)}>
+                  <Button variant="outline" onClick={() => importacao.abrir(importadorProcessosPlanilha.id)}>
                     <FileUp className="h-4 w-4" aria-hidden="true" />
                     Importar planilha
                   </Button>
@@ -228,15 +227,7 @@ export default function ProcessosListaPage() {
         }}
       />
 
-      <Dialog open={importando} onOpenChange={(aberto) => !ocupado && setImportando(aberto)}>
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{importadorProcessosPlanilha.titulo}</DialogTitle>
-            <DialogDescription>{importadorProcessosPlanilha.descricao}</DialogDescription>
-          </DialogHeader>
-          {importando && <ImportacaoWizard importador={importadorProcessosPlanilha} onOcupadoChange={setOcupado} />}
-        </DialogContent>
-      </Dialog>
+      <ImportacaoDialog importador={importacao.aberto} onFechar={importacao.fechar} />
     </ModuleLayout>
   );
 }

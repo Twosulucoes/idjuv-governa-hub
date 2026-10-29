@@ -175,7 +175,7 @@ export default function ProgramacaoNaturezaPage() {
             titulo: linhas.length === 0 ? `Sem QDD de ${exercicio}` : "Nenhuma natureza neste filtro",
             descricao:
               linhas.length === 0
-                ? "A programação aparece quando o Financeiro importa o QDD do exercício na Central de Importações."
+                ? "A programação aparece quando o Financeiro importa o QDD do exercício (Financeiro → Atualizar dados)."
                 : "Troque o filtro para ver as outras naturezas.",
           }}
         />

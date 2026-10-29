@@ -1129,7 +1129,7 @@ Todas idempotentes.
   - `fin_peds`: o relatório "Consultar PED" do FIPLAN, uma linha por PED ou documento de estorno (único por exercício,
     número e nº do estorno; `processo_chave` gerada; `dotacao_id` achada pela mesma regra do FIP 614). Só SELECT pelo
     módulo financeiro, sem escrita direta: grava `importar_peds_fiplan(p_exercicio, p_linhas, p_arquivo, p_simular)`
-    (DEFINER, exige o módulo financeiro e `orcamento.importar`; upsert com as mudanças por campo, simulação desfeita,
+    (DEFINER, exige o módulo financeiro e `financeiro.execucao.importar`; upsert com as mudanças por campo, simulação desfeita,
     devolve os PEDs do exercício que não vieram no arquivo, log em `importacoes` com tipo `peds_fiplan`);
   - `processo_reservas`: reserva do processo por exercício × ação × fonte × natureza (opcionalmente ligada ao item do
     PCA), situação `reservada` ou `cancelada` (cancelar exige motivo; uma reservada por combinação), com a
@@ -1386,7 +1386,7 @@ empenhos do contrato. O FIPLAN continua sendo o oficial; aqui fica o que cada no
   `atualizar_saldo_contrato`) não confere.
 - `contrato_buscar_servidores(_termo)` (SECURITY DEFINER, `authenticated`): servidores ativos por nome ou matrícula,
   só id, nome, matrícula e cargo, até 20, para quem passa em `contrato_pode_gravar()` (módulo e `criar` ou `editar`).
-- `contratos_importar_planilha(p_linhas, p_arquivo, p_simular)` (Central de Importações, mesmo contrato das outras
+- `contratos_importar_planilha(p_linhas, p_arquivo, p_simular)` (importador da lista de contratos, mesmo contrato das outras
   RPCs de importação): até 1000 contratos por nº + ano (zeros à esquerda não contam: `1` e `01` são o mesmo), com
   simulação; cadastra o contratado que falta (CPF ou CNPJ e razão social); contrato que já existe só ganha o que está
   vazio, e o que a planilha traz diferente (valores, fim da vigência, contratado) vira aviso, sem mudar o cadastro;
@@ -1698,7 +1698,7 @@ O FIPLAN é a fonte dos empenhos importados; a dotação continua vindo do QDD.
   por coluna e histórico da liquidação), apagado junto com o empenho. RLS: `SELECT` para perfil ativo com o módulo
   financeiro; sem escrita pela API (classe `preservar`, privilégio retirado no overlay 40).
 - `importar_empenhos_fip614(p_exercicio, p_linhas, p_arquivo, p_data_referencia, p_simular)` — `SECURITY DEFINER`,
-  exige perfil ativo, módulo financeiro e `orcamento.importar`; simula ou aplica tudo ou nada e registra em
+  exige perfil ativo, módulo financeiro e `financeiro.execucao.importar`; simula ou aplica tudo ou nada e registra em
   `importacoes` (`tipo = 'empenhos_fip614'`). Cria ou atualiza pelo número, nunca apaga, e recusa número que já é de
   empenho feito no sistema. A dotação liga pelos dígitos de `função…fonte` como prefixo do `codigo_dotacao`; com
   mais de uma candidata, o IDU em número do 11º segmento (1 Não, 4 ECNI, 5 ECI, 6 EII; vem no Excel, o PDF corta a
@@ -1858,8 +1858,13 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
   `SECURITY DEFINER`, exige perfil ativo, módulo financeiro e `orcamento.importar`; simula ou aplica tudo ou nada
   (código fora do padrão ou repetido barra a aplicação) e registra em `importacoes` (seção "Tabelas do FIPLAN").
 - **Empenhos do FIPLAN**: `importar_empenhos_fip614(p_exercicio, p_linhas, p_arquivo, p_data_referencia, p_simular)`
-  — `SECURITY DEFINER`, exige perfil ativo, módulo financeiro e `orcamento.importar` (seção "Empenhos do FIPLAN
-  (FIP 614)").
+  — `SECURITY DEFINER`, exige perfil ativo, módulo financeiro e `financeiro.execucao.importar` (seção "Empenhos do
+  FIPLAN (FIP 614)").
+- **Permissão da execução do FIPLAN** (migração `20261105090000_importacao_permissao_execucao.sql`): empenhos (FIP 614)
+  e PEDs passaram de `orcamento.importar` para `financeiro.execucao.importar`, separando a execução (Finanças e
+  Contabilidade) do orçamento (QDD e tabelas do FIPLAN, que seguem com `orcamento.importar`). A migração cria o código no
+  catálogo, dá a nova permissão a quem tinha `orcamento.importar` (papel, módulo ou avulsa) e troca a checagem das duas
+  funções no texto que está no banco (`pg_get_functiondef`), falhando se não achar o trecho. Nenhuma tabela ou policy muda.
 - **Importação de portarias**: `importar_portarias_planilha(p_linhas, p_arquivo, p_simular)` — `SECURITY DEFINER`,
   exige módulo `gabinete` e `gabinete.portarias.importar`; simula por savepoint e aplica tudo ou nada (seção
   "Importar portarias").

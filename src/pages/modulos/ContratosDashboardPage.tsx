@@ -54,7 +54,7 @@ export default function ContratosDashboardPage() {
   // Só rotas registradas em App.tsx; aditivos, execução e avisos entram com as entregas C2 a C6 (P21)
   const quickActions: { label: string; description: string; href: string; icon: LucideIcon; permissoes?: string[] }[] = [
     { label: "Lista de contratos", description: "Vigência, gestor e fiscais", href: "/contratos/lista", icon: FileCheck, permissoes: PERMISSOES_LISTA },
-    { label: "Importar contratos", description: "Planilha dos contratos vigentes", href: "/admin/importacoes?importador=contratos_planilha", icon: Upload, permissoes: ["contratos.criar"] },
+    { label: "Importar contratos", description: "Planilha dos contratos vigentes", href: "/contratos/lista?importador=contratos_planilha", icon: Upload, permissoes: ["contratos.criar"] },
     { label: "Passagens aéreas", description: "Pedidos e emissões", href: "/contratos/passagens", icon: Plane, permissoes: PERMISSOES_PASSAGENS },
     { label: "Pendências de passagens", description: "Prestação de contas em aberto", href: "/contratos/passagens/pendencias", icon: ClipboardCheck, permissoes: PERMISSOES_PASSAGENS },
     { label: "Processos de contratação", description: "Compras até virar contrato", href: "/compras/processos", icon: ShoppingCart, permissoes: ["compras.processos.visualizar", "compras.processos.editar"] },

@@ -1,5 +1,5 @@
 /**
- * Contratos (entrega C1): lista, ficha, itens, responsáveis e histórico. A planilha entra pela Central de Importações
+ * Contratos (entrega C1): lista, ficha, itens, responsáveis e histórico. A planilha entra pelo importador aberto na lista de contratos
  * (src/lib/importacao/importadores/contratosPlanilha.ts).
  * Migração 20261104090000. Ler: módulo Compras ou Contratos. Cadastrar: `contratos.criar`; alterar: `contratos.editar`;
  * apagar só rascunho, com editar (gatilho contratos_conferir_permissao). O servidor chega pela RPC estreita

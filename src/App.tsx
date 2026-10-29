@@ -160,7 +160,6 @@ import ConfigEnviosPage from "./pages/admin/ConfigEnviosPage";
 import ConfiguracaoClientePage from "./pages/admin/ConfiguracaoClientePage";
 import DisasterRecoveryPage from "./pages/admin/DisasterRecoveryPage";
 import ImportacoesPage from "./pages/admin/ImportacoesPage";
-import { PERMISSOES_IMPORTACAO } from "@/lib/importacao/registro";
 import UsuariosTecnicosPage from "./pages/admin/UsuariosTecnicosPage";
 import ReunioesPage from "./pages/admin/ReunioesPage";
 import ConfiguracaoReunioesPage from "./pages/admin/ConfiguracaoReunioesPage";
@@ -660,7 +659,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/admin/importacoes" element={
-                <ProtectedRoute requiredPermissions={PERMISSOES_IMPORTACAO}>
+                <ProtectedRoute requiredPermissions="admin.auditoria">
                   <ImportacoesPage />
                 </ProtectedRoute>
               } />

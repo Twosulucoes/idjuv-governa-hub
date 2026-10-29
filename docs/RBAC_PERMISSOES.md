@@ -898,19 +898,35 @@ do banco. Telas e hooks em
 
 ### Importação de dados
 
-Cada importador declara a sua permissão (`src/lib/importacao/registro.ts`) e a RPC dele confere a
-mesma no banco. Hoje: `orcamento.importar` (catálogo do módulo `financeiro`) para o QDD do FIPLAN —
-exigida pela RPC `importar_qdd_fiplan` (junto com acesso ao módulo financeiro), pela rota
-`/admin/importacoes` e pelo botão "Importar QDD (FIPLAN)" em `/financeiro/qdd`. Quem só tem
+**Cada setor importa no próprio menu** (desde 29/10/2026). Cada importador declara a sua permissão e a tela do setor
+onde abre (`permissao` e `local` em `src/lib/importacao/importadores/`); a tela só abre o assistente para quem tem a
+permissão e a RPC confere a mesma no banco. A rota da tela continua com a permissão própria dela (módulo do setor).
+`/admin/importacoes` virou só o histórico, com `admin.auditoria` na rota e no menu.
+
+| Importador | Permissão | Tela do setor |
+|---|---|---|
+| QDD do FIPLAN, Tabelas do FIPLAN | `orcamento.importar` | Financeiro → Atualizar dados (e o QDD) |
+| Empenhos (FIP 614), PEDs do FIPLAN | `financeiro.execucao.importar` | Financeiro → Atualizar dados |
+| Retorno do banco (OBN600/CNAB 240) | `pagamento.conciliar` | Financeiro → Atualizar dados (e a Conciliação) |
+| Folha do SIGRH | `financeiro.folha.processar` (catálogo do RH) | RH → Folha → Importar do SIGRH |
+| Portarias (planilha) | `gabinete.portarias.importar` | Gabinete → Central de Portarias |
+| Processos de contratação | `compras.processos.editar` | Compras → Processos |
+| Contratos | `contratos.criar` | Contratos → Contratos |
+
+`financeiro.execucao.importar` (migração `20261105090000_importacao_permissao_execucao.sql`) separa a execução
+(Finanças e Contabilidade: empenhos e PEDs) do orçamento (Programação Orçamentária: QDD e tabelas). A migração deu a
+permissão nova a quem já tinha `orcamento.importar`; a separação de fato vem quando o administrador tira de cada pessoa
+a que não é dela, no Painel de Permissões.
+
+`orcamento.importar` (catálogo do módulo `financeiro`) é exigida pela RPC `importar_qdd_fiplan` (junto com acesso ao
+módulo financeiro) e pelo botão "Importar QDD (FIPLAN)" em `/financeiro/qdd`. Quem só tem
 `orcamento.visualizar` vê o QDD mas não importa. Atenção: a RLS atual de `fin_dotacoes` e dos
 catálogos orçamentários libera escrita a quem acessa o módulo financeiro, então `orcamento.importar`
 controla a tela e a RPC (e garante o registro em `importacoes`), não a escrita direta nessas tabelas.
 Restringir isso é mudança de RLS existente (pendente, exige decisão). O histórico (`importacoes`) é lido por quem acessa o
 módulo da importação.
 
-O segundo importador, arquivo do banco (OBN600/CNAB 240), declara `pagamento.conciliar` (ver abaixo). Como
-`PERMISSOES_IMPORTACAO` junta as permissões de todos os importadores, quem tem só `pagamento.conciliar` também entra
-em `/admin/importacoes`, e lá vê só esse importador.
+O arquivo do banco (OBN600/CNAB 240) declara `pagamento.conciliar` (ver abaixo).
 
 A planilha de processos de contratação declara `compras.processos.editar` (RPC `importar_processos_planilha`, que
 confere também o módulo `compras`). As telas `/compras/processos` e `/compras/processos/:id` exigem o módulo `compras` e
@@ -924,10 +940,7 @@ O terceiro, planilha de portarias, declara `gabinete.portarias.importar` — per
 ativo, o módulo `gabinete` e essa permissão (`has_permission_code`; o papel admin passa), senão `42501`. Ter só o
 módulo `gabinete` (ver ou editar portarias) não importa, e a permissão sem o módulo também não. RH não importa nesta
 versão. Quem importa precisa receber a permissão em `user_modules` (nada é concedido pela migração além do atalho do
-papel admin). A rota `/admin/importacoes` (`PERMISSOES_IMPORTACAO` no `App.tsx`) e o item de menu "Importação de
-Dados" (`src/config/menu.config.ts`) passam a aceitar qualquer uma de `orcamento.importar`, `pagamento.conciliar` ou
-`gabinete.portarias.importar`; na Central cada pessoa vê só os importadores da sua permissão. A rota é só UX: a RPC é
-quem barra. Detalhes da RPC em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-portarias-importar_portarias_planilha).
+papel admin). O botão "Importar planilha" da Central de Portarias só aparece com a permissão; a RPC é quem barra. Detalhes da RPC em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-portarias-importar_portarias_planilha).
 
 ### Conciliação bancária e Banco do Brasil (`pagamento.conciliar`)
 

@@ -121,6 +121,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
           { id: "folha-dashboard", label: "Painel", icon: BarChart3, route: "/folha" },
           { id: "folha-fichas", label: "Fichas Financeiras", icon: FileText, route: "/folha/fichas" },
           { id: "folha-rubricas", label: "Rubricas", icon: Settings, route: "/folha/rubricas" },
+          { id: "folha-importar-sigrh", label: "Importar do SIGRH", icon: Upload, route: "/folha?importador=folha_sigrh", permission: "financeiro.folha.processar" },
         ]
       },
       { id: "contracheques", label: "Contracheques", icon: Receipt, route: "/rh/contracheques", permission: "rh.contracheques.visualizar" },
@@ -342,7 +343,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "menu-site", label: "Menu do Site", icon: ListChecks, route: "/admin/menu-site", permission: "admin.config" },
       { id: "auditoria", label: "Auditoria", icon: Shield, route: "/admin/auditoria" },
       { id: "banco-dados", label: "Banco de Dados", icon: Database, route: "/admin/database" },
-      { id: "importacoes", label: "Importação de Dados", icon: Upload, route: "/admin/importacoes" },
+      { id: "importacoes", label: "Histórico de Importações", icon: History, route: "/admin/importacoes", permission: "admin.auditoria" },
       { id: "envios", label: "E-mail e WhatsApp", icon: Mail, route: "/admin/envios" },
       { id: "configuracao-cliente", label: "Configuração do Cliente", icon: Building2, route: "/admin/configuracao-cliente" },
       { id: "modulos", label: "Gestão de Módulos", icon: Package, route: "/admin/modulos" },
