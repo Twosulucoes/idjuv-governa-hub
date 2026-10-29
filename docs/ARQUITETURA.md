@@ -89,6 +89,12 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `requiredModule="compras"` e `compras.pca.visualizar` ou `compras.pca.editar`): itens lançados dos DFDs do SEI e
   orçamento por ação × fonte; menu em Compras → "Plano de Contratações (PCA)". O catálogo CATMAT/CATSER vem do portal
   de dados abertos do Compras.gov.br pela Edge Function `catalogo-compras` (o navegador não chama o portal: CORS e CSP).
+- **Pesquisa de preços (Compras)** em `/compras/pesquisa-precos` e `/compras/pesquisa-precos/:id`
+  (`PesquisasPrecosListaPage`, `PesquisaPrecosPage`, `requiredModule="compras"` e `compras.pesquisa_precos.visualizar`
+  ou `compras.pesquisa_precos.editar`): pesquisa por processo SEI, itens do CATMAT/CATSER, preços com a fonte de cada
+  um, saneamento e CV do Decreto 39.050-E/2025 e relatório PDF, planilha e texto de apoio da nota técnica; menu em
+  Compras → "Pesquisa de preços". Os preços do Compras.gov.br e do PNCP vêm pela Edge Function `pesquisa-precos` (só
+  leitura; o navegador não chama os portais).
 - **Processos de contratação (Compras)** em `/compras/processos` e `/compras/processos/:id` (`ProcessosListaPage`,
   `ProcessoFichaPage`, `requiredModule="compras"` e `compras.processos.visualizar` ou `compras.processos.editar`): lista
   com etapa e setor, dias parado, valor estimado, empenhado e fase financeira (com filtro); ficha com Dados, Reservas

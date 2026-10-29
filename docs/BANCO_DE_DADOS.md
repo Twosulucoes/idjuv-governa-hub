@@ -1144,6 +1144,25 @@ Todas idempotentes.
     por processo) e `programacao_por_natureza` (QDD × reservas por combinação, com os processos);
   - sem permissão nova; RLS classe `preservar` nas duas tabelas (policies na migração); testes no bloco
     "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
+- **Pesquisa de preços, entrega 1** (`20261105090000_compras_pesquisa_precos.sql`, spec
+  [2026-10-29-compras-pesquisa-precos-design.md](./superpowers/specs/2026-10-29-compras-pesquisa-precos-design.md)):
+  - `pesquisas_precos`: uma por processo SEI (objeto, `finalidade`, `data_referencia`, responsáveis, observações,
+    `pca_item_id` opcional para `pca_itens`), `situacao` `em_andamento`/`concluida`;
+  - `pesquisas_precos_itens`: material (`catalogo_campo` `codigoItemCatalogo` para o item do CATMAT ou `codigoPdm` para
+    o tipo de material) ou serviço do CATSER, descrição, unidade, quantidade, `metodo` (`media`/`mediana`/`menor`, nulo
+    = o sugerido pelo CV) e justificativa; número único na pesquisa;
+  - `pesquisas_precos_amostras`: um preço por linha com `parametro` (inciso I a V do art. 17), `origem`
+    (`compras_gov`, `pncp`, `manual`), fonte (órgão, UASG, UF, município, compra, `id_compra`, modalidade, data,
+    fornecedor com CNPJ/CPF, marca, unidade, quantidade, `link` só `https://`), `consultado_em`, `considerada` e
+    `motivo_desconsideracao` (obrigatório ao desconsiderar). `UNIQUE (item_id, id_externo)` impede a mesma linha da fonte
+    duas vezes; CHECKs pedem a fonte mínima por inciso (III: link ou órgão; IV e V: CNPJ/CPF e nome) e só aceitam
+    `compras_gov` no inciso I e `pncp` no II. Apaga junto com o item;
+  - gatilho `pesquisa_precos_conferir` (EXECUTE revogado): autoria, nº SEI sem espaço nas pontas e nenhuma mudança em
+    item ou amostra de pesquisa concluída, nem na própria pesquisa além de reabrir (`55000`);
+  - o saneamento (±30%), o CV e o método são calculados na tela (`src/lib/compras/pesquisaPrecos.ts`), não gravados;
+  - permissões `compras.pesquisa_precos.visualizar` e `compras.pesquisa_precos.editar` (concedidas a quem tem
+    `compras.criar`); RLS classe `permissao` (`leitura=` das duas; a pesquisa com `excluir=ninguem`, itens e amostras
+    apagam com `editar`); testes no bloco "Compras: pesquisa de preços" de `scripts/db/testar-rls.sql`.
 - **Localizador de processos do SEI** (`20261102090000`, só funções; spec
   [2026-10-25-localizador-processos-sei-design.md](./superpowers/specs/2026-10-25-localizador-processos-sei-design.md)).
   Nenhuma tabela, coluna, policy ou permissão nova:

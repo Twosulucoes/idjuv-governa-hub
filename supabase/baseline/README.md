@@ -324,6 +324,14 @@ na classe `permissao`, `passagem_historico` em `trilha` com `leitura=`, opção 
 códigos para ler) e no `overlay/40_privilegios.sql`; testes no bloco "PASSAGENS"
 de `scripts/db/testar-rls.sql`, com sementes em `seed_ov` (CPF, solicitante e passageiro válidos para os CHECKs).
 
+A migração `20261105090000_compras_pesquisa_precos.sql` (pesquisa de preços, entrega 1) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões
+`compras.pesquisa_precos.visualizar`/`editar` e da concessão aos papéis, copiadas da regeneração), no `rls/mapa.csv`
+(`pesquisas_precos*` na classe `permissao`; a pesquisa com `excluir=ninguem`) e no `overlay/40_privilegios.sql`
+(REVOKE do gatilho `pesquisa_precos_conferir`); testes no bloco "Compras: pesquisa de preços" de
+`scripts/db/testar-rls.sql`, com sementes de `pesquisas_precos_itens` e `pesquisas_precos_amostras` em `seed_ov`.
+Validado com `validar-baseline.sh` em PostgreSQL 16: **APROVADO**, RLS com 0 falhas.
+
 A migração `20261029090000_compras_processos_andamento.sql` (processos de contratação, entrega 1) entrou no schema
 regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões
 `compras.processos.visualizar`/`editar` e da concessão a `admin` e `manager`, copiadas da regeneração), no

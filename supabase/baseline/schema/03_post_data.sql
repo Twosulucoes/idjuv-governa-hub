@@ -2758,6 +2758,38 @@ ALTER TABLE ONLY public.pensoes_alimenticias
 
 
 --
+-- Name: pesquisas_precos_amostras pesquisas_precos_amostras_item_externo_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_amostras
+    ADD CONSTRAINT pesquisas_precos_amostras_item_externo_key UNIQUE (item_id, id_externo);
+
+
+--
+-- Name: pesquisas_precos_amostras pesquisas_precos_amostras_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_amostras
+    ADD CONSTRAINT pesquisas_precos_amostras_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pesquisas_precos_itens pesquisas_precos_itens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_itens
+    ADD CONSTRAINT pesquisas_precos_itens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pesquisas_precos pesquisas_precos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos
+    ADD CONSTRAINT pesquisas_precos_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: planos_tratamento_risco planos_tratamento_risco_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7474,6 +7506,34 @@ CREATE INDEX idx_pensoes_alimenticias_servidor ON public.pensoes_alimenticias US
 
 
 --
+-- Name: idx_pesquisas_precos_amostras_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pesquisas_precos_amostras_item ON public.pesquisas_precos_amostras USING btree (item_id);
+
+
+--
+-- Name: idx_pesquisas_precos_criacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pesquisas_precos_criacao ON public.pesquisas_precos USING btree (created_at DESC);
+
+
+--
+-- Name: idx_pesquisas_precos_itens_pesquisa; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pesquisas_precos_itens_pesquisa ON public.pesquisas_precos_itens USING btree (pesquisa_id, numero);
+
+
+--
+-- Name: idx_pesquisas_precos_sei; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pesquisas_precos_sei ON public.pesquisas_precos USING btree (numero_sei);
+
+
+--
 -- Name: idx_planos_risco; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10789,6 +10849,27 @@ CREATE TRIGGER trg_pca_planos_historico AFTER INSERT OR UPDATE ON public.pca_pla
 --
 
 CREATE TRIGGER trg_pca_tetos_carimbar BEFORE INSERT OR UPDATE ON public.pca_tetos FOR EACH ROW EXECUTE FUNCTION public.pca_carimbar();
+
+
+--
+-- Name: pesquisas_precos_amostras trg_pesquisas_precos_amostras_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pesquisas_precos_amostras_conferir BEFORE INSERT OR DELETE OR UPDATE ON public.pesquisas_precos_amostras FOR EACH ROW EXECUTE FUNCTION public.pesquisa_precos_conferir();
+
+
+--
+-- Name: pesquisas_precos trg_pesquisas_precos_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pesquisas_precos_conferir BEFORE INSERT OR UPDATE ON public.pesquisas_precos FOR EACH ROW EXECUTE FUNCTION public.pesquisa_precos_conferir();
+
+
+--
+-- Name: pesquisas_precos_itens trg_pesquisas_precos_itens_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pesquisas_precos_itens_conferir BEFORE INSERT OR DELETE OR UPDATE ON public.pesquisas_precos_itens FOR EACH ROW EXECUTE FUNCTION public.pesquisa_precos_conferir();
 
 
 --
@@ -18101,6 +18182,30 @@ ALTER TABLE ONLY public.pensoes_alimenticias
 
 
 --
+-- Name: pesquisas_precos_amostras pesquisas_precos_amostras_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_amostras
+    ADD CONSTRAINT pesquisas_precos_amostras_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.pesquisas_precos_itens(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pesquisas_precos_itens pesquisas_precos_itens_pesquisa_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_itens
+    ADD CONSTRAINT pesquisas_precos_itens_pesquisa_id_fkey FOREIGN KEY (pesquisa_id) REFERENCES public.pesquisas_precos(id);
+
+
+--
+-- Name: pesquisas_precos pesquisas_precos_pca_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos
+    ADD CONSTRAINT pesquisas_precos_pca_item_id_fkey FOREIGN KEY (pca_item_id) REFERENCES public.pca_itens(id);
+
+
+--
 -- Name: planos_tratamento_risco planos_tratamento_risco_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20768,6 +20873,24 @@ ALTER TABLE public.pca_tetos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pensoes_alimenticias ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: pesquisas_precos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pesquisas_precos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: pesquisas_precos_amostras; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pesquisas_precos_amostras ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: pesquisas_precos_itens; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pesquisas_precos_itens ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: planos_tratamento_risco; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -22306,6 +22429,20 @@ CREATE POLICY rls_delete ON public.patrimonio_unidade FOR DELETE TO authenticate
 --
 
 CREATE POLICY rls_delete ON public.pensoes_alimenticias FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: pesquisas_precos_amostras rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.pesquisas_precos_amostras FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
+
+
+--
+-- Name: pesquisas_precos_itens rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.pesquisas_precos_itens FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
 
 
 --
@@ -24027,6 +24164,27 @@ CREATE POLICY rls_insert ON public.pca_tetos FOR INSERT TO authenticated WITH CH
 --
 
 CREATE POLICY rls_insert ON public.pensoes_alimenticias FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: pesquisas_precos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pesquisas_precos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
+
+
+--
+-- Name: pesquisas_precos_amostras rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pesquisas_precos_amostras FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
+
+
+--
+-- Name: pesquisas_precos_itens rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pesquisas_precos_itens FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
 
 
 --
@@ -25862,6 +26020,27 @@ CREATE POLICY rls_select ON public.pensoes_alimenticias FOR SELECT TO authentica
 
 
 --
+-- Name: pesquisas_precos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pesquisas_precos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))));
+
+
+--
+-- Name: pesquisas_precos_amostras rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pesquisas_precos_amostras FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))));
+
+
+--
+-- Name: pesquisas_precos_itens rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pesquisas_precos_itens FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))));
+
+
+--
 -- Name: planos_tratamento_risco rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -27610,6 +27789,27 @@ CREATE POLICY rls_update ON public.pca_tetos FOR UPDATE TO authenticated USING (
 --
 
 CREATE POLICY rls_update ON public.pensoes_alimenticias FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: pesquisas_precos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pesquisas_precos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
+
+
+--
+-- Name: pesquisas_precos_amostras rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pesquisas_precos_amostras FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
+
+
+--
+-- Name: pesquisas_precos_itens rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pesquisas_precos_itens FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
 
 
 --

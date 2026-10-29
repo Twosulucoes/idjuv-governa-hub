@@ -90,6 +90,8 @@ export type PermissaoInstitucional =
   | 'compras.tramitar'
   | 'compras.aprovar'
   | 'compras.pca.visualizar'
+  | 'compras.pesquisa_precos.visualizar'
+  | 'compras.pesquisa_precos.editar'
   | 'compras.processos.visualizar'
   | 'compras.processos.editar'
   // Contratos
@@ -236,6 +238,13 @@ export const menuConfig: MenuSection[] = [
             route: "/compras/pca",
             icon: ClipboardList,
             permission: "compras.pca.visualizar",
+          },
+          {
+            id: "pesquisa-precos",
+            label: "Pesquisa de preços",
+            route: "/compras/pesquisa-precos",
+            icon: Scale,
+            permission: "compras.pesquisa_precos.visualizar",
           },
           {
             id: "programacao-natureza",

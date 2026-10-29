@@ -250,6 +250,8 @@ import PassagensBeneficiariosPage from "./pages/contratos/PassagensBeneficiarios
 import PassagensPendenciasPage from "./pages/contratos/PassagensPendenciasPage";
 import PassagensFaturasPage from "./pages/contratos/PassagensFaturasPage";
 import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
+import PesquisasPrecosListaPage from "./pages/compras/PesquisasPrecosListaPage";
+import PesquisaPrecosPage from "./pages/compras/PesquisaPrecosPage";
 import ProcessosListaPage from "./pages/compras/ProcessosListaPage";
 import ProcessoFichaPage from "./pages/compras/ProcessoFichaPage";
 import ProgramacaoNaturezaPage from "./pages/compras/ProgramacaoNaturezaPage";
@@ -502,6 +504,16 @@ const App = () => (
               <Route path="/compras/pca/:exercicio" element={
                 <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pca.visualizar", "compras.pca.editar"]}>
                   <PcaPlanoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compras/pesquisa-precos" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pesquisa_precos.visualizar", "compras.pesquisa_precos.editar"]}>
+                  <PesquisasPrecosListaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compras/pesquisa-precos/:id" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pesquisa_precos.visualizar", "compras.pesquisa_precos.editar"]}>
+                  <PesquisaPrecosPage />
                 </ProtectedRoute>
               } />
               <Route path="/compras/processos" element={
