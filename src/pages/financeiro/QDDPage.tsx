@@ -49,6 +49,7 @@ import {
   PiggyBank,
   RefreshCw,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/formatters";
@@ -64,7 +65,7 @@ import * as XLSX from "xlsx";
 
 export default function QDDPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { exercicio, setExercicio } = useExercicioFinanceiro();
+  const { exercicio, setExercicio, comExercicio } = useExercicioFinanceiro();
   const [importOpen, setImportOpen] = useState(false);
   const [importando, setImportando] = useState(false);
   /** "todos", "comum", "emendas" ou a sigla de uma emenda (ECI, EII...) */
