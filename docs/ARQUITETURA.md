@@ -105,6 +105,10 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   no FIPLAN, reservado em processos e saldo livre por natureza); a página-guia `/processos/compras` continua como
   "Como funciona uma compra", o último item de Compras, que segue o ciclo: PCA, programação por natureza, processos de
   contratação e o manual. O painel do Financeiro (`/financeiro`) ganha o cartão "Reservado em processos".
+- **Emendas parlamentares (Financeiro)** em `/financeiro/emendas` (`EmendasPage`, `orcamento.visualizar`; cadastrar e
+  editar pedem `orcamento.criar`): autor, objeto, beneficiário e saldo (valor, reservado, empenhado, livre) de cada
+  emenda, mais a conferência com as dotações de emenda do QDD. Menu em Financeiro → "Emendas Parlamentares"; o QDD
+  (`/financeiro/qdd`) separa a dotação comum das emendas e liga para esta tela.
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver

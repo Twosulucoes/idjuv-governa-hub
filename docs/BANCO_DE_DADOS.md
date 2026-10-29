@@ -1123,6 +1123,14 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
+- **Emendas parlamentares** (`20261108090000_fin_emendas.sql`):
+  - `fin_emendas`: uma linha por emenda (exercício, `dotacao_id` da dotação de emenda do QDD, número único no
+    exercício, `idu` como no QDD e nunca "Não", autor, objeto, beneficiário e CNPJ opcional, `valor`, `valor_reservado`
+    e `ped_numero` lançados à mão, processo SEI, `ativo`); gatilho `update_fin_emendas_updated_at`;
+  - `fin_empenhos.emenda_id` (FK, `ON DELETE SET NULL`): a emenda que o empenho executa; o empenhado da emenda é a
+    soma (empenhado − anulado) desses empenhos, calculada na tela;
+  - RLS classe `permissao` (o módulo financeiro lê; gravar exige `orcamento.criar`); semente em `seed_ov` de
+    `scripts/db/testar-rls.sql`.
 - **Processos de contratação, entrega 2** (`20261030090000_compras_processos_reservas_peds.sql`, mesma spec, §10):
   - `processo_chave_fiplan(text)` (IMMUTABLE): leva o nº SEI (`17302.000885/2026.92`) e o nº do FIPLAN (`000885/26-92`)
     à mesma chave (`885/26-92`); é por ela que PED, empenho e processo se ligam (`processo_empenhos` passou a usá-la);

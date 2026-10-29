@@ -11293,6 +11293,78 @@ export type Database = {
           },
         ]
       }
+      fin_emendas: {
+        Row: {
+          ativo: boolean
+          autor: string
+          beneficiario: string | null
+          beneficiario_cnpj: string | null
+          created_at: string
+          created_by: string | null
+          dotacao_id: string
+          exercicio: number
+          id: string
+          idu: string
+          numero: string
+          objeto: string
+          observacoes: string | null
+          ped_numero: string | null
+          processo_sei: string | null
+          updated_at: string
+          valor: number
+          valor_reservado: number
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          autor: string
+          beneficiario?: string | null
+          beneficiario_cnpj?: string | null
+          created_at?: string
+          created_by?: string | null
+          dotacao_id: string
+          exercicio: number
+          id?: string
+          idu: string
+          numero: string
+          objeto: string
+          observacoes?: string | null
+          ped_numero?: string | null
+          processo_sei?: string | null
+          updated_at?: string
+          valor: number
+          valor_reservado?: number
+        }
+        Update: {
+          ativo?: boolean
+          autor?: string
+          beneficiario?: string | null
+          beneficiario_cnpj?: string | null
+          created_at?: string
+          created_by?: string | null
+          dotacao_id?: string
+          exercicio?: number
+          id?: string
+          idu?: string
+          numero?: string
+          objeto?: string
+          observacoes?: string | null
+          ped_numero?: string | null
+          processo_sei?: string | null
+          updated_at?: string
+          valor?: number
+          valor_reservado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_emendas_dotacao_id_fkey"
+            columns: ["dotacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_empenho_anulacoes: {
         Row: {
           anulado_por: string | null
@@ -11406,6 +11478,7 @@ export type Database = {
           data_referencia_fiplan: string | null
           dotacao_fiplan: string | null
           dotacao_id: string | null
+          emenda_id: string | null
           emitido_por: string | null
           exercicio: number
           fonte_recurso_id: string | null
@@ -11449,6 +11522,7 @@ export type Database = {
           data_referencia_fiplan?: string | null
           dotacao_fiplan?: string | null
           dotacao_id?: string | null
+          emenda_id?: string | null
           emitido_por?: string | null
           exercicio: number
           fonte_recurso_id?: string | null
@@ -11491,6 +11565,7 @@ export type Database = {
           data_referencia_fiplan?: string | null
           dotacao_fiplan?: string | null
           dotacao_id?: string | null
+          emenda_id?: string | null
           emitido_por?: string | null
           exercicio?: number
           fonte_recurso_id?: string | null
@@ -11547,6 +11622,13 @@ export type Database = {
             columns: ["dotacao_id"]
             isOneToOne: false
             referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_empenhos_emenda_id_fkey"
+            columns: ["emenda_id"]
+            isOneToOne: false
+            referencedRelation: "fin_emendas"
             referencedColumns: ["id"]
           },
           {

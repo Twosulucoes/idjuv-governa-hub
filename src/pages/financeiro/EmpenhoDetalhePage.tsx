@@ -1,7 +1,7 @@
 /**
  * Detalhe do empenho: dados, valores e, no empenho importado do FIPLAN (FIP 614), o histórico de
  * liquidações, NOBs, GCVs e estornos. Quando o relatório não deixa saber o IDU, a dotação é escolhida
- * aqui entre as do QDD com a mesma classificação.
+ * aqui entre as do QDD com a mesma classificação. Empenho em dotação de emenda é ligado à emenda que executa.
  * Spec docs/superpowers/specs/2026-10-22-importacao-empenhos-fip614-design.md.
  */
 
@@ -23,6 +23,9 @@ import {
   useEmpenhoDetalhe,
 } from "@/hooks/useFinanceiro";
 import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
+import { useDefinirEmendaEmpenho, useEmendas } from "@/hooks/useEmendas";
+import { useAuth } from "@/contexts/AuthContext";
+import { ehEmenda, rotuloOrigem } from "@/lib/financeiro/origemDotacao";
 import { dataBR } from "@/lib/bancario/exibicao";
 import { formatCurrency } from "@/lib/formatters";
 import type { DocumentoEmpenhoFiplan, StatusEmpenho } from "@/types/financeiro";
@@ -112,6 +115,9 @@ export default function EmpenhoDetalhePage() {
   const candidatas = useDotacoesCandidatasEmpenho(e);
   const definirDotacao = useDefinirDotacaoEmpenho();
   const [escolhida, setEscolhida] = useState<string>("");
+  const emendasDoAno = useEmendas(e?.exercicio);
+  const definirEmenda = useDefinirEmendaEmpenho();
+  const { hasPermission } = useAuth();
 
   const migalhas = [
     { rotulo: "Financeiro", href: comExercicio("/financeiro") },
@@ -158,6 +164,8 @@ export default function EmpenhoDetalhePage() {
   const opcoes = candidatas.data ?? [];
   const escolherDotacao = doFiplan && opcoes.length > 1;
   const dotacaoSelecionada = opcoes.find((d) => d.id === (escolhida || e.dotacao_id));
+  const emDotacaoDeEmenda = !!e.dotacao && ehEmenda(e.dotacao.idu);
+  const emendasDaDotacao = (emendasDoAno.data ?? []).filter((x) => x.dotacao_id === e.dotacao_id);
 
   return (
     <ModuleLayout module="financeiro">
@@ -287,6 +295,45 @@ export default function EmpenhoDetalhePage() {
                   {definirDotacao.isPending ? "Salvando..." : "Definir dotação"}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {emDotacaoDeEmenda && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Emenda do empenho</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                O empenho está numa dotação de {rotuloOrigem(e.dotacao?.idu).toLowerCase()}. Diga qual emenda ele executa: o
+                empenhado entra no saldo dela, em{" "}
+                <Link className="underline" to={comExercicio("/financeiro/emendas")}>
+                  Emendas parlamentares
+                </Link>
+                .
+              </p>
+              {emendasDaDotacao.length === 0 ? (
+                <p className="text-sm">Nenhuma emenda cadastrada nesta dotação.</p>
+              ) : (
+                <Select
+                  value={e.emenda_id ?? "nenhuma"}
+                  onValueChange={(v) => definirEmenda.mutate({ empenhoId: e.id, emendaId: v === "nenhuma" ? null : v })}
+                  disabled={!hasPermission("orcamento.criar") || definirEmenda.isPending}
+                >
+                  <SelectTrigger className="w-full sm:w-[420px]" aria-label="Emenda do empenho">
+                    <SelectValue placeholder="Escolha a emenda" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhuma">Sem emenda definida</SelectItem>
+                    {emendasDaDotacao.map((x) => (
+                      <SelectItem key={x.id} value={x.id}>
+                        {x.numero} · {x.autor}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </CardContent>
           </Card>
         )}

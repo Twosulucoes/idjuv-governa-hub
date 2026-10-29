@@ -140,6 +140,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel Financeiro", route: "/financeiro" },
     items: [
       { id: "qdd", label: "QDD - Detalhamento", icon: FileText, route: "/financeiro/qdd" },
+      { id: "emendas", label: "Emendas Parlamentares", icon: Landmark, route: "/financeiro/emendas" },
       { id: "empenhos", label: "Empenhos", icon: FileText, route: "/financeiro/empenhos" },
       // Lançamentos fora do FIPLAN, regularizados depois nele (FIPLAN fechado, tarifas, contas de convênio)
       {
