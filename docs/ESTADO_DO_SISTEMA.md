@@ -23,7 +23,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
 | — fora de `ui/` | 335 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 116 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 95 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 96 |
 | Linhas de `src/App.tsx` | 1486 |
 | Linhas de `src/integrations/supabase/types.ts` (gerado) | 30166 |
 
@@ -69,7 +69,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 322 |
+| Migrações (`supabase/migrations/*.sql`) | 324 |
 | Migração mais recente | `20261108090000_fin_emendas.sql` |
 | Tabelas do schema public (baseline) | 292 |
 | Views (baseline) | 18 |

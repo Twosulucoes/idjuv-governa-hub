@@ -55,8 +55,9 @@ administrador e `handle_new_user` quebrado. O baseline resolve isso sem reescrev
 (`scripts/db/validar-migracoes.sh`) que alimenta os itens 1–3. O baseline não a aplica.
 `bootstrap-admin.sql` cria o primeiro administrador (não faz parte do `aplicar.sh`). `dados-teste.sql` enche um banco
 de **teste** com dados fictícios (fora do `aplicar.sh`; recusa banco que já tenha servidor, fornecedor ou bem; `scripts/db/montar-ambiente-teste.sh` monta o
-banco de teste inteiro pelo container; guia em
-[`docs/NOVO_BANCO.md` §9](../../docs/NOVO_BANCO.md#9-ambiente-de-teste-com-dados-fictícios)).
+banco de teste inteiro pelo container). `dados-demo/` completa esse banco com uma demonstração de todos os módulos
+com cara de real (`scripts/db/carregar-demo-teste.sh`); guia de ambos em
+[`docs/NOVO_BANCO.md` §9](../../docs/NOVO_BANCO.md#9-ambiente-de-teste-com-dados-fictícios).
 
 Arquivos **gerados** não se editam à mão. Dados antes das constraints/triggers é proposital: o
 INSERT não dispara auditoria e as FKs são validadas depois, contra os dados semeados.

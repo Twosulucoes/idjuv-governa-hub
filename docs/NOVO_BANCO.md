@@ -206,6 +206,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
   mudança no `rls/mapa.csv`; testes no bloco "Financeiro: remessa OBN600 dos pagamentos" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os gatilhos de saldo do empenho e do contrato (migração `20261107090000`) e o processamento e a reabertura da folha
+  (migração `20261107091000`) entraram no schema do baseline (`schema/01_pre_data.sql`; `reabrir_folha` também no
+  `overlay/18_funcoes_rpc.sql`); sem tabela nova nem mudança no `rls/mapa.csv`; testes nos blocos "Financeiro e
+  contratos: gatilhos de saldo", "E1 folha" e "I4/M3" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - As emendas parlamentares (migração `20261108090000`) entraram no mapa (`fin_emendas`, classe `permissao` com
   `orcamento.criar`) e no schema do baseline regenerado; sem permissão nova nem função; semente em `seed_ov` de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
@@ -317,5 +321,39 @@ PGPASSWORD='...' psql "postgresql://postgres@127.0.0.1:5432/postgres" \
 - O front de teste é outra aplicação do Coolify com o mesmo `Dockerfile` e o `.env` apontando para o Supabase de
   teste (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` dele). Ela não entra no `deploy-front.yml`: o
   CI publica só a produção.
-- `solicitacoes_sic` fica sem exemplo: o trigger `registrar_historico_lai` lê uma coluna que a tabela não tem e
-  recusa o INSERT (pendência no [ROADMAP](./planejamento/ROADMAP.md#backlog-fora-do-plano)).
+- `solicitacoes_sic` fica sem exemplo no `dados-teste.sql`: o trigger `registrar_historico_lai` lê uma coluna que a
+  tabela não tem e recusa o INSERT (pendência no [ROADMAP](./planejamento/ROADMAP.md#backlog-fora-do-plano)). A
+  demonstração abaixo contorna desligando só esse trigger dentro da própria transação.
+
+### 9.1 Demonstração geral (`supabase/baseline/dados-demo/`)
+
+Para apresentar o sistema, os arquivos de `supabase/baseline/dados-demo/` completam o banco de teste com dados **com
+cara de reais** (nomes completos, endereços de Boa Vista, objetos e históricos como os do SEI e do FIPLAN, números SEI
+`18101.xxxxxx/2026-xx`), sem nenhum dado pessoal real: CPFs, CNPJs, PIS e telefones são inventados com dígito válido
+e os e-mails são `@exemplo.test`. A identidade da instituição (`dados_oficiais`) vem do perfil do tenant.
+
+| Arquivo | O que preenche |
+|---|---|
+| `00_realismo.sql` | reescreve os textos do `dados-teste.sql` (tira "fictício"/"exemplo"), põe PIS nos servidores e cria as unidades CI, CPL, NuAlm e NuPat que os modelos de processo citam |
+| `01_rh.sql` | quadro de vagas, cessões, designações, ponto e frequência de jan. a out., férias, licenças, viagens, portarias da ficha |
+| `02_folha.sql` | folhas de julho a outubro e do 13º em situações diferentes, calculadas por `processar_folha_pagamento`; consignações, pensões, dependentes, remessas e retornos CNAB, eSocial, atos remuneratórios |
+| `03_financeiro.sql` | QDD, ciclo da despesa (solicitação, empenho, liquidação, pagamento, OBN600), conciliação e fechamento mensal, receitas, adiantamentos, restos a pagar, importações do FIPLAN, PCA e catálogo |
+| `04_compras_processos.sql` | licitações em cada fase, contratos com itens, medições e aditivos, atas de registro de preço, comissões, processos administrativos com tramitação |
+| `05_patrimonio.sql` | movimentações, manutenções, ocorrências, baixas, campanhas de inventário com coletas e conciliação, requisições e estoque, agenda das unidades locais |
+| `06_governanca_admin.sql` | controles internos, checklists, matriz RACI, denúncias, pedidos de LAI, editais, identidade da instituição, envios, acesso total do login de teste |
+| `07_comunicacao_portal.sql` | notícias, banners, galerias, demandas da ASCOM, federações, árbitros, escolas e gestores, reuniões com participantes, avisos e portal |
+| `08_complementos.sql` | termos de cessão das unidades locais e cadastros de RH que dependem da configuração institucional |
+
+```bash
+# na VPS, depois do dados-teste.sql (o montar-ambiente-teste.sh já chama este script no fim)
+bash scripts/db/carregar-demo-teste.sh <container-do-db-de-teste>
+```
+
+- Cada arquivo é uma transação, exige `-v confirmo=banco_de_teste` e recusa banco sem o `dados-teste.sql`; o mesmo
+  módulo não entra duas vezes (o script pula o que já está carregado, então dá para rodar de novo depois de uma falha).
+- Onde o próprio sistema calcula (folha, conciliação, remessas, importações do FIPLAN), os arquivos chamam as funções
+  do banco em vez de gravar o resultado à mão. Os triggers com defeito encontrados no caminho (LAI, sub-empenho,
+  liquidação) são desligados só durante o INSERT, com comentário, e estão no
+  [ROADMAP](./planejamento/ROADMAP.md#backlog-fora-do-plano).
+- Ficam de fora: arquivos no Storage (fotos de vistoria, anexos e remessas mostram "arquivo indisponível") e tudo
+  o que depende das Edge Functions, que o ambiente de teste não tem.

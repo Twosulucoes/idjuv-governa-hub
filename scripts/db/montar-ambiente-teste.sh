@@ -5,6 +5,7 @@
 #   2. login de teste no Auth, já confirmado, com senha aleatória mostrada só neste terminal
 #   3. bootstrap-admin.sql (o login vira administrador ativo)
 #   4. dados-teste.sql (dados fictícios, ligados ao login)
+#   5. dados-demo/*.sql (demonstração de todos os módulos, com cara de real; carregar-demo-teste.sh)
 #
 #   bash scripts/db/montar-ambiente-teste.sh <container-do-db-de-teste> <email-do-login>
 #   ex.: bash scripts/db/montar-ambiente-teste.sh supabase-db-gxdtyi29hkfxjclgnfbtg58l teste@exemplo.test
@@ -66,6 +67,9 @@ psql_ -v email="$EMAIL" < bootstrap-admin.sql >/dev/null
 
 echo "== 4. dados fictícios"
 psql_ -v confirmo=banco_de_teste -v email="$EMAIL" < dados-teste.sql
+
+echo "== 5. dados de demonstração"
+bash ../../scripts/db/carregar-demo-teste.sh "$CT"
 
 echo
 echo "Pronto. Login do ambiente de teste: $EMAIL"

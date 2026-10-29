@@ -9,7 +9,7 @@ import {
   calcularTotaisFolha,
   descreverErroBanco,
   folhaEditavel,
-  itemJaLancado,
+  consignacaoJaLancada,
   motivoBloqueioEdicao,
   ORDEM_ITEM_MANUAL,
 } from '@/lib/folhaFichaRegras';
@@ -570,8 +570,10 @@ export function useDeleteItemFicha() {
 
 /**
  * "Lançar na ficha": cria um desconto com `referencia = numero_contrato` e `valor = valor_parcela`
- * da consignação, se ainda não houver item com a mesma referência (a RPC real não lança consignações).
- * A checagem é ler-depois-inserir (sem índice único no banco até 13b): duas abas podem lançar duas vezes.
+ * da consignação, se a parcela ainda não estiver na ficha. O cálculo da folha (`folha_montar_ficha`) já
+ * lança as consignações ativas ("Consignação — <consignatária>"); o botão serve à que ficou de fora
+ * (ex.: cadastrada depois do processamento). A checagem é ler-depois-inserir (sem índice único no banco
+ * até 13b): duas abas podem lançar duas vezes.
  */
 export function useLancarConsignacaoNaFicha() {
   const queryClient = useQueryClient();
@@ -581,16 +583,17 @@ export function useLancarConsignacaoNaFicha() {
       rubrica_id?: string | null;
       descricao: string;
       numero_contrato: string | null;
+      consignataria_nome: string | null;
       valor_parcela: number;
     }) => {
       await garantirFolhaEditavel(input.ficha_id);
       const { data: itens, error: erroItens } = await supabase
         .from('itens_ficha_financeira')
-        .select('tipo, referencia')
+        .select('tipo, referencia, descricao')
         .eq('ficha_id', input.ficha_id);
       if (erroItens) throw erroItens;
-      if (itemJaLancado(itens ?? [], input.numero_contrato)) {
-        throw new Error('Já existe um desconto com a referência deste contrato nesta ficha.');
+      if (consignacaoJaLancada(itens ?? [], input)) {
+        throw new Error('A parcela desta consignação já está na ficha (lançada pelo cálculo da folha ou à mão).');
       }
       const payload: ItemFichaInsert = {
         ficha_id: input.ficha_id,
