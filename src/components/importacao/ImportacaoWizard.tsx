@@ -203,7 +203,8 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
     criados.length === 0;
 
   return (
-    <div className="space-y-4">
+    // min-w-0: a tabela larga rola dentro da própria caixa em vez de alargar o diálogo
+    <div className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{arquivo.nome}</p>
@@ -355,7 +356,8 @@ export function ImportacaoWizard<TLinha>({ importador, onConcluido, onOcupadoCha
               const errosLinha = errosBancoPorIndice.get(i);
               return (
                 <TableRow key={i} className="text-xs">
-                  <TableCell>
+                  {/* largura mínima: avisos e erros da linha legíveis sem virar uma coluna de uma palavra */}
+                  <TableCell className="min-w-[12rem]">
                     {temErro ? (
                       <Badge variant="destructive">Erro</Badge>
                     ) : errosLinha ? (

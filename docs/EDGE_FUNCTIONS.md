@@ -29,8 +29,9 @@ Aposentada no P06 (2026-10-15): `backup-offsite` (backup antigo em JSON para out
 | `database-schema` | Inspeciona o schema do banco (apoia a tela `DatabaseSchemaPage`). |
 | `cpsi-ai-assistant` | Assistente de IA do antigo formulário CPSI. A tela saiu na onda 5 do P23 (DFD/ETP/TR são do SEI); a função segue publicada sem chamador no front até a decisão D2 do roadmap. |
 | `conciliacao-ia-sugestoes` | Sugere casamentos para as pendências da conciliação mensal (aba "Fechamento mensal") pelo Gemini. Não grava nada: a tela mostra cada sugestão e o usuário aceita ou recusa. Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
-| `catalogo-compras` | Ponte com o catálogo CATMAT/CATSER do portal de dados abertos do Compras.gov.br para o PCA: baixa os tipos de material e os serviços para o banco, lista os itens de um tipo de material e grava o item escolhido. Exige o módulo `compras` e a permissão do PCA (ver abaixo). |
+| `catalogo-compras` | Ponte com o catálogo CATMAT/CATSER do portal de dados abertos do Compras.gov.br para o PCA: baixa os tipos de material e os serviços para o banco, lista os itens de um tipo de material, grava o item escolhido e lê as naturezas de despesa que o catálogo indica. Exige o módulo `compras` e a permissão do PCA (ver abaixo). |
 | `bb-api` | APIs de leitura do Banco do Brasil: `status` da conexão, `extrato` (API Extratos v2, grava em `fin_extrato_lancamentos`) e `validar-conta` (API Validação de Contas v1). Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
+| `transferegov` | Recebe da rotina diária do GitHub Actions o que o Transferegov tem do CNPJ da instituição e troca o espelho `fin_tg_*` pela RPC `fin_tg_carregar`. Não é chamada pelo navegador: exige o segredo `TRANSFEREGOV_TOKEN` (ver abaixo). |
 
 ### Envio de e-mail e WhatsApp (`_shared/envio`)
 
@@ -92,6 +93,11 @@ por hora (cota `conciliacao_ia`), 8.192 tokens de resposta com 4.096 de raciocí
 contagens (pendências, grupos devolvidos e válidos). Antes da IA, a tela roda a busca de somas no navegador
 (`sugestoesPorSoma`) e só manda para a função o que sobrou.
 
+**Tempo limite da IA** (27/10/2026): as duas funções chamam o Gemini por `fetchComTempoLimite`
+(`supabase/functions/_shared/tempoLimite.ts`), com 40 s até chegarem os cabeçalhos da resposta. Passou disso, devolvem
+`504` com "A IA não respondeu a tempo" em vez de ficar presas até o runtime derrubar a requisição (o que aconteceu em
+23/10). O relógio para quando a resposta começa, para não cortar a revisão em streaming do assistente.
+
 No self-hosted, `GEMINI_API_KEY` e `GEMINI_MODEL` vão no `.env` do docker compose do Supabase e só valem depois de
 `docker compose up -d functions` (um `docker restart` não relê o `.env`). Chave nova do AI Studio pode receber 404 em
 modelo antigo (`gemini-2.5-flash`): use o apelido `gemini-flash-latest`.
@@ -102,10 +108,26 @@ Exige sessão e o módulo `compras`, conferidos com o token do próprio usuário
 tipos de material ou serviços, gravada com upsert pelo código em `cat_material_pdms`/`cat_servicos`; na última página
 grava o total em `cat_sincronizacoes`) e `gravar_item` (grava em `cat_material_itens` o item escolhido e o tipo de
 material dele, se faltar) exigem `compras.pca.editar`; `itens_pdm` (itens ativos de um tipo de material, até 500, sem
-gravar) aceita também `compras.pca.visualizar`. Só chama `https://dadosabertos.compras.gov.br` (host fixo em
+gravar) e `naturezas` (naturezas de despesa que o catálogo indica para um tipo de material ou serviço, até 500, sem
+gravar; o front descarta as inativas, as de exercícios anteriores e as que o estado não tem, em
+`src/lib/pca/naturezaCatalogo.ts`) aceitam também `compras.pca.visualizar`. Só chama `https://dadosabertos.compras.gov.br` (host fixo em
 `portal.ts`, sem redirecionamento, 20 s por chamada); portal fora do ar vira `502` com mensagem em português. Público e
 sem chave: não há segredo novo. A tela faz o laço de páginas e mostra o progresso. O log leva só ação, tipo, página e
 quantidade gravada. As funções puras (`portal.ts`) têm teste vitest.
+
+### Convênios federais (`transferegov`)
+
+Ponte entre a rotina `.github/workflows/transferegov.yml` e o banco. Só `POST`; sem CORS (não é para o navegador).
+A rotina manda a chave anon como `Bearer` (o roteador exige JWT) e o segredo no cabeçalho `x-transferegov-token`,
+comparado em tempo constante (`supabase/functions/transferegov/token.ts`, com testes). Sem `TRANSFEREGOV_TOKEN` no
+`.env` das funções, ou com menos de 32 caracteres, a função recusa tudo (`401`). Ações:
+
+- `cnpj`: devolve o CNPJ da Configuração do cliente (`dados_oficiais`), para a rotina não ter nome de cliente;
+  `409` se não estiver cadastrado.
+- `carregar`: confere o formato e os limites de linhas e chama `fin_tg_carregar` com a service role; recusa da RPC
+  vira `422` com a mensagem dela. Corpo acima de 10 MB: `413`. O log só tem contagens.
+
+Configuração: [INTEGRACOES_EXTERNAS.md](./INTEGRACOES_EXTERNAS.md) §4.5.
 
 ### Convite de reunião (`enviar-convite-reuniao`)
 

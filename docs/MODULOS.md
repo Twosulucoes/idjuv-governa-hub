@@ -147,6 +147,8 @@ banco e RPCs em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#acompanhamento-de-proces
 `src/hooks/useAcompanhamentoProcessos.ts` (tabelas e view tipadas por `types.ts`; toda
 escrita é por RPC `wf_*`).
 
+- **Menu:** o módulo aparece como "Processos SEI" e o menu tem só "Localizar processo" e "Parados" (a tramitação é
+  no SEI). A lista e o "Novo processo" continuam abrindo pelos atalhos do painel.
 - **Painel `/workflow`** (`src/pages/modulos/WorkflowDashboardPage`, dados de `useWorkflowDashboardStats`): processos
   ativos, na minha unidade, vencidos, e contagem por tipo e por etapa, com links para a lista filtrada. Os agrupamentos
   leem até 1000 linhas e avisam quando o limite é atingido.
@@ -169,6 +171,16 @@ escrita é por RPC `wf_*`).
   `workflow.visualizar`). Patrimônio tem duas abas, Tombamento e Baixa; Distribuição e Inventário saíram do guia, por
   não terem fluxo nem checklist próprio.
 - **Veículos `/processos/veiculos`**: sem dados; mostra "Controle de frota ainda não implantado".
+- **Localizar processo `/processos/localizar`** (`src/pages/processos/LocalizarProcessoPage`, dados de
+  `useLocalizadorSei`, rota transversal com login; primeiro item do menu de Processos): uma caixa de busca aceita o nº
+  SEI em qualquer formato ou palavras do objeto, do assunto ou do setor, e mostra um cartão por processo SEI com o
+  objeto, onde está, a última movimentação, o botão "Copiar número" (para colar na pesquisa do SEI) e cada registro
+  que o sistema tem dele (processo acompanhado, contratação com a barra de evolução, passagem, demanda do PCA, empenho,
+  ato, termo de cessão, diária), com link para a tela dele. A aba Parados (`?aba=parados`, item "Parados" do menu)
+  lista contratações e processos acompanhados em andamento sem movimentação há mais de 15 dias, com filtro por setor.
+  Só lê; a pessoa só acha o que já veria nos módulos dela (funções em
+  [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md), spec
+  [2026-10-25-localizador-processos-sei-design](./superpowers/specs/2026-10-25-localizador-processos-sei-design.md)).
 - **Etapas, prazos e checklist** vêm da carga inicial das migrações; os marcados "(proposta)" na spec aguardam
   confirmação do órgão. Não há tela de edição de modelo.
 - **Unidades**: a etapa aponta para a unidade pela sigla em `estrutura_organizacional`; sigla sem cadastro deixa a
@@ -179,9 +191,41 @@ escrita é por RPC `wf_*`).
 Licitações, aquisições e gestão contratual. Operados via
 `src/pages/processos/ComprasProcessoPage` e dashboards de módulo
 (`ComprasDashboardPage`, `ContratosDashboardPage`). Backend: `processos_licitatorios`,
-`contratos`, `atas_registro_preco`, `fornecedores`, etc. Atas SRP, fornecedores e as telas de contratos (lista,
-execução, aditivos, vencimentos) ainda não existem; saíram do menu no P09 e voltam no P20/P21. A barra do módulo
-Contratos tem só o painel.
+`contratos`, `atas_registro_preco`, `fornecedores`, etc. Atas SRP, fornecedores e as telas de execução, aditivos e
+vencimentos dos contratos ainda não existem (voltam no P20/P21, entregas C2 a C6). Os menus seguem
+o ciclo: Compras tem PCA, Programação por natureza (`/compras/programacao`: disponível do QDD, reservado em
+processos e saldo livre), Processos de contratação e "Como funciona uma compra" (o guia `/processos/compras`, por
+último); Contratos tem o que vem depois do contrato assinado (Contratos, Passagens aéreas, Beneficiários e Pendências
+de passagens). O painel de Contratos mostra os contratos em vigor, os que vencem em até 90 dias, os sem gestor ou
+fiscal e o valor em vigor (cada número abre a lista já filtrada); os atalhos levam à lista, à importação, a passagens,
+pendências e processos de contratação, cada um só para quem tem a permissão; nenhum aponta mais para o guia de Compras.
+
+- **Contratos (entrega C1):** `/contratos/lista` lista os contratos com nº, processo SEI, objeto, contratado, setor,
+  gestor, valor atual e vigência (selo de prazo), com filtros de situação e de prazo (em vigor, vence em até 30, 60, 90
+  ou 120 dias, vencidos, sem gestor ou fiscal), busca, planilha e o botão "Importar planilha" (Central de Importações,
+  importador `contratos_planilha`, com simulação antes de gravar). A ficha (`/contratos/:id`) tem as abas Dados, Itens
+  (soma dos itens × valor do contrato), Gestor e fiscais (designar com a portaria do SEI, encerrar com data e motivo;
+  aviso quando falta gestor ou fiscal, art. 117 da Lei 14.133) e Histórico (quem mudou o quê); os botões copiam o nº SEI,
+  emitem a ficha em PDF, editam e apagam o rascunho. O contrato entra no localizador de processos do SEI. Cadastrar pede
+  `contratos.criar`, alterar pede `contratos.editar` e só o rascunho se apaga
+  ([spec](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)).
+
+- **Passagens aéreas (Contratos, entregas 1 a 3):** `/contratos/passagens` lista os pedidos, um por processo SEI, com
+  quem pediu, evento, passageiros, situação e valor emitido, e no alto o valor do contrato da agência, o emitido e o
+  saldo. A ficha (`/contratos/passagens/:id`) tem as abas Passageiros e trechos (cotações, emissão, remarcação,
+  cancelamento e reembolso de cada trecho), Prestação de contas, Dados e Histórico. Passageiro é servidor (com a viagem do RH, quando houver)
+  ou beneficiário de fora, cadastrado em `/contratos/passagens/beneficiarios` ou na hora. O ato fica no SEI: a aprovação
+  do Presidente é só registrada (nº do documento e data). Na Prestação de contas, cada passageiro entrega o cartão de
+  embarque e, no modo individual, o relatório (para servidor, vale o relatório apresentado no RH); no modo evento, um
+  relatório só, do responsável da delegação; dispensa sempre com motivo; anexos privados. `/contratos/passagens/pendencias`
+  lista quem voltou e não entregou, com vencimento e atraso; o pedido só conclui sem pendência.
+  `/contratos/passagens/faturas` (entrega 3) mostra o valor do contrato, o emitido, o faturado, o pago, o a faturar e o
+  saldo; a aba Faturas lança cada nota da agência com os bilhetes que ela cobre (a conferência mostra a diferença entre a
+  nota e os bilhetes) e anda com ela até paga, com o atesto, a liquidação e a OB; a aba A faturar lista os bilhetes sem
+  nota, com destaque depois de 30 dias; a aba Empenhos liga os empenhos do FIP 614 ao contrato e mostra o empenho de cada
+  ano × emitido. Lançar fatura e ligar empenho pedem `contratos.passagens.financeiro`. Saem a planilha de passagens por
+  período (filtre por pessoa ou instituição), a planilha de faturas e os PDFs do saldo e da ficha do pedido
+  ([spec](./superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md)).
 
 ## Financeiro (`financeiro`)
 
@@ -192,6 +236,13 @@ ERP orçamentário. `src/pages/financeiro/` (15 arquivos em 2026-10-11; o painel
 `RelatoriosFinanceiroPage` e `PlaceholderDetalheFinanceiroPage` (ainda usada em
 `/financeiro/solicitacoes/:id` e `/financeiro/empenhos/:id`).
 Fluxo: dotação (FIPLAN) → solicitação → empenho → liquidação → pagamento → arquivo do banco.
+- **Menu enxuto (26/10/2026).** O orçamento é do FIPLAN, então o menu traz só o que lê o FIPLAN ou o
+  complementa: Painel, QDD, Empenhos (FIP 614), Favorecidos, Contas Bancárias e Conciliação. Liquidações e
+  Pagamentos ficam no submenu **"Contingência (regularizar no FIPLAN)"**: lançamentos que não entram direto no
+  FIPLAN (FIPLAN fechado de janeiro a abril, tarifas bancárias, contas de convênio) e saem pela remessa OBN600,
+  regularizados depois no FIPLAN. O botão da tela de Empenhos virou "Empenho de contingência". Solicitações,
+  Sub-Empenhos, Restos a Pagar, Alterações Orçamentárias, Adiantamentos e Relatórios saíram do menu (e dos
+  atalhos do painel e do QDD); as rotas continuam no `App.tsx` até a limpeza do banco.
 Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md).
 
 - **O FIPLAN é a fonte da verdade do orçamento.** O `QDDPage` importa o PDF "Quadro de Detalhamento da
@@ -200,12 +251,21 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
   continua). O topo da tela traz os cartões de resumo do exercício (dotação atual, empenhado, saldo disponível)
   e o aviso "Atualizado pelo FIPLAN em <data> · <arquivo>" (ou "Ainda não importado"), lido do último registro
   em `importacoes`. Não há mais "Nova dotação": dotação vem do FIPLAN.
+- **Atualizar o Financeiro `/financeiro/atualizar`** (menu "Atualizar dados"): a rotina de arquivos que mantém o
+  módulo em dia, com um cartão por item: QDD e FIP 614 (semanal), retorno do banco (depois de cada remessa),
+  conciliação do mês (FIP 630, FIP 103, OFX e extrato do fundo; em dia até o dia 10 do mês seguinte) e Tabelas do
+  FIPLAN (anual). Cada cartão traz os passos no FIPLAN, a última importação (`importacoes`) ou o último mês fechado
+  (`fin_conciliacoes_mensais`), o selo em dia / atrasado / nunca importado e o botão que abre o importador
+  (`/admin/importacoes?importador=<id>`, só com a permissão dele). Rotina e regras em
+  `src/lib/financeiro/rotinaAtualizacao.ts` (com testes). O sistema não baixa nada do FIPLAN sozinho.
 - **Painel `/financeiro` (execução do exercício)**, calculado no navegador sobre o QDD (`fin_dotacoes`) e o
   FIP 614 (`fin_empenhos`), sem tabela própria. As contas ficam em `src/lib/financeiro/painelExecucao.ts` (com
   testes) e os quadros em `src/components/financeiro/painel/`:
-  - faixa com a data da última importação do QDD e do FIP 614 (amarela quando o QDD tem mais de 7 dias);
+  - faixa com a data da última importação do QDD e do FIP 614 (amarela quando o QDD tem mais de 7 dias), com o
+    link "Ver o que atualizar" para `/financeiro/atualizar`;
   - cartões de autorizado, empenhado, liquidado, pago, saldo para empenhar e reservado (PED). O saldo usa a conta
-    do FIPLAN (autorizado − empenhado − bloqueado − reserva − PED), não a coluna `saldo_disponivel`;
+    do FIPLAN (autorizado − bloqueado − PED, sendo o PED do QDD a soma do empenhado com a Cont./Reserva; vale o
+    maior entre o PED e empenhado + reserva), não a coluna `saldo_disponivel`;
   - execução por grupo de despesa, com gráfico e tabela;
   - alertas de saldo: dotações cujo saldo não cobre o resto do ano no ritmo do que já foi liquidado. Os
     vencimentos e as obrigações patronais contam o 13º;
@@ -240,6 +300,12 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
     BB por período de até 31 dias (`BancoDoBrasilApiPainel`, Edge Function `bb-api`). Só leitura: nenhum
     pagamento é feito pela API.
   Componentes em `src/components/financeiro/conciliacao/`; dados em `src/hooks/useConciliacaoBancaria.ts`.
+- **Convênios federais** (`/financeiro/convenios`, menu "Convênios federais", permissão
+  `financeiro.convenios.visualizar`): propostas, emendas e convênios com a União lidos todo dia do Transferegov, com
+  valor global, recebido, fim da vigência e alertas (sem assinatura, vigência ou prestação de contas a 60 dias ou
+  vencida). A ficha (`/financeiro/convenios/:id`) mostra a proposta, o convênio, as emendas (autor e valor) e os
+  empenhos e desembolsos da União. Só leitura: corrigir é no Transferegov. Aviso quando a rotina parou há mais de 3
+  dias. Spec: [`2026-10-29-convenios-federais-transferegov-design.md`](./superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md).
 
 ## Patrimônio (`patrimonio`) e Mobile (`patrimonio_mobile`)
 

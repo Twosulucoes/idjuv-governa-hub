@@ -1,45 +1,25 @@
 /**
- * Hook para estatísticas do dashboard de Contratos
+ * Hook para estatísticas do dashboard de Contratos: em vigor, vencendo em 90 dias, vencidos sem encerrar, sem gestor
+ * ou fiscal e o valor em vigor. As regras são as da lista (src/lib/contratos/lista.ts), para os números baterem.
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { countQuery, selectQuery, op } from "./queryUtils";
-import { addDays, format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { resumoPainel, type ResumoPainel } from "@/lib/contratos/lista";
+import type { ContratoLista } from "@/types/contratos";
 
-interface ContratosStats {
-  contratosVigentes: number;
-  aVencer90Dias: number;
-  aditivosPendentes: number;
-  valorTotal: number;
-}
+type LinhaPainel = Pick<ContratoLista, "status" | "data_fim" | "data_fim_atual" | "valor_atual"> & {
+  responsaveis: Pick<ContratoLista["responsaveis"][number], "papel" | "data_fim">[];
+};
 
-async function fetchContratosStats(): Promise<ContratosStats> {
-  const hoje = new Date();
-  const em90Dias = addDays(hoje, 90);
-  const hojeStr = format(hoje, "yyyy-MM-dd");
-  const em90DiasStr = format(em90Dias, "yyyy-MM-dd");
-
-  const [contratosData, aditivosPendentes] = await Promise.all([
-    selectQuery<{ valor_atual: number; data_fim_atual: string }>(
-      "contratos",
-      "valor_atual, data_fim_atual",
-      { status: "vigente", data_fim_atual: op.gte(hojeStr) }
-    ),
-    countQuery("aditivos_contrato", { data_publicacao_doe: null }),
-  ]);
-
-  const aVencer90Dias = contratosData.filter(
-    c => c.data_fim_atual && c.data_fim_atual >= hojeStr && c.data_fim_atual <= em90DiasStr
-  ).length;
-
-  const valorTotal = contratosData.reduce((acc, c) => acc + (c.valor_atual || 0), 0);
-
-  return {
-    contratosVigentes: contratosData.length,
-    aVencer90Dias,
-    aditivosPendentes,
-    valorTotal,
-  };
+async function fetchContratosStats(): Promise<ResumoPainel> {
+  const { data, error } = await supabase
+    .from("contratos")
+    .select("status, data_fim, data_fim_atual, valor_atual, responsaveis:contrato_responsaveis(papel, data_fim)")
+    .not("status", "in", "(rascunho,encerrado,rescindido)")
+    .range(0, 999);
+  if (error) throw error;
+  return resumoPainel((data ?? []) as unknown as LinhaPainel[]);
 }
 
 export function useContratosDashboardStats() {

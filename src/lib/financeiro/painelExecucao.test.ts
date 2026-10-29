@@ -25,17 +25,32 @@ const dot = (natureza: string | null, v: Partial<DotacaoPainel> = {}): DotacaoPa
   ...v,
 });
 
-// Fictícia, mas com os totais conferidos no FIPLAN em 23/10/2026 (FIP 613 + FIP 608)
+// Fictícia, mas com os totais conferidos no FIPLAN em 23/10/2026 (FIP 613 + FIP 608). Como no QDD, o PED é
+// acumulado: empenhado + Cont./Reserva.
 const fixture: DotacaoPainel[] = [
-  dot("31901100", { valor_atual: 4251000, valor_empenhado: 4230670.92, valor_liquidado: 4041458.46, valor_pago: 4041458.46 }),
-  dot("33504100", { valor_atual: 28321670, valor_empenhado: 16653365.63, valor_liquidado: 14886115.63, valor_pago: 14886115.63, valor_ped: 3899946.56 }),
-  dot("33903000", { valor_atual: 361000, valor_bloqueado: 70000, valor_ped: 64290 }),
+  dot("31901100", {
+    valor_atual: 4251000,
+    valor_empenhado: 4230670.92,
+    valor_liquidado: 4041458.46,
+    valor_pago: 4041458.46,
+    valor_ped: 4230670.92,
+  }),
+  dot("33504100", {
+    valor_atual: 28321670,
+    valor_empenhado: 16653365.63,
+    valor_liquidado: 14886115.63,
+    valor_pago: 14886115.63,
+    valor_reserva: 3899946.56,
+    valor_ped: 20553312.19,
+  }),
+  dot("33903000", { valor_atual: 361000, valor_bloqueado: 70000, valor_reserva: 64290, valor_ped: 64290 }),
   dot("33903300", {
     valor_atual: 10898080.82,
     valor_empenhado: 5786797.87,
     valor_liquidado: 3465794.28,
     valor_pago: 1262346.77,
-    valor_ped: 1712182.44,
+    valor_reserva: 1712182.44,
+    valor_ped: 7498980.31,
   }),
 ];
 
@@ -49,6 +64,21 @@ describe("resumirExecucao", () => {
     expect(r.reservado).toBeCloseTo(5676419, 2);
     expect(r.saldoEmpenhar).toBeCloseTo(11414497.4, 2);
     expect(r.pctPago).toBeCloseTo(46.06, 2);
+  });
+
+  it("não desconta o empenhado nem a reserva duas vezes (o PED do QDD já soma os dois)", () => {
+    const r = resumirExecucao(fixture);
+    expect(r.saldoEmpenhar).toBeGreaterThan(0);
+    expect(r.autorizado - r.bloqueado - r.empenhado - r.reservado).toBeCloseTo(r.saldoEmpenhar, 2);
+  });
+
+  it("PED zerado ou menor que o empenhado: vale empenhado + reserva", () => {
+    const r = resumirExecucao([
+      dot("33903900", { valor_atual: 1000, valor_empenhado: 300, valor_reserva: 100, valor_ped: 0 }),
+      dot("33903000", { valor_atual: 1000, valor_empenhado: 300, valor_reserva: 0, valor_ped: 250 }),
+    ]);
+    expect(r.saldoEmpenhar).toBe(600 + 700);
+    expect(r.reservado).toBe(100);
   });
 
   it("lista vazia dá zeros, sem NaN", () => {

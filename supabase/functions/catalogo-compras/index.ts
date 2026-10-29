@@ -1,13 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { CABECALHOS_CLIENTE_SUPABASE, montarCors } from "../_shared/cors.ts";
-import { mapearItemMaterial, mapearPdm, mapearServico, urlPortal } from "./portal.ts";
+import { mapearItemMaterial, mapearNatureza, mapearPdm, mapearServico, urlPortal } from "./portal.ts";
 
 // Ponte com o catálogo CATMAT/CATSER do portal de dados abertos do Compras.gov.br, para o PCA (módulo compras).
 // O navegador não chama o portal direto: ele recusa CORS e a CSP do app só libera o Supabase.
 //   sincronizar  uma página (500) de PDMs ou de serviços → cat_material_pdms / cat_servicos; na última, a data em
 //                cat_sincronizacoes. Exige compras.pca.editar.
 //   itens_pdm    itens ativos de um PDM, só leitura (até 500). Exige compras.pca.visualizar ou editar.
+//   naturezas    naturezas de despesa que o catálogo indica para um PDM ou serviço, só leitura (até 500; o front
+//                filtra e casa com as naturezas do estado). Exige compras.pca.visualizar ou editar.
 //   gravar_item  grava em cat_material_itens o item escolhido (e o PDM dele, se faltar). Exige compras.pca.editar.
 // A escrita usa a service role; a permissão é conferida antes com o token do próprio usuário.
 
@@ -60,7 +62,7 @@ serve(async (req) => {
 
     const pedido = await req.json().catch(() => null);
     const acao = pedido?.acao;
-    if (!["sincronizar", "itens_pdm", "gravar_item"].includes(acao)) return respostaJson(cors, 400, { error: "Pedido inválido" });
+    if (!["sincronizar", "itens_pdm", "gravar_item", "naturezas"].includes(acao)) return respostaJson(cors, 400, { error: "Pedido inválido" });
 
     const [{ data: temModulo, error: e1 }, { data: podeEditar, error: e2 }, { data: podeVer, error: e3 }] = await Promise.all([
       supabaseUser.rpc("can_access_module", { _user_id: caller.id, _module: "compras" }),
@@ -68,7 +70,8 @@ serve(async (req) => {
       supabaseUser.rpc("has_permission_code", { _user_id: caller.id, _permission: "compras.pca.visualizar" }),
     ]);
     if (e1 || e2 || e3) return respostaJson(cors, 500, { error: "Falha ao validar permissões" });
-    const autorizado = temModulo && (acao === "itens_pdm" ? podeEditar || podeVer : podeEditar);
+    const soLeitura = acao === "itens_pdm" || acao === "naturezas";
+    const autorizado = temModulo && (soLeitura ? podeEditar || podeVer : podeEditar);
     if (!autorizado) return respostaJson(cors, 403, { error: "Acesso negado. Requer a permissão do PCA." });
 
     if (acao === "itens_pdm") {
@@ -78,6 +81,16 @@ serve(async (req) => {
       const itens = pagina.resultado.map(mapearItemMaterial).filter((i) => i && i.ativo)
         .map((i) => ({ codigoItem: i!.codigo_item, descricao: i!.descricao, sustentavel: i!.sustentavel }));
       return respostaJson(cors, 200, { itens });
+    }
+
+    if (acao === "naturezas") {
+      const codigo = inteiroPositivo(pedido.codigo);
+      if (!codigo || (pedido.tipo !== "material" && pedido.tipo !== "servico")) return respostaJson(cors, 400, { error: "Pedido inválido" });
+      const url = pedido.tipo === "material"
+        ? urlPortal("naturezas_pdm", { codigoPdm: codigo })
+        : urlPortal("naturezas_servico", { codigoServico: codigo });
+      const naturezas = (await lerPortal(url)).resultado.map(mapearNatureza).filter(Boolean);
+      return respostaJson(cors, 200, { naturezas });
     }
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {

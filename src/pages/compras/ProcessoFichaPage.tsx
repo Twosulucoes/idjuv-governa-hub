@@ -1,12 +1,13 @@
 /**
- * Ficha do processo de contratação: abas Dados, Andamento (linha do tempo do SEI) e Empenhos (FIP 614 pelo nº SEI).
- * A aba Reservas (natureza × ação × fonte, saldo livre e PED) entra na entrega 2 da spec
- * 2026-10-23-compras-processos-reserva-natureza-design.md.
+ * Ficha do processo de contratação: abas Dados, Reservas (natureza × ação × fonte do QDD, com saldo livre), Andamento
+ * (linha do tempo do SEI) e Financeiro (fase, PEDs do "Consultar PED" e empenhos do FIP 614 pelo nº do processo).
+ * Spec: docs/superpowers/specs/2026-10-23-compras-processos-reserva-natureza-design.md
  */
 
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil } from "lucide-react";
+import { LinhaDoTempoFases } from "@/components/compras/processos/EvolucaoProcesso";
 import { ModuleLayout } from "@/components/layout";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
@@ -15,17 +16,26 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NovaMovimentacaoDialog } from "@/components/compras/processos/NovaMovimentacaoDialog";
 import { ProcessoAndamentoTab } from "@/components/compras/processos/ProcessoAndamentoTab";
-import { ProcessoEmpenhosTab } from "@/components/compras/processos/ProcessoEmpenhosTab";
+import { ProcessoFinanceiroTab } from "@/components/compras/processos/ProcessoFinanceiroTab";
 import { ProcessoFormDialog } from "@/components/compras/processos/ProcessoFormDialog";
+import { ProcessoReservasTab } from "@/components/compras/processos/ProcessoReservasTab";
+import { ReservaFormDialog } from "@/components/compras/processos/ReservaFormDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
+import { faseFinanceira } from "@/lib/compras/faseFinanceira";
 import {
   somarEmpenhado,
   useAndamentos,
+  useCancelarReserva,
   useEmpenhosDosProcessos,
+  useFinanceiroDosProcessos,
   useNovaMovimentacao,
+  usePedsDoProcesso,
   useProcesso,
+  useReservasDoProcesso,
   useSalvarProcesso,
+  useSalvarReserva,
+  type ReservaDoProcesso,
 } from "@/hooks/useProcessosContratacao";
 import { rotuloEtapa, rotuloForma, type ProcessoContratacao } from "@/types/processos";
 
@@ -73,12 +83,25 @@ export default function ProcessoFichaPage() {
   const processo = useProcesso(id);
   const andamentos = useAndamentos(id);
   const empenhos = useEmpenhosDosProcessos(id);
+  const reservas = useReservasDoProcesso(id);
+  const peds = usePedsDoProcesso(id);
+  const financeiro = useFinanceiroDosProcessos();
   const salvar = useSalvarProcesso();
   const movimentar = useNovaMovimentacao();
+  const salvarReserva = useSalvarReserva();
+  const cancelarReserva = useCancelarReserva();
   const [editando, setEditando] = useState(false);
   const [movimentando, setMovimentando] = useState(false);
+  const [reservaAberta, setReservaAberta] = useState(false);
+  const [reservaEmEdicao, setReservaEmEdicao] = useState<ReservaDoProcesso | null>(null);
 
   const p = processo.data;
+  const financeiroDoProcesso = p ? financeiro.data?.get(p.id) : undefined;
+  const fase = faseFinanceira(financeiroDoProcesso);
+  const abrirReserva = (r: ReservaDoProcesso | null) => {
+    setReservaEmEdicao(r);
+    setReservaAberta(true);
+  };
   const migalhas = [
     { rotulo: "Compras", href: "/compras" },
     { rotulo: "Processos", href: "/compras/processos" },
@@ -107,11 +130,25 @@ export default function ProcessoFichaPage() {
       <Tabs defaultValue="dados">
         <TabsList>
           <TabsTrigger value="dados">Dados</TabsTrigger>
+          <TabsTrigger value="reservas">Reservas</TabsTrigger>
           <TabsTrigger value="andamento">Andamento</TabsTrigger>
-          <TabsTrigger value="empenhos">Empenhos</TabsTrigger>
+          <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
         </TabsList>
         <TabsContent value="dados" className="mt-4">
           <Dados p={p} empenhado={empenhos.data?.length ? somarEmpenhado(empenhos.data).get(p.id) : undefined} />
+        </TabsContent>
+        <TabsContent value="reservas" className="mt-4">
+          <ProcessoReservasTab
+            reservas={reservas.data}
+            carregando={reservas.isLoading}
+            erro={reservas.isError}
+            aoTentarNovamente={() => reservas.refetch()}
+            podeEditar={podeEditar}
+            aoNovaReserva={() => abrirReserva(null)}
+            aoEditar={abrirReserva}
+            cancelando={cancelarReserva.isPending}
+            aoCancelar={(r, motivo) => cancelarReserva.mutateAsync({ id: r.id, motivo, processoId: p.id })}
+          />
         </TabsContent>
         <TabsContent value="andamento" className="mt-4">
           <ProcessoAndamentoTab
@@ -123,12 +160,12 @@ export default function ProcessoFichaPage() {
             aoNovaMovimentacao={() => setMovimentando(true)}
           />
         </TabsContent>
-        <TabsContent value="empenhos" className="mt-4">
-          <ProcessoEmpenhosTab
-            empenhos={empenhos.data}
-            carregando={empenhos.isLoading}
-            erro={empenhos.isError}
-            aoTentarNovamente={() => empenhos.refetch()}
+        <TabsContent value="financeiro" className="mt-4">
+          <ProcessoFinanceiroTab
+            financeiro={financeiroDoProcesso}
+            carregandoFinanceiro={financeiro.isLoading}
+            peds={peds}
+            empenhos={empenhos}
           />
         </TabsContent>
       </Tabs>
@@ -142,7 +179,14 @@ export default function ProcessoFichaPage() {
           titulo={p ? (p.objeto_resumido ?? p.numero_processo) : "Processo de contratação"}
           descricao={p ? `Processo SEI ${p.numero_processo}` : undefined}
           migalhas={migalhas}
-          status={p && <StatusBadge tom="andamento" icone={false}>{rotuloEtapa(p.etapa)}</StatusBadge>}
+          status={
+            p && (
+              <span className="flex flex-wrap gap-2">
+                <StatusBadge tom="andamento" icone={false}>{rotuloEtapa(p.etapa)}</StatusBadge>
+                <StatusBadge tom={fase.tom} icone={false}>{fase.rotulo}</StatusBadge>
+              </span>
+            )
+          }
           acoes={
             podeEditar && p ? (
               <Button variant="outline" onClick={() => setEditando(true)}>
@@ -152,6 +196,7 @@ export default function ProcessoFichaPage() {
             ) : undefined
           }
         />
+        {p && <LinhaDoTempoFases processo={p} andamentos={andamentos.data ?? []} />}
         {conteudo}
       </div>
 
@@ -170,6 +215,14 @@ export default function ProcessoFichaPage() {
             processo={p}
             salvando={movimentar.isPending}
             onSalvar={(dados) => movimentar.mutateAsync(dados)}
+          />
+          <ReservaFormDialog
+            open={reservaAberta}
+            onOpenChange={setReservaAberta}
+            processo={p}
+            reserva={reservaEmEdicao}
+            salvando={salvarReserva.isPending}
+            onSalvar={(dados) => salvarReserva.mutateAsync(dados)}
           />
         </>
       )}

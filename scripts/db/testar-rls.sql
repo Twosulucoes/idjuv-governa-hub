@@ -105,11 +105,26 @@ INSERT INTO seed_ov VALUES
   ('fin_conciliacao_itens', '{"lado":"bancario","natureza":"debito","valor":1,"situacao":"pendente","origem":"mes","item_origem_id":null,"grupo":null,"regra":null,"re":null,"nob":null}'),
   -- empenho sem favorecido nem dotação só com origem fiplan (fin_empenhos_sistema_vinculos_check, migração 20261027090000)
   ('fin_empenhos', '{"origem":"fiplan","credor_codigo_fiplan":"2001.00001-1","credor_nome":"Credor Teste"}'),
-  -- emenda: IDU de emenda (fin_emendas_idu_check), valor positivo e sem CNPJ (migração 20261030090000)
+  -- emenda: IDU de emenda (fin_emendas_idu_check), valor positivo e sem CNPJ (migração 20261108090000)
   ('fin_emendas', '{"idu":"EII","valor":1,"valor_reservado":0,"beneficiario_cnpj":null,"exercicio":2026}'),
   -- item do PCA: serviço do catálogo, sem PDM nem item de material (pca_itens_catalogo_check, migração 20261028090000)
   ('pca_itens', '{"tipo":"servico","codigo_servico":1,"codigo_pdm":null,"codigo_item":null,"quantidade":1,"valor_unitario":1,"mes_desejado":1,"numero_sei":"SEI-1","descricao":"Teste","unidade_fornecimento":"UN"}'),
-  ('cat_sincronizacoes', '{"tipo":"pdm"}');
+  ('cat_sincronizacoes', '{"tipo":"pdm"}'),
+  -- passagens aéreas (migração 20261031090000): CPF com 11 dígitos; pedido de instituição pelo nome; passageiro
+  -- beneficiário (um dos dois); trecho a cotar, sem localizador
+  ('passagem_beneficiarios', '{"cpf":"00000000191","nome":"Beneficiário Teste"}'),
+  ('passagem_pedidos', '{"solicitante_tipo":"instituicao","solicitante_nome":"Federação Teste","situacao":"recebido","destino_uf":"RR","data_inicio":null,"data_fim":null}'),
+  ('passagem_passageiros', '{"servidor_id":null,"viagem_id":null,"beneficiario_id":"b0000000-0000-0000-0000-0000000000b1"}'),
+  ('passagem_trechos', '{"situacao":"a_cotar","localizador":null,"partida":null,"chegada":null}'),
+  ('passagem_cotacoes', '{"escolhida":false,"partida":null,"chegada":null}'),
+  -- anexo das passagens (migração 20261101090000): o caminho começa pelo id do pedido (passagem_anexos_caminho_pedido_check)
+  ('passagem_anexos', '{"pedido_id":"d0000000-0000-0000-0000-0000000000d1","passageiro_id":null,"caminho":"d0000000-0000-0000-0000-0000000000d1/seed.pdf"}'),
+  -- fatura das passagens (migração 20261103090000): valor positivo e recebida (sem atesto nem OB)
+  ('passagem_faturas', '{"valor":1,"situacao":"recebida","cancelamento_motivo":null}'),
+  -- espelho do Transferegov (migração 20261105090000): CNPJ com 14 dígitos; movimento é empenho ou desembolso
+  ('fin_tg_propostas', '{"cnpj_proponente":"00000000000191"}'),
+  ('fin_tg_sincronizacoes', '{"cnpj":"00000000000191"}'),
+  ('fin_tg_movimentos', '{"tipo":"empenho"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -344,9 +359,9 @@ $$;
 CREATE FUNCTION pg_temp.excluir_de(classe text, extra text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE WHEN classe IN ('permissao', 'proprio_leitura', 'modulo', 'catalogo_admin') THEN (regexp_match(extra, '(^|;)excluir=([^;]+)'))[2] END
 $$;
--- ;leitura=a|b (permissao, E3): códigos exigidos, além do módulo, para ler; NULL se não há (o módulo lê)
+-- ;leitura=a|b (permissao, E3; trilha, passagens): códigos exigidos, além do módulo, para ler; NULL se não há (o módulo lê)
 CREATE FUNCTION pg_temp.codigos_leitura(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
-  SELECT CASE WHEN classe = 'permissao' THEN string_to_array((regexp_match(extra, '(^|;)leitura=([^;]+)'))[2], '|') END
+  SELECT CASE WHEN classe IN ('permissao', 'trilha') THEN string_to_array((regexp_match(extra, '(^|;)leitura=([^;]+)'))[2], '|') END
 $$;
 -- altera=a|b (modulo, P14 entrega 4): códigos exigidos, além do módulo, para o UPDATE; NULL se não há
 CREATE FUNCTION pg_temp.codigos_altera(classe text, extra text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
@@ -1205,7 +1220,7 @@ BEGIN
     SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef AND p.prorettype <> 'trigger'::regtype
       AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
-      AND NOT (p.prosrc ~* 'auth\.uid\(\)|can_access_module|is_admin_user|is_admin_atual|usuario_tem_permissao|has_permission_code|usuario_eh_admin|usuario_eh_super_admin|is_active_user|perfil_ativo_atual|pode_gerenciar_avisos|pode_configurar_envios|pode_ver_envios|wf_pode_ver_processo')
+      AND NOT (p.prosrc ~* 'auth\.uid\(\)|can_access_module|is_admin_user|is_admin_atual|usuario_tem_permissao|has_permission_code|usuario_eh_admin|usuario_eh_super_admin|is_active_user|perfil_ativo_atual|pode_gerenciar_avisos|pode_configurar_envios|pode_ver_envios|wf_pode_ver_processo|processos_leitura_permitida|contrato_pode_gravar')
       AND p.proname <> ALL (permitidas)
   LOOP
     PERFORM pg_temp.falha('SECURITY DEFINER sem checagem de quem chama e executável por authenticated: ' || f.proname || '(' || f.args || ')');
@@ -7887,6 +7902,1093 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('COMPRAS PROCESSOS: nº SEI sem espaço, andamento só com compras.processos.editar, estado atual pela movimentação mais recente, andamento não se apaga, empenhos pelo nº SEI e importação (simulação, aplicação e reimportação) verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Compras: reservas e PEDs (migração 20261030090000) (TRIGGERS LIGADOS)
+-- Migração 20261030090000_compras_processos_reservas_peds.sql (spec §10, plano 2026-10-24-compras-processos-entrega2.md):
+--   * processo_chave_fiplan iguala nº SEI, nº do FIPLAN e do FIP 614; contas internas sem EXECUTE para a API;
+--   * fin_peds e processo_reservas: ninguém grava direto; fin_peds só o módulo financeiro lê;
+--   * importar_peds_fiplan: sem orcamento.importar no financeiro = 42501; simulação não grava; reimportar não muda;
+--   * saldo livre = disponível do QDD (atual − bloqueado − PED) − pendente das outras reservas; justificativa quando falta;
+--   * PED autorizado e empenho do processo saem do pendente; leituras exigem ver processos ou o módulo financeiro.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_compras');
+  u_finm uuid := (SELECT uid FROM persona WHERE nome = 'mod_financeiro');
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000009a1';   -- módulo financeiro + orcamento.importar
+  a1 uuid := 'f7000000-0000-0000-0000-0000000000a1';
+  f1 uuid := 'f7000000-0000-0000-0000-0000000000f1';
+  n1 uuid := 'f7000000-0000-0000-0000-0000000000b1';
+  d1 uuid := 'f7000000-0000-0000-0000-0000000000d1';
+  p1 uuid; p2 uuid; res1 uuid; res2 uuid; r text; x text; linhas jsonb; j jsonb;
+  arq jsonb := jsonb_build_object('nome', 'ped.xls', 'sha256', repeat('ab', 32), 'tamanho', 1024);
+BEGIN
+  IF to_regclass('public.fin_peds') IS NULL OR to_regclass('public.processo_reservas') IS NULL THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: tabelas da migração 20261030090000 não existem');
+    RETURN;
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.fin_dotacao_do_fiplan(integer, text)',
+                           'public.fin_dotacao_disponivel(numeric, numeric, numeric, numeric, numeric)',
+                           'public.processos_leitura_permitida()', 'public.processos_execucao(integer)',
+                           'public.processo_reservas_pendentes(integer)',
+                           'public.processo_saldo_livre_calc(integer, uuid, uuid, uuid, uuid)'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('COMPRAS RESERVAS: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  FOREACH x IN ARRAY ARRAY['public.importar_peds_fiplan(integer, jsonb, jsonb, boolean)',
+                           'public.processo_reserva_salvar(uuid, uuid, integer, uuid, uuid, uuid, numeric, uuid, text)',
+                           'public.programacao_por_natureza(integer)'] LOOP
+    IF has_function_privilege('anon', x, 'EXECUTE') THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: anon executa ' || x); END IF;
+  END LOOP;
+
+  r := (SELECT string_agg(COALESCE(public.processo_chave_fiplan(v), 'nulo'), ',')
+          FROM unnest(ARRAY['17302.000885/2026.92', '17302.000885/2026-92', '000885/26-92', '00000885/26-92', 'sem número']) v);
+  IF r IS DISTINCT FROM '885/26-92,885/26-92,885/26-92,885/26-92,nulo' THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: chave do processo (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+
+  -- Cenário: dotação de 2098 com atual 1000, empenhado 100, reserva 50 e PED 150 (o PED do QDD soma os dois):
+  -- disponível 850.
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'res_imp@teste.invalid');
+  PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_imp, 'email', 'res_imp@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES (u_imp, 'financeiro', '{orcamento.importar}');
+  PERFORM pg_temp.seed_row('fin_acoes_orcamentarias', jsonb_build_object('id', a1, 'codigo', '2544', 'nome', 'Ação de teste'));
+  PERFORM pg_temp.seed_row('fin_fontes_recurso', jsonb_build_object('id', f1, 'codigo', '1500', 'nome', 'Fonte de teste'));
+  PERFORM pg_temp.seed_row('fin_naturezas_despesa', jsonb_build_object('id', n1, 'codigo', '33903900', 'nome', 'Outros serviços PJ'));
+  INSERT INTO public.fin_dotacoes (id, exercicio, codigo_dotacao, acao_id, fonte_recurso_id, natureza_despesa_id,
+                                   valor_inicial, valor_empenhado, valor_reserva, valor_ped)
+  VALUES (d1, 2098, '08.244.030.2544.9900.33903900.1.500.0000.EII', a1, f1, n1, 1000, 100, 50, 150);
+  SET LOCAL session_replication_role = origin;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processos_licitatorios (numero_processo, ano, objeto) VALUES ('99999.000003/2098.03', 2098, 'Reserva 1') RETURNING id INTO p1;
+  INSERT INTO public.processos_licitatorios (numero_processo, ano, objeto) VALUES ('99999.000004/2098.04', 2098, 'Reserva 2') RETURNING id INTO p2;
+
+  -- ninguém grava direto nas tabelas
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_reservas (processo_id, exercicio, acao_id, fonte_recurso_id, natureza_despesa_id, valor) VALUES (%L, 2098, %L, %L, %L, 1) RETURNING id::text', p1, a1, f1, n1));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: reserva gravada direto na tabela (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_imp, 'authenticated',
+    'INSERT INTO public.fin_peds (exercicio, numero, valor, situacao) VALUES (2098, ''17302.0001.98.00001-1'', 1, ''x'') RETURNING id::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: PED gravado direto na tabela (' || r || ')'); END IF;
+
+  -- importação dos PEDs: PED autorizado de 50 do processo 1 (formato do FIPLAN) e o documento de estorno de outro
+  linhas := jsonb_build_array(
+    jsonb_build_object('indice', 0, 'numero', '17302.0001.98.00001-1', 'processo_fiplan', '000003/98-03',
+      'processo_sei', '17302.000003/2098.03', 'valor', 50, 'situacao', 'Pedido (PED) autorizado', 'estorno', false,
+      'data_autorizacao', '2098-03-01', 'dotacao', '17302.0001.08.244.030.2544.9900.33903900.1500.0000.6.1',
+      'credor_nome', 'CREDOR DE TESTE'),
+    jsonb_build_object('indice', 1, 'numero', '17302.0001.98.00003-8', 'numero_estorno', '17302.0001.98.00002-1',
+      'processo_fiplan', '000003/98-03', 'valor', 70, 'situacao', 'Documento de Estorno', 'estorno', true,
+      'dotacao', '17302.0001.08.244.030.2544.9900.33903900.1500.0000.6.1'));
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'SELECT public.importar_peds_fiplan(2098, %L::jsonb, ''{}''::jsonb, true)::text', linhas));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: Compras importa PED (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_imp, 'role', 'authenticated')::text, true);
+  r := public.importar_peds_fiplan(2098, linhas, '{}'::jsonb, true)->>'totais';
+  IF r IS DISTINCT FROM '{"inserir": 2, "atualizar": 0, "sem_alteracao": 0}' OR EXISTS (SELECT 1 FROM public.fin_peds WHERE exercicio = 2098) THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: simulação da importação de PED (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  r := (public.importar_peds_fiplan(2098, linhas, arq, false)->>'totais') || '|' || (public.importar_peds_fiplan(2098, linhas, arq, false)->>'totais');
+  IF r IS DISTINCT FROM '{"inserir": 2, "atualizar": 0, "sem_alteracao": 0}|{"inserir": 0, "atualizar": 0, "sem_alteracao": 2}' THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: aplicar a importação de PED duas vezes (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  IF (SELECT dotacao_id FROM public.fin_peds WHERE numero = '17302.0001.98.00001-1') IS DISTINCT FROM d1 THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: PED não ligou à dotação do QDD pelo IDU');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT count(*)::text FROM public.fin_peds WHERE exercicio = 2098');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: Compras lê fin_peds (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_finm, 'authenticated', 'SELECT count(*)::text FROM public.fin_peds WHERE exercicio = 2098');
+  IF r IS DISTINCT FROM '2' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: Financeiro não lê fin_peds (' || r || ')'); END IF;
+
+  -- saldo livre sem reservas: 850
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT public.processo_saldo_livre(2098, %L, %L, %L)::text', a1, f1, n1));
+  IF r IS DISTINCT FROM '850.00' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: saldo livre inicial (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT public.processo_saldo_livre(2098, %L, %L, %L)::text', a1, f1, n1));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: módulo sem permissão vê saldo (' || r || ')'); END IF;
+
+  -- reservas: visualizar recusa; 300 no processo 1 (pendente 250, o PED de 50 já está no QDD); 700 no processo 2
+  -- passa do saldo (600): sem justificativa recusa, com justificativa grava
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT public.processo_reserva_salvar(NULL, %L, 2098, %L, %L, %L, 300)::text', p1, a1, f1, n1));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: visualizar grava reserva (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  j := public.processo_reserva_salvar(NULL, p1, 2098, a1, f1, n1, 300);
+  res1 := (j->>'id')::uuid;
+  IF (j->>'faltou')::boolean OR (j->>'saldo_livre')::numeric <> 850 THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: primeira reserva (' || j::text || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'SELECT public.processo_reserva_salvar(NULL, %L, 2098, %L, %L, %L, 700)::text', p2, a1, f1, n1));
+  IF r NOT LIKE 'erro:P0001:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: reserva sem saldo e sem justificativa (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  j := public.processo_reserva_salvar(NULL, p2, 2098, a1, f1, n1, 700, NULL, 'Emenda reforça a dotação no mês que vem');
+  res2 := (j->>'id')::uuid;
+  IF NOT (j->>'faltou')::boolean OR (j->>'saldo_livre')::numeric <> 600
+     OR (SELECT justificativa_saldo FROM public.processo_reservas WHERE id = res2) IS NULL THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: reserva com justificativa (' || j::text || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'SELECT public.processo_reserva_salvar(NULL, %L, 2098, %L, %L, %L, 1, NULL, ''repetida de propósito'')::text', p1, a1, f1, n1));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: duas reservas na mesma combinação (' || r || ')'); END IF;
+
+  -- empenho do processo 1 (nº SEI com hífen): 120 empenhado, 20 estornado, 40 liquidado, 10 pago
+  PERFORM set_config('request.jwt.claims', '', true);
+  SET LOCAL session_replication_role = replica;
+  PERFORM pg_temp.seed_row('fin_empenhos', jsonb_build_object('id', 'f7000000-0000-0000-0000-0000000000e1', 'numero', '17302.0001.98.00009-9',
+    'exercicio', 2098, 'valor_empenhado', 120, 'valor_anulado', 20, 'valor_liquidado', 40, 'valor_pago', 10, 'objeto', 'Teste',
+    'processo_sei', '17302.000003/2098-03', 'dotacao_id', d1, 'natureza_despesa_id', n1, 'fonte_recurso_id', f1, 'origem', 'fiplan'));
+  SET LOCAL session_replication_role = origin;
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT string_agg(concat_ws('':'', reservado, pendente, ped_autorizado, empenhado, liquidado, pago), '','') FROM public.processos_financeiro(2098) WHERE processo_id = %L', p1));
+  IF r IS DISTINCT FROM '300.00:150.00:50.00:100.00:40.00:10.00' THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: totais financeiros do processo (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_finm, 'authenticated', format(
+    'SELECT concat_ws('':'', saldo_fiplan, pendente_processos, saldo_livre, jsonb_array_length(processos)) FROM public.programacao_por_natureza(2098) WHERE natureza_despesa_id = %L', n1));
+  IF r IS DISTINCT FROM '850.00:850.00:0.00:2' THEN
+    PERFORM pg_temp.falha('COMPRAS RESERVAS: programação por natureza (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT string_agg(numero || '':'' || valor::text, '','') FROM public.processo_peds(%L)', p1));
+  IF r IS DISTINCT FROM '17302.0001.98.00001-1:50.00' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: PEDs do processo (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT string_agg(numero, '','') FROM public.processo_empenhos(%L)', p1));
+  IF r IS DISTINCT FROM '17302.0001.98.00009-9' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: empenho pela chave (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT count(*)::text FROM public.processo_reservas_detalhe(%L)', p1));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: módulo sem permissão vê reservas (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT string_agg(concat_ws('':'', valor, materializado, pendente, saldo_livre), '','') FROM public.processo_reservas_detalhe(%L)', p1));
+  IF r IS DISTINCT FROM '300.00:150.00:150.00:0.00' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: detalhe da reserva (' || COALESCE(r, 'nulo') || ')'); END IF;
+
+  -- cancelar a reserva 2 libera o saldo: 850 − 150 = 700
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  PERFORM public.processo_reserva_cancelar(res2, 'Processo desistiu da compra');
+  r := public.processo_saldo_livre(2098, a1, f1, n1)::text;
+  IF r IS DISTINCT FROM '700.00' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: saldo depois do cancelamento (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'WITH d AS (DELETE FROM public.processo_reservas WHERE id = %L RETURNING 1) SELECT count(*)::text FROM d', res1));
+  IF r NOT LIKE 'erro:42501:%' AND r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: reserva apagada pela API (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('COMPRAS RESERVAS: chave do processo, PEDs só pelo Financeiro (importação, simulação e reimportação), saldo livre pelo disponível do QDD, justificativa quando falta, PED e empenho fora do pendente, leituras com permissão e cancelamento verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Contratos: passagens aéreas (migração 20261031090000) (TRIGGERS LIGADOS)
+-- Migração 20261031090000_contratos_passagens.sql (spec docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md):
+--   * só contratos.passagens.editar grava (visualizar = 42501); nº SEI e CPF únicos (23505);
+--   * o banco copia o nome do solicitante e do passageiro (servidor ou beneficiário);
+--   * aprovado sem documento SEI e emitido sem localizador = 23514; valor_emissao = tarifa + taxas − desconto;
+--   * trecho com localizador não se apaga (42501); trilha da criação e das situações com o autor;
+--   * passagem_buscar_servidores e passagem_viagens_servidor só com editar (% e _ do termo são texto);
+--   * trilha lida só com a permissão de passagens; gatilhos sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.visualizar');
+  srv uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'servidores');
+  srv_nome text;
+  benef uuid; pedido uuid; pass_b uuid; pass_s uuid; trecho uuid; r text; x text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.passagem_carimbar()', 'public.passagem_copiar_nome()',
+                           'public.passagem_proteger_emitido()', 'public.passagem_registrar_historico()',
+                           'public.passagem_propagar_nome_beneficiario()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('PASSAGENS: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  SELECT nome_completo INTO srv_nome FROM public.servidores WHERE id = srv;
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    'INSERT INTO public.passagem_beneficiarios (nome, cpf) VALUES (''Atleta Teste'', ''52998224725'') RETURNING id::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS: só visualizar grava beneficiário (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.passagem_beneficiarios (nome, cpf) VALUES ('Atleta Teste', '52998224725') RETURNING id INTO benef;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated',
+    'INSERT INTO public.passagem_beneficiarios (nome, cpf) VALUES (''Outro'', ''52998224725'') RETURNING id::text');
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('PASSAGENS: CPF repetido aceito (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.passagem_pedidos (numero_sei, solicitante_tipo, solicitante_beneficiario_id, finalidade)
+  VALUES ('00001.000099/2099-01', 'beneficiario', benef, 'Campeonato de teste') RETURNING id INTO pedido;
+  IF (SELECT solicitante_nome FROM public.passagem_pedidos WHERE id = pedido) IS DISTINCT FROM 'Atleta Teste' THEN
+    PERFORM pg_temp.falha('PASSAGENS: nome do solicitante não copiado');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.passagem_pedidos (numero_sei, solicitante_tipo, solicitante_nome, finalidade) '
+    || 'VALUES (''00001.000099/2099-01'', ''instituicao'', ''Federação'', ''Outro evento'') RETURNING id::text'));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('PASSAGENS: nº SEI repetido aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_pedidos SET situacao = ''aprovado'' WHERE id = %L RETURNING situacao', pedido));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('PASSAGENS: aprovado sem documento SEI aceito (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.passagem_passageiros (pedido_id, beneficiario_id) VALUES (pedido, benef) RETURNING id INTO pass_b;
+  INSERT INTO public.passagem_passageiros (pedido_id, servidor_id) VALUES (pedido, srv) RETURNING id INTO pass_s;
+  IF (SELECT nome FROM public.passagem_passageiros WHERE id = pass_s) IS DISTINCT FROM srv_nome
+     OR (SELECT nome FROM public.passagem_passageiros WHERE id = pass_b) IS DISTINCT FROM 'Atleta Teste' THEN
+    PERFORM pg_temp.falha('PASSAGENS: nome do passageiro não copiado');
+  END IF;
+  INSERT INTO public.passagem_trechos (passageiro_id, origem, destino, data_voo) VALUES (pass_b, 'BVB', 'BSB', DATE '2099-03-01')
+  RETURNING id INTO trecho;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_trechos SET situacao = ''emitido'' WHERE id = %L RETURNING situacao', trecho));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('PASSAGENS: emitido sem localizador aceito (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_pedidos SET situacao = 'aprovado', aprovacao_documento_sei = '12345678', aprovacao_data = DATE '2099-02-01'
+   WHERE id = pedido;
+  UPDATE public.passagem_trechos SET situacao = 'emitido', localizador = 'ABC123', data_emissao = DATE '2099-02-02',
+         valor_tarifa = 1000, valor_taxa_embarque = 50.50, valor_taxa_servico = 20, valor_desconto = 10
+   WHERE id = trecho;
+  IF (SELECT valor_emissao FROM public.passagem_trechos WHERE id = trecho) IS DISTINCT FROM 1060.50 THEN
+    PERFORM pg_temp.falha('PASSAGENS: valor_emissao de 1000 + 50,50 + 20 − 10');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'DELETE FROM public.passagem_trechos WHERE id = %L RETURNING id::text', trecho));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS: trecho emitido apagado (' || r || ')'); END IF;
+  IF (SELECT array_agg(acao ORDER BY acao) FROM public.passagem_historico WHERE pedido_id = pedido AND feito_por = u_ed)
+     IS DISTINCT FROM ARRAY['pedido_criado', 'pedido_situacao', 'trecho_situacao', 'trecho_situacao'] THEN
+    PERFORM pg_temp.falha('PASSAGENS: trilha do pedido incompleta');
+  END IF;
+
+  -- busca de servidores e viagens do RH: só quem edita; visualizar e módulo sem a permissão = 42501; curinga não lista
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_buscar_servidores(%L)', left(srv_nome, 5)));
+  IF r IS NULL OR r !~ '^[1-9]' THEN PERFORM pg_temp.falha('PASSAGENS: editar não acha o servidor (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated',
+    'SELECT count(*)::text FROM public.passagem_buscar_servidores(''%%%_'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('PASSAGENS: busca com curinga listou servidores (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_buscar_servidores(%L)', '%' || substr(srv_nome, 2, 3) || '_%'));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('PASSAGENS: % e _ do termo valeram como curinga (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_buscar_servidores(%L)', left(srv_nome, 5)));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS: só visualizar busca servidores (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_viagens_servidor(%L)', srv));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS: só visualizar lista viagens do servidor (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como((SELECT uid FROM persona WHERE nome = 'mod_contratos'), 'authenticated',
+    'SELECT count(*)::text FROM public.passagem_buscar_servidores(''abc'')');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS: módulo sem permissão busca servidores (' || r || ')'); END IF;
+
+  -- trilha: visualizar lê; o módulo sem a permissão de passagens não lê
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_historico WHERE pedido_id = %L', pedido));
+  IF r IS NULL OR r !~ '^[1-9]' THEN PERFORM pg_temp.falha('PASSAGENS: visualizar não lê a trilha (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como((SELECT uid FROM persona WHERE nome = 'mod_contratos'), 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_historico WHERE pedido_id = %L', pedido));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('PASSAGENS: módulo sem a permissão lê a trilha (' || coalesce(r, 'nulo') || ')'); END IF;
+
+  -- nome do beneficiário corrigido chega ao passageiro e ao solicitante
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_beneficiarios SET nome = 'Atleta Teste Corrigido' WHERE id = benef;
+  IF (SELECT nome FROM public.passagem_passageiros WHERE id = pass_b) IS DISTINCT FROM 'Atleta Teste Corrigido'
+     OR (SELECT solicitante_nome FROM public.passagem_pedidos WHERE id = pedido) IS DISTINCT FROM 'Atleta Teste Corrigido' THEN
+    PERFORM pg_temp.falha('PASSAGENS: nome corrigido do beneficiário não chegou ao pedido');
+  END IF;
+
+  -- passageiro ou instituição inexistente: o gatilho recusa (não serve de leitura indireta por id)
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.passagem_passageiros (pedido_id, servidor_id) VALUES (%L, gen_random_uuid()) RETURNING id::text', pedido));
+  IF r NOT LIKE 'erro:%' THEN PERFORM pg_temp.falha('PASSAGENS: passageiro com servidor inexistente aceito (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('PASSAGENS: gravação só com contratos.passagens.editar, nº SEI e CPF únicos, nomes copiados, aprovação e emissão exigidas, valor da emissão, trecho emitido protegido, trilha só com a permissão, busca de servidores e viagens só para quem edita e sem curinga verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Localizador de processos do SEI (migração 20261102090000) (TRIGGERS LIGADOS)
+-- Migração 20261102090000_localizador_processos_sei.sql (spec docs/superpowers/specs/2026-10-25-localizador-processos-sei-design.md):
+--   * sei_normalizar junta o nº completo e o abreviado do FIPLAN; texto que não é nº devolve nulo;
+--   * a busca é INVOKER: quem vê processos de contratação acha o processo pelo nº abreviado e pela palavra sem acento;
+--     quem não tem o módulo não acha; processo sigiloso do workflow não aparece para quem só tem workflow.visualizar;
+--   * termo curto não devolve nada; processos_parados lista a contratação parada; anon não executa.
+DO $$
+DECLARE
+  u_cmp uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.visualizar');
+  u_ctr uuid := (SELECT uid FROM persona WHERE nome = 'mod_rh');
+  u_wf uuid := md5('localizador_wf')::uuid;
+  r text; x text; y record;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOR y IN SELECT * FROM (VALUES ('17302.000885/2026.92', '000885/26-92'), ('17302.000885/2026-92', '000885/26-92'),
+      ('000885/26-92', '000885/26-92'), (' 17302 . 000885 / 2026 . 92 ', '000885/26-92'), ('17302000885202692', '000885/26-92'),
+      ('agência', NULL), ('2026', NULL)) v(entrada, esperado) LOOP
+    IF public.sei_normalizar(y.entrada) IS DISTINCT FROM y.esperado THEN
+      PERFORM pg_temp.falha('LOCALIZADOR: sei_normalizar(' || y.entrada || ') = ' || coalesce(public.sei_normalizar(y.entrada), 'nulo'));
+    END IF;
+  END LOOP;
+  IF public.texto_busca('Água MINERAL São') <> 'agua mineral sao' THEN PERFORM pg_temp.falha('LOCALIZADOR: texto_busca'); END IF;
+  FOREACH x IN ARRAY ARRAY['public.localizar_processos_sei(text, integer)', 'public.processos_parados(integer)'] LOOP
+    IF has_function_privilege('anon', x, 'EXECUTE') THEN PERFORM pg_temp.falha('LOCALIZADOR: anon executa ' || x); END IF;
+  END LOOP;
+
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_wf, 'localizador_wf@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id = u_wf;
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES (u_wf, 'workflow', '{workflow.visualizar}');
+
+  SET LOCAL session_replication_role = replica;
+  PERFORM pg_temp.seed_row('processos_licitatorios', jsonb_build_object('id', 'f7000000-0000-0000-0000-000000000001',
+    'numero_processo', '99999.000885/2099.92', 'ano', 2099, 'objeto', 'Aquisição de água mineral', 'etapa', 'tr',
+    'atualizado_em', current_date - 30));
+  PERFORM pg_temp.seed_row('processos_administrativos', jsonb_build_object('id', 'f7000000-0000-0000-0000-000000000002',
+    'numero_processo', 'LOC-TESTE-1', 'ano', 2099, 'assunto', 'Água sigilosa', 'interessado_nome', 'Teste',
+    'sigilo', 'sigiloso', 'created_by', u_ctr, 'numero_sei', '99999.000885/2099.92', 'status', 'em_tramitacao'));
+  SET LOCAL session_replication_role = origin;
+
+  r := pg_temp.valor_desfeito_como(u_cmp, 'authenticated',
+    'SELECT string_agg(origem, '','' ORDER BY origem) FROM public.localizar_processos_sei(''000885/99-92'')');
+  IF r IS DISTINCT FROM 'contratacao' THEN PERFORM pg_temp.falha('LOCALIZADOR: compras pelo nº abreviado (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_cmp, 'authenticated',
+    'SELECT count(*)::text FROM public.localizar_processos_sei(''agua MINERAL'') WHERE origem = ''contratacao''');
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('LOCALIZADOR: busca por palavra sem acento (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_cmp, 'authenticated', 'SELECT count(*)::text FROM public.localizar_processos_sei(''ag'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: termo curto devolveu linhas (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ctr, 'authenticated',
+    'SELECT count(*)::text FROM public.localizar_processos_sei(''99999.000885/2099.92'') WHERE origem = ''contratacao''');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: módulo sem permissão acha a contratação (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_wf, 'authenticated',
+    'SELECT count(*)::text FROM public.localizar_processos_sei(''99999.000885/2099.92'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: sigiloso do workflow aparece na busca (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_cmp, 'authenticated',
+    'SELECT string_agg(origem || '':'' || dias, '','') FROM public.processos_parados(15) WHERE registro_id = ''f7000000-0000-0000-0000-000000000001''');
+  IF r IS DISTINCT FROM 'contratacao:30' THEN PERFORM pg_temp.falha('LOCALIZADOR: contratação parada (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_wf, 'authenticated',
+    'SELECT count(*)::text FROM public.processos_parados(1) WHERE registro_id = ''f7000000-0000-0000-0000-000000000002''');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: sigiloso nos parados (' || coalesce(r, 'nulo') || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('LOCALIZADOR: nº completo e abreviado, palavra sem acento, RLS de cada fonte (módulo e sigilo), termo curto, parados e anon sem EXECUTE verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Contratos: passagens, prestação de contas (migração 20261101090000) (TRIGGERS LIGADOS)
+-- Migração 20261101090000_contratos_passagens_prestacao.sql (plano docs/superpowers/plans/2026-10-25-contratos-passagens-entrega2.md):
+--   * pedido ou passageiro dispensado sem motivo = 23514; responsável da delegação de outro pedido = 22023;
+--   * anexo: caminho fora do pedido = 23514, passageiro de outro pedido = 22023, visualizar não grava (42501) e o módulo
+--     sem a permissão não lê;
+--   * bucket passagens: privado; editar envia só para pedido existente; visualizar lê e não envia; módulo sem a permissão não lê;
+--   * passagem_relatorio_rh só com a permissão; trilha prestacao_passageiro com o autor; gatilhos sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_contratos');
+  u_anon uuid := '00000000-0000-0000-0000-000000000000';
+  pedido uuid := (SELECT id FROM public.passagem_pedidos WHERE numero_sei = '00001.000099/2099-01');
+  outro uuid; pass_b uuid; pass_outro uuid; r text; x text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.passagem_conferir_responsavel()', 'public.passagem_conferir_anexo()',
+                           'public.passagem_registrar_prestacao()', 'public.passagem_registrar_anexo()',
+                           'public.passagem_prestacao_em_aberto(uuid)', 'public.passagem_conferir_conclusao()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  IF has_function_privilege('anon', 'public.passagem_relatorio_rh(uuid[])', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: passagem_relatorio_rh executável por anon');
+  END IF;
+  IF pedido IS NULL THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: pedido do bloco anterior ausente'); RETURN; END IF;
+  SELECT id INTO pass_b FROM public.passagem_passageiros WHERE pedido_id = pedido AND beneficiario_id IS NOT NULL;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.passagem_pedidos (numero_sei, solicitante_tipo, solicitante_nome, finalidade)
+  VALUES ('00001.000098/2099-01', 'instituicao', 'Federação Teste', 'Outro evento') RETURNING id INTO outro;
+  INSERT INTO public.passagem_passageiros (pedido_id, servidor_id)
+  VALUES (outro, (SELECT id_a::uuid FROM semeado WHERE tabela = 'servidores')) RETURNING id INTO pass_outro;
+
+  -- dispensa sem motivo: o banco recusa (pedido e passageiro)
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_pedidos SET prestacao_contas = ''dispensado'', prestacao_dispensa_motivo = '' '' WHERE id = %L RETURNING id::text', pedido));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: pedido dispensado sem motivo aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_passageiros SET prestacao_dispensada = true WHERE id = %L RETURNING id::text', pass_b));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: passageiro dispensado sem motivo aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_pedidos SET responsavel_passageiro_id = %L WHERE id = %L RETURNING id::text', pass_outro, pedido));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: responsável de outro pedido aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'UPDATE public.passagem_passageiros SET embarque_entregue_em = DATE ''2099-03-02'' WHERE id = %L RETURNING id::text', pass_b));
+  IF r NOT IN ('vazio') AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: só visualizar registra entrega (' || r || ')'); END IF;
+
+  -- entrega registrada por quem edita: trilha prestacao_passageiro com o autor
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_passageiros SET embarque_entregue_em = DATE '2099-03-02' WHERE id = pass_b;
+  IF NOT EXISTS (SELECT 1 FROM public.passagem_historico WHERE pedido_id = pedido AND acao = 'prestacao_passageiro' AND feito_por = u_ed) THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: entrega do cartão de embarque fora da trilha');
+  END IF;
+  UPDATE public.passagem_pedidos SET prestacao_contas = 'evento', responsavel_passageiro_id = pass_b WHERE id = pedido;
+  IF NOT EXISTS (SELECT 1 FROM public.passagem_historico WHERE pedido_id = pedido AND acao = 'prestacao_pedido' AND feito_por = u_ed) THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: modo da prestação fora da trilha');
+  END IF;
+
+  -- anexos: caminho do pedido, passageiro do mesmo pedido, só editar grava, módulo sem a permissão não lê
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.passagem_anexos (pedido_id, tipo, caminho, nome_arquivo) VALUES (%L, ''relatorio'', %L, ''r.pdf'') RETURNING id::text',
+    pedido, outro || '/pedido/r.pdf'));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: anexo com caminho de outro pedido aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.passagem_anexos (pedido_id, passageiro_id, tipo, caminho, nome_arquivo) VALUES (%L, %L, ''cartao_embarque'', %L, ''c.pdf'') RETURNING id::text',
+    pedido, pass_outro, pedido || '/x/c.pdf'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: anexo de passageiro de outro pedido aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'INSERT INTO public.passagem_anexos (pedido_id, tipo, caminho, nome_arquivo) VALUES (%L, ''relatorio'', %L, ''r.pdf'') RETURNING id::text',
+    pedido, pedido || '/pedido/r.pdf'));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: só visualizar grava anexo (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.passagem_anexos (pedido_id, passageiro_id, tipo, caminho, nome_arquivo)
+  VALUES (pedido, pass_b, 'cartao_embarque', pedido || '/' || pass_b || '/c.pdf', 'c.pdf');
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_anexos WHERE pedido_id = %L', pedido));
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: visualizar não lê o anexo (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_anexos WHERE pedido_id = %L', pedido));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: módulo sem a permissão lê anexo (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'UPDATE public.passagem_anexos SET tipo = ''outro'' WHERE pedido_id = %L RETURNING id::text', pedido));
+  IF r IS DISTINCT FROM 'vazio' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: só visualizar altera anexo (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_anexos SET caminho = caminho || ''x'' WHERE pedido_id = %L RETURNING id::text', pedido));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: caminho do anexo alterado (' || r || ')'); END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.passagem_historico WHERE pedido_id = pedido AND acao = 'anexo_incluido' AND feito_por = u_ed) THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: anexo incluído fora da trilha');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'DELETE FROM public.passagem_anexos WHERE pedido_id = %L RETURNING id::text', pedido));
+  IF r IS DISTINCT FROM 'vazio' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: só visualizar apaga anexo (' || r || ')'); END IF;
+
+  -- bucket privado passagens
+  IF (SELECT NOT public AND file_size_limit = 10485760
+             AND allowed_mime_types::text[] @> ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+             AND cardinality(allowed_mime_types) = 4 FROM storage.buckets WHERE id = 'passagens') IS NOT TRUE THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: bucket passagens ausente, público ou sem o limite de 10 MB');
+  END IF;
+  IF pg_temp.ins_obj(u_ed, 'authenticated', 'passagens', pedido || '/pedido/r.pdf') <> 'passou' THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: editar não envia arquivo do pedido');
+  END IF;
+  IF pg_temp.ins_obj(u_ed, 'authenticated', 'passagens', gen_random_uuid() || '/pedido/r.pdf') <> 'negado' THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: editar envia arquivo de pedido inexistente');
+  END IF;
+  IF pg_temp.ins_obj(u_ed, 'authenticated', 'passagens', 'solto.pdf') <> 'negado' THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: editar envia arquivo fora da pasta de um pedido');
+  END IF;
+  IF pg_temp.ins_obj(u_vis, 'authenticated', 'passagens', pedido || '/pedido/r.pdf') <> 'negado' THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: só visualizar envia arquivo');
+  END IF;
+  IF pg_temp.ins_obj(u_mod, 'authenticated', 'passagens', pedido || '/pedido/r.pdf') <> 'negado' THEN
+    PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: módulo sem a permissão envia arquivo');
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO storage.objects (bucket_id, name) VALUES ('passagens', pedido || '/' || pass_b || '/c.pdf');
+  IF pg_temp.sel_obj(u_vis, 'authenticated', 'passagens') <> 1 THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: visualizar não lê o arquivo'); END IF;
+  IF pg_temp.sel_obj(u_mod, 'authenticated', 'passagens') <> 0 THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: módulo sem a permissão lê o arquivo'); END IF;
+  IF pg_temp.sel_obj(u_anon, 'anon', 'passagens') > 0 THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: anon lê o arquivo'); END IF;
+  r := pg_temp.sql_como(u_mod, 'authenticated', 'DELETE FROM storage.objects WHERE bucket_id = ''passagens''');
+  IF r IS DISTINCT FROM 'ok:0' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: módulo sem a permissão apaga arquivo (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_vis, 'authenticated', 'DELETE FROM storage.objects WHERE bucket_id = ''passagens''');
+  IF r IS DISTINCT FROM 'ok:0' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: só visualizar apaga arquivo (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', 'UPDATE storage.objects SET name = name WHERE bucket_id = ''passagens''');
+  IF r IS DISTINCT FROM 'ok:0' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: arquivo alterado sem policy de UPDATE (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', 'DELETE FROM storage.objects WHERE bucket_id = ''passagens''');
+  IF r IS DISTINCT FROM 'ok:1' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: editar não apaga o arquivo (' || r || ')'); END IF;
+  DELETE FROM storage.objects WHERE bucket_id = 'passagens';
+
+  -- situação do relatório do RH: quem lê passagens chama; módulo sem a permissão = 42501
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_relatorio_rh(ARRAY[%L]::uuid[])', pass_b));
+  IF r IS NULL OR r LIKE 'erro:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: visualizar não consulta o relatório do RH (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_relatorio_rh(ARRAY[%L]::uuid[])', pass_b));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: módulo sem a permissão consulta o relatório do RH (' || r || ')'); END IF;
+
+  -- concluir só com a prestação em dia; depois de concluído, a prestação e os anexos não mudam
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_pedidos SET situacao = 'emitido' WHERE id = pedido;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_pedidos SET situacao = ''concluido'' WHERE id = %L RETURNING situacao', pedido));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: concluído sem o relatório do evento (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_pedidos SET relatorio_evento_entregue_em = DATE '2099-03-03' WHERE id = pedido;
+  r := pg_temp.exec_como(u_ed, 'authenticated', format('UPDATE public.passagem_pedidos SET situacao = ''concluido'' WHERE id = %L', pedido));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: prestação em dia não conclui (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_passageiros SET embarque_entregue_em = NULL WHERE id = %L RETURNING id::text', pass_b));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: entrega desfeita em pedido concluído (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_pedidos SET relatorio_evento_entregue_em = NULL WHERE id = %L RETURNING id::text', pedido));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: relatório desfeito em pedido concluído (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'DELETE FROM public.passagem_anexos WHERE pedido_id = %L RETURNING id::text', pedido));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS PRESTAÇÃO: anexo de pedido concluído apagado (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('PASSAGENS PRESTAÇÃO: conclusão só com a prestação em dia, prestação e anexos travados depois de concluir, trilha dos anexos, dispensa com motivo, responsável do mesmo pedido, trilha da prestação, anexos (caminho, passageiro, só editar grava, só a permissão lê), bucket privado passagens e relatório do RH só com a permissão verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Contratos: passagens, faturas e empenhos (migração 20261103090000) (TRIGGERS LIGADOS)
+-- Migração 20261103090000_contratos_passagens_faturas.sql (plano docs/superpowers/plans/2026-10-25-contratos-passagens-entrega3.md):
+--   * só contratos.passagens.financeiro grava fatura, item e ligação de empenho (editar e visualizar = 42501); visualizar lê;
+--     o módulo sem a permissão não lê;
+--   * fatura só em contrato da agência (22023); bilhete sem localizador ou de outro contrato = 22023; trecho em duas faturas = 23505;
+--   * paga exige data e OB (23514); paga não recebe nem perde bilhete, não muda de valor, não se cancela (22023) e não se apaga (42501);
+--   * cancelada exige motivo (23514) e solta os bilhetes; trilha fatura_item e fatura_situacao no pedido;
+--   * situação anda um passo por vez (22023); paga não muda OB nem valor, nem no estorno; só recebida se apaga;
+--   * passagem_salvar_fatura: só financeiro e tudo ou nada; ligação só de empenho candidato (22023);
+--   * passagem_empenhos_contrato só com uma permissão de passagens; passagem_empenhos_candidatos só com financeiro;
+--     as duas só para contrato da agência (22023);
+--     fin_empenhos continua fechado para quem só tem passagens; gatilhos sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_fin uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.financeiro');
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_contratos');
+  ctr uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'contratos');
+  emp uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'fin_empenhos');
+  benef uuid := (SELECT id FROM public.passagem_beneficiarios WHERE cpf = '52998224725');
+  pedido uuid; sem_ctr uuid; pass uuid; t1 uuid; t2 uuid; t_cotar uuid; t_fora uuid; fat uuid; fat2 uuid; r text; x text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.passagem_conferir_fatura()', 'public.passagem_conferir_ligacao_empenho()',
+                           'public.passagem_conferir_fatura_item()', 'public.passagem_registrar_fatura_item()',
+                           'public.passagem_registrar_fatura()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('PASSAGENS FATURAS: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  FOREACH x IN ARRAY ARRAY['public.passagem_empenhos_contrato(uuid)', 'public.passagem_empenhos_candidatos(uuid, integer)'] LOOP
+    IF has_function_privilege('anon', x, 'EXECUTE') THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: ' || x || ' executável por anon'); END IF;
+  END LOOP;
+  IF u_fin IS NULL OR ctr IS NULL OR emp IS NULL OR benef IS NULL THEN
+    PERFORM pg_temp.falha('PASSAGENS FATURAS: persona, contrato, empenho ou beneficiário ausente'); RETURN;
+  END IF;
+
+  -- contrato da agência, pedido do contrato com dois bilhetes emitidos e um a cotar; pedido sem contrato com um bilhete
+  UPDATE public.contratos SET controla_passagens = true WHERE id = ctr;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.passagem_pedidos (numero_sei, solicitante_tipo, solicitante_beneficiario_id, finalidade, contrato_id)
+  VALUES ('00001.000097/2099-01', 'beneficiario', benef, 'Jogos de teste', ctr) RETURNING id INTO pedido;
+  INSERT INTO public.passagem_passageiros (pedido_id, beneficiario_id) VALUES (pedido, benef) RETURNING id INTO pass;
+  INSERT INTO public.passagem_trechos (passageiro_id, origem, destino, data_voo, situacao, localizador, data_emissao, valor_tarifa)
+  VALUES (pass, 'BVB', 'BSB', DATE '2099-04-01', 'emitido', 'FAT001', DATE '2099-03-01', 800) RETURNING id INTO t1;
+  INSERT INTO public.passagem_trechos (passageiro_id, origem, destino, data_voo, situacao, localizador, data_emissao, valor_tarifa)
+  VALUES (pass, 'BSB', 'BVB', DATE '2099-04-05', 'emitido', 'FAT002', DATE '2099-03-01', 700) RETURNING id INTO t2;
+  INSERT INTO public.passagem_trechos (passageiro_id, origem, destino, data_voo) VALUES (pass, 'BVB', 'MAO', DATE '2099-05-01')
+  RETURNING id INTO t_cotar;
+  INSERT INTO public.passagem_pedidos (numero_sei, solicitante_tipo, solicitante_nome, finalidade)
+  VALUES ('00001.000096/2099-01', 'instituicao', 'Federação Teste', 'Sem contrato') RETURNING id INTO sem_ctr;
+  INSERT INTO public.passagem_passageiros (pedido_id, beneficiario_id) VALUES (sem_ctr, benef) RETURNING id INTO pass;
+  INSERT INTO public.passagem_trechos (passageiro_id, origem, destino, data_voo, situacao, localizador, data_emissao, valor_tarifa)
+  VALUES (pass, 'BVB', 'BSB', DATE '2099-04-01', 'emitido', 'FORA01', DATE '2099-03-01', 500) RETURNING id INTO t_fora;
+
+  -- quem grava fatura: só financeiro
+  FOREACH x IN ARRAY ARRAY['perm_contratos.passagens.editar', 'perm_contratos.passagens.visualizar', 'mod_contratos'] LOOP
+    r := pg_temp.valor_desfeito_como((SELECT uid FROM persona WHERE nome = x), 'authenticated', format(
+      'INSERT INTO public.passagem_faturas (contrato_id, numero, data_emissao, valor) VALUES (%L, ''NF-X'', DATE ''2099-03-10'', 10) RETURNING id::text', ctr));
+    IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: ' || x || ' grava fatura (' || r || ')'); END IF;
+  END LOOP;
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', format(
+    'INSERT INTO public.passagem_faturas (contrato_id, numero, data_emissao, valor) VALUES (%L, ''NF-X'', DATE ''2099-03-10'', 10) RETURNING id::text',
+    gen_random_uuid()));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: fatura fora de contrato da agência aceita (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_fin, 'role', 'authenticated')::text, true);
+  INSERT INTO public.passagem_faturas (contrato_id, numero, data_emissao, valor) VALUES (ctr, 'NF-100', DATE '2099-03-10', 800)
+  RETURNING id INTO fat;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'INSERT INTO public.passagem_fatura_itens (fatura_id, trecho_id, valor) VALUES (%L, %L, 800)', fat, t1));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: financeiro não põe bilhete na fatura (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.passagem_fatura_itens (fatura_id, trecho_id, valor) VALUES (%L, %L, 800)', fat, t1));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: editar põe bilhete na fatura (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_fin, 'role', 'authenticated')::text, true);
+  INSERT INTO public.passagem_fatura_itens (fatura_id, trecho_id, valor) VALUES (fat, t1, 800);
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'INSERT INTO public.passagem_fatura_itens (fatura_id, trecho_id, valor) VALUES (%L, %L, 1)', fat, t_cotar));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: trecho sem localizador na fatura (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'INSERT INTO public.passagem_fatura_itens (fatura_id, trecho_id, valor) VALUES (%L, %L, 1)', fat, t_fora));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: bilhete de outro contrato na fatura (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_fin, 'role', 'authenticated')::text, true);
+  INSERT INTO public.passagem_faturas (contrato_id, numero, data_emissao, valor) VALUES (ctr, 'NF-101', DATE '2099-03-11', 700)
+  RETURNING id INTO fat2;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'INSERT INTO public.passagem_fatura_itens (fatura_id, trecho_id, valor) VALUES (%L, %L, 1)', fat2, t1));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: bilhete em duas faturas (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'INSERT INTO public.passagem_faturas (contrato_id, numero, data_emissao, valor) VALUES (%L, ''NF-100'', DATE ''2099-03-10'', 5)', ctr));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: nº de nota repetido no contrato (' || r || ')'); END IF;
+
+  -- até paga: atesto, liquidação e OB exigidos
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.passagem_faturas SET situacao = ''atestada'' WHERE id = %L', fat));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: atestada sem atesto (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'UPDATE public.passagem_faturas SET situacao = ''paga'', atesto_data = DATE ''2099-03-12'', atesto_documento_sei = ''111'', '
+    || 'liquidacao_data = DATE ''2099-03-13'', pagamento_data = DATE ''2099-03-14'', ob_numero = ''OB1'' WHERE id = %L', fat));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: recebida foi direto para paga (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'UPDATE public.passagem_faturas SET observacoes = ''x'' WHERE id = %L', fat));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: editar altera fatura (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_fin, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_faturas SET situacao = 'atestada', atesto_data = DATE '2099-03-12', atesto_documento_sei = '111' WHERE id = fat;
+  UPDATE public.passagem_faturas SET situacao = 'liquidada', liquidacao_data = DATE '2099-03-13' WHERE id = fat;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'UPDATE public.passagem_faturas SET situacao = ''paga'', pagamento_data = DATE ''2099-03-14'' WHERE id = %L', fat));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: paga sem OB (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_fin, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_faturas SET situacao = 'paga', pagamento_data = DATE '2099-03-14', ob_numero = '2099OB00001' WHERE id = fat;
+
+  -- paga travada
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'INSERT INTO public.passagem_fatura_itens (fatura_id, trecho_id, valor) VALUES (%L, %L, 700)', fat, t2));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: bilhete entrou em fatura paga (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('DELETE FROM public.passagem_fatura_itens WHERE fatura_id = %L', fat));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: bilhete saiu de fatura paga (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.passagem_fatura_itens SET valor = 1 WHERE fatura_id = %L', fat));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: valor do bilhete mudou em fatura paga (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.passagem_faturas SET valor = 1 WHERE id = %L', fat));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: valor de fatura paga mudou (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'UPDATE public.passagem_faturas SET situacao = ''cancelada'', cancelamento_motivo = ''Erro'' WHERE id = %L', fat));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: fatura paga cancelada (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.passagem_faturas SET ob_numero = ''OUTRA'' WHERE id = %L', fat));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: OB de fatura paga mudou (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'UPDATE public.passagem_faturas SET situacao = ''liquidada'', valor = 1, pagamento_data = NULL, ob_numero = NULL WHERE id = %L', fat));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: estorno mudou o valor (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('DELETE FROM public.passagem_faturas WHERE id = %L', fat));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: fatura paga apagada (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'UPDATE public.passagem_faturas SET situacao = ''liquidada'', pagamento_data = NULL, ob_numero = NULL WHERE id = %L', fat));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: financeiro não volta paga para liquidada (' || r || ')'); END IF;
+
+  -- cancelada: exige motivo e solta o bilhete
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_fin, 'role', 'authenticated')::text, true);
+  INSERT INTO public.passagem_fatura_itens (fatura_id, trecho_id, valor) VALUES (fat2, t2, 700);
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.passagem_faturas SET situacao = ''cancelada'' WHERE id = %L', fat2));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: cancelada sem motivo (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_fin, 'role', 'authenticated')::text, true);
+  UPDATE public.passagem_faturas SET situacao = 'cancelada', cancelamento_motivo = 'Nota com erro' WHERE id = fat2;
+  IF EXISTS (SELECT 1 FROM public.passagem_fatura_itens WHERE fatura_id = fat2) THEN
+    PERFORM pg_temp.falha('PASSAGENS FATURAS: fatura cancelada não soltou o bilhete');
+  END IF;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format('UPDATE public.passagem_faturas SET situacao = ''recebida'' WHERE id = %L', fat2));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: fatura cancelada reaberta (' || r || ')'); END IF;
+  IF (SELECT array_agg(acao ORDER BY acao) FROM public.passagem_historico
+       WHERE pedido_id = pedido AND acao LIKE 'fatura%' AND feito_por = u_fin)
+     IS DISTINCT FROM ARRAY['fatura_item', 'fatura_item', 'fatura_item', 'fatura_situacao', 'fatura_situacao', 'fatura_situacao', 'fatura_situacao'] THEN
+    PERFORM pg_temp.falha('PASSAGENS FATURAS: trilha da fatura incompleta');
+  END IF;
+
+  -- leitura
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_fatura_itens WHERE fatura_id = %L', fat));
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: visualizar não lê os bilhetes da fatura (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', 'SELECT count(*)::text FROM public.passagem_faturas');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: módulo sem a permissão lê faturas (' || r || ')'); END IF;
+
+  -- empenhos: contrato fora da agência e empenho fora do elemento 33 recusados; ligar só com financeiro
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'INSERT INTO public.passagem_contrato_empenhos (contrato_id, empenho_id) VALUES (%L, %L)', gen_random_uuid(), emp));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: empenho ligado a contrato fora da agência (' || r || ')'); END IF;
+  UPDATE public.fin_empenhos SET contrato_id = NULL WHERE id = emp;
+  r := pg_temp.sql_como(u_fin, 'authenticated', format(
+    'INSERT INTO public.passagem_contrato_empenhos (contrato_id, empenho_id) VALUES (%L, %L)', ctr, emp));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: empenho fora do elemento 33 e do contrato ligado (' || r || ')'); END IF;
+  UPDATE public.fin_empenhos SET contrato_id = ctr WHERE id = emp;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.passagem_contrato_empenhos (contrato_id, empenho_id) VALUES (%L, %L)', ctr, emp));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: editar liga empenho (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_fin, 'authenticated', format(
+    'INSERT INTO public.passagem_contrato_empenhos (contrato_id, empenho_id) VALUES (%L, %L)', ctr, emp));
+  IF r <> 'ok' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: financeiro não liga empenho (' || r || ')'); END IF;
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_empenhos_contrato(%L)', ctr));
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: visualizar não vê o empenho ligado (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_empenhos_contrato(%L)', ctr));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: módulo sem a permissão vê empenhos (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_empenhos_candidatos(%L)', ctr));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: visualizar lista candidatos (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_empenhos_candidatos(%L) WHERE ligado', ctr));
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: candidatos sem o empenho ligado (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_empenhos_candidatos(%L)', gen_random_uuid()));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: candidatos de contrato fora da agência (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    format('SELECT count(*)::text FROM public.passagem_empenhos_contrato(%L)', gen_random_uuid()));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: empenhos de contrato fora da agência (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_fin, 'authenticated', 'SELECT count(*)::text FROM public.fin_empenhos');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: financeiro das passagens lê fin_empenhos (' || r || ')'); END IF;
+
+  -- passagem_salvar_fatura: editar não grava; erro no meio desfaz tudo; financeiro grava nota e bilhetes juntos
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'SELECT public.passagem_salvar_fatura(%L::jsonb, %L::jsonb)::text',
+    json_build_object('contrato_id', ctr, 'numero', 'NF-200', 'data_emissao', '2099-03-20', 'valor', 700),
+    json_build_array(json_build_object('trecho_id', t2, 'valor', 700))));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('PASSAGENS FATURAS: editar salva fatura pela RPC (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_fin, 'authenticated', format(
+    'SELECT public.passagem_salvar_fatura(%L::jsonb, %L::jsonb)',
+    json_build_object('contrato_id', ctr, 'numero', 'NF-200', 'data_emissao', '2099-03-20', 'valor', 700),
+    json_build_array(json_build_object('trecho_id', t2, 'valor', 700), json_build_object('trecho_id', t_fora, 'valor', 1))));
+  IF r NOT LIKE 'erro:22023:%' OR EXISTS (SELECT 1 FROM public.passagem_faturas WHERE numero = 'NF-200') THEN
+    PERFORM pg_temp.falha('PASSAGENS FATURAS: salvar com bilhete inválido não desfez a nota (' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_fin, 'authenticated', format(
+    'SELECT public.passagem_salvar_fatura(%L::jsonb, %L::jsonb)',
+    json_build_object('contrato_id', ctr, 'numero', 'NF-200', 'data_emissao', '2099-03-20', 'valor', 700),
+    json_build_array(json_build_object('trecho_id', t2, 'valor', 700))));
+  IF r <> 'ok' OR NOT EXISTS (SELECT 1 FROM public.passagem_fatura_itens i JOIN public.passagem_faturas f ON f.id = i.fatura_id
+                               WHERE f.numero = 'NF-200' AND i.trecho_id = t2) THEN
+    PERFORM pg_temp.falha('PASSAGENS FATURAS: financeiro não salva nota com bilhete pela RPC (' || r || ')');
+  END IF;
+  -- só fatura recebida se apaga, e a trilha guarda o nº da nota
+  r := pg_temp.exec_como(u_fin, 'authenticated', 'DELETE FROM public.passagem_faturas WHERE numero = ''NF-200''');
+  IF r <> 'ok' OR NOT EXISTS (SELECT 1 FROM public.passagem_historico WHERE trecho_id = t2 AND acao = 'fatura_item' AND depois IS NULL
+                               AND antes->>'fatura' = 'NF-200') THEN
+    PERFORM pg_temp.falha('PASSAGENS FATURAS: apagar fatura recebida falhou ou a trilha perdeu o nº (' || r || ')');
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('PASSAGENS FATURAS: gravação só com contratos.passagens.financeiro, fatura só em contrato da agência, bilhete emitido do mesmo contrato e numa fatura só, fluxo da situação, paga com OB e travada (bilhetes, valor, OB, cancelamento, exclusão), só recebida se apaga, salvar fatura numa transação, cancelada com motivo solta os bilhetes, trilha no pedido, leitura com a permissão e RPCs de empenhos estreitas verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro: convênios federais do Transferegov (migração 20261105090000)
+-- Migração 20261105090000_fin_convenios_transferegov.sql (spec docs/superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md):
+--   * fin_tg_carregar: só a service role executa (authenticated e anon sem EXECUTE); CNPJ diferente do cadastrado em
+--     dados_oficiais, proposta de outro proponente e carga vazia sobre espelho cheio (sem p_forcar) = 22023;
+--   * a carga troca o espelho inteiro (propostas, emendas, convênios, movimentos) e registra a sincronização;
+--   * fin_tg_*: lê quem tem o módulo financeiro E financeiro.convenios.visualizar; ninguém grava pela API.
+DO $$
+DECLARE
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_financeiro.convenios.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_financeiro');
+  fn text := 'public.fin_tg_carregar(text, timestamp with time zone, jsonb, boolean)';
+  c_cnpj text := '11222333000181';
+  chamada text := 'SELECT public.fin_tg_carregar(%L, now(), %L::jsonb, %L)::text';
+  dados jsonb; r text;
+BEGIN
+  IF to_regprocedure(fn) IS NULL OR to_regclass('public.fin_tg_propostas') IS NULL THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: ' || fn || ' ou as tabelas não existem');
+    RETURN;
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF has_function_privilege('authenticated', fn, 'EXECUTE') OR has_function_privilege('anon', fn, 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: fin_tg_carregar executável pela API');
+  END IF;
+  IF NOT has_function_privilege('service_role', fn, 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: service_role sem EXECUTE em fin_tg_carregar');
+  END IF;
+  DELETE FROM public.dados_oficiais WHERE chave = 'cnpj';
+  INSERT INTO public.dados_oficiais (chave, valor) VALUES ('cnpj', '11.222.333/0001-81');
+  dados := jsonb_build_object(
+    'propostas', jsonb_build_array(jsonb_build_object('id_proposta', 990001, 'numero', '1/2099', 'ano', 2099,
+      'cnpj_proponente', c_cnpj, 'objeto', 'Projeto de teste', 'valor_global', 100.5, 'inicio_vigencia', '2099-01-01')),
+    'emendas', jsonb_build_array(jsonb_build_object('id_proposta', 990001, 'numero_emenda', '50060001',
+      'parlamentar', 'COM. TESTE', 'impositiva', false, 'valor_repasse_emenda', 100)),
+    'convenios', jsonb_build_array(jsonb_build_object('numero', 'X1TEST', 'id_proposta', 990001, 'assinado', false,
+      'valor_empenhado', 100, 'data_limite_prestacao_contas', '2099-12-31')),
+    'movimentos', jsonb_build_array(jsonb_build_object('tipo', 'empenho', 'id_origem', 1, 'numero_convenio', 'X1TEST',
+      'numero', '2099NE000001', 'data', '2099-02-01', 'valor', 100, 'indicacao', 'Indicação de teste')));
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(chamada, c_cnpj, dados, false));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: authenticated carrega o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role', format(chamada, '99999999000191', dados, false));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: CNPJ diferente do cadastrado aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role',
+         format(chamada, c_cnpj, jsonb_set(dados, '{propostas,0,cnpj_proponente}', '"99999999000191"'), false));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: proposta de outro proponente aceita (' || r || ')'); END IF;
+
+  -- carga que fica
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, dados, false));
+  IF r <> 'ok' OR (SELECT count(*) FROM public.fin_tg_propostas) <> 1
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_emendas WHERE id_proposta = 990001 AND numero_emenda = '50060001')
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_convenios WHERE numero = 'X1TEST' AND id_proposta = 990001)
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_movimentos WHERE numero_convenio = 'X1TEST' AND id_origem = 1)
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_sincronizacoes WHERE cnpj = c_cnpj AND propostas = 1 AND movimentos = 1) THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: carga válida não gravou o espelho (' || r || ')');
+  END IF;
+  -- recarga troca tudo: o convênio sumiu da fonte, sai daqui (e o movimento em cascata)
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, dados - 'convenios' - 'movimentos', false));
+  IF r <> 'ok' OR EXISTS (SELECT 1 FROM public.fin_tg_convenios WHERE numero = 'X1TEST')
+     OR EXISTS (SELECT 1 FROM public.fin_tg_movimentos WHERE numero_convenio = 'X1TEST')
+     OR (SELECT count(*) FROM public.fin_tg_propostas) <> 1 THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: recarga não trocou o espelho (' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, dados, false));
+  -- carga vazia sobre espelho cheio: recusada, salvo com p_forcar
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role', format(chamada, c_cnpj, '{}', false));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: carga vazia apagou o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role',
+         format('SELECT public.fin_tg_carregar(%L, now(), ''{}''::jsonb, true)->>''propostas''', c_cnpj));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: p_forcar não esvaziou (' || r || ')'); END IF;
+
+  -- leitura com a permissão; o módulo sozinho não lê; ninguém grava pela API
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+         'SELECT count(*)::text FROM public.fin_tg_propostas p JOIN public.fin_tg_convenios c USING (id_proposta) JOIN public.fin_tg_movimentos m ON m.numero_convenio = c.numero');
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: quem tem a permissão não lê o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', 'SELECT count(*)::text FROM public.fin_tg_propostas');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: módulo sem a permissão lê o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+         format('INSERT INTO public.fin_tg_propostas (id_proposta, numero, cnpj_proponente) VALUES (990002, ''2/2099'', %L) RETURNING numero', c_cnpj));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: authenticated grava proposta (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'DELETE FROM public.fin_tg_emendas RETURNING numero_emenda');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: authenticated apaga emenda (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('FIN TRANSFEREGOV: carga só pela service role, CNPJ conferido com a Configuração do cliente, proposta de outro proponente recusada, troca do espelho inteiro, carga vazia protegida, leitura só com financeiro.convenios.visualizar e nenhuma escrita pela API verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Contratos C1: cadastro, ficha e responsáveis (migração 20261104090000) (TRIGGERS LIGADOS)
+-- Migração 20261104090000_contratos_c1_cadastro.sql (plano docs/superpowers/plans/2026-10-27-contratos-c1-cadastro-ficha.md):
+--   * cadastrar exige contratos.criar (módulo sozinho, editar e passagens.editar = 42501); alterar exige contratos.editar;
+--     passagens.editar e criar só marcam controla_passagens (desmarcar = 42501); apagar só rascunho, com editar
+--     (vigente = 42501); assinado não volta a rascunho nem com admin; created_by/updated_by fixados pelo banco;
+--     medição aprovada (gatilho atualizar_saldo_contrato) recalcula o saldo para quem só tem o módulo;
+--   * número único por ano (23505 no mesmo ano, aceito em outro); data_fim_atual = data_fim quando vazia;
+--   * responsáveis: nome copiado pelo banco (e não se troca à mão), servidor inativo não se designa (22023), um gestor
+--     ativo (23505), saída exige motivo (23514), não muda de contrato (22023), módulo sem permissão não grava (42501),
+--     trilha em audit_log_licitacoes;
+--   * contrato_buscar_servidores só com criar ou editar (curinga é texto);
+--   * contratos_importar_planilha (Central de Importações): só com criar; simula sem gravar nem logar; linha repetida vira
+--     erro; grava contrato, contratado, gestor e o log em importacoes; contrato existente só ganha o que está vazio
+--     (completar exige editar: erro na linha e nada gravado);
+--   * localizador: o contrato com nº SEI aparece para quem tem o módulo; gatilhos sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_criar uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.criar');
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.editar');
+  u_pass uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.editar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_contratos');
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome = 'nenhum');
+  u_admin uuid := (SELECT uid FROM persona WHERE nome = 'admin');
+  forn uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'fornecedores');
+  srv uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'servidores');
+  srv_b uuid := (SELECT id_b::uuid FROM semeado WHERE tabela = 'servidores');
+  srv_nome text; srv_mat text; srv_b_ativo boolean;
+  ins text; ct uuid; rasc uuid; resp uuid; r text; x text; j jsonb; arq jsonb;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.contrato_resp_preparar()', 'public.contratos_preparar()',
+                           'public.contratos_conferir_permissao()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('CONTRATOS C1: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  FOREACH x IN ARRAY ARRAY['public.contrato_pode_gravar()', 'public.contrato_buscar_servidores(text)'] LOOP
+    IF has_function_privilege('anon', x, 'EXECUTE') THEN PERFORM pg_temp.falha('CONTRATOS C1: anon executa ' || x); END IF;
+  END LOOP;
+  IF u_criar IS NULL OR u_ed IS NULL OR u_pass IS NULL OR forn IS NULL OR srv IS NULL THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: persona, fornecedor ou servidor ausente'); RETURN;
+  END IF;
+  -- servidor semeado com matrícula e ativo (a busca e a importação usam os dois)
+  UPDATE public.servidores SET matricula = 'C1-MAT-01', ativo = true WHERE id = srv;
+  SELECT nome_completo, matricula INTO srv_nome, srv_mat FROM public.servidores WHERE id = srv;
+
+  -- cadastrar: só com contratos.criar
+  ins := format('INSERT INTO public.contratos (numero_contrato, ano, fornecedor_id, objeto, valor_inicial, valor_atual, '
+    || 'data_assinatura, data_inicio, data_fim, status, processo_sei) VALUES (''C1-01'', 2099, %L, ''Limpeza'', 100, 100, '
+    || '''2099-01-01'', ''2099-01-01'', ''2099-12-31'', ''vigente'', ''  99999.000777/2099.11  '') RETURNING id::text', forn);
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', ins);
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão cadastra (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', ins);
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: só editar cadastra (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_pass, 'authenticated', ins);
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: só passagens.editar cadastra (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_criar, 'authenticated', ins);
+  IF r LIKE 'erro:%' OR r IS NULL THEN PERFORM pg_temp.falha('CONTRATOS C1: criar não cadastra (' || coalesce(r, 'nulo') || ')'); RETURN; END IF;
+  ct := r::uuid;
+  IF (SELECT data_fim_atual FROM public.contratos WHERE id = ct) IS DISTINCT FROM DATE '2099-12-31'
+     OR (SELECT processo_sei FROM public.contratos WHERE id = ct) IS DISTINCT FROM '99999.000777/2099.11' THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: fim atual não preenchido ou nº SEI sem aparar');
+  END IF;
+
+  -- número único por ano
+  r := pg_temp.valor_desfeito_como(u_criar, 'authenticated', replace(ins, '  99999.000777/2099.11  ', ''));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: mesmo nº no mesmo ano aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_criar, 'authenticated', replace(replace(ins, ', 2099, ', ', 2098, '), '  99999.000777/2099.11  ', ''));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: mesmo nº em outro ano recusado (' || r || ')'); END IF;
+
+  -- alterar: editar sim; criar e passagens só marcam o contrato da agência
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('UPDATE public.contratos SET objeto = ''Outro'' WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: criar altera o contrato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_pass, 'authenticated', format('UPDATE public.contratos SET objeto = ''Outro'' WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: passagens.editar altera o contrato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_pass, 'authenticated', format('UPDATE public.contratos SET controla_passagens = true WHERE id = %L', ct));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: passagens.editar não marca o contrato da agência (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('UPDATE public.contratos SET controla_passagens = true WHERE id = %L', ct));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: criar não marca o contrato da agência (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_mod, 'authenticated', format('UPDATE public.contratos SET objeto = ''Outro'' WHERE id = %L', ct));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão altera (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contratos SET objeto = ''Outro'' WHERE id = %L', ct));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: editar não altera (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_pass, 'authenticated', format('UPDATE public.contratos SET controla_passagens = false WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: passagens.editar desmarca o contrato da agência (' || r || ')'); END IF;
+  -- autoria: quem cadastrou não muda e quem alterou é o usuário da sessão, mesmo que o cliente mande outro
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.contratos SET objeto = ''Outro 2'', created_by = %L, updated_by = %L WHERE id = %L '
+    || 'RETURNING created_by::text || ''|'' || updated_by::text', u_admin, u_admin, ct));
+  IF r IS DISTINCT FROM u_criar::text || '|' || u_ed::text THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: created_by/updated_by aceitam o valor do cliente (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  -- medição aprovada recalcula o saldo do contrato pelo gatilho atualizar_saldo_contrato: quem só tem o módulo grava
+  -- (o gatilho de permissão não confere alteração que vem de outro gatilho)
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format(
+    'INSERT INTO public.medicoes_contrato (contrato_id, numero_medicao, periodo_inicio, periodo_fim, valor_medido, '
+    || 'valor_aprovado, status) VALUES (%L, 1, ''2099-01-01'', ''2099-01-31'', 10, 10, ''aprovada'') RETURNING id::text', ct));
+  IF r IS NULL OR r LIKE 'erro:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: medição não recalcula o saldo (' || coalesce(r, 'nulo') || ')'); END IF;
+  -- assinado não volta a rascunho (senão o "só rascunho se apaga" cairia em dois passos)
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contratos SET status = ''rascunho'' WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: editar volta contrato vigente a rascunho (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('UPDATE public.contratos SET status = ''rascunho'' WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: admin volta contrato vigente a rascunho (' || r || ')'); END IF;
+
+  -- apagar: só rascunho e só com editar
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('DELETE FROM public.contratos WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: contrato vigente apagado (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_admin, 'authenticated', format('DELETE FROM public.contratos WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: admin apaga contrato vigente (' || r || ')'); END IF;
+  rasc := pg_temp.valor_como(u_criar, 'authenticated', replace(replace(replace(ins, 'C1-01', 'C1-02'), '''vigente''', '''rascunho'''),
+    '  99999.000777/2099.11  ', ''))::uuid;
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('DELETE FROM public.contratos WHERE id = %L', rasc));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('CONTRATOS C1: criar apaga rascunho (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('DELETE FROM public.contratos WHERE id = %L', rasc));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: editar não apaga rascunho (' || r || ')'); END IF;
+
+  -- responsáveis
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format(
+    'INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, data_inicio) VALUES (%L, %L, ''gestor'', ''2099-01-01'') RETURNING id::text', ct, srv));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão designa (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, nome, data_inicio, portaria_numero) '
+    || 'VALUES (%L, %L, ''gestor'', ''Nome forjado'', ''2099-01-01'', ''Portaria 1/2099'') RETURNING id::text', ct, srv));
+  IF r LIKE 'erro:%' OR r IS NULL THEN PERFORM pg_temp.falha('CONTRATOS C1: editar não designa gestor (' || coalesce(r, 'nulo') || ')'); RETURN; END IF;
+  resp := r::uuid;
+  IF (SELECT nome FROM public.contrato_responsaveis WHERE id = resp) IS DISTINCT FROM srv_nome THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: nome do responsável não copiado do RH');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.audit_log_licitacoes WHERE tabela_origem = 'contrato_responsaveis' AND registro_id = resp) THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: designação sem trilha em audit_log_licitacoes');
+  END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contrato_responsaveis SET nome = ''Nome forjado'' WHERE id = %L', resp));
+  IF r <> 'ok:1' OR (SELECT nome FROM public.contrato_responsaveis WHERE id = resp) IS DISTINCT FROM srv_nome THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: nome do responsável trocado à mão (' || r || ')');
+  END IF;
+  SELECT ativo INTO srv_b_ativo FROM public.servidores WHERE id = srv_b;
+  UPDATE public.servidores SET ativo = false WHERE id = srv_b;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, data_inicio) VALUES (%L, %L, ''fiscal_tecnico'', ''2099-01-01'') RETURNING id::text', ct, srv_b));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: servidor inativo designado (' || r || ')'); END IF;
+  UPDATE public.servidores SET ativo = srv_b_ativo WHERE id = srv_b;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, data_inicio) VALUES (%L, %L, ''gestor'', ''2099-02-01'') RETURNING id::text',
+    ct, (SELECT id_b::uuid FROM semeado WHERE tabela = 'servidores')));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: segundo gestor ativo aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contrato_responsaveis SET data_fim = ''2099-06-30'' WHERE id = %L', resp));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: saída sem motivo aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contrato_responsaveis SET contrato_id = %L WHERE id = %L',
+    (SELECT id_a::uuid FROM semeado WHERE tabela = 'contratos'), resp));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: designação mudou de contrato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'UPDATE public.contrato_responsaveis SET data_fim = ''2099-06-30'', motivo_saida = ''Exonerado'' WHERE id = %L', resp));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('CONTRATOS C1: encerrar designação com motivo falhou (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('DELETE FROM public.contrato_responsaveis WHERE id = %L', resp));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('CONTRATOS C1: criar apaga designação (' || r || ')'); END IF;
+
+  -- busca estreita no RH
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT count(*)::text FROM public.contrato_buscar_servidores(%L)', srv_mat));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão busca servidores (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT string_agg(id::text, '','') FROM public.contrato_buscar_servidores(%L)', srv_mat));
+  IF r IS DISTINCT FROM srv::text THEN PERFORM pg_temp.falha('CONTRATOS C1: busca por matrícula (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', 'SELECT count(*)::text FROM public.contrato_buscar_servidores(''%%'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('CONTRATOS C1: curinga na busca de servidores (' || coalesce(r, 'nulo') || ')'); END IF;
+  -- importação (mesmo contrato da Central de Importações: p_linhas, p_arquivo, p_simular)
+  arq := '{"nome":"contratos.xlsx","sha256":"' || repeat('a', 64) || '","tamanho":"10"}';
+  j := jsonb_build_array(jsonb_build_object('indice', 0, 'numero', 'IMP-1', 'ano', '2099', 'documento', '11.222.333/0001-81',
+    'razao_social', 'Empresa Importada', 'objeto', 'Vigilância', 'valor_inicial', '1200.50', 'data_assinatura', '2099-01-10',
+    'data_inicio', '2099-01-10', 'data_fim', '2099-12-31', 'setor_sigla', 'SETOR-QUE-NAO-EXISTE', 'prorrogavel', 'true',
+    'gestor_matricula', srv_mat, 'portaria_numero', 'Portaria 9/2099'));
+  IF NOT (SELECT p.prosecdef FROM pg_proc p WHERE p.oid = 'public.contratos_importar_planilha(jsonb, jsonb, boolean)'::regprocedure)
+     OR has_function_privilege('anon', 'public.contratos_importar_planilha(jsonb, jsonb, boolean)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: importação não é SECURITY DEFINER ou anon executa');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, false)::text', j, arq));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: editar importa sem criar (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, true)::text', j, arq));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C1: módulo sem permissão simula importação (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, true)::text', j || j, arq));
+  IF jsonb_array_length(r::jsonb->'erros') <> 1 OR r::jsonb->'erros'->0->>'mensagem' NOT LIKE '%duas vezes%' THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: linha repetida na importação (' || r || ')');
+  END IF;
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, true)::text', j, arq));
+  IF r::jsonb->>'simulacao' <> 'true' OR r::jsonb->'totais'->>'inserir' <> '1' OR r::jsonb->'linhas'->0->>'acao' <> 'inserir'
+     OR jsonb_array_length(r::jsonb->'linhas'->0->'avisos') <> 1 OR jsonb_array_length(r::jsonb->'criados'->'Designações') <> 1
+     OR EXISTS (SELECT 1 FROM public.contratos WHERE numero_contrato = 'IMP-1')
+     OR EXISTS (SELECT 1 FROM public.importacoes WHERE tipo = 'contratos_planilha') THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: simulação da importação gravou ou não contou (' || r || ')');
+  END IF;
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, false)::text', j, arq));
+  IF r::jsonb->>'importacao_id' IS NULL OR jsonb_array_length(r::jsonb->'criados'->'Contratados') <> 1
+     OR NOT EXISTS (SELECT 1 FROM public.contratos c JOIN public.contrato_responsaveis cr ON cr.contrato_id = c.id
+                     WHERE c.numero_contrato = 'IMP-1' AND c.ano = 2099 AND c.prorrogavel AND c.valor_atual = 1200.50
+                       AND c.created_by = u_criar AND cr.papel = 'gestor' AND cr.servidor_id = srv
+                       AND cr.portaria_numero = 'Portaria 9/2099')
+     OR NOT EXISTS (SELECT 1 FROM public.importacoes WHERE tipo = 'contratos_planilha' AND modulo = 'contratos' AND created_by = u_criar) THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: importação não gravou contrato, contratado, gestor e log (' || r || ')');
+  END IF;
+  j := jsonb_build_array(j->0 || jsonb_build_object('processo_sei', '99999.000555/2099.55', 'objeto', 'Objeto trocado',
+    'valor_inicial', '1', 'gestor_matricula', ''));
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, false)::text', j, arq));
+  IF r::jsonb->>'importacao_id' IS NOT NULL OR jsonb_array_length(r::jsonb->'erros') <> 1
+     OR EXISTS (SELECT 1 FROM public.contratos WHERE numero_contrato = 'IMP-1' AND processo_sei IS NOT NULL) THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: criar completou contrato existente sem editar (' || r || ')');
+  END IF;
+  r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, false)::text', j, arq));
+  IF r::jsonb->'totais'->>'atualizar' <> '1' OR r::jsonb->'linhas'->0->'mudancas'->'processo_sei'->>1 <> '99999.000555/2099.55'
+     OR NOT EXISTS (SELECT 1 FROM public.contratos WHERE numero_contrato = 'IMP-1' AND processo_sei = '99999.000555/2099.55'
+                     AND objeto = 'Vigilância' AND valor_inicial = 1200.50) THEN
+    PERFORM pg_temp.falha('CONTRATOS C1: importação sobrescreveu ou não completou o contrato existente (' || r || ')');
+  END IF;
+  -- outro gestor pela planilha com gestor em exercício: só aviso (a troca é na ficha)
+  IF srv_b IS NOT NULL THEN
+    UPDATE public.servidores SET matricula = 'C1-MAT-02', ativo = true WHERE id = srv_b;
+    j := jsonb_build_array(j->0 || jsonb_build_object('gestor_matricula', 'C1-MAT-02'));
+    r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, true)::text', j, arq));
+    IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(r::jsonb->'linhas'->0->'avisos') a(t) WHERE a.t LIKE '%já tem gestor em exercício%')
+       OR jsonb_typeof(r::jsonb->'criados'->'Designações') = 'array' THEN
+      PERFORM pg_temp.falha('CONTRATOS C1: importação trocou o gestor em exercício sem avisar (' || r || ')');
+    END IF;
+    -- zeros à esquerda não contam ("00IMP-1" é o IMP-1) e o que difere do cadastro só vira aviso
+    j := jsonb_build_array(((j->0) - 'gestor_matricula') || jsonb_build_object('numero', '00IMP-1', 'valor_atual', '999'));
+    r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, true)::text', j, arq));
+    IF r::jsonb->'linhas'->0->>'acao' = 'inserir'
+       OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(r::jsonb->'linhas'->0->'avisos') a(t)
+                       WHERE a.t LIKE '%difere do cadastro em%valor atual%') THEN
+      PERFORM pg_temp.falha('CONTRATOS C1: importação com zero à esquerda ou valor diferente (' || r || ')');
+    END IF;
+  END IF;
+
+  -- localizador
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated',
+    'SELECT string_agg(origem || '':'' || ref, '','') FROM public.localizar_processos_sei(''000777/99-11'')');
+  IF r IS DISTINCT FROM 'contrato:C1-01/2099' THEN PERFORM pg_temp.falha('LOCALIZADOR: contrato pelo nº SEI (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_nenhum, 'authenticated',
+    'SELECT count(*)::text FROM public.localizar_processos_sei(''000777/99-11'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: contrato visto sem o módulo (' || coalesce(r, 'nulo') || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('CONTRATOS C1: cadastrar com criar, alterar com editar (passagens só marca a agência), apagar só rascunho com editar, nº único por ano, responsáveis (nome do RH, um gestor ativo, saída com motivo, trilha), busca estreita no RH, importação (simula, repete, grava, só completa, não troca o gestor em exercício, zero à esquerda, avisa o que difere), autoria, assinado não volta a rascunho, medição e localizador verificados');
 END $$;
 
 -- ---------------------------------------------------------------- resumo

@@ -829,6 +829,44 @@ export function usePainelFinanceiro(exercicio: number) {
   return { dotacoes, empenhos, atualizacao };
 }
 
+/**
+ * Última atualização de cada item da rotina (/financeiro/atualizar): a última importação por tipo no exercício e a
+ * competência fechada mais recente da conciliação mensal. Spec: 2026-10-23-rotina-atualizacao-financeiro-design.md
+ */
+export function useRotinaAtualizacao(exercicio: number, tipos: string[]) {
+  return useQuery({
+    queryKey: ['fin_rotina_atualizacao', exercicio, tipos],
+    queryFn: async () => {
+      // Uma consulta por tipo, como no painel: reimportar um não esconde a última do outro
+      const ultima = async (tipo: string) => {
+        const { data, error } = await supabase
+          .from('importacoes')
+          .select('created_at')
+          .eq('exercicio', exercicio)
+          .eq('tipo', tipo)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        return [tipo, data?.[0]?.created_at ?? null] as const;
+      };
+      const conciliacao = async () => {
+        const { data, error } = await supabase
+          .from('fin_conciliacoes_mensais')
+          .select('competencia')
+          .eq('situacao', 'fechada')
+          // Sem limite de início: em janeiro, o mês que precisa estar fechado é dezembro do ano anterior
+          .lte('competencia', `${exercicio}-12-01`)
+          .order('competencia', { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        return ['conciliacao', data?.[0]?.competencia ?? null] as const;
+      };
+      const linhas = await Promise.all([...tipos.map(ultima), conciliacao()]);
+      return Object.fromEntries(linhas) as Record<string, string | null>;
+    },
+  });
+}
+
 // ===========================================
 // IMPORTAÇÕES DO FIPLAN
 // ===========================================

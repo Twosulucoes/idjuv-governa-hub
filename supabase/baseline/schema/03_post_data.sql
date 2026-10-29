@@ -974,11 +974,19 @@ ALTER TABLE ONLY public.conteudo_rascunho
 
 
 --
--- Name: contratos contratos_numero_contrato_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: contrato_responsaveis contrato_responsaveis_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contrato_responsaveis
+    ADD CONSTRAINT contrato_responsaveis_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: contratos contratos_numero_ano_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.contratos
-    ADD CONSTRAINT contratos_numero_contrato_key UNIQUE (numero_contrato);
+    ADD CONSTRAINT contratos_numero_ano_key UNIQUE (numero_contrato, ano);
 
 
 --
@@ -987,6 +995,22 @@ ALTER TABLE ONLY public.contratos
 
 ALTER TABLE ONLY public.contratos
     ADD CONSTRAINT contratos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: contratos contratos_valores_check; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.contratos
+    ADD CONSTRAINT contratos_valores_check CHECK (((valor_inicial >= (0)::numeric) AND (valor_atual >= (0)::numeric))) NOT VALID;
+
+
+--
+-- Name: contratos contratos_vigencia_check; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.contratos
+    ADD CONSTRAINT contratos_vigencia_check CHECK (((data_fim >= data_inicio) AND ((data_fim_atual IS NULL) OR (data_fim_atual >= data_inicio)))) NOT VALID;
 
 
 --
@@ -1726,6 +1750,22 @@ ALTER TABLE ONLY public.fin_parametros
 
 
 --
+-- Name: fin_peds fin_peds_chave; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_peds
+    ADD CONSTRAINT fin_peds_chave UNIQUE NULLS NOT DISTINCT (exercicio, numero, numero_estorno);
+
+
+--
+-- Name: fin_peds fin_peds_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_peds
+    ADD CONSTRAINT fin_peds_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_plano_contas fin_plano_contas_codigo_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1827,6 +1867,46 @@ ALTER TABLE ONLY public.fin_solicitacoes
 
 ALTER TABLE ONLY public.fin_sub_empenhos
     ADD CONSTRAINT fin_sub_empenhos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fin_tg_convenios fin_tg_convenios_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_convenios
+    ADD CONSTRAINT fin_tg_convenios_pkey PRIMARY KEY (numero);
+
+
+--
+-- Name: fin_tg_emendas fin_tg_emendas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_emendas
+    ADD CONSTRAINT fin_tg_emendas_pkey PRIMARY KEY (id_proposta, numero_emenda);
+
+
+--
+-- Name: fin_tg_movimentos fin_tg_movimentos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_movimentos
+    ADD CONSTRAINT fin_tg_movimentos_pkey PRIMARY KEY (tipo, id_origem);
+
+
+--
+-- Name: fin_tg_propostas fin_tg_propostas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_propostas
+    ADD CONSTRAINT fin_tg_propostas_pkey PRIMARY KEY (id_proposta);
+
+
+--
+-- Name: fin_tg_sincronizacoes fin_tg_sincronizacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_sincronizacoes
+    ADD CONSTRAINT fin_tg_sincronizacoes_pkey PRIMARY KEY (id);
 
 
 --
@@ -2526,6 +2606,150 @@ ALTER TABLE ONLY public.participantes_reuniao
 
 
 --
+-- Name: passagem_anexos passagem_anexos_caminho_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_caminho_key UNIQUE (caminho);
+
+
+--
+-- Name: passagem_anexos passagem_anexos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: passagem_beneficiarios passagem_beneficiarios_cpf_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_beneficiarios
+    ADD CONSTRAINT passagem_beneficiarios_cpf_key UNIQUE (cpf);
+
+
+--
+-- Name: passagem_beneficiarios passagem_beneficiarios_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_beneficiarios
+    ADD CONSTRAINT passagem_beneficiarios_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: passagem_contrato_empenhos passagem_contrato_empenhos_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_contrato_empenhos
+    ADD CONSTRAINT passagem_contrato_empenhos_key UNIQUE (contrato_id, empenho_id);
+
+
+--
+-- Name: passagem_contrato_empenhos passagem_contrato_empenhos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_contrato_empenhos
+    ADD CONSTRAINT passagem_contrato_empenhos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: passagem_cotacoes passagem_cotacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_cotacoes
+    ADD CONSTRAINT passagem_cotacoes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: passagem_fatura_itens passagem_fatura_itens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_fatura_itens
+    ADD CONSTRAINT passagem_fatura_itens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: passagem_fatura_itens passagem_fatura_itens_trecho_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_fatura_itens
+    ADD CONSTRAINT passagem_fatura_itens_trecho_key UNIQUE (trecho_id);
+
+
+--
+-- Name: passagem_faturas passagem_faturas_numero_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_faturas
+    ADD CONSTRAINT passagem_faturas_numero_key UNIQUE (contrato_id, numero);
+
+
+--
+-- Name: passagem_faturas passagem_faturas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_faturas
+    ADD CONSTRAINT passagem_faturas_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: passagem_historico passagem_historico_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_historico
+    ADD CONSTRAINT passagem_historico_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: passagem_passageiros passagem_passageiros_beneficiario_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_passageiros
+    ADD CONSTRAINT passagem_passageiros_beneficiario_key UNIQUE (pedido_id, beneficiario_id);
+
+
+--
+-- Name: passagem_passageiros passagem_passageiros_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_passageiros
+    ADD CONSTRAINT passagem_passageiros_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: passagem_passageiros passagem_passageiros_servidor_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_passageiros
+    ADD CONSTRAINT passagem_passageiros_servidor_key UNIQUE (pedido_id, servidor_id);
+
+
+--
+-- Name: passagem_pedidos passagem_pedidos_numero_sei_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_pedidos
+    ADD CONSTRAINT passagem_pedidos_numero_sei_key UNIQUE (numero_sei);
+
+
+--
+-- Name: passagem_pedidos passagem_pedidos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_pedidos
+    ADD CONSTRAINT passagem_pedidos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: passagem_trechos passagem_trechos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_trechos
+    ADD CONSTRAINT passagem_trechos_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: patrimonio_unidade patrimonio_unidade_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2731,6 +2955,14 @@ ALTER TABLE ONLY public.processo_modelos
 
 ALTER TABLE ONLY public.processo_modelos
     ADD CONSTRAINT processo_modelos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: processo_reservas processo_reservas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_pkey PRIMARY KEY (id);
 
 
 --
@@ -4554,6 +4786,27 @@ CREATE INDEX idx_conteudo_rascunho_tipo ON public.conteudo_rascunho USING btree 
 
 
 --
+-- Name: idx_contrato_responsaveis_contrato; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contrato_responsaveis_contrato ON public.contrato_responsaveis USING btree (contrato_id);
+
+
+--
+-- Name: idx_contrato_responsaveis_servidor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contrato_responsaveis_servidor ON public.contrato_responsaveis USING btree (servidor_id);
+
+
+--
+-- Name: idx_contratos_data_fim_atual; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contratos_data_fim_atual ON public.contratos USING btree (data_fim_atual);
+
+
+--
 -- Name: idx_contratos_fiscal_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4593,6 +4846,13 @@ CREATE INDEX idx_contratos_processo_licitatorio_id ON public.contratos USING btr
 --
 
 CREATE INDEX idx_contratos_status ON public.contratos USING btree (status);
+
+
+--
+-- Name: idx_contratos_unidade_demandante_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contratos_unidade_demandante_id ON public.contratos USING btree (unidade_demandante_id);
 
 
 --
@@ -5961,6 +6221,20 @@ CREATE INDEX idx_fin_pagamentos_status ON public.fin_pagamentos USING btree (sta
 
 
 --
+-- Name: idx_fin_peds_dotacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_peds_dotacao ON public.fin_peds USING btree (dotacao_id);
+
+
+--
+-- Name: idx_fin_peds_processo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_peds_processo ON public.fin_peds USING btree (exercicio, processo_chave);
+
+
+--
 -- Name: idx_fin_plano_contas_codigo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6105,6 +6379,34 @@ CREATE INDEX idx_fin_sub_empenhos_empenho ON public.fin_sub_empenhos USING btree
 --
 
 CREATE INDEX idx_fin_sub_empenhos_tipo ON public.fin_sub_empenhos USING btree (tipo);
+
+
+--
+-- Name: idx_fin_tg_convenios_proposta; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_convenios_proposta ON public.fin_tg_convenios USING btree (id_proposta);
+
+
+--
+-- Name: idx_fin_tg_movimentos_convenio; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_movimentos_convenio ON public.fin_tg_movimentos USING btree (numero_convenio, data);
+
+
+--
+-- Name: idx_fin_tg_propostas_ano; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_propostas_ano ON public.fin_tg_propostas USING btree (ano DESC);
+
+
+--
+-- Name: idx_fin_tg_sincronizacoes_executada; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_sincronizacoes_executada ON public.fin_tg_sincronizacoes USING btree (executada_em DESC);
 
 
 --
@@ -7144,6 +7446,90 @@ CREATE INDEX idx_participantes_servidor_id ON public.participantes_reuniao USING
 
 
 --
+-- Name: idx_passagem_beneficiarios_nome; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_beneficiarios_nome ON public.passagem_beneficiarios USING btree (lower(nome));
+
+
+--
+-- Name: idx_passagem_contrato_empenhos_empenho; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_contrato_empenhos_empenho ON public.passagem_contrato_empenhos USING btree (empenho_id);
+
+
+--
+-- Name: idx_passagem_cotacoes_trecho; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_cotacoes_trecho ON public.passagem_cotacoes USING btree (trecho_id);
+
+
+--
+-- Name: idx_passagem_fatura_itens_fatura; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_fatura_itens_fatura ON public.passagem_fatura_itens USING btree (fatura_id);
+
+
+--
+-- Name: idx_passagem_faturas_contrato; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_faturas_contrato ON public.passagem_faturas USING btree (contrato_id, data_emissao DESC);
+
+
+--
+-- Name: idx_passagem_historico_pedido; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_historico_pedido ON public.passagem_historico USING btree (pedido_id, feito_em DESC);
+
+
+--
+-- Name: idx_passagem_passageiros_beneficiario; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_passageiros_beneficiario ON public.passagem_passageiros USING btree (beneficiario_id);
+
+
+--
+-- Name: idx_passagem_passageiros_servidor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_passageiros_servidor ON public.passagem_passageiros USING btree (servidor_id);
+
+
+--
+-- Name: idx_passagem_pedidos_contrato; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_pedidos_contrato ON public.passagem_pedidos USING btree (contrato_id);
+
+
+--
+-- Name: idx_passagem_pedidos_situacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_pedidos_situacao ON public.passagem_pedidos USING btree (situacao, data_pedido DESC);
+
+
+--
+-- Name: idx_passagem_trechos_emissao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_trechos_emissao ON public.passagem_trechos USING btree (data_emissao) WHERE (localizador IS NOT NULL);
+
+
+--
+-- Name: idx_passagem_trechos_passageiro; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_passagem_trechos_passageiro ON public.passagem_trechos USING btree (passageiro_id, ordem);
+
+
+--
 -- Name: idx_patrimonio_unidade; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7358,6 +7744,13 @@ CREATE INDEX idx_processo_andamentos_processo ON public.processo_andamentos USIN
 --
 
 CREATE INDEX idx_processo_checklist_respostas_item ON public.processo_checklist_respostas USING btree (item_id);
+
+
+--
+-- Name: idx_processo_reservas_combinacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_reservas_combinacao ON public.processo_reservas USING btree (exercicio, acao_id, fonte_recurso_id, natureza_despesa_id) WHERE (situacao = 'reservada'::text);
 
 
 --
@@ -8250,6 +8643,34 @@ CREATE INDEX limite_requisicoes_publicas_criado_em_idx ON public.limite_requisic
 
 
 --
+-- Name: passagem_anexos_created_by_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX passagem_anexos_created_by_idx ON public.passagem_anexos USING btree (created_by);
+
+
+--
+-- Name: passagem_anexos_passageiro_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX passagem_anexos_passageiro_idx ON public.passagem_anexos USING btree (passageiro_id);
+
+
+--
+-- Name: passagem_anexos_pedido_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX passagem_anexos_pedido_idx ON public.passagem_anexos USING btree (pedido_id);
+
+
+--
+-- Name: passagem_anexos_updated_by_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX passagem_anexos_updated_by_idx ON public.passagem_anexos USING btree (updated_by);
+
+
+--
 -- Name: pre_cadastros_ip_hash_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8303,6 +8724,34 @@ CREATE UNIQUE INDEX retornos_bancarios_remessa_arquivo_key ON public.retornos_ba
 --
 
 CREATE UNIQUE INDEX uq_bens_patrimoniais_numero_norm ON public.bens_patrimoniais USING btree (upper(btrim((numero_patrimonio)::text)));
+
+
+--
+-- Name: uq_contrato_responsaveis_gestor_ativo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_contrato_responsaveis_gestor_ativo ON public.contrato_responsaveis USING btree (contrato_id) WHERE ((papel = 'gestor'::text) AND (data_fim IS NULL));
+
+
+--
+-- Name: uq_contrato_responsaveis_papel_ativo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_contrato_responsaveis_papel_ativo ON public.contrato_responsaveis USING btree (contrato_id, papel, servidor_id) WHERE (data_fim IS NULL);
+
+
+--
+-- Name: uq_passagem_cotacoes_escolhida; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_passagem_cotacoes_escolhida ON public.passagem_cotacoes USING btree (trecho_id) WHERE escolhida;
+
+
+--
+-- Name: uq_processo_reservas_combinacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_processo_reservas_combinacao ON public.processo_reservas USING btree (processo_id, exercicio, acao_id, fonte_recurso_id, natureza_despesa_id) WHERE (situacao = 'reservada'::text);
 
 
 --
@@ -9608,6 +10057,13 @@ CREATE TRIGGER trg_audit_atas_registro_preco AFTER INSERT OR DELETE OR UPDATE ON
 
 
 --
+-- Name: contrato_responsaveis trg_audit_contrato_responsaveis; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_audit_contrato_responsaveis AFTER INSERT OR DELETE OR UPDATE ON public.contrato_responsaveis FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
 -- Name: contratos trg_audit_contratos; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -9871,6 +10327,27 @@ CREATE TRIGGER trg_config_tipos_ato_updated_at BEFORE UPDATE ON public.config_ti
 --
 
 CREATE TRIGGER trg_config_tipos_servidor_updated_at BEFORE UPDATE ON public.config_tipos_servidor FOR EACH ROW EXECUTE FUNCTION public.fn_update_timestamp_parametros();
+
+
+--
+-- Name: contrato_responsaveis trg_contrato_responsaveis_preparar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_contrato_responsaveis_preparar BEFORE INSERT OR UPDATE ON public.contrato_responsaveis FOR EACH ROW EXECUTE FUNCTION public.contrato_resp_preparar();
+
+
+--
+-- Name: contratos trg_contratos_conferir_permissao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_contratos_conferir_permissao BEFORE INSERT OR DELETE OR UPDATE ON public.contratos FOR EACH ROW EXECUTE FUNCTION public.contratos_conferir_permissao();
+
+
+--
+-- Name: contratos trg_contratos_preparar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_contratos_preparar BEFORE INSERT OR UPDATE ON public.contratos FOR EACH ROW EXECUTE FUNCTION public.contratos_preparar();
 
 
 --
@@ -10186,6 +10663,195 @@ CREATE TRIGGER trg_movimentacao_atualiza_estoque AFTER INSERT ON public.moviment
 --
 
 CREATE TRIGGER trg_parametros_folha_normalizar_nome BEFORE INSERT OR UPDATE OF tipo_parametro ON public.parametros_folha FOR EACH ROW EXECUTE FUNCTION public.parametros_folha_normalizar_nome();
+
+
+--
+-- Name: passagem_anexos trg_passagem_anexos_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_anexos_carimbar BEFORE INSERT OR UPDATE ON public.passagem_anexos FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_anexos trg_passagem_anexos_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_anexos_conferir BEFORE INSERT OR DELETE OR UPDATE ON public.passagem_anexos FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_anexo();
+
+
+--
+-- Name: passagem_anexos trg_passagem_anexos_trilha; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_anexos_trilha AFTER INSERT OR DELETE ON public.passagem_anexos FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_anexo();
+
+
+--
+-- Name: passagem_beneficiarios trg_passagem_beneficiarios_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_beneficiarios_carimbar BEFORE INSERT OR UPDATE ON public.passagem_beneficiarios FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_beneficiarios trg_passagem_beneficiarios_nome; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_beneficiarios_nome AFTER UPDATE OF nome ON public.passagem_beneficiarios FOR EACH ROW WHEN ((new.nome IS DISTINCT FROM old.nome)) EXECUTE FUNCTION public.passagem_propagar_nome_beneficiario();
+
+
+--
+-- Name: passagem_contrato_empenhos trg_passagem_contrato_empenhos_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_contrato_empenhos_carimbar BEFORE INSERT OR UPDATE ON public.passagem_contrato_empenhos FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_contrato_empenhos trg_passagem_contrato_empenhos_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_contrato_empenhos_conferir BEFORE INSERT OR UPDATE OF contrato_id ON public.passagem_contrato_empenhos FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_ligacao_empenho();
+
+
+--
+-- Name: passagem_cotacoes trg_passagem_cotacoes_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_cotacoes_carimbar BEFORE INSERT OR UPDATE ON public.passagem_cotacoes FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_fatura_itens trg_passagem_fatura_itens_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_fatura_itens_carimbar BEFORE INSERT OR UPDATE ON public.passagem_fatura_itens FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_fatura_itens trg_passagem_fatura_itens_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_fatura_itens_conferir BEFORE INSERT OR DELETE OR UPDATE ON public.passagem_fatura_itens FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_fatura_item();
+
+
+--
+-- Name: passagem_fatura_itens trg_passagem_fatura_itens_historico; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_fatura_itens_historico AFTER INSERT OR DELETE OR UPDATE ON public.passagem_fatura_itens FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_fatura_item();
+
+
+--
+-- Name: passagem_faturas trg_passagem_faturas_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_faturas_carimbar BEFORE INSERT OR UPDATE ON public.passagem_faturas FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_faturas trg_passagem_faturas_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_faturas_conferir BEFORE INSERT OR DELETE OR UPDATE ON public.passagem_faturas FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_fatura();
+
+
+--
+-- Name: passagem_faturas trg_passagem_faturas_historico; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_faturas_historico AFTER UPDATE ON public.passagem_faturas FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_fatura();
+
+
+--
+-- Name: passagem_passageiros trg_passagem_passageiros_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_passageiros_carimbar BEFORE INSERT OR UPDATE ON public.passagem_passageiros FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_passageiros trg_passagem_passageiros_conclusao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_passageiros_conclusao BEFORE UPDATE ON public.passagem_passageiros FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_conclusao();
+
+
+--
+-- Name: passagem_passageiros trg_passagem_passageiros_nome; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_passageiros_nome BEFORE INSERT OR UPDATE ON public.passagem_passageiros FOR EACH ROW EXECUTE FUNCTION public.passagem_copiar_nome();
+
+
+--
+-- Name: passagem_passageiros trg_passagem_passageiros_prestacao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_passageiros_prestacao AFTER UPDATE ON public.passagem_passageiros FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_prestacao();
+
+
+--
+-- Name: passagem_pedidos trg_passagem_pedidos_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_pedidos_carimbar BEFORE INSERT OR UPDATE ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_pedidos trg_passagem_pedidos_conclusao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_pedidos_conclusao BEFORE UPDATE ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_conclusao();
+
+
+--
+-- Name: passagem_pedidos trg_passagem_pedidos_historico; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_pedidos_historico AFTER INSERT OR UPDATE ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_historico();
+
+
+--
+-- Name: passagem_pedidos trg_passagem_pedidos_nome; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_pedidos_nome BEFORE INSERT OR UPDATE ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_copiar_nome();
+
+
+--
+-- Name: passagem_pedidos trg_passagem_pedidos_prestacao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_pedidos_prestacao AFTER UPDATE ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_prestacao();
+
+
+--
+-- Name: passagem_pedidos trg_passagem_pedidos_responsavel; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_pedidos_responsavel BEFORE INSERT OR UPDATE OF responsavel_passageiro_id ON public.passagem_pedidos FOR EACH ROW EXECUTE FUNCTION public.passagem_conferir_responsavel();
+
+
+--
+-- Name: passagem_trechos trg_passagem_trechos_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_trechos_carimbar BEFORE INSERT OR UPDATE ON public.passagem_trechos FOR EACH ROW EXECUTE FUNCTION public.passagem_carimbar();
+
+
+--
+-- Name: passagem_trechos trg_passagem_trechos_historico; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_trechos_historico AFTER INSERT OR UPDATE ON public.passagem_trechos FOR EACH ROW EXECUTE FUNCTION public.passagem_registrar_historico();
+
+
+--
+-- Name: passagem_trechos trg_passagem_trechos_proteger; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_passagem_trechos_proteger BEFORE DELETE ON public.passagem_trechos FOR EACH ROW EXECUTE FUNCTION public.passagem_proteger_emitido();
 
 
 --
@@ -14348,6 +15014,22 @@ ALTER TABLE ONLY public.conteudo_rascunho
 
 
 --
+-- Name: contrato_responsaveis contrato_responsaveis_contrato_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contrato_responsaveis
+    ADD CONSTRAINT contrato_responsaveis_contrato_id_fkey FOREIGN KEY (contrato_id) REFERENCES public.contratos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: contrato_responsaveis contrato_responsaveis_servidor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contrato_responsaveis
+    ADD CONSTRAINT contrato_responsaveis_servidor_id_fkey FOREIGN KEY (servidor_id) REFERENCES public.servidores(id);
+
+
+--
 -- Name: contratos contratos_fiscal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -14377,6 +15059,14 @@ ALTER TABLE ONLY public.contratos
 
 ALTER TABLE ONLY public.contratos
     ADD CONSTRAINT contratos_processo_licitatorio_id_fkey FOREIGN KEY (processo_licitatorio_id) REFERENCES public.processos_licitatorios(id);
+
+
+--
+-- Name: contratos contratos_unidade_demandante_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contratos
+    ADD CONSTRAINT contratos_unidade_demandante_id_fkey FOREIGN KEY (unidade_demandante_id) REFERENCES public.estrutura_organizacional(id);
 
 
 --
@@ -15860,6 +16550,22 @@ ALTER TABLE ONLY public.fin_pagamentos
 
 
 --
+-- Name: fin_peds fin_peds_dotacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_peds
+    ADD CONSTRAINT fin_peds_dotacao_id_fkey FOREIGN KEY (dotacao_id) REFERENCES public.fin_dotacoes(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_peds fin_peds_importacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_peds
+    ADD CONSTRAINT fin_peds_importacao_id_fkey FOREIGN KEY (importacao_id) REFERENCES public.importacoes(id) ON DELETE SET NULL;
+
+
+--
 -- Name: fin_plano_contas fin_plano_contas_conta_pai_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16017,6 +16723,30 @@ ALTER TABLE ONLY public.fin_solicitacoes
 
 ALTER TABLE ONLY public.fin_sub_empenhos
     ADD CONSTRAINT fin_sub_empenhos_empenho_id_fkey FOREIGN KEY (empenho_id) REFERENCES public.fin_empenhos(id);
+
+
+--
+-- Name: fin_tg_convenios fin_tg_convenios_id_proposta_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_convenios
+    ADD CONSTRAINT fin_tg_convenios_id_proposta_fkey FOREIGN KEY (id_proposta) REFERENCES public.fin_tg_propostas(id_proposta) ON DELETE CASCADE;
+
+
+--
+-- Name: fin_tg_emendas fin_tg_emendas_id_proposta_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_emendas
+    ADD CONSTRAINT fin_tg_emendas_id_proposta_fkey FOREIGN KEY (id_proposta) REFERENCES public.fin_tg_propostas(id_proposta) ON DELETE CASCADE;
+
+
+--
+-- Name: fin_tg_movimentos fin_tg_movimentos_numero_convenio_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_movimentos
+    ADD CONSTRAINT fin_tg_movimentos_numero_convenio_fkey FOREIGN KEY (numero_convenio) REFERENCES public.fin_tg_convenios(numero) ON DELETE CASCADE;
 
 
 --
@@ -17196,6 +17926,182 @@ ALTER TABLE ONLY public.participantes_reuniao
 
 
 --
+-- Name: passagem_anexos passagem_anexos_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
+
+
+--
+-- Name: passagem_anexos passagem_anexos_passageiro_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_passageiro_id_fkey FOREIGN KEY (passageiro_id) REFERENCES public.passagem_passageiros(id) ON DELETE CASCADE;
+
+
+--
+-- Name: passagem_anexos passagem_anexos_pedido_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_pedido_id_fkey FOREIGN KEY (pedido_id) REFERENCES public.passagem_pedidos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: passagem_anexos passagem_anexos_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_anexos
+    ADD CONSTRAINT passagem_anexos_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id);
+
+
+--
+-- Name: passagem_beneficiarios passagem_beneficiarios_instituicao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_beneficiarios
+    ADD CONSTRAINT passagem_beneficiarios_instituicao_id_fkey FOREIGN KEY (instituicao_id) REFERENCES public.instituicoes(id);
+
+
+--
+-- Name: passagem_contrato_empenhos passagem_contrato_empenhos_contrato_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_contrato_empenhos
+    ADD CONSTRAINT passagem_contrato_empenhos_contrato_id_fkey FOREIGN KEY (contrato_id) REFERENCES public.contratos(id);
+
+
+--
+-- Name: passagem_contrato_empenhos passagem_contrato_empenhos_empenho_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_contrato_empenhos
+    ADD CONSTRAINT passagem_contrato_empenhos_empenho_id_fkey FOREIGN KEY (empenho_id) REFERENCES public.fin_empenhos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: passagem_cotacoes passagem_cotacoes_trecho_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_cotacoes
+    ADD CONSTRAINT passagem_cotacoes_trecho_id_fkey FOREIGN KEY (trecho_id) REFERENCES public.passagem_trechos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: passagem_fatura_itens passagem_fatura_itens_fatura_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_fatura_itens
+    ADD CONSTRAINT passagem_fatura_itens_fatura_id_fkey FOREIGN KEY (fatura_id) REFERENCES public.passagem_faturas(id) ON DELETE CASCADE;
+
+
+--
+-- Name: passagem_fatura_itens passagem_fatura_itens_trecho_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_fatura_itens
+    ADD CONSTRAINT passagem_fatura_itens_trecho_id_fkey FOREIGN KEY (trecho_id) REFERENCES public.passagem_trechos(id);
+
+
+--
+-- Name: passagem_faturas passagem_faturas_contrato_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_faturas
+    ADD CONSTRAINT passagem_faturas_contrato_id_fkey FOREIGN KEY (contrato_id) REFERENCES public.contratos(id);
+
+
+--
+-- Name: passagem_historico passagem_historico_pedido_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_historico
+    ADD CONSTRAINT passagem_historico_pedido_id_fkey FOREIGN KEY (pedido_id) REFERENCES public.passagem_pedidos(id);
+
+
+--
+-- Name: passagem_passageiros passagem_passageiros_beneficiario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_passageiros
+    ADD CONSTRAINT passagem_passageiros_beneficiario_id_fkey FOREIGN KEY (beneficiario_id) REFERENCES public.passagem_beneficiarios(id);
+
+
+--
+-- Name: passagem_passageiros passagem_passageiros_pedido_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_passageiros
+    ADD CONSTRAINT passagem_passageiros_pedido_id_fkey FOREIGN KEY (pedido_id) REFERENCES public.passagem_pedidos(id);
+
+
+--
+-- Name: passagem_passageiros passagem_passageiros_servidor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_passageiros
+    ADD CONSTRAINT passagem_passageiros_servidor_id_fkey FOREIGN KEY (servidor_id) REFERENCES public.servidores(id);
+
+
+--
+-- Name: passagem_passageiros passagem_passageiros_viagem_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_passageiros
+    ADD CONSTRAINT passagem_passageiros_viagem_id_fkey FOREIGN KEY (viagem_id) REFERENCES public.viagens_diarias(id);
+
+
+--
+-- Name: passagem_pedidos passagem_pedidos_contrato_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_pedidos
+    ADD CONSTRAINT passagem_pedidos_contrato_id_fkey FOREIGN KEY (contrato_id) REFERENCES public.contratos(id);
+
+
+--
+-- Name: passagem_pedidos passagem_pedidos_responsavel_passageiro_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_pedidos
+    ADD CONSTRAINT passagem_pedidos_responsavel_passageiro_id_fkey FOREIGN KEY (responsavel_passageiro_id) REFERENCES public.passagem_passageiros(id) ON DELETE SET NULL;
+
+
+--
+-- Name: passagem_pedidos passagem_pedidos_solicitante_beneficiario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_pedidos
+    ADD CONSTRAINT passagem_pedidos_solicitante_beneficiario_id_fkey FOREIGN KEY (solicitante_beneficiario_id) REFERENCES public.passagem_beneficiarios(id);
+
+
+--
+-- Name: passagem_pedidos passagem_pedidos_solicitante_instituicao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_pedidos
+    ADD CONSTRAINT passagem_pedidos_solicitante_instituicao_id_fkey FOREIGN KEY (solicitante_instituicao_id) REFERENCES public.instituicoes(id);
+
+
+--
+-- Name: passagem_pedidos passagem_pedidos_solicitante_servidor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_pedidos
+    ADD CONSTRAINT passagem_pedidos_solicitante_servidor_id_fkey FOREIGN KEY (solicitante_servidor_id) REFERENCES public.servidores(id);
+
+
+--
+-- Name: passagem_trechos passagem_trechos_passageiro_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.passagem_trechos
+    ADD CONSTRAINT passagem_trechos_passageiro_id_fkey FOREIGN KEY (passageiro_id) REFERENCES public.passagem_passageiros(id) ON DELETE CASCADE;
+
+
+--
 -- Name: patrimonio_unidade patrimonio_unidade_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -17481,6 +18387,46 @@ ALTER TABLE ONLY public.processo_modelo_checklist
 
 ALTER TABLE ONLY public.processo_modelo_etapas
     ADD CONSTRAINT processo_modelo_etapas_modelo_id_fkey FOREIGN KEY (modelo_id) REFERENCES public.processo_modelos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: processo_reservas processo_reservas_acao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_acao_id_fkey FOREIGN KEY (acao_id) REFERENCES public.fin_acoes_orcamentarias(id);
+
+
+--
+-- Name: processo_reservas processo_reservas_fonte_recurso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_fonte_recurso_id_fkey FOREIGN KEY (fonte_recurso_id) REFERENCES public.fin_fontes_recurso(id);
+
+
+--
+-- Name: processo_reservas processo_reservas_natureza_despesa_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_natureza_despesa_id_fkey FOREIGN KEY (natureza_despesa_id) REFERENCES public.fin_naturezas_despesa(id);
+
+
+--
+-- Name: processo_reservas processo_reservas_pca_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_pca_item_id_fkey FOREIGN KEY (pca_item_id) REFERENCES public.pca_itens(id) ON DELETE SET NULL;
+
+
+--
+-- Name: processo_reservas processo_reservas_processo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_reservas
+    ADD CONSTRAINT processo_reservas_processo_id_fkey FOREIGN KEY (processo_id) REFERENCES public.processos_licitatorios(id) ON DELETE CASCADE;
 
 
 --
@@ -18988,6 +19934,12 @@ ALTER TABLE public.contatos_eventos_esportivos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.conteudo_rascunho ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: contrato_responsaveis; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.contrato_responsaveis ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: contratos; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -19441,6 +20393,19 @@ ALTER TABLE public.fin_pagamentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fin_parametros ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: fin_peds; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_peds ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_peds fin_peds_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY fin_peds_select ON public.fin_peds FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ( SELECT public.can_access_module(auth.uid(), 'financeiro'::text) AS can_access_module)));
+
+
+--
 -- Name: fin_plano_contas; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -19494,6 +20459,36 @@ ALTER TABLE public.fin_solicitacoes ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.fin_sub_empenhos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_convenios; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_convenios ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_emendas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_emendas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_movimentos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_movimentos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_propostas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_propostas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_sincronizacoes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_sincronizacoes ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: folha_historico_status; Type: ROW SECURITY; Schema: public; Owner: -
@@ -19858,6 +20853,66 @@ ALTER TABLE public.pareceres_tecnicos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.participantes_reuniao ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: passagem_anexos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_anexos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: passagem_beneficiarios; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_beneficiarios ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: passagem_contrato_empenhos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_contrato_empenhos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: passagem_cotacoes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_cotacoes ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: passagem_fatura_itens; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_fatura_itens ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: passagem_faturas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_faturas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: passagem_historico; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_historico ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: passagem_passageiros; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_passageiros ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: passagem_pedidos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_pedidos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: passagem_trechos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.passagem_trechos ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: patrimonio_unidade; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -19958,6 +21013,19 @@ ALTER TABLE public.processo_modelo_etapas ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.processo_modelos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_reservas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.processo_reservas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_reservas processo_reservas_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY processo_reservas_select ON public.processo_reservas FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ((( SELECT public.can_access_module(auth.uid(), 'compras'::text) AS can_access_module) AND (( SELECT public.has_permission_code(auth.uid(), 'compras.processos.visualizar'::text) AS has_permission_code) OR ( SELECT public.has_permission_code(auth.uid(), 'compras.processos.editar'::text) AS has_permission_code))) OR ( SELECT public.can_access_module(auth.uid(), 'financeiro'::text) AS can_access_module))));
+
 
 --
 -- Name: processos_administrativos; Type: ROW SECURITY; Schema: public; Owner: -
@@ -20592,10 +21660,17 @@ CREATE POLICY rls_delete ON public.conteudo_rascunho FOR DELETE TO authenticated
 
 
 --
+-- Name: contrato_responsaveis rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.contrato_responsaveis FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.editar'::text)));
+
+
+--
 -- Name: contratos rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.contratos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+CREATE POLICY rls_delete ON public.contratos FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.editar'::text)));
 
 
 --
@@ -21120,7 +22195,7 @@ CREATE POLICY rls_delete ON public.itens_checklist FOR DELETE TO authenticated U
 -- Name: itens_contrato rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.itens_contrato FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+CREATE POLICY rls_delete ON public.itens_contrato FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.editar'::text)));
 
 
 --
@@ -21356,6 +22431,55 @@ CREATE POLICY rls_delete ON public.pareceres_tecnicos FOR DELETE TO authenticate
 --
 
 CREATE POLICY rls_delete ON public.participantes_reuniao FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: passagem_anexos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.passagem_anexos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_contrato_empenhos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.passagem_contrato_empenhos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+
+
+--
+-- Name: passagem_cotacoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.passagem_cotacoes FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_fatura_itens rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.passagem_fatura_itens FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+
+
+--
+-- Name: passagem_faturas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.passagem_faturas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+
+
+--
+-- Name: passagem_passageiros rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.passagem_passageiros FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_trechos rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.passagem_trechos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
@@ -22213,10 +23337,17 @@ CREATE POLICY rls_insert ON public.conteudo_rascunho FOR INSERT TO authenticated
 
 
 --
+-- Name: contrato_responsaveis rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.contrato_responsaveis FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.criar'::text) OR public.has_permission_code(auth.uid(), 'contratos.editar'::text))));
+
+
+--
 -- Name: contratos rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.contratos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+CREATE POLICY rls_insert ON public.contratos FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.criar'::text) OR public.has_permission_code(auth.uid(), 'contratos.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --
@@ -22755,7 +23886,7 @@ CREATE POLICY rls_insert ON public.itens_checklist FOR INSERT TO authenticated W
 -- Name: itens_contrato rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.itens_contrato FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+CREATE POLICY rls_insert ON public.itens_contrato FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.criar'::text) OR public.has_permission_code(auth.uid(), 'contratos.editar'::text))));
 
 
 --
@@ -22993,6 +24124,69 @@ CREATE POLICY rls_insert ON public.pareceres_tecnicos FOR INSERT TO authenticate
 --
 
 CREATE POLICY rls_insert ON public.participantes_reuniao FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: passagem_anexos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.passagem_anexos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_beneficiarios rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.passagem_beneficiarios FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_contrato_empenhos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.passagem_contrato_empenhos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+
+
+--
+-- Name: passagem_cotacoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.passagem_cotacoes FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_fatura_itens rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.passagem_fatura_itens FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+
+
+--
+-- Name: passagem_faturas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.passagem_faturas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+
+
+--
+-- Name: passagem_passageiros rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.passagem_passageiros FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_pedidos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.passagem_pedidos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_trechos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.passagem_trechos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
@@ -23917,6 +25111,13 @@ CREATE POLICY rls_select ON public.conteudo_rascunho FOR SELECT TO authenticated
 
 
 --
+-- Name: contrato_responsaveis rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.contrato_responsaveis FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+
+
+--
 -- Name: contratos rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -24358,6 +25559,41 @@ CREATE POLICY rls_select ON public.fin_sub_empenhos FOR SELECT TO authenticated 
 
 
 --
+-- Name: fin_tg_convenios rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_convenios FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_emendas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_emendas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_movimentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_movimentos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_propostas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_propostas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_sincronizacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_sincronizacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
 -- Name: folha_historico_status rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -24748,6 +25984,76 @@ CREATE POLICY rls_select ON public.pareceres_tecnicos FOR SELECT TO authenticate
 --
 
 CREATE POLICY rls_select ON public.participantes_reuniao FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: passagem_anexos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_anexos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+
+
+--
+-- Name: passagem_beneficiarios rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_beneficiarios FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+
+
+--
+-- Name: passagem_contrato_empenhos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_contrato_empenhos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))));
+
+
+--
+-- Name: passagem_cotacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_cotacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+
+
+--
+-- Name: passagem_fatura_itens rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_fatura_itens FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))));
+
+
+--
+-- Name: passagem_faturas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_faturas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))));
+
+
+--
+-- Name: passagem_historico rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_historico FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+
+
+--
+-- Name: passagem_passageiros rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_passageiros FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+
+
+--
+-- Name: passagem_pedidos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_pedidos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+
+
+--
+-- Name: passagem_trechos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.passagem_trechos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --
@@ -25661,10 +26967,17 @@ CREATE POLICY rls_update ON public.conteudo_rascunho FOR UPDATE TO authenticated
 
 
 --
+-- Name: contrato_responsaveis rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.contrato_responsaveis FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.criar'::text) OR public.has_permission_code(auth.uid(), 'contratos.editar'::text)))) WITH CHECK (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.criar'::text) OR public.has_permission_code(auth.uid(), 'contratos.editar'::text))));
+
+
+--
 -- Name: contratos rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.contratos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+CREATE POLICY rls_update ON public.contratos FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.criar'::text) OR public.has_permission_code(auth.uid(), 'contratos.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)))) WITH CHECK (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.criar'::text) OR public.has_permission_code(auth.uid(), 'contratos.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --
@@ -26203,7 +27516,7 @@ CREATE POLICY rls_update ON public.itens_checklist FOR UPDATE TO authenticated U
 -- Name: itens_contrato rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.itens_contrato FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
+CREATE POLICY rls_update ON public.itens_contrato FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.criar'::text) OR public.has_permission_code(auth.uid(), 'contratos.editar'::text)))) WITH CHECK (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.criar'::text) OR public.has_permission_code(auth.uid(), 'contratos.editar'::text))));
 
 
 --
@@ -26443,6 +27756,69 @@ CREATE POLICY rls_update ON public.pareceres_tecnicos FOR UPDATE TO authenticate
 --
 
 CREATE POLICY rls_update ON public.participantes_reuniao FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'admin'::text)));
+
+
+--
+-- Name: passagem_anexos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.passagem_anexos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_beneficiarios rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.passagem_beneficiarios FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_contrato_empenhos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.passagem_contrato_empenhos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+
+
+--
+-- Name: passagem_cotacoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.passagem_cotacoes FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_fatura_itens rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.passagem_fatura_itens FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+
+
+--
+-- Name: passagem_faturas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.passagem_faturas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+
+
+--
+-- Name: passagem_passageiros rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.passagem_passageiros FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_pedidos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.passagem_pedidos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+
+
+--
+-- Name: passagem_trechos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.passagem_trechos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
