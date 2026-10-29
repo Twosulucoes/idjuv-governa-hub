@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { CABECALHOS_CLIENTE_SUPABASE, montarCors } from "../_shared/cors.ts";
+import { fetchComTempoLimite, TEMPO_LIMITE_IA_MS, TempoEsgotado } from "../_shared/tempoLimite.ts";
 
 // Sugestão de casamentos da conciliação mensal (aba "Fechamento mensal"): recebe só as pendências que sobraram
 // das regras automáticas e pede ao Gemini grupos que se correspondem. Nada é gravado aqui: a tela mostra cada
@@ -142,7 +143,7 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada");
     const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest";
 
-    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+    const aiResponse = await fetchComTempoLimite("A IA", `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
       method: "POST",
       headers: { "x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -168,7 +169,7 @@ serve(async (req) => {
           },
         },
       }),
-    });
+    }, TEMPO_LIMITE_IA_MS);
 
     if (!aiResponse.ok) {
       if (aiResponse.status === 429) {
@@ -195,6 +196,10 @@ serve(async (req) => {
     console.log("conciliacao-ia-sugestoes:", `${pendencias.length} pendências, ${devolvidos} grupos da IA, ${validos.length} válidos`);
     return respostaJson(cors, 200, { sugestoes: validos });
   } catch (error) {
+    if (error instanceof TempoEsgotado) {
+      console.error("conciliacao-ia-sugestoes: a IA não respondeu a tempo");
+      return respostaJson(cors, 504, { error: "A IA não respondeu a tempo. Tente de novo em instantes." });
+    }
     console.error("conciliacao-ia-sugestoes:", error instanceof Error ? error.message : "erro");
     return respostaJson(cors, 500, { error: "Erro ao gerar as sugestões" });
   }

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { montarCors } from "../_shared/cors.ts";
+import { fetchComTempoLimite, TEMPO_LIMITE_IA_MS, TempoEsgotado } from "../_shared/tempoLimite.ts";
 
 // CORS com allowlist por ambiente (ALLOWED_ORIGINS), em falha fechada: ver ../_shared/cors.ts.
 function corsHeaders(req: Request) {
@@ -314,7 +315,7 @@ Seja específico e cite artigos de lei quando pertinente.`;
       ? `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`
       : `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-    const aiResponse = await fetch(geminiEndpoint, {
+    const aiResponse = await fetchComTempoLimite("A IA", geminiEndpoint, {
       method: "POST",
       headers: {
         "x-goog-api-key": GEMINI_API_KEY,
@@ -328,7 +329,7 @@ Seja específico e cite artigos de lei quando pertinente.`;
           thinkingConfig: { thinkingBudget: ORCAMENTO_RACIOCINIO },
         },
       }),
-    });
+    }, TEMPO_LIMITE_IA_MS);
 
     if (!aiResponse.ok) {
       if (aiResponse.status === 429) {
@@ -387,6 +388,10 @@ Seja específico e cite artigos de lei quando pertinente.`;
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (e) {
+    if (e instanceof TempoEsgotado) {
+      console.error("cpsi-ai-assistant: a IA não respondeu a tempo");
+      return respostaJson(cors, 504, { error: "A IA não respondeu a tempo. Tente de novo em instantes." });
+    }
     console.error("cpsi-ai-assistant error:", e);
     // Detalhe só no log: a mensagem interna não vai para o navegador.
     return new Response(JSON.stringify({ error: "Erro ao processar o pedido de IA" }), {

@@ -92,6 +92,11 @@ por hora (cota `conciliacao_ia`), 8.192 tokens de resposta com 4.096 de raciocí
 contagens (pendências, grupos devolvidos e válidos). Antes da IA, a tela roda a busca de somas no navegador
 (`sugestoesPorSoma`) e só manda para a função o que sobrou.
 
+**Tempo limite da IA** (27/10/2026): as duas funções chamam o Gemini por `fetchComTempoLimite`
+(`supabase/functions/_shared/tempoLimite.ts`), com 40 s até chegarem os cabeçalhos da resposta. Passou disso, devolvem
+`504` com "A IA não respondeu a tempo" em vez de ficar presas até o runtime derrubar a requisição (o que aconteceu em
+23/10). O relógio para quando a resposta começa, para não cortar a revisão em streaming do assistente.
+
 No self-hosted, `GEMINI_API_KEY` e `GEMINI_MODEL` vão no `.env` do docker compose do Supabase e só valem depois de
 `docker compose up -d functions` (um `docker restart` não relê o `.env`). Chave nova do AI Studio pode receber 404 em
 modelo antigo (`gemini-2.5-flash`): use o apelido `gemini-flash-latest`.

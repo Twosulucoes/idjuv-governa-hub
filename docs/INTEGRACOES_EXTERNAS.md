@@ -15,7 +15,7 @@ Edge Functions da VPS).
    libera só o Supabase e `https://brasilapi.com.br`. API nova chamada pelo navegador precisa entrar ali; o
    caminho preferido é a Edge Function (o servidor chama, o navegador não).
 3. **Host fixo e tempo limite.** A função monta a URL com host fixo (não aceita URL vinda do usuário) e usa
-   `AbortSignal.timeout`. Sem tempo limite, a função fica presa até o runtime matar a requisição (ver §3).
+   tempo limite (`fetchComTempoLimite` de `supabase/functions/_shared/tempoLimite.ts`, ou `AbortSignal.timeout`). Sem tempo limite, a função fica presa até o runtime matar a requisição (ver §3).
 4. **Copiar para o banco o que for consultado muito.** Catálogos e tabelas grandes viram cópia local
    sincronizada (padrão do `catalogo-compras`); consulta na hora só para detalhe.
 
@@ -26,7 +26,7 @@ Edge Functions da VPS).
 | Compras.gov.br dados abertos (CATMAT/CATSER) — `dadosabertos.compras.gov.br` | Edge Function `catalogo-compras` (`supabase/functions/catalogo-compras/portal.ts`) | Cópia local do catálogo (PDM de material e serviços), item exato de material e natureza de despesa sugerida, no PCA | Não | **Funciona.** Os endpoints usados responderam 200; a sincronização de 23/10 gravou todas as páginas de PDM e de serviços sem erro |
 | BrasilAPI feriados — `brasilapi.com.br/api/feriados/v1/<ano>` | Front, `src/hooks/useDatasImportantes.ts` | Feriados nacionais no calendário de datas importantes | Não | **Funciona** (200). Tem tempo limite de 4 s e, se falhar, o calendário segue só com os feriados cadastrados |
 | API do Banco do Brasil (OAuth, extratos v2 com mTLS, validação de contas) | Edge Function `bb-api` | Extrato bancário e validação de conta na conciliação | Sim (`BB_CLIENT_ID`, `BB_CLIENT_SECRET`, `BB_APP_KEY`, certificado `BB_CERT_PEM`/`BB_KEY_PEM`, `BB_AMBIENTE`) | **Código pronto, credencial não conferível daqui.** O painel "API do Banco do Brasil" da conciliação mostra quais segredos estão presentes. Padrão é homologação até `BB_AMBIENTE=producao`. Tem tempo limite de 20 s |
-| Google Gemini — `generativelanguage.googleapis.com` | Edge Functions `cpsi-ai-assistant` e `conciliacao-ia-sugestoes` | Assistente de compras e sugestões de conciliação | Sim (`GEMINI_API_KEY`; modelo em `GEMINI_MODEL`, padrão `gemini-flash-latest`) | **Precisa de ajuste.** As duas funções chamam o Gemini **sem tempo limite**: em 23/10 uma sugestão de conciliação ficou presa até o runtime cancelar ("wall clock duration reached") e o usuário não recebeu resposta |
+| Google Gemini — `generativelanguage.googleapis.com` | Edge Functions `cpsi-ai-assistant` e `conciliacao-ia-sugestoes` | Sugestões da conciliação mensal; assistente do antigo CPSI (publicado, sem chamador no front desde a onda 5 do P23) | Sim (`GEMINI_API_KEY`; modelo em `GEMINI_MODEL`, padrão `gemini-flash-latest`) | **Corrigido em 27/10/2026.** Tempo limite de 40 s (`supabase/functions/_shared/tempoLimite.ts`); passou disso, a tela recebe "A IA não respondeu a tempo". Antes, em 23/10, uma sugestão de conciliação ficou presa até o runtime cancelar |
 | Resend (e-mail) — `api.resend.com` | `supabase/functions/_shared/envio/` (usado por `enviar-notificacao` e `enviar-convite-reuniao`) | Envio de e-mail das notificações e convites | Sim (`RESEND_API_KEY`, `RESEND_FROM`) | Alternativa ao SMTP (`denomailer`); qual canal vale sai da configuração de envio no banco |
 | WhatsApp Cloud API (Meta Graph `v21.0`) — `graph.facebook.com` | `supabase/functions/_shared/envio/` | Mensagem por modelo aprovado no WhatsApp | Sim (token na configuração de envio; `wa_phone_number_id` e modelos por uso) | Depende de conta Business e modelos aprovados. Sem isso, o convite de reunião cai no link `wa.me` (o usuário envia na mão) |
 | Mapas (OpenStreetMap e imagem de satélite ArcGIS) | Front, `src/components/inventario/MapaUnidadesCampanha.tsx` | Mapa das unidades na campanha de inventário | Não | Só imagens (`img-src https:` da CSP); nada a fazer |
@@ -36,12 +36,12 @@ usuário abre; não são integração.
 
 ## 3. Achados da revisão de 27/10/2026
 
-1. **Gemini sem tempo limite** (`cpsi-ai-assistant`, `conciliacao-ia-sugestoes`). Correção pequena: pôr
-   `signal: AbortSignal.timeout(...)` no `fetch`, como já fazem `bb-api` e `catalogo-compras`, e devolver erro
-   claro ("a IA não respondeu, tente de novo"). Ainda não feita.
-2. **Versão solta do `supabase-js`** em algumas funções (`https://esm.sh/@supabase/supabase-js@2`, sem a versão
-   exata). Uma versão nova publicada no esm.sh muda a função no próximo deploy sem ninguém mexer no código. As
-   demais já usam `@2.89.0`; alinhar todas.
+1. **Gemini sem tempo limite** (`cpsi-ai-assistant`, `conciliacao-ia-sugestoes`). **Corrigido em 27/10/2026:**
+   `fetchComTempoLimite` em `supabase/functions/_shared/tempoLimite.ts` (40 s até os cabeçalhos; depois `504` com
+   mensagem clara). Use o mesmo helper em qualquer chamada externa nova.
+2. **Versão solta do `supabase-js`** (`https://esm.sh/@supabase/supabase-js@2`, sem a versão exata), que mudava a
+   função no deploy seguinte a uma versão nova no esm.sh. **Corrigido em 27/10/2026:** todas usam `@2.89.0`, menos
+   `download-frequencia`, que segue fixada em `@2.49.4`.
 3. **Erros "missing sub claim" no log** logo depois de cada deploy das funções: é o teste de fumaça do deploy
    chamando com a chave anônima, que as funções corretamente recusam. Não é falha.
 4. **PNCP não é chamado pelo sistema.** O IDJUV está cadastrado e validado no PNCP (CNPJ ativo), mas a consulta

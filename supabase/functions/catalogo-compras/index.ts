@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { CABECALHOS_CLIENTE_SUPABASE, montarCors } from "../_shared/cors.ts";
 import { mapearItemMaterial, mapearNatureza, mapearPdm, mapearServico, urlPortal } from "./portal.ts";
 
