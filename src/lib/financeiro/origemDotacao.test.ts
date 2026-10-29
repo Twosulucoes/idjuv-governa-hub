@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { agruparPorNatureza, ehEmenda, resumirPorOrigem, rotuloOrigem } from "./origemDotacao";
+import {
+  agruparPorNatureza,
+  ehEmenda,
+  empenhadoPorEmenda,
+  resumirPorOrigem,
+  rotuloOrigem,
+  saldoEmenda,
+  semEmendaCadastrada,
+} from "./origemDotacao";
 
 function dotacao(id: string, natureza: string, idu: string | null, atual: number, reserva: number, empenhado: number) {
   return {
@@ -51,5 +59,28 @@ describe("origem da dotação", () => {
     expect(grupos[1].dotacoes.map((d) => d.idu)).toEqual(["Não", "ECI", "EII"]);
     expect(grupos[1].subtotal?.disponivel).toBe(400 + 500 + 450);
     expect(grupos[1].disponivelComum).toBe(400);
+  });
+});
+
+describe("emendas cadastradas", () => {
+  const emendas = [
+    { id: "e1", dotacao_id: "a", valor: 500, valor_reservado: 100 },
+    { id: "e2", dotacao_id: "a", valor: 200, valor_reservado: 0 },
+  ];
+
+  it("soma o empenhado líquido dos empenhos ligados a cada emenda", () => {
+    const mapa = empenhadoPorEmenda([
+      { emenda_id: "e1", valor_empenhado: 150, valor_anulado: 50 },
+      { emenda_id: "e1", valor_empenhado: 100, valor_anulado: null },
+      { emenda_id: null, valor_empenhado: 999 },
+    ]);
+    expect(mapa.get("e1")).toBe(200);
+    expect(mapa.has("e2")).toBe(false);
+    expect(saldoEmenda(emendas[0], mapa.get("e1") ?? 0)).toEqual({ valor: 500, reservado: 100, empenhado: 200, livre: 200 });
+  });
+
+  it("mostra quanto da dotação ainda não tem emenda cadastrada", () => {
+    expect(semEmendaCadastrada({ id: "a", valor_atual: 800 }, emendas)).toBe(100);
+    expect(semEmendaCadastrada({ id: "a", valor_atual: 600 }, emendas)).toBe(-100);
   });
 });

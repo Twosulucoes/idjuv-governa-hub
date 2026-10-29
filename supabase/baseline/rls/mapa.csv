@@ -130,6 +130,7 @@ fin_conciliacoes_mensais,financeiro,permissao,alta,"conciliação mensal (quadro
 fin_contas_bancarias,financeiro,modulo,alta,,,,
 fin_documentos,financeiro,modulo,alta,,,,
 fin_dotacoes,financeiro,modulo,alta,,,,
+fin_emendas,financeiro,permissao,alta,"emendas parlamentares (autor, objeto, beneficiário) ligadas à dotação do QDD: o módulo lê; gravar exige orcamento.criar (migração 20261108090000)",escrita=orcamento.criar,,
 fin_empenho_anulacoes,financeiro,modulo,alta,,,,
 fin_empenho_documentos_fiplan,financeiro,preservar,alta,"policy própria na migração 20261027090000 (histórico do FIP 614: SELECT por módulo financeiro, escrita só pela RPC importar_empenhos_fip614)",,,
 fin_empenhos,financeiro,modulo,alta,,,,

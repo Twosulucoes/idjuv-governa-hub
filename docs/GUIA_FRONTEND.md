@@ -83,6 +83,11 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `src/components/compras/processos/`; etapas e formas em `src/types/processos.ts`). A planilha de acompanhamento
   entra pelo importador `processos_planilha` (abas "Processos" e "Andamento"; leitor em `lerAbas` de
   `src/lib/importacao/planilha.ts`), aberto pelo botão "Importar planilha" da lista ou pela Central.
+- **Emendas parlamentares** (`src/hooks/useEmendas.ts`: `useEmendas`, `useEmpenhosDeEmendas`, `useSalvarEmenda`,
+  `useDesativarEmenda`, `useDefinirEmendaEmpenho`): tela `/financeiro/emendas` (`EmendaFormDialog` em
+  `src/components/financeiro/`) e o cartão "Emenda do empenho" no detalhe do empenho. Origem da dotação (comum ou
+  emenda pelo IDU), agrupamento do QDD por natureza e saldo de cada emenda em `src/lib/financeiro/origemDotacao.ts`
+  (testes vitest).
 - **Contratos (passagens aéreas):** `usePassagens` (`usePedidos`, `usePedido`, `useHistoricoPedido`, `useSalvarPedido`,
   `useMudarSituacao`, `useSalvarPassageiro`, `useRemoverPassageiro`, `useSalvarTrecho`, `useAlterarTrecho`,
   `useRemoverTrecho`, `useSalvarCotacao`, `useRemoverCotacao`, `useEscolherCotacao`, `useBeneficiarios`,

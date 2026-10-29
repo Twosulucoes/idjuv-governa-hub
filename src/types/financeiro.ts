@@ -381,6 +381,8 @@ export interface Empenho {
   dotacao_fiplan?: string | null;
   processo_fiplan?: string | null;
   data_referencia_fiplan?: string | null;
+  /** Emenda parlamentar que o empenho executa */
+  emenda_id?: string | null;
   // Joins
   dotacao?: Dotacao;
   fornecedor?: { id: string; razao_social: string; cpf_cnpj: string };
@@ -388,6 +390,34 @@ export interface Empenho {
   natureza_despesa?: NaturezaDespesa;
   fonte_recurso?: FonteRecurso;
   liquidacoes?: Liquidacao[];
+}
+
+// ===========================================
+// EMENDAS PARLAMENTARES
+// ===========================================
+
+/** Emenda ligada a uma dotação de emenda do QDD (IDU ECNI, ECI, EII...). */
+export interface Emenda {
+  id: string;
+  exercicio: number;
+  dotacao_id: string;
+  numero: string;
+  /** Tipo da emenda como no IDU do QDD */
+  idu: string;
+  autor: string;
+  objeto: string;
+  beneficiario?: string | null;
+  beneficiario_cnpj?: string | null;
+  valor: number;
+  /** Reserva (PED) para a emenda ainda sem empenho, lançada à mão */
+  valor_reservado: number;
+  ped_numero?: string | null;
+  processo_sei?: string | null;
+  observacoes?: string | null;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
 }
 
 // ===========================================

@@ -286,6 +286,9 @@ de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termo
 `doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
 `ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
 
+A migração `20261108090000_fin_emendas.sql` (emendas parlamentares) entrou no schema regenerado (`01_pre_data.sql` e
+`03_post_data.sql`; o `02_dados_catalogo.sql` não muda) e no `rls/mapa.csv` (`fin_emendas` na classe `permissao`,
+`escrita=orcamento.criar`); semente de `fin_emendas` em `seed_ov` de `scripts/db/testar-rls.sql`.
 A migração `20261030090000_compras_processos_reservas_peds.sql` (processos de contratação, entrega 2) entrou no
 schema regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `rls/mapa.csv` (`fin_peds` e `processo_reservas` na
 classe `preservar`, com as policies da própria migração) e no `overlay/40_privilegios.sql`; o catálogo não muda.

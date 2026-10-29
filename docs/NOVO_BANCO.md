@@ -210,6 +210,9 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   (migração `20261107091000`) entraram no schema do baseline (`schema/01_pre_data.sql`; `reabrir_folha` também no
   `overlay/18_funcoes_rpc.sql`); sem tabela nova nem mudança no `rls/mapa.csv`; testes nos blocos "Financeiro e
   contratos: gatilhos de saldo", "E1 folha" e "I4/M3" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- As emendas parlamentares (migração `20261108090000`) entraram no mapa (`fin_emendas`, classe `permissao` com
+  `orcamento.criar`) e no schema do baseline regenerado; sem permissão nova nem função; semente em `seed_ov` de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - Os processos de contratação, entrega 2 (migração `20261030090000`), entraram no mapa (`fin_peds` e
   `processo_reservas`, classe `preservar`: SELECT pelas policies da migração e escrita só pelas RPCs), no schema do
   baseline regenerado e no `overlay/40_privilegios.sql`; sem linha nova no catálogo; testes no bloco "Compras:
