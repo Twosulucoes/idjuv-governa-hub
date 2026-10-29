@@ -210,6 +210,12 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `processo_reservas`, classe `preservar`: SELECT pelas policies da migração e escrita só pelas RPCs), no schema do
   baseline regenerado e no `overlay/40_privilegios.sql`; sem linha nova no catálogo; testes no bloco "Compras:
   reservas e PEDs" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os convênios federais (migração `20261105090000`) entraram no mapa (`fin_tg_propostas`, `fin_tg_emendas`,
+  `fin_tg_convenios`, `fin_tg_movimentos` e `fin_tg_sincronizacoes`, classe `trilha` com
+  `leitura=financeiro.convenios.visualizar`), no schema regenerado, no catálogo (a permissão nova e as concessões aos
+  papéis) e no `overlay/40_privilegios.sql` (sem escrita para `authenticated`, `fin_tg_carregar` só para
+  `service_role`); testes no bloco "Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`
+  ([detalhe](./BANCO_DE_DADOS.md)).
 - As passagens aéreas, entrega 3 (migração `20261103090000`), entraram no mapa (`passagem_faturas`,
   `passagem_fatura_itens` e `passagem_contrato_empenhos`, classe `permissao` com escrita e exclusão por
   `contratos.passagens.financeiro` e leitura por `visualizar`, `editar` ou `financeiro`), no schema regenerado, no

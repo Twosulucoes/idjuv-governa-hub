@@ -289,6 +289,12 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
     BB por período de até 31 dias (`BancoDoBrasilApiPainel`, Edge Function `bb-api`). Só leitura: nenhum
     pagamento é feito pela API.
   Componentes em `src/components/financeiro/conciliacao/`; dados em `src/hooks/useConciliacaoBancaria.ts`.
+- **Convênios federais** (`/financeiro/convenios`, menu "Convênios federais", permissão
+  `financeiro.convenios.visualizar`): propostas, emendas e convênios com a União lidos todo dia do Transferegov, com
+  valor global, recebido, fim da vigência e alertas (sem assinatura, vigência ou prestação de contas a 60 dias ou
+  vencida). A ficha (`/financeiro/convenios/:id`) mostra a proposta, o convênio, as emendas (autor e valor) e os
+  empenhos e desembolsos da União. Só leitura: corrigir é no Transferegov. Aviso quando a rotina parou há mais de 3
+  dias. Spec: [`2026-10-29-convenios-federais-transferegov-design.md`](./superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md).
 
 ## Patrimônio (`patrimonio`) e Mobile (`patrimonio_mobile`)
 

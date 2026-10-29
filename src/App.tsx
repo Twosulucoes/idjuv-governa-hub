@@ -253,6 +253,8 @@ import ProcessoFichaPage from "./pages/compras/ProcessoFichaPage";
 import ProgramacaoNaturezaPage from "./pages/compras/ProgramacaoNaturezaPage";
 import PagamentoDetalhePage from "./pages/financeiro/PagamentoDetalhePage";
 import EmpenhoDetalhePage from "./pages/financeiro/EmpenhoDetalhePage";
+import ConveniosFederaisPage from "./pages/financeiro/ConveniosFederaisPage";
+import ConvenioFederalPage from "./pages/financeiro/ConvenioFederalPage";
 
 // Inventário e Patrimônio
 import {
@@ -1367,6 +1369,16 @@ const App = () => (
               <Route path="/financeiro/conciliacao" element={
                 <ProtectedRoute requiredModule="financeiro" requiredPermissions="pagamento.conciliar">
                   <ConciliacaoBancariaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/convenios" element={
+                <ProtectedRoute requiredPermissions="financeiro.convenios.visualizar">
+                  <ConveniosFederaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/convenios/:id" element={
+                <ProtectedRoute requiredPermissions="financeiro.convenios.visualizar">
+                  <ConvenioFederalPage />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/sub-empenhos" element={

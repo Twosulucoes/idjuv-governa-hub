@@ -112,11 +112,13 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   [plano](../superpowers/plans/2026-10-09-design-system.md).
 - [ ] **Site**: página pública de estrutura organizacional (LAI); o card saiu da Transparência pública no #120 porque
   levava a uma tela com login.
-- [ ] **Convênios e emendas federais pelo Transferegov** (fonte registrada em 27/10/2026, sem código): ler do
-  Transferegov as propostas, convênios, empenhos, desembolsos e emendas com o CNPJ da instituição
-  ([INTEGRACOES_EXTERNAS.md](../INTEGRACOES_EXTERNAS.md) §4). Convênio e emenda das transferências discricionárias só
-  saem nos CSV diários (antigo Siconv); as APIs cobrem transferências especiais, parcerias, fundo a fundo e TED. Hoje o
-  IDJUV tem uma proposta lá (Arena Jovem, Ministério do Esporte, emenda de comissão). Aguarda o "sim" do dono.
+- [ ] **Convênios e emendas federais pelo Transferegov** ([INTEGRACOES_EXTERNAS.md](../INTEGRACOES_EXTERNAS.md) §4,
+  [spec](../superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md)). **T1 feita (PR rascunho, 29/10):**
+  rotina diária no GitHub Actions lê os CSV do Transferegov e grava, pela Edge Function `transferegov`, o espelho
+  `fin_tg_*` (só leitura, permissão `financeiro.convenios.visualizar`); tela Financeiro → Convênios federais com lista,
+  ficha e alertas de prazo. Falta: aprovar a migração `20261105090000` em `producao` e configurar o segredo (§4.5).
+  Próximas: T2 ligar convênio e empenho federal ao FIPLAN (fonte de recurso e conta do convênio); T3 nome do
+  parlamentar e número da emenda federal no painel de emendas.
 - [x] **Integrações — achados da revisão de 27/10/2026** ([INTEGRACOES_EXTERNAS.md](../INTEGRACOES_EXTERNAS.md) §3), PR
   rascunho: tempo limite de 40 s nas chamadas ao Gemini (`cpsi-ai-assistant`, `conciliacao-ia-sugestoes`; uma sugestão
   de conciliação ficou presa em 23/10), com `504` e mensagem clara, e `supabase-js` fixado em `@2.89.0` nas funções

@@ -112,6 +112,11 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   "Parados" (`/processos/localizar?aba=parados`) como os únicos itens de Processos SEI, nos dois arquivos de menu (a
   tramitação é no SEI: a lista `/workflow/processos` e o "Novo processo" saíram do menu e abrem pelo painel `/workflow`). Spec:
   `docs/superpowers/specs/2026-10-25-localizador-processos-sei-design.md`.
+- **Convênios federais (Financeiro)** em `/financeiro/convenios` e `/financeiro/convenios/:id`
+  (`ConveniosFederaisPage`, `ConvenioFederalPage`, `requiredPermissions="financeiro.convenios.visualizar"`; o `:id` é o
+  `id_proposta` do Transferegov): lista e ficha das propostas, emendas, convênios, empenhos e desembolsos da União, só
+  leitura. Os dados chegam pela rotina diária `.github/workflows/transferegov.yml` → Edge Function `transferegov` →
+  RPC `fin_tg_carregar`. Menu em Financeiro → "Convênios federais". Spec: `docs/superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md`.
 - **Passagens aéreas (Contratos)** em `/contratos/passagens`, `/contratos/passagens/:id` e
   `/contratos/passagens/beneficiarios` (`PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,
   `requiredModule="contratos"` e `contratos.passagens.visualizar` ou `contratos.passagens.editar`): um pedido por

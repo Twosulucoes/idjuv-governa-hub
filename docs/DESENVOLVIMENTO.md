@@ -359,4 +359,13 @@ container de Edge Functions lê (sem tocar em `main/`), reinicia o container e c
 função sobe e que a pasta da VPS ficou igual ao repositório. Sem a configuração o job **falha**. Preparação da VPS,
 segredos e variáveis: [EDGE_FUNCTIONS.md](./EDGE_FUNCTIONS.md#publicação-pelo-ci). Ninguém publica função à mão.
 
+### Convênios federais (Transferegov, CI diário)
+
+O workflow `.github/workflows/transferegov.yml` roda todo dia às 13:00 UTC (09:00 em Boa Vista) e à mão
+(`workflow_dispatch`), só na `main`, no ambiente `transferegov`. Ele roda `node scripts/transferegov/sincronizar.mjs`:
+baixa os CSV do Transferegov, guarda só o que é do CNPJ da instituição e manda para a Edge Function `transferegov`
+(segredo `TRANSFEREGOV_TOKEN` no cabeçalho). O log é público: só saem contagens. Sem configuração o job **falha** com a
+explicação. Configuração (uma vez): [INTEGRACOES_EXTERNAS.md](./INTEGRACOES_EXTERNAS.md) §4.5. Teste local sem gravar:
+`node scripts/transferegov/sincronizar.mjs --cnpj <14 dígitos> --saida /tmp/carga.json`.
+
 - **Backend / Edge Functions**: Supabase self-hosted da VPS; migrações e funções pelo CI (seções acima).
