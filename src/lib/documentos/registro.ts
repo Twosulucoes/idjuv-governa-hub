@@ -31,6 +31,7 @@ import { conciliacaoMensal } from './modelos/financeiro/conciliacaoMensal';
 import { fichaContrato } from './modelos/contratos/fichaContrato';
 import { fichaPedidoPassagem } from './modelos/passagens/fichaPedido';
 import { saldoContratoPassagens } from './modelos/passagens/saldoContrato';
+import { relatorioPesquisaPrecos } from './modelos/compras/pesquisaPrecos';
 import { relatorioArbitros } from './modelos/arbitros/relatorioArbitros';
 import { relatorioFederacoes, relatorioFederacoesPaisagem } from './modelos/federacoes/relatorioFederacoes';
 import { relatorioCargosVagas } from './modelos/cargos/cargosVagas';
@@ -110,6 +111,8 @@ export const REGISTRO = {
   // Contratos — passagens aéreas: ficha do pedido (PassagemPedidoPage) e saldo do contrato (PassagensFaturasPage)
   'contratos-passagem-ficha-pedido': fichaPedidoPassagem,
   'contratos-passagens-saldo-contrato': saldoContratoPassagens,
+  // Compras — relatório da pesquisa de preços, anexo da nota técnica da EPC (PesquisaPrecosPage)
+  'compras-pesquisa-precos': relatorioPesquisaPrecos,
   // Árbitros — AdminRelatorios (lista simples ou agrupada por modalidade)
   'arbitros-relatorio-cadastro': relatorioArbitros,
   // Federações — CentralRelatoriosFederacoesDialog (retrato ou paisagem, conforme a tela)

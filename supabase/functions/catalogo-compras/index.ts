@@ -7,7 +7,8 @@ import { mapearItemMaterial, mapearNatureza, mapearPdm, mapearServico, urlPortal
 // O navegador não chama o portal direto: ele recusa CORS e a CSP do app só libera o Supabase.
 //   sincronizar  uma página (500) de PDMs ou de serviços → cat_material_pdms / cat_servicos; na última, a data em
 //                cat_sincronizacoes. Exige compras.pca.editar.
-//   itens_pdm    itens ativos de um PDM, só leitura (até 500). Exige compras.pca.visualizar ou editar.
+//   itens_pdm    itens ativos de um PDM, só leitura (até 500). Exige compras.pca.visualizar ou editar, ou
+//                compras.pesquisa_precos.editar (a pesquisa de preços escolhe o item exato).
 //   naturezas    naturezas de despesa que o catálogo indica para um PDM ou serviço, só leitura (até 500; o front
 //                filtra e casa com as naturezas do estado). Exige compras.pca.visualizar ou editar.
 //   gravar_item  grava em cat_material_itens o item escolhido (e o PDM dele, se faltar). Exige compras.pca.editar.
@@ -64,14 +65,19 @@ serve(async (req) => {
     const acao = pedido?.acao;
     if (!["sincronizar", "itens_pdm", "gravar_item", "naturezas"].includes(acao)) return respostaJson(cors, 400, { error: "Pedido inválido" });
 
-    const [{ data: temModulo, error: e1 }, { data: podeEditar, error: e2 }, { data: podeVer, error: e3 }] = await Promise.all([
-      supabaseUser.rpc("can_access_module", { _user_id: caller.id, _module: "compras" }),
-      supabaseUser.rpc("has_permission_code", { _user_id: caller.id, _permission: "compras.pca.editar" }),
-      supabaseUser.rpc("has_permission_code", { _user_id: caller.id, _permission: "compras.pca.visualizar" }),
-    ]);
-    if (e1 || e2 || e3) return respostaJson(cors, 500, { error: "Falha ao validar permissões" });
+    const [{ data: temModulo, error: e1 }, { data: podeEditar, error: e2 }, { data: podeVer, error: e3 }, { data: pesquisa, error: e4 }] =
+      await Promise.all([
+        supabaseUser.rpc("can_access_module", { _user_id: caller.id, _module: "compras" }),
+        supabaseUser.rpc("has_permission_code", { _user_id: caller.id, _permission: "compras.pca.editar" }),
+        supabaseUser.rpc("has_permission_code", { _user_id: caller.id, _permission: "compras.pca.visualizar" }),
+        // a pesquisa de preços também escolhe o item exato do CATMAT (só leitura de itens_pdm)
+        acao === "itens_pdm"
+          ? supabaseUser.rpc("has_permission_code", { _user_id: caller.id, _permission: "compras.pesquisa_precos.editar" })
+          : Promise.resolve({ data: false, error: null }),
+      ]);
+    if (e1 || e2 || e3 || e4) return respostaJson(cors, 500, { error: "Falha ao validar permissões" });
     const soLeitura = acao === "itens_pdm" || acao === "naturezas";
-    const autorizado = temModulo && (soLeitura ? podeEditar || podeVer : podeEditar);
+    const autorizado = temModulo && (soLeitura ? podeEditar || podeVer || pesquisa : podeEditar);
     if (!autorizado) return respostaJson(cors, 403, { error: "Acesso negado. Requer a permissão do PCA." });
 
     if (acao === "itens_pdm") {
