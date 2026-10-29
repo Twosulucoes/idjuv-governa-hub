@@ -131,7 +131,7 @@ Configurar (uma vez, por quem administra a VPS e o GitHub; nenhum valor vai para
 
 1. **Segredo.** Gere um valor aleatório de 32 caracteres ou mais (por exemplo `openssl rand -hex 32` na VPS).
 2. **VPS.** No `.env` do docker compose do Supabase, acrescente `TRANSFEREGOV_TOKEN=<o valor>`. Se o
-   `docker-compose.yml` lista as variáveis do serviço `functions` uma a uma (como `GEMINI_API_KEY`), acrescente lá
+   arquivo do docker compose lista as variáveis do serviço `functions` uma a uma (como `GEMINI_API_KEY`), acrescente lá
    `TRANSFEREGOV_TOKEN: ${TRANSFEREGOV_TOKEN}`. Depois `docker compose up -d functions` (um `docker restart` não relê
    o `.env`).
 3. **GitHub.** Settings → Environments → New environment `transferegov` → Add environment secret
