@@ -118,7 +118,11 @@ INSERT INTO seed_ov VALUES
   -- anexo das passagens (migração 20261101090000): o caminho começa pelo id do pedido (passagem_anexos_caminho_pedido_check)
   ('passagem_anexos', '{"pedido_id":"d0000000-0000-0000-0000-0000000000d1","passageiro_id":null,"caminho":"d0000000-0000-0000-0000-0000000000d1/seed.pdf"}'),
   -- fatura das passagens (migração 20261103090000): valor positivo e recebida (sem atesto nem OB)
-  ('passagem_faturas', '{"valor":1,"situacao":"recebida","cancelamento_motivo":null}');
+  ('passagem_faturas', '{"valor":1,"situacao":"recebida","cancelamento_motivo":null}'),
+  -- espelho do Transferegov (migração 20261105090000): CNPJ com 14 dígitos; movimento é empenho ou desembolso
+  ('fin_tg_propostas', '{"cnpj_proponente":"00000000000191"}'),
+  ('fin_tg_sincronizacoes', '{"cnpj":"00000000000191"}'),
+  ('fin_tg_movimentos', '{"tipo":"empenho"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -8656,6 +8660,92 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('PASSAGENS FATURAS: gravação só com contratos.passagens.financeiro, fatura só em contrato da agência, bilhete emitido do mesmo contrato e numa fatura só, fluxo da situação, paga com OB e travada (bilhetes, valor, OB, cancelamento, exclusão), só recebida se apaga, salvar fatura numa transação, cancelada com motivo solta os bilhetes, trilha no pedido, leitura com a permissão e RPCs de empenhos estreitas verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro: convênios federais do Transferegov (migração 20261105090000)
+-- Migração 20261105090000_fin_convenios_transferegov.sql (spec docs/superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md):
+--   * fin_tg_carregar: só a service role executa (authenticated e anon sem EXECUTE); CNPJ diferente do cadastrado em
+--     dados_oficiais, proposta de outro proponente e carga vazia sobre espelho cheio (sem p_forcar) = 22023;
+--   * a carga troca o espelho inteiro (propostas, emendas, convênios, movimentos) e registra a sincronização;
+--   * fin_tg_*: lê quem tem o módulo financeiro E financeiro.convenios.visualizar; ninguém grava pela API.
+DO $$
+DECLARE
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_financeiro.convenios.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_financeiro');
+  fn text := 'public.fin_tg_carregar(text, timestamp with time zone, jsonb, boolean)';
+  c_cnpj text := '11222333000181';
+  chamada text := 'SELECT public.fin_tg_carregar(%L, now(), %L::jsonb, %L)::text';
+  dados jsonb; r text;
+BEGIN
+  IF to_regprocedure(fn) IS NULL OR to_regclass('public.fin_tg_propostas') IS NULL THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: ' || fn || ' ou as tabelas não existem');
+    RETURN;
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF has_function_privilege('authenticated', fn, 'EXECUTE') OR has_function_privilege('anon', fn, 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: fin_tg_carregar executável pela API');
+  END IF;
+  IF NOT has_function_privilege('service_role', fn, 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: service_role sem EXECUTE em fin_tg_carregar');
+  END IF;
+  DELETE FROM public.dados_oficiais WHERE chave = 'cnpj';
+  INSERT INTO public.dados_oficiais (chave, valor) VALUES ('cnpj', '11.222.333/0001-81');
+  dados := jsonb_build_object(
+    'propostas', jsonb_build_array(jsonb_build_object('id_proposta', 990001, 'numero', '1/2099', 'ano', 2099,
+      'cnpj_proponente', c_cnpj, 'objeto', 'Projeto de teste', 'valor_global', 100.5, 'inicio_vigencia', '2099-01-01')),
+    'emendas', jsonb_build_array(jsonb_build_object('id_proposta', 990001, 'numero_emenda', '50060001',
+      'parlamentar', 'COM. TESTE', 'impositiva', false, 'valor_repasse_emenda', 100)),
+    'convenios', jsonb_build_array(jsonb_build_object('numero', 'X1TEST', 'id_proposta', 990001, 'assinado', false,
+      'valor_empenhado', 100, 'data_limite_prestacao_contas', '2099-12-31')),
+    'movimentos', jsonb_build_array(jsonb_build_object('tipo', 'empenho', 'id_origem', 1, 'numero_convenio', 'X1TEST',
+      'numero', '2099NE000001', 'data', '2099-02-01', 'valor', 100, 'indicacao', 'Indicação de teste')));
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(chamada, c_cnpj, dados, false));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: authenticated carrega o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role', format(chamada, '99999999000191', dados, false));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: CNPJ diferente do cadastrado aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role',
+         format(chamada, c_cnpj, jsonb_set(dados, '{propostas,0,cnpj_proponente}', '"99999999000191"'), false));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: proposta de outro proponente aceita (' || r || ')'); END IF;
+
+  -- carga que fica
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, dados, false));
+  IF r <> 'ok' OR (SELECT count(*) FROM public.fin_tg_propostas) <> 1
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_emendas WHERE id_proposta = 990001 AND numero_emenda = '50060001')
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_convenios WHERE numero = 'X1TEST' AND id_proposta = 990001)
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_movimentos WHERE numero_convenio = 'X1TEST' AND id_origem = 1)
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_sincronizacoes WHERE cnpj = c_cnpj AND propostas = 1 AND movimentos = 1) THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: carga válida não gravou o espelho (' || r || ')');
+  END IF;
+  -- recarga troca tudo: o convênio sumiu da fonte, sai daqui (e o movimento em cascata)
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, dados - 'convenios' - 'movimentos', false));
+  IF r <> 'ok' OR EXISTS (SELECT 1 FROM public.fin_tg_convenios WHERE numero = 'X1TEST')
+     OR EXISTS (SELECT 1 FROM public.fin_tg_movimentos WHERE numero_convenio = 'X1TEST')
+     OR (SELECT count(*) FROM public.fin_tg_propostas) <> 1 THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: recarga não trocou o espelho (' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, dados, false));
+  -- carga vazia sobre espelho cheio: recusada, salvo com p_forcar
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role', format(chamada, c_cnpj, '{}', false));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: carga vazia apagou o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role',
+         format('SELECT public.fin_tg_carregar(%L, now(), ''{}''::jsonb, true)->>''propostas''', c_cnpj));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: p_forcar não esvaziou (' || r || ')'); END IF;
+
+  -- leitura com a permissão; o módulo sozinho não lê; ninguém grava pela API
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+         'SELECT count(*)::text FROM public.fin_tg_propostas p JOIN public.fin_tg_convenios c USING (id_proposta) JOIN public.fin_tg_movimentos m ON m.numero_convenio = c.numero');
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: quem tem a permissão não lê o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', 'SELECT count(*)::text FROM public.fin_tg_propostas');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: módulo sem a permissão lê o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+         format('INSERT INTO public.fin_tg_propostas (id_proposta, numero, cnpj_proponente) VALUES (990002, ''2/2099'', %L) RETURNING numero', c_cnpj));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: authenticated grava proposta (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'DELETE FROM public.fin_tg_emendas RETURNING numero_emenda');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: authenticated apaga emenda (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('FIN TRANSFEREGOV: carga só pela service role, CNPJ conferido com a Configuração do cliente, proposta de outro proponente recusada, troca do espelho inteiro, carga vazia protegida, leitura só com financeiro.convenios.visualizar e nenhuma escrita pela API verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Contratos C1: cadastro, ficha e responsáveis (migração 20261104090000) (TRIGGERS LIGADOS)

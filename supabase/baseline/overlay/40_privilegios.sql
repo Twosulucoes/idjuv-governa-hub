@@ -432,6 +432,15 @@ GRANT EXECUTE ON FUNCTION public.passagem_empenhos_candidatos(uuid, integer) TO 
 REVOKE ALL ON FUNCTION public.passagem_salvar_fatura(jsonb, jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.passagem_salvar_fatura(jsonb, jsonb) TO authenticated;
 
+-- ---- Financeiro: convênios federais do Transferegov (migração 20261105090000) ----
+-- espelho só leitura pela API; grava só fin_tg_carregar, executada pela service role (Edge Function transferegov)
+REVOKE ALL ON public.fin_tg_propostas, public.fin_tg_emendas, public.fin_tg_convenios,
+              public.fin_tg_movimentos, public.fin_tg_sincronizacoes FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_tg_propostas, public.fin_tg_emendas, public.fin_tg_convenios,
+              public.fin_tg_movimentos, public.fin_tg_sincronizacoes FROM authenticated;
+REVOKE ALL ON FUNCTION public.fin_tg_carregar(text, timestamptz, jsonb, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_tg_carregar(text, timestamptz, jsonb, boolean) TO service_role;
+
 -- ---- Contratos C1: cadastro, ficha e responsáveis (migração 20261104090000) ----
 REVOKE EXECUTE ON FUNCTION public.contrato_resp_preparar() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.contratos_preparar() FROM PUBLIC, anon, authenticated;

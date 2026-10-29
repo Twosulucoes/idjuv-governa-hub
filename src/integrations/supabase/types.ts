@@ -13211,6 +13211,323 @@ export type Database = {
           },
         ]
       }
+      fin_tg_convenios: {
+        Row: {
+          assinado: boolean | null
+          atualizado_em: string
+          data_assinatura: string | null
+          data_limite_prestacao_contas: string | null
+          data_publicacao: string | null
+          dias_prestacao_contas: number | null
+          fim_vigencia: string | null
+          fim_vigencia_original: string | null
+          id_proposta: number
+          ingresso_contrapartida: number | null
+          inicio_vigencia: string | null
+          instrumento_ativo: boolean | null
+          numero: string
+          numero_processo: string | null
+          qtd_aditivos: number | null
+          qtd_prorrogacoes: number | null
+          rendimento_aplicacao: number | null
+          saldo_conta: number | null
+          saldo_reman_convenente: number | null
+          saldo_reman_tesouro: number | null
+          situacao: string | null
+          situacao_publicacao: string | null
+          subsituacao: string | null
+          ug_emitente: string | null
+          valor_contrapartida: number | null
+          valor_desembolsado: number | null
+          valor_empenhado: number | null
+          valor_global: number | null
+          valor_global_original: number | null
+          valor_repasse: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          assinado?: boolean | null
+          atualizado_em?: string
+          data_assinatura?: string | null
+          data_limite_prestacao_contas?: string | null
+          data_publicacao?: string | null
+          dias_prestacao_contas?: number | null
+          fim_vigencia?: string | null
+          fim_vigencia_original?: string | null
+          id_proposta: number
+          ingresso_contrapartida?: number | null
+          inicio_vigencia?: string | null
+          instrumento_ativo?: boolean | null
+          numero: string
+          numero_processo?: string | null
+          qtd_aditivos?: number | null
+          qtd_prorrogacoes?: number | null
+          rendimento_aplicacao?: number | null
+          saldo_conta?: number | null
+          saldo_reman_convenente?: number | null
+          saldo_reman_tesouro?: number | null
+          situacao?: string | null
+          situacao_publicacao?: string | null
+          subsituacao?: string | null
+          ug_emitente?: string | null
+          valor_contrapartida?: number | null
+          valor_desembolsado?: number | null
+          valor_empenhado?: number | null
+          valor_global?: number | null
+          valor_global_original?: number | null
+          valor_repasse?: number | null
+        }
+        Update: {
+          assinado?: boolean | null
+          atualizado_em?: string
+          data_assinatura?: string | null
+          data_limite_prestacao_contas?: string | null
+          data_publicacao?: string | null
+          dias_prestacao_contas?: number | null
+          fim_vigencia?: string | null
+          fim_vigencia_original?: string | null
+          id_proposta?: number
+          ingresso_contrapartida?: number | null
+          inicio_vigencia?: string | null
+          instrumento_ativo?: boolean | null
+          numero?: string
+          numero_processo?: string | null
+          qtd_aditivos?: number | null
+          qtd_prorrogacoes?: number | null
+          rendimento_aplicacao?: number | null
+          saldo_conta?: number | null
+          saldo_reman_convenente?: number | null
+          saldo_reman_tesouro?: number | null
+          situacao?: string | null
+          situacao_publicacao?: string | null
+          subsituacao?: string | null
+          ug_emitente?: string | null
+          valor_contrapartida?: number | null
+          valor_desembolsado?: number | null
+          valor_empenhado?: number | null
+          valor_global?: number | null
+          valor_global_original?: number | null
+          valor_repasse?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_tg_convenios_id_proposta_fkey"
+            columns: ["id_proposta"]
+            isOneToOne: false
+            referencedRelation: "fin_tg_propostas"
+            referencedColumns: ["id_proposta"]
+          },
+        ]
+      }
+      fin_tg_emendas: {
+        Row: {
+          atualizado_em: string
+          cnpj_beneficiario: string | null
+          id_proposta: number
+          impositiva: boolean | null
+          numero_emenda: string
+          parlamentar: string | null
+          programa_emenda: string | null
+          qualificacao_proponente: string | null
+          tipo_parlamentar: string | null
+          valor_repasse_emenda: number | null
+          valor_repasse_proposta: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          atualizado_em?: string
+          cnpj_beneficiario?: string | null
+          id_proposta: number
+          impositiva?: boolean | null
+          numero_emenda: string
+          parlamentar?: string | null
+          programa_emenda?: string | null
+          qualificacao_proponente?: string | null
+          tipo_parlamentar?: string | null
+          valor_repasse_emenda?: number | null
+          valor_repasse_proposta?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          cnpj_beneficiario?: string | null
+          id_proposta?: number
+          impositiva?: boolean | null
+          numero_emenda?: string
+          parlamentar?: string | null
+          programa_emenda?: string | null
+          qualificacao_proponente?: string | null
+          tipo_parlamentar?: string | null
+          valor_repasse_emenda?: number | null
+          valor_repasse_proposta?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_tg_emendas_id_proposta_fkey"
+            columns: ["id_proposta"]
+            isOneToOne: false
+            referencedRelation: "fin_tg_propostas"
+            referencedColumns: ["id_proposta"]
+          },
+        ]
+      }
+      fin_tg_movimentos: {
+        Row: {
+          atualizado_em: string
+          data: string | null
+          descricao: string | null
+          id_origem: number
+          indicacao: string | null
+          natureza_despesa: string | null
+          numero: string | null
+          numero_convenio: string
+          situacao: string | null
+          tipo: string
+          ug_emitente: string | null
+          valor: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          atualizado_em?: string
+          data?: string | null
+          descricao?: string | null
+          id_origem: number
+          indicacao?: string | null
+          natureza_despesa?: string | null
+          numero?: string | null
+          numero_convenio: string
+          situacao?: string | null
+          tipo: string
+          ug_emitente?: string | null
+          valor?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          data?: string | null
+          descricao?: string | null
+          id_origem?: number
+          indicacao?: string | null
+          natureza_despesa?: string | null
+          numero?: string | null
+          numero_convenio?: string
+          situacao?: string | null
+          tipo?: string
+          ug_emitente?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_tg_movimentos_numero_convenio_fkey"
+            columns: ["numero_convenio"]
+            isOneToOne: false
+            referencedRelation: "fin_tg_convenios"
+            referencedColumns: ["numero"]
+          },
+        ]
+      }
+      fin_tg_propostas: {
+        Row: {
+          agencia: string | null
+          ano: number | null
+          atualizado_em: string
+          banco: string | null
+          cnpj_proponente: string
+          conta: string | null
+          data_proposta: string | null
+          fim_vigencia: string | null
+          id_proposta: number
+          inicio_vigencia: string | null
+          modalidade: string | null
+          numero: string
+          objeto: string | null
+          orgao: string | null
+          orgao_superior: string | null
+          situacao: string | null
+          situacao_projeto_basico: string | null
+          valor_contrapartida: number | null
+          valor_global: number | null
+          valor_repasse: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          agencia?: string | null
+          ano?: number | null
+          atualizado_em?: string
+          banco?: string | null
+          cnpj_proponente: string
+          conta?: string | null
+          data_proposta?: string | null
+          fim_vigencia?: string | null
+          id_proposta: number
+          inicio_vigencia?: string | null
+          modalidade?: string | null
+          numero: string
+          objeto?: string | null
+          orgao?: string | null
+          orgao_superior?: string | null
+          situacao?: string | null
+          situacao_projeto_basico?: string | null
+          valor_contrapartida?: number | null
+          valor_global?: number | null
+          valor_repasse?: number | null
+        }
+        Update: {
+          agencia?: string | null
+          ano?: number | null
+          atualizado_em?: string
+          banco?: string | null
+          cnpj_proponente?: string
+          conta?: string | null
+          data_proposta?: string | null
+          fim_vigencia?: string | null
+          id_proposta?: number
+          inicio_vigencia?: string | null
+          modalidade?: string | null
+          numero?: string
+          objeto?: string | null
+          orgao?: string | null
+          orgao_superior?: string | null
+          situacao?: string | null
+          situacao_projeto_basico?: string | null
+          valor_contrapartida?: number | null
+          valor_global?: number | null
+          valor_repasse?: number | null
+        }
+        Relationships: []
+      }
+      fin_tg_sincronizacoes: {
+        Row: {
+          cnpj: string
+          convenios: number
+          data_carga: string | null
+          emendas: number
+          executada_em: string
+          id: string
+          movimentos: number
+          propostas: number
+        }
+        ComputedFields: never
+        Insert: {
+          cnpj: string
+          convenios?: number
+          data_carga?: string | null
+          emendas?: number
+          executada_em?: string
+          id?: string
+          movimentos?: number
+          propostas?: number
+        }
+        Update: {
+          cnpj?: string
+          convenios?: number
+          data_carga?: string | null
+          emendas?: number
+          executada_em?: string
+          id?: string
+          movimentos?: number
+          propostas?: number
+        }
+        Relationships: []
+      }
       folha_historico_status: {
         Row: {
           created_at: string | null
@@ -26459,6 +26776,15 @@ export type Database = {
         Returns: string
       }
       fin_remessa_bancaria_json: { Args: { p_id: string }; Returns: Json }
+      fin_tg_carregar: {
+        Args: {
+          p_cnpj: string
+          p_dados: Json
+          p_data_carga: string
+          p_forcar?: boolean
+        }
+        Returns: Json
+      }
       fn_atualizar_situacao_servidor: {
         Args: { p_servidor_id: string }
         Returns: undefined

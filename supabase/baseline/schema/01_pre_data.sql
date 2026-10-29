@@ -4438,6 +4438,101 @@ COMMENT ON FUNCTION public.fin_remessa_bancaria_json(p_id uuid) IS 'Uso interno 
 
 
 --
+-- Name: fin_tg_carregar(text, timestamp with time zone, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_tg_carregar(p_cnpj text, p_data_carga timestamp with time zone, p_dados jsonb, p_forcar boolean DEFAULT false) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_cadastrado text;
+  v_propostas integer;
+  v_emendas integer;
+  v_convenios integer;
+  v_movimentos integer;
+BEGIN
+  IF p_cnpj IS NULL OR p_cnpj !~ '^[0-9]{14}$' THEN
+    RAISE EXCEPTION 'CNPJ inválido' USING ERRCODE = '22023';
+  END IF;
+  SELECT regexp_replace(valor, '\D', '', 'g') INTO v_cadastrado FROM public.dados_oficiais WHERE chave = 'cnpj';
+  IF v_cadastrado IS DISTINCT FROM p_cnpj THEN
+    RAISE EXCEPTION 'CNPJ diferente do cadastrado na Configuração do cliente' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_dados) <> 'object'
+     OR jsonb_typeof(coalesce(p_dados->'propostas', '[]')) <> 'array'
+     OR jsonb_typeof(coalesce(p_dados->'emendas', '[]')) <> 'array'
+     OR jsonb_typeof(coalesce(p_dados->'convenios', '[]')) <> 'array'
+     OR jsonb_typeof(coalesce(p_dados->'movimentos', '[]')) <> 'array' THEN
+    RAISE EXCEPTION 'Dados em formato inesperado' USING ERRCODE = '22023';
+  END IF;
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(p_dados->'propostas', '[]')) e
+              WHERE e->>'cnpj_proponente' IS DISTINCT FROM p_cnpj) THEN
+    RAISE EXCEPTION 'Proposta de outro proponente' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_array_length(coalesce(p_dados->'propostas', '[]')) = 0 AND NOT p_forcar
+     AND EXISTS (SELECT 1 FROM public.fin_tg_propostas) THEN
+    RAISE EXCEPTION 'Nenhuma proposta veio e o espelho tem propostas: confira a leitura ou use p_forcar' USING ERRCODE = '22023';
+  END IF;
+
+  -- O espelho inteiro é trocado: o que sumiu do Transferegov sai daqui também (filhas saem em cascata)
+  DELETE FROM public.fin_tg_propostas;
+
+  INSERT INTO public.fin_tg_propostas (
+    id_proposta, numero, ano, data_proposta, cnpj_proponente, orgao_superior, orgao, modalidade, objeto, situacao,
+    situacao_projeto_basico, inicio_vigencia, fim_vigencia, valor_global, valor_repasse, valor_contrapartida,
+    banco, agencia, conta)
+  SELECT id_proposta, numero, ano, data_proposta, cnpj_proponente, orgao_superior, orgao, modalidade, objeto, situacao,
+         situacao_projeto_basico, inicio_vigencia, fim_vigencia, valor_global, valor_repasse, valor_contrapartida,
+         banco, agencia, conta
+    FROM jsonb_populate_recordset(NULL::public.fin_tg_propostas, coalesce(p_dados->'propostas', '[]'));
+  GET DIAGNOSTICS v_propostas = ROW_COUNT;
+
+  INSERT INTO public.fin_tg_emendas (
+    id_proposta, numero_emenda, programa_emenda, parlamentar, tipo_parlamentar, qualificacao_proponente, impositiva,
+    cnpj_beneficiario, valor_repasse_proposta, valor_repasse_emenda)
+  SELECT id_proposta, numero_emenda, programa_emenda, parlamentar, tipo_parlamentar, qualificacao_proponente, impositiva,
+         cnpj_beneficiario, valor_repasse_proposta, valor_repasse_emenda
+    FROM jsonb_populate_recordset(NULL::public.fin_tg_emendas, coalesce(p_dados->'emendas', '[]'));
+  GET DIAGNOSTICS v_emendas = ROW_COUNT;
+
+  INSERT INTO public.fin_tg_convenios (
+    numero, id_proposta, situacao, subsituacao, situacao_publicacao, instrumento_ativo, assinado, numero_processo,
+    ug_emitente, data_assinatura, data_publicacao, inicio_vigencia, fim_vigencia, fim_vigencia_original,
+    data_limite_prestacao_contas, dias_prestacao_contas, qtd_aditivos, qtd_prorrogacoes, valor_global, valor_repasse,
+    valor_contrapartida, valor_empenhado, valor_desembolsado, saldo_reman_tesouro, saldo_reman_convenente,
+    rendimento_aplicacao, ingresso_contrapartida, saldo_conta, valor_global_original)
+  SELECT numero, id_proposta, situacao, subsituacao, situacao_publicacao, instrumento_ativo, assinado, numero_processo,
+         ug_emitente, data_assinatura, data_publicacao, inicio_vigencia, fim_vigencia, fim_vigencia_original,
+         data_limite_prestacao_contas, dias_prestacao_contas, qtd_aditivos, qtd_prorrogacoes, valor_global, valor_repasse,
+         valor_contrapartida, valor_empenhado, valor_desembolsado, saldo_reman_tesouro, saldo_reman_convenente,
+         rendimento_aplicacao, ingresso_contrapartida, saldo_conta, valor_global_original
+    FROM jsonb_populate_recordset(NULL::public.fin_tg_convenios, coalesce(p_dados->'convenios', '[]'));
+  GET DIAGNOSTICS v_convenios = ROW_COUNT;
+
+  INSERT INTO public.fin_tg_movimentos (
+    tipo, id_origem, numero_convenio, numero, data, valor, situacao, descricao, indicacao, natureza_despesa, ug_emitente)
+  SELECT tipo, id_origem, numero_convenio, numero, data, valor, situacao, descricao, indicacao, natureza_despesa, ug_emitente
+    FROM jsonb_populate_recordset(NULL::public.fin_tg_movimentos, coalesce(p_dados->'movimentos', '[]'));
+  GET DIAGNOSTICS v_movimentos = ROW_COUNT;
+
+  INSERT INTO public.fin_tg_sincronizacoes (data_carga, cnpj, propostas, emendas, convenios, movimentos)
+  VALUES (p_data_carga, p_cnpj, v_propostas, v_emendas, v_convenios, v_movimentos);
+
+  RETURN jsonb_build_object('propostas', v_propostas, 'emendas', v_emendas, 'convenios', v_convenios,
+                            'movimentos', v_movimentos);
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION fin_tg_carregar(p_cnpj text, p_data_carga timestamp with time zone, p_dados jsonb, p_forcar boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.fin_tg_carregar(p_cnpj text, p_data_carga timestamp with time zone, p_dados jsonb, p_forcar boolean) IS 'Troca o espelho do Transferegov (propostas, emendas, convênios e movimentos) numa transação. Só a service role executa.';
+
+
+--
 -- Name: fixar_autoria(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -24244,6 +24339,165 @@ CREATE TABLE public.fin_sub_empenhos (
     CONSTRAINT fin_sub_empenhos_status_check CHECK (((status)::text = ANY ((ARRAY['ativo'::character varying, 'cancelado'::character varying])::text[]))),
     CONSTRAINT fin_sub_empenhos_tipo_check CHECK (((tipo)::text = ANY ((ARRAY['reforco'::character varying, 'anulacao'::character varying])::text[])))
 );
+
+
+--
+-- Name: fin_tg_convenios; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_convenios (
+    numero text NOT NULL,
+    id_proposta bigint NOT NULL,
+    situacao text,
+    subsituacao text,
+    situacao_publicacao text,
+    instrumento_ativo boolean,
+    assinado boolean,
+    numero_processo text,
+    ug_emitente text,
+    data_assinatura date,
+    data_publicacao date,
+    inicio_vigencia date,
+    fim_vigencia date,
+    fim_vigencia_original date,
+    data_limite_prestacao_contas date,
+    dias_prestacao_contas integer,
+    qtd_aditivos integer,
+    qtd_prorrogacoes integer,
+    valor_global numeric(16,2),
+    valor_repasse numeric(16,2),
+    valor_contrapartida numeric(16,2),
+    valor_empenhado numeric(16,2),
+    valor_desembolsado numeric(16,2),
+    saldo_reman_tesouro numeric(16,2),
+    saldo_reman_convenente numeric(16,2),
+    rendimento_aplicacao numeric(16,2),
+    ingresso_contrapartida numeric(16,2),
+    saldo_conta numeric(16,2),
+    valor_global_original numeric(16,2),
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE fin_tg_convenios; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_convenios IS 'Instrumento (convênio) de cada proposta do Transferegov. Antes da assinatura o número é provisório e assinado = false. Espelho só leitura.';
+
+
+--
+-- Name: fin_tg_emendas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_emendas (
+    id_proposta bigint NOT NULL,
+    numero_emenda text NOT NULL,
+    programa_emenda text,
+    parlamentar text,
+    tipo_parlamentar text,
+    qualificacao_proponente text,
+    impositiva boolean,
+    cnpj_beneficiario text,
+    valor_repasse_proposta numeric(16,2),
+    valor_repasse_emenda numeric(16,2),
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE fin_tg_emendas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_emendas IS 'Emendas parlamentares federais de cada proposta do Transferegov: número, parlamentar ou comissão, tipo e valor. Espelho só leitura.';
+
+
+--
+-- Name: fin_tg_movimentos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_movimentos (
+    tipo text NOT NULL,
+    id_origem bigint NOT NULL,
+    numero_convenio text NOT NULL,
+    numero text,
+    data date,
+    valor numeric(16,2),
+    situacao text,
+    descricao text,
+    indicacao text,
+    natureza_despesa text,
+    ug_emitente text,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_tg_movimentos_tipo_check CHECK ((tipo = ANY (ARRAY['empenho'::text, 'desembolso'::text])))
+);
+
+
+--
+-- Name: TABLE fin_tg_movimentos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_movimentos IS 'Empenhos e desembolsos federais de cada convênio do Transferegov. indicacao traz o texto da emenda no SIAFI (quem indicou). Espelho só leitura.';
+
+
+--
+-- Name: fin_tg_propostas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_propostas (
+    id_proposta bigint NOT NULL,
+    numero text NOT NULL,
+    ano integer,
+    data_proposta date,
+    cnpj_proponente text NOT NULL,
+    orgao_superior text,
+    orgao text,
+    modalidade text,
+    objeto text,
+    situacao text,
+    situacao_projeto_basico text,
+    inicio_vigencia date,
+    fim_vigencia date,
+    valor_global numeric(16,2),
+    valor_repasse numeric(16,2),
+    valor_contrapartida numeric(16,2),
+    banco text,
+    agencia text,
+    conta text,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_tg_propostas_cnpj_proponente_check CHECK ((cnpj_proponente ~ '^[0-9]{14}$'::text))
+);
+
+
+--
+-- Name: TABLE fin_tg_propostas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_propostas IS 'Propostas do Transferegov (antigo Siconv) em que a instituição é a proponente. Espelho só leitura: grava só fin_tg_carregar (rotina diária).';
+
+
+--
+-- Name: fin_tg_sincronizacoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_sincronizacoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    executada_em timestamp with time zone DEFAULT now() NOT NULL,
+    data_carga timestamp with time zone,
+    cnpj text NOT NULL,
+    propostas integer DEFAULT 0 NOT NULL,
+    emendas integer DEFAULT 0 NOT NULL,
+    convenios integer DEFAULT 0 NOT NULL,
+    movimentos integer DEFAULT 0 NOT NULL,
+    CONSTRAINT fin_tg_sincronizacoes_cnpj_check CHECK ((cnpj ~ '^[0-9]{14}$'::text))
+);
+
+
+--
+-- Name: TABLE fin_tg_sincronizacoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_sincronizacoes IS 'Cada carga da rotina diária do Transferegov: quando rodou, a data da carga do Transferegov e quantas linhas vieram.';
 
 
 --

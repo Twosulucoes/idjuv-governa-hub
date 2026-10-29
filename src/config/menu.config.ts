@@ -66,6 +66,7 @@ import {
   Bell,
   Mail,
   ArrowLeftRight,
+  Handshake,
 } from "lucide-react";
 
 // ================================
@@ -125,6 +126,7 @@ export type PermissaoInstitucional =
   | 'orcamento.criar'
   | 'orcamento.aprovar'
   | 'orcamento.importar'
+  | 'financeiro.convenios.visualizar'
   | 'pagamento.conciliar'
   // Gabinete
   | 'gabinete.portarias.importar'
@@ -688,6 +690,16 @@ export const menuConfig: MenuSection[] = [
             permission: "orcamento.aprovar",
           },
         ],
+      },
+      {
+        // Espelho do Transferegov (só leitura), atualizado todo dia
+        id: "fin-convenios",
+        label: "Convênios federais",
+        labelShort: "Convênios",
+        route: "/financeiro/convenios",
+        icon: Handshake,
+        permission: "financeiro.convenios.visualizar",
+        priority: 4,
       },
       {
         id: "fin-favorecidos",

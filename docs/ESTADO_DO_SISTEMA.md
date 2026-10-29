@@ -11,21 +11,21 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Arquivo | Total | Protegidas | Públicas | Redirecionamentos | Curinga |
 |---|---:|---:|---:|---:|---:|
-| `src/App.tsx` (sistema) | 264 | 214 | 34 | 15 | 1 |
+| `src/App.tsx` (sistema) | 266 | 216 | 34 | 15 | 1 |
 | `src/AppSite.tsx` (site) | 32 | 0 | 29 | 2 | 1 |
 
 ## Código do front
 
 | Item | Quantidade |
 |---|---:|
-| Páginas (`*Page.tsx` em `src/pages`) | 227 |
+| Páginas (`*Page.tsx` em `src/pages`) | 229 |
 | Componentes (`.tsx` em `src/components`) | 370 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
 | — fora de `ui/` | 327 |
-| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 113 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 90 |
-| Linhas de `src/App.tsx` | 1456 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 29533 |
+| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 114 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 92 |
+| Linhas de `src/App.tsx` | 1468 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 29859 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -44,7 +44,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | `curriculo/` | 4 |
 | `eventos/` | 3 |
 | `federacoes/` | 3 |
-| `financeiro/` | 17 |
+| `financeiro/` | 19 |
 | `folha/` | 4 |
 | `formularios/` | 5 |
 | `gabinete/` | 1 |
@@ -69,17 +69,17 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 319 |
-| Migração mais recente | `20261104090000_contratos_c1_cadastro.sql` |
-| Tabelas do schema public (baseline) | 283 |
+| Migrações (`supabase/migrations/*.sql`) | 320 |
+| Migração mais recente | `20261105090000_fin_convenios_transferegov.sql` |
+| Tabelas do schema public (baseline) | 288 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 376 |
+| Funções (baseline) | 377 |
 | — de gatilho (`RETURNS trigger`) | 146 |
-| — demais | 230 |
+| — demais | 231 |
 | Enums (baseline) | 109 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2048 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 283 |
-| Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 11 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2058 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 288 |
+| Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 12 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.
 
@@ -96,7 +96,7 @@ Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.
 | `workflow` | Processos SEI | 3 | 0 |
 | `compras` | Compras | 10 | 0 |
 | `contratos` | Contratos | 8 | 0 |
-| `financeiro` | Financeiro | 20 | 0 |
+| `financeiro` | Financeiro | 22 | 0 |
 | `patrimonio` | Patrimônio | 30 | 0 |
 | `governanca` | Governança | 10 | 2 |
 | `integridade` | Integridade | 5 | 1 |

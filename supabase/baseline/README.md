@@ -290,6 +290,13 @@ schema regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `rls/mapa.csv` (`
 classe `preservar`, com as policies da própria migração) e no `overlay/40_privilegios.sql`; o catálogo não muda.
 Testes no bloco "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
 
+A migração `20261105090000_fin_convenios_transferegov.sql` (convênios federais do Transferegov) entrou no schema
+regenerado (`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_catalogo.sql`: só a linha de
+`financeiro.convenios.visualizar` e as concessões aos papéis, copiadas da regeneração), no `rls/mapa.csv` (as cinco
+`fin_tg_*` na classe `trilha` com `leitura=financeiro.convenios.visualizar`) e no `overlay/40_privilegios.sql` (sem
+INSERT/UPDATE/DELETE/TRUNCATE para `authenticated`; `fin_tg_carregar` só para `service_role`). Testes no bloco
+"Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`, com sementes em `seed_ov`.
+
 A migração `20261104090000_contratos_c1_cadastro.sql` (contratos, entrega C1) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (`contratos` e `itens_contrato`
 passam de `modulo` para `permissao` com `escrita=` e `excluir=`; `contrato_responsaveis` entra na mesma classe; as

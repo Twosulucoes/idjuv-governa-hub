@@ -60,6 +60,9 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useConciliacaoMensal` (`useConciliacoesMensais`, `useMesConciliacao`, `useSalvarConciliacaoMensal`,
   `useReabrirConciliacaoMensal`): aba "Fechamento mensal" da Conciliação (quadro da SEFAZ); leitura do FIP630,
   FIP103 e OFX e o casamento em `src/lib/conciliacao/` (testes em `conciliacao.test.ts`).
+  `useConveniosFederais` (`useConveniosFederais`, `useConvenioFederal`, `useMovimentosConvenioFederal`,
+  `useUltimaSincronizacaoTransferegov`): espelho do Transferegov, só leitura (`/financeiro/convenios`); alertas de
+  prazo, espelho desatualizado e rótulos em `src/lib/financeiro/conveniosFederais.ts` (testes vitest).
   `useFavorecidos` (`useFavorecidos`, `useSalvarFavorecido`): favorecidos da tela Financeiro → Favorecidos (tabela
   `fornecedores`); agência e conta validadas por `src/lib/bancario/favorecido.ts`, com a regra da remessa OBN600.
 - **Compras:** `usePca` (`usePcaPlanos`, `usePcaPlano`, `useCriarPcaPlano`, `usePcaTetos`, `useSalvarPcaTeto`,
