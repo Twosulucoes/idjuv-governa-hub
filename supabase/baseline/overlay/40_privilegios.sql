@@ -451,3 +451,6 @@ REVOKE ALL ON FUNCTION public.contrato_buscar_servidores(text) FROM PUBLIC, anon
 GRANT EXECUTE ON FUNCTION public.contrato_buscar_servidores(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) TO authenticated;
+
+-- ---- Compras: pesquisa de preços (migração 20261106090000): gatilho sem EXECUTE para a API ----
+REVOKE EXECUTE ON FUNCTION public.pesquisa_precos_conferir() FROM PUBLIC, anon, authenticated;

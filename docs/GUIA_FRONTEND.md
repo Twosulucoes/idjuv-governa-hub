@@ -71,6 +71,13 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `src/components/compras/pca/`). Orçamento por ação × fonte em `src/lib/pca/orcamento.ts` e leitura de número
   digitado em `src/lib/pca/numero.ts` (testes vitest). Itens de um PDM e a atualização do catálogo passam pela Edge
   Function `catalogo-compras`.
+  `usePesquisaPrecos` (`usePesquisasPrecos`, `usePesquisaPrecos`, `useItensPesquisa`, `useSalvarPesquisa`,
+  `useSituacaoPesquisa`, `useSalvarItemPesquisa`, `useExcluirItemPesquisa`, `useIncluirAmostras`, `useAlterarAmostra`,
+  `useExcluirAmostra`, e as buscas `buscarPrecosComprasGov`, `buscarCompraPncp`, `buscarResultadosPncp`): telas
+  `/compras/pesquisa-precos` e `/compras/pesquisa-precos/:id` (componentes em `src/components/compras/pesquisa-precos/`).
+  Saneamento, CV, método e prazos em `src/lib/compras/pesquisaPrecos.ts`; relatório, formatação e texto de apoio da
+  nota técnica em `src/lib/compras/relatorioPesquisaPrecos.ts` (testes vitest). As buscas passam pela Edge Function
+  `pesquisa-precos`.
   `useProcessosContratacao` (`useProcessos`, `useProcesso`, `useSalvarProcesso`, `useAndamentos`, `useNovaMovimentacao`,
   `useEmpenhosDosProcessos`, `somarEmpenhado`): telas `/compras/processos` e `/compras/processos/:id` (componentes em
   `src/components/compras/processos/`; etapas e formas em `src/types/processos.ts`). A planilha de acompanhamento

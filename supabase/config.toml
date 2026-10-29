@@ -21,6 +21,9 @@ verify_jwt = true
 [functions.catalogo-compras]
 verify_jwt = true
 
+[functions.pesquisa-precos]
+verify_jwt = true
+
 [functions.conciliacao-ia-sugestoes]
 verify_jwt = true
 
