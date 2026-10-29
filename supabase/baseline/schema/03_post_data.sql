@@ -1542,6 +1542,22 @@ ALTER TABLE ONLY public.fin_dotacoes
 
 
 --
+-- Name: fin_emendas fin_emendas_numero_exercicio_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_emendas
+    ADD CONSTRAINT fin_emendas_numero_exercicio_key UNIQUE (exercicio, numero);
+
+
+--
+-- Name: fin_emendas fin_emendas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_emendas
+    ADD CONSTRAINT fin_emendas_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_empenho_anulacoes fin_empenho_anulacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1851,6 +1867,46 @@ ALTER TABLE ONLY public.fin_solicitacoes
 
 ALTER TABLE ONLY public.fin_sub_empenhos
     ADD CONSTRAINT fin_sub_empenhos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fin_tg_convenios fin_tg_convenios_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_convenios
+    ADD CONSTRAINT fin_tg_convenios_pkey PRIMARY KEY (numero);
+
+
+--
+-- Name: fin_tg_emendas fin_tg_emendas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_emendas
+    ADD CONSTRAINT fin_tg_emendas_pkey PRIMARY KEY (id_proposta, numero_emenda);
+
+
+--
+-- Name: fin_tg_movimentos fin_tg_movimentos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_movimentos
+    ADD CONSTRAINT fin_tg_movimentos_pkey PRIMARY KEY (tipo, id_origem);
+
+
+--
+-- Name: fin_tg_propostas fin_tg_propostas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_propostas
+    ADD CONSTRAINT fin_tg_propostas_pkey PRIMARY KEY (id_proposta);
+
+
+--
+-- Name: fin_tg_sincronizacoes fin_tg_sincronizacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_sincronizacoes
+    ADD CONSTRAINT fin_tg_sincronizacoes_pkey PRIMARY KEY (id);
 
 
 --
@@ -2755,6 +2811,38 @@ ALTER TABLE ONLY public.pca_tetos
 
 ALTER TABLE ONLY public.pensoes_alimenticias
     ADD CONSTRAINT pensoes_alimenticias_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pesquisas_precos_amostras pesquisas_precos_amostras_item_externo_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_amostras
+    ADD CONSTRAINT pesquisas_precos_amostras_item_externo_key UNIQUE (item_id, id_externo);
+
+
+--
+-- Name: pesquisas_precos_amostras pesquisas_precos_amostras_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_amostras
+    ADD CONSTRAINT pesquisas_precos_amostras_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pesquisas_precos_itens pesquisas_precos_itens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_itens
+    ADD CONSTRAINT pesquisas_precos_itens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pesquisas_precos pesquisas_precos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos
+    ADD CONSTRAINT pesquisas_precos_pkey PRIMARY KEY (id);
 
 
 --
@@ -5822,6 +5910,13 @@ CREATE INDEX idx_fin_dotacoes_unidade ON public.fin_dotacoes USING btree (unidad
 
 
 --
+-- Name: idx_fin_emendas_dotacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_emendas_dotacao ON public.fin_emendas USING btree (dotacao_id);
+
+
+--
 -- Name: idx_fin_empenho_anulacoes_empenho_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5861,6 +5956,13 @@ CREATE INDEX idx_fin_empenhos_credor_fiplan ON public.fin_empenhos USING btree (
 --
 
 CREATE INDEX idx_fin_empenhos_dotacao ON public.fin_empenhos USING btree (dotacao_id);
+
+
+--
+-- Name: idx_fin_empenhos_emenda; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_empenhos_emenda ON public.fin_empenhos USING btree (emenda_id) WHERE (emenda_id IS NOT NULL);
 
 
 --
@@ -6309,6 +6411,34 @@ CREATE INDEX idx_fin_sub_empenhos_empenho ON public.fin_sub_empenhos USING btree
 --
 
 CREATE INDEX idx_fin_sub_empenhos_tipo ON public.fin_sub_empenhos USING btree (tipo);
+
+
+--
+-- Name: idx_fin_tg_convenios_proposta; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_convenios_proposta ON public.fin_tg_convenios USING btree (id_proposta);
+
+
+--
+-- Name: idx_fin_tg_movimentos_convenio; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_movimentos_convenio ON public.fin_tg_movimentos USING btree (numero_convenio, data);
+
+
+--
+-- Name: idx_fin_tg_propostas_ano; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_propostas_ano ON public.fin_tg_propostas USING btree (ano DESC);
+
+
+--
+-- Name: idx_fin_tg_sincronizacoes_executada; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_sincronizacoes_executada ON public.fin_tg_sincronizacoes USING btree (executada_em DESC);
 
 
 --
@@ -7471,6 +7601,34 @@ CREATE INDEX idx_pensoes_alimenticias_ativo ON public.pensoes_alimenticias USING
 --
 
 CREATE INDEX idx_pensoes_alimenticias_servidor ON public.pensoes_alimenticias USING btree (servidor_id);
+
+
+--
+-- Name: idx_pesquisas_precos_amostras_item; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pesquisas_precos_amostras_item ON public.pesquisas_precos_amostras USING btree (item_id);
+
+
+--
+-- Name: idx_pesquisas_precos_criacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pesquisas_precos_criacao ON public.pesquisas_precos USING btree (created_at DESC);
+
+
+--
+-- Name: idx_pesquisas_precos_itens_pesquisa; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pesquisas_precos_itens_pesquisa ON public.pesquisas_precos_itens USING btree (pesquisa_id, numero);
+
+
+--
+-- Name: idx_pesquisas_precos_sei; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pesquisas_precos_sei ON public.pesquisas_precos USING btree (numero_sei);
 
 
 --
@@ -10792,6 +10950,27 @@ CREATE TRIGGER trg_pca_tetos_carimbar BEFORE INSERT OR UPDATE ON public.pca_teto
 
 
 --
+-- Name: pesquisas_precos_amostras trg_pesquisas_precos_amostras_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pesquisas_precos_amostras_conferir BEFORE INSERT OR DELETE OR UPDATE ON public.pesquisas_precos_amostras FOR EACH ROW EXECUTE FUNCTION public.pesquisa_precos_conferir();
+
+
+--
+-- Name: pesquisas_precos trg_pesquisas_precos_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pesquisas_precos_conferir BEFORE INSERT OR UPDATE ON public.pesquisas_precos FOR EACH ROW EXECUTE FUNCTION public.pesquisa_precos_conferir();
+
+
+--
+-- Name: pesquisas_precos_itens trg_pesquisas_precos_itens_conferir; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_pesquisas_precos_itens_conferir BEFORE INSERT OR DELETE OR UPDATE ON public.pesquisas_precos_itens FOR EACH ROW EXECUTE FUNCTION public.pesquisa_precos_conferir();
+
+
+--
 -- Name: pre_cadastros trg_pre_cadastros_gerar_token; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11519,6 +11698,13 @@ CREATE TRIGGER update_federacoes_esportivas_updated_at BEFORE UPDATE ON public.f
 --
 
 CREATE TRIGGER update_fichas_financeiras_updated_at BEFORE UPDATE ON public.fichas_financeiras FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: fin_emendas update_fin_emendas_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_fin_emendas_updated_at BEFORE UPDATE ON public.fin_emendas FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -16021,6 +16207,14 @@ ALTER TABLE ONLY public.fin_dotacoes
 
 
 --
+-- Name: fin_emendas fin_emendas_dotacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_emendas
+    ADD CONSTRAINT fin_emendas_dotacao_id_fkey FOREIGN KEY (dotacao_id) REFERENCES public.fin_dotacoes(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: fin_empenho_anulacoes fin_empenho_anulacoes_anulado_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -16082,6 +16276,14 @@ ALTER TABLE ONLY public.fin_empenhos
 
 ALTER TABLE ONLY public.fin_empenhos
     ADD CONSTRAINT fin_empenhos_dotacao_id_fkey FOREIGN KEY (dotacao_id) REFERENCES public.fin_dotacoes(id);
+
+
+--
+-- Name: fin_empenhos fin_empenhos_emenda_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_empenhos
+    ADD CONSTRAINT fin_empenhos_emenda_id_fkey FOREIGN KEY (emenda_id) REFERENCES public.fin_emendas(id) ON DELETE SET NULL;
 
 
 --
@@ -16602,6 +16804,30 @@ ALTER TABLE ONLY public.fin_solicitacoes
 
 ALTER TABLE ONLY public.fin_sub_empenhos
     ADD CONSTRAINT fin_sub_empenhos_empenho_id_fkey FOREIGN KEY (empenho_id) REFERENCES public.fin_empenhos(id);
+
+
+--
+-- Name: fin_tg_convenios fin_tg_convenios_id_proposta_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_convenios
+    ADD CONSTRAINT fin_tg_convenios_id_proposta_fkey FOREIGN KEY (id_proposta) REFERENCES public.fin_tg_propostas(id_proposta) ON DELETE CASCADE;
+
+
+--
+-- Name: fin_tg_emendas fin_tg_emendas_id_proposta_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_emendas
+    ADD CONSTRAINT fin_tg_emendas_id_proposta_fkey FOREIGN KEY (id_proposta) REFERENCES public.fin_tg_propostas(id_proposta) ON DELETE CASCADE;
+
+
+--
+-- Name: fin_tg_movimentos fin_tg_movimentos_numero_convenio_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_movimentos
+    ADD CONSTRAINT fin_tg_movimentos_numero_convenio_fkey FOREIGN KEY (numero_convenio) REFERENCES public.fin_tg_convenios(numero) ON DELETE CASCADE;
 
 
 --
@@ -18098,6 +18324,30 @@ ALTER TABLE ONLY public.pensoes_alimenticias
 
 ALTER TABLE ONLY public.pensoes_alimenticias
     ADD CONSTRAINT pensoes_alimenticias_servidor_id_fkey FOREIGN KEY (servidor_id) REFERENCES public.servidores(id);
+
+
+--
+-- Name: pesquisas_precos_amostras pesquisas_precos_amostras_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_amostras
+    ADD CONSTRAINT pesquisas_precos_amostras_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.pesquisas_precos_itens(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pesquisas_precos_itens pesquisas_precos_itens_pesquisa_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_itens
+    ADD CONSTRAINT pesquisas_precos_itens_pesquisa_id_fkey FOREIGN KEY (pesquisa_id) REFERENCES public.pesquisas_precos(id);
+
+
+--
+-- Name: pesquisas_precos pesquisas_precos_pca_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos
+    ADD CONSTRAINT pesquisas_precos_pca_item_id_fkey FOREIGN KEY (pca_item_id) REFERENCES public.pca_itens(id);
 
 
 --
@@ -20137,6 +20387,12 @@ ALTER TABLE public.fin_documentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fin_dotacoes ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: fin_emendas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_emendas ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: fin_empenho_anulacoes; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -20308,6 +20564,36 @@ ALTER TABLE public.fin_solicitacoes ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.fin_sub_empenhos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_convenios; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_convenios ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_emendas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_emendas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_movimentos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_movimentos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_propostas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_propostas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_sincronizacoes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_sincronizacoes ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: folha_historico_status; Type: ROW SECURITY; Schema: public; Owner: -
@@ -20766,6 +21052,24 @@ ALTER TABLE public.pca_tetos ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.pensoes_alimenticias ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: pesquisas_precos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pesquisas_precos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: pesquisas_precos_amostras; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pesquisas_precos_amostras ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: pesquisas_precos_itens; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pesquisas_precos_itens ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: planos_tratamento_risco; Type: ROW SECURITY; Schema: public; Owner: -
@@ -21773,6 +22077,13 @@ CREATE POLICY rls_delete ON public.fin_dotacoes FOR DELETE TO authenticated USIN
 
 
 --
+-- Name: fin_emendas rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.fin_emendas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'orcamento.criar'::text)));
+
+
+--
 -- Name: fin_empenho_anulacoes rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -22306,6 +22617,20 @@ CREATE POLICY rls_delete ON public.patrimonio_unidade FOR DELETE TO authenticate
 --
 
 CREATE POLICY rls_delete ON public.pensoes_alimenticias FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: pesquisas_precos_amostras rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.pesquisas_precos_amostras FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
+
+
+--
+-- Name: pesquisas_precos_itens rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.pesquisas_precos_itens FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
 
 
 --
@@ -23457,6 +23782,13 @@ CREATE POLICY rls_insert ON public.fin_dotacoes FOR INSERT TO authenticated WITH
 
 
 --
+-- Name: fin_emendas rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.fin_emendas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'orcamento.criar'::text)));
+
+
+--
 -- Name: fin_empenho_anulacoes rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -24027,6 +24359,27 @@ CREATE POLICY rls_insert ON public.pca_tetos FOR INSERT TO authenticated WITH CH
 --
 
 CREATE POLICY rls_insert ON public.pensoes_alimenticias FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: pesquisas_precos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pesquisas_precos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
+
+
+--
+-- Name: pesquisas_precos_amostras rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pesquisas_precos_amostras FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
+
+
+--
+-- Name: pesquisas_precos_itens rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.pesquisas_precos_itens FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
 
 
 --
@@ -25231,6 +25584,13 @@ CREATE POLICY rls_select ON public.fin_dotacoes FOR SELECT TO authenticated USIN
 
 
 --
+-- Name: fin_emendas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_emendas FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
 -- Name: fin_empenho_anulacoes rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -25354,6 +25714,41 @@ CREATE POLICY rls_select ON public.fin_solicitacoes FOR SELECT TO authenticated 
 --
 
 CREATE POLICY rls_select ON public.fin_sub_empenhos FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'financeiro'::text));
+
+
+--
+-- Name: fin_tg_convenios rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_convenios FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_emendas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_emendas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_movimentos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_movimentos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_propostas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_propostas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_sincronizacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_sincronizacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
 
 
 --
@@ -25859,6 +26254,27 @@ CREATE POLICY rls_select ON public.pca_tetos FOR SELECT TO authenticated USING (
 --
 
 CREATE POLICY rls_select ON public.pensoes_alimenticias FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND (public.has_permission_code(auth.uid(), 'rh.contracheques.visualizar'::text) OR public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))));
+
+
+--
+-- Name: pesquisas_precos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pesquisas_precos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))));
+
+
+--
+-- Name: pesquisas_precos_amostras rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pesquisas_precos_amostras FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))));
+
+
+--
+-- Name: pesquisas_precos_itens rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.pesquisas_precos_itens FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))));
 
 
 --
@@ -27038,6 +27454,13 @@ CREATE POLICY rls_update ON public.fin_dotacoes FOR UPDATE TO authenticated USIN
 
 
 --
+-- Name: fin_emendas rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.fin_emendas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'orcamento.criar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'orcamento.criar'::text)));
+
+
+--
 -- Name: fin_empenho_anulacoes rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -27610,6 +28033,27 @@ CREATE POLICY rls_update ON public.pca_tetos FOR UPDATE TO authenticated USING (
 --
 
 CREATE POLICY rls_update ON public.pensoes_alimenticias FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) AND public.has_permission_code(auth.uid(), 'financeiro.folha.processar'::text)));
+
+
+--
+-- Name: pesquisas_precos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pesquisas_precos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
+
+
+--
+-- Name: pesquisas_precos_amostras rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pesquisas_precos_amostras FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
+
+
+--
+-- Name: pesquisas_precos_itens rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.pesquisas_precos_itens FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.pesquisa_precos.editar'::text)));
 
 
 --

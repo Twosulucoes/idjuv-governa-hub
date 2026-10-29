@@ -21,6 +21,9 @@ verify_jwt = true
 [functions.catalogo-compras]
 verify_jwt = true
 
+[functions.pesquisa-precos]
+verify_jwt = true
+
 [functions.conciliacao-ia-sugestoes]
 verify_jwt = true
 
@@ -40,4 +43,8 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.enviar-notificacao]
+verify_jwt = true
+
+# Chamada pela rotina diária do GitHub Actions com a chave anon (JWT) e o segredo TRANSFEREGOV_TOKEN; sem usuário.
+[functions.transferegov]
 verify_jwt = true

@@ -8,6 +8,8 @@ import { conciliacaoMensal } from '../modelos/financeiro/conciliacaoMensal';
 import { fichaContrato } from '../modelos/contratos/fichaContrato';
 import { fichaPedidoPassagem } from '../modelos/passagens/fichaPedido';
 import { saldoContratoPassagens } from '../modelos/passagens/saldoContrato';
+import { relatorioPesquisaPrecos } from '../modelos/compras/pesquisaPrecos';
+import { dadosPesquisaPrecos } from './fixturesPesquisaPrecos';
 import { fichaHistoricoFuncional } from '../modelos/rh/historicoFuncional';
 import { relatorioServidoresDiretoria } from '../modelos/rh/servidoresDiretoria';
 import { relatorioServidoresPortarias } from '../modelos/rh/servidoresPortarias';
@@ -69,5 +71,6 @@ describe.skipIf(!saida)('amostras para inspeção visual', () => {
     gravar('contratos-passagem-ficha-pedido.pdf', renderizarDocumento(fichaPedidoPassagem, dadosFichaPedido(3), marcaTeste, emissaoTeste).doc);
     gravar('contratos-passagens-saldo-contrato.pdf', renderizarDocumento(saldoContratoPassagens, dadosSaldoContrato(8), marcaTeste, emissaoTeste).doc);
     gravar('contratos-ficha-contrato.pdf', renderizarDocumento(fichaContrato, dadosFichaContrato(4), marcaTeste, emissaoTeste).doc);
+    gravar('compras-pesquisa-precos.pdf', renderizarDocumento(relatorioPesquisaPrecos, dadosPesquisaPrecos(), marcaTeste, emissaoTeste).doc);
   });
 });

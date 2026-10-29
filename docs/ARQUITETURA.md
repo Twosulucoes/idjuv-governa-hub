@@ -89,6 +89,12 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `requiredModule="compras"` e `compras.pca.visualizar` ou `compras.pca.editar`): itens lançados dos DFDs do SEI e
   orçamento por ação × fonte; menu em Compras → "Plano de Contratações (PCA)". O catálogo CATMAT/CATSER vem do portal
   de dados abertos do Compras.gov.br pela Edge Function `catalogo-compras` (o navegador não chama o portal: CORS e CSP).
+- **Pesquisa de preços (Compras)** em `/compras/pesquisa-precos` e `/compras/pesquisa-precos/:id`
+  (`PesquisasPrecosListaPage`, `PesquisaPrecosPage`, `requiredModule="compras"` e `compras.pesquisa_precos.visualizar`
+  ou `compras.pesquisa_precos.editar`): pesquisa por processo SEI, itens do CATMAT/CATSER, preços com a fonte de cada
+  um, saneamento e CV do Decreto 39.050-E/2025 e relatório PDF, planilha e texto de apoio da nota técnica; menu em
+  Compras → "Pesquisa de preços". Os preços do Compras.gov.br e do PNCP vêm pela Edge Function `pesquisa-precos` (só
+  leitura; o navegador não chama os portais).
 - **Processos de contratação (Compras)** em `/compras/processos` e `/compras/processos/:id` (`ProcessosListaPage`,
   `ProcessoFichaPage`, `requiredModule="compras"` e `compras.processos.visualizar` ou `compras.processos.editar`): lista
   com etapa e setor, dias parado, valor estimado, empenhado e fase financeira (com filtro); ficha com Dados, Reservas
@@ -99,6 +105,10 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   no FIPLAN, reservado em processos e saldo livre por natureza); a página-guia `/processos/compras` continua como
   "Como funciona uma compra", o último item de Compras, que segue o ciclo: PCA, programação por natureza, processos de
   contratação e o manual. O painel do Financeiro (`/financeiro`) ganha o cartão "Reservado em processos".
+- **Emendas parlamentares (Financeiro)** em `/financeiro/emendas` (`EmendasPage`, `orcamento.visualizar`; cadastrar e
+  editar pedem `orcamento.criar`): autor, objeto, beneficiário e saldo (valor, reservado, empenhado, livre) de cada
+  emenda, mais a conferência com as dotações de emenda do QDD. Menu em Financeiro → "Emendas Parlamentares"; o QDD
+  (`/financeiro/qdd`) separa a dotação comum das emendas e liga para esta tela.
 - **Importação por setor** (desde 29/10/2026): cada setor importa no próprio menu e o assistente abre na tela dele
   (`ImportacaoDialog` + `useImportadorDaUrl`, `?importador=<id>`, só com a permissão do importador). O campo `local` de
   cada importador (`src/lib/importacao/importadores/`) diz a tela: Financeiro → Atualizar dados (`/financeiro/atualizar`:
@@ -115,6 +125,11 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   "Parados" (`/processos/localizar?aba=parados`) como os únicos itens de Processos SEI, nos dois arquivos de menu (a
   tramitação é no SEI: a lista `/workflow/processos` e o "Novo processo" saíram do menu e abrem pelo painel `/workflow`). Spec:
   `docs/superpowers/specs/2026-10-25-localizador-processos-sei-design.md`.
+- **Convênios federais (Financeiro)** em `/financeiro/convenios` e `/financeiro/convenios/:id`
+  (`ConveniosFederaisPage`, `ConvenioFederalPage`, `requiredPermissions="financeiro.convenios.visualizar"`; o `:id` é o
+  `id_proposta` do Transferegov): lista e ficha das propostas, emendas, convênios, empenhos e desembolsos da União, só
+  leitura. Os dados chegam pela rotina diária `.github/workflows/transferegov.yml` → Edge Function `transferegov` →
+  RPC `fin_tg_carregar`. Menu em Financeiro → "Convênios federais". Spec: `docs/superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md`.
 - **Contratos (entrega C1)** em `/contratos/lista` e `/contratos/:id` (`ContratosListaPage`, `ContratoFichaPage`,
   `requiredModule="contratos"` e `contratos.visualizar`, `contratos.criar` ou `contratos.editar`): lista com filtros de
   situação e de prazo (`?prazo=em_vigor|30|60|90|120|vencidos|sem_responsavel`, usados pelos cartões do painel

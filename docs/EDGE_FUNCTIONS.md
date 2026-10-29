@@ -30,7 +30,9 @@ Aposentada no P06 (2026-10-15): `backup-offsite` (backup antigo em JSON para out
 | `cpsi-ai-assistant` | Assistente de IA do antigo formulário CPSI. A tela saiu na onda 5 do P23 (DFD/ETP/TR são do SEI); a função segue publicada sem chamador no front até a decisão D2 do roadmap. |
 | `conciliacao-ia-sugestoes` | Sugere casamentos para as pendências da conciliação mensal (aba "Fechamento mensal") pelo Gemini. Não grava nada: a tela mostra cada sugestão e o usuário aceita ou recusa. Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
 | `catalogo-compras` | Ponte com o catálogo CATMAT/CATSER do portal de dados abertos do Compras.gov.br para o PCA: baixa os tipos de material e os serviços para o banco, lista os itens de um tipo de material, grava o item escolhido e lê as naturezas de despesa que o catálogo indica. Exige o módulo `compras` e a permissão do PCA (ver abaixo). |
+| `pesquisa-precos` | Pesquisa de preços de Compras: lê os preços praticados do Compras.gov.br (módulo Pesquisa de Preço da API de dados abertos) pelo código do CATMAT/CATSER e os resultados homologados de uma compra do PNCP. Só leitura, sem service role: a tela grava os preços escolhidos. Exige o módulo `compras` e a permissão da pesquisa de preços (ver abaixo). |
 | `bb-api` | APIs de leitura do Banco do Brasil: `status` da conexão, `extrato` (API Extratos v2, grava em `fin_extrato_lancamentos`) e `validar-conta` (API Validação de Contas v1). Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
+| `transferegov` | Recebe da rotina diária do GitHub Actions o que o Transferegov tem do CNPJ da instituição e troca o espelho `fin_tg_*` pela RPC `fin_tg_carregar`. Não é chamada pelo navegador: exige o segredo `TRANSFEREGOV_TOKEN` (ver abaixo). |
 
 ### Envio de e-mail e WhatsApp (`_shared/envio`)
 
@@ -109,10 +111,38 @@ grava o total em `cat_sincronizacoes`) e `gravar_item` (grava em `cat_material_i
 material dele, se faltar) exigem `compras.pca.editar`; `itens_pdm` (itens ativos de um tipo de material, até 500, sem
 gravar) e `naturezas` (naturezas de despesa que o catálogo indica para um tipo de material ou serviço, até 500, sem
 gravar; o front descarta as inativas, as de exercícios anteriores e as que o estado não tem, em
-`src/lib/pca/naturezaCatalogo.ts`) aceitam também `compras.pca.visualizar`. Só chama `https://dadosabertos.compras.gov.br` (host fixo em
+`src/lib/pca/naturezaCatalogo.ts`) aceitam também `compras.pca.visualizar`; `itens_pdm` aceita ainda `compras.pesquisa_precos.editar`, para escolher o
+item do CATMAT no item da pesquisa de preços. Só chama `https://dadosabertos.compras.gov.br` (host fixo em
 `portal.ts`, sem redirecionamento, 20 s por chamada); portal fora do ar vira `502` com mensagem em português. Público e
 sem chave: não há segredo novo. A tela faz o laço de páginas e mostra o progresso. O log leva só ação, tipo, página e
 quantidade gravada. As funções puras (`portal.ts`) têm teste vitest.
+
+### Pesquisa de preços (`pesquisa-precos`)
+
+Exige sessão, o módulo `compras` e `compras.pesquisa_precos.visualizar` ou `compras.pesquisa_precos.editar`,
+conferidos com o token do próprio usuário (sem service role; não grava nada). Ações: `precos_compras` (uma página de
+até 500 preços de `1_consultarMaterial` ou `3_consultarServico` do módulo Pesquisa de Preço, por item do catálogo ou
+tipo de material, no período pedido; a tela faz o laço de páginas, até 6), `pncp_compra` (dados da compra e itens, pelo
+CNPJ, ano e sequencial do número de controle) e `pncp_resultados` (preços homologados de um item). Cada preço volta com
+a fonte (órgão, UASG, UF, compra, data, fornecedor, link) e um `idExterno` estável, que impede gravar a mesma linha duas
+vezes no item. Só chama `https://dadosabertos.compras.gov.br` e `https://pncp.gov.br` (hosts fixos em `portal.ts`, sem
+redirecionamento, 25 s por chamada); portal fora do ar ou resposta fora do formato vira `502` com mensagem em
+português, compra inexistente `404`. Público e sem chave: não há segredo novo. O log leva só ação, tipo, página e quantidade. As
+funções puras (`portal.ts`) têm teste vitest.
+
+### Convênios federais (`transferegov`)
+
+Ponte entre a rotina `.github/workflows/transferegov.yml` e o banco. Só `POST`; sem CORS (não é para o navegador).
+A rotina manda a chave anon como `Bearer` (o roteador exige JWT) e o segredo no cabeçalho `x-transferegov-token`,
+comparado em tempo constante (`supabase/functions/transferegov/token.ts`, com testes). Sem `TRANSFEREGOV_TOKEN` no
+`.env` das funções, ou com menos de 32 caracteres, a função recusa tudo (`401`). Ações:
+
+- `cnpj`: devolve o CNPJ da Configuração do cliente (`dados_oficiais`), para a rotina não ter nome de cliente;
+  `409` se não estiver cadastrado.
+- `carregar`: confere o formato e os limites de linhas e chama `fin_tg_carregar` com a service role; recusa da RPC
+  vira `422` com a mensagem dela. Corpo acima de 10 MB: `413`. O log só tem contagens.
+
+Configuração: [INTEGRACOES_EXTERNAS.md](./INTEGRACOES_EXTERNAS.md) §4.5.
 
 ### Convite de reunião (`enviar-convite-reuniao`)
 

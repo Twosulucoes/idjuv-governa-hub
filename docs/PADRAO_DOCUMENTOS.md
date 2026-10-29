@@ -56,6 +56,15 @@
 > "Sem dados cadastrados no exercício."; capacitações, resumo executivo e metas saíram (não há tabela de origem). Sem
 > nenhum cadastro, o PDF traz só o aviso "Dados ilustrativos — sem cadastro de governança", sem números.
 
+> **Pesquisa de preços (29/10/2026, documento novo):** `compras-pesquisa-precos` (relatório, paisagem) imprime a
+> pesquisa de preços para anexar à nota técnica no SEI: identificação (processo, objeto, finalidade, data de
+> referência), os parâmetros do art. 17 do Decreto 39.050-E/2025 e, por item, o catálogo, a tabela dos preços com a
+> fonte, a data, o fornecedor (CPF mascarado), a situação no saneamento e o link, as consultas feitas, a estatística
+> (média, limites, média saneada, CV, mediana, menor), o método e a justificativa e as pendências; no fim, o resumo
+> com o total. Não é ato: a nota técnica é do SEI. Chamado pelo botão "Relatório PDF" da ficha da pesquisa
+> (`/compras/pesquisa-precos/:id`); dados montados por `montarItemRelatorio` (`src/lib/compras/relatorioPesquisaPrecos.ts`);
+> testes em `__testes__/compras-pesquisa-precos.test.ts` (amostras em `amostras.test.ts`).
+
 > **Contratos C1 (27/10/2026, documento novo):** `contratos-ficha-contrato` (ficha) imprime a ficha do contrato para
 > consulta ou para juntar ao processo no SEI quando quiser: dados do contrato (contratado, objeto, tipo, fundamento,
 > processo SEI, PNCP, setor que pediu, natureza), valores e vigência com a situação do prazo, publicação, gestor e

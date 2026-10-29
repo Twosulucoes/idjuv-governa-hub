@@ -66,6 +66,7 @@ import {
   Bell,
   Mail,
   ArrowLeftRight,
+  Handshake,
 } from "lucide-react";
 
 // ================================
@@ -90,6 +91,8 @@ export type PermissaoInstitucional =
   | 'compras.tramitar'
   | 'compras.aprovar'
   | 'compras.pca.visualizar'
+  | 'compras.pesquisa_precos.visualizar'
+  | 'compras.pesquisa_precos.editar'
   | 'compras.processos.visualizar'
   | 'compras.processos.editar'
   // Contratos
@@ -126,6 +129,7 @@ export type PermissaoInstitucional =
   | 'orcamento.aprovar'
   | 'orcamento.importar'
   | 'financeiro.execucao.importar'
+  | 'financeiro.convenios.visualizar'
   | 'pagamento.conciliar'
   // Gabinete
   | 'gabinete.portarias.importar'
@@ -237,6 +241,13 @@ export const menuConfig: MenuSection[] = [
             route: "/compras/pca",
             icon: ClipboardList,
             permission: "compras.pca.visualizar",
+          },
+          {
+            id: "pesquisa-precos",
+            label: "Pesquisa de preços",
+            route: "/compras/pesquisa-precos",
+            icon: Scale,
+            permission: "compras.pesquisa_precos.visualizar",
           },
           {
             id: "programacao-natureza",
@@ -664,6 +675,16 @@ export const menuConfig: MenuSection[] = [
         priority: 2,
       },
       {
+        // Autor, objeto, beneficiário e saldo de cada emenda (dotações de emenda do QDD)
+        id: "fin-emendas",
+        label: "Emendas Parlamentares",
+        labelShort: "Emendas",
+        route: "/financeiro/emendas",
+        icon: FileText,
+        permission: "orcamento.visualizar",
+        priority: 2,
+      },
+      {
         // Empenhos do FIPLAN (FIP 614); o "Novo empenho" fica para a contingência
         id: "fin-empenhos",
         label: "Empenhos",
@@ -696,6 +717,16 @@ export const menuConfig: MenuSection[] = [
             permission: "orcamento.aprovar",
           },
         ],
+      },
+      {
+        // Espelho do Transferegov (só leitura), atualizado todo dia
+        id: "fin-convenios",
+        label: "Convênios federais",
+        labelShort: "Convênios",
+        route: "/financeiro/convenios",
+        icon: Handshake,
+        permission: "financeiro.convenios.visualizar",
+        priority: 4,
       },
       {
         id: "fin-favorecidos",

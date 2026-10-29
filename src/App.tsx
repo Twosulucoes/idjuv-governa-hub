@@ -234,6 +234,7 @@ import {
   RelatoriosFinanceiroPage,
   PlaceholderDetalheFinanceiroPage,
   QDDPage,
+  EmendasPage,
   AlteracoesOrcamentariasPage,
   RestosAPagarPage,
   SubEmpenhosPage,
@@ -249,11 +250,15 @@ import PassagensBeneficiariosPage from "./pages/contratos/PassagensBeneficiarios
 import PassagensPendenciasPage from "./pages/contratos/PassagensPendenciasPage";
 import PassagensFaturasPage from "./pages/contratos/PassagensFaturasPage";
 import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
+import PesquisasPrecosListaPage from "./pages/compras/PesquisasPrecosListaPage";
+import PesquisaPrecosPage from "./pages/compras/PesquisaPrecosPage";
 import ProcessosListaPage from "./pages/compras/ProcessosListaPage";
 import ProcessoFichaPage from "./pages/compras/ProcessoFichaPage";
 import ProgramacaoNaturezaPage from "./pages/compras/ProgramacaoNaturezaPage";
 import PagamentoDetalhePage from "./pages/financeiro/PagamentoDetalhePage";
 import EmpenhoDetalhePage from "./pages/financeiro/EmpenhoDetalhePage";
+import ConveniosFederaisPage from "./pages/financeiro/ConveniosFederaisPage";
+import ConvenioFederalPage from "./pages/financeiro/ConvenioFederalPage";
 
 // Inventário e Patrimônio
 import {
@@ -501,6 +506,16 @@ const App = () => (
               <Route path="/compras/pca/:exercicio" element={
                 <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pca.visualizar", "compras.pca.editar"]}>
                   <PcaPlanoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compras/pesquisa-precos" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pesquisa_precos.visualizar", "compras.pesquisa_precos.editar"]}>
+                  <PesquisasPrecosListaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compras/pesquisa-precos/:id" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.pesquisa_precos.visualizar", "compras.pesquisa_precos.editar"]}>
+                  <PesquisaPrecosPage />
                 </ProtectedRoute>
               } />
               <Route path="/compras/processos" element={
@@ -1320,6 +1335,11 @@ const App = () => (
                   <QDDPage />
                 </ProtectedRoute>
               } />
+              <Route path="/financeiro/emendas" element={
+                <ProtectedRoute requiredPermissions="orcamento.visualizar">
+                  <EmendasPage />
+                </ProtectedRoute>
+              } />
               <Route path="/financeiro/alteracoes-orcamentarias" element={
                 <ProtectedRoute requiredPermissions="orcamento.criar">
                   <AlteracoesOrcamentariasPage />
@@ -1378,6 +1398,16 @@ const App = () => (
               <Route path="/financeiro/conciliacao" element={
                 <ProtectedRoute requiredModule="financeiro" requiredPermissions="pagamento.conciliar">
                   <ConciliacaoBancariaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/convenios" element={
+                <ProtectedRoute requiredPermissions="financeiro.convenios.visualizar">
+                  <ConveniosFederaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/convenios/:id" element={
+                <ProtectedRoute requiredPermissions="financeiro.convenios.visualizar">
+                  <ConvenioFederalPage />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/sub-empenhos" element={

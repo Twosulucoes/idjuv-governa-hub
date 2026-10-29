@@ -4438,6 +4438,101 @@ COMMENT ON FUNCTION public.fin_remessa_bancaria_json(p_id uuid) IS 'Uso interno 
 
 
 --
+-- Name: fin_tg_carregar(text, timestamp with time zone, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_tg_carregar(p_cnpj text, p_data_carga timestamp with time zone, p_dados jsonb, p_forcar boolean DEFAULT false) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_cadastrado text;
+  v_propostas integer;
+  v_emendas integer;
+  v_convenios integer;
+  v_movimentos integer;
+BEGIN
+  IF p_cnpj IS NULL OR p_cnpj !~ '^[0-9]{14}$' THEN
+    RAISE EXCEPTION 'CNPJ inválido' USING ERRCODE = '22023';
+  END IF;
+  SELECT regexp_replace(valor, '\D', '', 'g') INTO v_cadastrado FROM public.dados_oficiais WHERE chave = 'cnpj';
+  IF v_cadastrado IS DISTINCT FROM p_cnpj THEN
+    RAISE EXCEPTION 'CNPJ diferente do cadastrado na Configuração do cliente' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_dados) <> 'object'
+     OR jsonb_typeof(coalesce(p_dados->'propostas', '[]')) <> 'array'
+     OR jsonb_typeof(coalesce(p_dados->'emendas', '[]')) <> 'array'
+     OR jsonb_typeof(coalesce(p_dados->'convenios', '[]')) <> 'array'
+     OR jsonb_typeof(coalesce(p_dados->'movimentos', '[]')) <> 'array' THEN
+    RAISE EXCEPTION 'Dados em formato inesperado' USING ERRCODE = '22023';
+  END IF;
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(p_dados->'propostas', '[]')) e
+              WHERE e->>'cnpj_proponente' IS DISTINCT FROM p_cnpj) THEN
+    RAISE EXCEPTION 'Proposta de outro proponente' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_array_length(coalesce(p_dados->'propostas', '[]')) = 0 AND NOT p_forcar
+     AND EXISTS (SELECT 1 FROM public.fin_tg_propostas) THEN
+    RAISE EXCEPTION 'Nenhuma proposta veio e o espelho tem propostas: confira a leitura ou use p_forcar' USING ERRCODE = '22023';
+  END IF;
+
+  -- O espelho inteiro é trocado: o que sumiu do Transferegov sai daqui também (filhas saem em cascata)
+  DELETE FROM public.fin_tg_propostas;
+
+  INSERT INTO public.fin_tg_propostas (
+    id_proposta, numero, ano, data_proposta, cnpj_proponente, orgao_superior, orgao, modalidade, objeto, situacao,
+    situacao_projeto_basico, inicio_vigencia, fim_vigencia, valor_global, valor_repasse, valor_contrapartida,
+    banco, agencia, conta)
+  SELECT id_proposta, numero, ano, data_proposta, cnpj_proponente, orgao_superior, orgao, modalidade, objeto, situacao,
+         situacao_projeto_basico, inicio_vigencia, fim_vigencia, valor_global, valor_repasse, valor_contrapartida,
+         banco, agencia, conta
+    FROM jsonb_populate_recordset(NULL::public.fin_tg_propostas, coalesce(p_dados->'propostas', '[]'));
+  GET DIAGNOSTICS v_propostas = ROW_COUNT;
+
+  INSERT INTO public.fin_tg_emendas (
+    id_proposta, numero_emenda, programa_emenda, parlamentar, tipo_parlamentar, qualificacao_proponente, impositiva,
+    cnpj_beneficiario, valor_repasse_proposta, valor_repasse_emenda)
+  SELECT id_proposta, numero_emenda, programa_emenda, parlamentar, tipo_parlamentar, qualificacao_proponente, impositiva,
+         cnpj_beneficiario, valor_repasse_proposta, valor_repasse_emenda
+    FROM jsonb_populate_recordset(NULL::public.fin_tg_emendas, coalesce(p_dados->'emendas', '[]'));
+  GET DIAGNOSTICS v_emendas = ROW_COUNT;
+
+  INSERT INTO public.fin_tg_convenios (
+    numero, id_proposta, situacao, subsituacao, situacao_publicacao, instrumento_ativo, assinado, numero_processo,
+    ug_emitente, data_assinatura, data_publicacao, inicio_vigencia, fim_vigencia, fim_vigencia_original,
+    data_limite_prestacao_contas, dias_prestacao_contas, qtd_aditivos, qtd_prorrogacoes, valor_global, valor_repasse,
+    valor_contrapartida, valor_empenhado, valor_desembolsado, saldo_reman_tesouro, saldo_reman_convenente,
+    rendimento_aplicacao, ingresso_contrapartida, saldo_conta, valor_global_original)
+  SELECT numero, id_proposta, situacao, subsituacao, situacao_publicacao, instrumento_ativo, assinado, numero_processo,
+         ug_emitente, data_assinatura, data_publicacao, inicio_vigencia, fim_vigencia, fim_vigencia_original,
+         data_limite_prestacao_contas, dias_prestacao_contas, qtd_aditivos, qtd_prorrogacoes, valor_global, valor_repasse,
+         valor_contrapartida, valor_empenhado, valor_desembolsado, saldo_reman_tesouro, saldo_reman_convenente,
+         rendimento_aplicacao, ingresso_contrapartida, saldo_conta, valor_global_original
+    FROM jsonb_populate_recordset(NULL::public.fin_tg_convenios, coalesce(p_dados->'convenios', '[]'));
+  GET DIAGNOSTICS v_convenios = ROW_COUNT;
+
+  INSERT INTO public.fin_tg_movimentos (
+    tipo, id_origem, numero_convenio, numero, data, valor, situacao, descricao, indicacao, natureza_despesa, ug_emitente)
+  SELECT tipo, id_origem, numero_convenio, numero, data, valor, situacao, descricao, indicacao, natureza_despesa, ug_emitente
+    FROM jsonb_populate_recordset(NULL::public.fin_tg_movimentos, coalesce(p_dados->'movimentos', '[]'));
+  GET DIAGNOSTICS v_movimentos = ROW_COUNT;
+
+  INSERT INTO public.fin_tg_sincronizacoes (data_carga, cnpj, propostas, emendas, convenios, movimentos)
+  VALUES (p_data_carga, p_cnpj, v_propostas, v_emendas, v_convenios, v_movimentos);
+
+  RETURN jsonb_build_object('propostas', v_propostas, 'emendas', v_emendas, 'convenios', v_convenios,
+                            'movimentos', v_movimentos);
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION fin_tg_carregar(p_cnpj text, p_data_carga timestamp with time zone, p_dados jsonb, p_forcar boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.fin_tg_carregar(p_cnpj text, p_data_carga timestamp with time zone, p_dados jsonb, p_forcar boolean) IS 'Troca o espelho do Transferegov (propostas, emendas, convênios e movimentos) numa transação. Só a service role executa.';
+
+
+--
 -- Name: fixar_autoria(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -12436,6 +12531,64 @@ CREATE FUNCTION public.perfil_ativo_atual() RETURNS boolean
     SET search_path TO 'public'
     AS $$
   SELECT COALESCE((SELECT p.is_active FROM public.profiles p WHERE p.id = auth.uid()), false);
+$$;
+
+
+--
+-- Name: pesquisa_precos_conferir(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pesquisa_precos_conferir() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_pesquisa uuid;
+  v_item uuid;
+BEGIN
+  IF TG_TABLE_NAME = 'pesquisas_precos' THEN
+    IF TG_OP = 'UPDATE' AND OLD.situacao = 'concluida' AND NEW.situacao = 'concluida'
+       AND to_jsonb(NEW) - ARRAY['updated_at', 'updated_by'] IS DISTINCT FROM to_jsonb(OLD) - ARRAY['updated_at', 'updated_by'] THEN
+      RAISE EXCEPTION 'Pesquisa de preços concluída: reabra para alterar.' USING ERRCODE = '55000';
+    END IF;
+    IF TG_OP <> 'DELETE' THEN
+      NEW.numero_sei := btrim(NEW.numero_sei);
+    END IF;
+  ELSE
+    -- item ou amostra: a pesquisa (de antes e de depois, se mudou de pai) não pode estar concluída
+    IF TG_TABLE_NAME = 'pesquisas_precos_itens' THEN
+      FOR v_pesquisa IN SELECT DISTINCT p FROM unnest(ARRAY[
+          CASE WHEN TG_OP <> 'INSERT' THEN OLD.pesquisa_id END,
+          CASE WHEN TG_OP <> 'DELETE' THEN NEW.pesquisa_id END]) p WHERE p IS NOT NULL LOOP
+        IF EXISTS (SELECT 1 FROM public.pesquisas_precos WHERE id = v_pesquisa AND situacao = 'concluida') THEN
+          RAISE EXCEPTION 'Pesquisa de preços concluída: reabra para alterar.' USING ERRCODE = '55000';
+        END IF;
+      END LOOP;
+    ELSE
+      FOR v_item IN SELECT DISTINCT i FROM unnest(ARRAY[
+          CASE WHEN TG_OP <> 'INSERT' THEN OLD.item_id END,
+          CASE WHEN TG_OP <> 'DELETE' THEN NEW.item_id END]) i WHERE i IS NOT NULL LOOP
+        IF EXISTS (SELECT 1 FROM public.pesquisas_precos_itens it JOIN public.pesquisas_precos p ON p.id = it.pesquisa_id
+                    WHERE it.id = v_item AND p.situacao = 'concluida') THEN
+          RAISE EXCEPTION 'Pesquisa de preços concluída: reabra para alterar.' USING ERRCODE = '55000';
+        END IF;
+      END LOOP;
+    END IF;
+  END IF;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  IF TG_OP = 'INSERT' THEN
+    NEW.created_by := COALESCE(auth.uid(), NEW.created_by);
+    NEW.created_at := now();
+  ELSE
+    NEW.created_at := OLD.created_at;
+    NEW.created_by := OLD.created_by;
+  END IF;
+  NEW.updated_at := now();
+  NEW.updated_by := auth.uid();
+  RETURN NEW;
+END;
 $$;
 
 
@@ -23352,6 +23505,64 @@ COMMENT ON COLUMN public.fin_dotacoes.paoe IS 'Código PAOE - Programa/Ação Or
 
 
 --
+-- Name: fin_emendas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_emendas (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    exercicio integer NOT NULL,
+    dotacao_id uuid NOT NULL,
+    numero text NOT NULL,
+    idu text NOT NULL,
+    autor text NOT NULL,
+    objeto text NOT NULL,
+    beneficiario text,
+    beneficiario_cnpj text,
+    valor numeric(15,2) NOT NULL,
+    valor_reservado numeric(15,2) DEFAULT 0 NOT NULL,
+    ped_numero text,
+    processo_sei text,
+    observacoes text,
+    ativo boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    CONSTRAINT fin_emendas_autor_check CHECK (((char_length(btrim(autor)) >= 1) AND (char_length(btrim(autor)) <= 200))),
+    CONSTRAINT fin_emendas_beneficiario_check CHECK (((beneficiario IS NULL) OR (char_length(beneficiario) <= 300))),
+    CONSTRAINT fin_emendas_beneficiario_cnpj_check CHECK (((beneficiario_cnpj IS NULL) OR (beneficiario_cnpj ~ '^\d{14}$'::text))),
+    CONSTRAINT fin_emendas_exercicio_check CHECK (((exercicio >= 2000) AND (exercicio <= 2100))),
+    CONSTRAINT fin_emendas_idu_check CHECK ((((char_length(btrim(idu)) >= 1) AND (char_length(btrim(idu)) <= 6)) AND (lower(btrim(idu)) <> 'não'::text))),
+    CONSTRAINT fin_emendas_numero_check CHECK (((char_length(btrim(numero)) >= 1) AND (char_length(btrim(numero)) <= 50))),
+    CONSTRAINT fin_emendas_objeto_check CHECK (((char_length(btrim(objeto)) >= 1) AND (char_length(btrim(objeto)) <= 2000))),
+    CONSTRAINT fin_emendas_ped_numero_check CHECK (((ped_numero IS NULL) OR (char_length(ped_numero) <= 30))),
+    CONSTRAINT fin_emendas_processo_sei_check CHECK (((processo_sei IS NULL) OR (char_length(processo_sei) <= 50))),
+    CONSTRAINT fin_emendas_valor_check CHECK ((valor > (0)::numeric)),
+    CONSTRAINT fin_emendas_valor_reservado_check CHECK ((valor_reservado >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE fin_emendas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_emendas IS 'Emendas parlamentares do orçamento: autor, objeto, beneficiário e valor de cada emenda, ligada à dotação do QDD (IDU de emenda). O empenhado vem dos empenhos com emenda_id.';
+
+
+--
+-- Name: COLUMN fin_emendas.idu; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_emendas.idu IS 'Tipo da emenda como no IDU do QDD do FIPLAN (ex.: ECNI, ECI, EII).';
+
+
+--
+-- Name: COLUMN fin_emendas.valor_reservado; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_emendas.valor_reservado IS 'Reserva (PED) feita para a emenda e ainda não empenhada, lançada à mão.';
+
+
+--
 -- Name: fin_empenho_anulacoes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -23447,6 +23658,7 @@ CREATE TABLE public.fin_empenhos (
     processo_fiplan text,
     data_referencia_fiplan date,
     importacao_id uuid,
+    emenda_id uuid,
     CONSTRAINT fin_empenhos_fiplan_credor_check CHECK (((origem = 'sistema'::text) OR ((credor_codigo_fiplan ~ '^\d{4}\.\d{5}-\d$'::text) AND ((char_length(credor_nome) >= 1) AND (char_length(credor_nome) <= 300))))),
     CONSTRAINT fin_empenhos_origem_check CHECK ((origem = ANY (ARRAY['sistema'::text, 'fiplan'::text]))),
     CONSTRAINT fin_empenhos_sistema_vinculos_check CHECK (((origem = 'fiplan'::text) OR ((fornecedor_id IS NOT NULL) AND (dotacao_id IS NOT NULL))))
@@ -23481,6 +23693,13 @@ COMMENT ON COLUMN public.fin_empenhos.dotacao_fiplan IS 'Dotação como o FIP 61
 --
 
 COMMENT ON COLUMN public.fin_empenhos.processo_fiplan IS 'Processo como o FIPLAN mostra (ex.: 00000112/26-14); processo_sei traz o número no padrão do SEI.';
+
+
+--
+-- Name: COLUMN fin_empenhos.emenda_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_empenhos.emenda_id IS 'Emenda parlamentar que o empenho executa (fin_emendas).';
 
 
 --
@@ -24244,6 +24463,165 @@ CREATE TABLE public.fin_sub_empenhos (
     CONSTRAINT fin_sub_empenhos_status_check CHECK (((status)::text = ANY ((ARRAY['ativo'::character varying, 'cancelado'::character varying])::text[]))),
     CONSTRAINT fin_sub_empenhos_tipo_check CHECK (((tipo)::text = ANY ((ARRAY['reforco'::character varying, 'anulacao'::character varying])::text[])))
 );
+
+
+--
+-- Name: fin_tg_convenios; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_convenios (
+    numero text NOT NULL,
+    id_proposta bigint NOT NULL,
+    situacao text,
+    subsituacao text,
+    situacao_publicacao text,
+    instrumento_ativo boolean,
+    assinado boolean,
+    numero_processo text,
+    ug_emitente text,
+    data_assinatura date,
+    data_publicacao date,
+    inicio_vigencia date,
+    fim_vigencia date,
+    fim_vigencia_original date,
+    data_limite_prestacao_contas date,
+    dias_prestacao_contas integer,
+    qtd_aditivos integer,
+    qtd_prorrogacoes integer,
+    valor_global numeric(16,2),
+    valor_repasse numeric(16,2),
+    valor_contrapartida numeric(16,2),
+    valor_empenhado numeric(16,2),
+    valor_desembolsado numeric(16,2),
+    saldo_reman_tesouro numeric(16,2),
+    saldo_reman_convenente numeric(16,2),
+    rendimento_aplicacao numeric(16,2),
+    ingresso_contrapartida numeric(16,2),
+    saldo_conta numeric(16,2),
+    valor_global_original numeric(16,2),
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE fin_tg_convenios; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_convenios IS 'Instrumento (convênio) de cada proposta do Transferegov. Antes da assinatura o número é provisório e assinado = false. Espelho só leitura.';
+
+
+--
+-- Name: fin_tg_emendas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_emendas (
+    id_proposta bigint NOT NULL,
+    numero_emenda text NOT NULL,
+    programa_emenda text,
+    parlamentar text,
+    tipo_parlamentar text,
+    qualificacao_proponente text,
+    impositiva boolean,
+    cnpj_beneficiario text,
+    valor_repasse_proposta numeric(16,2),
+    valor_repasse_emenda numeric(16,2),
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE fin_tg_emendas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_emendas IS 'Emendas parlamentares federais de cada proposta do Transferegov: número, parlamentar ou comissão, tipo e valor. Espelho só leitura.';
+
+
+--
+-- Name: fin_tg_movimentos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_movimentos (
+    tipo text NOT NULL,
+    id_origem bigint NOT NULL,
+    numero_convenio text NOT NULL,
+    numero text,
+    data date,
+    valor numeric(16,2),
+    situacao text,
+    descricao text,
+    indicacao text,
+    natureza_despesa text,
+    ug_emitente text,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_tg_movimentos_tipo_check CHECK ((tipo = ANY (ARRAY['empenho'::text, 'desembolso'::text])))
+);
+
+
+--
+-- Name: TABLE fin_tg_movimentos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_movimentos IS 'Empenhos e desembolsos federais de cada convênio do Transferegov. indicacao traz o texto da emenda no SIAFI (quem indicou). Espelho só leitura.';
+
+
+--
+-- Name: fin_tg_propostas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_propostas (
+    id_proposta bigint NOT NULL,
+    numero text NOT NULL,
+    ano integer,
+    data_proposta date,
+    cnpj_proponente text NOT NULL,
+    orgao_superior text,
+    orgao text,
+    modalidade text,
+    objeto text,
+    situacao text,
+    situacao_projeto_basico text,
+    inicio_vigencia date,
+    fim_vigencia date,
+    valor_global numeric(16,2),
+    valor_repasse numeric(16,2),
+    valor_contrapartida numeric(16,2),
+    banco text,
+    agencia text,
+    conta text,
+    atualizado_em timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_tg_propostas_cnpj_proponente_check CHECK ((cnpj_proponente ~ '^[0-9]{14}$'::text))
+);
+
+
+--
+-- Name: TABLE fin_tg_propostas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_propostas IS 'Propostas do Transferegov (antigo Siconv) em que a instituição é a proponente. Espelho só leitura: grava só fin_tg_carregar (rotina diária).';
+
+
+--
+-- Name: fin_tg_sincronizacoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_sincronizacoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    executada_em timestamp with time zone DEFAULT now() NOT NULL,
+    data_carga timestamp with time zone,
+    cnpj text NOT NULL,
+    propostas integer DEFAULT 0 NOT NULL,
+    emendas integer DEFAULT 0 NOT NULL,
+    convenios integer DEFAULT 0 NOT NULL,
+    movimentos integer DEFAULT 0 NOT NULL,
+    CONSTRAINT fin_tg_sincronizacoes_cnpj_check CHECK ((cnpj ~ '^[0-9]{14}$'::text))
+);
+
+
+--
+-- Name: TABLE fin_tg_sincronizacoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_sincronizacoes IS 'Cada carga da rotina diária do Transferegov: quando rodou, a data da carga do Transferegov e quantas linhas vieram.';
 
 
 --
@@ -26544,6 +26922,147 @@ CREATE TABLE public.pensoes_alimenticias (
     updated_by uuid,
     updated_by_servidor_id uuid
 );
+
+
+--
+-- Name: pesquisas_precos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pesquisas_precos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    numero_sei text NOT NULL,
+    objeto text NOT NULL,
+    finalidade text DEFAULT 'licitacao'::text NOT NULL,
+    data_referencia date DEFAULT CURRENT_DATE NOT NULL,
+    situacao text DEFAULT 'em_andamento'::text NOT NULL,
+    pca_item_id uuid,
+    responsaveis text,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT pesquisas_precos_finalidade_check CHECK ((finalidade = ANY (ARRAY['licitacao'::text, 'dispensa'::text, 'inexigibilidade'::text, 'adesao_ata'::text, 'prorrogacao'::text, 'outra'::text]))),
+    CONSTRAINT pesquisas_precos_numero_sei_check CHECK (((char_length(btrim(numero_sei)) >= 1) AND (char_length(btrim(numero_sei)) <= 60))),
+    CONSTRAINT pesquisas_precos_objeto_check CHECK (((char_length(btrim(objeto)) >= 1) AND (char_length(btrim(objeto)) <= 1000))),
+    CONSTRAINT pesquisas_precos_observacoes_check CHECK ((char_length(observacoes) <= 2000)),
+    CONSTRAINT pesquisas_precos_responsaveis_check CHECK ((char_length(responsaveis) <= 2000)),
+    CONSTRAINT pesquisas_precos_situacao_check CHECK ((situacao = ANY (ARRAY['em_andamento'::text, 'concluida'::text])))
+);
+
+
+--
+-- Name: TABLE pesquisas_precos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pesquisas_precos IS 'Pesquisa de preços (Lei 14.133, art. 23; Decreto RR 39.050-E/2025, arts. 14 a 24) de um processo SEI. data_referencia: data de que contam os prazos de 6 e 12 meses do art. 17 (a divulgação do edital prevista, ou a data da pesquisa).';
+
+
+--
+-- Name: pesquisas_precos_amostras; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pesquisas_precos_amostras (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    item_id uuid NOT NULL,
+    parametro smallint NOT NULL,
+    origem text NOT NULL,
+    id_externo text,
+    descricao text,
+    orgao text,
+    uasg text,
+    uf text,
+    municipio text,
+    numero_compra text,
+    id_compra text,
+    modalidade text,
+    data_referencia date,
+    fornecedor_nome text,
+    fornecedor_ni text,
+    marca text,
+    unidade text,
+    quantidade numeric(15,3),
+    preco_unitario numeric(15,4) NOT NULL,
+    link text,
+    consultado_em timestamp with time zone DEFAULT now() NOT NULL,
+    considerada boolean DEFAULT true NOT NULL,
+    motivo_desconsideracao text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT pesquisas_precos_amostras_descricao_check CHECK ((char_length(descricao) <= 2000)),
+    CONSTRAINT pesquisas_precos_amostras_fonte_check CHECK ((((parametro <> 3) OR (link IS NOT NULL) OR (char_length(btrim(COALESCE(orgao, ''::text))) > 0)) AND ((parametro <> ALL (ARRAY[4, 5])) OR ((fornecedor_ni IS NOT NULL) AND (char_length(btrim(COALESCE(fornecedor_nome, ''::text))) > 0))))),
+    CONSTRAINT pesquisas_precos_amostras_fornecedor_ni_check CHECK ((fornecedor_ni ~ '^([0-9]{11}|[0-9]{14})$'::text)),
+    CONSTRAINT pesquisas_precos_amostras_fornecedor_nome_check CHECK ((char_length(fornecedor_nome) <= 300)),
+    CONSTRAINT pesquisas_precos_amostras_id_compra_check CHECK ((char_length(id_compra) <= 60)),
+    CONSTRAINT pesquisas_precos_amostras_id_externo_check CHECK ((char_length(id_externo) <= 200)),
+    CONSTRAINT pesquisas_precos_amostras_link_check CHECK (((char_length(link) <= 1000) AND (link ~ '^https://'::text))),
+    CONSTRAINT pesquisas_precos_amostras_marca_check CHECK ((char_length(marca) <= 200)),
+    CONSTRAINT pesquisas_precos_amostras_modalidade_check CHECK ((char_length(modalidade) <= 80)),
+    CONSTRAINT pesquisas_precos_amostras_motivo_check CHECK ((considerada OR (char_length(btrim(COALESCE(motivo_desconsideracao, ''::text))) > 0))),
+    CONSTRAINT pesquisas_precos_amostras_motivo_desconsideracao_check CHECK ((char_length(motivo_desconsideracao) <= 1000)),
+    CONSTRAINT pesquisas_precos_amostras_municipio_check CHECK ((char_length(municipio) <= 120)),
+    CONSTRAINT pesquisas_precos_amostras_numero_compra_check CHECK ((char_length(numero_compra) <= 300)),
+    CONSTRAINT pesquisas_precos_amostras_orgao_check CHECK ((char_length(orgao) <= 300)),
+    CONSTRAINT pesquisas_precos_amostras_origem_check CHECK ((origem = ANY (ARRAY['compras_gov'::text, 'pncp'::text, 'manual'::text]))),
+    CONSTRAINT pesquisas_precos_amostras_origem_parametro_check CHECK ((((origem = 'compras_gov'::text) AND (parametro = 1)) OR ((origem = 'pncp'::text) AND (parametro = 2)) OR (origem = 'manual'::text))),
+    CONSTRAINT pesquisas_precos_amostras_parametro_check CHECK (((parametro >= 1) AND (parametro <= 5))),
+    CONSTRAINT pesquisas_precos_amostras_preco_unitario_check CHECK ((preco_unitario > (0)::numeric)),
+    CONSTRAINT pesquisas_precos_amostras_quantidade_check CHECK ((quantidade > (0)::numeric)),
+    CONSTRAINT pesquisas_precos_amostras_uasg_check CHECK ((char_length(uasg) <= 300)),
+    CONSTRAINT pesquisas_precos_amostras_uf_check CHECK ((uf ~ '^[A-Z]{2}$'::text)),
+    CONSTRAINT pesquisas_precos_amostras_unidade_check CHECK ((char_length(unidade) <= 60))
+);
+
+
+--
+-- Name: TABLE pesquisas_precos_amostras; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pesquisas_precos_amostras IS 'Preço coletado na pesquisa, com a fonte rastreável e a data e hora da consulta (consultado_em). parametro = inciso do art. 17 do Decreto 39.050-E/2025. considerada = false tira o preço da série à mão (com motivo); os limites de ±30% são calculados na tela.';
+
+
+--
+-- Name: pesquisas_precos_itens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pesquisas_precos_itens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    pesquisa_id uuid NOT NULL,
+    numero integer NOT NULL,
+    tipo text NOT NULL,
+    catalogo_campo text,
+    codigo_catalogo integer,
+    nome_catalogo text,
+    descricao text NOT NULL,
+    unidade text NOT NULL,
+    quantidade numeric(15,3) NOT NULL,
+    metodo text,
+    justificativa text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT pesquisas_precos_itens_catalogo_campo_check CHECK ((catalogo_campo = ANY (ARRAY['codigoItemCatalogo'::text, 'codigoPdm'::text]))),
+    CONSTRAINT pesquisas_precos_itens_catalogo_check CHECK ((((codigo_catalogo IS NULL) AND (catalogo_campo IS NULL)) OR ((codigo_catalogo IS NOT NULL) AND (catalogo_campo = 'codigoItemCatalogo'::text)) OR ((codigo_catalogo IS NOT NULL) AND (catalogo_campo = 'codigoPdm'::text) AND (tipo = 'material'::text)))),
+    CONSTRAINT pesquisas_precos_itens_codigo_catalogo_check CHECK ((codigo_catalogo > 0)),
+    CONSTRAINT pesquisas_precos_itens_descricao_check CHECK (((char_length(btrim(descricao)) >= 1) AND (char_length(btrim(descricao)) <= 2000))),
+    CONSTRAINT pesquisas_precos_itens_justificativa_check CHECK ((char_length(justificativa) <= 4000)),
+    CONSTRAINT pesquisas_precos_itens_metodo_check CHECK ((metodo = ANY (ARRAY['media'::text, 'mediana'::text, 'menor'::text]))),
+    CONSTRAINT pesquisas_precos_itens_nome_catalogo_check CHECK ((char_length(nome_catalogo) <= 1000)),
+    CONSTRAINT pesquisas_precos_itens_numero_check CHECK (((numero >= 1) AND (numero <= 9999))),
+    CONSTRAINT pesquisas_precos_itens_quantidade_check CHECK ((quantidade > (0)::numeric)),
+    CONSTRAINT pesquisas_precos_itens_tipo_check CHECK ((tipo = ANY (ARRAY['material'::text, 'servico'::text]))),
+    CONSTRAINT pesquisas_precos_itens_unidade_check CHECK (((char_length(btrim(unidade)) >= 1) AND (char_length(btrim(unidade)) <= 60)))
+);
+
+
+--
+-- Name: TABLE pesquisas_precos_itens; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pesquisas_precos_itens IS 'Item da pesquisa de preços. codigo_catalogo: item do CATMAT (codigoItemCatalogo), tipo de material (codigoPdm) ou serviço do CATSER. metodo nulo = o do art. 18, § 1º, VII (CV até 30%: média saneada; acima: mediana); outro método ou menos de 3 preços pedem justificativa.';
 
 
 --

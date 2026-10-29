@@ -913,7 +913,7 @@ permissão e a RPC confere a mesma no banco. A rota da tela continua com a permi
 | Processos de contratação | `compras.processos.editar` | Compras → Processos |
 | Contratos | `contratos.criar` | Contratos → Contratos |
 
-`financeiro.execucao.importar` (migração `20261105090000_importacao_permissao_execucao.sql`) separa a execução
+`financeiro.execucao.importar` (migração `20261109090000_importacao_permissao_execucao.sql`) separa a execução
 (Finanças e Contabilidade: empenhos e PEDs) do orçamento (Programação Orçamentária: QDD e tabelas). A migração deu a
 permissão nova a quem já tinha `orcamento.importar`; a separação de fato vem quando o administrador tira de cada pessoa
 a que não é dela, no Painel de Permissões.
@@ -971,6 +971,16 @@ Permissão nova do catálogo do módulo `financeiro` (categoria "Pagamentos"), c
   `confirmar_alteracao_fiplan`, que exige o módulo `financeiro` e `orcamento.aprovar` (não há permissão própria de
   alteração no catálogo). Confirmada, a alteração não muda valor/dotações/tipo/exercício/status nem é excluída pela
   API (admin inclusive). Detalhes das tabelas e RPCs em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
+
+### Convênios federais (`financeiro.convenios.visualizar`)
+
+- **Rotas:** `/financeiro/convenios` e `/financeiro/convenios/:id` (`ProtectedRoute
+  requiredPermissions="financeiro.convenios.visualizar"`); item de menu com a mesma permissão nos dois arquivos de menu.
+- **Banco:** `fin_tg_*` com RLS classe `trilha` e `leitura=financeiro.convenios.visualizar`: lê quem tem o módulo
+  `financeiro` e a permissão; ninguém escreve pela API (admin inclusive). A carga é só pela RPC `fin_tg_carregar`, que
+  só a `service_role` executa (Edge Function `transferegov`, chamada pela rotina diária com segredo próprio).
+- **Concessão inicial:** a migração `20261105090000` deu a permissão a quem já tinha `orcamento.visualizar` (papéis,
+  usuários avulsos e concessões do módulo). Depois, concede-se pelo painel de permissões como as outras.
 
 ### Envio de e-mail e WhatsApp
 

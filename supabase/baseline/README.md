@@ -285,16 +285,26 @@ de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termo
 `doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
 `ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
 
+A migração `20261108090000_fin_emendas.sql` (emendas parlamentares) entrou no schema regenerado (`01_pre_data.sql` e
+`03_post_data.sql`; o `02_dados_catalogo.sql` não muda) e no `rls/mapa.csv` (`fin_emendas` na classe `permissao`,
+`escrita=orcamento.criar`); semente de `fin_emendas` em `seed_ov` de `scripts/db/testar-rls.sql`.
 A migração `20261030090000_compras_processos_reservas_peds.sql` (processos de contratação, entrega 2) entrou no
 schema regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `rls/mapa.csv` (`fin_peds` e `processo_reservas` na
 classe `preservar`, com as policies da própria migração) e no `overlay/40_privilegios.sql`; o catálogo não muda.
 Testes no bloco "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
 
-A migração `20261105090000_importacao_permissao_execucao.sql` (importações por setor, entrega 2) entrou à mão no
+A migração `20261109090000_importacao_permissao_execucao.sql` (importações por setor, entrega 2) entrou à mão no
 `01_pre_data.sql` (checagem e comentário de `importar_empenhos_fip614` e `importar_peds_fiplan` passam de
 `orcamento.importar` para `financeiro.execucao.importar`) e no `02_dados_catalogo.sql` (linha nova de
 `financeiro.execucao.importar` e rótulo de `orcamento.importar`); RLS, `rls/mapa.csv` e privilégios sem mudança. Testes
 nos blocos do FIP 614 e dos PEDs de `scripts/db/testar-rls.sql`.
+
+A migração `20261105090000_fin_convenios_transferegov.sql` (convênios federais do Transferegov) entrou no schema
+regenerado (`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_catalogo.sql`: só a linha de
+`financeiro.convenios.visualizar` e as concessões aos papéis, copiadas da regeneração), no `rls/mapa.csv` (as cinco
+`fin_tg_*` na classe `trilha` com `leitura=financeiro.convenios.visualizar`) e no `overlay/40_privilegios.sql` (sem
+INSERT/UPDATE/DELETE/TRUNCATE para `authenticated`; `fin_tg_carregar` só para `service_role`). Testes no bloco
+"Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`, com sementes em `seed_ov`.
 
 A migração `20261104090000_contratos_c1_cadastro.sql` (contratos, entrega C1) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (`contratos` e `itens_contrato`
@@ -329,6 +339,14 @@ A migração `20261031090000_contratos_passagens.sql` (passagens aéreas, entreg
 na classe `permissao`, `passagem_historico` em `trilha` com `leitura=`, opção nova da classe que exige também um dos
 códigos para ler) e no `overlay/40_privilegios.sql`; testes no bloco "PASSAGENS"
 de `scripts/db/testar-rls.sql`, com sementes em `seed_ov` (CPF, solicitante e passageiro válidos para os CHECKs).
+
+A migração `20261106090000_compras_pesquisa_precos.sql` (pesquisa de preços, entrega 1) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões
+`compras.pesquisa_precos.visualizar`/`editar` e da concessão aos papéis, copiadas da regeneração), no `rls/mapa.csv`
+(`pesquisas_precos*` na classe `permissao`; a pesquisa com `excluir=ninguem`) e no `overlay/40_privilegios.sql`
+(REVOKE do gatilho `pesquisa_precos_conferir`); testes no bloco "Compras: pesquisa de preços" de
+`scripts/db/testar-rls.sql`, com sementes de `pesquisas_precos_itens` e `pesquisas_precos_amostras` em `seed_ov`.
+Validado com `validar-baseline.sh` em PostgreSQL 16: **APROVADO**, RLS com 0 falhas.
 
 A migração `20261029090000_compras_processos_andamento.sql` (processos de contratação, entrega 1) entrou no schema
 regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões

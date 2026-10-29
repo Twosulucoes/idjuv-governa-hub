@@ -105,9 +105,14 @@ INSERT INTO seed_ov VALUES
   ('fin_conciliacao_itens', '{"lado":"bancario","natureza":"debito","valor":1,"situacao":"pendente","origem":"mes","item_origem_id":null,"grupo":null,"regra":null,"re":null,"nob":null}'),
   -- empenho sem favorecido nem dotação só com origem fiplan (fin_empenhos_sistema_vinculos_check, migração 20261027090000)
   ('fin_empenhos', '{"origem":"fiplan","credor_codigo_fiplan":"2001.00001-1","credor_nome":"Credor Teste"}'),
+  -- emenda: IDU de emenda (fin_emendas_idu_check), valor positivo e sem CNPJ (migração 20261108090000)
+  ('fin_emendas', '{"idu":"EII","valor":1,"valor_reservado":0,"beneficiario_cnpj":null,"exercicio":2026}'),
   -- item do PCA: serviço do catálogo, sem PDM nem item de material (pca_itens_catalogo_check, migração 20261028090000)
   ('pca_itens', '{"tipo":"servico","codigo_servico":1,"codigo_pdm":null,"codigo_item":null,"quantidade":1,"valor_unitario":1,"mes_desejado":1,"numero_sei":"SEI-1","descricao":"Teste","unidade_fornecimento":"UN"}'),
   ('cat_sincronizacoes', '{"tipo":"pdm"}'),
+  -- amostra da pesquisa de preços (migração 20261106090000): à mão, inciso I (origem × parâmetro e fonte)
+  ('pesquisas_precos_amostras', '{"origem":"manual","parametro":1,"considerada":true,"preco_unitario":1,"quantidade":1,"link":null,"uf":null,"fornecedor_ni":null}'),
+  ('pesquisas_precos_itens', '{"tipo":"material","numero":1,"quantidade":1,"catalogo_campo":null,"codigo_catalogo":null}'),
   -- passagens aéreas (migração 20261031090000): CPF com 11 dígitos; pedido de instituição pelo nome; passageiro
   -- beneficiário (um dos dois); trecho a cotar, sem localizador
   ('passagem_beneficiarios', '{"cpf":"00000000191","nome":"Beneficiário Teste"}'),
@@ -118,7 +123,11 @@ INSERT INTO seed_ov VALUES
   -- anexo das passagens (migração 20261101090000): o caminho começa pelo id do pedido (passagem_anexos_caminho_pedido_check)
   ('passagem_anexos', '{"pedido_id":"d0000000-0000-0000-0000-0000000000d1","passageiro_id":null,"caminho":"d0000000-0000-0000-0000-0000000000d1/seed.pdf"}'),
   -- fatura das passagens (migração 20261103090000): valor positivo e recebida (sem atesto nem OB)
-  ('passagem_faturas', '{"valor":1,"situacao":"recebida","cancelamento_motivo":null}');
+  ('passagem_faturas', '{"valor":1,"situacao":"recebida","cancelamento_motivo":null}'),
+  -- espelho do Transferegov (migração 20261105090000): CNPJ com 14 dígitos; movimento é empenho ou desembolso
+  ('fin_tg_propostas', '{"cnpj_proponente":"00000000000191"}'),
+  ('fin_tg_sincronizacoes', '{"cnpj":"00000000000191"}'),
+  ('fin_tg_movimentos', '{"tipo":"empenho"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -7543,7 +7552,7 @@ END $$;
 -- Migração 20261027090000_fin_empenhos_fip614.sql (spec docs/superpowers/specs/2026-10-22-importacao-empenhos-fip614-design.md):
 --   * importar_empenhos_fip614: sem o módulo financeiro, só com orcamento.importar ou sem sessão recusa (42501); anon e
 --     PUBLIC sem EXECUTE; lista vazia = 22023 (a permissão é financeiro.execucao.importar desde a migração
---     20261105090000_importacao_permissao_execucao.sql);
+--     20261109090000_importacao_permissao_execucao.sql);
 --   * simulação não grava; aplicação cria o empenho com origem fiplan, liga a dotação única e o favorecido pelo código
 --     do FIPLAN, grava o histórico e o log, e NÃO soma na dotação; dotação ambígua fica sem ligação e com aviso;
 --     reaplicar dá sem_alteracao; empenho do sistema com o mesmo número vira erro e nada é gravado;
@@ -7794,6 +7803,91 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('COMPRAS PCA: classificadores, troca pelo QDD, plano nasce rascunho, exercício único, gravação só com compras.pca.editar, valor_total, item do catálogo e trilha verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Compras: pesquisa de preços (migração 20261106090000) (TRIGGERS LIGADOS)
+-- Migração 20261106090000_compras_pesquisa_precos.sql (spec docs/superpowers/specs/2026-10-29-compras-pesquisa-precos-design.md):
+--   * só compras.pesquisa_precos.editar grava (visualizar = 42501); autoria e nº SEI sem espaço pelo banco;
+--   * inciso I só do Compras.gov.br e II só do PNCP; III pede site ou fonte; IV e V pedem CNPJ/CPF e nome do
+--     fornecedor; desconsiderar pede motivo (23514); a mesma linha da fonte não entra duas vezes no item (23505);
+--   * pesquisa concluída trava itens e amostras (55000) até ser reaberta; apagar o item leva as amostras;
+--     pesquisa_precos_conferir sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.pesquisa_precos.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.pesquisa_precos.visualizar');
+  pesq uuid; item uuid; amostra uuid; r text; ins text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF has_function_privilege('authenticated', 'public.pesquisa_precos_conferir()', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.pesquisa_precos_conferir()', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: pesquisa_precos_conferir executável pela API');
+  END IF;
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+    'INSERT INTO public.pesquisas_precos (numero_sei, objeto) VALUES (''00000.000001/2026-01'', ''Teste'') RETURNING id::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: só visualizar cria pesquisa (' || r || ')'); END IF;
+
+  -- criada pelo editor, com autor forjado e nº SEI com espaço: o banco grava o autor real e apara o número
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.pesquisas_precos (numero_sei, objeto, data_referencia, created_by)
+  VALUES ('  00000.000001/2026-01 ', 'Material esportivo', '2026-10-29', u_vis) RETURNING id INTO pesq;
+  IF (SELECT numero_sei || '|' || created_by::text FROM public.pesquisas_precos WHERE id = pesq)
+     IS DISTINCT FROM '00000.000001/2026-01|' || u_ed::text THEN
+    PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: autoria ou nº SEI não fixados pelo banco');
+  END IF;
+  INSERT INTO public.pesquisas_precos_itens (pesquisa_id, numero, tipo, catalogo_campo, codigo_catalogo, descricao, unidade, quantidade)
+  VALUES (pesq, 1, 'material', 'codigoItemCatalogo', 447001, 'Bola de futebol', 'UN', 50) RETURNING id INTO item;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.pesquisas_precos_itens (pesquisa_id, numero, tipo, catalogo_campo, codigo_catalogo, descricao, unidade, quantidade) '
+    || 'VALUES (%L, 2, ''servico'', ''codigoPdm'', 1, ''x'', ''UN'', 1) RETURNING id::text', pesq));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: serviço por tipo de material aceito (' || r || ')'); END IF;
+
+  ins := 'INSERT INTO public.pesquisas_precos_amostras (item_id, parametro, origem, id_externo, orgao, fornecedor_ni, fornecedor_nome, '
+      || 'preco_unitario, considerada, motivo_desconsideracao, link) VALUES (%L, %s, %L, %L, %L, %L, %L, 10, %s, %L, %L) RETURNING id::text';
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(ins, item, 1, 'compras_gov', 'cg:1', NULL, NULL, NULL, 'true', NULL, NULL));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: só visualizar grava amostra (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, item, 2, 'compras_gov', 'cg:1', NULL, NULL, NULL, 'true', NULL, NULL));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: Compras.gov.br como inciso II aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, item, 4, 'manual', NULL, NULL, NULL, 'Loja', 'true', NULL, NULL));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: cotação sem CNPJ aceita (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, item, 3, 'manual', NULL, NULL, NULL, NULL, 'true', NULL, NULL));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: site sem endereço nem fonte aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, item, 1, 'compras_gov', 'cg:9', NULL, NULL, NULL, 'false', ' ', NULL));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: desconsiderada sem motivo aceita (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, item, 4, 'manual', NULL, NULL, '12345678000190', 'Loja Exemplo', 'true', NULL, NULL));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: cotação de fornecedor recusada (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, item, 3, 'manual', NULL, NULL, NULL, NULL, 'true', NULL, 'http://loja.exemplo'));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: link sem https aceito (' || r || ')'); END IF;
+
+  EXECUTE format(ins, item, 1, 'compras_gov', 'cg:1', 'Órgão A', NULL, NULL, 'true', NULL, 'https://exemplo.gov.br/compra') INTO amostra;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, item, 1, 'compras_gov', 'cg:1', NULL, NULL, NULL, 'true', NULL, NULL));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: mesma linha da fonte duas vezes (' || r || ')'); END IF;
+
+  -- concluída: nada muda em item nem amostra (55000), nem nos dados da pesquisa; reabrir libera
+  UPDATE public.pesquisas_precos SET situacao = 'concluida' WHERE id = pesq;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.pesquisas_precos_amostras SET preco_unitario = 11 WHERE id = %L', amostra));
+  IF r NOT LIKE 'erro:55000:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: amostra alterada com a pesquisa concluída (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('DELETE FROM public.pesquisas_precos_itens WHERE id = %L', item));
+  IF r NOT LIKE 'erro:55000:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: item apagado com a pesquisa concluída (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.pesquisas_precos SET objeto = ''outro'' WHERE id = %L', pesq));
+  IF r NOT LIKE 'erro:55000:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: pesquisa concluída alterada (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.pesquisas_precos SET situacao = ''em_andamento'' WHERE id = %L', pesq));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: reabrir recusado (' || r || ')'); END IF;
+  UPDATE public.pesquisas_precos SET situacao = 'em_andamento' WHERE id = pesq;
+
+  -- apagar: a pesquisa não se apaga pela API; o item leva as amostras
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('DELETE FROM public.pesquisas_precos WHERE id = %L', pesq));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: pesquisa apagada pela API (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('DELETE FROM public.pesquisas_precos_itens WHERE id = %L', item));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: editor não apaga o item (' || r || ')'); END IF;
+  DELETE FROM public.pesquisas_precos_itens WHERE id = item;
+  IF EXISTS (SELECT 1 FROM public.pesquisas_precos_amostras WHERE id = amostra) THEN
+    PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: amostra ficou sem o item');
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('COMPRAS PESQUISA DE PREÇOS: gravação só com compras.pesquisa_precos.editar, autoria e nº SEI, origem × inciso, fonte dos incisos III a V, motivo da desconsideração, linha da fonte única, pesquisa concluída travada e reaberta, item levando as amostras verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Compras: processos de contratação (migração 20261029090000) (TRIGGERS LIGADOS)
@@ -8664,6 +8758,92 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('PASSAGENS FATURAS: gravação só com contratos.passagens.financeiro, fatura só em contrato da agência, bilhete emitido do mesmo contrato e numa fatura só, fluxo da situação, paga com OB e travada (bilhetes, valor, OB, cancelamento, exclusão), só recebida se apaga, salvar fatura numa transação, cancelada com motivo solta os bilhetes, trilha no pedido, leitura com a permissão e RPCs de empenhos estreitas verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro: convênios federais do Transferegov (migração 20261105090000)
+-- Migração 20261105090000_fin_convenios_transferegov.sql (spec docs/superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md):
+--   * fin_tg_carregar: só a service role executa (authenticated e anon sem EXECUTE); CNPJ diferente do cadastrado em
+--     dados_oficiais, proposta de outro proponente e carga vazia sobre espelho cheio (sem p_forcar) = 22023;
+--   * a carga troca o espelho inteiro (propostas, emendas, convênios, movimentos) e registra a sincronização;
+--   * fin_tg_*: lê quem tem o módulo financeiro E financeiro.convenios.visualizar; ninguém grava pela API.
+DO $$
+DECLARE
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_financeiro.convenios.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_financeiro');
+  fn text := 'public.fin_tg_carregar(text, timestamp with time zone, jsonb, boolean)';
+  c_cnpj text := '11222333000181';
+  chamada text := 'SELECT public.fin_tg_carregar(%L, now(), %L::jsonb, %L)::text';
+  dados jsonb; r text;
+BEGIN
+  IF to_regprocedure(fn) IS NULL OR to_regclass('public.fin_tg_propostas') IS NULL THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: ' || fn || ' ou as tabelas não existem');
+    RETURN;
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF has_function_privilege('authenticated', fn, 'EXECUTE') OR has_function_privilege('anon', fn, 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: fin_tg_carregar executável pela API');
+  END IF;
+  IF NOT has_function_privilege('service_role', fn, 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: service_role sem EXECUTE em fin_tg_carregar');
+  END IF;
+  DELETE FROM public.dados_oficiais WHERE chave = 'cnpj';
+  INSERT INTO public.dados_oficiais (chave, valor) VALUES ('cnpj', '11.222.333/0001-81');
+  dados := jsonb_build_object(
+    'propostas', jsonb_build_array(jsonb_build_object('id_proposta', 990001, 'numero', '1/2099', 'ano', 2099,
+      'cnpj_proponente', c_cnpj, 'objeto', 'Projeto de teste', 'valor_global', 100.5, 'inicio_vigencia', '2099-01-01')),
+    'emendas', jsonb_build_array(jsonb_build_object('id_proposta', 990001, 'numero_emenda', '50060001',
+      'parlamentar', 'COM. TESTE', 'impositiva', false, 'valor_repasse_emenda', 100)),
+    'convenios', jsonb_build_array(jsonb_build_object('numero', 'X1TEST', 'id_proposta', 990001, 'assinado', false,
+      'valor_empenhado', 100, 'data_limite_prestacao_contas', '2099-12-31')),
+    'movimentos', jsonb_build_array(jsonb_build_object('tipo', 'empenho', 'id_origem', 1, 'numero_convenio', 'X1TEST',
+      'numero', '2099NE000001', 'data', '2099-02-01', 'valor', 100, 'indicacao', 'Indicação de teste')));
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(chamada, c_cnpj, dados, false));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: authenticated carrega o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role', format(chamada, '99999999000191', dados, false));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: CNPJ diferente do cadastrado aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role',
+         format(chamada, c_cnpj, jsonb_set(dados, '{propostas,0,cnpj_proponente}', '"99999999000191"'), false));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: proposta de outro proponente aceita (' || r || ')'); END IF;
+
+  -- carga que fica
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, dados, false));
+  IF r <> 'ok' OR (SELECT count(*) FROM public.fin_tg_propostas) <> 1
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_emendas WHERE id_proposta = 990001 AND numero_emenda = '50060001')
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_convenios WHERE numero = 'X1TEST' AND id_proposta = 990001)
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_movimentos WHERE numero_convenio = 'X1TEST' AND id_origem = 1)
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_sincronizacoes WHERE cnpj = c_cnpj AND propostas = 1 AND movimentos = 1) THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: carga válida não gravou o espelho (' || r || ')');
+  END IF;
+  -- recarga troca tudo: o convênio sumiu da fonte, sai daqui (e o movimento em cascata)
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, dados - 'convenios' - 'movimentos', false));
+  IF r <> 'ok' OR EXISTS (SELECT 1 FROM public.fin_tg_convenios WHERE numero = 'X1TEST')
+     OR EXISTS (SELECT 1 FROM public.fin_tg_movimentos WHERE numero_convenio = 'X1TEST')
+     OR (SELECT count(*) FROM public.fin_tg_propostas) <> 1 THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: recarga não trocou o espelho (' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, dados, false));
+  -- carga vazia sobre espelho cheio: recusada, salvo com p_forcar
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role', format(chamada, c_cnpj, '{}', false));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: carga vazia apagou o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role',
+         format('SELECT public.fin_tg_carregar(%L, now(), ''{}''::jsonb, true)->>''propostas''', c_cnpj));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: p_forcar não esvaziou (' || r || ')'); END IF;
+
+  -- leitura com a permissão; o módulo sozinho não lê; ninguém grava pela API
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+         'SELECT count(*)::text FROM public.fin_tg_propostas p JOIN public.fin_tg_convenios c USING (id_proposta) JOIN public.fin_tg_movimentos m ON m.numero_convenio = c.numero');
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: quem tem a permissão não lê o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', 'SELECT count(*)::text FROM public.fin_tg_propostas');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: módulo sem a permissão lê o espelho (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+         format('INSERT INTO public.fin_tg_propostas (id_proposta, numero, cnpj_proponente) VALUES (990002, ''2/2099'', %L) RETURNING numero', c_cnpj));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: authenticated grava proposta (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'DELETE FROM public.fin_tg_emendas RETURNING numero_emenda');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TRANSFEREGOV: authenticated apaga emenda (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('FIN TRANSFEREGOV: carga só pela service role, CNPJ conferido com a Configuração do cliente, proposta de outro proponente recusada, troca do espelho inteiro, carga vazia protegida, leitura só com financeiro.convenios.visualizar e nenhuma escrita pela API verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Contratos C1: cadastro, ficha e responsáveis (migração 20261104090000) (TRIGGERS LIGADOS)

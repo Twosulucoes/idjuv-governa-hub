@@ -1123,6 +1123,14 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
+- **Emendas parlamentares** (`20261108090000_fin_emendas.sql`):
+  - `fin_emendas`: uma linha por emenda (exercício, `dotacao_id` da dotação de emenda do QDD, número único no
+    exercício, `idu` como no QDD e nunca "Não", autor, objeto, beneficiário e CNPJ opcional, `valor`, `valor_reservado`
+    e `ped_numero` lançados à mão, processo SEI, `ativo`); gatilho `update_fin_emendas_updated_at`;
+  - `fin_empenhos.emenda_id` (FK, `ON DELETE SET NULL`): a emenda que o empenho executa; o empenhado da emenda é a
+    soma (empenhado − anulado) desses empenhos, calculada na tela;
+  - RLS classe `permissao` (o módulo financeiro lê; gravar exige `orcamento.criar`); semente em `seed_ov` de
+    `scripts/db/testar-rls.sql`.
 - **Processos de contratação, entrega 2** (`20261030090000_compras_processos_reservas_peds.sql`, mesma spec, §10):
   - `processo_chave_fiplan(text)` (IMMUTABLE): leva o nº SEI (`17302.000885/2026.92`) e o nº do FIPLAN (`000885/26-92`)
     à mesma chave (`885/26-92`); é por ela que PED, empenho e processo se ligam (`processo_empenhos` passou a usá-la);
@@ -1144,6 +1152,25 @@ Todas idempotentes.
     por processo) e `programacao_por_natureza` (QDD × reservas por combinação, com os processos);
   - sem permissão nova; RLS classe `preservar` nas duas tabelas (policies na migração); testes no bloco
     "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
+- **Pesquisa de preços, entrega 1** (`20261106090000_compras_pesquisa_precos.sql`, spec
+  [2026-10-29-compras-pesquisa-precos-design.md](./superpowers/specs/2026-10-29-compras-pesquisa-precos-design.md)):
+  - `pesquisas_precos`: uma por processo SEI (objeto, `finalidade`, `data_referencia`, responsáveis, observações,
+    `pca_item_id` opcional para `pca_itens`), `situacao` `em_andamento`/`concluida`;
+  - `pesquisas_precos_itens`: material (`catalogo_campo` `codigoItemCatalogo` para o item do CATMAT ou `codigoPdm` para
+    o tipo de material) ou serviço do CATSER, descrição, unidade, quantidade, `metodo` (`media`/`mediana`/`menor`, nulo
+    = o sugerido pelo CV) e justificativa; número único na pesquisa;
+  - `pesquisas_precos_amostras`: um preço por linha com `parametro` (inciso I a V do art. 17), `origem`
+    (`compras_gov`, `pncp`, `manual`), fonte (órgão, UASG, UF, município, compra, `id_compra`, modalidade, data,
+    fornecedor com CNPJ/CPF, marca, unidade, quantidade, `link` só `https://`), `consultado_em`, `considerada` e
+    `motivo_desconsideracao` (obrigatório ao desconsiderar). `UNIQUE (item_id, id_externo)` impede a mesma linha da fonte
+    duas vezes; CHECKs pedem a fonte mínima por inciso (III: link ou órgão; IV e V: CNPJ/CPF e nome) e só aceitam
+    `compras_gov` no inciso I e `pncp` no II. Apaga junto com o item;
+  - gatilho `pesquisa_precos_conferir` (EXECUTE revogado): autoria, nº SEI sem espaço nas pontas e nenhuma mudança em
+    item ou amostra de pesquisa concluída, nem na própria pesquisa além de reabrir (`55000`);
+  - o saneamento (±30%), o CV e o método são calculados na tela (`src/lib/compras/pesquisaPrecos.ts`), não gravados;
+  - permissões `compras.pesquisa_precos.visualizar` e `compras.pesquisa_precos.editar` (concedidas a quem tem
+    `compras.criar`); RLS classe `permissao` (`leitura=` das duas; a pesquisa com `excluir=ninguem`, itens e amostras
+    apagam com `editar`); testes no bloco "Compras: pesquisa de preços" de `scripts/db/testar-rls.sql`.
 - **Localizador de processos do SEI** (`20261102090000`, só funções; spec
   [2026-10-25-localizador-processos-sei-design.md](./superpowers/specs/2026-10-25-localizador-processos-sei-design.md)).
   Nenhuma tabela, coluna, policy ou permissão nova:
@@ -1266,6 +1293,28 @@ No baseline, `campanhas_inventario_unidades` é classe `modulo` e `fotos_vistori
 `preservar` (ver [`supabase/baseline/README.md`](../supabase/baseline/README.md)). O banco ao vivo
 ainda pode ter policies `acesso_total_*` em `campanhas_inventario` e `coletas_inventario` (vêm do
 histórico de migrações; o baseline já as remove); a correção no banco ao vivo aguarda decisão.
+
+### Convênios federais (espelho do Transferegov)
+
+Migração `20261105090000_fin_convenios_transferegov.sql` (spec
+[2026-10-29-convenios-federais-transferegov-design.md](./superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md)).
+Cópia, só para leitura, do que o Transferegov publica sobre o CNPJ da instituição (o da Configuração do cliente,
+`dados_oficiais` chave `cnpj`). Fonte e formato dos arquivos: [INTEGRACOES_EXTERNAS.md](./INTEGRACOES_EXTERNAS.md) §4.
+
+- `fin_tg_propostas` (chave `id_proposta`, o do Transferegov; `cnpj_proponente` com 14 dígitos), `fin_tg_emendas`
+  (chave `id_proposta` + `numero_emenda`), `fin_tg_convenios` (chave `numero`, uma por proposta) e
+  `fin_tg_movimentos` (chave `tipo` + `id_origem`; `tipo` é `empenho` ou `desembolso`, ligado a `numero_convenio`).
+  Filhos apagam em cascata com a proposta.
+- `fin_tg_sincronizacoes`: uma linha por carga (quando rodou, a data da carga do Transferegov, o CNPJ e as contagens).
+- **Ninguém escreve pela API.** `anon` não tem acesso; `authenticated` só tem `SELECT`. Leitura pela RLS classe
+  `trilha` com `leitura=financeiro.convenios.visualizar` (módulo `financeiro` + a permissão).
+- RPC `fin_tg_carregar(p_cnpj, p_data_carga, p_dados, p_forcar)` (`SECURITY DEFINER`, `search_path` fixo, `EXECUTE`
+  só para `service_role`): numa transação apaga o espelho e grava a carga nova. Recusa (`22023`) CNPJ diferente do da
+  Configuração do cliente, proposta de outro proponente e carga vazia quando o espelho tem dados (a não ser com
+  `p_forcar`). Quem chama é a Edge Function `transferegov`.
+- Permissão nova `financeiro.convenios.visualizar` (catálogo do financeiro), dada na migração a quem já tinha
+  `orcamento.visualizar` (papéis, usuários e concessões do módulo).
+- Testes no bloco "Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`.
 
 ### Compras, licitações e contratos
 `processos_licitatorios`, `itens_processo_licitatorio`, `itens_licitacao`,
@@ -1860,7 +1909,7 @@ Chamadas via `supabase.rpc(...)`. Principais grupos:
 - **Empenhos do FIPLAN**: `importar_empenhos_fip614(p_exercicio, p_linhas, p_arquivo, p_data_referencia, p_simular)`
   — `SECURITY DEFINER`, exige perfil ativo, módulo financeiro e `financeiro.execucao.importar` (seção "Empenhos do
   FIPLAN (FIP 614)").
-- **Permissão da execução do FIPLAN** (migração `20261105090000_importacao_permissao_execucao.sql`): empenhos (FIP 614)
+- **Permissão da execução do FIPLAN** (migração `20261109090000_importacao_permissao_execucao.sql`): empenhos (FIP 614)
   e PEDs passaram de `orcamento.importar` para `financeiro.execucao.importar`, separando a execução (Finanças e
   Contabilidade) do orçamento (QDD e tabelas do FIPLAN, que seguem com `orcamento.importar`). A migração cria o código no
   catálogo, dá a nova permissão a quem tinha `orcamento.importar` (papel, módulo ou avulsa) e troca a checagem das duas

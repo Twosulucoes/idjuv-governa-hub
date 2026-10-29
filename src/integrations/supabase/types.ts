@@ -11293,6 +11293,78 @@ export type Database = {
           },
         ]
       }
+      fin_emendas: {
+        Row: {
+          ativo: boolean
+          autor: string
+          beneficiario: string | null
+          beneficiario_cnpj: string | null
+          created_at: string
+          created_by: string | null
+          dotacao_id: string
+          exercicio: number
+          id: string
+          idu: string
+          numero: string
+          objeto: string
+          observacoes: string | null
+          ped_numero: string | null
+          processo_sei: string | null
+          updated_at: string
+          valor: number
+          valor_reservado: number
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          autor: string
+          beneficiario?: string | null
+          beneficiario_cnpj?: string | null
+          created_at?: string
+          created_by?: string | null
+          dotacao_id: string
+          exercicio: number
+          id?: string
+          idu: string
+          numero: string
+          objeto: string
+          observacoes?: string | null
+          ped_numero?: string | null
+          processo_sei?: string | null
+          updated_at?: string
+          valor: number
+          valor_reservado?: number
+        }
+        Update: {
+          ativo?: boolean
+          autor?: string
+          beneficiario?: string | null
+          beneficiario_cnpj?: string | null
+          created_at?: string
+          created_by?: string | null
+          dotacao_id?: string
+          exercicio?: number
+          id?: string
+          idu?: string
+          numero?: string
+          objeto?: string
+          observacoes?: string | null
+          ped_numero?: string | null
+          processo_sei?: string | null
+          updated_at?: string
+          valor?: number
+          valor_reservado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_emendas_dotacao_id_fkey"
+            columns: ["dotacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_empenho_anulacoes: {
         Row: {
           anulado_por: string | null
@@ -11406,6 +11478,7 @@ export type Database = {
           data_referencia_fiplan: string | null
           dotacao_fiplan: string | null
           dotacao_id: string | null
+          emenda_id: string | null
           emitido_por: string | null
           exercicio: number
           fonte_recurso_id: string | null
@@ -11449,6 +11522,7 @@ export type Database = {
           data_referencia_fiplan?: string | null
           dotacao_fiplan?: string | null
           dotacao_id?: string | null
+          emenda_id?: string | null
           emitido_por?: string | null
           exercicio: number
           fonte_recurso_id?: string | null
@@ -11491,6 +11565,7 @@ export type Database = {
           data_referencia_fiplan?: string | null
           dotacao_fiplan?: string | null
           dotacao_id?: string | null
+          emenda_id?: string | null
           emitido_por?: string | null
           exercicio?: number
           fonte_recurso_id?: string | null
@@ -11547,6 +11622,13 @@ export type Database = {
             columns: ["dotacao_id"]
             isOneToOne: false
             referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_empenhos_emenda_id_fkey"
+            columns: ["emenda_id"]
+            isOneToOne: false
+            referencedRelation: "fin_emendas"
             referencedColumns: ["id"]
           },
           {
@@ -13210,6 +13292,323 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fin_tg_convenios: {
+        Row: {
+          assinado: boolean | null
+          atualizado_em: string
+          data_assinatura: string | null
+          data_limite_prestacao_contas: string | null
+          data_publicacao: string | null
+          dias_prestacao_contas: number | null
+          fim_vigencia: string | null
+          fim_vigencia_original: string | null
+          id_proposta: number
+          ingresso_contrapartida: number | null
+          inicio_vigencia: string | null
+          instrumento_ativo: boolean | null
+          numero: string
+          numero_processo: string | null
+          qtd_aditivos: number | null
+          qtd_prorrogacoes: number | null
+          rendimento_aplicacao: number | null
+          saldo_conta: number | null
+          saldo_reman_convenente: number | null
+          saldo_reman_tesouro: number | null
+          situacao: string | null
+          situacao_publicacao: string | null
+          subsituacao: string | null
+          ug_emitente: string | null
+          valor_contrapartida: number | null
+          valor_desembolsado: number | null
+          valor_empenhado: number | null
+          valor_global: number | null
+          valor_global_original: number | null
+          valor_repasse: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          assinado?: boolean | null
+          atualizado_em?: string
+          data_assinatura?: string | null
+          data_limite_prestacao_contas?: string | null
+          data_publicacao?: string | null
+          dias_prestacao_contas?: number | null
+          fim_vigencia?: string | null
+          fim_vigencia_original?: string | null
+          id_proposta: number
+          ingresso_contrapartida?: number | null
+          inicio_vigencia?: string | null
+          instrumento_ativo?: boolean | null
+          numero: string
+          numero_processo?: string | null
+          qtd_aditivos?: number | null
+          qtd_prorrogacoes?: number | null
+          rendimento_aplicacao?: number | null
+          saldo_conta?: number | null
+          saldo_reman_convenente?: number | null
+          saldo_reman_tesouro?: number | null
+          situacao?: string | null
+          situacao_publicacao?: string | null
+          subsituacao?: string | null
+          ug_emitente?: string | null
+          valor_contrapartida?: number | null
+          valor_desembolsado?: number | null
+          valor_empenhado?: number | null
+          valor_global?: number | null
+          valor_global_original?: number | null
+          valor_repasse?: number | null
+        }
+        Update: {
+          assinado?: boolean | null
+          atualizado_em?: string
+          data_assinatura?: string | null
+          data_limite_prestacao_contas?: string | null
+          data_publicacao?: string | null
+          dias_prestacao_contas?: number | null
+          fim_vigencia?: string | null
+          fim_vigencia_original?: string | null
+          id_proposta?: number
+          ingresso_contrapartida?: number | null
+          inicio_vigencia?: string | null
+          instrumento_ativo?: boolean | null
+          numero?: string
+          numero_processo?: string | null
+          qtd_aditivos?: number | null
+          qtd_prorrogacoes?: number | null
+          rendimento_aplicacao?: number | null
+          saldo_conta?: number | null
+          saldo_reman_convenente?: number | null
+          saldo_reman_tesouro?: number | null
+          situacao?: string | null
+          situacao_publicacao?: string | null
+          subsituacao?: string | null
+          ug_emitente?: string | null
+          valor_contrapartida?: number | null
+          valor_desembolsado?: number | null
+          valor_empenhado?: number | null
+          valor_global?: number | null
+          valor_global_original?: number | null
+          valor_repasse?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_tg_convenios_id_proposta_fkey"
+            columns: ["id_proposta"]
+            isOneToOne: false
+            referencedRelation: "fin_tg_propostas"
+            referencedColumns: ["id_proposta"]
+          },
+        ]
+      }
+      fin_tg_emendas: {
+        Row: {
+          atualizado_em: string
+          cnpj_beneficiario: string | null
+          id_proposta: number
+          impositiva: boolean | null
+          numero_emenda: string
+          parlamentar: string | null
+          programa_emenda: string | null
+          qualificacao_proponente: string | null
+          tipo_parlamentar: string | null
+          valor_repasse_emenda: number | null
+          valor_repasse_proposta: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          atualizado_em?: string
+          cnpj_beneficiario?: string | null
+          id_proposta: number
+          impositiva?: boolean | null
+          numero_emenda: string
+          parlamentar?: string | null
+          programa_emenda?: string | null
+          qualificacao_proponente?: string | null
+          tipo_parlamentar?: string | null
+          valor_repasse_emenda?: number | null
+          valor_repasse_proposta?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          cnpj_beneficiario?: string | null
+          id_proposta?: number
+          impositiva?: boolean | null
+          numero_emenda?: string
+          parlamentar?: string | null
+          programa_emenda?: string | null
+          qualificacao_proponente?: string | null
+          tipo_parlamentar?: string | null
+          valor_repasse_emenda?: number | null
+          valor_repasse_proposta?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_tg_emendas_id_proposta_fkey"
+            columns: ["id_proposta"]
+            isOneToOne: false
+            referencedRelation: "fin_tg_propostas"
+            referencedColumns: ["id_proposta"]
+          },
+        ]
+      }
+      fin_tg_movimentos: {
+        Row: {
+          atualizado_em: string
+          data: string | null
+          descricao: string | null
+          id_origem: number
+          indicacao: string | null
+          natureza_despesa: string | null
+          numero: string | null
+          numero_convenio: string
+          situacao: string | null
+          tipo: string
+          ug_emitente: string | null
+          valor: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          atualizado_em?: string
+          data?: string | null
+          descricao?: string | null
+          id_origem: number
+          indicacao?: string | null
+          natureza_despesa?: string | null
+          numero?: string | null
+          numero_convenio: string
+          situacao?: string | null
+          tipo: string
+          ug_emitente?: string | null
+          valor?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          data?: string | null
+          descricao?: string | null
+          id_origem?: number
+          indicacao?: string | null
+          natureza_despesa?: string | null
+          numero?: string | null
+          numero_convenio?: string
+          situacao?: string | null
+          tipo?: string
+          ug_emitente?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_tg_movimentos_numero_convenio_fkey"
+            columns: ["numero_convenio"]
+            isOneToOne: false
+            referencedRelation: "fin_tg_convenios"
+            referencedColumns: ["numero"]
+          },
+        ]
+      }
+      fin_tg_propostas: {
+        Row: {
+          agencia: string | null
+          ano: number | null
+          atualizado_em: string
+          banco: string | null
+          cnpj_proponente: string
+          conta: string | null
+          data_proposta: string | null
+          fim_vigencia: string | null
+          id_proposta: number
+          inicio_vigencia: string | null
+          modalidade: string | null
+          numero: string
+          objeto: string | null
+          orgao: string | null
+          orgao_superior: string | null
+          situacao: string | null
+          situacao_projeto_basico: string | null
+          valor_contrapartida: number | null
+          valor_global: number | null
+          valor_repasse: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          agencia?: string | null
+          ano?: number | null
+          atualizado_em?: string
+          banco?: string | null
+          cnpj_proponente: string
+          conta?: string | null
+          data_proposta?: string | null
+          fim_vigencia?: string | null
+          id_proposta: number
+          inicio_vigencia?: string | null
+          modalidade?: string | null
+          numero: string
+          objeto?: string | null
+          orgao?: string | null
+          orgao_superior?: string | null
+          situacao?: string | null
+          situacao_projeto_basico?: string | null
+          valor_contrapartida?: number | null
+          valor_global?: number | null
+          valor_repasse?: number | null
+        }
+        Update: {
+          agencia?: string | null
+          ano?: number | null
+          atualizado_em?: string
+          banco?: string | null
+          cnpj_proponente?: string
+          conta?: string | null
+          data_proposta?: string | null
+          fim_vigencia?: string | null
+          id_proposta?: number
+          inicio_vigencia?: string | null
+          modalidade?: string | null
+          numero?: string
+          objeto?: string | null
+          orgao?: string | null
+          orgao_superior?: string | null
+          situacao?: string | null
+          situacao_projeto_basico?: string | null
+          valor_contrapartida?: number | null
+          valor_global?: number | null
+          valor_repasse?: number | null
+        }
+        Relationships: []
+      }
+      fin_tg_sincronizacoes: {
+        Row: {
+          cnpj: string
+          convenios: number
+          data_carga: string | null
+          emendas: number
+          executada_em: string
+          id: string
+          movimentos: number
+          propostas: number
+        }
+        ComputedFields: never
+        Insert: {
+          cnpj: string
+          convenios?: number
+          data_carga?: string | null
+          emendas?: number
+          executada_em?: string
+          id?: string
+          movimentos?: number
+          propostas?: number
+        }
+        Update: {
+          cnpj?: string
+          convenios?: number
+          data_carga?: string | null
+          emendas?: number
+          executada_em?: string
+          id?: string
+          movimentos?: number
+          propostas?: number
+        }
+        Relationships: []
       }
       folha_historico_status: {
         Row: {
@@ -19957,6 +20356,231 @@ export type Database = {
           },
         ]
       }
+      pesquisas_precos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_referencia: string
+          finalidade: string
+          id: string
+          numero_sei: string
+          objeto: string
+          observacoes: string | null
+          pca_item_id: string | null
+          responsaveis: string | null
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_referencia?: string
+          finalidade?: string
+          id?: string
+          numero_sei: string
+          objeto: string
+          observacoes?: string | null
+          pca_item_id?: string | null
+          responsaveis?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_referencia?: string
+          finalidade?: string
+          id?: string
+          numero_sei?: string
+          objeto?: string
+          observacoes?: string | null
+          pca_item_id?: string | null
+          responsaveis?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pesquisas_precos_pca_item_id_fkey"
+            columns: ["pca_item_id"]
+            isOneToOne: false
+            referencedRelation: "pca_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pesquisas_precos_amostras: {
+        Row: {
+          considerada: boolean
+          consultado_em: string
+          created_at: string
+          created_by: string | null
+          data_referencia: string | null
+          descricao: string | null
+          fornecedor_ni: string | null
+          fornecedor_nome: string | null
+          id: string
+          id_compra: string | null
+          id_externo: string | null
+          item_id: string
+          link: string | null
+          marca: string | null
+          modalidade: string | null
+          motivo_desconsideracao: string | null
+          municipio: string | null
+          numero_compra: string | null
+          orgao: string | null
+          origem: string
+          parametro: number
+          preco_unitario: number
+          quantidade: number | null
+          uasg: string | null
+          uf: string | null
+          unidade: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          considerada?: boolean
+          consultado_em?: string
+          created_at?: string
+          created_by?: string | null
+          data_referencia?: string | null
+          descricao?: string | null
+          fornecedor_ni?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          id_compra?: string | null
+          id_externo?: string | null
+          item_id: string
+          link?: string | null
+          marca?: string | null
+          modalidade?: string | null
+          motivo_desconsideracao?: string | null
+          municipio?: string | null
+          numero_compra?: string | null
+          orgao?: string | null
+          origem: string
+          parametro: number
+          preco_unitario: number
+          quantidade?: number | null
+          uasg?: string | null
+          uf?: string | null
+          unidade?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          considerada?: boolean
+          consultado_em?: string
+          created_at?: string
+          created_by?: string | null
+          data_referencia?: string | null
+          descricao?: string | null
+          fornecedor_ni?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          id_compra?: string | null
+          id_externo?: string | null
+          item_id?: string
+          link?: string | null
+          marca?: string | null
+          modalidade?: string | null
+          motivo_desconsideracao?: string | null
+          municipio?: string | null
+          numero_compra?: string | null
+          orgao?: string | null
+          origem?: string
+          parametro?: number
+          preco_unitario?: number
+          quantidade?: number | null
+          uasg?: string | null
+          uf?: string | null
+          unidade?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pesquisas_precos_amostras_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pesquisas_precos_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pesquisas_precos_itens: {
+        Row: {
+          catalogo_campo: string | null
+          codigo_catalogo: number | null
+          created_at: string
+          created_by: string | null
+          descricao: string
+          id: string
+          justificativa: string | null
+          metodo: string | null
+          nome_catalogo: string | null
+          numero: number
+          pesquisa_id: string
+          quantidade: number
+          tipo: string
+          unidade: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          catalogo_campo?: string | null
+          codigo_catalogo?: number | null
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          id?: string
+          justificativa?: string | null
+          metodo?: string | null
+          nome_catalogo?: string | null
+          numero: number
+          pesquisa_id: string
+          quantidade: number
+          tipo: string
+          unidade: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          catalogo_campo?: string | null
+          codigo_catalogo?: number | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          justificativa?: string | null
+          metodo?: string | null
+          nome_catalogo?: string | null
+          numero?: number
+          pesquisa_id?: string
+          quantidade?: number
+          tipo?: string
+          unidade?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pesquisas_precos_itens_pesquisa_id_fkey"
+            columns: ["pesquisa_id"]
+            isOneToOne: false
+            referencedRelation: "pesquisas_precos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planos_tratamento_risco: {
         Row: {
           acao_proposta: string
@@ -26459,6 +27083,15 @@ export type Database = {
         Returns: string
       }
       fin_remessa_bancaria_json: { Args: { p_id: string }; Returns: Json }
+      fin_tg_carregar: {
+        Args: {
+          p_cnpj: string
+          p_dados: Json
+          p_data_carga: string
+          p_forcar?: boolean
+        }
+        Returns: Json
+      }
       fn_atualizar_situacao_servidor: {
         Args: { p_servidor_id: string }
         Returns: undefined
