@@ -49,6 +49,7 @@ import PatrimonioProcessoPage from "./pages/processos/PatrimonioProcessoPage";
 import AlmoxarifadoProcessoPage from "./pages/processos/AlmoxarifadoProcessoPage";
 import ConveniosProcessoPage from "./pages/processos/ConveniosProcessoPage";
 import VeiculosProcessoPage from "./pages/processos/VeiculosProcessoPage";
+import LocalizarProcessoPage from "./pages/processos/LocalizarProcessoPage";
 import PagamentosProcessoPage from "./pages/processos/PagamentosProcessoPage";
 import DenunciasPage from "./pages/integridade/DenunciasPage";
 import GestaoDenunciasPage from "./pages/integridade/GestaoDenunciasPage";
@@ -237,18 +238,25 @@ import {
   AlteracoesOrcamentariasPage,
   RestosAPagarPage,
   SubEmpenhosPage,
+  AtualizarFinanceiroPage,
 } from "./pages/financeiro";
 import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage";
 import PcaListaPage from "./pages/compras/PcaListaPage";
+import ContratosListaPage from "./pages/contratos/ContratosListaPage";
+import ContratoFichaPage from "./pages/contratos/ContratoFichaPage";
 import PassagensPedidosPage from "./pages/contratos/PassagensPedidosPage";
 import PassagemPedidoPage from "./pages/contratos/PassagemPedidoPage";
 import PassagensBeneficiariosPage from "./pages/contratos/PassagensBeneficiariosPage";
 import PassagensPendenciasPage from "./pages/contratos/PassagensPendenciasPage";
+import PassagensFaturasPage from "./pages/contratos/PassagensFaturasPage";
 import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
 import ProcessosListaPage from "./pages/compras/ProcessosListaPage";
 import ProcessoFichaPage from "./pages/compras/ProcessoFichaPage";
+import ProgramacaoNaturezaPage from "./pages/compras/ProgramacaoNaturezaPage";
 import PagamentoDetalhePage from "./pages/financeiro/PagamentoDetalhePage";
 import EmpenhoDetalhePage from "./pages/financeiro/EmpenhoDetalhePage";
+import ConveniosFederaisPage from "./pages/financeiro/ConveniosFederaisPage";
+import ConvenioFederalPage from "./pages/financeiro/ConvenioFederalPage";
 
 // Inventário e Patrimônio
 import {
@@ -503,12 +511,22 @@ const App = () => (
                   <ProcessosListaPage />
                 </ProtectedRoute>
               } />
+              <Route path="/compras/programacao" element={
+                <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.processos.visualizar", "compras.processos.editar"]}>
+                  <ProgramacaoNaturezaPage />
+                </ProtectedRoute>
+              } />
               <Route path="/compras/processos/:id" element={
                 <ProtectedRoute requiredModule="compras" requiredPermissions={["compras.processos.visualizar", "compras.processos.editar"]}>
                   <ProcessoFichaPage />
                 </ProtectedRoute>
               } />
               <Route path="/contratos" element={<ProtectedRoute requiredModule="contratos"><ContratosDashboardPage /></ProtectedRoute>} />
+              <Route path="/contratos/lista" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.visualizar", "contratos.criar", "contratos.editar"]}>
+                  <ContratosListaPage />
+                </ProtectedRoute>
+              } />
               <Route path="/contratos/passagens" element={
                 <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
                   <PassagensPedidosPage />
@@ -524,9 +542,19 @@ const App = () => (
                   <PassagensPendenciasPage />
                 </ProtectedRoute>
               } />
+              <Route path="/contratos/passagens/faturas" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar", "contratos.passagens.financeiro"]}>
+                  <PassagensFaturasPage />
+                </ProtectedRoute>
+              } />
               <Route path="/contratos/passagens/:id" element={
                 <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
                   <PassagemPedidoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/contratos/:id" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.visualizar", "contratos.criar", "contratos.editar"]}>
+                  <ContratoFichaPage />
                 </ProtectedRoute>
               } />
               <Route path="/workflow" element={<ProtectedRoute requiredModule="workflow"><WorkflowDashboardPage /></ProtectedRoute>} />
@@ -1017,6 +1045,7 @@ const App = () => (
               {/* PROCESSOS - Com permissões mapeadas */}
               {/* ============================================ */}
               <Route path="/processos" element={<ProtectedRoute><ProcessosPage /></ProtectedRoute>} />
+              <Route path="/processos/localizar" element={<ProtectedRoute><LocalizarProcessoPage /></ProtectedRoute>} />
               <Route path="/processos/compras" element={
                 <ProtectedRoute requiredPermissions="processos.compras.visualizar">
                   <ComprasProcessoPage />
@@ -1344,9 +1373,24 @@ const App = () => (
                   <RestosAPagarPage />
                 </ProtectedRoute>
               } />
+              <Route path="/financeiro/atualizar" element={
+                <ProtectedRoute requiredModule="financeiro">
+                  <AtualizarFinanceiroPage />
+                </ProtectedRoute>
+              } />
               <Route path="/financeiro/conciliacao" element={
                 <ProtectedRoute requiredModule="financeiro" requiredPermissions="pagamento.conciliar">
                   <ConciliacaoBancariaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/convenios" element={
+                <ProtectedRoute requiredPermissions="financeiro.convenios.visualizar">
+                  <ConveniosFederaisPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/convenios/:id" element={
+                <ProtectedRoute requiredPermissions="financeiro.convenios.visualizar">
+                  <ConvenioFederalPage />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/sub-empenhos" element={

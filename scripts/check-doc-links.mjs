@@ -55,6 +55,7 @@ export const LIVING_DOCS = [
   "docs/RBAC_PERMISSOES.md",
   "docs/GUIA_FRONTEND.md",
   "docs/EDGE_FUNCTIONS.md",
+  "docs/INTEGRACOES_EXTERNAS.md",
   "docs/DESENVOLVIMENTO.md",
   "docs/VISAO_GERAL.md",
   "docs/WHITE_LABEL.md",

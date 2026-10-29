@@ -85,8 +85,8 @@ export const MODULES_CONFIG: ModuleConfig[] = [
   },
   {
     codigo: 'workflow',
-    nome: 'Processos',
-    descricao: 'Tramitação de processos administrativos',
+    nome: 'Processos SEI',
+    descricao: 'Localizar processos do SEI e acompanhar os parados',
     icone: GitBranch,
     cor: 'purple',
     rotas: ['/workflow'],

@@ -91,15 +91,41 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   de dados abertos do Compras.gov.br pela Edge Function `catalogo-compras` (o navegador não chama o portal: CORS e CSP).
 - **Processos de contratação (Compras)** em `/compras/processos` e `/compras/processos/:id` (`ProcessosListaPage`,
   `ProcessoFichaPage`, `requiredModule="compras"` e `compras.processos.visualizar` ou `compras.processos.editar`): lista
-  com etapa, setor, dias parado, valor estimado e empenhado; ficha com Dados, Andamento (linha do tempo do SEI) e
-  Empenhos (FIP 614 pelo nº SEI). Menu em Compras → "Processos de contratação" (o antigo "Licitações"; "Novo processo"
-  abre `/compras/processos?novo=1`); a página-guia `/processos/compras` continua como "Guia do processo de compras".
+  com etapa e setor, dias parado, valor estimado, empenhado e fase financeira (com filtro); ficha com Dados, Reservas
+  (natureza × ação × fonte do QDD, saldo livre ao vivo e justificativa quando falta saldo, "Puxar do PCA"), Andamento
+  (linha do tempo do SEI) e Financeiro (fase, PEDs do "Consultar PED" e empenhos do FIP 614 pelo nº do processo). Menu
+  em Compras → "Processos de contratação" (o antigo "Licitações"; "Novo processo" abre `/compras/processos?novo=1`) e
+  "Programação por natureza" (`/compras/programacao`, `ProgramacaoNaturezaPage`, mesma exigência de rota: disponível
+  no FIPLAN, reservado em processos e saldo livre por natureza); a página-guia `/processos/compras` continua como
+  "Como funciona uma compra", o último item de Compras, que segue o ciclo: PCA, programação por natureza, processos de
+  contratação e o manual. O painel do Financeiro (`/financeiro`) ganha o cartão "Reservado em processos".
 - **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
   algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
   também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
   `docs/GUIA_FRONTEND.md` (Importação de dados). A rota usa a própria `PERMISSOES_IMPORTACAO` e o item de menu repete a mesma lista
   (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`, `compras.processos.editar`); `src/lib/importacao/registro.test.ts`
-  reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha".
+  reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha". `?importador=<id>` abre direto o assistente
+  desse importador quando o usuário tem a permissão dele (atalhos de `/financeiro/atualizar`).
+- **Localizar processo** em `/processos/localizar` (`LocalizarProcessoPage`, `ProtectedRoute` só com login: rota
+  transversal, listada em `TRANSVERSAIS` de `src/shared/config/modules.config.test.ts`; quem pode ver cada registro é a
+  RLS da fonte, pelas funções INVOKER `localizar_processos_sei` e `processos_parados`). Menu: "Localizar processo" e
+  "Parados" (`/processos/localizar?aba=parados`) como os únicos itens de Processos SEI, nos dois arquivos de menu (a
+  tramitação é no SEI: a lista `/workflow/processos` e o "Novo processo" saíram do menu e abrem pelo painel `/workflow`). Spec:
+  `docs/superpowers/specs/2026-10-25-localizador-processos-sei-design.md`.
+- **Convênios federais (Financeiro)** em `/financeiro/convenios` e `/financeiro/convenios/:id`
+  (`ConveniosFederaisPage`, `ConvenioFederalPage`, `requiredPermissions="financeiro.convenios.visualizar"`; o `:id` é o
+  `id_proposta` do Transferegov): lista e ficha das propostas, emendas, convênios, empenhos e desembolsos da União, só
+  leitura. Os dados chegam pela rotina diária `.github/workflows/transferegov.yml` → Edge Function `transferegov` →
+  RPC `fin_tg_carregar`. Menu em Financeiro → "Convênios federais". Spec: `docs/superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md`.
+- **Contratos (entrega C1)** em `/contratos/lista` e `/contratos/:id` (`ContratosListaPage`, `ContratoFichaPage`,
+  `requiredModule="contratos"` e `contratos.visualizar`, `contratos.criar` ou `contratos.editar`): lista com filtros de
+  situação e de prazo (`?prazo=em_vigor|30|60|90|120|vencidos|sem_responsavel`, usados pelos cartões do painel
+  `/contratos`), cadastro (`?novo=1`) e ficha com as abas Dados, Itens, Gestor e fiscais e Histórico (`?aba=` abre direto
+  numa delas) e a ficha em PDF. `/contratos/:id` fica depois das rotas de passagens no `App.tsx` (o react-router prefere o
+  caminho fixo de qualquer jeito). Menu: "Contratos" e "Novo contrato" (`/contratos/lista?novo=1`) no menu geral e
+  "Contratos" no menu do módulo. A carga inicial é pela Central de Importações
+  (`/admin/importacoes?importador=contratos_planilha`). Spec:
+  `docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md`.
 - **Passagens aéreas (Contratos)** em `/contratos/passagens`, `/contratos/passagens/:id` e
   `/contratos/passagens/beneficiarios` (`PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,
   `requiredModule="contratos"` e `contratos.passagens.visualizar` ou `contratos.passagens.editar`): um pedido por
@@ -107,7 +133,10 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   agência sai dos bilhetes emitidos. Menu em Contratos → "Passagens aéreas", "Beneficiários de passagem" e "Novo pedido
   de passagem" (`/contratos/passagens?novo=1`). Spec: `docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md`.
   A entrega 2 acrescenta `/contratos/passagens/pendencias` (`PassagensPendenciasPage`, mesma proteção; menu "Pendências
-  de passagens") e a aba Prestação de contas na ficha (`?aba=prestacao` abre direto nela).
+  de passagens") e a aba Prestação de contas na ficha (`?aba=prestacao` abre direto nela). A entrega 3 acrescenta
+  `/contratos/passagens/faturas` (`PassagensFaturasPage`, `requiredModule="contratos"` e `visualizar`, `editar` ou
+  `contratos.passagens.financeiro`; menu "Faturas de passagens"): faturas da agência, a faturar, empenhos do contrato,
+  planilhas e o PDF do saldo; a ficha do pedido mostra a fatura de cada bilhete e baixa a ficha em PDF.
 - Financeiro: `/financeiro/empenhos/:id` (`EmpenhoDetalhePage`, `requiredPermissions="orcamento.criar"`): dados,
   valores, histórico do FIPLAN e escolha da dotação do empenho importado do FIP 614.
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"
@@ -116,7 +145,12 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   a mesma dos empenhos; item "Favorecidos" no menu do Financeiro); `/financeiro/pagamentos/:id` abre o detalhe real do pagamento
   (`orcamento.aprovar`); `/financeiro/orcamento` só redireciona para `/financeiro/qdd`. O ano das telas do
   módulo vai na query `?exercicio=` (ver [MODULOS.md](./MODULOS.md)). `/financeiro` é declarada uma vez só
-  (painel do módulo, `FinanceiroDashboardPage`, `requiredModule="financeiro"`).
+  (painel do módulo, `FinanceiroDashboardPage`, `requiredModule="financeiro"`). `/financeiro/atualizar`
+  (`AtualizarFinanceiroPage`, `requiredModule="financeiro"`, item "Atualizar dados" no menu): rotina de importações
+  do FIPLAN, só leitura; cada botão leva ao importador, que confere a própria permissão. Menu do Financeiro (26/10/2026): Liquidações e
+  Pagamentos ficam no submenu "Contingência (regularizar no FIPLAN)"; `/financeiro/solicitacoes`, `/sub-empenhos`,
+  `/restos-a-pagar`, `/alteracoes-orcamentarias`, `/adiantamentos` e `/relatorios` saíram dos menus, mas as rotas
+  continuam registradas (ver [MODULOS.md](./MODULOS.md)).
 - Quadro de vagas: `/cargos/vagas` (`QuadroVagasPage`, `ProtectedRoute requiredPermissions="governanca.cargos.visualizar"`;
   a página exige ainda o módulo `governanca`), com link em `/cargos` e item "Quadro de
   Vagas" no menu de governança. Importar a planilha exige `governanca.cargos.gerenciar` (ver

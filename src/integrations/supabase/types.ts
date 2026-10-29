@@ -6322,6 +6322,107 @@ export type Database = {
         }
         Relationships: []
       }
+      contrato_responsaveis: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          motivo_saida: string | null
+          nome: string
+          observacoes: string | null
+          papel: string
+          portaria_data: string | null
+          portaria_documento_sei: string | null
+          portaria_numero: string | null
+          servidor_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          id?: string
+          motivo_saida?: string | null
+          nome?: string
+          observacoes?: string | null
+          papel: string
+          portaria_data?: string | null
+          portaria_documento_sei?: string | null
+          portaria_numero?: string | null
+          servidor_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          motivo_saida?: string | null
+          nome?: string
+          observacoes?: string | null
+          papel?: string
+          portaria_data?: string | null
+          portaria_documento_sei?: string | null
+          portaria_numero?: string | null
+          servidor_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_responsaveis_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_responsaveis_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_responsaveis_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "contrato_responsaveis_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_responsaveis_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "contrato_responsaveis_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contratos: {
         Row: {
           ano: number
@@ -6337,19 +6438,27 @@ export type Database = {
           fiscal_id: string | null
           fonte_recurso: string | null
           fornecedor_id: string
+          fundamento_legal: string | null
           garantia_tipo: string | null
           garantia_valor: number | null
           garantia_vencimento: string | null
           gestor_id: string | null
           id: string
+          natureza_despesa: string | null
           numero_contrato: string
           numero_doe: string | null
+          numero_pncp: string | null
           objeto: string
           objeto_resumido: string | null
           observacoes: string | null
+          prazo_maximo_meses: number | null
           processo_licitatorio_id: string | null
+          processo_sei: string | null
+          prorrogavel: boolean
           saldo_contrato: number | null
           status: Database["public"]["Enums"]["status_contrato"] | null
+          tipo_contrato: string | null
+          unidade_demandante_id: string | null
           updated_at: string | null
           updated_by: string | null
           valor_atual: number
@@ -6371,19 +6480,27 @@ export type Database = {
           fiscal_id?: string | null
           fonte_recurso?: string | null
           fornecedor_id: string
+          fundamento_legal?: string | null
           garantia_tipo?: string | null
           garantia_valor?: number | null
           garantia_vencimento?: string | null
           gestor_id?: string | null
           id?: string
+          natureza_despesa?: string | null
           numero_contrato: string
           numero_doe?: string | null
+          numero_pncp?: string | null
           objeto: string
           objeto_resumido?: string | null
           observacoes?: string | null
+          prazo_maximo_meses?: number | null
           processo_licitatorio_id?: string | null
+          processo_sei?: string | null
+          prorrogavel?: boolean
           saldo_contrato?: number | null
           status?: Database["public"]["Enums"]["status_contrato"] | null
+          tipo_contrato?: string | null
+          unidade_demandante_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
           valor_atual: number
@@ -6404,19 +6521,27 @@ export type Database = {
           fiscal_id?: string | null
           fonte_recurso?: string | null
           fornecedor_id?: string
+          fundamento_legal?: string | null
           garantia_tipo?: string | null
           garantia_valor?: number | null
           garantia_vencimento?: string | null
           gestor_id?: string | null
           id?: string
+          natureza_despesa?: string | null
           numero_contrato?: string
           numero_doe?: string | null
+          numero_pncp?: string | null
           objeto?: string
           objeto_resumido?: string | null
           observacoes?: string | null
+          prazo_maximo_meses?: number | null
           processo_licitatorio_id?: string | null
+          processo_sei?: string | null
+          prorrogavel?: boolean
           saldo_contrato?: number | null
           status?: Database["public"]["Enums"]["status_contrato"] | null
+          tipo_contrato?: string | null
+          unidade_demandante_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
           valor_atual?: number
@@ -6506,6 +6631,13 @@ export type Database = {
             columns: ["processo_licitatorio_id"]
             isOneToOne: false
             referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_unidade_demandante_id_fkey"
+            columns: ["unidade_demandante_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
         ]
@@ -12370,6 +12502,103 @@ export type Database = {
         }
         Relationships: []
       }
+      fin_peds: {
+        Row: {
+          created_at: string
+          credor_codigo: string | null
+          credor_nome: string | null
+          data_autorizacao: string | null
+          data_criacao: string | null
+          data_solicitacao: string | null
+          dotacao_fiplan: string | null
+          dotacao_id: string | null
+          empenho_numero: string | null
+          estorno: boolean
+          exercicio: number
+          historico: string | null
+          id: string
+          importacao_id: string | null
+          licitacao: string | null
+          numero: string
+          numero_estorno: string | null
+          processo_chave: string | null
+          processo_fiplan: string | null
+          processo_sei: string | null
+          situacao: string
+          tipo_empenho: string | null
+          updated_at: string
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          credor_codigo?: string | null
+          credor_nome?: string | null
+          data_autorizacao?: string | null
+          data_criacao?: string | null
+          data_solicitacao?: string | null
+          dotacao_fiplan?: string | null
+          dotacao_id?: string | null
+          empenho_numero?: string | null
+          estorno?: boolean
+          exercicio: number
+          historico?: string | null
+          id?: string
+          importacao_id?: string | null
+          licitacao?: string | null
+          numero: string
+          numero_estorno?: string | null
+          processo_chave?: never
+          processo_fiplan?: string | null
+          processo_sei?: string | null
+          situacao: string
+          tipo_empenho?: string | null
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          credor_codigo?: string | null
+          credor_nome?: string | null
+          data_autorizacao?: string | null
+          data_criacao?: string | null
+          data_solicitacao?: string | null
+          dotacao_fiplan?: string | null
+          dotacao_id?: string | null
+          empenho_numero?: string | null
+          estorno?: boolean
+          exercicio?: number
+          historico?: string | null
+          id?: string
+          importacao_id?: string | null
+          licitacao?: string | null
+          numero?: string
+          numero_estorno?: string | null
+          processo_chave?: never
+          processo_fiplan?: string | null
+          processo_sei?: string | null
+          situacao?: string
+          tipo_empenho?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_peds_dotacao_id_fkey"
+            columns: ["dotacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_dotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_peds_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_plano_contas: {
         Row: {
           aceita_lancamento: boolean | null
@@ -12981,6 +13210,323 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fin_tg_convenios: {
+        Row: {
+          assinado: boolean | null
+          atualizado_em: string
+          data_assinatura: string | null
+          data_limite_prestacao_contas: string | null
+          data_publicacao: string | null
+          dias_prestacao_contas: number | null
+          fim_vigencia: string | null
+          fim_vigencia_original: string | null
+          id_proposta: number
+          ingresso_contrapartida: number | null
+          inicio_vigencia: string | null
+          instrumento_ativo: boolean | null
+          numero: string
+          numero_processo: string | null
+          qtd_aditivos: number | null
+          qtd_prorrogacoes: number | null
+          rendimento_aplicacao: number | null
+          saldo_conta: number | null
+          saldo_reman_convenente: number | null
+          saldo_reman_tesouro: number | null
+          situacao: string | null
+          situacao_publicacao: string | null
+          subsituacao: string | null
+          ug_emitente: string | null
+          valor_contrapartida: number | null
+          valor_desembolsado: number | null
+          valor_empenhado: number | null
+          valor_global: number | null
+          valor_global_original: number | null
+          valor_repasse: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          assinado?: boolean | null
+          atualizado_em?: string
+          data_assinatura?: string | null
+          data_limite_prestacao_contas?: string | null
+          data_publicacao?: string | null
+          dias_prestacao_contas?: number | null
+          fim_vigencia?: string | null
+          fim_vigencia_original?: string | null
+          id_proposta: number
+          ingresso_contrapartida?: number | null
+          inicio_vigencia?: string | null
+          instrumento_ativo?: boolean | null
+          numero: string
+          numero_processo?: string | null
+          qtd_aditivos?: number | null
+          qtd_prorrogacoes?: number | null
+          rendimento_aplicacao?: number | null
+          saldo_conta?: number | null
+          saldo_reman_convenente?: number | null
+          saldo_reman_tesouro?: number | null
+          situacao?: string | null
+          situacao_publicacao?: string | null
+          subsituacao?: string | null
+          ug_emitente?: string | null
+          valor_contrapartida?: number | null
+          valor_desembolsado?: number | null
+          valor_empenhado?: number | null
+          valor_global?: number | null
+          valor_global_original?: number | null
+          valor_repasse?: number | null
+        }
+        Update: {
+          assinado?: boolean | null
+          atualizado_em?: string
+          data_assinatura?: string | null
+          data_limite_prestacao_contas?: string | null
+          data_publicacao?: string | null
+          dias_prestacao_contas?: number | null
+          fim_vigencia?: string | null
+          fim_vigencia_original?: string | null
+          id_proposta?: number
+          ingresso_contrapartida?: number | null
+          inicio_vigencia?: string | null
+          instrumento_ativo?: boolean | null
+          numero?: string
+          numero_processo?: string | null
+          qtd_aditivos?: number | null
+          qtd_prorrogacoes?: number | null
+          rendimento_aplicacao?: number | null
+          saldo_conta?: number | null
+          saldo_reman_convenente?: number | null
+          saldo_reman_tesouro?: number | null
+          situacao?: string | null
+          situacao_publicacao?: string | null
+          subsituacao?: string | null
+          ug_emitente?: string | null
+          valor_contrapartida?: number | null
+          valor_desembolsado?: number | null
+          valor_empenhado?: number | null
+          valor_global?: number | null
+          valor_global_original?: number | null
+          valor_repasse?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_tg_convenios_id_proposta_fkey"
+            columns: ["id_proposta"]
+            isOneToOne: false
+            referencedRelation: "fin_tg_propostas"
+            referencedColumns: ["id_proposta"]
+          },
+        ]
+      }
+      fin_tg_emendas: {
+        Row: {
+          atualizado_em: string
+          cnpj_beneficiario: string | null
+          id_proposta: number
+          impositiva: boolean | null
+          numero_emenda: string
+          parlamentar: string | null
+          programa_emenda: string | null
+          qualificacao_proponente: string | null
+          tipo_parlamentar: string | null
+          valor_repasse_emenda: number | null
+          valor_repasse_proposta: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          atualizado_em?: string
+          cnpj_beneficiario?: string | null
+          id_proposta: number
+          impositiva?: boolean | null
+          numero_emenda: string
+          parlamentar?: string | null
+          programa_emenda?: string | null
+          qualificacao_proponente?: string | null
+          tipo_parlamentar?: string | null
+          valor_repasse_emenda?: number | null
+          valor_repasse_proposta?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          cnpj_beneficiario?: string | null
+          id_proposta?: number
+          impositiva?: boolean | null
+          numero_emenda?: string
+          parlamentar?: string | null
+          programa_emenda?: string | null
+          qualificacao_proponente?: string | null
+          tipo_parlamentar?: string | null
+          valor_repasse_emenda?: number | null
+          valor_repasse_proposta?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_tg_emendas_id_proposta_fkey"
+            columns: ["id_proposta"]
+            isOneToOne: false
+            referencedRelation: "fin_tg_propostas"
+            referencedColumns: ["id_proposta"]
+          },
+        ]
+      }
+      fin_tg_movimentos: {
+        Row: {
+          atualizado_em: string
+          data: string | null
+          descricao: string | null
+          id_origem: number
+          indicacao: string | null
+          natureza_despesa: string | null
+          numero: string | null
+          numero_convenio: string
+          situacao: string | null
+          tipo: string
+          ug_emitente: string | null
+          valor: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          atualizado_em?: string
+          data?: string | null
+          descricao?: string | null
+          id_origem: number
+          indicacao?: string | null
+          natureza_despesa?: string | null
+          numero?: string | null
+          numero_convenio: string
+          situacao?: string | null
+          tipo: string
+          ug_emitente?: string | null
+          valor?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          data?: string | null
+          descricao?: string | null
+          id_origem?: number
+          indicacao?: string | null
+          natureza_despesa?: string | null
+          numero?: string | null
+          numero_convenio?: string
+          situacao?: string | null
+          tipo?: string
+          ug_emitente?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_tg_movimentos_numero_convenio_fkey"
+            columns: ["numero_convenio"]
+            isOneToOne: false
+            referencedRelation: "fin_tg_convenios"
+            referencedColumns: ["numero"]
+          },
+        ]
+      }
+      fin_tg_propostas: {
+        Row: {
+          agencia: string | null
+          ano: number | null
+          atualizado_em: string
+          banco: string | null
+          cnpj_proponente: string
+          conta: string | null
+          data_proposta: string | null
+          fim_vigencia: string | null
+          id_proposta: number
+          inicio_vigencia: string | null
+          modalidade: string | null
+          numero: string
+          objeto: string | null
+          orgao: string | null
+          orgao_superior: string | null
+          situacao: string | null
+          situacao_projeto_basico: string | null
+          valor_contrapartida: number | null
+          valor_global: number | null
+          valor_repasse: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          agencia?: string | null
+          ano?: number | null
+          atualizado_em?: string
+          banco?: string | null
+          cnpj_proponente: string
+          conta?: string | null
+          data_proposta?: string | null
+          fim_vigencia?: string | null
+          id_proposta: number
+          inicio_vigencia?: string | null
+          modalidade?: string | null
+          numero: string
+          objeto?: string | null
+          orgao?: string | null
+          orgao_superior?: string | null
+          situacao?: string | null
+          situacao_projeto_basico?: string | null
+          valor_contrapartida?: number | null
+          valor_global?: number | null
+          valor_repasse?: number | null
+        }
+        Update: {
+          agencia?: string | null
+          ano?: number | null
+          atualizado_em?: string
+          banco?: string | null
+          cnpj_proponente?: string
+          conta?: string | null
+          data_proposta?: string | null
+          fim_vigencia?: string | null
+          id_proposta?: number
+          inicio_vigencia?: string | null
+          modalidade?: string | null
+          numero?: string
+          objeto?: string | null
+          orgao?: string | null
+          orgao_superior?: string | null
+          situacao?: string | null
+          situacao_projeto_basico?: string | null
+          valor_contrapartida?: number | null
+          valor_global?: number | null
+          valor_repasse?: number | null
+        }
+        Relationships: []
+      }
+      fin_tg_sincronizacoes: {
+        Row: {
+          cnpj: string
+          convenios: number
+          data_carga: string | null
+          emendas: number
+          executada_em: string
+          id: string
+          movimentos: number
+          propostas: number
+        }
+        ComputedFields: never
+        Insert: {
+          cnpj: string
+          convenios?: number
+          data_carga?: string | null
+          emendas?: number
+          executada_em?: string
+          id?: string
+          movimentos?: number
+          propostas?: number
+        }
+        Update: {
+          cnpj?: string
+          convenios?: number
+          data_carga?: string | null
+          emendas?: number
+          executada_em?: string
+          id?: string
+          movimentos?: number
+          propostas?: number
+        }
+        Relationships: []
       }
       folha_historico_status: {
         Row: {
@@ -18498,6 +19044,52 @@ export type Database = {
           },
         ]
       }
+      passagem_contrato_empenhos: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          empenho_id: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          empenho_id: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          empenho_id?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_contrato_empenhos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_contrato_empenhos_empenho_id_fkey"
+            columns: ["empenho_id"]
+            isOneToOne: false
+            referencedRelation: "fin_empenhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       passagem_cotacoes: {
         Row: {
           chegada: string | null
@@ -18551,6 +19143,127 @@ export type Database = {
             columns: ["trecho_id"]
             isOneToOne: false
             referencedRelation: "passagem_trechos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_fatura_itens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          fatura_id: string
+          id: string
+          trecho_id: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          fatura_id: string
+          id?: string
+          trecho_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          fatura_id?: string
+          id?: string
+          trecho_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_fatura_itens_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "passagem_faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passagem_fatura_itens_trecho_id_fkey"
+            columns: ["trecho_id"]
+            isOneToOne: true
+            referencedRelation: "passagem_trechos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passagem_faturas: {
+        Row: {
+          atesto_data: string | null
+          atesto_documento_sei: string | null
+          cancelamento_motivo: string | null
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          data_emissao: string
+          id: string
+          liquidacao_data: string | null
+          numero: string
+          ob_numero: string | null
+          observacoes: string | null
+          pagamento_data: string | null
+          processo_sei_pagamento: string | null
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          atesto_data?: string | null
+          atesto_documento_sei?: string | null
+          cancelamento_motivo?: string | null
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          data_emissao: string
+          id?: string
+          liquidacao_data?: string | null
+          numero: string
+          ob_numero?: string | null
+          observacoes?: string | null
+          pagamento_data?: string | null
+          processo_sei_pagamento?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          atesto_data?: string | null
+          atesto_documento_sei?: string | null
+          cancelamento_motivo?: string | null
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string
+          id?: string
+          liquidacao_data?: string | null
+          numero?: string
+          ob_numero?: string | null
+          observacoes?: string | null
+          pagamento_data?: string | null
+          processo_sei_pagamento?: string | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passagem_faturas_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
             referencedColumns: ["id"]
           },
         ]
@@ -20644,6 +21357,100 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      processo_reservas: {
+        Row: {
+          acao_id: string
+          created_at: string
+          created_by: string | null
+          exercicio: number
+          fonte_recurso_id: string
+          id: string
+          justificativa_saldo: string | null
+          motivo_cancelamento: string | null
+          natureza_despesa_id: string
+          pca_item_id: string | null
+          processo_id: string
+          saldo_livre_no_momento: number | null
+          situacao: string
+          updated_at: string
+          updated_by: string | null
+          valor: number
+        }
+        ComputedFields: never
+        Insert: {
+          acao_id: string
+          created_at?: string
+          created_by?: string | null
+          exercicio: number
+          fonte_recurso_id: string
+          id?: string
+          justificativa_saldo?: string | null
+          motivo_cancelamento?: string | null
+          natureza_despesa_id: string
+          pca_item_id?: string | null
+          processo_id: string
+          saldo_livre_no_momento?: number | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor: number
+        }
+        Update: {
+          acao_id?: string
+          created_at?: string
+          created_by?: string | null
+          exercicio?: number
+          fonte_recurso_id?: string
+          id?: string
+          justificativa_saldo?: string | null
+          motivo_cancelamento?: string | null
+          natureza_despesa_id?: string
+          pca_item_id?: string | null
+          processo_id?: string
+          saldo_livre_no_momento?: number | null
+          situacao?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_reservas_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_acoes_orcamentarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_fonte_recurso_id_fkey"
+            columns: ["fonte_recurso_id"]
+            isOneToOne: false
+            referencedRelation: "fin_fontes_recurso"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_natureza_despesa_id_fkey"
+            columns: ["natureza_despesa_id"]
+            isOneToOne: false
+            referencedRelation: "fin_naturezas_despesa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_pca_item_id_fkey"
+            columns: ["pca_item_id"]
+            isOneToOne: false
+            referencedRelation: "pca_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_reservas_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       processos_administrativos: {
         Row: {
@@ -25893,6 +26700,23 @@ export type Database = {
         }
         Returns: boolean
       }
+      contrato_buscar_servidores: {
+        Args: { _termo: string }
+        Returns: {
+          cargo: string
+          id: string
+          matricula: string
+          nome: string
+        }[]
+      }
+      contrato_pode_gravar: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      contratos_importar_planilha: {
+        Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
+        Returns: Json
+      }
       corrigir_conta_movimento: {
         Args: {
           p_agencia: string
@@ -25933,11 +26757,34 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      fin_dotacao_disponivel: {
+        Args: {
+          p_atual: number
+          p_bloqueado: number
+          p_empenhado: number
+          p_ped: number
+          p_reserva: number
+        }
+        Returns: number
+      }
+      fin_dotacao_do_fiplan: {
+        Args: { p_dotacao: string; p_exercicio: number }
+        Returns: string
+      }
       fin_marcar_pagamento_pago: {
         Args: { p_data: string; p_pagamento_id: string }
         Returns: string
       }
       fin_remessa_bancaria_json: { Args: { p_id: string }; Returns: Json }
+      fin_tg_carregar: {
+        Args: {
+          p_cnpj: string
+          p_dados: Json
+          p_data_carga: string
+          p_forcar?: boolean
+        }
+        Returns: Json
+      }
       fn_atualizar_situacao_servidor: {
         Args: { p_servidor_id: string }
         Returns: undefined
@@ -26242,6 +27089,15 @@ export type Database = {
         }
         Returns: Json
       }
+      importar_peds_fiplan: {
+        Args: {
+          p_arquivo: Json
+          p_exercicio: number
+          p_linhas: Json
+          p_simular?: boolean
+        }
+        Returns: Json
+      }
       importar_portarias_planilha: {
         Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
         Returns: Json
@@ -26292,6 +27148,21 @@ export type Database = {
           rota: string
           submodulo: string
           tipo_acao: string
+        }[]
+      }
+      localizar_processos_sei: {
+        Args: { p_limite?: number; p_termo: string }
+        Returns: {
+          atualizado_em: string
+          chave: string
+          numero_sei: string
+          onde: string
+          origem: string
+          ref: string
+          registro_id: string
+          situacao: string
+          titulo: string
+          valor: number
         }[]
       }
       log_audit: {
@@ -26377,6 +27248,40 @@ export type Database = {
           nome: string
         }[]
       }
+      passagem_empenho_candidato: {
+        Args: { _contrato_id: string; _empenho_id: string }
+        Returns: boolean
+      }
+      passagem_empenhos_candidatos: {
+        Args: { _contrato_id: string; _exercicio?: number }
+        Returns: {
+          credor: string
+          data_empenho: string
+          empenho_id: string
+          exercicio: number
+          ligado: boolean
+          natureza: string
+          numero: string
+          processo_sei: string
+          valor_anulado: number
+          valor_empenhado: number
+        }[]
+      }
+      passagem_empenhos_contrato: {
+        Args: { _contrato_id: string }
+        Returns: {
+          credor: string
+          data_empenho: string
+          empenho_id: string
+          exercicio: number
+          natureza: string
+          numero: string
+          valor_anulado: number
+          valor_empenhado: number
+          valor_liquidado: number
+          valor_pago: number
+        }[]
+      }
       passagem_prestacao_em_aberto: {
         Args: { _pedido_id: string }
         Returns: number
@@ -26388,6 +27293,10 @@ export type Database = {
           relatorio_apresentado: boolean
           relatorio_data: string
         }[]
+      }
+      passagem_salvar_fatura: {
+        Args: { _fatura: Json; _itens: Json }
+        Returns: string
       }
       passagem_viagens_servidor: {
         Args: { _servidor_id: string }
@@ -26650,6 +27559,7 @@ export type Database = {
         Returns: Json
       }
       processar_folha_pagamento: { Args: { p_folha_id: string }; Returns: Json }
+      processo_chave_fiplan: { Args: { p: string }; Returns: string }
       processo_empenhos: {
         Args: { _processo_id?: string }
         Returns: {
@@ -26665,6 +27575,164 @@ export type Database = {
           valor_empenhado: number
           valor_liquidado: number
           valor_pago: number
+        }[]
+      }
+      processo_peds: {
+        Args: { _processo_id: string }
+        Returns: {
+          data_autorizacao: string
+          data_solicitacao: string
+          empenho_numero: string
+          exercicio: number
+          fonte: string
+          licitacao: string
+          natureza: string
+          numero: string
+          ped_id: string
+          situacao: string
+          valor: number
+        }[]
+      }
+      processo_reserva_cancelar: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: undefined
+      }
+      processo_reserva_salvar: {
+        Args: {
+          p_acao: string
+          p_exercicio: number
+          p_fonte: string
+          p_id: string
+          p_justificativa?: string
+          p_natureza: string
+          p_pca_item_id?: string
+          p_processo_id: string
+          p_valor: number
+        }
+        Returns: Json
+      }
+      processo_reservas_detalhe: {
+        Args: { _processo_id: string }
+        Returns: {
+          acao_codigo: string
+          acao_id: string
+          acao_nome: string
+          created_at: string
+          exercicio: number
+          fonte_codigo: string
+          fonte_recurso_id: string
+          id: string
+          justificativa_saldo: string
+          materializado: number
+          motivo_cancelamento: string
+          natureza_codigo: string
+          natureza_despesa_id: string
+          natureza_nome: string
+          pca_item_id: string
+          pendente: number
+          saldo_livre: number
+          saldo_livre_no_momento: number
+          situacao: string
+          valor: number
+        }[]
+      }
+      processo_reservas_pendentes: {
+        Args: { _exercicio?: number }
+        Returns: {
+          acao_id: string
+          exercicio: number
+          fonte_recurso_id: string
+          materializado: number
+          natureza_despesa_id: string
+          pendente: number
+          processo_id: string
+          reserva_id: string
+          valor: number
+        }[]
+      }
+      processo_saldo_livre: {
+        Args: {
+          p_acao: string
+          p_exercicio: number
+          p_fonte: string
+          p_ignorar_reserva?: string
+          p_natureza: string
+        }
+        Returns: number
+      }
+      processo_saldo_livre_calc: {
+        Args: {
+          p_acao: string
+          p_exercicio: number
+          p_fonte: string
+          p_ignorar_reserva?: string
+          p_natureza: string
+        }
+        Returns: number
+      }
+      processos_execucao: {
+        Args: { _exercicio?: number }
+        Returns: {
+          acao_id: string
+          empenhado: number
+          exercicio: number
+          fonte_recurso_id: string
+          liquidado: number
+          natureza_despesa_id: string
+          pago: number
+          ped_autorizado: number
+          processo_id: string
+        }[]
+      }
+      processos_financeiro: {
+        Args: { _exercicio?: number }
+        Returns: {
+          empenhado: number
+          liquidado: number
+          pago: number
+          ped_autorizado: number
+          pendente: number
+          processo_id: string
+          reservado: number
+        }[]
+      }
+      processos_leitura_permitida: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      processos_parados: {
+        Args: { p_dias?: number }
+        Returns: {
+          atualizado_em: string
+          chave: string
+          dias: number
+          numero_sei: string
+          onde: string
+          origem: string
+          registro_id: string
+          situacao: string
+          titulo: string
+        }[]
+      }
+      programacao_por_natureza: {
+        Args: { _exercicio: number }
+        Returns: {
+          acao_codigo: string
+          acao_id: string
+          bloqueado: number
+          dotacao_atual: number
+          empenhado: number
+          fonte_codigo: string
+          fonte_recurso_id: string
+          natureza_codigo: string
+          natureza_despesa_id: string
+          natureza_nome: string
+          pendente_processos: number
+          processos: Json
+          reserva_fiplan: number
+          saldo_fiplan: number
+          saldo_livre: number
+          tem_qdd: boolean
         }[]
       }
       promover_rascunho: {
@@ -26892,6 +27960,8 @@ export type Database = {
           unidade_atual_nome: string
         }[]
       }
+      sei_normalizar: { Args: { p_texto: string }; Returns: string }
+      texto_busca: { Args: { p_texto: string }; Returns: string }
       transparencia_cargos_publicos: {
         Args: Record<PropertyKey, never>
         Returns: {

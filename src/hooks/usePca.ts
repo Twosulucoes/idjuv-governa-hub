@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
+import type { NaturezaDoPortal } from '@/lib/pca/naturezaCatalogo';
 
 export type PcaPlano = Tables<'pca_planos'>;
 export type PcaTeto = Tables<'pca_tetos'>;
@@ -301,6 +302,17 @@ export function useItensDoPdm(codigoPdm: number | null) {
     staleTime: 30 * 60_000,
     retry: false,
     queryFn: async () => (await chamarCatalogo<{ itens: ItemCatalogoPortal[] }>({ acao: 'itens_pdm', codigoPdm })).itens,
+  });
+}
+
+/** Naturezas que o catálogo indica para o PDM ou serviço, lidas no portal na hora (filtrar com casarNaturezasDoCatalogo). */
+export function useNaturezasDoCatalogo(tipo: 'material' | 'servico', codigo: number | null | undefined) {
+  return useQuery({
+    queryKey: [CHAVE, 'naturezas-catalogo', tipo, codigo],
+    enabled: !!codigo,
+    staleTime: 24 * 60 * 60_000,
+    retry: false,
+    queryFn: async () => (await chamarCatalogo<{ naturezas: NaturezaDoPortal[] }>({ acao: 'naturezas', tipo, codigo })).naturezas,
   });
 }
 

@@ -8,6 +8,8 @@
 
 import {
   LayoutDashboard,
+  Search,
+  Hourglass,
   Users,
   UserCog,
   FileText,
@@ -41,7 +43,6 @@ import {
   School,
   Database,
   HelpCircle,
-  Archive,
   Upload,
   Send,
   Workflow,
@@ -50,7 +51,6 @@ import {
   type LucideIcon,
   FolderOpen,
   Smartphone,
-  ArrowRightLeft,
   ArrowLeftRight,
   Bell,
   Mail,
@@ -59,6 +59,7 @@ import {
   Medal,
   Heart,
   Briefcase,
+  Handshake,
 } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
 import type { PermissionCode } from "@/types/auth";
@@ -70,6 +71,8 @@ export interface ModuleMenuItem {
   route: string;
   /** Permissão exigida para mostrar o item (a mesma da rota; sem ela o item aparece para todos do módulo). */
   permission?: PermissionCode;
+  /** Como `permission`, mas basta uma da lista (rota com várias permissões aceitas). */
+  algumaPermissao?: PermissionCode[];
   children?: ModuleMenuItem[];
 }
 
@@ -137,18 +140,23 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     dashboard: { label: "Painel Financeiro", route: "/financeiro" },
     items: [
       { id: "qdd", label: "QDD - Detalhamento", icon: FileText, route: "/financeiro/qdd" },
-      { id: "alteracoes", label: "Alterações Orçamentárias", icon: ArrowRightLeft, route: "/financeiro/alteracoes-orcamentarias" },
-      { id: "solicitacoes", label: "Solicitações", icon: ClipboardList, route: "/financeiro/solicitacoes" },
       { id: "empenhos", label: "Empenhos", icon: FileText, route: "/financeiro/empenhos" },
-      { id: "liquidacoes", label: "Liquidações", icon: FileCheck, route: "/financeiro/liquidacoes" },
-      { id: "pagamentos", label: "Pagamentos", icon: Receipt, route: "/financeiro/pagamentos" },
-      { id: "sub-empenhos", label: "Sub-Empenhos", icon: FileText, route: "/financeiro/sub-empenhos" },
-      { id: "restos-a-pagar", label: "Restos a Pagar", icon: FileText, route: "/financeiro/restos-a-pagar" },
-      { id: "adiantamentos", label: "Adiantamentos", icon: Send, route: "/financeiro/adiantamentos" },
+      // Lançamentos fora do FIPLAN, regularizados depois nele (FIPLAN fechado, tarifas, contas de convênio)
+      {
+        id: "contingencia",
+        label: "Contingência (regularizar no FIPLAN)",
+        icon: FileCheck,
+        route: "/financeiro/liquidacoes",
+        children: [
+          { id: "liquidacoes", label: "Liquidações", icon: FileCheck, route: "/financeiro/liquidacoes" },
+          { id: "pagamentos", label: "Pagamentos", icon: Receipt, route: "/financeiro/pagamentos" },
+        ],
+      },
+      { id: "convenios", label: "Convênios federais", icon: Handshake, route: "/financeiro/convenios", permission: "financeiro.convenios.visualizar" },
       { id: "favorecidos", label: "Favorecidos", icon: Users, route: "/financeiro/favorecidos", permission: "orcamento.criar" },
       { id: "contas", label: "Contas Bancárias", icon: Building2, route: "/financeiro/contas-bancarias" },
       { id: "conciliacao", label: "Conciliação Bancária", icon: ArrowLeftRight, route: "/financeiro/conciliacao", permission: "pagamento.conciliar" },
-      { id: "relatorios", label: "Relatórios", icon: BarChart3, route: "/financeiro/relatorios" },
+      { id: "atualizar", label: "Atualizar dados", icon: Upload, route: "/financeiro/atualizar" },
     ],
   },
 
@@ -156,20 +164,24 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
   compras: {
     dashboard: { label: "Painel de Compras", route: "/compras" },
     items: [
-      { id: "processos", label: "Processos de contratação", icon: ShoppingCart, route: "/compras/processos", permission: "compras.processos.visualizar" },
-      { id: "guia-compras", label: "Guia do processo de compras", icon: FileText, route: "/processos/compras" },
+      // Na ordem do ciclo: planejar (PCA e programação por natureza), contratar (processos) e, por último, o manual.
       { id: "pca", label: "Plano de Contratações (PCA)", icon: ClipboardList, route: "/compras/pca", permission: "compras.pca.visualizar" },
+      { id: "programacao-natureza", label: "Programação por natureza", icon: Landmark, route: "/compras/programacao", permission: "compras.processos.visualizar" },
+      { id: "processos", label: "Processos de contratação", icon: ShoppingCart, route: "/compras/processos", permission: "compras.processos.visualizar" },
+      { id: "guia-compras", label: "Como funciona uma compra", icon: FileText, route: "/processos/compras" },
     ],
   },
 
   // Contratos
   contratos: {
     dashboard: { label: "Painel de Contratos", route: "/contratos" },
-    // Lista, execução, aditivos e vencimentos voltam quando as telas existirem (P21).
+    // Execução, aditivos e avisos de vencimento entram com as entregas C2 a C6 (P21).
     items: [
+      { id: "contratos-lista", label: "Contratos", icon: FileCheck, route: "/contratos/lista", algumaPermissao: ["contratos.visualizar", "contratos.criar", "contratos.editar"] },
       { id: "passagens", label: "Passagens aéreas", icon: Plane, route: "/contratos/passagens", permission: "contratos.passagens.visualizar" },
       { id: "passagens-beneficiarios", label: "Beneficiários de passagem", icon: Users, route: "/contratos/passagens/beneficiarios", permission: "contratos.passagens.visualizar" },
       { id: "passagens-pendencias", label: "Pendências de passagens", icon: ClipboardCheck, route: "/contratos/passagens/pendencias", permission: "contratos.passagens.visualizar" },
+      { id: "passagens-faturas", label: "Faturas de passagens", icon: Receipt, route: "/contratos/passagens/faturas", permission: "contratos.passagens.visualizar" },
     ],
   },
 
@@ -204,14 +216,13 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     ],
   },
 
-  // Workflow/Processos
+  // Workflow/Processos: só localizar; a tramitação é no SEI (as telas do workflow
+  // seguem abrindo pelo painel, sem atalho no menu)
   workflow: {
     dashboard: { label: "Painel de Processos", route: "/workflow" },
     items: [
-      { id: "processos", label: "Processos", icon: Workflow, route: "/workflow/processos" },
-      { id: "novo", label: "Novo Processo", icon: FileText, route: "/workflow/processos?acao=novo" },
-      { id: "tramitacao", label: "Em Tramitação", icon: Send, route: "/workflow/processos?status=em_tramitacao" },
-      { id: "arquivados", label: "Arquivados", icon: Archive, route: "/workflow/processos?status=arquivado" },
+      { id: "localizar", label: "Localizar processo", icon: Search, route: "/processos/localizar" },
+      { id: "parados", label: "Parados", icon: Hourglass, route: "/processos/localizar?aba=parados" },
     ],
   },
 

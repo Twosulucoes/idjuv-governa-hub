@@ -10,8 +10,9 @@
 import {
   LayoutDashboard,
   Workflow,
+  Search,
+  Hourglass,
   FileText,
-  Archive,
   ShoppingCart,
   FileCheck,
   Users,
@@ -65,6 +66,7 @@ import {
   Bell,
   Mail,
   ArrowLeftRight,
+  Handshake,
 } from "lucide-react";
 
 // ================================
@@ -94,10 +96,12 @@ export type PermissaoInstitucional =
   // Contratos
   | 'contratos.visualizar'
   | 'contratos.criar'
+  | 'contratos.editar'
   | 'contratos.tramitar'
   | 'contratos.aprovar'
   | 'contratos.passagens.visualizar'
   | 'contratos.passagens.editar'
+  | 'contratos.passagens.financeiro'
   // RH
   // Código sem ponto = o módulo (hasPermission confere user_modules): para itens cuja rota pede só requiredModule
   | 'rh'
@@ -122,6 +126,7 @@ export type PermissaoInstitucional =
   | 'orcamento.criar'
   | 'orcamento.aprovar'
   | 'orcamento.importar'
+  | 'financeiro.convenios.visualizar'
   | 'pagamento.conciliar'
   // Gabinete
   | 'gabinete.portarias.importar'
@@ -191,45 +196,25 @@ export const menuConfig: MenuSection[] = [
   // ========== 1. PROCESSOS ADMINISTRATIVOS ==========
   {
     id: "processos",
-    label: "Processos Administrativos",
+    label: "Processos SEI",
     labelShort: "Processos",
     icon: Workflow,
     priority: 1,
     items: [
       {
-        id: "processos-lista",
-        label: "Processos",
-        labelShort: "Lista",
-        route: "/workflow/processos",
-        icon: Workflow,
-        permission: "workflow.visualizar",
-        priority: 1,
+        id: "processos-localizar",
+        label: "Localizar processo",
+        labelShort: "Localizar",
+        route: "/processos/localizar",
+        icon: Search,
+        priority: 0,
       },
       {
-        id: "processos-novo",
-        label: "Novo Processo",
-        labelShort: "Novo",
-        route: "/workflow/processos?acao=novo",
-        icon: FileText,
-        permission: "workflow.criar",
-        priority: 2,
-      },
-      {
-        id: "processos-tramitacao",
-        label: "Em Tramitação",
-        labelShort: "Tramitação",
-        route: "/workflow/processos?status=em_tramitacao",
-        icon: Send,
-        permission: "workflow.tramitar",
-        priority: 3,
-      },
-      {
-        id: "processos-arquivados",
-        label: "Arquivados",
-        route: "/workflow/processos?status=arquivado",
-        icon: Archive,
-        permission: "workflow.visualizar",
-        priority: 10,
+        id: "processos-parados",
+        label: "Parados",
+        route: "/processos/localizar?aba=parados",
+        icon: Hourglass,
+        priority: 0,
       },
     ],
   },
@@ -248,6 +233,20 @@ export const menuConfig: MenuSection[] = [
         icon: ShoppingCart,
         children: [
           {
+            id: "pca",
+            label: "Plano de Contratações (PCA)",
+            route: "/compras/pca",
+            icon: ClipboardList,
+            permission: "compras.pca.visualizar",
+          },
+          {
+            id: "programacao-natureza",
+            label: "Programação por natureza",
+            route: "/compras/programacao",
+            icon: Landmark,
+            permission: "compras.processos.visualizar",
+          },
+          {
             id: "licitacoes",
             label: "Processos de contratação",
             route: "/compras/processos",
@@ -262,11 +261,10 @@ export const menuConfig: MenuSection[] = [
             permission: "compras.processos.editar",
           },
           {
-            id: "pca",
-            label: "Plano de Contratações (PCA)",
-            route: "/compras/pca",
-            icon: ClipboardList,
-            permission: "compras.pca.visualizar",
+            id: "guia-compras",
+            label: "Como funciona uma compra",
+            route: "/processos/compras",
+            icon: BookOpen,
           },
         ],
       },
@@ -278,16 +276,16 @@ export const menuConfig: MenuSection[] = [
           {
             id: "contratos-lista",
             label: "Contratos",
-            route: "/processos/compras?tab=contratos",
+            route: "/contratos/lista",
             icon: FileCheck,
-            permission: "contratos.visualizar",
+            permissions: ["contratos.visualizar", "contratos.criar", "contratos.editar"],
           },
           {
-            id: "contratos-execucao",
-            label: "Execução Contratual",
-            route: "/processos/compras?tab=execucao",
-            icon: TrendingUp,
-            permission: "contratos.tramitar",
+            id: "contratos-novo",
+            label: "Novo contrato",
+            route: "/contratos/lista?novo=1",
+            icon: FileText,
+            permission: "contratos.criar",
           },
           {
             id: "passagens",
@@ -302,6 +300,13 @@ export const menuConfig: MenuSection[] = [
             route: "/contratos/passagens/pendencias",
             icon: ClipboardCheck,
             permissions: ["contratos.passagens.visualizar", "contratos.passagens.editar"],
+          },
+          {
+            id: "passagens-faturas",
+            label: "Faturas de passagens",
+            route: "/contratos/passagens/faturas",
+            icon: Receipt,
+            permissions: ["contratos.passagens.visualizar", "contratos.passagens.editar", "contratos.passagens.financeiro"],
           },
           {
             id: "passagens-novo",
@@ -653,25 +658,23 @@ export const menuConfig: MenuSection[] = [
         priority: 2,
       },
       {
-        id: "fin-despesas-submenu",
-        label: "Despesas",
-        icon: FileText,
+        // Empenhos do FIPLAN (FIP 614); o "Novo empenho" fica para a contingência
+        id: "fin-empenhos",
+        label: "Empenhos",
+        route: "/financeiro/empenhos",
+        icon: FileCheck,
+        permission: "orcamento.criar",
         priority: 3,
+      },
+      {
+        // Lançamentos fora do FIPLAN (FIPLAN fechado de janeiro a abril, tarifas, contas de convênio),
+        // regularizados depois no FIPLAN; os pagamentos saem pela remessa OBN600 da Conciliação
+        id: "fin-contingencia-submenu",
+        label: "Contingência (regularizar no FIPLAN)",
+        labelShort: "Contingência",
+        icon: ClipboardCheck,
+        priority: 4,
         children: [
-          {
-            id: "fin-solicitacoes",
-            label: "Solicitações",
-            route: "/financeiro/solicitacoes",
-            icon: FileText,
-            permission: "orcamento.visualizar",
-          },
-          {
-            id: "fin-empenhos",
-            label: "Empenhos",
-            route: "/financeiro/empenhos",
-            icon: FileCheck,
-            permission: "orcamento.criar",
-          },
           {
             id: "fin-liquidacoes",
             label: "Liquidações",
@@ -689,29 +692,13 @@ export const menuConfig: MenuSection[] = [
         ],
       },
       {
-        id: "fin-sub-empenhos",
-        label: "Sub-Empenhos",
-        labelShort: "Sub-Emp.",
-        route: "/financeiro/sub-empenhos",
-        icon: FileCheck,
-        permission: "orcamento.criar",
-        priority: 3,
-      },
-      {
-        id: "fin-restos-pagar",
-        label: "Restos a Pagar",
-        labelShort: "RAP",
-        route: "/financeiro/restos-a-pagar",
-        icon: FileCheck,
-        permission: "orcamento.visualizar",
-        priority: 3,
-      },
-      {
-        id: "fin-adiantamentos",
-        label: "Adiantamentos",
-        route: "/financeiro/adiantamentos",
-        icon: Wallet,
-        permission: "orcamento.visualizar",
+        // Espelho do Transferegov (só leitura), atualizado todo dia
+        id: "fin-convenios",
+        label: "Convênios federais",
+        labelShort: "Convênios",
+        route: "/financeiro/convenios",
+        icon: Handshake,
+        permission: "financeiro.convenios.visualizar",
         priority: 4,
       },
       {
@@ -741,11 +728,11 @@ export const menuConfig: MenuSection[] = [
         priority: 5,
       },
       {
-        id: "fin-relatorios",
-        label: "Relatórios",
-        route: "/financeiro/relatorios",
-        icon: BarChart3,
-        permission: "orcamento.visualizar",
+        id: "fin-atualizar",
+        label: "Atualizar dados",
+        labelShort: "Atualizar",
+        route: "/financeiro/atualizar",
+        icon: Upload,
         priority: 10,
       },
     ],
@@ -1295,7 +1282,7 @@ export const menuConfig: MenuSection[] = [
         route: "/admin/importacoes",
         icon: Upload,
         // Qualquer permissão de importador (mesma lista de PERMISSOES_IMPORTACAO em src/lib/importacao/registro.ts)
-        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar", "financeiro.folha.processar", "compras.processos.editar"],
+        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar", "financeiro.folha.processar", "compras.processos.editar", "contratos.criar"],
       },
       {
         id: "envios",

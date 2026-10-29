@@ -60,6 +60,9 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useConciliacaoMensal` (`useConciliacoesMensais`, `useMesConciliacao`, `useSalvarConciliacaoMensal`,
   `useReabrirConciliacaoMensal`): aba "Fechamento mensal" da Conciliação (quadro da SEFAZ); leitura do FIP630,
   FIP103 e OFX e o casamento em `src/lib/conciliacao/` (testes em `conciliacao.test.ts`).
+  `useConveniosFederais` (`useConveniosFederais`, `useConvenioFederal`, `useMovimentosConvenioFederal`,
+  `useUltimaSincronizacaoTransferegov`): espelho do Transferegov, só leitura (`/financeiro/convenios`); alertas de
+  prazo, espelho desatualizado e rótulos em `src/lib/financeiro/conveniosFederais.ts` (testes vitest).
   `useFavorecidos` (`useFavorecidos`, `useSalvarFavorecido`): favorecidos da tela Financeiro → Favorecidos (tabela
   `fornecedores`); agência e conta validadas por `src/lib/bancario/favorecido.ts`, com a regra da remessa OBN600.
 - **Compras:** `usePca` (`usePcaPlanos`, `usePcaPlano`, `useCriarPcaPlano`, `usePcaTetos`, `useSalvarPcaTeto`,
@@ -86,7 +89,37 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useSalvarPrestacaoPedido`, `usePedidosParaPendencias`, `useAnexosPedido`, `useEnviarAnexo`, `useRemoverAnexo` e
   `abrirAnexo` (bucket privado `passagens`, URL assinada de 60 s por `abrirArquivoPrivado`); retorno, vencimento, atraso e
   pendências por modo em `src/lib/passagens/prestacao.ts` (vitest). Aba em `PrestacaoTab.tsx`; tela
-  `PassagensPendenciasPage`.
+  `PassagensPendenciasPage`. Faturas e empenhos (entrega 3): `usePassagensFaturas` (`useBilhetesContrato`,
+  `useFaturas` e `buscarBilhetesPeriodo` (paginados com `buscarTodasPaginas`), `useFaturasDosTrechos`,
+  `useSalvarFatura` (RPC `passagem_salvar_fatura`: nota e bilhetes numa transação só), `useMudarSituacaoFatura` (falha
+  se nenhuma linha mudou), `useEmpenhosContrato`, `useEmpenhosCandidatos` (por exercício) e `useLigarEmpenho`); conferência da nota, a faturar (30 dias), saldo do
+  contrato e empenho por exercício em `src/lib/passagens/faturas.ts` e linhas das planilhas em
+  `src/lib/passagens/planilhas.ts` (vitest). Tela `PassagensFaturasPage`; diálogos `FaturaDialog`,
+  `SituacaoFaturaDialog`, `PlanilhaPassagensDialog`; aba `EmpenhosContratoTab`.
+- **Contratos (entrega C1):** `useContratos` (`useContratosLista` (até `LIMITE_LISTA`, com contratado, setor e
+  responsáveis), `useContrato`, `useSalvarContrato`, `useExcluirContrato` (só rascunho), `useProcessosContratacao`,
+  `useContratados`, `useCadastrarContratado`, `useItensContrato`, `useSalvarItem`, `useExcluirItem`,
+  `useResponsaveisContrato`, `useBuscarServidoresContrato` (RPC `contrato_buscar_servidores`: só nome, matrícula e
+  cargo), `useDesignarResponsavel`, `useEncerrarDesignacao` e `useHistoricoContrato`): telas `/contratos/lista`
+  (`ContratosListaPage`, filtros de situação e de prazo na URL, `?prazo=` e `?novo=1`) e `/contratos/:id`
+  (`ContratoFichaPage`, abas Dados, Itens, Gestor e fiscais e Histórico, `?aba=`). Componentes em
+  `src/components/contratos/` (`ContratoFormDialog`, `ItensContratoTab`, `ResponsaveisContratoTab`,
+  `HistoricoContratoTab`, `SeloVigencia`); tipos e rótulos em `src/types/contratos.ts`. Regras puras com testes vitest
+  em `src/lib/contratos/`: `vigencia.ts` (dias para vencer, situação da vigência e tom da situação), `lista.ts` (filtros
+  de prazo, números do painel e linhas da planilha), `responsaveis.ts` (portaria, período e ordem por papel),
+  `historico.ts` (texto de cada registro da trilha) e `ficha.ts` (dados do PDF). A carga entra pelo importador
+  `contratos_planilha` da Central (`/admin/importacoes?importador=contratos_planilha`, botão "Importar planilha" da
+  lista). O painel `/contratos` usa `resumoPainel` em `useContratosDashboardStats`. A busca de servidor reaproveita
+  `ServidorBusca` das passagens com a prop `useBusca`. CPF de contratado pessoa física aparece mascarado na ficha, no
+  PDF e na planilha (`mascararDocumento` de `src/lib/bancario/comum.ts`). Valores digitados passam por `lerNumeroBr`
+  (`src/lib/pca/numero.ts`), que desde a C1 lê "120.000" como milhar, como nos outros formulários de Compras. No menu do
+  módulo, `algumaPermissao` (`ModuleMenuItem`) mostra o item para quem tem uma das permissões da rota.
+- **Localizador de processos do SEI** (`src/hooks/useLocalizadorSei.ts`: `useLocalizarProcessos(termo)`, com 300 ms de
+  espera depois da última tecla e só com 3 caracteres ou mais, e `useProcessosParados()`): RPCs INVOKER
+  `localizar_processos_sei` e `processos_parados`, tipadas pelo `types.ts` (a `origem` é estreitada para as fontes de `OrigemLocalizador`; o contrato entrou na C1). Chave do nº SEI em `src/lib/processos/numeroSei.ts` (espelha `sei_normalizar` do banco) e
+  agrupamento por processo e links de cada fonte em `src/lib/processos/localizador.ts`, os dois com testes vitest.
+  Tela `/processos/localizar`. No menu lateral do módulo (`ModuleSidebar`), item com filtro na URL (`?aba=`,
+  `?status=`) só acende com o filtro, e o item sem filtro de mesmo caminho cede a vez a ele.
 - **Exercício do Financeiro** (`src/hooks/useExercicioFinanceiro.ts`): ano orçamentário compartilhado pelas telas
   do módulo. Lê `?exercicio=` da URL; sem ele, o último ano escolhido no navegador (`localStorage`,
   chave `financeiro:exercicio`); sem nenhum, o ano atual. Faixa: 2024 até o ano seguinte ao atual. Devolve

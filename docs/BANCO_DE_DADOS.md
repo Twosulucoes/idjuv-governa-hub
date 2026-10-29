@@ -1123,7 +1123,7 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
-- **Gatilhos de saldo do empenho e do contrato** (`20261030090000_fin_gatilhos_empenho_contrato.sql`, defeitos da
+- **Gatilhos de saldo do empenho e do contrato** (`20261107090000_fin_gatilhos_empenho_contrato.sql`, defeitos da
   demonstração de 24/10/2026; sem tabela nova nem mudança de RLS):
   - `fn_atualizar_saldo_sub_empenho`: o reforço só soma em `fin_empenhos.valor_empenhado` (a dotação segue pelo gatilho
     `trg_atualizar_saldo_empenho`, uma vez só); a anulação soma em `valor_anulado`, devolve à dotação só o empenho do
@@ -1136,11 +1136,47 @@ Todas idempotentes.
   - `atualizar_saldo_contrato`: o executado conta medição `aprovada` e `paga` (a paga saía do executado). A migração
     recalcula o contrato com medição paga;
   - testes no bloco "Financeiro e contratos: gatilhos de saldo" de `scripts/db/testar-rls.sql`.
-- **Folha: processar e reabrir** (`20261030091000_folha_processar_reabertura.sql`): `processar_folha_pagamento` não
+- **Folha: processar e reabrir** (`20261107091000_folha_processar_reabertura.sql`): `processar_folha_pagamento` não
   passa mais a folha por `processando` (status da folha enviada à conferência; o histórico registrava cada
   processamento como envio à conferência e o gatilho marcava quem processou como quem conferiu); no erro a folha fica
   como estava. `reabrir_folha` soma 1 em `quantidade_reaberturas`. Testes nos blocos "E1 folha" e "I4/M3" de
   `scripts/db/testar-rls.sql`.
+- **Processos de contratação, entrega 2** (`20261030090000_compras_processos_reservas_peds.sql`, mesma spec, §10):
+  - `processo_chave_fiplan(text)` (IMMUTABLE): leva o nº SEI (`17302.000885/2026.92`) e o nº do FIPLAN (`000885/26-92`)
+    à mesma chave (`885/26-92`); é por ela que PED, empenho e processo se ligam (`processo_empenhos` passou a usá-la);
+  - `fin_peds`: o relatório "Consultar PED" do FIPLAN, uma linha por PED ou documento de estorno (único por exercício,
+    número e nº do estorno; `processo_chave` gerada; `dotacao_id` achada pela mesma regra do FIP 614). Só SELECT pelo
+    módulo financeiro, sem escrita direta: grava `importar_peds_fiplan(p_exercicio, p_linhas, p_arquivo, p_simular)`
+    (DEFINER, exige o módulo financeiro e `orcamento.importar`; upsert com as mudanças por campo, simulação desfeita,
+    devolve os PEDs do exercício que não vieram no arquivo, log em `importacoes` com tipo `peds_fiplan`);
+  - `processo_reservas`: reserva do processo por exercício × ação × fonte × natureza (opcionalmente ligada ao item do
+    PCA), situação `reservada` ou `cancelada` (cancelar exige motivo; uma reservada por combinação), com a
+    justificativa e o saldo livre do momento quando gravada sem saldo. SELECT para quem vê processos ou tem o módulo
+    financeiro, sem escrita direta: `processo_reserva_salvar(...)` (DEFINER, `compras.processos.editar`, trava por
+    combinação; sem saldo ou sem QDD exige justificativa de 10 caracteres) e `processo_reserva_cancelar(p_id, p_motivo)`;
+  - saldo: `fin_dotacao_disponivel` = atual − bloqueado − max(PED, empenhado + reserva), porque no QDD a coluna PED já
+    soma o empenhado e a Cont./Reserva; o pendente de uma reserva é o reservado menos o PED autorizado e o empenhado
+    líquido do processo na combinação; saldo livre = disponível − pendente das reservas (`processo_saldo_livre`);
+  - leitura (DEFINER, exigem ver processos ou o módulo financeiro): `processo_reservas_detalhe`, `processo_peds`
+    (sem credor nem estornos), `processos_financeiro` (reservado, pendente, PED autorizado, empenhado, liquidado e pago
+    por processo) e `programacao_por_natureza` (QDD × reservas por combinação, com os processos);
+  - sem permissão nova; RLS classe `preservar` nas duas tabelas (policies na migração); testes no bloco
+    "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
+- **Localizador de processos do SEI** (`20261102090000`, só funções; spec
+  [2026-10-25-localizador-processos-sei-design.md](./superpowers/specs/2026-10-25-localizador-processos-sei-design.md)).
+  Nenhuma tabela, coluna, policy ou permissão nova:
+  - `sei_normalizar(text)` (IMMUTABLE): chave `NNNNNN/AA-DV` do nº SEI completo (`17302.000885/2026.92`) ou
+    abreviado do FIPLAN (`000885/26-92`), `NULL` se o texto não é nº SEI; espelhada em `src/lib/processos/numeroSei.ts`;
+  - `texto_busca(text)` (IMMUTABLE): minúsculas e sem acento por `translate` (o baseline não instala `unaccent`);
+  - `localizar_processos_sei(p_termo, p_limite default 50)` (INVOKER, cada fonte com a RLS dela): busca pelo nº (chave
+    normalizada, ou os dígitos quando o termo só tem número) ou por palavras em `processos_administrativos`,
+    `processos_licitatorios`, `passagem_pedidos`, `pca_itens`, `fin_empenhos`, `documentos`, `termos_cessao` e
+    `viagens_diarias` (e `contratos` desde a migração `20261104090000`); termo com menos de 3 caracteres não devolve
+    nada; limite de 1 a 200;
+  - `processos_parados(p_dias default 15)` (INVOKER): contratação fora de encerrado/cancelado e processo do workflow
+    aberto ou em tramitação sem movimentação há mais de N dias (por `current_date`), até 200;
+  - `EXECUTE` só para `authenticated`; testes no bloco "LOCALIZADOR" de `scripts/db/testar-rls.sql` (processo
+    sigiloso escondido, sem módulo não acha, anon sem acesso).
 - **Extrato do BB** (`20261011100300`): `fin_extrato_lancamentos` (`chave_unica` = `conta_bancaria_id|identificador_bb`).
   `registrar_extrato_bb(p_conta_bancaria_id uuid, p_lancamentos jsonb) → jsonb` (`recebidos`, `inseridos`,
   `existentes`, `conciliados`) só é executável pela **service role** (Edge Function `bb-api`, ver
@@ -1249,6 +1285,28 @@ No baseline, `campanhas_inventario_unidades` é classe `modulo` e `fotos_vistori
 ainda pode ter policies `acesso_total_*` em `campanhas_inventario` e `coletas_inventario` (vêm do
 histórico de migrações; o baseline já as remove); a correção no banco ao vivo aguarda decisão.
 
+### Convênios federais (espelho do Transferegov)
+
+Migração `20261105090000_fin_convenios_transferegov.sql` (spec
+[2026-10-29-convenios-federais-transferegov-design.md](./superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md)).
+Cópia, só para leitura, do que o Transferegov publica sobre o CNPJ da instituição (o da Configuração do cliente,
+`dados_oficiais` chave `cnpj`). Fonte e formato dos arquivos: [INTEGRACOES_EXTERNAS.md](./INTEGRACOES_EXTERNAS.md) §4.
+
+- `fin_tg_propostas` (chave `id_proposta`, o do Transferegov; `cnpj_proponente` com 14 dígitos), `fin_tg_emendas`
+  (chave `id_proposta` + `numero_emenda`), `fin_tg_convenios` (chave `numero`, uma por proposta) e
+  `fin_tg_movimentos` (chave `tipo` + `id_origem`; `tipo` é `empenho` ou `desembolso`, ligado a `numero_convenio`).
+  Filhos apagam em cascata com a proposta.
+- `fin_tg_sincronizacoes`: uma linha por carga (quando rodou, a data da carga do Transferegov, o CNPJ e as contagens).
+- **Ninguém escreve pela API.** `anon` não tem acesso; `authenticated` só tem `SELECT`. Leitura pela RLS classe
+  `trilha` com `leitura=financeiro.convenios.visualizar` (módulo `financeiro` + a permissão).
+- RPC `fin_tg_carregar(p_cnpj, p_data_carga, p_dados, p_forcar)` (`SECURITY DEFINER`, `search_path` fixo, `EXECUTE`
+  só para `service_role`): numa transação apaga o espelho e grava a carga nova. Recusa (`22023`) CNPJ diferente do da
+  Configuração do cliente, proposta de outro proponente e carga vazia quando o espelho tem dados (a não ser com
+  `p_forcar`). Quem chama é a Edge Function `transferegov`.
+- Permissão nova `financeiro.convenios.visualizar` (catálogo do financeiro), dada na migração a quem já tinha
+  `orcamento.visualizar` (papéis, usuários e concessões do módulo).
+- Testes no bloco "Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`.
+
 ### Compras, licitações e contratos
 `processos_licitatorios`, `itens_processo_licitatorio`, `itens_licitacao`,
 `propostas_licitacao`, `documentos_preparatorios_licitacao`, `atas_registro_preco`,
@@ -1307,6 +1365,80 @@ instituição inexistente), `passagem_propagar_nome_beneficiario` (nome corrigid
   do RH ligada foi apresentado e a data; `passagem_viagens_servidor` passa a devolver também essas duas colunas.
 - O prazo (padrão 5 dias corridos depois do último voo) fica em `module_settings.settings.passagens_prazo_prestacao_dias`
   do módulo `contratos`, gravado só pelo papel admin.
+
+**Passagens aéreas (entrega 3, migração `20261103090000_contratos_passagens_faturas.sql`).** Faturas da agência e
+empenhos do contrato. O FIPLAN continua sendo o oficial; aqui fica o que cada nota cobre.
+- `passagem_faturas`: nota da agência (`numero` único por contrato, `data_emissao`, `valor > 0`,
+  `processo_sei_pagamento`) e a situação `recebida → atestada → liquidada → paga`, ou `cancelada`. CHECKs: atestada pede
+  `atesto_data` e `atesto_documento_sei`; liquidada pede `liquidacao_data`; paga pede `pagamento_data` e `ob_numero`;
+  cancelada pede `cancelamento_motivo` (3 letras ou mais). O gatilho `passagem_conferir_fatura` aceita só contrato com
+  `controla_passagens`, não deixa trocar o contrato e segue o fluxo: nasce `recebida`; recebida vai para atestada ou
+  cancelada; atestada para liquidada, recebida ou cancelada; liquidada para paga, atestada ou cancelada; paga só volta
+  para liquidada (estorno). Fatura paga não muda nº, data nem valor (nem na volta) e, enquanto paga, não muda a OB nem
+  a data do pagamento; cancelada não muda mais (`22023`). Só fatura `recebida` se apaga (`42501` nas outras); os
+  bilhetes saem antes, para a trilha guardar o nº da nota.
+- `passagem_fatura_itens`: os bilhetes da nota (`trecho_id` único: um bilhete numa nota só) com o `valor` cobrado. O
+  gatilho `passagem_conferir_fatura_item` aceita só trecho com localizador de pedido do mesmo contrato e recusa incluir,
+  mudar ou tirar bilhete de fatura paga (`22023`). Fatura cancelada solta os bilhetes (o gatilho
+  `passagem_registrar_fatura` apaga os itens depois de registrar a trilha).
+- `passagem_contrato_empenhos`: empenhos (`fin_empenhos`) ligados ao contrato da agência (`contrato_id` + `empenho_id`
+  únicos), porque o FIP 614 não traz o contrato. `passagem_conferir_ligacao_empenho` aceita só contrato da agência e
+  empenho candidato (`passagem_empenho_candidato`: aponta para o contrato ou é do elemento 33, pela natureza ligada ou
+  pelos dígitos 5 e 6 do código; sem EXECUTE para a API).
+- Trilha: `passagem_historico` ganha as ações `fatura_item` (bilhete entrou, saiu ou mudou de valor na nota) e
+  `fatura_situacao` (um registro em cada pedido coberto pela nota).
+- RPCs (SECURITY DEFINER, `search_path` fixo): `passagem_empenhos_contrato(_contrato_id)` devolve nº, exercício, data,
+  natureza, credor e os totais (empenhado, anulado, liquidado, pago) só dos empenhos ligados, para quem lê passagens;
+  `passagem_empenhos_candidatos(_contrato_id, _exercicio)` lista os candidatos do exercício (padrão: o ano corrente) e
+  os já ligados (até 300), só para `contratos.passagens.financeiro`. As duas recusam contrato que não é da agência
+  (`22023`). `fin_empenhos` continua lido só pelo Financeiro.
+- `passagem_salvar_fatura(_fatura jsonb, _itens jsonb)` (SECURITY INVOKER, `authenticated`): grava a nota e acerta os
+  bilhetes (inclui, tira, corrige valor) numa transação só; sem bilhete recusa (`22023`) e com bilhete inválido desfaz
+  tudo. A RLS e os gatilhos acima valem do mesmo jeito.
+- RLS (classe `permissao`): ler com o módulo e `visualizar`, `editar` ou `financeiro`; gravar e apagar com
+  `contratos.passagens.financeiro` (permissão nova, dada a quem já tinha `contratos.criar`).
+
+**Contratos C1: cadastro, ficha e responsáveis (migração `20261104090000_contratos_c1_cadastro.sql`).** Spec
+[2026-10-27-contratos-gestao-completa-design.md](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)
+(§4, C1). O ato (contrato, portaria de designação) continua no SEI; aqui ficam os dados e o nº de cada documento.
+- `contratos` ganha `processo_sei`, `numero_pncp`, `fundamento_legal`, `tipo_contrato` (`servico_continuo`,
+  `servico_escopo`, `fornecimento`, `obra`, `locacao`, `outro`), `prorrogavel`, `prazo_maximo_meses`,
+  `unidade_demandante_id` (setor que pediu, `estrutura_organizacional`) e `natureza_despesa`, com CHECKs de tamanho e de
+  valores (`valor_inicial`/`valor_atual` não negativos, fim depois do início; os dois `NOT VALID`: linha antiga fora da
+  regra continua lá, mas só se altera corrigindo o valor ou a data). O nº passa a ser único por ano
+  (`contratos_numero_ano_key` em `numero_contrato, ano`, no lugar de `contratos_numero_contrato_key`). `data_fim_atual`
+  é preenchida com `data_fim` quando vazia (na carga, antes dos CHECKs e sem trilha nem `updated_at`, e pelo gatilho
+  `contratos_preparar`, que também apara o nº SEI e o PNCP e fixa `created_by`/`updated_by` pelo usuário da sessão);
+  muda de verdade só com os aditivos (C2).
+- `contrato_responsaveis`: gestor, gestor substituto e fiscais (técnico, administrativo, substituto) designados por
+  portaria (`portaria_numero`, `portaria_documento_sei`, `portaria_data`), com `data_inicio`, `data_fim` e
+  `motivo_saida` (obrigatório quando há fim). Um gestor ativo por contrato (`uq_contrato_responsaveis_gestor_ativo`) e o
+  mesmo servidor não fica duas vezes ativo no mesmo papel (`uq_contrato_responsaveis_papel_ativo`). O gatilho
+  `contrato_resp_preparar` (SECURITY DEFINER, quem tem Contratos não lê `servidores`) copia o nome do servidor (o nome
+  não se troca à mão), só designa servidor ativo, grava a autoria e não deixa a designação mudar de contrato (`22023`);
+  a trilha vai para `audit_log_licitacoes`. Carga: quem
+  estava em `contratos.gestor_id`/`fiscal_id` virou gestor e fiscal técnico desde o início do contrato; as duas colunas
+  ficam só como histórico.
+- `contratos_conferir_permissao` (gatilho em `contratos`): cadastrar pede `contratos.criar`; alterar pede
+  `contratos.editar`, salvo marcar só `controla_passagens` (basta `criar` ou `contratos.passagens.editar`; desmarcar
+  pede `editar`); apagar só rascunho, com `editar`; contrato assinado não volta a rascunho, nem com o papel admin
+  (`42501` nos outros casos). Sem usuário (CI, migração, service role) ou dentro de outro gatilho (saldo recalculado por
+  `atualizar_saldo_contrato`) não confere.
+- `contrato_buscar_servidores(_termo)` (SECURITY DEFINER, `authenticated`): servidores ativos por nome ou matrícula,
+  só id, nome, matrícula e cargo, até 20, para quem passa em `contrato_pode_gravar()` (módulo e `criar` ou `editar`).
+- `contratos_importar_planilha(p_linhas, p_arquivo, p_simular)` (Central de Importações, mesmo contrato das outras
+  RPCs de importação): até 1000 contratos por nº + ano (zeros à esquerda não contam: `1` e `01` são o mesmo), com
+  simulação; cadastra o contratado que falta (CPF ou CNPJ e razão social); contrato que já existe só ganha o que está
+  vazio, e o que a planilha traz diferente (valores, fim da vigência, contratado) vira aviso, sem mudar o cadastro;
+  designa gestor e fiscais pela matrícula (aviso quando a matrícula não existe e quando o contrato já tem gestor em
+  exercício). Exige `contratos.criar`; os gatilhos
+  continuam valendo (completar contrato existente pede `editar`). Tudo ou nada, com log em `importacoes`.
+- `localizar_processos_sei` passa a buscar também em `contratos` (origem `contrato`: nº SEI, nº do contrato, objeto e
+  contratado).
+- RLS (classe `permissao`, antes `modulo`): `contratos`, `itens_contrato` e `contrato_responsaveis` são lidas com o
+  módulo Compras ou Contratos; gravar pede `contratos.criar` ou `contratos.editar` (em `contratos` também
+  `contratos.passagens.editar`, que o gatilho limita a marcar o contrato da agência); apagar pede `contratos.editar`.
+  Decisão do dono em 27/10/2026. Testes no bloco "Contratos C1" de `scripts/db/testar-rls.sql`.
 
 ### Processos administrativos (workflow)
 `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`,

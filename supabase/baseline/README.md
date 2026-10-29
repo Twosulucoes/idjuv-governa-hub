@@ -78,7 +78,7 @@ Classes (detalhe no cabeçalho de `scripts/db/gerar-rls.mjs`; contagens apuradas
 | `proprio_user` | 4 | cada usuário lê as suas linhas (`user_roles`, `user_modules`, `user_permissions`, `user_org_units`); só admin escreve |
 | `admin` / `admin_leitura` | 8 / 1 | só o papel admin (a segunda: lê, ninguém escreve — `audit_logs`; desde a E1 imutável por trigger e com a policy extra `audit_logs_rh_auditoria_select` da migração `20261011000100`, fora do gerador: módulo `rh` e `rh.auditoria.visualizar` leem as linhas do RH) |
 | `publico_admin` | 4 | `anon` e logados leem (portal público); só admin escreve. `dados_oficiais` (configuração do cliente) entrou em 2026-10-11 (migração `20261011023500`) |
-| `preservar` | 20 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `fotos_vistoria_inventario`, `avisos`, `avisos_leituras`, `datas_importantes`, `importacoes`, `config_envio` e `envios_log`: policies das próprias migrações, que chegam pelo replay em `schema/03_post_data.sql` (as notas do `mapa.csv` ainda dizem "próxima regeneração"; o schema foi regenerado em 2026-10-10 e já as contém). `fin_movimentos_bancarios`, `fin_remessas_bancarias` e `fin_extrato_lancamentos` (migrações `20261011100100` a `20261011100300`): só SELECT pelo módulo financeiro, escrita pelas RPCs (e pela service role no extrato); privilégios no overlay 40 e testes no bloco "Financeiro: FIPLAN" de `scripts/db/testar-rls.sql`. `fin_classificadores_fiplan` (migração `20261019100000`): idem, escrita só por `importar_classificadores_fiplan`; testes no bloco "Financeiro: tabelas do FIPLAN". `fin_empenho_documentos_fiplan` (migração `20261027090000`): idem, escrita só por `importar_empenhos_fip614`; testes no bloco "Financeiro: empenhos do FIPLAN (FIP 614)". Workflow (migrações `20261013100100` e `20261013100200`): `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`, `prazos_processo`, `despachos` e `processo_checklist_respostas` leem por `wf_pode_ver_processo` (sigilo) e a escrita é das RPCs; testes no bloco "Workflow: acompanhamento do SEI" |
+| `preservar` | 22 | `denuncias` e `profiles`: policies próprias (`has_permission_code`; overlay 12); `fotos_vistoria_inventario`, `avisos`, `avisos_leituras`, `datas_importantes`, `importacoes`, `config_envio` e `envios_log`: policies das próprias migrações, que chegam pelo replay em `schema/03_post_data.sql` (as notas do `mapa.csv` ainda dizem "próxima regeneração"; o schema foi regenerado em 2026-10-10 e já as contém). `fin_movimentos_bancarios`, `fin_remessas_bancarias` e `fin_extrato_lancamentos` (migrações `20261011100100` a `20261011100300`): só SELECT pelo módulo financeiro, escrita pelas RPCs (e pela service role no extrato); privilégios no overlay 40 e testes no bloco "Financeiro: FIPLAN" de `scripts/db/testar-rls.sql`. `fin_classificadores_fiplan` (migração `20261019100000`): idem, escrita só por `importar_classificadores_fiplan`; testes no bloco "Financeiro: tabelas do FIPLAN". `fin_empenho_documentos_fiplan` (migração `20261027090000`): idem, escrita só por `importar_empenhos_fip614`; testes no bloco "Financeiro: empenhos do FIPLAN (FIP 614)". Workflow (migrações `20261013100100` e `20261013100200`): `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`, `prazos_processo`, `despachos` e `processo_checklist_respostas` leem por `wf_pode_ver_processo` (sigilo) e a escrita é das RPCs; testes no bloco "Workflow: acompanhamento do SEI". Compras (migração `20261030090000`): `fin_peds` (só SELECT pelo módulo financeiro; grava `importar_peds_fiplan`) e `processo_reservas` (SELECT por quem vê processos ou tem o módulo financeiro; grava `processo_reserva_salvar`/`processo_reserva_cancelar`); testes no bloco "Compras: reservas e PEDs" |
 | `fechada` | 1 | nada é gerado: RLS ligado e sem policy, negado a todos pela API (a service role ignora a RLS). Hoje só `limite_requisicoes_publicas` (P12, migração `20261017090000`), gravada por `limite_publico_consumir` (`SECURITY DEFINER`) |
 
 - Toda tabela de `public` precisa de uma linha no mapa e de RLS ligado: o teste de RLS reprova
@@ -286,11 +286,44 @@ de chefia) entrou em `schema/01_pre_data.sql` só com os trechos do dump: `termo
 `doe_data` e `numero_termo` sem `NOT NULL`; `nomeacoes_chefe_unidade.processo_sei`, `ato_data_assinatura` e
 `ato_numero`/`ato_data_publicacao` sem `NOT NULL`, com os `COMMENT ON COLUMN`. RLS e `rls/mapa.csv` sem mudança.
 
+A migração `20261030090000_compras_processos_reservas_peds.sql` (processos de contratação, entrega 2) entrou no
+schema regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `rls/mapa.csv` (`fin_peds` e `processo_reservas` na
+classe `preservar`, com as policies da própria migração) e no `overlay/40_privilegios.sql`; o catálogo não muda.
+Testes no bloco "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
+
+A migração `20261105090000_fin_convenios_transferegov.sql` (convênios federais do Transferegov) entrou no schema
+regenerado (`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_catalogo.sql`: só a linha de
+`financeiro.convenios.visualizar` e as concessões aos papéis, copiadas da regeneração), no `rls/mapa.csv` (as cinco
+`fin_tg_*` na classe `trilha` com `leitura=financeiro.convenios.visualizar`) e no `overlay/40_privilegios.sql` (sem
+INSERT/UPDATE/DELETE/TRUNCATE para `authenticated`; `fin_tg_carregar` só para `service_role`). Testes no bloco
+"Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`, com sementes em `seed_ov`.
+
+A migração `20261104090000_contratos_c1_cadastro.sql` (contratos, entrega C1) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (`contratos` e `itens_contrato`
+passam de `modulo` para `permissao` com `escrita=` e `excluir=`; `contrato_responsaveis` entra na mesma classe; as
+policies antigas `comp_module_*` de `contratos` seguem em `remover_policies`) e no `overlay/40_privilegios.sql` (gatilhos
+`contratos_preparar`, `contratos_conferir_permissao` e `contrato_resp_preparar` sem EXECUTE; `contrato_pode_gravar`,
+`contrato_buscar_servidores` e `contratos_importar_planilha` só para `authenticated`); testes no bloco "Contratos C1" de
+`scripts/db/testar-rls.sql` (com os gatilhos ligados), que usam a persona, o fornecedor e o servidor já semeados.
+
+A migração `20261103090000_contratos_passagens_faturas.sql` (passagens aéreas, entrega 3) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_catalogo.sql`: só a linha de
+`contratos.passagens.financeiro` e as concessões aos papéis, copiadas da regeneração), no `rls/mapa.csv`
+(`passagem_faturas`, `passagem_fatura_itens` e `passagem_contrato_empenhos`, classe `permissao` com `leitura=`) e no
+`overlay/40_privilegios.sql` (gatilhos e `passagem_empenho_candidato` sem EXECUTE; `passagem_empenhos_contrato`,
+`passagem_empenhos_candidatos` e `passagem_salvar_fatura` só para `authenticated`); testes no bloco "PASSAGENS FATURAS" de `scripts/db/testar-rls.sql`, com semente de
+`passagem_faturas` em `seed_ov`.
+
 A migração `20261101090000_contratos_passagens_prestacao.sql` (passagens aéreas, entrega 2) entrou no schema
 regenerado (`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (`passagem_anexos`, classe
 `permissao` com `leitura=`), no `overlay/40_privilegios.sql` (gatilhos sem EXECUTE; `passagem_relatorio_rh` só para
 `authenticated`) e no `overlay/50_storage.sql` (bucket privado `passagens` e as policies de SELECT, INSERT e DELETE);
 testes no bloco "PASSAGENS PRESTAÇÃO" de `scripts/db/testar-rls.sql`, com semente de `passagem_anexos` em `seed_ov`.
+
+A migração `20261102090000_localizador_processos_sei.sql` (localizador de processos do SEI) é só de funções:
+`sei_normalizar`, `texto_busca`, `localizar_processos_sei` e `processos_parados` entraram à mão em `01_pre_data.sql`
+(depois de `processo_empenhos`) e os grants em `overlay/40_privilegios.sql`; as duas de busca são SECURITY INVOKER, então
+cada fonte continua com a RLS dela. `rls/mapa.csv` sem mudança; testes no bloco "LOCALIZADOR" de `scripts/db/testar-rls.sql`.
 
 A migração `20261031090000_contratos_passagens.sql` (passagens aéreas, entrega 1) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões
