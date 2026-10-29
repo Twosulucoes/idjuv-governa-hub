@@ -50,6 +50,7 @@ describe("links dos registros", () => {
     expect(ORIGENS.contratacao.link({ registro_id: "x", ref: null })).toBe("/compras/processos/x");
     expect(ORIGENS.pca.link({ registro_id: "x", ref: "2026" })).toBe("/compras/pca/2026");
     expect(ORIGENS.termo_cessao.link({ registro_id: "x", ref: "u1" })).toBe("/unidades/u1");
+    expect(ORIGENS.contrato.link({ registro_id: "ct1", ref: "01/2026" })).toBe("/contratos/ct1");
     expect(ORIGENS.documento.link({ registro_id: "x", ref: "portaria" })).toBe("/gabinete/portarias");
     expect(ORIGENS.documento.link({ registro_id: "x", ref: "memorando" })).toBe("/admin/documentos");
   });

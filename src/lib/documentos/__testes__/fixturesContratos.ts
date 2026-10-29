@@ -1,0 +1,40 @@
+import type { DadosFichaContrato } from '../modelos/contratos/fichaContrato';
+
+export const dadosFichaContrato = (itens = 3): DadosFichaContrato => ({
+  numero: '01/2026',
+  situacao: 'Vigente',
+  vigenciaSituacao: 'Vence em 45 dias',
+  contratado: 'Empresa de Exemplo Ltda',
+  documentoContratado: '00.000.000/0001-91',
+  objeto: 'Prestação de serviços contínuos de limpeza e conservação.',
+  tipo: 'Serviço contínuo',
+  fundamento: 'Pregão eletrônico 05/2025, Lei 14.133/2021',
+  processoSei: '00000.000123/2025.11',
+  processoContratacao: undefined,
+  numeroPncp: '00000000000000-2-000001/2026',
+  setor: 'SETOR · Setor de Exemplo',
+  natureza: '3.3.90.37',
+  dotacao: undefined,
+  valorInicial: 120000,
+  valorAtual: 132500.5,
+  assinatura: '02/01/2026',
+  vigencia: '02/01/2026 a 01/01/2027',
+  prorrogacao: 'Prorrogável, até 120 meses',
+  publicacaoDoe: '10/01/2026 (DOE nº 1234)',
+  garantia: undefined,
+  responsaveis: [
+    { nome: 'Servidor Gestor', papel: 'Gestor', portaria: 'Portaria 10/2026, de 05/01/2026', periodo: 'desde 05/01/2026' },
+    { nome: 'Servidor Fiscal', papel: 'Fiscal técnico', periodo: 'desde 05/01/2026' },
+  ],
+  responsaveisAnteriores: [
+    { nome: 'Servidor Antigo', papel: 'Fiscal técnico', portaria: 'Portaria 2/2026', periodo: '02/01/2026 a 04/01/2026 · Exonerado' },
+  ],
+  itens: Array.from({ length: itens }, (_, i) => ({
+    numero: i + 1,
+    descricao: `Posto de serviço ${i + 1}`,
+    unidade: 'mês',
+    quantidade: 12,
+    valorUnitario: 1000.5,
+    valorTotal: 12006,
+  })),
+});

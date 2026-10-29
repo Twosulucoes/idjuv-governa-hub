@@ -56,6 +56,13 @@
 > "Sem dados cadastrados no exercício."; capacitações, resumo executivo e metas saíram (não há tabela de origem). Sem
 > nenhum cadastro, o PDF traz só o aviso "Dados ilustrativos — sem cadastro de governança", sem números.
 
+> **Contratos C1 (27/10/2026, documento novo):** `contratos-ficha-contrato` (ficha) imprime a ficha do contrato para
+> consulta ou para juntar ao processo no SEI quando quiser: dados do contrato (contratado, objeto, tipo, fundamento,
+> processo SEI, PNCP, setor que pediu, natureza), valores e vigência com a situação do prazo, publicação, gestor e
+> fiscais em exercício e anteriores (com a portaria) e os itens. Não é ato: contrato, aditivo e designação são do SEI. Chamado pelo
+> botão "Ficha (PDF)" da ficha do contrato (`/contratos/:id`); dados montados por `montarFichaContrato`
+> (`src/lib/contratos/ficha.ts`); testes em `__testes__/contratos-ficha.test.ts` (amostras em `amostras.test.ts`).
+
 > **Passagens aéreas (25/10/2026, dois documentos novos):** `contratos-passagem-ficha-pedido` (ficha) imprime o pedido
 > de passagem para juntar ao processo no SEI quando quiser: dados do pedido, aprovação registrada, cada passageiro com os
 > trechos (voo, situação, localizador, valor e a fatura de cada bilhete) e os totais emitido, em fatura e pago. Não é

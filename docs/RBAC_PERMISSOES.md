@@ -1018,6 +1018,26 @@ por padrão: concedem-se por usuário (`user_permissions`). O papel `admin` pass
 - **Modelos de fluxo**: além da RLS (módulo **e** `workflow.admin` para escrever), o trigger `wf_recusar_etapa_em_uso`
   recusa (`22023`) apagar ou renumerar etapa onde há processo, para qualquer papel.
 
+### Contratos: cadastro, ficha e responsáveis (C1)
+
+Migração `20261104090000_contratos_c1_cadastro.sql` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#compras-licitações-e-contratos)).
+Sem permissão nova: usa `contratos.visualizar`, `contratos.criar` e `contratos.editar`. Decisão do dono em 27/10/2026:
+antes, qualquer pessoa com o módulo Compras ou Contratos gravava e apagava contrato e item.
+
+| Ação | Permissão | Onde é cobrada |
+|---|---|---|
+| Ver a lista, a ficha, os itens, os responsáveis e o histórico | módulo `compras` ou `contratos` (RLS); a rota pede o módulo `contratos` **e** `contratos.visualizar`, `criar` ou `editar` | RLS de SELECT de `contratos`, `itens_contrato` e `contrato_responsaveis`; `ProtectedRoute` de `/contratos/lista` e `/contratos/:id` |
+| Cadastrar contrato | `contratos.criar` | RLS de INSERT e gatilho `contratos_conferir_permissao` (`42501`) |
+| Alterar contrato | `contratos.editar` (marcar só `controla_passagens` basta `criar` ou `contratos.passagens.editar`; desmarcar pede `editar`) | RLS de UPDATE e gatilho `contratos_conferir_permissao` |
+| Apagar contrato | `contratos.editar`, só em rascunho (assinado se marca como rescindido ou encerrado e não volta a rascunho, nem com admin) | RLS de DELETE e gatilho `contratos_conferir_permissao` |
+| Incluir e alterar item; designar e encerrar gestor ou fiscal | `contratos.criar` ou `contratos.editar` | RLS de INSERT/UPDATE de `itens_contrato` e `contrato_responsaveis` |
+| Apagar item ou designação | `contratos.editar` | RLS de DELETE |
+| Buscar servidor para designar | módulo **e** `contratos.criar` ou `contratos.editar` | `contrato_buscar_servidores` (SECURITY DEFINER, só nome, matrícula e cargo; `%` e `_` não são curinga) |
+| Importar a planilha de contratos | `contratos.criar` (completar contrato que já existe pede também `editar`) | `contratos_importar_planilha` (SECURITY DEFINER, com os gatilhos de `contratos` valendo) e botão "Importar planilha" |
+
+- O menu e os botões seguem as mesmas permissões (Novo contrato e Importar com `criar`; Editar e Apagar rascunho com
+  `editar`), mas quem decide é o banco.
+
 ### Contratos: passagens aéreas
 
 Migração `20261031090000_contratos_passagens.sql` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#compras-licitações-e-contratos)).
@@ -1030,7 +1050,7 @@ Duas permissões novas, concedidas pela migração a todo papel, usuário e mód
 | Apagar passageiro, trecho ou cotação | `contratos.passagens.editar`; trecho com localizador não se apaga (`passagem_proteger_emitido`, `42501`) | RLS de DELETE e gatilho |
 | Apagar pedido ou beneficiário | ninguém pela API (pedido cancela, beneficiário fica inativo) | `excluir=ninguem` no `mapa.csv` |
 | Buscar servidor e listar as viagens dele | módulo `contratos` **e** `contratos.passagens.editar` (quem só vê não percorre o RH) | `passagem_buscar_servidores` e `passagem_viagens_servidor` (SECURITY DEFINER, devolvem só nome, matrícula, cargo e as viagens; `%` e `_` da busca não são curinga) |
-| Cadastrar o contrato da agência ou ligar um contrato existente às passagens | `contratos.passagens.editar` **e** `contratos.criar` (botão); no banco, a escrita em `contratos` segue a policy do módulo | `PassagensPedidosPage` |
+| Cadastrar o contrato da agência ou ligar um contrato existente às passagens | `contratos.passagens.editar` **e** `contratos.criar` (botão); no banco, cadastrar pede `contratos.criar` e ligar (só `controla_passagens`) pede `contratos.criar` ou `contratos.passagens.editar` (gatilho `contratos_conferir_permissao`, desde a C1) | `PassagensPedidosPage` |
 
 - Quem tem passagens não lê `servidores` nem `instituicoes`: o nome do passageiro e do solicitante é copiado pelo
   gatilho `passagem_copiar_nome` (SECURITY DEFINER), que também confere se a viagem do RH é do servidor e recusa id

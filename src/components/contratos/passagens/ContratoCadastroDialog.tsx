@@ -1,6 +1,7 @@
 /**
  * Contrato da agência: marca um contrato já cadastrado ou faz o cadastro mínimo (número, fornecedor, objeto, valor e
- * vigência), até o módulo Contratos ter a sua tela. O fornecedor já precisa existir (Financeiro → Favorecidos).
+ * vigência), sem sair das passagens. O cadastro completo (gestor, fiscais, itens) fica na ficha do contrato
+ * (/contratos/:id). O fornecedor já precisa existir (Financeiro → Favorecidos).
  */
 
 import { useEffect, useState } from "react";

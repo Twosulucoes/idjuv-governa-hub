@@ -83,7 +83,7 @@ export default function ImportacoesPage() {
       </div>
 
       <Dialog open={!!aberto} onOpenChange={(open) => !open && !ocupado && fechar()}>
-        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Importar {aberto?.titulo}</DialogTitle>
             <DialogDescription>{aberto?.descricao}</DialogDescription>

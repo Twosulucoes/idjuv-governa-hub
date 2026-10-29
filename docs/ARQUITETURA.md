@@ -112,6 +112,15 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   "Parados" (`/processos/localizar?aba=parados`) como os únicos itens de Processos SEI, nos dois arquivos de menu (a
   tramitação é no SEI: a lista `/workflow/processos` e o "Novo processo" saíram do menu e abrem pelo painel `/workflow`). Spec:
   `docs/superpowers/specs/2026-10-25-localizador-processos-sei-design.md`.
+- **Contratos (entrega C1)** em `/contratos/lista` e `/contratos/:id` (`ContratosListaPage`, `ContratoFichaPage`,
+  `requiredModule="contratos"` e `contratos.visualizar`, `contratos.criar` ou `contratos.editar`): lista com filtros de
+  situação e de prazo (`?prazo=em_vigor|30|60|90|120|vencidos|sem_responsavel`, usados pelos cartões do painel
+  `/contratos`), cadastro (`?novo=1`) e ficha com as abas Dados, Itens, Gestor e fiscais e Histórico (`?aba=` abre direto
+  numa delas) e a ficha em PDF. `/contratos/:id` fica depois das rotas de passagens no `App.tsx` (o react-router prefere o
+  caminho fixo de qualquer jeito). Menu: "Contratos" e "Novo contrato" (`/contratos/lista?novo=1`) no menu geral e
+  "Contratos" no menu do módulo. A carga inicial é pela Central de Importações
+  (`/admin/importacoes?importador=contratos_planilha`). Spec:
+  `docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md`.
 - **Passagens aéreas (Contratos)** em `/contratos/passagens`, `/contratos/passagens/:id` e
   `/contratos/passagens/beneficiarios` (`PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,
   `requiredModule="contratos"` e `contratos.passagens.visualizar` ou `contratos.passagens.editar`): um pedido por

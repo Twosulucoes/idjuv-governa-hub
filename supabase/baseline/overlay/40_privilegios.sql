@@ -431,3 +431,14 @@ REVOKE ALL ON FUNCTION public.passagem_empenhos_candidatos(uuid, integer) FROM P
 GRANT EXECUTE ON FUNCTION public.passagem_empenhos_candidatos(uuid, integer) TO authenticated;
 REVOKE ALL ON FUNCTION public.passagem_salvar_fatura(jsonb, jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.passagem_salvar_fatura(jsonb, jsonb) TO authenticated;
+
+-- ---- Contratos C1: cadastro, ficha e responsáveis (migração 20261104090000) ----
+REVOKE EXECUTE ON FUNCTION public.contrato_resp_preparar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.contratos_preparar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.contratos_conferir_permissao() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.contrato_pode_gravar() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.contrato_pode_gravar() TO authenticated;
+REVOKE ALL ON FUNCTION public.contrato_buscar_servidores(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.contrato_buscar_servidores(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) TO authenticated;
