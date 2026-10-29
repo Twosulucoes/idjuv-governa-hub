@@ -1153,7 +1153,8 @@ Todas idempotentes.
   - `localizar_processos_sei(p_termo, p_limite default 50)` (INVOKER, cada fonte com a RLS dela): busca pelo nº (chave
     normalizada, ou os dígitos quando o termo só tem número) ou por palavras em `processos_administrativos`,
     `processos_licitatorios`, `passagem_pedidos`, `pca_itens`, `fin_empenhos`, `documentos`, `termos_cessao` e
-    `viagens_diarias`; termo com menos de 3 caracteres não devolve nada; limite de 1 a 200;
+    `viagens_diarias` (e `contratos` desde a migração `20261104090000`); termo com menos de 3 caracteres não devolve
+    nada; limite de 1 a 200;
   - `processos_parados(p_dias default 15)` (INVOKER): contratação fora de encerrado/cancelado e processo do workflow
     aberto ou em tramitação sem movimentação há mais de N dias (por `current_date`), até 200;
   - `EXECUTE` só para `authenticated`; testes no bloco "LOCALIZADOR" de `scripts/db/testar-rls.sql` (processo
@@ -1378,6 +1379,48 @@ empenhos do contrato. O FIPLAN continua sendo o oficial; aqui fica o que cada no
   tudo. A RLS e os gatilhos acima valem do mesmo jeito.
 - RLS (classe `permissao`): ler com o módulo e `visualizar`, `editar` ou `financeiro`; gravar e apagar com
   `contratos.passagens.financeiro` (permissão nova, dada a quem já tinha `contratos.criar`).
+
+**Contratos C1: cadastro, ficha e responsáveis (migração `20261104090000_contratos_c1_cadastro.sql`).** Spec
+[2026-10-27-contratos-gestao-completa-design.md](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)
+(§4, C1). O ato (contrato, portaria de designação) continua no SEI; aqui ficam os dados e o nº de cada documento.
+- `contratos` ganha `processo_sei`, `numero_pncp`, `fundamento_legal`, `tipo_contrato` (`servico_continuo`,
+  `servico_escopo`, `fornecimento`, `obra`, `locacao`, `outro`), `prorrogavel`, `prazo_maximo_meses`,
+  `unidade_demandante_id` (setor que pediu, `estrutura_organizacional`) e `natureza_despesa`, com CHECKs de tamanho e de
+  valores (`valor_inicial`/`valor_atual` não negativos, fim depois do início; os dois `NOT VALID`: linha antiga fora da
+  regra continua lá, mas só se altera corrigindo o valor ou a data). O nº passa a ser único por ano
+  (`contratos_numero_ano_key` em `numero_contrato, ano`, no lugar de `contratos_numero_contrato_key`). `data_fim_atual`
+  é preenchida com `data_fim` quando vazia (na carga, antes dos CHECKs e sem trilha nem `updated_at`, e pelo gatilho
+  `contratos_preparar`, que também apara o nº SEI e o PNCP e fixa `created_by`/`updated_by` pelo usuário da sessão);
+  muda de verdade só com os aditivos (C2).
+- `contrato_responsaveis`: gestor, gestor substituto e fiscais (técnico, administrativo, substituto) designados por
+  portaria (`portaria_numero`, `portaria_documento_sei`, `portaria_data`), com `data_inicio`, `data_fim` e
+  `motivo_saida` (obrigatório quando há fim). Um gestor ativo por contrato (`uq_contrato_responsaveis_gestor_ativo`) e o
+  mesmo servidor não fica duas vezes ativo no mesmo papel (`uq_contrato_responsaveis_papel_ativo`). O gatilho
+  `contrato_resp_preparar` (SECURITY DEFINER, quem tem Contratos não lê `servidores`) copia o nome do servidor (o nome
+  não se troca à mão), só designa servidor ativo, grava a autoria e não deixa a designação mudar de contrato (`22023`);
+  a trilha vai para `audit_log_licitacoes`. Carga: quem
+  estava em `contratos.gestor_id`/`fiscal_id` virou gestor e fiscal técnico desde o início do contrato; as duas colunas
+  ficam só como histórico.
+- `contratos_conferir_permissao` (gatilho em `contratos`): cadastrar pede `contratos.criar`; alterar pede
+  `contratos.editar`, salvo marcar só `controla_passagens` (basta `criar` ou `contratos.passagens.editar`; desmarcar
+  pede `editar`); apagar só rascunho, com `editar`; contrato assinado não volta a rascunho, nem com o papel admin
+  (`42501` nos outros casos). Sem usuário (CI, migração, service role) ou dentro de outro gatilho (saldo recalculado por
+  `atualizar_saldo_contrato`) não confere.
+- `contrato_buscar_servidores(_termo)` (SECURITY DEFINER, `authenticated`): servidores ativos por nome ou matrícula,
+  só id, nome, matrícula e cargo, até 20, para quem passa em `contrato_pode_gravar()` (módulo e `criar` ou `editar`).
+- `contratos_importar_planilha(p_linhas, p_arquivo, p_simular)` (Central de Importações, mesmo contrato das outras
+  RPCs de importação): até 1000 contratos por nº + ano (zeros à esquerda não contam: `1` e `01` são o mesmo), com
+  simulação; cadastra o contratado que falta (CPF ou CNPJ e razão social); contrato que já existe só ganha o que está
+  vazio, e o que a planilha traz diferente (valores, fim da vigência, contratado) vira aviso, sem mudar o cadastro;
+  designa gestor e fiscais pela matrícula (aviso quando a matrícula não existe e quando o contrato já tem gestor em
+  exercício). Exige `contratos.criar`; os gatilhos
+  continuam valendo (completar contrato existente pede `editar`). Tudo ou nada, com log em `importacoes`.
+- `localizar_processos_sei` passa a buscar também em `contratos` (origem `contrato`: nº SEI, nº do contrato, objeto e
+  contratado).
+- RLS (classe `permissao`, antes `modulo`): `contratos`, `itens_contrato` e `contrato_responsaveis` são lidas com o
+  módulo Compras ou Contratos; gravar pede `contratos.criar` ou `contratos.editar` (em `contratos` também
+  `contratos.passagens.editar`, que o gatilho limita a marcar o contrato da agência); apagar pede `contratos.editar`.
+  Decisão do dono em 27/10/2026. Testes no bloco "Contratos C1" de `scripts/db/testar-rls.sql`.
 
 ### Processos administrativos (workflow)
 `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`,

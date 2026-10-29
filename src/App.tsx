@@ -242,6 +242,8 @@ import {
 } from "./pages/financeiro";
 import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage";
 import PcaListaPage from "./pages/compras/PcaListaPage";
+import ContratosListaPage from "./pages/contratos/ContratosListaPage";
+import ContratoFichaPage from "./pages/contratos/ContratoFichaPage";
 import PassagensPedidosPage from "./pages/contratos/PassagensPedidosPage";
 import PassagemPedidoPage from "./pages/contratos/PassagemPedidoPage";
 import PassagensBeneficiariosPage from "./pages/contratos/PassagensBeneficiariosPage";
@@ -520,6 +522,11 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/contratos" element={<ProtectedRoute requiredModule="contratos"><ContratosDashboardPage /></ProtectedRoute>} />
+              <Route path="/contratos/lista" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.visualizar", "contratos.criar", "contratos.editar"]}>
+                  <ContratosListaPage />
+                </ProtectedRoute>
+              } />
               <Route path="/contratos/passagens" element={
                 <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
                   <PassagensPedidosPage />
@@ -543,6 +550,11 @@ const App = () => (
               <Route path="/contratos/passagens/:id" element={
                 <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
                   <PassagemPedidoPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/contratos/:id" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.visualizar", "contratos.criar", "contratos.editar"]}>
+                  <ContratoFichaPage />
                 </ProtectedRoute>
               } />
               <Route path="/workflow" element={<ProtectedRoute requiredModule="workflow"><WorkflowDashboardPage /></ProtectedRoute>} />

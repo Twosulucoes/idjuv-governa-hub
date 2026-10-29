@@ -216,6 +216,12 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   papéis) e no `overlay/40_privilegios.sql` (sem escrita para `authenticated`, `fin_tg_carregar` só para
   `service_role`); testes no bloco "Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`
   ([detalhe](./BANCO_DE_DADOS.md)).
+- Os contratos, entrega C1 (migração `20261104090000`), mudaram no mapa: `contratos` e `itens_contrato` saíram da classe
+  `modulo` para `permissao` (gravar com `contratos.criar` ou `contratos.editar`, apagar com `editar`) e entrou
+  `contrato_responsaveis` na mesma classe; schema regenerado, catálogo sem mudança (as permissões já existiam) e
+  `overlay/40_privilegios.sql` (gatilhos sem EXECUTE; `contrato_pode_gravar`, `contrato_buscar_servidores` e
+  `contratos_importar_planilha` só para `authenticated`); testes no bloco "Contratos C1" de `scripts/db/testar-rls.sql`
+  ([detalhe](./BANCO_DE_DADOS.md)).
 - As passagens aéreas, entrega 3 (migração `20261103090000`), entraram no mapa (`passagem_faturas`,
   `passagem_fatura_itens` e `passagem_contrato_empenhos`, classe `permissao` com escrita e exclusão por
   `contratos.passagens.financeiro` e leitura por `visualizar`, `editar` ou `financeiro`), no schema regenerado, no

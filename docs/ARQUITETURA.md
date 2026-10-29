@@ -117,6 +117,15 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `id_proposta` do Transferegov): lista e ficha das propostas, emendas, convênios, empenhos e desembolsos da União, só
   leitura. Os dados chegam pela rotina diária `.github/workflows/transferegov.yml` → Edge Function `transferegov` →
   RPC `fin_tg_carregar`. Menu em Financeiro → "Convênios federais". Spec: `docs/superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md`.
+- **Contratos (entrega C1)** em `/contratos/lista` e `/contratos/:id` (`ContratosListaPage`, `ContratoFichaPage`,
+  `requiredModule="contratos"` e `contratos.visualizar`, `contratos.criar` ou `contratos.editar`): lista com filtros de
+  situação e de prazo (`?prazo=em_vigor|30|60|90|120|vencidos|sem_responsavel`, usados pelos cartões do painel
+  `/contratos`), cadastro (`?novo=1`) e ficha com as abas Dados, Itens, Gestor e fiscais e Histórico (`?aba=` abre direto
+  numa delas) e a ficha em PDF. `/contratos/:id` fica depois das rotas de passagens no `App.tsx` (o react-router prefere o
+  caminho fixo de qualquer jeito). Menu: "Contratos" e "Novo contrato" (`/contratos/lista?novo=1`) no menu geral e
+  "Contratos" no menu do módulo. A carga inicial é pela Central de Importações
+  (`/admin/importacoes?importador=contratos_planilha`). Spec:
+  `docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md`.
 - **Passagens aéreas (Contratos)** em `/contratos/passagens`, `/contratos/passagens/:id` e
   `/contratos/passagens/beneficiarios` (`PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,
   `requiredModule="contratos"` e `contratos.passagens.visualizar` ou `contratos.passagens.editar`): um pedido por

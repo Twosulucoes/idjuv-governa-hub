@@ -191,13 +191,24 @@ escrita é por RPC `wf_*`).
 Licitações, aquisições e gestão contratual. Operados via
 `src/pages/processos/ComprasProcessoPage` e dashboards de módulo
 (`ComprasDashboardPage`, `ContratosDashboardPage`). Backend: `processos_licitatorios`,
-`contratos`, `atas_registro_preco`, `fornecedores`, etc. Atas SRP, fornecedores e as telas de contratos (lista,
-execução, aditivos, vencimentos) ainda não existem; saíram do menu no P09 e voltam no P20/P21. Os menus seguem
+`contratos`, `atas_registro_preco`, `fornecedores`, etc. Atas SRP, fornecedores e as telas de execução, aditivos e
+vencimentos dos contratos ainda não existem (voltam no P20/P21, entregas C2 a C6). Os menus seguem
 o ciclo: Compras tem PCA, Programação por natureza (`/compras/programacao`: disponível do QDD, reservado em
 processos e saldo livre), Processos de contratação e "Como funciona uma compra" (o guia `/processos/compras`, por
-último); Contratos tem o que vem depois do contrato assinado (Passagens aéreas, Beneficiários e Pendências de
-passagens). Os atalhos do painel de Contratos levam a passagens, pendências, processos de contratação e contratos
-publicados; nenhum aponta mais para o guia de Compras.
+último); Contratos tem o que vem depois do contrato assinado (Contratos, Passagens aéreas, Beneficiários e Pendências
+de passagens). O painel de Contratos mostra os contratos em vigor, os que vencem em até 90 dias, os sem gestor ou
+fiscal e o valor em vigor (cada número abre a lista já filtrada); os atalhos levam à lista, à importação, a passagens,
+pendências e processos de contratação, cada um só para quem tem a permissão; nenhum aponta mais para o guia de Compras.
+
+- **Contratos (entrega C1):** `/contratos/lista` lista os contratos com nº, processo SEI, objeto, contratado, setor,
+  gestor, valor atual e vigência (selo de prazo), com filtros de situação e de prazo (em vigor, vence em até 30, 60, 90
+  ou 120 dias, vencidos, sem gestor ou fiscal), busca, planilha e o botão "Importar planilha" (Central de Importações,
+  importador `contratos_planilha`, com simulação antes de gravar). A ficha (`/contratos/:id`) tem as abas Dados, Itens
+  (soma dos itens × valor do contrato), Gestor e fiscais (designar com a portaria do SEI, encerrar com data e motivo;
+  aviso quando falta gestor ou fiscal, art. 117 da Lei 14.133) e Histórico (quem mudou o quê); os botões copiam o nº SEI,
+  emitem a ficha em PDF, editam e apagam o rascunho. O contrato entra no localizador de processos do SEI. Cadastrar pede
+  `contratos.criar`, alterar pede `contratos.editar` e só o rascunho se apaga
+  ([spec](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)).
 
 - **Passagens aéreas (Contratos, entregas 1 a 3):** `/contratos/passagens` lista os pedidos, um por processo SEI, com
   quem pediu, evento, passageiros, situação e valor emitido, e no alto o valor do contrato da agência, o emitido e o

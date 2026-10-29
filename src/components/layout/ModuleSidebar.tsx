@@ -43,13 +43,15 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse, b
   const menuConfig = MODULE_MENUS[module];
   const [openItems, setOpenItems] = useState<string[]>([]);
   const { getDisabledFeatures } = useModuleSettings();
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasAnyPermission } = useAuth();
 
   // Filter out disabled features (e itens/filhos com permissão própria que o usuário não tem)
   const filteredItems = useMemo(() => {
     const disabled = getDisabledFeatures(module);
     const visivel = (item: ModuleMenuItem) =>
-      !disabled.includes(item.id) && (!item.permission || hasPermission(item.permission));
+      !disabled.includes(item.id) &&
+      (!item.permission || hasPermission(item.permission)) &&
+      (!item.algumaPermissao || hasAnyPermission(item.algumaPermissao));
 
     return (menuConfig?.items || [])
       .filter(visivel)
@@ -62,7 +64,7 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse, b
         }
         return item;
       });
-  }, [menuConfig, module, getDisabledFeatures, hasPermission]);
+  }, [menuConfig, module, getDisabledFeatures, hasPermission, hasAnyPermission]);
 
   // Rota com filtro na URL (?aba=, ?status=) só fica ativa com o filtro; a rota sem filtro cede a vez a uma irmã de
   // mesmo caminho cujo filtro está na URL (em "Parados" não acende também "Localizar processo").

@@ -6322,6 +6322,107 @@ export type Database = {
         }
         Relationships: []
       }
+      contrato_responsaveis: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          motivo_saida: string | null
+          nome: string
+          observacoes: string | null
+          papel: string
+          portaria_data: string | null
+          portaria_documento_sei: string | null
+          portaria_numero: string | null
+          servidor_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          id?: string
+          motivo_saida?: string | null
+          nome?: string
+          observacoes?: string | null
+          papel: string
+          portaria_data?: string | null
+          portaria_documento_sei?: string | null
+          portaria_numero?: string | null
+          servidor_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          motivo_saida?: string | null
+          nome?: string
+          observacoes?: string | null
+          papel?: string
+          portaria_data?: string | null
+          portaria_documento_sei?: string | null
+          portaria_numero?: string | null
+          servidor_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_responsaveis_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_responsaveis_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_responsaveis_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "contrato_responsaveis_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_responsaveis_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "contrato_responsaveis_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contratos: {
         Row: {
           ano: number
@@ -6337,19 +6438,27 @@ export type Database = {
           fiscal_id: string | null
           fonte_recurso: string | null
           fornecedor_id: string
+          fundamento_legal: string | null
           garantia_tipo: string | null
           garantia_valor: number | null
           garantia_vencimento: string | null
           gestor_id: string | null
           id: string
+          natureza_despesa: string | null
           numero_contrato: string
           numero_doe: string | null
+          numero_pncp: string | null
           objeto: string
           objeto_resumido: string | null
           observacoes: string | null
+          prazo_maximo_meses: number | null
           processo_licitatorio_id: string | null
+          processo_sei: string | null
+          prorrogavel: boolean
           saldo_contrato: number | null
           status: Database["public"]["Enums"]["status_contrato"] | null
+          tipo_contrato: string | null
+          unidade_demandante_id: string | null
           updated_at: string | null
           updated_by: string | null
           valor_atual: number
@@ -6371,19 +6480,27 @@ export type Database = {
           fiscal_id?: string | null
           fonte_recurso?: string | null
           fornecedor_id: string
+          fundamento_legal?: string | null
           garantia_tipo?: string | null
           garantia_valor?: number | null
           garantia_vencimento?: string | null
           gestor_id?: string | null
           id?: string
+          natureza_despesa?: string | null
           numero_contrato: string
           numero_doe?: string | null
+          numero_pncp?: string | null
           objeto: string
           objeto_resumido?: string | null
           observacoes?: string | null
+          prazo_maximo_meses?: number | null
           processo_licitatorio_id?: string | null
+          processo_sei?: string | null
+          prorrogavel?: boolean
           saldo_contrato?: number | null
           status?: Database["public"]["Enums"]["status_contrato"] | null
+          tipo_contrato?: string | null
+          unidade_demandante_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
           valor_atual: number
@@ -6404,19 +6521,27 @@ export type Database = {
           fiscal_id?: string | null
           fonte_recurso?: string | null
           fornecedor_id?: string
+          fundamento_legal?: string | null
           garantia_tipo?: string | null
           garantia_valor?: number | null
           garantia_vencimento?: string | null
           gestor_id?: string | null
           id?: string
+          natureza_despesa?: string | null
           numero_contrato?: string
           numero_doe?: string | null
+          numero_pncp?: string | null
           objeto?: string
           objeto_resumido?: string | null
           observacoes?: string | null
+          prazo_maximo_meses?: number | null
           processo_licitatorio_id?: string | null
+          processo_sei?: string | null
+          prorrogavel?: boolean
           saldo_contrato?: number | null
           status?: Database["public"]["Enums"]["status_contrato"] | null
+          tipo_contrato?: string | null
+          unidade_demandante_id?: string | null
           updated_at?: string | null
           updated_by?: string | null
           valor_atual?: number
@@ -6506,6 +6631,13 @@ export type Database = {
             columns: ["processo_licitatorio_id"]
             isOneToOne: false
             referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_unidade_demandante_id_fkey"
+            columns: ["unidade_demandante_id"]
+            isOneToOne: false
+            referencedRelation: "estrutura_organizacional"
             referencedColumns: ["id"]
           },
         ]
@@ -26567,6 +26699,23 @@ export type Database = {
           _usuario: string
         }
         Returns: boolean
+      }
+      contrato_buscar_servidores: {
+        Args: { _termo: string }
+        Returns: {
+          cargo: string
+          id: string
+          matricula: string
+          nome: string
+        }[]
+      }
+      contrato_pode_gravar: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      contratos_importar_planilha: {
+        Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
+        Returns: Json
       }
       corrigir_conta_movimento: {
         Args: {

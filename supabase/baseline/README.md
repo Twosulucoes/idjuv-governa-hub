@@ -297,6 +297,14 @@ regenerado (`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_cat
 INSERT/UPDATE/DELETE/TRUNCATE para `authenticated`; `fin_tg_carregar` só para `service_role`). Testes no bloco
 "Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`, com sementes em `seed_ov`.
 
+A migração `20261104090000_contratos_c1_cadastro.sql` (contratos, entrega C1) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (`contratos` e `itens_contrato`
+passam de `modulo` para `permissao` com `escrita=` e `excluir=`; `contrato_responsaveis` entra na mesma classe; as
+policies antigas `comp_module_*` de `contratos` seguem em `remover_policies`) e no `overlay/40_privilegios.sql` (gatilhos
+`contratos_preparar`, `contratos_conferir_permissao` e `contrato_resp_preparar` sem EXECUTE; `contrato_pode_gravar`,
+`contrato_buscar_servidores` e `contratos_importar_planilha` só para `authenticated`); testes no bloco "Contratos C1" de
+`scripts/db/testar-rls.sql` (com os gatilhos ligados), que usam a persona, o fornecedor e o servidor já semeados.
+
 A migração `20261103090000_contratos_passagens_faturas.sql` (passagens aéreas, entrega 3) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_catalogo.sql`: só a linha de
 `contratos.passagens.financeiro` e as concessões aos papéis, copiadas da regeneração), no `rls/mapa.csv`

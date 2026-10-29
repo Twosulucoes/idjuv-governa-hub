@@ -440,3 +440,14 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_tg_propostas, public.fin_t
               public.fin_tg_movimentos, public.fin_tg_sincronizacoes FROM authenticated;
 REVOKE ALL ON FUNCTION public.fin_tg_carregar(text, timestamptz, jsonb, boolean) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.fin_tg_carregar(text, timestamptz, jsonb, boolean) TO service_role;
+
+-- ---- Contratos C1: cadastro, ficha e responsáveis (migração 20261104090000) ----
+REVOKE EXECUTE ON FUNCTION public.contrato_resp_preparar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.contratos_preparar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.contratos_conferir_permissao() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.contrato_pode_gravar() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.contrato_pode_gravar() TO authenticated;
+REVOKE ALL ON FUNCTION public.contrato_buscar_servidores(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.contrato_buscar_servidores(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) TO authenticated;
