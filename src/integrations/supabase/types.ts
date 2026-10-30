@@ -28407,6 +28407,15 @@ export type Database = {
         Args: { p_gravar?: boolean; p_linhas: Json }
         Returns: Json
       }
+      rh_importar_servidores_sigrh: {
+        Args: {
+          p_arquivo: Json
+          p_linhas: Json
+          p_origem: string
+          p_simular?: boolean
+        }
+        Returns: Json
+      }
       rh_pendencias_nomeacao: {
         Args: Record<PropertyKey, never>
         Returns: {

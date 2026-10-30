@@ -606,3 +606,10 @@ Limites conhecidos:
   tolera a falta das RPCs (`CadastroArbitroPage.tsx`), mas o log de acesso ao contracheque e o cadastro de
   árbitros só ficam íntegros depois de aplicada a migração `20261006230500`.
 - O banco ao vivo nunca foi inspecionado: o baseline foi derivado só dos arquivos do repositório.
+
+A migração `20261114090000_rh_importar_servidores_sigrh.sql` (servidores pelo arquivo da Seplan) entrou no schema
+regenerado (`01_pre_data.sql`: `rh_importar_servidores_sigrh`; `03_post_data.sql` sem mudança), no
+`overlay/40_privilegios.sql` (`EXECUTE` só para `authenticated`) e, à mão, no `02_dados_catalogo.sql` (linha nova de
+`rh.servidores.importar` no catálogo e nos papéis `admin` e `manager`, os que já tinham `rh.servidores.criar`; o resto
+da regeneração do catálogo só trocava ids e datas e foi descartado). RLS e `rls/mapa.csv` sem mudança. Testes no
+bloco "RH: servidores pelo arquivo da Seplan" de `scripts/db/testar-rls.sql`.
