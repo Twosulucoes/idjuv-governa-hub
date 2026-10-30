@@ -114,7 +114,7 @@ export function MontagemRelatorio({ fontes, fonte, aoTrocarFonte, config, aoMuda
           {selecionadas.map((id, i) => {
             const c = porId.get(id)!;
             return (
-              <li key={id} className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-1">
+              <li key={id} className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-0.5">
                 <Checkbox id={`col-${id}`} checked onCheckedChange={() => alternarColuna(id, false)} />
                 <Label htmlFor={`col-${id}`} className="flex-1 cursor-pointer text-body font-normal">
                   {c.rotulo}
@@ -138,7 +138,7 @@ export function MontagemRelatorio({ fontes, fonte, aoTrocarFonte, config, aoMuda
           })}
         </ol>
         {naoSelecionadas.length > 0 && (
-          <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
             {naoSelecionadas.map((c) => (
               <div key={c.id} className="flex items-center gap-2 px-2">
                 <Checkbox id={`col-${c.id}`} checked={false} onCheckedChange={() => alternarColuna(c.id, true)} />
@@ -165,7 +165,7 @@ export function MontagemRelatorio({ fontes, fonte, aoTrocarFonte, config, aoMuda
       </Etapa>
 
       <Etapa numero={4} titulo="Agrupar" id="etapa-agrupar">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
           {Array.from({ length: MAX_AGRUPAMENTOS }, (_, nivel) => {
             const habilitado = nivel === 0 || Boolean(config.agrupamentos[nivel - 1]);
             return (
@@ -196,7 +196,7 @@ export function MontagemRelatorio({ fontes, fonte, aoTrocarFonte, config, aoMuda
         {numericas.length === 0 ? (
           <p className="text-caption text-muted-foreground">Marque uma coluna de valor para ter total. A quantidade de registros sai sempre.</p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             {numericas.map((c) => (
               <div key={c.id} className="space-y-1.5">
                 <Label>{c.rotulo}</Label>
@@ -220,8 +220,8 @@ export function MontagemRelatorio({ fontes, fonte, aoTrocarFonte, config, aoMuda
       </Etapa>
 
       <Etapa numero={6} titulo="Ordem e página" id="etapa-ordem">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="space-y-1.5 sm:col-span-1">
+        <div className="grid gap-3">
+          <div className="space-y-1.5">
             <Label>Ordenar por</Label>
             <Select
               value={config.ordenacao?.coluna ?? NENHUM}

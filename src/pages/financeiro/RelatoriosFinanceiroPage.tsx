@@ -184,27 +184,30 @@ export default function RelatoriosFinanceiroPage() {
           acoes={<SeletorExercicio />}
         />
 
-        <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
-          <Card className="h-fit">
-            <CardContent className="pt-6">
-              <ListaModelos
-                prontos={MODELOS_PRONTOS.filter((m) => fontes.some((f) => f.id === m.config.fonte))}
-                salvos={(modelos.data ?? []).filter((m) => fontes.some((f) => f.id === m.fonte))}
-                carregando={modelos.isLoading}
-                usuarioId={user?.id}
-                podeApagarDeOutros={isSuperAdmin}
-                selecionado={selecionado}
-                aoAbrirPronto={abrirPronto}
-                aoAbrirSalvo={abrirSalvo}
-                aoApagar={setParaApagar}
-              />
-            </CardContent>
-          </Card>
-
+        <div className="grid gap-6 lg:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)]">
           <div className="min-w-0 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-h3">{nomeAberto ? `Montar relatório: ${nomeAberto}` : "Montar relatório"}</CardTitle>
+                <CardTitle className="text-h3">Modelos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ListaModelos
+                  prontos={MODELOS_PRONTOS.filter((m) => fontes.some((f) => f.id === m.config.fonte))}
+                  salvos={(modelos.data ?? []).filter((m) => fontes.some((f) => f.id === m.fonte))}
+                  carregando={modelos.isLoading}
+                  usuarioId={user?.id}
+                  podeApagarDeOutros={isSuperAdmin}
+                  selecionado={selecionado}
+                  aoAbrirPronto={abrirPronto}
+                  aoAbrirSalvo={abrirSalvo}
+                  aoApagar={setParaApagar}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-h3">{nomeAberto ? `Montar: ${nomeAberto}` : "Montar relatório"}</CardTitle>
               </CardHeader>
               <CardContent>
                 <MontagemRelatorio
@@ -218,9 +221,11 @@ export default function RelatoriosFinanceiroPage() {
                 />
               </CardContent>
             </Card>
+          </div>
 
-            <Card>
-              <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <Card className="lg:sticky lg:top-4">
+              <CardHeader className="flex flex-col gap-3 space-y-0 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <CardTitle className="text-h3">Prévia</CardTitle>
                   {resultado && !linhasFonte.isLoading && (

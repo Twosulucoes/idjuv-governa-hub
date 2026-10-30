@@ -41,18 +41,23 @@ function linhaTotal(d: DadosRelatorioGerador, rotulo: string, totais: Record<str
   return { ...totais, [d.colunas[0].chave]: totais[d.colunas[0].chave] ?? rotulo };
 }
 
-/** "412 registro(s) · Empenhado: R$ 10,00 · Liquidado: R$ 5,00" (com grupos, o total geral sai em texto). */
-function textoTotalGeral(d: DadosRelatorioGerador): string {
+/** "412 registro(s) · Empenhado: R$ 10,00 · Liquidado: R$ 5,00" (total de grupo com subgrupos e total geral saem em texto). */
+function textoTotais(d: DadosRelatorioGerador, quantidade: number, totais: Record<string, Celula>): string {
   const valores = d.colunas
-    .filter((c) => d.totais[c.chave] !== undefined && d.totais[c.chave] !== null && d.totais[c.chave] !== '')
-    .map((c) => `${c.titulo}: ${d.totais[c.chave]}`);
-  return [registros(d.quantidade), ...valores].join(' · ');
+    .filter((c) => totais[c.chave] !== undefined && totais[c.chave] !== null && totais[c.chave] !== '')
+    .map((c) => `${c.titulo}: ${totais[c.chave]}`);
+  return [registros(quantidade), ...valores].join(' · ');
 }
 
 function blocosDoGrupo(d: DadosRelatorioGerador, g: GrupoRelatorioGerador, caminho: string[]): Bloco[] {
   const rotulos = [...caminho, g.rotulo];
   const cabecalho = secao({ texto: `${rotulos.join(' / ')} (${g.quantidade})` });
-  if (g.subgrupos.length > 0) return [cabecalho, ...g.subgrupos.flatMap((s) => blocosDoGrupo(d, s, rotulos))];
+  if (g.subgrupos.length > 0)
+    return [
+      cabecalho,
+      ...g.subgrupos.flatMap((s) => blocosDoGrupo(d, s, rotulos)),
+      paragrafo({ texto: `Subtotal de ${rotulos.join(' / ')}: ${textoTotais(d, g.quantidade, g.totais)}`, negrito: true }),
+    ];
   return [
     cabecalho,
     tabela({ colunas: d.colunas, linhas: g.linhas, totais: linhaTotal(d, `Subtotal: ${registros(g.quantidade)}`, g.totais) }),
@@ -77,7 +82,7 @@ export const relatorioGerador: DocumentoModelo<DadosRelatorioGerador> = {
         ...legenda,
         ...d.grupos.flatMap((g) => blocosDoGrupo(d, g, [])),
         secao({ texto: 'Total geral' }),
-        paragrafo({ texto: textoTotalGeral(d), negrito: true }),
+        paragrafo({ texto: textoTotais(d, d.quantidade, d.totais), negrito: true }),
       ];
     }
     return [

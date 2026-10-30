@@ -76,7 +76,7 @@ describe('relatório do Gerador de relatórios', () => {
   it('agrupado em dois níveis: caminho do grupo, subtotais e total geral em texto', async () => {
     const t = textoTodo(await ler(relatorioGerador, agrupado));
     for (const trecho of ['3.3.90.39 / Credor 1 (1)', '3.3.90.39 / Credor 2 (1)', '3.1.90.11 (1)', 'R$ 2,00',
-      'Total geral', '3 registro(s) · Empenhado: R$ 6,00']) expect(t).toContain(trecho);
+      'Subtotal de 3.3.90.39: 2 registro(s) · Empenhado: R$ 3,00', 'Total geral', '3 registro(s) · Empenhado: R$ 6,00']) expect(t).toContain(trecho);
     expect(t).not.toContain('Nenhum registro encontrado');
     semVazamento(t);
   });
