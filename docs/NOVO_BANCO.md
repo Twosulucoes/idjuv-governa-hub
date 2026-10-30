@@ -206,6 +206,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   catálogo e nos papéis `admin` e `manager` no `02_dados_catalogo.sql`); o EXECUTE só para `authenticated` no overlay 40;
   sem tabela nova nem mudança no `rls/mapa.csv`; testes no bloco "RH: servidores pelo arquivo da Seplan" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#importar-servidores-do-sigrh-rh_importar_servidores_sigrh)).
+- O cargo e a lotação pela planilha de ocupantes (migração `20261115090000`) entraram no schema do baseline só com o
+  trecho do dump (`rh_importar_cargos_ocupantes` no `01_pre_data.sql`) e o EXECUTE só para `authenticated` no overlay 40;
+  sem tabela, permissão ou mudança no `rls/mapa.csv`; testes no bloco "RH: cargo e lotação pela planilha de ocupantes" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#cargo-e-lotacao-pela-planilha-de-ocupantes-rh_importar_cargos_ocupantes)).
 - A remessa OBN600 dos pagamentos (migração `20261024090000`) entrou no schema do baseline regenerado (colunas novas
   em `contas_autarquia`, `fin_remessas_bancarias` e `fin_pagamentos`, `registrar_remessa_obn600` e as versões finais
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem

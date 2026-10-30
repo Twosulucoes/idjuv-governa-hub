@@ -613,3 +613,8 @@ regenerado (`01_pre_data.sql`: `rh_importar_servidores_sigrh`; `03_post_data.sql
 `rh.servidores.importar` no catálogo e nos papéis `admin` e `manager`, os que já tinham `rh.servidores.criar`; o resto
 da regeneração do catálogo só trocava ids e datas e foi descartado). RLS e `rls/mapa.csv` sem mudança. Testes no
 bloco "RH: servidores pelo arquivo da Seplan" de `scripts/db/testar-rls.sql`.
+
+A migração `20261115090000_rh_importar_cargos_ocupantes.sql` (cargo e lotação pela planilha de ocupantes) entrou no
+`01_pre_data.sql` (`rh_importar_cargos_ocupantes`) e no `overlay/40_privilegios.sql` (`EXECUTE` só para
+`authenticated`). Usa a permissão `rh.servidores.importar` da migração anterior: catálogo, RLS e `rls/mapa.csv` sem
+mudança. Testes no bloco "RH: cargo e lotação pela planilha de ocupantes" de `scripts/db/testar-rls.sql`.

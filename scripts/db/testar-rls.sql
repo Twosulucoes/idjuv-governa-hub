@@ -6812,8 +6812,8 @@ END $$;
 -- Banco anterior à migração: o bloco reprova sem abortar.
 DO $$
 DECLARE
-  u_fin uuid := 'a0000000-0000-0000-0000-0000000007c1';   -- módulo financeiro + orcamento.importar
-  u_lei uuid := 'a0000000-0000-0000-0000-0000000007c2';   -- módulo financeiro sem a permissão
+  u_fin uuid := 'a0000000-0000-0000-0000-0000000007d1';   -- módulo financeiro + orcamento.importar
+  u_lei uuid := 'a0000000-0000-0000-0000-0000000007d2';   -- módulo financeiro sem a permissão
   u_rhp uuid := 'a0000000-0000-0000-0000-0000000007c3';   -- a permissão no módulo rh, sem o financeiro
   fn text := 'public.importar_classificadores_fiplan(text, integer, jsonb, jsonb, boolean)';
   arq text := jsonb_build_object('nome', 'fonte.xls', 'sha256', repeat('cd', 32), 'tamanho', 1024)::text;
@@ -7656,6 +7656,121 @@ BEGIN
   PERFORM pg_temp.ls_sistema();
   UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
   PERFORM pg_temp.nota('SERVIDORES SIGRH: permissão, simulação sem gravar, criação pelo CPF com autoria, log sem CPF, conta atualizada sem trocar matrícula e endereço só com o arquivo inteiro válido verificados');
+END $$;
+
+-- ---------------------------------------------------------------- RH: cargo e lotação pela planilha de ocupantes (migração 20261115090000)
+--   * rh_importar_cargos_ocupantes: anon e PUBLIC sem EXECUTE; sem rh.servidores.importar recusa (42501);
+--   * cargo que não está no quadro é erro da linha e nada é gravado;
+--   * simulação não grava; aplicação cria o provimento ativo com vaga do quadro e a lotação: com portaria de
+--     nomeação, a data dela; sem portaria, 1º de janeiro marcado "a conferir"; log em importacoes;
+--   * de novo: sem alteração; cargo diferente do provimento em vigor só avisa.
+CREATE FUNCTION pg_temp.co_chamar(p_uid uuid, p_linhas jsonb, p_simular boolean) RETURNS text
+LANGUAGE sql AS $$
+  SELECT pg_temp.valor_como(p_uid, 'authenticated', format(
+    'SELECT public.rh_importar_cargos_ocupantes(%L::jsonb, %L::jsonb, %L)::text', p_linhas,
+    jsonb_build_object('nome', 'ocupantes.xlsx', 'sha256', repeat('cd', 32), 'tamanho', 4096), p_simular))
+$$;
+
+DO $$
+DECLARE
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000007f1';   -- módulo rh + rh.servidores.importar
+  u_sem uuid := 'a0000000-0000-0000-0000-0000000007f2';   -- módulo rh sem a permissão
+  s_a uuid := 'f6000000-0000-0000-0000-0000000000a1';
+  s_b uuid := 'f6000000-0000-0000-0000-0000000000a2';
+  s_c uuid := 'f6000000-0000-0000-0000-0000000000a3';
+  c_ch uuid := 'f6000000-0000-0000-0000-0000000000c1';
+  c_ou uuid := 'f6000000-0000-0000-0000-0000000000c2';
+  un uuid := 'f6000000-0000-0000-0000-0000000000e1';
+  fn text := 'public.rh_importar_cargos_ocupantes(jsonb, jsonb, boolean)';
+  linhas jsonb; r text; j jsonb; modo_rh text; p record; n int;
+BEGIN
+  IF to_regprocedure(fn) IS NULL THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: ' || fn || ' não existe');
+    RETURN;
+  END IF;
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'co_imp@teste.invalid'), (u_sem, 'co_sem@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_imp, u_sem);
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_imp, 'rh', '{rh.servidores.importar,rh.servidores.visualizar}'),
+    (u_sem, 'rh', '{rh.servidores.visualizar,rh.servidores.criar}');
+  SELECT modo INTO modo_rh FROM public.regra_lancamento WHERE modulo = 'rh';
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = 'registrar' WHERE modulo = 'rh';
+  INSERT INTO public.servidores (id, nome_completo, cpf, vinculo, situacao, ativo) VALUES
+    (s_a, 'OCUPANTE TESTE A', '00000090101', 'comissionado', 'ativo', true),
+    (s_b, 'OCUPANTE TESTE B', '00000090202', 'comissionado', 'ativo', true),
+    (s_c, 'OCUPANTE TESTE C', '00000090303', 'comissionado', 'ativo', true);
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, quantidade_vagas) VALUES
+    (c_ch, 'Chefe de Núcleo Teste', 'CDS-T', 'comissionado', 'comissionado', 2),
+    (c_ou, 'Outro Cargo Teste', 'CNES-T', 'comissionado', 'comissionado', 1);
+  INSERT INTO public.vagas_cargo (codigo, cargo_id, data_criacao) VALUES
+    ('CDS-T.001', c_ch, '2026-01-01'), ('CDS-T.002', c_ch, '2026-01-01'), ('CNES-T.001', c_ou, '2026-01-01');
+  INSERT INTO public.estrutura_organizacional (id, nome, sigla, tipo, ativo)
+    VALUES (un, 'Núcleo de Teste Ocupantes', 'NUTO', (enum_range(NULL::public.tipo_unidade))[1], true);
+  INSERT INTO public.documentos (numero, titulo, tipo, status, categoria, data_documento, data_publicacao, doe_numero, doe_data, servidores_ids)
+    VALUES ('777/2026', 'Nomeia ocupante A', 'portaria', 'publicado', 'nomeacao', '2026-02-03', '2026-02-05', '5100', '2026-02-05', ARRAY[s_a]);
+
+  -- ===== quem chama
+  IF has_function_privilege('anon', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('CARGOS OCUPANTES: anon executa ' || fn); END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc pr, aclexplode(coalesce(pr.proacl, acldefault('f', pr.proowner))) a
+              WHERE pr.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: PUBLIC executa ' || fn);
+  END IF;
+  linhas := jsonb_build_array(
+    jsonb_build_object('indice', 0, 'linha', 2, 'servidor_id', s_a, 'cargo', 'CHEFE DE NUCLEO TESTE', 'simbolo', 'CDS-T',
+                       'unidade_id', un, 'municipio', 'BV'),
+    jsonb_build_object('indice', 1, 'linha', 3, 'servidor_id', s_b, 'cargo', 'chefe de núcleo teste', 'simbolo', 'cds-t'));
+  r := pg_temp.co_chamar(u_sem, linhas, true);
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('CARGOS OCUPANTES: sem rh.servidores.importar importa (' || r || ')'); END IF;
+
+  -- ===== cargo fora do quadro trava tudo
+  r := pg_temp.co_chamar(u_imp, linhas || jsonb_build_array(jsonb_build_object('indice', 2, 'servidor_id', s_c,
+         'cargo', 'CARGO INEXISTENTE', 'simbolo', 'X')), false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR jsonb_array_length(j -> 'erros') < 1 OR (j -> 'erros')::text NOT LIKE '%Quadro de vagas%'
+     OR EXISTS (SELECT 1 FROM public.provimentos WHERE servidor_id IN (s_a, s_b, s_c)) THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: cargo fora do quadro deveria travar a gravação (' || r || ')');
+  END IF;
+
+  -- ===== simulação não grava; aplicação cria provimento, vaga e lotação
+  r := pg_temp.co_chamar(u_imp, linhas, true);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR (j -> 'totais' ->> 'inserir')::int <> 2
+     OR EXISTS (SELECT 1 FROM public.provimentos WHERE servidor_id IN (s_a, s_b)) THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: simulação deveria prever 2 nomeações sem gravar (' || r || ')');
+  END IF;
+  r := pg_temp.co_chamar(u_imp, linhas, false);
+  SELECT pr.data_nomeacao, pr.status, pr.vaga_id, pr.unidade_id, pr.created_by INTO p
+    FROM public.provimentos pr WHERE pr.servidor_id = s_a AND pr.cargo_id = c_ch;
+  IF p.data_nomeacao IS DISTINCT FROM '2026-02-05'::date OR p.status <> 'ativo' OR p.vaga_id IS NULL
+     OR p.unidade_id IS DISTINCT FROM un OR p.created_by IS DISTINCT FROM u_imp
+     OR NOT EXISTS (SELECT 1 FROM public.lotacoes WHERE servidor_id = s_a AND unidade_id = un AND ativo
+                     AND data_inicio = '2026-02-05' AND ato_numero = '777/2026') THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: ocupante com portaria não nomeado como esperado (' || r || ')');
+  END IF;
+  SELECT pr.data_nomeacao, pr.observacoes, pr.vaga_id INTO p
+    FROM public.provimentos pr WHERE pr.servidor_id = s_b AND pr.cargo_id = c_ch AND pr.status = 'ativo';
+  IF p.data_nomeacao IS DISTINCT FROM make_date(extract(year FROM public.data_local())::int, 1, 1)
+     OR p.observacoes NOT LIKE '%a conferir%' OR p.vaga_id IS NULL
+     OR EXISTS (SELECT 1 FROM public.lotacoes WHERE servidor_id = s_b) THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: ocupante sem portaria deveria entrar em 1º de janeiro, a conferir, sem lotação (' || r || ')');
+  END IF;
+  SELECT count(*) INTO n FROM public.importacoes WHERE tipo = 'cargos_ocupantes' AND modulo = 'rh'
+     AND (resumo ->> 'data_a_conferir')::int = 1;
+  IF n <> 1 THEN PERFORM pg_temp.falha('CARGOS OCUPANTES: log em importacoes ausente'); END IF;
+
+  -- ===== de novo: sem alteração; outro cargo só avisa
+  r := pg_temp.co_chamar(u_imp, jsonb_set(linhas, '{1,cargo}', '"OUTRO CARGO TESTE"') #- '{1,simbolo}', false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR (j -> 'totais' ->> 'sem_alteracao')::int <> 2 OR (j -> 'linhas' -> 1 -> 'avisos')::text NOT LIKE '%Já está nomeado%'
+     OR EXISTS (SELECT 1 FROM public.provimentos WHERE servidor_id = s_b AND cargo_id = c_ou) THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: reimportação deveria ficar sem alteração e só avisar a troca de cargo (' || r || ')');
+  END IF;
+
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
+  PERFORM pg_temp.nota('CARGOS OCUPANTES: permissão, cargo fora do quadro travando tudo, simulação sem gravar, provimento com vaga e data da portaria (ou 1º de janeiro a conferir), lotação, log e reimportação sem alteração verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Financeiro: empenhos do FIPLAN (FIP 614)
