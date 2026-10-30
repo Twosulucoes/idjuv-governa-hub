@@ -188,7 +188,7 @@ export default function PassagemPedidoPage() {
   } else if (pedido.isError) {
     conteudo = <EmptyState titulo="Não foi possível carregar o pedido" acao={<Button variant="outline" onClick={() => pedido.refetch()}>Tentar novamente</Button>} />;
   } else if (!p) {
-    conteudo = <EmptyState titulo="Pedido não encontrado" acao={<Button asChild variant="outline"><Link to="/contratos/passagens">Voltar à lista</Link></Button>} />;
+    conteudo = <EmptyState titulo="Pedido não encontrado" acao={<Button asChild variant="outline"><Link to="/gabinete/passagens">Voltar à lista</Link></Button>} />;
   } else {
     conteudo = (
       <Tabs defaultValue={abaInicial}>
@@ -215,14 +215,14 @@ export default function PassagemPedidoPage() {
   }
 
   return (
-    <ModuleLayout module="contratos">
+    <ModuleLayout module="gabinete">
       <div className="space-y-6">
         <PageHeader
           titulo={p ? (p.evento ?? `Pedido ${p.numero_sei}`) : "Pedido de passagem"}
           descricao={p ? `Processo SEI ${p.numero_sei} · ${p.solicitante_nome ?? ""}` : undefined}
           migalhas={[
-            { rotulo: "Contratos", href: "/contratos" },
-            { rotulo: "Passagens aéreas", href: "/contratos/passagens" },
+            { rotulo: "Gabinete", href: "/gabinete" },
+            { rotulo: "Passagens aéreas", href: "/gabinete/passagens" },
             { rotulo: p?.numero_sei ?? "Pedido" },
           ]}
           status={p && <StatusBadge tom={TOM_PEDIDO[p.situacao] ?? "neutro"} icone={false}>{rotuloSituacaoPedido(p.situacao)}</StatusBadge>}

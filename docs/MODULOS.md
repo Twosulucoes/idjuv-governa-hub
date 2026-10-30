@@ -196,10 +196,11 @@ Licitações, aquisições e gestão contratual. Operados via
 vencimentos dos contratos ainda não existem (voltam no P20/P21, entregas C2 a C6). Os menus seguem
 o ciclo: Compras tem PCA, Programação por natureza (`/compras/programacao`: disponível do QDD, reservado em
 processos e saldo livre), Processos de contratação e "Como funciona uma compra" (o guia `/processos/compras`, por
-último); Contratos tem o que vem depois do contrato assinado (Contratos, Passagens aéreas, Beneficiários e Pendências
-de passagens). O painel de Contratos mostra os contratos em vigor, os que vencem em até 90 dias, os sem gestor ou
-fiscal e o valor em vigor (cada número abre a lista já filtrada); os atalhos levam à lista, à importação, a passagens,
-pendências e processos de contratação, cada um só para quem tem a permissão; nenhum aponta mais para o guia de Compras.
+último); Contratos tem o que vem depois do contrato assinado (a lista e a ficha dos contratos; as passagens aéreas
+foram para o Gabinete da Presidência, que emite os pedidos e confere as faturas, e o contrato da agência continua
+aqui). O painel de Contratos mostra os contratos em vigor, os que vencem em até 90 dias, os sem gestor ou fiscal e o
+valor em vigor (cada número abre a lista já filtrada); os atalhos levam à lista, à importação e aos processos de
+contratação, cada um só para quem tem a permissão; nenhum aponta mais para o guia de Compras.
 
 - **Contratos (entrega C1):** `/contratos/lista` lista os contratos com nº, processo SEI, objeto, contratado, setor,
   gestor, valor atual e vigência (selo de prazo), com filtros de situação e de prazo (em vigor, vence em até 30, 60, 90
@@ -210,23 +211,6 @@ pendências e processos de contratação, cada um só para quem tem a permissão
   emitem a ficha em PDF, editam e apagam o rascunho. O contrato entra no localizador de processos do SEI. Cadastrar pede
   `contratos.criar`, alterar pede `contratos.editar` e só o rascunho se apaga
   ([spec](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)).
-
-- **Passagens aéreas (Contratos, entregas 1 a 3):** `/contratos/passagens` lista os pedidos, um por processo SEI, com
-  quem pediu, evento, passageiros, situação e valor emitido, e no alto o valor do contrato da agência, o emitido e o
-  saldo. A ficha (`/contratos/passagens/:id`) tem as abas Passageiros e trechos (cotações, emissão, remarcação,
-  cancelamento e reembolso de cada trecho), Prestação de contas, Dados e Histórico. Passageiro é servidor (com a viagem do RH, quando houver)
-  ou beneficiário de fora, cadastrado em `/contratos/passagens/beneficiarios` ou na hora. O ato fica no SEI: a aprovação
-  do Presidente é só registrada (nº do documento e data). Na Prestação de contas, cada passageiro entrega o cartão de
-  embarque e, no modo individual, o relatório (para servidor, vale o relatório apresentado no RH); no modo evento, um
-  relatório só, do responsável da delegação; dispensa sempre com motivo; anexos privados. `/contratos/passagens/pendencias`
-  lista quem voltou e não entregou, com vencimento e atraso; o pedido só conclui sem pendência.
-  `/contratos/passagens/faturas` (entrega 3) mostra o valor do contrato, o emitido, o faturado, o pago, o a faturar e o
-  saldo; a aba Faturas lança cada nota da agência com os bilhetes que ela cobre (a conferência mostra a diferença entre a
-  nota e os bilhetes) e anda com ela até paga, com o atesto, a liquidação e a OB; a aba A faturar lista os bilhetes sem
-  nota, com destaque depois de 30 dias; a aba Empenhos liga os empenhos do FIP 614 ao contrato e mostra o empenho de cada
-  ano × emitido. Lançar fatura e ligar empenho pedem `contratos.passagens.financeiro`. Saem a planilha de passagens por
-  período (filtre por pessoa ou instituição), a planilha de faturas e os PDFs do saldo e da ficha do pedido
-  ([spec](./superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md)).
 
 ## Financeiro (`financeiro`)
 
@@ -421,6 +405,26 @@ e `src/pages/instituicoes/GestaoInstituicoesPage`.
 Painel executivo da Presidência. `src/pages/gabinete/GabineteDashboardPage` +
 rotas que reaproveitam Central de Portarias, pré-cadastros, ordem de missão e
 relatório de viagem. O item "Workflow RH" saiu do menu no P09 (não havia tela); volta no P22 se for construído.
+
+- **Passagens aéreas (entregas 1 a 3; no Gabinete desde a migração `20261110120000`, antes em Contratos):** `/gabinete/passagens` lista os pedidos, um por processo SEI, com
+  quem pediu, evento, passageiros, situação e valor emitido, e no alto o valor do contrato da agência, o emitido e o
+  saldo. A ficha (`/gabinete/passagens/:id`) tem as abas Passageiros e trechos (cotações, emissão, remarcação,
+  cancelamento e reembolso de cada trecho), Prestação de contas, Dados e Histórico. Passageiro é servidor (com a viagem do RH, quando houver)
+  ou beneficiário de fora, cadastrado em `/gabinete/passagens/beneficiarios` ou na hora. O ato fica no SEI: a aprovação
+  do Presidente é só registrada (nº do documento e data). Na Prestação de contas, cada passageiro entrega o cartão de
+  embarque e, no modo individual, o relatório (para servidor, vale o relatório apresentado no RH); no modo evento, um
+  relatório só, do responsável da delegação; dispensa sempre com motivo; anexos privados. `/gabinete/passagens/pendencias`
+  lista quem voltou e não entregou, com vencimento e atraso; o pedido só conclui sem pendência.
+  `/gabinete/passagens/faturas` (entrega 3) mostra o valor do contrato, o emitido, o faturado, o pago, o a faturar e o
+  saldo; a aba Faturas lança cada nota da agência com os bilhetes que ela cobre (a conferência mostra a diferença entre a
+  nota e os bilhetes) e anda com ela até paga, com o atesto, a liquidação e a OB; a aba A faturar lista os bilhetes sem
+  nota, com destaque depois de 30 dias; a aba Empenhos liga os empenhos do FIP 614 ao contrato e mostra o empenho de cada
+  ano × emitido. Lançar fatura e ligar empenho pedem `contratos.passagens.financeiro`. Saem a planilha de passagens por
+  período (filtre por pessoa ou instituição), a planilha de faturas e os PDFs do saldo e da ficha do pedido
+  ([spec](./superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md)).
+  O contrato da agência é do setor de Contratos (quem tem `contratos.criar` cadastra ou liga); o Gabinete vê o contrato
+  da agência e o saldo sem precisar do módulo Contratos. Os endereços antigos `/contratos/passagens*` abrem o mesmo
+  lugar no Gabinete.
 
 - **Importar portarias por planilha:** quem tem `gabinete.portarias.importar` registra portarias já feitas no SEI pelo botão
   "Importar planilha" da Central de Portarias (`/gabinete/portarias`, importador "Portarias (planilha)"): baixa o modelo, preenche uma linha por portaria

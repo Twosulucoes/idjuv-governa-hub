@@ -9,12 +9,17 @@ import {
   FileCheck,
   ArrowRight,
   ClipboardList,
+  ClipboardCheck,
+  Receipt,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+
+const PERMISSOES_PASSAGENS = ["contratos.passagens.visualizar", "contratos.passagens.editar"];
 
 // Só rotas registradas em src/App.tsx (o atalho "Workflow RH" apontava para
 // /gabinete/workflow-rh, que não existe).
-const quickActions = [
+const quickActions: { title: string; description: string; icon: typeof Users; route: string; permissoes?: string[] }[] = [
   {
     title: "Pré-cadastros",
     description: "Currículos recebidos para análise",
@@ -39,6 +44,28 @@ const quickActions = [
     icon: FileCheck,
     route: "/formularios/relatorio-viagem",
   },
+  // Passagens aéreas: o Gabinete recebe os pedidos e as faturas da agência; o contrato fica em Contratos.
+  {
+    title: "Passagens aéreas",
+    description: "Pedidos e emissões",
+    icon: Plane,
+    route: "/gabinete/passagens",
+    permissoes: PERMISSOES_PASSAGENS,
+  },
+  {
+    title: "Pendências de passagens",
+    description: "Prestação de contas em aberto",
+    icon: ClipboardCheck,
+    route: "/gabinete/passagens/pendencias",
+    permissoes: PERMISSOES_PASSAGENS,
+  },
+  {
+    title: "Faturas de passagens",
+    description: "Notas da agência e saldo do contrato",
+    icon: Receipt,
+    route: "/gabinete/passagens/faturas",
+    permissoes: [...PERMISSOES_PASSAGENS, "contratos.passagens.financeiro"],
+  },
 ];
 
 // Indicadores ainda sem fonte de dados: mostram "—" (não um zero que pareça real).
@@ -50,6 +77,8 @@ const indicadores = [
 ];
 
 function GabineteDashboardContent() {
+  const { hasAnyPermission } = useAuth();
+  const acoesVisiveis = quickActions.filter((a) => !a.permissoes || hasAnyPermission(a.permissoes));
   return (
     <ModuleLayout module="gabinete">
       <div className="space-y-6">
@@ -85,7 +114,7 @@ function GabineteDashboardContent() {
           </CardHeader>
           <CardContent>
             <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {quickActions.map((action) => (
+              {acoesVisiveis.map((action) => (
                 <li key={action.route}>
                   <Card className="relative h-full transition-colors hover:bg-accent/50 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
                     <CardContent className="pt-6">

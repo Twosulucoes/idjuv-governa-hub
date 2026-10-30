@@ -294,6 +294,13 @@ schema regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `rls/mapa.csv` (`
 classe `preservar`, com as policies da própria migração) e no `overlay/40_privilegios.sql`; o catálogo não muda.
 Testes no bloco "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
 
+A migração `20261110120000_passagens_gabinete.sql` (passagens aéreas no Gabinete) entrou no `rls/mapa.csv` (as dez
+tabelas `passagem_*` com os módulos `gabinete|contratos`; `rls/35_policies_geradas.sql` regenerado), no schema
+regenerado (`01_pre_data.sql`: as RPCs estreitas e a nova `passagem_contratos_agencia`; `03_post_data.sql`: policies do
+replay), no `overlay/40_privilegios.sql` (`EXECUTE` da RPC nova), no `overlay/50_storage.sql` (bucket `passagens`) e,
+à mão, no `02_dados_catalogo.sql` (`module_code` das três permissões das passagens passa a `gabinete`; o resto da
+regeneração do catálogo só trocava ids e datas e foi descartado).
+
 A migração `20261109090000_importacao_permissao_execucao.sql` (importações por setor, entrega 2) entrou à mão no
 `01_pre_data.sql` (checagem e comentário de `importar_empenhos_fip614` e `importar_peds_fiplan` passam de
 `orcamento.importar` para `financeiro.execucao.importar`) e no `02_dados_catalogo.sql` (linha nova de

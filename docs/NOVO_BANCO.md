@@ -217,6 +217,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `processo_reservas`, classe `preservar`: SELECT pelas policies da migração e escrita só pelas RPCs), no schema do
   baseline regenerado e no `overlay/40_privilegios.sql`; sem linha nova no catálogo; testes no bloco "Compras:
   reservas e PEDs" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- As passagens aéreas no Gabinete (migração `20261110120000`): no mapa, as dez tabelas `passagem_*` passam aos módulos
+  `gabinete|contratos` (`rls/35_policies_geradas.sql` regenerado); no schema regenerado, as cinco RPCs estreitas com a
+  mesma troca e a nova `passagem_contratos_agencia`; no `overlay/40_privilegios.sql` o `EXECUTE` dela e no
+  `overlay/50_storage.sql` o bucket `passagens`; no catálogo (à mão), o `module_code` das três permissões das passagens
+  vira `gabinete`. Testes de RLS sem bloco novo (as personas por módulo do mapa já cobrem o Gabinete).
 - A permissão própria da execução do FIPLAN (migração `20261109090000`) entrou à mão: no schema, a checagem e o comentário
   de `importar_empenhos_fip614` e `importar_peds_fiplan` (de `orcamento.importar` para `financeiro.execucao.importar`);
   no catálogo, a linha nova e o rótulo de `orcamento.importar`. Mapa e overlay sem mudança; testes nos blocos do FIP 614 e

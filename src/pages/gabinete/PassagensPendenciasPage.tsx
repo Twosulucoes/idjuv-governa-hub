@@ -101,14 +101,14 @@ export default function PassagensPendenciasPage() {
   ];
 
   return (
-    <ModuleLayout module="contratos">
+    <ModuleLayout module="gabinete">
       <div className="space-y-6">
         <PageHeader
           titulo="Pendências de passagens"
           descricao="Quem já voltou e ainda não entregou o cartão de embarque ou o relatório"
           migalhas={[
-            { rotulo: "Contratos", href: "/contratos" },
-            { rotulo: "Passagens aéreas", href: "/contratos/passagens" },
+            { rotulo: "Gabinete", href: "/gabinete" },
+            { rotulo: "Passagens aéreas", href: "/gabinete/passagens" },
             { rotulo: "Pendências" },
           ]}
         />
@@ -128,7 +128,7 @@ export default function PassagensPendenciasPage() {
               <Label htmlFor="so-atrasados" className="font-normal">Só atrasados</Label>
             </div>
           }
-          aoClicarLinha={(l) => navigate(`/contratos/passagens/${l.pedido.id}?aba=prestacao`)}
+          aoClicarLinha={(l) => navigate(`/gabinete/passagens/${l.pedido.id}?aba=prestacao`)}
           vazio={{
             icone: ClipboardCheck,
             titulo: soAtrasados ? "Nada atrasado" : "Nenhuma pendência",

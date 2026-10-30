@@ -1061,18 +1061,29 @@ antes, qualquer pessoa com o módulo Compras ou Contratos gravava e apagava cont
 - O menu e os botões seguem as mesmas permissões (Novo contrato e Importar com `criar`; Editar e Apagar rascunho com
   `editar`), mas quem decide é o banco.
 
-### Contratos: passagens aéreas
+### Gabinete: passagens aéreas
+
+Desde a migração `20261110120000_passagens_gabinete.sql` as passagens são do **Gabinete da Presidência**: as telas
+ficam em `/gabinete/passagens*` (`requiredModule="gabinete"`) e toda regra abaixo que dizia "módulo `contratos`" aceita
+o módulo `gabinete` **ou** `contratos` (RLS das tabelas `passagem_*`, bucket `passagens` e as RPCs estreitas). Os códigos
+continuam `contratos.passagens.*` (concessões avulsas e as feitas dentro de um módulo valem como antes); no catálogo eles
+passaram ao módulo `gabinete`, então o padrão do papel só os dá a quem tem o módulo Gabinete. O contrato da agência é do
+setor de Contratos: quem só tem o Gabinete não lê `contratos` nem `fornecedores` e vê o contrato da agência pela RPC
+`passagem_contratos_agencia` (SECURITY DEFINER; nº, objeto, valor, vigência e nome da agência, só dos contratos com
+`controla_passagens`, para quem tem `visualizar`, `editar` ou `financeiro`). Cadastrar ou ligar o contrato continua
+pedindo `contratos.criar` e o módulo Compras ou Contratos.
+
 
 Migração `20261031090000_contratos_passagens.sql` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#compras-licitações-e-contratos)).
 Duas permissões novas, concedidas pela migração a todo papel, usuário e módulo que já tinha `contratos.criar`.
 
 | Ação | Permissão | Onde é cobrada |
 |---|---|---|
-| Ver pedidos, passageiros, trechos, cotações, beneficiários e histórico | módulo `contratos` **e** `contratos.passagens.visualizar` ou `contratos.passagens.editar` | RLS de SELECT (`mapa.csv`, classe `permissao`; histórico na classe `trilha` com `leitura=`) e `ProtectedRoute` das três rotas |
+| Ver pedidos, passageiros, trechos, cotações, beneficiários e histórico | módulo `gabinete` ou `contratos` **e** `contratos.passagens.visualizar` ou `contratos.passagens.editar` | RLS de SELECT (`mapa.csv`, classe `permissao`; histórico na classe `trilha` com `leitura=`) e `ProtectedRoute` das três rotas |
 | Registrar e editar pedido, passageiro, trecho, cotação e beneficiário; mudar situação | `contratos.passagens.editar` | RLS de INSERT/UPDATE |
 | Apagar passageiro, trecho ou cotação | `contratos.passagens.editar`; trecho com localizador não se apaga (`passagem_proteger_emitido`, `42501`) | RLS de DELETE e gatilho |
 | Apagar pedido ou beneficiário | ninguém pela API (pedido cancela, beneficiário fica inativo) | `excluir=ninguem` no `mapa.csv` |
-| Buscar servidor e listar as viagens dele | módulo `contratos` **e** `contratos.passagens.editar` (quem só vê não percorre o RH) | `passagem_buscar_servidores` e `passagem_viagens_servidor` (SECURITY DEFINER, devolvem só nome, matrícula, cargo e as viagens; `%` e `_` da busca não são curinga) |
+| Buscar servidor e listar as viagens dele | módulo `gabinete` ou `contratos` **e** `contratos.passagens.editar` (quem só vê não percorre o RH) | `passagem_buscar_servidores` e `passagem_viagens_servidor` (SECURITY DEFINER, devolvem só nome, matrícula, cargo e as viagens; `%` e `_` da busca não são curinga) |
 | Cadastrar o contrato da agência ou ligar um contrato existente às passagens | `contratos.passagens.editar` **e** `contratos.criar` (botão); no banco, cadastrar pede `contratos.criar` e ligar (só `controla_passagens`) pede `contratos.criar` ou `contratos.passagens.editar` (gatilho `contratos_conferir_permissao`, desde a C1) | `PassagensPedidosPage` |
 
 - Quem tem passagens não lê `servidores` nem `instituicoes`: o nome do passageiro e do solicitante é copiado pelo
@@ -1087,9 +1098,9 @@ Prestação de contas (entrega 2, migração `20261101090000_contratos_passagens
 
 | Ação | Permissão | Onde é cobrada |
 |---|---|---|
-| Ver a aba Prestação de contas, a tela de Pendências e baixar anexos | módulo `contratos` **e** `visualizar` ou `editar` | RLS de `passagem_anexos` (`mapa.csv`), `st_passagens_select` no bucket privado `passagens` (URL assinada de 60 s) e `ProtectedRoute` de `/contratos/passagens/pendencias` |
+| Ver a aba Prestação de contas, a tela de Pendências e baixar anexos | módulo `gabinete` ou `contratos` **e** `visualizar` ou `editar` | RLS de `passagem_anexos` (`mapa.csv`), `st_passagens_select` no bucket privado `passagens` (URL assinada de 60 s) e `ProtectedRoute` de `/gabinete/passagens/pendencias` |
 | Registrar entrega, dispensa e responsável; enviar e apagar anexo | `contratos.passagens.editar` | RLS de UPDATE/INSERT/DELETE; `st_passagens_insert` (pasta de pedido existente) e `st_passagens_delete`; sem policy de UPDATE no bucket |
-| Ver se o relatório da viagem do RH foi apresentado | módulo `contratos` **e** `visualizar` ou `editar` | `passagem_relatorio_rh` (SECURITY DEFINER; só `passageiro_id`, situação e data) |
+| Ver se o relatório da viagem do RH foi apresentado | módulo `gabinete` ou `contratos` **e** `visualizar` ou `editar` | `passagem_relatorio_rh` (SECURITY DEFINER; só `passageiro_id`, situação e data) |
 | Mudar o prazo da prestação | papel admin | `module_settings` (classe `catalogo_admin`) |
 | Concluir o pedido | `contratos.passagens.editar`, só sem pendência; depois disso a prestação e os anexos ficam travados | gatilhos `passagem_conferir_conclusao` e `passagem_conferir_anexo` |
 
@@ -1099,7 +1110,7 @@ Faturas e empenhos (entrega 3, migração `20261103090000_contratos_passagens_fa
 
 | Ação | Permissão | Onde é cobrada |
 |---|---|---|
-| Ver faturas, bilhetes da nota, a faturar, saldo e os empenhos ligados | módulo `contratos` **e** `visualizar`, `editar` ou `financeiro` | RLS de `passagem_faturas`, `passagem_fatura_itens` e `passagem_contrato_empenhos` (`mapa.csv`); `passagem_empenhos_contrato` (só totais); `ProtectedRoute` de `/contratos/passagens/faturas` |
+| Ver faturas, bilhetes da nota, a faturar, saldo e os empenhos ligados | módulo `gabinete` ou `contratos` **e** `visualizar`, `editar` ou `financeiro` | RLS de `passagem_faturas`, `passagem_fatura_itens` e `passagem_contrato_empenhos` (`mapa.csv`); `passagem_empenhos_contrato` (só totais); `ProtectedRoute` de `/gabinete/passagens/faturas` |
 | Lançar e editar fatura com os bilhetes; apagar só fatura recebida; mudar a situação pelo fluxo até paga (com a OB) | `contratos.passagens.financeiro` | RLS de INSERT/UPDATE/DELETE; `passagem_salvar_fatura` (SECURITY INVOKER: a RLS vale); gatilhos `passagem_conferir_fatura` e `passagem_conferir_fatura_item` (fluxo, paga travada, bilhete numa nota só, só do mesmo contrato) |
 | Listar empenhos candidatos e ligar ou desligar empenho do contrato | `contratos.passagens.financeiro` | `passagem_empenhos_candidatos` (SECURITY DEFINER, contrato da agência); RLS de `passagem_contrato_empenhos` e gatilho `passagem_conferir_ligacao_empenho` (só empenho candidato: elemento 33 ou que aponta para o contrato) |
 

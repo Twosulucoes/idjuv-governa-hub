@@ -149,24 +149,24 @@ CREATE POLICY "st_remessas-cnab_insert" ON storage.objects FOR INSERT TO authent
 DROP POLICY IF EXISTS "st_remessas-cnab_update" ON storage.objects;
 DROP POLICY IF EXISTS "st_remessas-cnab_delete" ON storage.objects;
 
--- Passagens aéreas (migração 20261101090000_contratos_passagens_prestacao.sql, mesmo texto): anexos em
--- <pedido_id>/...; ler com o módulo contratos E contratos.passagens.visualizar ou editar; enviar (pedido existente) e
+-- Passagens aéreas (migrações 20261101090000_contratos_passagens_prestacao.sql e 20261110120000_passagens_gabinete.sql,
+-- mesmo texto): anexos em <pedido_id>/...; ler com o módulo gabinete ou contratos E contratos.passagens.visualizar ou editar; enviar (pedido existente) e
 -- apagar com o módulo E editar; sem UPDATE. Bucket privado (URL assinada), 10 MB, PDF e imagens.
 DROP POLICY IF EXISTS "st_passagens_select" ON storage.objects;
 CREATE POLICY "st_passagens_select" ON storage.objects FOR SELECT TO authenticated
-  USING (bucket_id = 'passagens' AND public.can_access_module(auth.uid(), 'contratos')
+  USING (bucket_id = 'passagens' AND (public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos'))
          AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
               OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar')));
 DROP POLICY IF EXISTS "st_passagens_insert" ON storage.objects;
 CREATE POLICY "st_passagens_insert" ON storage.objects FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'passagens' AND public.can_access_module(auth.uid(), 'contratos')
+  WITH CHECK (bucket_id = 'passagens' AND (public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos'))
               AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar')
               AND name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/'
               AND EXISTS (SELECT 1 FROM public.passagem_pedidos p WHERE p.id::text = left(objects.name, 36)));
 DROP POLICY IF EXISTS "st_passagens_update" ON storage.objects;
 DROP POLICY IF EXISTS "st_passagens_delete" ON storage.objects;
 CREATE POLICY "st_passagens_delete" ON storage.objects FOR DELETE TO authenticated
-  USING (bucket_id = 'passagens' AND public.can_access_module(auth.uid(), 'contratos')
+  USING (bucket_id = 'passagens' AND (public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos'))
          AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 
 -- Trilha dos arquivos do RH (Onda E2, migração 20261011000200_rh_trilha_consulta.sql, mesmo texto): gravação, troca

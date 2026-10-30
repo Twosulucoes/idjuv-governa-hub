@@ -1437,6 +1437,18 @@ empenhos do contrato. O FIPLAN continua sendo o oficial; aqui fica o que cada no
 - RLS (classe `permissao`): ler com o módulo e `visualizar`, `editar` ou `financeiro`; gravar e apagar com
   `contratos.passagens.financeiro` (permissão nova, dada a quem já tinha `contratos.criar`).
 
+**Passagens aéreas no Gabinete (migração `20261110120000_passagens_gabinete.sql`).** O Gabinete da Presidência emite
+os pedidos e confere as faturas; o contrato da agência continua do setor de Contratos. Nenhuma tabela nem dado muda:
+- RLS das dez tabelas `passagem_*` (regenerada do `rls/mapa.csv`, módulos `gabinete|contratos`), o bucket `passagens` e
+  as RPCs `passagem_buscar_servidores`, `passagem_viagens_servidor`, `passagem_relatorio_rh`,
+  `passagem_empenhos_contrato` e `passagem_empenhos_candidatos` aceitam o módulo `gabinete` **ou** `contratos`; as
+  permissões continuam as mesmas (`contratos.passagens.visualizar`, `editar` e `financeiro`).
+- `passagem_contratos_agencia()` (nova, SECURITY DEFINER): os contratos com `controla_passagens` (nº, objeto, valor,
+  vigência e o nome da agência em `fornecedor`) para quem tem o Gabinete ou Contratos e uma das três permissões; quem
+  só tem o Gabinete não lê `contratos` nem `fornecedores`.
+- No `module_permissions_catalog` as três permissões passam ao módulo `gabinete` (o padrão do papel só as dá a quem
+  tem o módulo Gabinete; concessões avulsas e dentro do módulo valem como antes).
+
 **Contratos C1: cadastro, ficha e responsáveis (migração `20261104090000_contratos_c1_cadastro.sql`).** Spec
 [2026-10-27-contratos-gestao-completa-design.md](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)
 (§4, C1). O ato (contrato, portaria de designação) continua no SEI; aqui ficam os dados e o nº de cada documento.

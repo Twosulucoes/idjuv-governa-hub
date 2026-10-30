@@ -48,14 +48,14 @@ export default function PassagensBeneficiariosPage() {
   ];
 
   return (
-    <ModuleLayout module="contratos">
+    <ModuleLayout module="gabinete">
       <div className="space-y-6">
         <PageHeader
           titulo="Beneficiários de passagem"
           descricao="Pessoas de fora do quadro que viajam com passagem do órgão"
           migalhas={[
-            { rotulo: "Contratos", href: "/contratos" },
-            { rotulo: "Passagens aéreas", href: "/contratos/passagens" },
+            { rotulo: "Gabinete", href: "/gabinete" },
+            { rotulo: "Passagens aéreas", href: "/gabinete/passagens" },
             { rotulo: "Beneficiários" },
           ]}
           acoes={
@@ -109,7 +109,7 @@ export default function PassagensBeneficiariosPage() {
                   <ul className="divide-y divide-border rounded-md border border-border">
                     {ver.viagens.filter((v) => v.pedido).map((v) => (
                       <li key={v.id}>
-                        <Link to={`/contratos/passagens/${v.pedido!.id}`} className="block px-3 py-2 hover:bg-muted">
+                        <Link to={`/gabinete/passagens/${v.pedido!.id}`} className="block px-3 py-2 hover:bg-muted">
                           <span className="font-medium">{v.pedido!.evento ?? `Processo ${v.pedido!.numero_sei}`}</span>
                           <span className="block text-xs text-muted-foreground">
                             {v.pedido!.numero_sei}{v.pedido!.data_inicio ? ` · ${formatDateBR(v.pedido!.data_inicio)}` : ""} · {rotuloSituacaoPedido(v.pedido!.situacao)}

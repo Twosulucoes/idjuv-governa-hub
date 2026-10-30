@@ -164,14 +164,14 @@ export default function PassagensFaturasPage() {
   };
 
   return (
-    <ModuleLayout module="contratos">
+    <ModuleLayout module="gabinete">
       <div className="space-y-6">
         <PageHeader
           titulo="Faturas e saldo das passagens"
           descricao="Notas da agência, bilhetes pagos, a faturar e o empenho do ano"
           migalhas={[
-            { rotulo: "Contratos", href: "/contratos" },
-            { rotulo: "Passagens aéreas", href: "/contratos/passagens" },
+            { rotulo: "Gabinete", href: "/gabinete" },
+            { rotulo: "Passagens aéreas", href: "/gabinete/passagens" },
             { rotulo: "Faturas e saldo" },
           ]}
           acoes={
@@ -195,7 +195,7 @@ export default function PassagensFaturasPage() {
             <Card>
               <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">Nenhum contrato da agência ligado às passagens. Cadastre o contrato na tela de passagens.</p>
-                <Button variant="outline" onClick={() => navigate("/contratos/passagens")}>Ir para passagens</Button>
+                <Button variant="outline" onClick={() => navigate("/gabinete/passagens")}>Ir para passagens</Button>
               </CardContent>
             </Card>
           )
@@ -300,7 +300,7 @@ export default function PassagensFaturasPage() {
                   erro={bilhetes.isError ? "Não foi possível carregar os bilhetes." : null}
                   aoTentarNovamente={() => bilhetes.refetch()}
                   busca={{ placeholder: "Buscar por passageiro, localizador ou processo" }}
-                  aoClicarLinha={(l) => navigate(`/contratos/passagens/${l.trecho.passageiro.pedido.id}`)}
+                  aoClicarLinha={(l) => navigate(`/gabinete/passagens/${l.trecho.passageiro.pedido.id}`)}
                   vazio={{ icone: Receipt, titulo: "Nenhum bilhete a faturar", descricao: "Todos os bilhetes emitidos já estão em alguma nota." }}
                 />
               </TabsContent>

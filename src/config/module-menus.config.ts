@@ -181,10 +181,6 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
     // Execução, aditivos e avisos de vencimento entram com as entregas C2 a C6 (P21).
     items: [
       { id: "contratos-lista", label: "Contratos", icon: FileCheck, route: "/contratos/lista", algumaPermissao: ["contratos.visualizar", "contratos.criar", "contratos.editar"] },
-      { id: "passagens", label: "Passagens aéreas", icon: Plane, route: "/contratos/passagens", permission: "contratos.passagens.visualizar" },
-      { id: "passagens-beneficiarios", label: "Beneficiários de passagem", icon: Users, route: "/contratos/passagens/beneficiarios", permission: "contratos.passagens.visualizar" },
-      { id: "passagens-pendencias", label: "Pendências de passagens", icon: ClipboardCheck, route: "/contratos/passagens/pendencias", permission: "contratos.passagens.visualizar" },
-      { id: "passagens-faturas", label: "Faturas de passagens", icon: Receipt, route: "/contratos/passagens/faturas", permission: "contratos.passagens.visualizar" },
     ],
   },
 
@@ -335,6 +331,11 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       },
       { id: "ordem-missao", label: "Ordem de Missão", icon: Plane, route: "/formularios/ordem-missao" },
       { id: "relatorio-viagem", label: "Relatório de Viagem", icon: FileCheck, route: "/formularios/relatorio-viagem" },
+      // Passagens aéreas: a emissão e a conferência das faturas são da Presidência; o contrato da agência fica em Contratos.
+      { id: "passagens", label: "Passagens aéreas", icon: Plane, route: "/gabinete/passagens", permission: "contratos.passagens.visualizar" },
+      { id: "passagens-beneficiarios", label: "Beneficiários de passagem", icon: Users, route: "/gabinete/passagens/beneficiarios", permission: "contratos.passagens.visualizar" },
+      { id: "passagens-pendencias", label: "Pendências de passagens", icon: ClipboardCheck, route: "/gabinete/passagens/pendencias", permission: "contratos.passagens.visualizar" },
+      { id: "passagens-faturas", label: "Faturas de passagens", icon: Receipt, route: "/gabinete/passagens/faturas", permission: "contratos.passagens.visualizar" },
     ],
   },
 

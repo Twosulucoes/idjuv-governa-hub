@@ -3012,141 +3012,141 @@ DROP POLICY IF EXISTS "rls_delete" ON public.participantes_reuniao;
 CREATE POLICY "rls_delete" ON public.participantes_reuniao FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'admin')));
 
--- passagem_anexos  [permissao: contratos]
+-- passagem_anexos  [permissao: gabinete | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_anexos;
 CREATE POLICY "rls_select" ON public.passagem_anexos FOR SELECT TO authenticated
-  USING (((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
+  USING (((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
 DROP POLICY IF EXISTS "rls_insert" ON public.passagem_anexos;
 CREATE POLICY "rls_insert" ON public.passagem_anexos FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_update" ON public.passagem_anexos;
 CREATE POLICY "rls_update" ON public.passagem_anexos FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.passagem_anexos;
 CREATE POLICY "rls_delete" ON public.passagem_anexos FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 
--- passagem_beneficiarios  [permissao: contratos]
+-- passagem_beneficiarios  [permissao: gabinete | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_beneficiarios;
 CREATE POLICY "rls_select" ON public.passagem_beneficiarios FOR SELECT TO authenticated
-  USING (((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
+  USING (((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
 DROP POLICY IF EXISTS "rls_insert" ON public.passagem_beneficiarios;
 CREATE POLICY "rls_insert" ON public.passagem_beneficiarios FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_update" ON public.passagem_beneficiarios;
 CREATE POLICY "rls_update" ON public.passagem_beneficiarios FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.passagem_beneficiarios;
 
--- passagem_contrato_empenhos  [permissao: contratos]
+-- passagem_contrato_empenhos  [permissao: gabinete | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_contrato_empenhos;
 CREATE POLICY "rls_select" ON public.passagem_contrato_empenhos FOR SELECT TO authenticated
-  USING (((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))));
+  USING (((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))));
 DROP POLICY IF EXISTS "rls_insert" ON public.passagem_contrato_empenhos;
 CREATE POLICY "rls_insert" ON public.passagem_contrato_empenhos FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
 DROP POLICY IF EXISTS "rls_update" ON public.passagem_contrato_empenhos;
 CREATE POLICY "rls_update" ON public.passagem_contrato_empenhos FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
 DROP POLICY IF EXISTS "rls_delete" ON public.passagem_contrato_empenhos;
 CREATE POLICY "rls_delete" ON public.passagem_contrato_empenhos FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
 
--- passagem_cotacoes  [permissao: contratos]
+-- passagem_cotacoes  [permissao: gabinete | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_cotacoes;
 CREATE POLICY "rls_select" ON public.passagem_cotacoes FOR SELECT TO authenticated
-  USING (((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
+  USING (((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
 DROP POLICY IF EXISTS "rls_insert" ON public.passagem_cotacoes;
 CREATE POLICY "rls_insert" ON public.passagem_cotacoes FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_update" ON public.passagem_cotacoes;
 CREATE POLICY "rls_update" ON public.passagem_cotacoes FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.passagem_cotacoes;
 CREATE POLICY "rls_delete" ON public.passagem_cotacoes FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 
--- passagem_fatura_itens  [permissao: contratos]
+-- passagem_fatura_itens  [permissao: gabinete | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_fatura_itens;
 CREATE POLICY "rls_select" ON public.passagem_fatura_itens FOR SELECT TO authenticated
-  USING (((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))));
+  USING (((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))));
 DROP POLICY IF EXISTS "rls_insert" ON public.passagem_fatura_itens;
 CREATE POLICY "rls_insert" ON public.passagem_fatura_itens FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
 DROP POLICY IF EXISTS "rls_update" ON public.passagem_fatura_itens;
 CREATE POLICY "rls_update" ON public.passagem_fatura_itens FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
 DROP POLICY IF EXISTS "rls_delete" ON public.passagem_fatura_itens;
 CREATE POLICY "rls_delete" ON public.passagem_fatura_itens FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
 
--- passagem_faturas  [permissao: contratos]
+-- passagem_faturas  [permissao: gabinete | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_faturas;
 CREATE POLICY "rls_select" ON public.passagem_faturas FOR SELECT TO authenticated
-  USING (((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))));
+  USING (((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))));
 DROP POLICY IF EXISTS "rls_insert" ON public.passagem_faturas;
 CREATE POLICY "rls_insert" ON public.passagem_faturas FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
 DROP POLICY IF EXISTS "rls_update" ON public.passagem_faturas;
 CREATE POLICY "rls_update" ON public.passagem_faturas FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
 DROP POLICY IF EXISTS "rls_delete" ON public.passagem_faturas;
 CREATE POLICY "rls_delete" ON public.passagem_faturas FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'));
 
--- passagem_historico  [trilha: contratos]
+-- passagem_historico  [trilha: gabinete | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_historico;
 CREATE POLICY "rls_select" ON public.passagem_historico FOR SELECT TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar')));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar')));
 
--- passagem_passageiros  [permissao: contratos]
+-- passagem_passageiros  [permissao: gabinete | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_passageiros;
 CREATE POLICY "rls_select" ON public.passagem_passageiros FOR SELECT TO authenticated
-  USING (((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
+  USING (((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
 DROP POLICY IF EXISTS "rls_insert" ON public.passagem_passageiros;
 CREATE POLICY "rls_insert" ON public.passagem_passageiros FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_update" ON public.passagem_passageiros;
 CREATE POLICY "rls_update" ON public.passagem_passageiros FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.passagem_passageiros;
 CREATE POLICY "rls_delete" ON public.passagem_passageiros FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 
--- passagem_pedidos  [permissao: contratos]
+-- passagem_pedidos  [permissao: gabinete | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_pedidos;
 CREATE POLICY "rls_select" ON public.passagem_pedidos FOR SELECT TO authenticated
-  USING (((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
+  USING (((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
 DROP POLICY IF EXISTS "rls_insert" ON public.passagem_pedidos;
 CREATE POLICY "rls_insert" ON public.passagem_pedidos FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_update" ON public.passagem_pedidos;
 CREATE POLICY "rls_update" ON public.passagem_pedidos FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.passagem_pedidos;
 
--- passagem_trechos  [permissao: contratos]
+-- passagem_trechos  [permissao: gabinete | contratos]
 DROP POLICY IF EXISTS "rls_select" ON public.passagem_trechos;
 CREATE POLICY "rls_select" ON public.passagem_trechos FOR SELECT TO authenticated
-  USING (((public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
+  USING (((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar') OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))));
 DROP POLICY IF EXISTS "rls_insert" ON public.passagem_trechos;
 CREATE POLICY "rls_insert" ON public.passagem_trechos FOR INSERT TO authenticated
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_update" ON public.passagem_trechos;
 CREATE POLICY "rls_update" ON public.passagem_trechos FOR UPDATE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
-  WITH CHECK ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.passagem_trechos;
 CREATE POLICY "rls_delete" ON public.passagem_trechos FOR DELETE TO authenticated
-  USING ((public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
+  USING ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos')) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'));
 
 -- patrimonio_unidade  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.patrimonio_unidade;

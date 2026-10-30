@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { RedirecionarPrefixo } from "@/components/navigation/RedirecionarPrefixo";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { TenantProvider } from "@/core/tenant";
@@ -244,11 +245,11 @@ import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage"
 import PcaListaPage from "./pages/compras/PcaListaPage";
 import ContratosListaPage from "./pages/contratos/ContratosListaPage";
 import ContratoFichaPage from "./pages/contratos/ContratoFichaPage";
-import PassagensPedidosPage from "./pages/contratos/PassagensPedidosPage";
-import PassagemPedidoPage from "./pages/contratos/PassagemPedidoPage";
-import PassagensBeneficiariosPage from "./pages/contratos/PassagensBeneficiariosPage";
-import PassagensPendenciasPage from "./pages/contratos/PassagensPendenciasPage";
-import PassagensFaturasPage from "./pages/contratos/PassagensFaturasPage";
+import PassagensPedidosPage from "./pages/gabinete/PassagensPedidosPage";
+import PassagemPedidoPage from "./pages/gabinete/PassagemPedidoPage";
+import PassagensBeneficiariosPage from "./pages/gabinete/PassagensBeneficiariosPage";
+import PassagensPendenciasPage from "./pages/gabinete/PassagensPendenciasPage";
+import PassagensFaturasPage from "./pages/gabinete/PassagensFaturasPage";
 import PcaPlanoPage from "./pages/compras/PcaPlanoPage";
 import PesquisasPrecosListaPage from "./pages/compras/PesquisasPrecosListaPage";
 import PesquisaPrecosPage from "./pages/compras/PesquisaPrecosPage";
@@ -539,31 +540,8 @@ const App = () => (
                   <ContratosListaPage />
                 </ProtectedRoute>
               } />
-              <Route path="/contratos/passagens" element={
-                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
-                  <PassagensPedidosPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/contratos/passagens/beneficiarios" element={
-                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
-                  <PassagensBeneficiariosPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/contratos/passagens/pendencias" element={
-                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
-                  <PassagensPendenciasPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/contratos/passagens/faturas" element={
-                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar", "contratos.passagens.financeiro"]}>
-                  <PassagensFaturasPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/contratos/passagens/:id" element={
-                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
-                  <PassagemPedidoPage />
-                </ProtectedRoute>
-              } />
+              {/* Passagens aéreas foram para o Gabinete da Presidência: links antigos continuam abrindo. */}
+              <Route path="/contratos/passagens/*" element={<RedirecionarPrefixo de="/contratos/passagens" para="/gabinete/passagens" />} />
               <Route path="/contratos/:id" element={
                 <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.visualizar", "contratos.criar", "contratos.editar"]}>
                   <ContratoFichaPage />
@@ -583,6 +561,32 @@ const App = () => (
               } />
               <Route path="/gestores-escolares" element={<ProtectedRoute requiredModule="gestores_escolares"><GestoresEscolaresDashboardPage /></ProtectedRoute>} />
               <Route path="/gabinete" element={<ProtectedRoute requiredModule="gabinete"><GabineteDashboardPage /></ProtectedRoute>} />
+              {/* Passagens aéreas: pedidos, beneficiários, prestação de contas e faturas da agência (o contrato fica em Contratos). */}
+              <Route path="/gabinete/passagens" element={
+                <ProtectedRoute requiredModule="gabinete" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
+                  <PassagensPedidosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/gabinete/passagens/beneficiarios" element={
+                <ProtectedRoute requiredModule="gabinete" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
+                  <PassagensBeneficiariosPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/gabinete/passagens/pendencias" element={
+                <ProtectedRoute requiredModule="gabinete" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
+                  <PassagensPendenciasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/gabinete/passagens/faturas" element={
+                <ProtectedRoute requiredModule="gabinete" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar", "contratos.passagens.financeiro"]}>
+                  <PassagensFaturasPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/gabinete/passagens/:id" element={
+                <ProtectedRoute requiredModule="gabinete" requiredPermissions={["contratos.passagens.visualizar", "contratos.passagens.editar"]}>
+                  <PassagemPedidoPage />
+                </ProtectedRoute>
+              } />
               <Route path="/gabinete/portarias" element={
                 <ProtectedRoute requiredModule="gabinete">
                   <CentralPortariasPage />
