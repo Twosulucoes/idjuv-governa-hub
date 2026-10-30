@@ -123,9 +123,10 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 - [ ] **Site**: página pública de estrutura organizacional (LAI); o card saiu da Transparência pública no #120 porque
   levava a uma tela com login.
 - [ ] **Filtros dinâmicos** (transversal): barra de filtros do design system (várias escolhas com quantidade, período
-  com atalhos, faixa de valor, sim/não, chips, "Limpar filtros", lembrada na URL e no navegador). Entrega F1 em
-  30/10/2026 no Financeiro: Empenhos, Pagamentos, QDD, Emendas, Diárias e Convênios federais; F2 (demais telas do
-  Financeiro) e outros módulos depois.
+  com atalhos, faixa de valor, sim/não, chips, "Limpar filtros", lembrada na URL e no navegador). Financeiro inteiro
+  em 30/10/2026: F1 (PR #205) em Empenhos, Pagamentos, QDD, Emendas, Diárias e Convênios federais; F2 em Liquidações,
+  Solicitações, Adiantamentos, Restos a pagar, Favorecidos, Contas bancárias, Conciliação e Alterações orçamentárias.
+  Próximos: RH, Contratos, Compras e Patrimônio.
 - [ ] **Convênios e emendas federais pelo Transferegov** ([INTEGRACOES_EXTERNAS.md](../INTEGRACOES_EXTERNAS.md) §4,
   [spec](../superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md)). **T1 feita (PR #191, 29/10):**
   rotina diária no GitHub Actions lê os CSV do Transferegov e grava, pela Edge Function `transferegov`, o espelho

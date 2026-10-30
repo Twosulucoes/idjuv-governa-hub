@@ -10,7 +10,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Archive, Ban, FileText, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
 import { ModuleLayout } from '@/components/layout';
-import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from '@/components/design-system';
+import {
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+  type TomStatus,
+} from '@/components/design-system';
 import { useRestosPagar, useResumoRAP, useInscreverRAP, useCancelarRAP } from '@/hooks/useRestosAPagar';
 import { STATUS_RAP_LABELS, TIPO_RAP_LABELS, type RestoPagar, type StatusRestoPagar } from '@/types/financeiro';
 
@@ -31,6 +40,29 @@ function StatusRapBadge({ status }: { status: string }) {
   if (!label) return <StatusBadge tom="neutro">{status || 'Sem status'}</StatusBadge>;
   return <StatusBadge tom={TOM_STATUS_RAP[status as StatusRestoPagar]}>{label}</StatusBadge>;
 }
+
+const filtrosRap: FiltroDef<RestoPagar>[] = [
+  {
+    tipo: 'lista',
+    id: 'status',
+    rotulo: 'Situação',
+    principal: true,
+    valor: (rap) => rap.status,
+    opcoes: Object.entries(STATUS_RAP_LABELS).map(([valor, rotulo]) => ({ valor, rotulo })),
+  },
+  {
+    tipo: 'lista',
+    id: 'tipo',
+    rotulo: 'Tipo',
+    principal: true,
+    valor: (rap) => rap.tipo,
+    opcoes: Object.entries(TIPO_RAP_LABELS).map(([valor, rotulo]) => ({ valor, rotulo })),
+  },
+  { tipo: 'lista', id: 'credor', rotulo: 'Fornecedor', principal: true, valor: (rap) => rap.empenho?.fornecedor?.razao_social },
+  { tipo: 'lista', id: 'origem', rotulo: 'Exercício de origem', valor: (rap) => String(rap.exercicio_origem) },
+  { tipo: 'faixa', id: 'saldo', rotulo: 'Saldo', formato: 'moeda', valor: (rap) => Number(rap.saldo) },
+  { tipo: 'booleano', id: 'com_saldo', rotulo: 'Com saldo', valor: (rap) => Number(rap.saldo) > 0 },
+];
 
 const colunas: ColunaTabela<RestoPagar>[] = [
   {
@@ -92,18 +124,13 @@ const colunas: ColunaTabela<RestoPagar>[] = [
 export default function RestosAPagarPage() {
   const anoAtual = new Date().getFullYear();
   const [exercicio, setExercicio] = useState(anoAtual);
-  const [filtroTipo, setFiltroTipo] = useState<string>('');
-  const [filtroStatus, setFiltroStatus] = useState<string>('');
   const [cancelarDialog, setCancelarDialog] = useState<string | null>(null);
   const [motivoCancelamento, setMotivoCancelamento] = useState('');
   const [inscreverDialog, setInscreverDialog] = useState(false);
   const [exercicioOrigem, setExercicioOrigem] = useState(anoAtual - 1);
 
-  const { data: restos, isLoading, isError, refetch } = useRestosPagar({
-    exercicio_inscricao: exercicio,
-    tipo: filtroTipo || undefined,
-    status: filtroStatus || undefined,
-  });
+  const filtros = useEstadoFiltros('financeiro.restos-a-pagar', filtrosRap);
+  const { data: restos, isLoading, isError, refetch } = useRestosPagar({ exercicio_inscricao: exercicio });
   const { data: resumo } = useResumoRAP(exercicio);
   const inscreverRAP = useInscreverRAP();
   const cancelarRAP = useCancelarRAP();
@@ -183,31 +210,7 @@ export default function RestosAPagarPage() {
         erro={isError ? "Não foi possível carregar os restos a pagar." : null}
         aoTentarNovamente={() => refetch()}
         busca={{ placeholder: "Buscar por empenho ou fornecedor…" }}
-        filtros={
-          <>
-            <Select value={filtroTipo || "all"} onValueChange={(v) => setFiltroTipo(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-full sm:w-[200px]" aria-label="Tipo">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os tipos</SelectItem>
-                <SelectItem value="processado">Processado</SelectItem>
-                <SelectItem value="nao_processado">Não processado</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filtroStatus || "all"} onValueChange={(v) => setFiltroStatus(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por situação">
-                <SelectValue placeholder="Todas as situações" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as situações</SelectItem>
-                {Object.entries(STATUS_RAP_LABELS).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </>
-        }
+        filtrosDinamicos={filtros}
         vazio={{
           icone: Archive,
           titulo: "Nenhum resto a pagar encontrado",

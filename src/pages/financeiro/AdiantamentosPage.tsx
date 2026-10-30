@@ -1,14 +1,15 @@
-import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
+  DataTable,
+  PageHeader,
+  StatusBadge,
+  dataISO,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+  type TomStatus,
+} from "@/components/design-system";
 import { Wallet, AlertTriangle } from "lucide-react";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { useAdiantamentos } from "@/hooks/useFinanceiro";
@@ -33,6 +34,39 @@ function StatusAdiantamentoBadge({ status }: { status: string }) {
   if (!label) return <StatusBadge tom="neutro">{status || "Sem status"}</StatusBadge>;
   return <StatusBadge tom={TOM_STATUS_ADIANTAMENTO[status as StatusAdiantamento]}>{label}</StatusBadge>;
 }
+
+const PRESTACAO_ENCERRADA: StatusAdiantamento[] = ["prestado", "aprovado", "rejeitado"];
+
+const filtrosAdiantamento: FiltroDef<Adiantamento>[] = [
+  {
+    tipo: "lista",
+    id: "status",
+    rotulo: "Situação",
+    principal: true,
+    valor: (adi) => adi.status,
+    opcoes: Object.entries(STATUS_ADIANTAMENTO_LABELS).map(([valor, rotulo]) => ({ valor, rotulo })),
+  },
+  { tipo: "periodo", id: "periodo", rotulo: "Data da solicitação", principal: true, valor: (adi) => adi.data_solicitacao },
+  {
+    tipo: "booleano",
+    id: "prazo_vencido",
+    rotulo: "Prestação de contas vencida",
+    principal: true,
+    valor: (adi) =>
+      Boolean(adi.prazo_prestacao_contas) &&
+      adi.prazo_prestacao_contas!.slice(0, 10) < dataISO(new Date()) &&
+      !PRESTACAO_ENCERRADA.includes(adi.status),
+  },
+  { tipo: "lista", id: "suprido", rotulo: "Servidor suprido", valor: (adi) => adi.servidor_suprido?.nome_completo },
+  { tipo: "periodo", id: "prazo", rotulo: "Prazo de comprovação", valor: (adi) => adi.prazo_prestacao_contas },
+  {
+    tipo: "faixa",
+    id: "valor",
+    rotulo: "Valor",
+    formato: "moeda",
+    valor: (adi) => Number(adi.valor_aprovado || adi.valor_solicitado),
+  },
+];
 
 const colunas: ColunaTabela<Adiantamento>[] = [
   {
@@ -74,14 +108,11 @@ const colunas: ColunaTabela<Adiantamento>[] = [
 ];
 
 export default function AdiantamentosPage() {
-  const [statusFilter, setStatusFilter] = useState<string>("todos");
   const { exercicio, comExercicio } = useExercicioFinanceiro();
   
   const { data: adiantamentos, isLoading, isError, refetch } = useAdiantamentos({ exercicio });
 
-  const filteredAdiantamentos = (adiantamentos ?? []).filter(
-    (adi) => statusFilter === "todos" || adi.status === statusFilter
-  );
+  const filtros = useEstadoFiltros("financeiro.adiantamentos", filtrosAdiantamento);
 
   const adiantamentosVencendo = adiantamentos?.filter(
     (adi) => adi.status === "liberado" && adi.prazo_prestacao_contas
@@ -113,28 +144,14 @@ export default function AdiantamentosPage() {
 
       <DataTable
         rotulo="Adiantamentos registrados"
-        dados={filteredAdiantamentos}
+        dados={adiantamentos ?? []}
         colunas={colunas}
         chaveLinha={(adi) => adi.id}
         carregando={isLoading}
         erro={isError ? "Não foi possível carregar os adiantamentos." : null}
         aoTentarNovamente={() => refetch()}
         busca={{ placeholder: "Buscar por número ou finalidade…" }}
-        filtros={
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48" aria-label="Filtrar por situação">
-              <SelectValue placeholder="Todas as situações" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todas as situações</SelectItem>
-              {(Object.entries(STATUS_ADIANTAMENTO_LABELS) as [StatusAdiantamento, string][]).map(([valor, label]) => (
-                <SelectItem key={valor} value={valor}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
+        filtrosDinamicos={filtros}
         vazio={{
           icone: Wallet,
           titulo: "Nenhum adiantamento encontrado",

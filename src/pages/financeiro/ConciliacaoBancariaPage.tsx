@@ -26,7 +26,15 @@ import {
   Unlink,
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
+import {
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+} from "@/components/design-system";
 import { ImportacaoWizard } from "@/components/importacao";
 import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { BancoDoBrasilApiPainel } from "@/components/financeiro/conciliacao/BancoDoBrasilApiPainel";
@@ -40,6 +48,7 @@ import { RemessasGeradas } from "@/components/financeiro/conciliacao/RemessasGer
 import { SituacaoMovimentoBadge } from "@/components/financeiro/conciliacao/movimentoUi";
 import {
   ROTULO_ORIGEM_ARQUIVO,
+  ROTULO_SITUACAO_MOVIMENTO,
   contaFavorecido,
   dataBR,
   documentoMascarado,
@@ -47,13 +56,12 @@ import {
 } from "@/lib/bancario/exibicao";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { useMovimentosBancarios } from "@/hooks/useConciliacaoBancaria";
 import { importadorArquivoBancario } from "@/lib/importacao/importadores/arquivoBancario";
 import { formatCurrency } from "@/lib/formatters";
-import type { FiltroSituacaoMovimento, MovimentoBancario } from "@/types/conciliacaoBancaria";
+import type { MovimentoBancario } from "@/types/conciliacaoBancaria";
 
 const colunasBase: ColunaTabela<MovimentoBancario>[] = [
   {
@@ -130,12 +138,26 @@ const colunasMovimentos: ColunaTabela<MovimentoBancario>[] = [
   },
 ];
 
-const FILTROS: { valor: FiltroSituacaoMovimento; rotulo: string }[] = [
-  { valor: "todos", rotulo: "Todas as situações" },
-  { valor: "pago", rotulo: "Pago" },
-  { valor: "recusado", rotulo: "Recusado" },
-  { valor: "enviado", rotulo: "Enviado" },
-  { valor: "sem_pagamento", rotulo: "Sem pagamento" },
+const filtrosMovimento: FiltroDef<MovimentoBancario>[] = [
+  {
+    tipo: "lista",
+    id: "situacao",
+    rotulo: "Situação",
+    principal: true,
+    valor: (m) => m.situacao,
+    opcoes: Object.entries(ROTULO_SITUACAO_MOVIMENTO).map(([valor, rotulo]) => ({ valor, rotulo })),
+  },
+  { tipo: "periodo", id: "periodo", rotulo: "Data", principal: true, valor: (m) => m.data_pagamento ?? m.data_arquivo },
+  { tipo: "booleano", id: "sem_pagamento", rotulo: "Sem pagamento ligado", principal: true, valor: (m) => !m.pagamento_id },
+  { tipo: "lista", id: "favorecido", rotulo: "Favorecido", valor: (m) => m.favorecido_nome },
+  {
+    tipo: "lista",
+    id: "arquivo",
+    rotulo: "Arquivo",
+    valor: (m) => m.origem,
+    rotuloOpcao: (v) => ROTULO_ORIGEM_ARQUIVO[v] ?? v,
+  },
+  { tipo: "faixa", id: "valor", rotulo: "Valor", formato: "moeda", valor: (m) => Number(m.valor) },
 ];
 
 /**
@@ -150,12 +172,6 @@ function contaCorrigidaTexto(m: MovimentoBancario): string {
   return `${c.banco} / ${c.agencia}${c.agencia_dv ? `-${c.agencia_dv}` : ""} / ${c.conta}${c.conta_dv ? `-${c.conta_dv}` : ""}`;
 }
 
-function filtrar(movimentos: MovimentoBancario[], filtro: FiltroSituacaoMovimento) {
-  if (filtro === "todos") return movimentos;
-  if (filtro === "sem_pagamento") return movimentos.filter((m) => !m.pagamento_id);
-  return movimentos.filter((m) => m.situacao === filtro);
-}
-
 export default function ConciliacaoBancariaPage() {
   const { exercicio } = useExercicioFinanceiro();
   const { data, isLoading, isError, refetch } = useMovimentosBancarios(exercicio);
@@ -167,7 +183,7 @@ export default function ConciliacaoBancariaPage() {
     const pedida = params.get("aba") ?? "";
     return ["movimentos", "remessa", "contas", "recusados", "bb", "mensal"].includes(pedida) ? pedida : "movimentos";
   });
-  const [filtro, setFiltro] = useState<FiltroSituacaoMovimento>("todos");
+  const filtros = useEstadoFiltros("financeiro.conciliacao", filtrosMovimento);
   const [importarAberto, setImportarAberto] = useState(false);
   const [importando, setImportando] = useState(false);
   const [paraConciliar, setParaConciliar] = useState<MovimentoBancario | null>(null);
@@ -273,27 +289,14 @@ export default function ConciliacaoBancariaPage() {
           <TabsContent value="movimentos">
             <DataTable
               rotulo="Movimentos bancários"
-              dados={filtrar(movimentos, filtro)}
+              dados={movimentos}
               colunas={colunasMovimentos}
               chaveLinha={(m) => m.id}
               carregando={isLoading}
               erro={erroLista}
               aoTentarNovamente={() => refetch()}
               busca={{ placeholder: "Buscar por favorecido, OB ou pagamento…" }}
-              filtros={
-                <Select value={filtro} onValueChange={(v) => setFiltro(v as FiltroSituacaoMovimento)}>
-                  <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por situação">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FILTROS.map((f) => (
-                      <SelectItem key={f.valor} value={f.valor}>
-                        {f.rotulo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              }
+              filtrosDinamicos={filtros}
               vazio={{
                 icone: Banknote,
                 titulo: "Nenhum movimento neste exercício",

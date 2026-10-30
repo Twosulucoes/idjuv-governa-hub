@@ -4,7 +4,15 @@ import { ModuleLayout } from "@/components/layout";
 import ContaBancariaFormDialog from "@/components/financeiro/ContaBancariaFormDialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
+import {
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+} from "@/components/design-system";
 import { Plus, Building2, CheckCircle2, Wallet, Info } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { useContasBancarias } from "@/hooks/useFinanceiro";
@@ -16,6 +24,36 @@ const tipoContaLabels: Record<string, string> = {
   aplicacao: "Aplicação",
   vinculada: "Vinculada",
 };
+
+const filtrosConta: FiltroDef<ContaBancaria>[] = [
+  { tipo: "lista", id: "banco", rotulo: "Banco", principal: true, valor: (conta) => conta.banco_nome },
+  {
+    tipo: "lista",
+    id: "tipo",
+    rotulo: "Tipo",
+    principal: true,
+    valor: (conta) => conta.tipo,
+    opcoes: Object.entries(tipoContaLabels).map(([valor, rotulo]) => ({ valor, rotulo })),
+  },
+  {
+    tipo: "lista",
+    id: "situacao",
+    rotulo: "Situação",
+    principal: true,
+    valor: (conta) => (conta.ativo ? "ativa" : "inativa"),
+    opcoes: [
+      { valor: "ativa", rotulo: "Ativa" },
+      { valor: "inativa", rotulo: "Inativa" },
+    ],
+  },
+  {
+    tipo: "lista",
+    id: "fonte",
+    rotulo: "Fonte",
+    valor: (conta) => (conta.fonte_recurso ? `${conta.fonte_recurso.codigo} - ${conta.fonte_recurso.nome}` : null),
+  },
+  { tipo: "faixa", id: "saldo", rotulo: "Saldo", formato: "moeda", valor: (conta) => Number(conta.saldo_atual || 0) },
+];
 
 const colunas: ColunaTabela<ContaBancaria>[] = [
   {
@@ -72,6 +110,7 @@ const colunas: ColunaTabela<ContaBancaria>[] = [
 export default function ContasBancariasPage() {
   const { data: contas, isLoading, isError, refetch } = useContasBancarias();
   const [formOpen, setFormOpen] = useState(false);
+  const filtros = useEstadoFiltros("financeiro.contas-bancarias", filtrosConta);
 
   const saldoTotal = contas?.reduce((acc, conta) => acc + (conta.saldo_atual || 0), 0) || 0;
 
@@ -129,6 +168,7 @@ export default function ContasBancariasPage() {
         erro={isError ? "Não foi possível carregar as contas bancárias." : null}
         aoTentarNovamente={() => refetch()}
         busca={{ placeholder: "Buscar por nome, banco ou número…" }}
+        filtrosDinamicos={filtros}
         vazio={{
           icone: Building2,
           titulo: "Nenhuma conta encontrada",

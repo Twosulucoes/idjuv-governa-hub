@@ -14,6 +14,7 @@ export { useEstadoFiltros, type FiltrosDaTela } from "./filtros/useEstadoFiltros
 export {
   aplicarFiltros,
   resolverPeriodo,
+  dataISO,
   descreverFiltro,
   estadoParaParams,
   paramsParaEstado,
