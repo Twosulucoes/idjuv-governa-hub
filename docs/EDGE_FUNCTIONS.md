@@ -125,9 +125,12 @@ conferidos com o token do próprio usuário (sem service role; não grava nada).
 até 500 preços de `1_consultarMaterial` ou `3_consultarServico` do módulo Pesquisa de Preço, por item do catálogo ou
 tipo de material, no período pedido; a tela faz o laço de páginas, até 6), `pncp_compra` (dados da compra e itens, pelo
 CNPJ, ano e sequencial do número de controle), `pncp_resultados` (preços homologados de um item) e `pncp_busca`
-(entrega 2: busca por nome, de 3 a 80 caracteres; usa a busca pública de editais do PNCP, `/api/search/`, lê até 8
+(entrega 2: busca por nome, de 3 a 80 caracteres; usa a busca pública de editais **encerrados** do PNCP,
+`/api/search/` com `status=encerradas`, porque edital aberto ainda não tem resultado homologado; lê até 8
 compras, até 3 itens de cada com todas as palavras buscadas e com resultado, e devolve os preços homologados dentro do
-período pedido; compra que falha é pulada e contada em `comprasComFalha`). A busca pública do PNCP não tem manual
+período pedido; compra que falha é pulada e contada em `comprasComFalha`; o log da ação traz quantos editais a busca achou e o motivo da
+primeira falha). Conexão que cai (`TypeError` do `fetch`) ganha uma segunda tentativa; tempo esgotado e status de erro
+do portal, não. O log de erro do portal grava nome e mensagem do erro (até 200 caracteres). A busca pública do PNCP não tem manual
 oficial: os campos (`orgao_cnpj`, `ano`, `numero_sequencial`, `numero_controle_pncp`) vieram de clientes públicos, e o
 primeiro teste real é depois do merge. Cada preço volta com
 a fonte (órgão, UASG, UF, compra, data, fornecedor, link) e um `idExterno` estável, que impede gravar a mesma linha duas
