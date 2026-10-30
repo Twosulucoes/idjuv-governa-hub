@@ -554,6 +554,10 @@ migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`;
     `cn("text-h3", "text-lg")` fica só com `text-lg`; `CardTitle` usa `text-h3` por padrão. As tags `h1`–`h3` ainda têm o tamanho antigo
     (base de `src/index.css`); telas novas ou migradas usam as classes da escala (`text-h1`…), e
     o tamanho base é alinhado quando o `PageHeader` da Fase 2 existir.
+  - **Espaçamento de `Card` e `Table`:** o padrão (`p-4 sm:p-6` no cartão, `p-3 sm:p-4` na célula, altura e texto do
+    cabeçalho) mora na camada de componentes de `src/index.css` (`card-*-espaco`, `table-*-espaco`). Assim, o que a tela
+    passa em `className` (`p-0`, `p-4`, `pb-2`, `py-2`, `h-9`, `text-xs`) vale em todas as larguras; antes o `sm:` do
+    padrão ganhava no desktop, porque o `cn` não troca variantes diferentes.
   - **Gráficos:** série `--chart-1` a `--chart-8` via `ChartContainer`/`chartConfig` de
     `@/components/ui/chart` — nada de `fill="#…"`.
   - **Movimento:** `--duration-fast` (150ms) / `--duration-base` (200ms); `prefers-reduced-motion`
