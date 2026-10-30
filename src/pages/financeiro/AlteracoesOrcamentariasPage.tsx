@@ -3,7 +3,7 @@
  * Suplementações, reduções, remanejamentos com fluxo de aprovação
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,10 @@ import {
   KpiCard,
   PageHeader,
   StatusBadge,
+  aplicarFiltros,
+  useEstadoFiltros,
   type ColunaTabela,
+  type FiltroDef,
   type TomStatus,
 } from "@/components/design-system";
 import {
@@ -98,6 +101,28 @@ const SEM_LANCAMENTO_FIPLAN: StatusWorkflowFinanceiro[] = ["rejeitado", "cancela
 
 const podeConfirmarNoFiplan = (alt: AlteracaoOrcamentaria) =>
   !confirmadaNoFiplan(alt) && !SEM_LANCAMENTO_FIPLAN.includes(alt.status);
+
+const filtrosAlteracao: FiltroDef<AlteracaoComDotacoes>[] = [
+  {
+    tipo: "lista",
+    id: "tipo",
+    rotulo: "Tipo",
+    principal: true,
+    valor: (alt) => alt.tipo,
+    opcoes: Object.entries(TIPO_ALTERACAO_LABELS).map(([valor, rotulo]) => ({ valor, rotulo })),
+  },
+  {
+    tipo: "lista",
+    id: "status",
+    rotulo: "Situação",
+    principal: true,
+    valor: (alt) => alt.status,
+    opcoes: Object.entries(SITUACAO).map(([valor, s]) => ({ valor, rotulo: s.label })),
+  },
+  { tipo: "periodo", id: "periodo", rotulo: "Data", principal: true, valor: (alt) => alt.data_alteracao },
+  { tipo: "booleano", id: "falta_fiplan", rotulo: "Falta confirmar no FIPLAN", valor: podeConfirmarNoFiplan },
+  { tipo: "faixa", id: "valor", rotulo: "Valor", formato: "moeda", valor: (alt) => Number(alt.valor) },
+];
 
 const colunas: ColunaTabela<AlteracaoComDotacoes>[] = [
   {
@@ -180,8 +205,7 @@ const colunas: ColunaTabela<AlteracaoComDotacoes>[] = [
 
 export default function AlteracoesOrcamentariasPage() {
   const { exercicio, comExercicio } = useExercicioFinanceiro();
-  const [filtroStatus, setFiltroStatus] = useState("todos");
-  const [filtroTipo, setFiltroTipo] = useState("todos");
+  const filtros = useEstadoFiltros("financeiro.alteracoes-orcamentarias", filtrosAlteracao);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useAlteracoesOrcamentarias({ exercicio });
@@ -206,21 +230,20 @@ export default function AlteracoesOrcamentariasPage() {
   const needsOrigem = ["remanejamento", "transposicao", "transferencia", "reducao"].includes(formTipo);
   const needsDestino = ["suplementacao", "remanejamento", "transposicao", "transferencia", "credito_especial", "credito_extraordinario"].includes(formTipo);
 
-  // A busca por texto fica com o DataTable; aqui só os filtros de tipo e situação
-  const filteredAlteracoes = (alteracoes ?? []).filter((a) => {
-    if (filtroStatus !== "todos" && a.status !== filtroStatus) return false;
-    if (filtroTipo !== "todos" && a.tipo !== filtroTipo) return false;
-    return true;
-  });
+  // Os cartões de totais acompanham os filtros; a busca por texto fica só na tabela
+  const filtradas = useMemo(
+    () => aplicarFiltros(alteracoes ?? [], filtros.definicoes, filtros.estado),
+    [alteracoes, filtros.definicoes, filtros.estado],
+  );
 
-  const totalSupl = alteracoes
-    ?.filter((a) => a.tipo === "suplementacao" && a.status === "executado")
+  const totalSupl = filtradas
+    .filter((a) => a.tipo === "suplementacao" && a.status === "executado")
     .reduce((s, a) => s + Number(a.valor), 0) || 0;
-  const totalRed = alteracoes
-    ?.filter((a) => a.tipo === "reducao" && a.status === "executado")
+  const totalRed = filtradas
+    .filter((a) => a.tipo === "reducao" && a.status === "executado")
     .reduce((s, a) => s + Number(a.valor), 0) || 0;
-  const totalRemn = alteracoes
-    ?.filter((a) => a.tipo === "remanejamento" && a.status === "executado")
+  const totalRemn = filtradas
+    .filter((a) => a.tipo === "remanejamento" && a.status === "executado")
     .reduce((s, a) => s + Number(a.valor), 0) || 0;
 
   const handleSubmit = async () => {
@@ -261,7 +284,6 @@ export default function AlteracoesOrcamentariasPage() {
     }
   };
 
-  const temFiltro = filtroStatus !== "todos" || filtroTipo !== "todos";
 
   return (
     <ModuleLayout module="financeiro">
@@ -293,54 +315,19 @@ export default function AlteracoesOrcamentariasPage() {
 
         <DataTable
           rotulo="Alterações orçamentárias"
-          dados={filteredAlteracoes}
+          dados={alteracoes ?? []}
           colunas={colunas}
           chaveLinha={(alt) => alt.id}
           carregando={isLoading}
           erro={isError ? "Não foi possível carregar as alterações orçamentárias." : null}
           aoTentarNovamente={() => refetch()}
           busca={{ placeholder: "Buscar por número, justificativa, dotação ou processo SEI…" }}
-          filtros={
-            <>
-              <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por tipo">
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os tipos</SelectItem>
-                  <SelectItem value="suplementacao">Suplementação</SelectItem>
-                  <SelectItem value="reducao">Redução</SelectItem>
-                  <SelectItem value="remanejamento">Remanejamento</SelectItem>
-                  <SelectItem value="transposicao">Transposição</SelectItem>
-                  <SelectItem value="transferencia">Transferência</SelectItem>
-                  <SelectItem value="credito_especial">Crédito especial</SelectItem>
-                  <SelectItem value="credito_extraordinario">Crédito extraordinário</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por situação">
-                  <SelectValue placeholder="Situação" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todas as situações</SelectItem>
-                  <SelectItem value="rascunho">Rascunho</SelectItem>
-                  <SelectItem value="pendente_analise">Pendente</SelectItem>
-                  <SelectItem value="em_analise">Em análise</SelectItem>
-                  <SelectItem value="aprovado">Aprovado</SelectItem>
-                  <SelectItem value="executado">Executado</SelectItem>
-                  <SelectItem value="rejeitado">Rejeitado</SelectItem>
-                  <SelectItem value="cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </>
-          }
+          filtrosDinamicos={filtros}
           vazio={{
             icone: ArrowUpDown,
-            titulo: temFiltro ? "Nenhuma alteração com esses filtros" : "Nenhuma alteração orçamentária encontrada",
-            descricao: temFiltro
-              ? "Ajuste o tipo ou a situação para ver outras alterações."
-              : `Não há alterações orçamentárias registradas em ${exercicio}.`,
-            acao: temFiltro ? undefined : (
+            titulo: "Nenhuma alteração orçamentária encontrada",
+            descricao: `Não há alterações orçamentárias registradas em ${exercicio}.`,
+            acao: (
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Nova alteração

@@ -1,15 +1,16 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
 import LiquidacaoFormDialog from "@/components/financeiro/LiquidacaoFormDialog";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
+  DataTable,
+  PageHeader,
+  StatusBadge,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+  type TomStatus,
+} from "@/components/design-system";
 import { Plus, FileCheck, Paperclip } from "lucide-react";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { useLiquidacoes } from "@/hooks/useFinanceiro";
@@ -26,6 +27,28 @@ const SITUACAO_LIQUIDACAO: Record<string, { label: string; tom: TomStatus }> = {
   rejeitada: { label: "Rejeitada", tom: "erro" },
   cancelada: { label: "Cancelada", tom: "neutro" },
 };
+
+const filtrosLiquidacao: FiltroDef<Liquidacao>[] = [
+  {
+    tipo: "lista",
+    id: "status",
+    rotulo: "Situação",
+    principal: true,
+    valor: (liq) => liq.status,
+    opcoes: Object.entries(SITUACAO_LIQUIDACAO).map(([valor, s]) => ({ valor, rotulo: s.label })),
+  },
+  { tipo: "periodo", id: "periodo", rotulo: "Data da liquidação", principal: true, valor: (liq) => liq.data_liquidacao },
+  {
+    tipo: "lista",
+    id: "credor",
+    rotulo: "Credor",
+    principal: true,
+    valor: (liq) => liq.empenho?.fornecedor?.razao_social,
+  },
+  { tipo: "lista", id: "documento", rotulo: "Tipo de documento", valor: (liq) => liq.tipo_documento?.toUpperCase() },
+  { tipo: "faixa", id: "valor", rotulo: "Valor liquidado", formato: "moeda", valor: (liq) => Number(liq.valor_liquidado) },
+  { tipo: "booleano", id: "com_retencao", rotulo: "Com retenções", valor: (liq) => Number(liq.valor_retencoes) > 0 },
+];
 
 const colunas: ColunaTabela<Liquidacao>[] = [
   {
@@ -80,16 +103,12 @@ const colunas: ColunaTabela<Liquidacao>[] = [
 ];
 
 export default function LiquidacoesPage() {
-  const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [formOpen, setFormOpen] = useState(false);
   const { exercicio, comExercicio } = useExercicioFinanceiro();
 
   const { data: liquidacoes, isLoading, isError, refetch } = useLiquidacoes({ exercicio });
 
-  const filteredLiquidacoes = useMemo(
-    () => (liquidacoes ?? []).filter((liq) => statusFilter === "todos" || liq.status === statusFilter),
-    [liquidacoes, statusFilter],
-  );
+  const filtros = useEstadoFiltros("financeiro.liquidacoes", filtrosLiquidacao);
 
   return (
     <ModuleLayout module="financeiro">
@@ -111,27 +130,14 @@ export default function LiquidacoesPage() {
 
       <DataTable
         rotulo="Liquidações registradas"
-        dados={filteredLiquidacoes}
+        dados={liquidacoes ?? []}
         colunas={colunas}
         chaveLinha={(liq) => liq.id}
         carregando={isLoading}
         erro={isError ? "Verifique sua conexão e tente novamente." : null}
         aoTentarNovamente={() => refetch()}
         busca={{ placeholder: "Buscar por número..." }}
-        filtros={
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48" aria-label="Filtrar por situação">
-              <SelectValue placeholder="Situação" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todas as situações</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="em_analise">Em análise</SelectItem>
-              <SelectItem value="aprovada">Aprovada</SelectItem>
-              <SelectItem value="rejeitada">Rejeitada</SelectItem>
-            </SelectContent>
-          </Select>
-        }
+        filtrosDinamicos={filtros}
         vazio={{
           icone: FileCheck,
           titulo: "Nenhuma liquidação encontrada",
