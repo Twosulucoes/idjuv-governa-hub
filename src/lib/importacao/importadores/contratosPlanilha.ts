@@ -5,7 +5,8 @@
  * módulo e a permissão `contratos.criar`, cadastra o contratado que falta (pelo CNPJ/CPF), designa gestor e fiscais
  * pela matrícula e grava tudo ou nada. Contrato que já existe (nº + ano) só tem os campos vazios completados, o que
  * exige também `contratos.editar`; designar gestor e fiscais pela matrícula basta `contratos.criar`. Nada é apagado.
- * Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md (C1)
+ * Desde a C2, o "Valor atual" diferente do inicial vira a "situação anterior ao sistema" (aba Alterações da ficha).
+ * Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md (C1 e C2)
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -39,7 +40,8 @@ export const importadorContratosPlanilha: Importador<LinhaContratoPlanilha> = {
   instrucoes:
     'Use o modelo abaixo (aba "Contratos"; exemplos e listas na aba "Como preencher"). O contratado que não estiver ' +
     "cadastrado entra pelo CNPJ ou CPF; gestor e fiscais, pela matrícula. Contrato que já existe só tem os campos " +
-    "vazios completados; nada é apagado.",
+    "vazios completados; nada é apagado. Valor atual diferente do inicial vira, na ficha, a linha \"Situação anterior " +
+    "ao sistema\" da aba Alterações; os aditivos seguintes se registram lá.",
   colunas: [
     { id: "contrato", rotulo: "Contrato", valor: (l) => `${l.numero}/${l.ano ?? "?"}` },
     { id: "contratado", rotulo: "Contratado", valor: (l) => l.razao_social ?? l.documento ?? "" },
@@ -135,5 +137,5 @@ export const importadorContratosPlanilha: Importador<LinhaContratoPlanilha> = {
   },
 
   // Chaves de src/hooks/useContratos.ts e do painel do módulo
-  invalidar: [["contratos"], ["contrato"], ["contratos-dashboard-stats"]],
+  invalidar: [["contratos"], ["contrato"], ["contratos-dashboard-stats"], ["contratos-meus-vencimentos"]],
 };

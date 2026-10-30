@@ -1,9 +1,10 @@
 /**
- * Contratos (entrega C1): lista, ficha, itens, responsáveis e histórico. A planilha entra pelo importador aberto na lista de contratos
- * (src/lib/importacao/importadores/contratosPlanilha.ts).
- * Migração 20261104090000. Ler: módulo Compras ou Contratos. Cadastrar: `contratos.criar`; alterar: `contratos.editar`;
- * apagar só rascunho, com editar (gatilho contratos_conferir_permissao). O servidor chega pela RPC estreita
- * contrato_buscar_servidores, porque quem tem Contratos não lê o RH.
+ * Contratos (entregas C1 e C2): lista, ficha, itens, responsáveis, alterações, providência do vencimento e histórico.
+ * A planilha entra pelo importador aberto na lista de contratos (src/lib/importacao/importadores/contratosPlanilha.ts).
+ * Migrações 20261104090000 e 20261113090000. Ler: módulo Compras ou Contratos. Cadastrar: `contratos.criar`; alterar:
+ * `contratos.editar`; apagar só rascunho, com editar (gatilho contratos_conferir_permissao). Alteração (aditivo,
+ * apostilamento, suspensão, rescisão) só com `contratos.editar`; o banco recalcula o valor atual, o fim e a situação.
+ * O servidor chega pela RPC estreita contrato_buscar_servidores, porque quem tem Contratos não lê o RH.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import type {
   ContratadoResumo,
+  ContratoAlteracao,
   ContratoFicha,
   ContratoLista,
   ContratoResponsavel,
@@ -30,6 +32,9 @@ export type DesignacaoInput = Pick<
   'contrato_id' | 'servidor_id' | 'papel' | 'portaria_numero' | 'portaria_documento_sei' | 'portaria_data' | 'data_inicio' | 'observacoes'
 >;
 export type EncerramentoInput = Pick<TablesUpdate<'contrato_responsaveis'>, 'data_fim' | 'motivo_saida'> & { id: string; contrato_id: string };
+export type AlteracaoInput = Omit<TablesInsert<'contrato_alteracoes'>, 'created_at' | 'created_by' | 'updated_at' | 'updated_by'> & { id?: string };
+export type RetomadaInput = Pick<TablesUpdate<'contrato_alteracoes'>, 'data_retomada' | 'documento_retomada_sei'> & { id: string; contrato_id: string };
+export type ProvidenciaInput = Pick<TablesUpdate<'contratos'>, 'renovacao_providencia' | 'renovacao_processo_sei' | 'renovacao_observacao'> & { id: string };
 
 const CHAVE = 'contratos';
 /** Teto da lista numa leitura (o PostgREST corta em 1000); a tela avisa quando chega nele. */
@@ -43,6 +48,10 @@ function mensagemErro(e: unknown): string {
     if (texto.includes('gestor_ativo')) return 'O contrato já tem um gestor ativo. Encerre a designação dele antes.';
     if (texto.includes('papel_ativo')) return 'Este servidor já está designado neste papel.';
     if (texto.includes('cpf_cnpj')) return 'Já existe contratado com este CPF ou CNPJ.';
+    if (texto.includes('uq_contrato_alteracoes_numero')) return 'Já existe alteração desta espécie com este número.';
+    if (texto.includes('uq_contrato_alteracoes_rescisao')) return 'O contrato já tem uma rescisão registrada.';
+    if (texto.includes('uq_contrato_alteracoes_partida')) return 'O contrato já tem a situação anterior ao sistema.';
+    if (texto.includes('uq_contrato_alteracoes_suspensao_aberta')) return 'Já há uma suspensão em aberto: registre a retomada dela antes.';
     return 'Registro repetido.';
   }
   if (erro?.code === '42501') {
@@ -55,6 +64,16 @@ function mensagemErro(e: unknown): string {
     if (texto.includes('periodo_check')) return 'O fim da designação não pode ser antes do início.';
     if (texto.includes('vigencia_check')) return 'O fim da vigência não pode ser antes do início.';
     if (texto.includes('valores_check')) return 'Os valores não podem ser negativos.';
+    if (texto.includes('alteracoes_aditivo_check')) {
+      return 'No aditivo, marque o que ele muda (prazo pede o novo fim; valor pede o acréscimo ou a supressão) e informe a assinatura.';
+    }
+    if (texto.includes('alteracoes_apostilamento_check')) return 'No apostilamento, informe o motivo e a assinatura.';
+    if (texto.includes('alteracoes_suspensao_check')) return 'Informe o início da suspensão; a retomada não pode ser antes dele.';
+    if (texto.includes('alteracoes_rescisao_check')) return 'Na rescisão, informe a data e a forma.';
+    if (texto.includes('alteracoes_partida_check')) return 'A situação anterior precisa de uma diferença de valor ou de um fim.';
+    if (texto.includes('alteracoes_percentual_check')) return 'Percentual só no reajuste ou na repactuação, entre -100% e 1000%.';
+    if (texto.includes('alteracoes_numero_check')) return 'Informe o número (de 1 a 999).';
+    if (texto.includes('textos_check') || texto.includes('renovacao_')) return 'Algum texto passou do tamanho máximo.';
     return 'Algum campo está fora do permitido.';
   }
   if (erro?.code === '23503') return 'Este registro está ligado a outro e não pode ser apagado.';
@@ -73,9 +92,11 @@ function useAvisos() {
   };
 }
 
+/** [CHAVE] cobre lista, itens, responsáveis, alterações, histórico e Vencimentos. */
 const invalidarContrato = (qc: ReturnType<typeof useQueryClient>, id?: string) => {
   qc.invalidateQueries({ queryKey: [CHAVE] });
   qc.invalidateQueries({ queryKey: ['contratos-dashboard-stats'] });
+  qc.invalidateQueries({ queryKey: ['contratos-meus-vencimentos'] });
   qc.invalidateQueries({ queryKey: ['passagens-contratos'] });
   if (id) qc.invalidateQueries({ queryKey: ['contrato', id] });
 };
@@ -340,8 +361,101 @@ export function useEncerrarDesignacao() {
   });
 }
 
+// ---------------------------------------------------------------------------- alterações (C2)
+export function useAlteracoesContrato(contratoId: string | undefined) {
+  return useQuery({
+    queryKey: [CHAVE, 'alteracoes', contratoId],
+    enabled: !!contratoId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contrato_alteracoes')
+        .select('*')
+        .eq('contrato_id', contratoId!)
+        .order('created_at');
+      if (error) throw error;
+      return (data ?? []) as ContratoAlteracao[];
+    },
+  });
+}
+
+/** Sem linha de volta = a RLS barrou (só contratos.editar grava alteração). */
+const conferirGravou = (data: unknown[] | null, mensagem: string) => {
+  if (!data?.length) throw { code: '42501', message: mensagem };
+};
+
+export function useSalvarAlteracao() {
+  const { qc, ok, falha } = useAvisos();
+  return useMutation({
+    mutationFn: async ({ id, ...dados }: AlteracaoInput) => {
+      if (id) {
+        const { contrato_id: _c, ...campos } = dados;
+        const { data, error } = await supabase.from('contrato_alteracoes').update(campos).eq('id', id).select('id');
+        if (error) throw error;
+        conferirGravou(data, 'Só quem pode editar contratos corrige uma alteração.');
+        return;
+      }
+      const { error } = await supabase.from('contrato_alteracoes').insert(dados);
+      if (error) throw error;
+    },
+    onSuccess: (_r, vars) => {
+      invalidarContrato(qc, vars.contrato_id);
+      ok(vars.id ? 'Alteração corrigida' : 'Alteração registrada');
+    },
+    onError: falha('Não foi possível salvar a alteração'),
+  });
+}
+
+export function useRegistrarRetomada() {
+  const { qc, ok, falha } = useAvisos();
+  return useMutation({
+    mutationFn: async ({ id, contrato_id: _c, ...dados }: RetomadaInput) => {
+      const { data, error } = await supabase.from('contrato_alteracoes').update(dados).eq('id', id).select('id');
+      if (error) throw error;
+      conferirGravou(data, 'Só quem pode editar contratos registra a retomada.');
+    },
+    onSuccess: (_r, vars) => {
+      invalidarContrato(qc, vars.contrato_id);
+      ok('Retomada registrada');
+    },
+    onError: falha('Não foi possível registrar a retomada'),
+  });
+}
+
+export function useExcluirAlteracao() {
+  const { qc, ok, falha } = useAvisos();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; contrato_id: string }) => {
+      const { data, error } = await supabase.from('contrato_alteracoes').delete().eq('id', id).select('id');
+      if (error) throw error;
+      conferirGravou(data, 'Só quem pode editar contratos apaga uma alteração.');
+    },
+    onSuccess: (_r, vars) => {
+      invalidarContrato(qc, vars.contrato_id);
+      ok('Alteração apagada');
+    },
+    onError: falha('Não foi possível apagar a alteração'),
+  });
+}
+
+/** Providência do vencimento (tela Vencimentos): o banco limpa sozinho quando o fim atual vai para depois. */
+export function useSalvarProvidencia() {
+  const { qc, ok, falha } = useAvisos();
+  return useMutation({
+    mutationFn: async ({ id, ...dados }: ProvidenciaInput) => {
+      const { data, error } = await supabase.from('contratos').update(dados).eq('id', id).select('id');
+      if (error) throw error;
+      conferirGravou(data, 'Só quem pode editar contratos registra a providência.');
+    },
+    onSuccess: (_r, vars) => {
+      invalidarContrato(qc, vars.id);
+      ok(vars.renovacao_providencia ? 'Providência registrada' : 'Providência retirada');
+    },
+    onError: falha('Não foi possível salvar a providência'),
+  });
+}
+
 // ---------------------------------------------------------------------------- histórico
-const TABELAS_HISTORICO = ['contratos', 'itens_contrato', 'contrato_responsaveis'];
+const TABELAS_HISTORICO = ['contratos', 'itens_contrato', 'contrato_responsaveis', 'contrato_alteracoes'];
 
 export function useHistoricoContrato(contratoId: string | undefined) {
   return useQuery({

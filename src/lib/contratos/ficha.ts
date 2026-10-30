@@ -6,12 +6,14 @@
 import type { DadosFichaContrato } from "@/lib/documentos/modelos/contratos/fichaContrato";
 import { mascararDocumento } from "@/lib/bancario/comum";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
+import { avisosLimites, dataAlteracao, efeitosAlteracao, ordenarAlteracoes, tituloAlteracao } from "@/lib/contratos/alteracoes";
 import { descricaoPortaria, ordenarPorPapel, periodoDesignacao } from "@/lib/contratos/responsaveis";
 import { descricaoVigencia, situacaoVigencia } from "@/lib/contratos/vigencia";
 import {
   rotuloPapel,
   rotuloSituacaoContrato,
   rotuloTipoContrato,
+  type ContratoAlteracao,
   type ContratoFicha,
   type ContratoResponsavel,
   type ItemContrato,
@@ -23,10 +25,14 @@ export function montarFichaContrato(
   c: ContratoFicha,
   itens: ItemContrato[],
   responsaveis: ContratoResponsavel[],
+  alteracoes: ContratoAlteracao[],
   processoContratacao?: string,
   hoje: Date | string = new Date(),
 ): DadosFichaContrato {
-  const fimAtual = c.data_fim_atual && c.data_fim_atual !== c.data_fim ? `, prorrogada até ${formatDateBR(c.data_fim_atual)}` : "";
+  const mudouFim = c.data_fim_atual && c.data_fim_atual !== c.data_fim;
+  const fimAtual = mudouFim
+    ? `, ${c.status === "rescindido" ? "encerrada pela rescisão em" : "prorrogada até"} ${formatDateBR(c.data_fim_atual)}`
+    : "";
   const garantia = c.garantia_tipo
     ? [
         c.garantia_tipo,
@@ -67,6 +73,20 @@ export function montarFichaContrato(
       ? `${formatDateBR(c.data_publicacao_doe)}${c.numero_doe ? ` (DOE nº ${c.numero_doe})` : ""}`
       : undefined,
     garantia,
+    alteracoes: ordenarAlteracoes(alteracoes).map((a) => {
+      const data = dataAlteracao(a);
+      return {
+        data: data ? formatDateBR(data) : "",
+        alteracao: tituloAlteracao(a),
+        efeito: efeitosAlteracao(a).join("; ") || a.descricao,
+        documento: [
+          a.processo_sei && `Processo ${a.processo_sei}`,
+          a.documento_sei && `documento ${a.documento_sei}`,
+          a.data_publicacao_doe && `DOE ${formatDateBR(a.data_publicacao_doe)}${a.numero_doe ? ` nº ${a.numero_doe}` : ""}`,
+        ].filter(Boolean).join(" · "),
+      };
+    }),
+    avisosAlteracoes: avisosLimites(c, alteracoes),
     responsaveis: ordenarPorPapel(responsaveis.filter((r) => !r.data_fim)).map(designacao),
     responsaveisAnteriores: responsaveis.filter((r) => r.data_fim).map(designacao),
     itens: itens.map((i) => ({

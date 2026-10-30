@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { montarFichaContrato } from "./ficha";
-import type { ContratoFicha, ContratoResponsavel, ItemContrato } from "@/types/contratos";
+import type { ContratoAlteracao, ContratoFicha, ContratoResponsavel, ItemContrato } from "@/types/contratos";
 
 const contrato = {
   id: "c1",
@@ -46,6 +46,14 @@ describe("montarFichaContrato", () => {
       contrato,
       [{ numero_item: 1, descricao: "Posto", unidade_medida: "mês", quantidade: 12, valor_unitario: 1000, valor_total: 12000 } as ItemContrato],
       [resp({}), resp({ nome: "Bia", papel: "fiscal_tecnico", data_fim: "2026-06-30", motivo_saida: "exonerada", portaria_numero: null })],
+      [
+        {
+          id: "a1", especie: "aditivo", numero: 1, altera_prazo: true, altera_valor: true, altera_objeto: false, nova_data_fim: "2028-01-01",
+          valor_acrescimo: 12500.5, valor_supressao: 0, valor_variacao: 0, motivo: null, percentual: null, indice: null, data_inicio: null,
+          data_retomada: null, data_assinatura: "2026-12-20", processo_sei: "17302.000123/2025.11", documento_sei: "12345678",
+          data_publicacao_doe: "2026-12-28", numero_doe: "1300", descricao: "Prorroga e acrescenta", created_at: "2026-12-20T10:00:00Z",
+        } as ContratoAlteracao,
+      ],
       "PE 05/2025",
       "2026-10-27",
     );
@@ -68,11 +76,15 @@ describe("montarFichaContrato", () => {
       itens: [{ numero: 1, descricao: "Posto", unidade: "mês", quantidade: 12, valorUnitario: 1000, valorTotal: 12000 }],
     });
     expect(f.garantia).toMatch(/^Seguro-garantia · R\$\s6\.000,00 · vence em 01\/04\/2027$/);
+    expect(f.alteracoes).toHaveLength(1);
+    expect(f.alteracoes[0]).toMatchObject({ data: "20/12/2026", alteracao: "1º termo aditivo", documento: "Processo 17302.000123/2025.11 · documento 12345678 · DOE 28/12/2026 nº 1300" });
+    expect(f.alteracoes[0].efeito.replace(/\s/g, " ")).toBe("prorroga até 01/01/2028; acrescenta R$ 12.500,50");
+    expect(f.avisosAlteracoes).toEqual([]);
     expect(f.documentoContratado).toBe("11.222.333/0001-81");
   });
 
   it("CPF de contratado pessoa física sai mascarado", () => {
     const pf = { ...contrato, fornecedor: { ...contrato.fornecedor, cpf_cnpj: "529.982.247-25" } } as ContratoFicha;
-    expect(montarFichaContrato(pf, [], [], undefined, "2026-10-27").documentoContratado).toBe("***.982.247-**");
+    expect(montarFichaContrato(pf, [], [], [], undefined, "2026-10-27").documentoContratado).toBe("***.982.247-**");
   });
 });

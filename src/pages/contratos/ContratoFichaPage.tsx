@@ -1,6 +1,7 @@
 /**
- * Ficha do contrato (entrega C1): abas Dados, Itens, Responsáveis (gestor e fiscais) e Histórico, e a ficha em PDF.
- * Editar exige contratos.editar; apagar só rascunho, também com editar (o banco confere as duas coisas).
+ * Ficha do contrato (entregas C1 e C2): abas Dados, Alterações (aditivos, apostilamentos, suspensão e rescisão),
+ * Itens, Responsáveis (gestor e fiscais) e Histórico, e a ficha em PDF. Editar e registrar alteração exigem
+ * contratos.editar; apagar só rascunho, também com editar (o banco confere tudo).
  * Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md
  */
 
@@ -9,6 +10,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { Copy, FileDown, Pencil, Plane, Trash2 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/design-system";
+import { AlteracoesContratoTab } from "@/components/contratos/AlteracoesContratoTab";
 import { ContratoFormDialog } from "@/components/contratos/ContratoFormDialog";
 import { HistoricoContratoTab } from "@/components/contratos/HistoricoContratoTab";
 import { ItensContratoTab } from "@/components/contratos/ItensContratoTab";
@@ -30,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import {
+  useAlteracoesContrato,
   useContrato,
   useExcluirContrato,
   useItensContrato,
@@ -45,7 +48,7 @@ import { situacaoVigencia, tomSituacaoContrato } from "@/lib/contratos/vigencia"
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { nomeContratado, rotuloSituacaoContrato, rotuloTipoContrato, type ContratoFicha } from "@/types/contratos";
 
-const ABAS = ["dados", "itens", "responsaveis", "historico"] as const;
+const ABAS = ["dados", "alteracoes", "itens", "responsaveis", "historico"] as const;
 
 function Campo({ rotulo, children, largo }: { rotulo: string; children: React.ReactNode; largo?: boolean }) {
   return (
@@ -58,6 +61,8 @@ function Campo({ rotulo, children, largo }: { rotulo: string; children: React.Re
 
 function Dados({ c, processoContratacao }: { c: ContratoFicha; processoContratacao?: string }) {
   const prorrogado = c.data_fim_atual && c.data_fim_atual !== c.data_fim;
+  // rescindido: o fim atual é a data da rescisão (C2)
+  const fimRescisao = c.status === "rescindido";
   return (
     <Card>
       <CardContent className="pt-6">
@@ -74,11 +79,18 @@ function Dados({ c, processoContratacao }: { c: ContratoFicha; processoContratac
           <Campo rotulo="Processo de contratação">{processoContratacao ?? (c.processo_licitatorio_id ? "ligado (sem acesso a Compras)" : "—")}</Campo>
           <Campo rotulo="Nº no PNCP">{c.numero_pncp ?? "—"}</Campo>
           <Campo rotulo="Valor inicial"><span className="tabular-nums">{formatCurrency(Number(c.valor_inicial))}</span></Campo>
-          <Campo rotulo="Valor atual"><span className="tabular-nums">{formatCurrency(Number(c.valor_atual))}</span></Campo>
+          <Campo rotulo="Valor atual">
+            <span className="tabular-nums">{formatCurrency(Number(c.valor_atual))}</span>
+            <span className="block text-muted-foreground">calculado pelas alterações</span>
+          </Campo>
           <Campo rotulo="Assinatura">{formatDateBR(c.data_assinatura)}</Campo>
           <Campo rotulo="Vigência">
             {formatDateBR(c.data_inicio)} a {formatDateBR(c.data_fim)}
-            {prorrogado && <span className="block text-muted-foreground">prorrogada até {formatDateBR(c.data_fim_atual)}</span>}
+            {prorrogado && (
+              <span className="block text-muted-foreground">
+                {fimRescisao ? "encerrada pela rescisão em" : "prorrogada até"} {formatDateBR(c.data_fim_atual)}
+              </span>
+            )}
           </Campo>
           <Campo rotulo="Prorrogação">
             {c.prorrogavel ? `Pode ser prorrogado${c.prazo_maximo_meses ? `, até ${c.prazo_maximo_meses} meses no total` : ""}` : "Não prorrogável"}
@@ -113,6 +125,7 @@ export default function ContratoFichaPage() {
   const contrato = useContrato(id);
   const itens = useItensContrato(id);
   const responsaveis = useResponsaveisContrato(id);
+  const alteracoes = useAlteracoesContrato(id);
   const c = contrato.data;
   const processos = useProcessosContratacao(!!c?.processo_licitatorio_id);
   const salvar = useSalvarContrato();
@@ -141,7 +154,7 @@ export default function ContratoFichaPage() {
     try {
       const { baixarDocumento, emitirDocumento } = await import("@/lib/documentos");
       const quem = user?.fullName ?? user?.email ?? undefined;
-      const dados = montarFichaContrato(c, itens.data ?? [], responsaveis.data ?? [], processoContratacao);
+      const dados = montarFichaContrato(c, itens.data ?? [], responsaveis.data ?? [], alteracoes.data ?? [], processoContratacao);
       baixarDocumento(await emitirDocumento("contratos-ficha-contrato", dados, { emitidoPor: quem }));
     } catch {
       toast({ title: "Não foi possível gerar o PDF", description: "Tente de novo em instantes.", variant: "destructive" });
@@ -176,12 +189,16 @@ export default function ContratoFichaPage() {
         <Tabs defaultValue={aba}>
           <TabsList className="h-auto flex-wrap justify-start">
             <TabsTrigger value="dados">Dados</TabsTrigger>
+            <TabsTrigger value="alteracoes">Alterações</TabsTrigger>
             <TabsTrigger value="itens">Itens</TabsTrigger>
             <TabsTrigger value="responsaveis">Gestor e fiscais</TabsTrigger>
             <TabsTrigger value="historico">Histórico</TabsTrigger>
           </TabsList>
           <TabsContent value="dados" className="mt-4">
             <Dados c={c} processoContratacao={processoContratacao} />
+          </TabsContent>
+          <TabsContent value="alteracoes" className="mt-4">
+            <AlteracoesContratoTab contrato={c} podeEditar={podeEditar} />
           </TabsContent>
           <TabsContent value="itens" className="mt-4">
             <ItensContratoTab contratoId={c.id} valorContrato={Number(c.valor_atual)} podeGravar={podeGravarLigados} podeApagar={podeEditar} />
@@ -223,7 +240,11 @@ export default function ContratoFichaPage() {
                     Copiar nº SEI
                   </Button>
                 )}
-                <Button variant="outline" onClick={baixarFicha} disabled={gerandoPdf || itens.isLoading || responsaveis.isLoading || itens.isError || responsaveis.isError}>
+                <Button
+                  variant="outline"
+                  onClick={baixarFicha}
+                  disabled={gerandoPdf || [itens, responsaveis, alteracoes].some((q) => q.isLoading || q.isError)}
+                >
                   <FileDown className="h-4 w-4" aria-hidden="true" />
                   Ficha (PDF)
                 </Button>
