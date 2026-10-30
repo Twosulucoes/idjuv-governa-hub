@@ -118,7 +118,7 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 - [ ] **Design System** (transversal): fases 0 a 2 feitas; fase 3 (RH como piloto) e fase 4 (um módulo por PR, começou
   pelo Patrimônio) em andamento; Financeiro → QDD revisado em 30/10/2026 (cabeçalho padrão, comum × emendas numa
   tabela, visão Resumo/Todas as colunas, sem fonte monoespaçada); espaçamento de `Card`/`Table` corrigido no sistema
-  inteiro (o `className` da tela passa a valer também no desktop) — [spec](../superpowers/specs/2026-10-09-design-system-design.md),
+  inteiro (o `className` da tela passa a valer também no desktop); botão claro/escuro no topo dos módulos — [spec](../superpowers/specs/2026-10-09-design-system-design.md),
   [plano](../superpowers/plans/2026-10-09-design-system.md).
 - [ ] **Site**: página pública de estrutura organizacional (LAI); o card saiu da Transparência pública no #120 porque
   levava a uma tela com login.
