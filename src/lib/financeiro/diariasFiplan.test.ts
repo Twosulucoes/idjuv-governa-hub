@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diasDesdeRetorno, resumirDiarias, situacaoPrestacao, type DiariaParaRegra } from "./diariasFiplan";
+import { diasDesdeRetorno, resumirDiarias, seloPrestacao, situacaoPrestacao, type DiariaParaRegra } from "./diariasFiplan";
 
 // 30/10/2026, meio-dia, para não depender do fuso
 const hoje = new Date(2026, 9, 30, 12);
@@ -26,6 +26,16 @@ describe("situacaoPrestacao", () => {
   it("quem prestou contas não conta prazo; sem retorno não dá para medir", () => {
     expect(situacaoPrestacao(diaria({ prestou_contas: true, data_retorno: "2026-01-01" }), hoje)).toBe("prestou");
     expect(situacaoPrestacao(diaria({ data_retorno: null }), hoje)).toBe("sem_retorno");
+  });
+});
+
+describe("seloPrestacao", () => {
+  it("diz há quantos dias o servidor voltou e se passou do prazo", () => {
+    expect(seloPrestacao(diaria({ data_retorno: "2026-10-29" }), hoje)).toEqual({ texto: "No prazo: voltou há 1 dia", tom: "pendente" });
+    expect(seloPrestacao(diaria({ data_retorno: "2026-10-01" }), hoje)).toEqual({ texto: "Atrasada: voltou há 29 dias", tom: "erro" });
+    expect(seloPrestacao(diaria({ data_retorno: "2026-11-05" }), hoje).texto).toBe("Viagem em curso");
+    expect(seloPrestacao(diaria({ prestou_contas: true }), hoje).tom).toBe("sucesso");
+    expect(seloPrestacao(diaria({ data_retorno: null }), hoje).tom).toBe("neutro");
   });
 });
 

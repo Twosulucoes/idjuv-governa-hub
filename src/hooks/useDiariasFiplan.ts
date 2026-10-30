@@ -45,6 +45,23 @@ export function useUltimaImportacaoDiarias(exercicio: number) {
   });
 }
 
+/** Diárias do FIPLAN de um servidor, de todos os exercícios (aba Viagens da ficha funcional). */
+export function useDiariasFiplanDoServidor(servidorId: string | undefined) {
+  return useQuery({
+    queryKey: ["diarias-fiplan", "servidor", servidorId],
+    enabled: !!servidorId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fin_diarias_fiplan")
+        .select("*")
+        .eq("servidor_id", servidorId!)
+        .order("data_saida", { ascending: false, nullsFirst: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export type PagamentoDaViagem = Pick<DiariaFiplan, "viagem_id" | "data_pagamento" | "prestou_contas" | "valor_empenhado">;
 
 /** Diárias pagas no FIPLAN das viagens do RH, por viagem (selo "Paga no FIPLAN" em /rh/viagens). */

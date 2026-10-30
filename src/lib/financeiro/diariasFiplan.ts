@@ -35,6 +35,24 @@ export function situacaoPrestacao(diaria: DiariaParaRegra, hoje: Date): Situacao
   return dias > PRAZO_PRESTACAO_DIAS ? "atrasada" : "no_prazo";
 }
 
+/** Texto e tom do selo da prestação de contas (tela Diárias e ficha do servidor). */
+export function seloPrestacao(
+  diaria: DiariaParaRegra,
+  hoje: Date,
+): { texto: string; tom: "sucesso" | "erro" | "pendente" | "neutro" } {
+  const situacao = situacaoPrestacao(diaria, hoje);
+  const dias = diasDesdeRetorno(diaria.data_retorno, hoje);
+  if (situacao === "prestou") return { texto: "Prestou contas", tom: "sucesso" };
+  if (situacao === "atrasada") return { texto: `Atrasada: voltou há ${dias} dias`, tom: "erro" };
+  if (situacao === "no_prazo") {
+    return {
+      texto: dias !== null && dias >= 0 ? `No prazo: voltou há ${dias} dia${dias === 1 ? "" : "s"}` : "Viagem em curso",
+      tom: "pendente",
+    };
+  }
+  return { texto: "Sem data de retorno", tom: "neutro" };
+}
+
 export interface ResumoDiarias {
   quantidade: number;
   valor: number;

@@ -84,7 +84,9 @@ depois de "Viagens".
 - Exportar a lista filtrada em Excel.
 - Faixa no topo com a data da última importação e o link "Atualizar" para o importador.
 
-No RH, a ficha da viagem (/rh/viagens) ganha o selo "Paga no FIPLAN em dd/mm" quando houver diária ligada.
+No RH, a ficha da viagem (/rh/viagens) ganha o selo "Paga no FIPLAN em dd/mm" quando houver diária ligada, e a aba
+Viagens da ficha funcional do servidor lista as diárias dele no FIPLAN com o selo da prestação de contas (pedido do
+Fabiano em 30/10).
 
 ## 6. Instrução para quem importa (pedido do Fabiano)
 

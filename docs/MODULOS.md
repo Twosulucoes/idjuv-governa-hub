@@ -249,7 +249,8 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
   exercício, lidas do FIP 002 (`fin_diarias_fiplan`): total pago, servidores, sem prestação de contas e atrasadas
   (mais de 10 dias depois do retorno, prazo informado pelo Financeiro), filtro pela prestação, busca e Excel. Cada
   diária é ligada ao servidor pelo nome e à viagem do RH pela data de saída; a viagem em `/rh/viagens` mostra
-  "Paga no FIPLAN em dd/mm" e se as contas foram prestadas. Regras em `src/lib/financeiro/diariasFiplan.ts`, dados em
+  "Paga no FIPLAN em dd/mm" e se as contas foram prestadas, e a aba Viagens da ficha funcional do servidor
+  (`/rh/servidores/:id`) lista as diárias dele no FIPLAN, com o selo da prestação (`DiariasFiplanServidor`). Regras em `src/lib/financeiro/diariasFiplan.ts`, dados em
   `src/hooks/useDiariasFiplan.ts`, importador `diarias_fiplan` (`financeiro.execucao.importar`).
 - **Painel `/financeiro` (execução do exercício)**, calculado no navegador sobre o QDD (`fin_dotacoes`) e o
   FIP 614 (`fin_empenhos`), sem tabela própria. As contas ficam em `src/lib/financeiro/painelExecucao.ts` (com

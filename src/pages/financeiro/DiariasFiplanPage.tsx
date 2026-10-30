@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, FileSpreadsheet, FileUp, Plane, Users, Wallet } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
+import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
@@ -22,8 +22,8 @@ import {
   PRAZO_PRESTACAO_DIAS,
   diasDesdeRetorno,
   resumirDiarias,
+  seloPrestacao,
   situacaoPrestacao,
-  type SituacaoPrestacao,
 } from "@/lib/financeiro/diariasFiplan";
 import { formatCurrency } from "@/lib/formatters";
 
@@ -35,27 +35,6 @@ const FILTROS: Record<Filtro, string> = {
   atrasadas: `Atrasadas (mais de ${PRAZO_PRESTACAO_DIAS} dias)`,
   prestou: "Com prestação de contas",
 };
-
-const ROTULO_PRESTACAO: Record<SituacaoPrestacao, string> = {
-  prestou: "Prestou contas",
-  no_prazo: "No prazo",
-  atrasada: "Atrasada",
-  sem_retorno: "Sem data de retorno",
-};
-
-function selo(d: DiariaFiplan, hoje: Date): { texto: string; tom: TomStatus } {
-  const situacao = situacaoPrestacao(d, hoje);
-  const dias = diasDesdeRetorno(d.data_retorno, hoje);
-  if (situacao === "prestou") return { texto: ROTULO_PRESTACAO.prestou, tom: "sucesso" };
-  if (situacao === "atrasada") return { texto: `Atrasada: voltou há ${dias} dias`, tom: "erro" };
-  if (situacao === "no_prazo") {
-    return {
-      texto: dias !== null && dias >= 0 ? `No prazo: voltou há ${dias} dia${dias === 1 ? "" : "s"}` : "Viagem em curso",
-      tom: "pendente",
-    };
-  }
-  return { texto: ROTULO_PRESTACAO.sem_retorno, tom: "neutro" };
-}
 
 const PERMISSAO_IMPORTAR = "financeiro.execucao.importar";
 
@@ -134,7 +113,7 @@ export default function DiariasFiplanPage() {
       id: "prestacao",
       cabecalho: "Prestação de contas",
       celula: (d) => {
-        const s = selo(d, hoje);
+        const s = seloPrestacao(d, hoje);
         return <StatusBadge tom={s.tom}>{s.texto}</StatusBadge>;
       },
       ordenarPor: (d) => (d.prestou_contas ? -1 : diasDesdeRetorno(d.data_retorno, hoje) ?? 0),
@@ -151,7 +130,7 @@ export default function DiariasFiplanPage() {
         Diárias: Number(d.quantidade),
         Valor: Number(d.valor_empenhado),
         "Pago em": dataBR(d.data_pagamento),
-        "Prestação de contas": selo(d, hoje).texto,
+        "Prestação de contas": seloPrestacao(d, hoje).texto,
         Processo: d.processo_fiplan ?? "",
         Empenho: d.empenho_numero,
         NOB: d.nob_numero ?? "",
