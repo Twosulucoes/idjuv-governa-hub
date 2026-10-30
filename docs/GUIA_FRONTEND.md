@@ -535,7 +535,9 @@ migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`;
 
 - **shadcn/ui** (Radix) em `@/components/ui/*` + **Tailwind**. Componha; evite CSS
   solto. Use os tokens de cor existentes (ex.: `MODULO_COR_CLASSES`,
-  `statusColors.ts`) e suporte a dark mode (`next-themes`).
+  `statusColors.ts`) e suporte a dark mode (`next-themes`). O botão claro/escuro fica no topo de todas as telas: nos
+  módulos pelo `AlternarTema` (`src/components/layout/AlternarTema.tsx`, no `ModuleHeader`), no Admin pelo `TopBarDesktop` e no
+  portal pelo `Header`.
 - **Design System** (direção em
   [`superpowers/specs/2026-10-09-design-system-design.md`](./superpowers/specs/2026-10-09-design-system-design.md),
   fases em [`superpowers/plans/2026-10-09-design-system.md`](./superpowers/plans/2026-10-09-design-system.md);
