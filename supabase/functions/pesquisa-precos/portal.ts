@@ -258,11 +258,15 @@ export function mapearResultadoPncp(j: Bruto, r: ReferenciaPncp, compra: CompraP
 export const MAX_COMPRAS_BUSCA = 8;
 export const MAX_ITENS_POR_COMPRA = 3;
 
-/** Busca pública do PNCP (a do portal), editais mais recentes primeiro. Sem manual oficial: campos de clientes públicos. */
+/**
+ * Busca pública do PNCP (a do portal): só editais encerrados (os abertos ainda não têm resultado homologado), mais
+ * recentes primeiro. Sem manual oficial: parâmetros e campos de clientes públicos.
+ */
 export function urlBuscaPncp(termo: string, pagina = 1): string {
   const busca = new URLSearchParams();
   busca.set("q", termo);
   busca.set("tipos_documento", "edital");
+  busca.set("status", "encerradas");
   busca.set("ordenacao", "-data");
   busca.set("pagina", String(inteiro(pagina) ?? 1));
   busca.set("tam_pagina", "20");

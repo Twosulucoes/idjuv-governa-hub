@@ -152,7 +152,7 @@ describe("PNCP — compra, itens e resultados", () => {
 describe("PNCP — busca por nome", () => {
   it("monta a busca de editais mais recentes", () => {
     expect(urlBuscaPncp("bola futebol")).toBe(
-      "https://pncp.gov.br/api/search/?q=bola+futebol&tipos_documento=edital&ordenacao=-data&pagina=1&tam_pagina=20",
+      "https://pncp.gov.br/api/search/?q=bola+futebol&tipos_documento=edital&status=encerradas&ordenacao=-data&pagina=1&tam_pagina=20",
     );
   });
 

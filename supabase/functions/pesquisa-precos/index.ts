@@ -40,11 +40,25 @@ function respostaJson(cors: Record<string, string>, status: number, corpo: unkno
   return new Response(JSON.stringify(corpo), { status, headers: { ...cors, "Content-Type": "application/json" } });
 }
 
-class ErroPortal extends Error {}
+class ErroPortal extends Error {
+  constructor(mensagem: string, readonly rede = false) {
+    super(mensagem);
+  }
+}
 class NaoEncontrado extends Error {}
 
 /** GET em JSON. 204/404 = null (o PNCP responde assim para compra ou item sem dados). */
 async function lerJson(url: string): Promise<unknown> {
+  try {
+    return await lerJsonUmaVez(url);
+  } catch (e) {
+    // Conexão que cai (TypeError do fetch) ganha uma segunda tentativa; tempo esgotado e status do portal, não.
+    if (e instanceof ErroPortal && e.rede) return await lerJsonUmaVez(url);
+    throw e;
+  }
+}
+
+async function lerJsonUmaVez(url: string): Promise<unknown> {
   const controle = new AbortController();
   const relogio = setTimeout(() => controle.abort(), TEMPO_LIMITE_MS);
   try {
@@ -54,7 +68,10 @@ async function lerJson(url: string): Promise<unknown> {
     const corpo = await resp.text();
     return corpo.trim() === "" ? null : JSON.parse(corpo);
   } catch (e) {
-    throw e instanceof ErroPortal ? e : new ErroPortal(e instanceof Error ? e.name : "falha");
+    if (e instanceof ErroPortal) throw e;
+    // Nome e mensagem do erro (sem dado pessoal: a URL só leva o termo buscado), cortados para o log.
+    const detalhe = e instanceof Error ? `${e.name}: ${e.message}`.slice(0, 200) : "falha";
+    throw new ErroPortal(detalhe, e instanceof TypeError);
   } finally {
     clearTimeout(relogio);
   }
@@ -83,7 +100,9 @@ async function buscarPorNome(termo: string, inicio: string, fim: string) {
     return resultados.flat().filter((p): p is PrecoEncontrado => p !== null && dentroDoPeriodo(p.dataReferencia, inicio, fim));
   }));
   const precos = porCompra.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
-  return { precos, comprasConsultadas: refs.length, comprasComFalha: porCompra.filter((r) => r.status === "rejected").length };
+  const falhas = porCompra.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+  const motivo = falhas.length ? (falhas[0].reason instanceof Error ? falhas[0].reason.message || falhas[0].reason.name : "falha") : undefined;
+  return { precos, comprasConsultadas: refs.length, comprasComFalha: falhas.length, motivoFalha: motivo, achadas: achadas.length };
 }
 
 async function compraEItens(ref: NonNullable<ReturnType<typeof referenciaValida>>) {
@@ -155,7 +174,7 @@ serve(async (req) => {
         return respostaJson(cors, 400, { error: "Pedido inválido" });
       }
       const r = await buscarPorNome(termo, dataInicio, dataFim);
-      console.log(JSON.stringify({ funcao: "pesquisa-precos", acao, compras: r.comprasConsultadas, falhas: r.comprasComFalha, linhas: r.precos.length }));
+      console.log(JSON.stringify({ funcao: "pesquisa-precos", acao, compras: r.comprasConsultadas, falhas: r.comprasComFalha, motivo: r.motivoFalha, achadas: r.achadas, linhas: r.precos.length }));
       return respostaJson(cors, 200, r);
     }
 
