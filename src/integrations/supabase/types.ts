@@ -11051,6 +11051,132 @@ export type Database = {
           },
         ]
       }
+      fin_diarias_fiplan: {
+        Row: {
+          created_at: string
+          credor_codigo: string | null
+          credor_nome: string
+          data_empenho: string | null
+          data_pagamento: string | null
+          data_retorno: string | null
+          data_saida: string | null
+          empenho_numero: string
+          exercicio: number
+          id: string
+          importacao_id: string | null
+          liquidacao_numero: string | null
+          nob_numero: string | null
+          ordem_servico: string | null
+          prestou_contas: boolean
+          processo_fiplan: string | null
+          quantidade: number
+          servidor_id: string | null
+          updated_at: string
+          valor_empenhado: number
+          valor_liquidado: number | null
+          viagem_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          credor_codigo?: string | null
+          credor_nome: string
+          data_empenho?: string | null
+          data_pagamento?: string | null
+          data_retorno?: string | null
+          data_saida?: string | null
+          empenho_numero: string
+          exercicio: number
+          id?: string
+          importacao_id?: string | null
+          liquidacao_numero?: string | null
+          nob_numero?: string | null
+          ordem_servico?: string | null
+          prestou_contas?: boolean
+          processo_fiplan?: string | null
+          quantidade: number
+          servidor_id?: string | null
+          updated_at?: string
+          valor_empenhado: number
+          valor_liquidado?: number | null
+          viagem_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          credor_codigo?: string | null
+          credor_nome?: string
+          data_empenho?: string | null
+          data_pagamento?: string | null
+          data_retorno?: string | null
+          data_saida?: string | null
+          empenho_numero?: string
+          exercicio?: number
+          id?: string
+          importacao_id?: string | null
+          liquidacao_numero?: string | null
+          nob_numero?: string | null
+          ordem_servico?: string | null
+          prestou_contas?: boolean
+          processo_fiplan?: string | null
+          quantidade?: number
+          servidor_id?: string | null
+          updated_at?: string
+          valor_empenhado?: number
+          valor_liquidado?: number | null
+          viagem_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_diarias_fiplan_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_diarias_fiplan_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_diarias_fiplan_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "fin_diarias_fiplan_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_diarias_fiplan_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "fin_diarias_fiplan_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_diarias_fiplan_viagem_id_fkey"
+            columns: ["viagem_id"]
+            isOneToOne: false
+            referencedRelation: "viagens_diarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_documentos: {
         Row: {
           ativo: boolean | null
@@ -27152,6 +27278,7 @@ export type Database = {
         Args: { p_data: string; p_pagamento_id: string }
         Returns: string
       }
+      fin_nome_comparavel: { Args: { p_nome: string }; Returns: string }
       fin_remessa_bancaria_json: { Args: { p_id: string }; Returns: Json }
       fin_tg_carregar: {
         Args: {
@@ -27449,6 +27576,15 @@ export type Database = {
           p_linhas: Json
           p_simular?: boolean
           p_tipo: string
+        }
+        Returns: Json
+      }
+      importar_diarias_fiplan: {
+        Args: {
+          p_arquivo: Json
+          p_exercicio: number
+          p_linhas: Json
+          p_simular?: boolean
         }
         Returns: Json
       }

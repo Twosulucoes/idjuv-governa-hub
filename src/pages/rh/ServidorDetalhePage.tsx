@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DiariasFiplanServidor } from "@/components/rh/DiariasFiplanServidor";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -665,7 +666,7 @@ export default function ServidorDetalheePage() {
             </TabsContent>
 
             {/* Viagens */}
-            <TabsContent value="viagens">
+            <TabsContent value="viagens" className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -707,6 +708,7 @@ export default function ServidorDetalheePage() {
                   )}
                 </CardContent>
               </Card>
+              <DiariasFiplanServidor servidorId={id} />
             </TabsContent>
 
             {/* Histórico de alterações (trilha de auditoria) */}

@@ -108,6 +108,13 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   ([spec](../superpowers/specs/2026-10-22-importacao-empenhos-fip614-design.md)). Falta testar com o relatório real.
   O QDD também entra em Excel (o .xls do FIPLAN, PR rascunho de 24/10/2026). Ler em Excel também o FIP 630 e o FIP 103 depende de amostras. Próximas etapas: NPD (programação financeira mensal), UO/UG
   na configuração do cliente.
+- [ ] **Financeiro — relatórios do FIPLAN para o sistema** (mapa de 30/10/2026, 4 entregas em ordem): **diárias
+  (FIP 002), PR rascunho de 30/10**: importador em Financeiro → Atualizar dados (com relatório, caminho e filtros na
+  tela), tabela `fin_diarias_fiplan` (migração `20261113090000`, aguardando a aprovação no ambiente `producao` depois do
+  merge), tela Financeiro → Diárias (total pago, sem prestação de contas, atrasadas com prazo de 10 dias do retorno,
+  filtro e Excel) e selo "Paga no FIPLAN" na viagem do RH ([spec](../superpowers/specs/2026-10-30-diarias-fiplan-design.md)).
+  Próximas: pagamentos por credor (FIP 685; o FIP 644 dá erro no FIPLAN), créditos adicionais (FIP 625) e liquidado
+  por subelemento (FIP 701). O FIP 401 (folha) não serve: a folha do IDJUV não é integrada ao FIPLAN.
 - [ ] **Design System** (transversal): fases 0 a 2 feitas; fase 3 (RH como piloto) e fase 4 (um módulo por PR, começou
   pelo Patrimônio) em andamento — [spec](../superpowers/specs/2026-10-09-design-system-design.md),
   [plano](../superpowers/plans/2026-10-09-design-system.md).
