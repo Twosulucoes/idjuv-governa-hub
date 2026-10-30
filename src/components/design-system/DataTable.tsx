@@ -7,6 +7,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { EmptyState, type EmptyStateProps } from "@/components/design-system/EmptyState";
 import { cn } from "@/lib/utils";
+import { BarraFiltros, ChipsFiltros } from "@/components/design-system/filtros/BarraFiltros";
+import { aplicarFiltros, contarAtivos } from "@/components/design-system/filtros/logica";
+import type { FiltrosDaTela } from "@/components/design-system/filtros/useEstadoFiltros";
 
 type ValorOrdenacao = string | number | Date | boolean | null | undefined;
 
@@ -42,6 +45,11 @@ export interface DataTableProps<T> {
   busca?: boolean | { placeholder?: string };
   /** Filtros extras ao lado da busca (selects, datas…). */
   filtros?: React.ReactNode;
+  /**
+   * Filtros dinâmicos (listas, período, faixa de valor, sim/não) com chips,
+   * contador e "Limpar filtros". Normalmente vem de `useEstadoFiltros`.
+   */
+  filtrosDinamicos?: FiltrosDaTela<T>;
   /** Ativa seleção de linhas e a barra de ações em lote. */
   acoesEmLote?: (selecionadas: T[], limpar: () => void) => React.ReactNode;
   /** Ações por linha (menu, botões), última coluna. */
@@ -107,6 +115,7 @@ export function DataTable<T>({
   vazio,
   busca,
   filtros,
+  filtrosDinamicos,
   acoesEmLote,
   acoesLinha,
   aoClicarLinha,
@@ -126,11 +135,20 @@ export function DataTable<T>({
   const temBusca = Boolean(busca) && colunasBusca.length > 0;
   const placeholderBusca = typeof busca === "object" && busca.placeholder ? busca.placeholder : "Buscar…";
 
+  const estadoFiltros = filtrosDinamicos?.estado;
+  const definicoesFiltros = filtrosDinamicos?.definicoes;
+  const temFiltroAtivo = Boolean(definicoesFiltros && estadoFiltros && contarAtivos(definicoesFiltros, estadoFiltros) > 0);
+  const aposFiltros = React.useMemo(
+    () => (definicoesFiltros && estadoFiltros ? aplicarFiltros(dados, definicoesFiltros, estadoFiltros) : dados),
+    [dados, definicoesFiltros, estadoFiltros],
+  );
+  React.useEffect(() => setPagina(0), [estadoFiltros]);
+
   const filtradas = React.useMemo(() => {
     const t = normalizar(termo.trim());
-    if (!t) return dados;
-    return dados.filter((linha) => colunasBusca.some((c) => normalizar(c.buscarPor!(linha) ?? "").includes(t)));
-  }, [dados, termo, colunasBusca]);
+    if (!t) return aposFiltros;
+    return aposFiltros.filter((linha) => colunasBusca.some((c) => normalizar(c.buscarPor!(linha) ?? "").includes(t)));
+  }, [aposFiltros, termo, colunasBusca]);
 
   const ordenadas = React.useMemo(() => {
     const col = ordem && colunas.find((c) => c.id === ordem.id);
@@ -230,15 +248,28 @@ export function DataTable<T>({
       </div>
     );
   } else if (ordenadas.length === 0) {
-    conteudo = termo.trim() ? (
+    conteudo = termo.trim() || temFiltroAtivo ? (
       <EmptyState
         icone={Search}
         titulo="Nenhum resultado"
-        descricao={`Nada encontrado para "${termo.trim()}".`}
+        descricao={
+          termo.trim()
+            ? `Nada encontrado para "${termo.trim()}"${temFiltroAtivo ? " com os filtros escolhidos" : ""}.`
+            : "Nenhum registro com os filtros escolhidos."
+        }
         acao={
-          <Button variant="outline" onClick={() => setTermo("")}>
-            Limpar busca
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            {termo.trim() && (
+              <Button variant="outline" onClick={() => setTermo("")}>
+                Limpar busca
+              </Button>
+            )}
+            {temFiltroAtivo && (
+              <Button variant="outline" onClick={() => filtrosDinamicos!.aoMudar({})}>
+                Limpar filtros
+              </Button>
+            )}
+          </div>
         }
       />
     ) : (
@@ -249,7 +280,7 @@ export function DataTable<T>({
   return (
     <div className={cn("rounded-md border border-border bg-card", className)}>
       {/* Barra: busca, filtros, densidade */}
-      {(temBusca || filtros || !conteudo) && (
+      {(temBusca || filtros || filtrosDinamicos || !conteudo) && (
         <div className="flex flex-col gap-2 border-b border-border p-3 sm:flex-row sm:flex-wrap sm:items-center">
           {temBusca && (
             <div className="relative sm:min-w-56 sm:max-w-xs sm:flex-1">
@@ -267,6 +298,14 @@ export function DataTable<T>({
               />
             </div>
           )}
+          {filtrosDinamicos && (
+            <BarraFiltros
+              filtros={filtrosDinamicos.definicoes}
+              dados={dados}
+              estado={filtrosDinamicos.estado}
+              aoMudar={filtrosDinamicos.aoMudar}
+            />
+          )}
           {filtros && <div className="flex flex-wrap items-center gap-2">{filtros}</div>}
           <ToggleGroup
             type="single"
@@ -283,6 +322,16 @@ export function DataTable<T>({
             </ToggleGroupItem>
           </ToggleGroup>
         </div>
+      )}
+
+      {filtrosDinamicos && (
+        <ChipsFiltros
+          filtros={filtrosDinamicos.definicoes}
+          estado={filtrosDinamicos.estado}
+          aoMudar={filtrosDinamicos.aoMudar}
+          contagem={{ visiveis: filtradas.length, total: dados.length }}
+          className="border-b border-border px-3 py-2"
+        />
       )}
 
       {/* Ações em lote */}
