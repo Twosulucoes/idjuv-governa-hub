@@ -301,7 +301,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.rh_importar_cargos_ocupantes(jsonb, jsonb, boolean) IS
-  'Cargo e lotação dos servidores pela planilha de ocupantes: cria o provimento (cargo pelo nome e símbolo do quadro de vagas; data da portaria de nomeação ou 1º de janeiro marcada a conferir) e a lotação quando não há outra ativa. p_simular = true só calcula; tudo ou nada. Exige módulo rh e rh.servidores.importar. Migração 20261115090000.';
+  'Cargo e lotação dos servidores pela planilha de ocupantes: cria o provimento (cargo pelo nome e símbolo do quadro de vagas; data da portaria de nomeação ou 1º de janeiro marcada a conferir) e a lotação quando não há outra ativa. p_simular = true só calcula; tudo ou nada. Exige módulo rh e rh.servidores.importar. Migração 20261116090000.';
 
 REVOKE ALL ON FUNCTION public.rh_importar_cargos_ocupantes(jsonb, jsonb, boolean) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.rh_importar_cargos_ocupantes(jsonb, jsonb, boolean) TO authenticated;

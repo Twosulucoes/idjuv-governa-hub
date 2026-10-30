@@ -206,7 +206,7 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   catálogo e nos papéis `admin` e `manager` no `02_dados_catalogo.sql`); o EXECUTE só para `authenticated` no overlay 40;
   sem tabela nova nem mudança no `rls/mapa.csv`; testes no bloco "RH: servidores pelo arquivo da Seplan" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#importar-servidores-do-sigrh-rh_importar_servidores_sigrh)).
-- O cargo e a lotação pela planilha de ocupantes (migração `20261115090000`) entraram no schema do baseline só com o
+- O cargo e a lotação pela planilha de ocupantes (migração `20261116090000`) entraram no schema do baseline só com o
   trecho do dump (`rh_importar_cargos_ocupantes` no `01_pre_data.sql`) e o EXECUTE só para `authenticated` no overlay 40;
   sem tabela, permissão ou mudança no `rls/mapa.csv`; testes no bloco "RH: cargo e lotação pela planilha de ocupantes" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#cargo-e-lotacao-pela-planilha-de-ocupantes-rh_importar_cargos_ocupantes)).
@@ -259,6 +259,12 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `overlay/40_privilegios.sql` (gatilhos sem EXECUTE; `contrato_pode_gravar`, `contrato_buscar_servidores` e
   `contratos_importar_planilha` só para `authenticated`); testes no bloco "Contratos C1" de `scripts/db/testar-rls.sql`
   ([detalhe](./BANCO_DE_DADOS.md)).
+- Os contratos, entrega C2 (migração `20261115090000`), trocaram `aditivos_contrato` por `contrato_alteracoes` no mapa
+  (classe `permissao`: ler com o módulo, gravar e apagar com `contratos.editar`); schema regenerado, catálogo sem
+  mudança, `overlay/40_privilegios.sql` (gatilhos `contrato_alteracoes_preparar` e `contrato_alteracoes_aplicar` sem
+  EXECUTE; `contratos_meus_vencimentos` só para `authenticated`) e dados de demonstração refeitos em
+  `contrato_alteracoes` (os valores e fins atuais saem delas); testes no bloco "Contratos C2" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - As passagens aéreas, entrega 3 (migração `20261103090000`), entraram no mapa (`passagem_faturas`,
   `passagem_fatura_itens` e `passagem_contrato_empenhos`, classe `permissao` com escrita e exclusão por
   `contratos.passagens.financeiro` e leitura por `visualizar`, `editar` ou `financeiro`), no schema regenerado, no

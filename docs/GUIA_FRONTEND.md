@@ -136,6 +136,17 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   PDF e na planilha (`mascararDocumento` de `src/lib/bancario/comum.ts`). Valores digitados passam por `lerNumeroBr`
   (`src/lib/pca/numero.ts`), que desde a C1 lê "120.000" como milhar, como nos outros formulários de Compras. No menu do
   módulo, `algumaPermissao` (`ModuleMenuItem`) mostra o item para quem tem uma das permissões da rota.
+- **Contratos (entrega C2):** `useContratos` ganha `useAlteracoesContrato`, `useSalvarAlteracao` (na correção não
+  troca o contrato e confere que a linha mudou), `useRegistrarRetomada`, `useExcluirAlteracao` e `useSalvarProvidencia`;
+  `src/hooks/useContratosVencimentos.ts` tem `useVencimentos` (contratos em vigor que vencem em até 120 dias, já
+  venceram ou têm garantia vencendo) e `useMeusVencimentos` (RPC `contratos_meus_vencimentos`, usada pelo sino). Aba
+  `AlteracoesContratoTab` (quadro de valor e prazo, linha do tempo e avisos) com `AlteracaoFormDialog` (campos por
+  espécie e prévia do valor e do fim) e a retomada da suspensão; tela `ContratosVencimentosPage` com
+  `ProvidenciaRenovacaoDialog`. O `ContratoFormDialog` não pede mais valor atual nem fim atual (saem das alterações) e
+  ganha "Reforma". Regras puras com testes vitest: `src/lib/contratos/alteracoes.ts` (valor e fim calculados, limite de
+  prorrogação, percentuais de acréscimo e supressão sobre o valor inicial atualizado, avisos de limite, títulos e
+  efeitos de cada alteração, documento no SEI) e `src/lib/contratos/vencimentos.ts` (faixas, ação esperada, garantia vencendo, filtros,
+  resumo e planilha); `vigencia.ts` ganha `textoDias` e `lista.ts` conta os vencimentos sem providência.
 - **Localizador de processos do SEI** (`src/hooks/useLocalizadorSei.ts`: `useLocalizarProcessos(termo)`, com 300 ms de
   espera depois da última tecla e só com 3 caracteres ou mais, e `useProcessosParados()`): RPCs INVOKER
   `localizar_processos_sei` e `processos_parados`, tipadas pelo `types.ts` (a `origem` é estreitada para as fontes de `OrigemLocalizador`; o contrato entrou na C1). Chave do nº SEI em `src/lib/processos/numeroSei.ts` (espelha `sei_normalizar` do banco) e

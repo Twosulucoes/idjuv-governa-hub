@@ -62,14 +62,15 @@ describe("passaNoFiltroPrazo", () => {
 });
 
 describe("resumoPainel", () => {
-  it("conta em vigor, vencendo em 90 dias, vencidos, sem responsável e soma o valor em vigor", () => {
+  it("conta em vigor, vencendo em 90 dias, vencidos, sem providência, sem responsável e soma o valor em vigor", () => {
     const r = resumoPainel([
       contrato({ valor_atual: 1000.1 }),
       contrato({ data_fim: "2027-06-30", valor_atual: 500, responsaveis: [] }),
       contrato({ data_fim: "2026-10-01", valor_atual: 999 }),
       contrato({ status: "rascunho", valor_atual: 7 }),
+      { ...contrato({ data_fim: "2026-12-01", valor_atual: 1 }), renovacao_providencia: "prorrogar" },
     ], HOJE);
-    expect(r).toEqual({ emVigor: 2, vencem90: 1, vencidos: 1, semResponsavel: 1, valorEmVigor: 1500.1 });
+    expect(r).toEqual({ emVigor: 3, vencem90: 2, vencidos: 1, semProvidencia: 2, semResponsavel: 1, valorEmVigor: 1501.1 });
   });
 });
 

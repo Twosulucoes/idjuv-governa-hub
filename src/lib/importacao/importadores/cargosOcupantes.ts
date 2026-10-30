@@ -5,7 +5,7 @@
  * então o servidor é achado pelo nome entre os já cadastrados e a lotação pela estrutura organizacional, aqui no
  * navegador (cargosOcupantesParser.ts). A RPC `rh_importar_cargos_ocupantes` acha o cargo pelo nome e símbolo do
  * quadro de vagas, pega a data de nomeação na portaria da Central de Portarias (sem portaria: 1º de janeiro do ano,
- * marcada "a conferir") e grava tudo ou nada (migração 20261115090000).
+ * marcada "a conferir") e grava tudo ou nada (migração 20261116090000).
  */
 
 import { supabase } from "@/integrations/supabase/client";

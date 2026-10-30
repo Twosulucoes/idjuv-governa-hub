@@ -326,7 +326,7 @@ GRANT EXECUTE ON FUNCTION public.importar_folha_sigrh(jsonb, jsonb, jsonb, boole
 REVOKE ALL ON FUNCTION public.rh_importar_servidores_sigrh(text, jsonb, jsonb, boolean) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.rh_importar_servidores_sigrh(text, jsonb, jsonb, boolean) TO authenticated;
 
--- ---- RH (migração 20261115090000): cargo e lotação pela planilha de ocupantes ----
+-- ---- RH (migração 20261116090000): cargo e lotação pela planilha de ocupantes ----
 -- só para authenticated (a guarda no corpo exige o módulo rh e rh.servidores.importar)
 REVOKE ALL ON FUNCTION public.rh_importar_cargos_ocupantes(jsonb, jsonb, boolean) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.rh_importar_cargos_ocupantes(jsonb, jsonb, boolean) TO authenticated;
@@ -483,3 +483,9 @@ REVOKE ALL ON FUNCTION public.fin_nome_comparavel(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fin_nome_comparavel(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.importar_diarias_fiplan(integer, jsonb, jsonb, boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.importar_diarias_fiplan(integer, jsonb, jsonb, boolean) TO authenticated;
+
+-- ---- Contratos C2: alterações e vencimentos (migração 20261115090000) ----
+REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_preparar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_aplicar() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.contratos_meus_vencimentos() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.contratos_meus_vencimentos() TO authenticated;
