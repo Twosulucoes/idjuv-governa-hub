@@ -116,7 +116,8 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   Próximas: pagamentos por credor (FIP 685; o FIP 644 dá erro no FIPLAN), créditos adicionais (FIP 625) e liquidado
   por subelemento (FIP 701). O FIP 401 (folha) não serve: a folha do IDJUV não é integrada ao FIPLAN.
 - [ ] **Design System** (transversal): fases 0 a 2 feitas; fase 3 (RH como piloto) e fase 4 (um módulo por PR, começou
-  pelo Patrimônio) em andamento — [spec](../superpowers/specs/2026-10-09-design-system-design.md),
+  pelo Patrimônio) em andamento; Financeiro → QDD revisado em 30/10/2026 (cabeçalho padrão, comum × emendas numa
+  tabela, visão Resumo/Todas as colunas, sem fonte monoespaçada) — [spec](../superpowers/specs/2026-10-09-design-system-design.md),
   [plano](../superpowers/plans/2026-10-09-design-system.md).
 - [ ] **Site**: página pública de estrutura organizacional (LAI); o card saiu da Transparência pública no #120 porque
   levava a uma tela com login.

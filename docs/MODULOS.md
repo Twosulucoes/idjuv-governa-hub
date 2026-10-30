@@ -235,7 +235,11 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
   exercício e sobrescreve empenhado/liquidado/pago; o antigo import de planilha XLSX saiu (a exportação XLSX
   continua). O topo da tela traz os cartões de resumo do exercício (dotação atual, empenhado, saldo disponível)
   e o aviso "Atualizado pelo FIPLAN em <data> · <arquivo>" (ou "Ainda não importado"), lido do último registro
-  em `importacoes`. Não há mais "Nova dotação": dotação vem do FIPLAN.
+  em `importacoes`. Não há mais "Nova dotação": dotação vem do FIPLAN. Logo abaixo, uma tabela única compara a
+  dotação comum (livre, em destaque) com cada tipo de emenda. A tabela de dotações abre na visão **Resumo** (atual,
+  reserva, PED, empenhado e disponível, cabendo num notebook de 1366 px sem rolar de lado); **Todas as colunas** mostra
+  as 13 colunas de valor do FIPLAN e a escolha fica lembrada no navegador. Valores em números tabulares da fonte do
+  sistema (sem fonte monoespaçada).
 - **Atualizar o Financeiro `/financeiro/atualizar`** (menu "Atualizar dados"): a rotina de arquivos que mantém o
   módulo em dia, com um cartão por item: QDD e FIP 614 (semanal), retorno do banco (depois de cada remessa),
   conciliação do mês (FIP 630, FIP 103, OFX e extrato do fundo; em dia até o dia 10 do mês seguinte) e Tabelas do
