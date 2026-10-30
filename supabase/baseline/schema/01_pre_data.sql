@@ -11524,7 +11524,7 @@ CREATE FUNCTION public.passagem_buscar_servidores(_termo text) RETURNS TABLE(id 
     SET search_path TO 'public'
     AS $$
 BEGIN
-  IF NOT (public.can_access_module(auth.uid(), 'contratos')
+  IF NOT ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos'))
           AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar')) THEN
     RAISE EXCEPTION 'Requer a permissão de editar passagens.' USING ERRCODE = '42501';
   END IF;
@@ -11775,6 +11775,34 @@ $$;
 
 
 --
+-- Name: passagem_contratos_agencia(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.passagem_contratos_agencia() RETURNS TABLE(id uuid, numero_contrato text, ano integer, objeto text, objeto_resumido text, valor_atual numeric, data_inicio date, data_fim date, data_fim_atual date, fornecedor jsonb)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT COALESCE((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos'))
+                  AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
+                       OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar')
+                       OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro')), false) THEN
+    RAISE EXCEPTION 'Requer a permissão de ver passagens.' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT c.id, c.numero_contrato::text, c.ano::integer, c.objeto::text, c.objeto_resumido::text, c.valor_atual,
+         c.data_inicio, c.data_fim, c.data_fim_atual,
+         CASE WHEN f.id IS NULL THEN NULL
+              ELSE jsonb_build_object('razao_social', f.razao_social, 'nome_fantasia', f.nome_fantasia) END
+    FROM public.contratos c
+    LEFT JOIN public.fornecedores f ON f.id = c.fornecedor_id
+   WHERE c.controla_passagens
+   ORDER BY c.ano DESC, c.numero_contrato;
+END;
+$$;
+
+
+--
 -- Name: passagem_copiar_nome(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -11842,7 +11870,7 @@ CREATE FUNCTION public.passagem_empenhos_candidatos(_contrato_id uuid, _exercici
     SET search_path TO 'public'
     AS $$
 BEGIN
-  IF NOT COALESCE(public.can_access_module(auth.uid(), 'contratos')
+  IF NOT COALESCE((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos'))
                   AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'), false) THEN
     RAISE EXCEPTION 'Requer a permissão de faturas e empenhos das passagens.' USING ERRCODE = '42501';
   END IF;
@@ -11872,7 +11900,7 @@ CREATE FUNCTION public.passagem_empenhos_contrato(_contrato_id uuid) RETURNS TAB
     SET search_path TO 'public'
     AS $$
 BEGIN
-  IF NOT COALESCE(public.can_access_module(auth.uid(), 'contratos')
+  IF NOT COALESCE((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos'))
                   AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
                        OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar')
                        OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro')), false) THEN
@@ -12131,7 +12159,7 @@ CREATE FUNCTION public.passagem_relatorio_rh(_passageiro_ids uuid[]) RETURNS TAB
     SET search_path TO 'public'
     AS $$
 BEGIN
-  IF NOT (public.can_access_module(auth.uid(), 'contratos')
+  IF NOT ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos'))
           AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar')
                OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'))) THEN
     RAISE EXCEPTION 'Requer a permissão de ver passagens.' USING ERRCODE = '42501';
@@ -12206,7 +12234,7 @@ CREATE FUNCTION public.passagem_viagens_servidor(_servidor_id uuid) RETURNS TABL
     SET search_path TO 'public'
     AS $$
 BEGIN
-  IF NOT (public.can_access_module(auth.uid(), 'contratos')
+  IF NOT ((public.can_access_module(auth.uid(), 'gabinete') OR public.can_access_module(auth.uid(), 'contratos'))
           AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar')) THEN
     RAISE EXCEPTION 'Requer a permissão de editar passagens.' USING ERRCODE = '42501';
   END IF;

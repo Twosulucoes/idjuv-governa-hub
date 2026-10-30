@@ -1,7 +1,8 @@
 /**
- * Passagens aéreas do módulo Contratos: pedidos (um por processo SEI), passageiros, trechos, cotações, beneficiários
- * e o contrato da agência. Migração 20261031090000; leitura com `contratos.passagens.visualizar`, escrita com
- * `contratos.passagens.editar`. O servidor e as viagens do RH chegam só pelas RPCs estreitas
+ * Passagens aéreas do Gabinete da Presidência (o contrato da agência é do setor de Contratos): pedidos (um por
+ * processo SEI), passageiros, trechos, cotações, beneficiários e o contrato da agência (RPC passagem_contratos_agencia).
+ * Migração 20261031090000 (módulo gabinete ou contratos desde a 20261110120000); leitura com
+ * `contratos.passagens.visualizar`, escrita com `contratos.passagens.editar`. O servidor e as viagens do RH chegam só pelas RPCs estreitas
  * (passagem_buscar_servidores, passagem_viagens_servidor), porque quem tem passagens não lê o RH.
  * Prestação de contas (migração 20261101090000): entregas e dispensas no pedido e no passageiro, anexos no bucket
  * privado `passagens` (`<pedido>/<passageiro ou "pedido">/<uuid>-<nome>`, baixados por URL assinada de 60 s), prazo
@@ -410,12 +411,8 @@ export function useContratosPassagens() {
   return useQuery({
     queryKey: ['passagens-contratos'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contratos')
-        .select('id, numero_contrato, ano, objeto, objeto_resumido, valor_atual, data_inicio, data_fim, data_fim_atual, fornecedor:fornecedores(razao_social, nome_fantasia)')
-        .eq('controla_passagens', true)
-        .order('ano', { ascending: false })
-        .order('numero_contrato');
+      // Pela RPC: o Gabinete lê o contrato da agência sem ter o módulo Contratos (contratos e fornecedores fechados).
+      const { data, error } = await supabase.rpc('passagem_contratos_agencia');
       if (error) throw error;
       return (data ?? []) as unknown as ContratoPassagens[];
     },

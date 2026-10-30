@@ -163,9 +163,9 @@ export default function ContratoFichaPage() {
         {c.controla_passagens && vePassagens && (
           <Card>
             <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">Este contrato controla as passagens aéreas: pedidos, bilhetes, faturas e saldo ficam em Passagens.</p>
+              <p className="text-sm text-muted-foreground">Este contrato controla as passagens aéreas: pedidos, bilhetes, faturas e saldo ficam no Gabinete da Presidência, em Passagens aéreas.</p>
               <Button variant="outline" asChild>
-                <Link to="/contratos/passagens/faturas">
+                <Link to="/gabinete/passagens/faturas">
                   <Plane className="h-4 w-4" aria-hidden="true" />
                   Passagens e saldo
                 </Link>

@@ -43,7 +43,7 @@ export const ORIGENS: Record<OrigemLocalizador, InfoOrigem> = {
   workflow: { rotulo: "Processo acompanhado", singular: "processo acompanhado", plural: "processos acompanhados", link: (r) => `/workflow/processos/${r.registro_id}` },
   contratacao: { rotulo: "Processo de contratação", singular: "processo de contratação", plural: "processos de contratação", link: (r) => `/compras/processos/${r.registro_id}` },
   contrato: { rotulo: "Contrato", singular: "contrato", plural: "contratos", link: (r) => `/contratos/${r.registro_id}` },
-  passagem: { rotulo: "Pedido de passagem", singular: "pedido de passagem", plural: "pedidos de passagem", link: (r) => `/contratos/passagens/${r.registro_id}` },
+  passagem: { rotulo: "Pedido de passagem", singular: "pedido de passagem", plural: "pedidos de passagem", link: (r) => `/gabinete/passagens/${r.registro_id}` },
   pca: { rotulo: "Demanda do PCA", singular: "demanda do PCA", plural: "demandas do PCA", link: (r) => (r.ref ? `/compras/pca/${r.ref}` : "/compras/pca") },
   empenho: { rotulo: "Empenho", singular: "empenho", plural: "empenhos", link: (r) => `/financeiro/empenhos/${r.registro_id}` },
   documento: { rotulo: "Ato", singular: "ato", plural: "atos", link: (r) => (r.ref === "portaria" ? "/gabinete/portarias" : "/admin/documentos") },

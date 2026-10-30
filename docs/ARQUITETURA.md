@@ -134,22 +134,23 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `requiredModule="contratos"` e `contratos.visualizar`, `contratos.criar` ou `contratos.editar`): lista com filtros de
   situação e de prazo (`?prazo=em_vigor|30|60|90|120|vencidos|sem_responsavel`, usados pelos cartões do painel
   `/contratos`), cadastro (`?novo=1`) e ficha com as abas Dados, Itens, Gestor e fiscais e Histórico (`?aba=` abre direto
-  numa delas) e a ficha em PDF. `/contratos/:id` fica depois das rotas de passagens no `App.tsx` (o react-router prefere o
-  caminho fixo de qualquer jeito). Menu: "Contratos" e "Novo contrato" (`/contratos/lista?novo=1`) no menu geral e
+  numa delas) e a ficha em PDF. `/contratos/:id` fica depois do redirecionamento `/contratos/passagens/*` no `App.tsx` (o
+  react-router prefere o caminho fixo de qualquer jeito). Menu: "Contratos" e "Novo contrato" (`/contratos/lista?novo=1`) no menu geral e
   "Contratos" no menu do módulo. A carga inicial é pela planilha, importada na própria lista
   (`/contratos/lista?importador=contratos_planilha`). Spec:
   `docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md`.
-- **Passagens aéreas (Contratos)** em `/contratos/passagens`, `/contratos/passagens/:id` e
-  `/contratos/passagens/beneficiarios` (`PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,
-  `requiredModule="contratos"` e `contratos.passagens.visualizar` ou `contratos.passagens.editar`): um pedido por
-  processo SEI, com passageiros (servidor ou beneficiário de fora), trechos, cotações e emissão; o saldo do contrato da
-  agência sai dos bilhetes emitidos. Menu em Contratos → "Passagens aéreas", "Beneficiários de passagem" e "Novo pedido
-  de passagem" (`/contratos/passagens?novo=1`). Spec: `docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md`.
-  A entrega 2 acrescenta `/contratos/passagens/pendencias` (`PassagensPendenciasPage`, mesma proteção; menu "Pendências
-  de passagens") e a aba Prestação de contas na ficha (`?aba=prestacao` abre direto nela). A entrega 3 acrescenta
-  `/contratos/passagens/faturas` (`PassagensFaturasPage`, `requiredModule="contratos"` e `visualizar`, `editar` ou
-  `contratos.passagens.financeiro`; menu "Faturas de passagens"): faturas da agência, a faturar, empenhos do contrato,
-  planilhas e o PDF do saldo; a ficha do pedido mostra a fatura de cada bilhete e baixa a ficha em PDF.
+- **Passagens aéreas (Gabinete da Presidência)** em `/gabinete/passagens`, `/gabinete/passagens/:id`,
+  `/gabinete/passagens/beneficiarios`, `/gabinete/passagens/pendencias` e `/gabinete/passagens/faturas`
+  (`src/pages/gabinete/`: `PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,
+  `PassagensPendenciasPage`, `PassagensFaturasPage`; `requiredModule="gabinete"` e `contratos.passagens.visualizar` ou
+  `contratos.passagens.editar`, e nas faturas também `contratos.passagens.financeiro`). O Gabinete recebe os pedidos (SEI,
+  e-mail) e as faturas da agência; o contrato da agência continua no setor de Contratos (lista e ficha do contrato). Um
+  pedido por processo SEI, com passageiros (servidor ou beneficiário de fora), trechos, cotações e emissão; prestação de
+  contas na aba da ficha (`?aba=prestacao`); faturas, a faturar, empenhos do contrato, planilhas e o PDF do saldo. Menu
+  em Gabinete → "Passagens aéreas" (Pedidos, Novo pedido, Beneficiários, Pendências e Faturas) e atalhos no painel do
+  Gabinete, filtrados pela permissão. Os endereços antigos `/contratos/passagens*` redirecionam para o mesmo caminho em
+  `/gabinete/passagens` (`RedirecionarPrefixo`, links salvos e do localizador SEI). Até a migração `20261110120000` as
+  telas ficavam em Contratos. Spec: `docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md`.
 - Financeiro: `/financeiro/empenhos/:id` (`EmpenhoDetalhePage`, `requiredPermissions="orcamento.criar"`): dados,
   valores, histórico do FIPLAN e escolha da dotação do empenho importado do FIP 614.
 - Financeiro: `/financeiro/conciliacao` (`ProtectedRoute requiredModule="financeiro"

@@ -27555,6 +27555,21 @@ export type Database = {
           nome: string
         }[]
       }
+      passagem_contratos_agencia: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          ano: number
+          data_fim: string
+          data_fim_atual: string
+          data_inicio: string
+          fornecedor: Json
+          id: string
+          numero_contrato: string
+          objeto: string
+          objeto_resumido: string
+          valor_atual: number
+        }[]
+      }
       passagem_empenho_candidato: {
         Args: { _contrato_id: string; _empenho_id: string }
         Returns: boolean

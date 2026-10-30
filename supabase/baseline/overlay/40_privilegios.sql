@@ -431,6 +431,9 @@ REVOKE ALL ON FUNCTION public.passagem_empenhos_candidatos(uuid, integer) FROM P
 GRANT EXECUTE ON FUNCTION public.passagem_empenhos_candidatos(uuid, integer) TO authenticated;
 REVOKE ALL ON FUNCTION public.passagem_salvar_fatura(jsonb, jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.passagem_salvar_fatura(jsonb, jsonb) TO authenticated;
+-- Passagens no Gabinete (migração 20261110120000): o contrato da agência para quem lê passagens.
+REVOKE ALL ON FUNCTION public.passagem_contratos_agencia() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.passagem_contratos_agencia() TO authenticated;
 
 -- ---- Financeiro: convênios federais do Transferegov (migração 20261105090000) ----
 -- espelho só leitura pela API; grava só fin_tg_carregar, executada pela service role (Edge Function transferegov)

@@ -88,12 +88,12 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `src/components/financeiro/`) e o cartão "Emenda do empenho" no detalhe do empenho. Origem da dotação (comum ou
   emenda pelo IDU), agrupamento do QDD por natureza e saldo de cada emenda em `src/lib/financeiro/origemDotacao.ts`
   (testes vitest).
-- **Contratos (passagens aéreas):** `usePassagens` (`usePedidos`, `usePedido`, `useHistoricoPedido`, `useSalvarPedido`,
+- **Gabinete (passagens aéreas; até a migração `20261110120000` ficavam em Contratos):** `usePassagens` (`usePedidos`, `usePedido`, `useHistoricoPedido`, `useSalvarPedido`,
   `useMudarSituacao`, `useSalvarPassageiro`, `useRemoverPassageiro`, `useSalvarTrecho`, `useAlterarTrecho`,
   `useRemoverTrecho`, `useSalvarCotacao`, `useRemoverCotacao`, `useEscolherCotacao`, `useBeneficiarios`,
   `useSalvarBeneficiario`, `useBuscarServidores`, `useViagensServidor`, `useContratosPassagens`,
   `useOutrosContratos`, `useMarcarContratoPassagens`, `useFornecedoresContrato`, `useCadastrarContrato`; o saldo só olha
-  contratos com `controla_passagens`): telas `/contratos/passagens*` (componentes em
+  contratos com `controla_passagens`): telas `/gabinete/passagens*` em `src/pages/gabinete/` (componentes continuam em
   `src/components/contratos/passagens/`; tipos e rótulos em `src/types/passagens.ts`). Valor do trecho, saldo do
   contrato, fluxo de situações e máscara de CPF em `src/lib/passagens/regras.ts` (testes vitest). A busca de servidor
   usa a RPC `passagem_buscar_servidores`, que devolve só nome, matrícula e cargo. Prestação de contas (entrega 2):

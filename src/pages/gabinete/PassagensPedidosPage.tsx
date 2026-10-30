@@ -1,6 +1,6 @@
 /**
  * Passagens aéreas: pedidos (um por processo SEI) com passageiros, situação e valor emitido, e o saldo do contrato
- * da agência (emitido, faturado e pago). As faturas ficam em Faturas e saldo (/contratos/passagens/faturas).
+ * da agência (emitido, faturado e pago). As faturas ficam em Faturas e saldo (/gabinete/passagens/faturas).
  * Spec: docs/superpowers/specs/2026-10-24-contratos-passagens-aereas-design.md
  */
 
@@ -40,7 +40,7 @@ export default function PassagensPedidosPage() {
   const [situacao, setSituacao] = useState(TODOS);
   const [contratoId, setContratoId] = useState<string | null>(null);
 
-  // Atalho do menu "Novo pedido" (/contratos/passagens?novo=1)
+  // Atalho do menu "Novo pedido" (/gabinete/passagens?novo=1)
   useEffect(() => {
     if (params.get("novo") && podeEditar) {
       setNovo(true);
@@ -118,19 +118,19 @@ export default function PassagensPedidosPage() {
   ];
 
   return (
-    <ModuleLayout module="contratos">
+    <ModuleLayout module="gabinete">
       <div className="space-y-6">
         <PageHeader
           titulo="Passagens aéreas"
           descricao="Pedidos por processo SEI, passageiros, emissão e saldo do contrato da agência"
-          migalhas={[{ rotulo: "Contratos", href: "/contratos" }, { rotulo: "Passagens aéreas" }]}
+          migalhas={[{ rotulo: "Gabinete", href: "/gabinete" }, { rotulo: "Passagens aéreas" }]}
           acoes={
             <>
-              <Button variant="outline" onClick={() => navigate("/contratos/passagens/faturas")}>
+              <Button variant="outline" onClick={() => navigate("/gabinete/passagens/faturas")}>
                 <Receipt className="h-4 w-4" aria-hidden="true" />
                 Faturas e saldo
               </Button>
-              <Button variant="outline" onClick={() => navigate("/contratos/passagens/beneficiarios")}>
+              <Button variant="outline" onClick={() => navigate("/gabinete/passagens/beneficiarios")}>
                 <Users className="h-4 w-4" aria-hidden="true" />
                 Beneficiários
               </Button>
@@ -182,7 +182,11 @@ export default function PassagensPedidosPage() {
           !contratos.isLoading && (
             <Card>
               <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted-foreground">Nenhum contrato da agência ligado às passagens. Cadastre ou escolha o contrato para acompanhar o saldo.</p>
+                <p className="text-sm text-muted-foreground">
+                  {podeCadastrarContrato
+                    ? "Nenhum contrato da agência ligado às passagens. Cadastre ou escolha o contrato para acompanhar o saldo."
+                    : "Nenhum contrato da agência ligado às passagens. O setor de Contratos liga o contrato da agência para o saldo aparecer aqui."}
+                </p>
                 {podeCadastrarContrato && <Button variant="outline" onClick={() => setNovoContrato(true)}>Cadastrar contrato</Button>}
               </CardContent>
             </Card>
@@ -207,7 +211,7 @@ export default function PassagensPedidosPage() {
               </SelectContent>
             </Select>
           }
-          aoClicarLinha={(p) => navigate(`/contratos/passagens/${p.id}`)}
+          aoClicarLinha={(p) => navigate(`/gabinete/passagens/${p.id}`)}
           vazio={{
             icone: Plane,
             titulo: "Nenhum pedido de passagem",
@@ -223,7 +227,7 @@ export default function PassagensPedidosPage() {
         podeCadastrar={podeEditar}
         onSalvar={async (dados) => {
           const p = await salvar.mutateAsync(dados);
-          navigate(`/contratos/passagens/${p.id}`);
+          navigate(`/gabinete/passagens/${p.id}`);
         }}
       />
       <ContratoCadastroDialog open={novoContrato} onOpenChange={setNovoContrato} aoCadastrar={setContratoId} />

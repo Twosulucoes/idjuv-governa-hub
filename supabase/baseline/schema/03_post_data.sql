@@ -22560,49 +22560,49 @@ CREATE POLICY rls_delete ON public.participantes_reuniao FOR DELETE TO authentic
 -- Name: passagem_anexos rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.passagem_anexos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_delete ON public.passagem_anexos FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_contrato_empenhos rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.passagem_contrato_empenhos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+CREATE POLICY rls_delete ON public.passagem_contrato_empenhos FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
 
 
 --
 -- Name: passagem_cotacoes rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.passagem_cotacoes FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_delete ON public.passagem_cotacoes FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_fatura_itens rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.passagem_fatura_itens FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+CREATE POLICY rls_delete ON public.passagem_fatura_itens FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
 
 
 --
 -- Name: passagem_faturas rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.passagem_faturas FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+CREATE POLICY rls_delete ON public.passagem_faturas FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
 
 
 --
 -- Name: passagem_passageiros rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.passagem_passageiros FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_delete ON public.passagem_passageiros FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_trechos rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_delete ON public.passagem_trechos FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_delete ON public.passagem_trechos FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
@@ -24267,63 +24267,63 @@ CREATE POLICY rls_insert ON public.participantes_reuniao FOR INSERT TO authentic
 -- Name: passagem_anexos rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.passagem_anexos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_insert ON public.passagem_anexos FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_beneficiarios rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.passagem_beneficiarios FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_insert ON public.passagem_beneficiarios FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_contrato_empenhos rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.passagem_contrato_empenhos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+CREATE POLICY rls_insert ON public.passagem_contrato_empenhos FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
 
 
 --
 -- Name: passagem_cotacoes rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.passagem_cotacoes FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_insert ON public.passagem_cotacoes FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_fatura_itens rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.passagem_fatura_itens FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+CREATE POLICY rls_insert ON public.passagem_fatura_itens FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
 
 
 --
 -- Name: passagem_faturas rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.passagem_faturas FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+CREATE POLICY rls_insert ON public.passagem_faturas FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
 
 
 --
 -- Name: passagem_passageiros rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.passagem_passageiros FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_insert ON public.passagem_passageiros FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_pedidos rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.passagem_pedidos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_insert ON public.passagem_pedidos FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_trechos rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_insert ON public.passagem_trechos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_insert ON public.passagem_trechos FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
@@ -26148,70 +26148,70 @@ CREATE POLICY rls_select ON public.participantes_reuniao FOR SELECT TO authentic
 -- Name: passagem_anexos rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_anexos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+CREATE POLICY rls_select ON public.passagem_anexos FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --
 -- Name: passagem_beneficiarios rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_beneficiarios FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+CREATE POLICY rls_select ON public.passagem_beneficiarios FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --
 -- Name: passagem_contrato_empenhos rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_contrato_empenhos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))));
+CREATE POLICY rls_select ON public.passagem_contrato_empenhos FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))));
 
 
 --
 -- Name: passagem_cotacoes rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_cotacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+CREATE POLICY rls_select ON public.passagem_cotacoes FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --
 -- Name: passagem_fatura_itens rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_fatura_itens FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))));
+CREATE POLICY rls_select ON public.passagem_fatura_itens FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))));
 
 
 --
 -- Name: passagem_faturas rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_faturas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))));
+CREATE POLICY rls_select ON public.passagem_faturas FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))));
 
 
 --
 -- Name: passagem_historico rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_historico FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+CREATE POLICY rls_select ON public.passagem_historico FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --
 -- Name: passagem_passageiros rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_passageiros FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+CREATE POLICY rls_select ON public.passagem_passageiros FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --
 -- Name: passagem_pedidos rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_pedidos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+CREATE POLICY rls_select ON public.passagem_pedidos FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --
 -- Name: passagem_trechos rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_select ON public.passagem_trechos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
+CREATE POLICY rls_select ON public.passagem_trechos FOR SELECT TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND (public.has_permission_code(auth.uid(), 'contratos.passagens.visualizar'::text) OR public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))));
 
 
 --
@@ -27941,63 +27941,63 @@ CREATE POLICY rls_update ON public.participantes_reuniao FOR UPDATE TO authentic
 -- Name: passagem_anexos rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.passagem_anexos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_update ON public.passagem_anexos FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_beneficiarios rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.passagem_beneficiarios FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_update ON public.passagem_beneficiarios FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_contrato_empenhos rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.passagem_contrato_empenhos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+CREATE POLICY rls_update ON public.passagem_contrato_empenhos FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
 
 
 --
 -- Name: passagem_cotacoes rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.passagem_cotacoes FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_update ON public.passagem_cotacoes FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_fatura_itens rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.passagem_fatura_itens FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+CREATE POLICY rls_update ON public.passagem_fatura_itens FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
 
 
 --
 -- Name: passagem_faturas rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.passagem_faturas FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
+CREATE POLICY rls_update ON public.passagem_faturas FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.financeiro'::text)));
 
 
 --
 -- Name: passagem_passageiros rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.passagem_passageiros FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_update ON public.passagem_passageiros FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_pedidos rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.passagem_pedidos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_update ON public.passagem_pedidos FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --
 -- Name: passagem_trechos rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY rls_update ON public.passagem_trechos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'contratos'::text) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
+CREATE POLICY rls_update ON public.passagem_trechos FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'gabinete'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.passagens.editar'::text)));
 
 
 --

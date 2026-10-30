@@ -4,7 +4,7 @@
  * (PageHeader, KpiCard).
  */
 
-import { FileText, Calendar, UserX, BarChart3, Globe, AlertCircle, Plane, ClipboardCheck, ShoppingCart, FileCheck, Upload } from "lucide-react";
+import { FileText, Calendar, UserX, BarChart3, Globe, AlertCircle, ShoppingCart, FileCheck, Upload } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { useContratosDashboardStats } from "@/hooks/dashboard";
@@ -32,7 +32,6 @@ export default function ContratosDashboardPage() {
   const { data: stats, isLoading, isError, refetch } = useContratosDashboardStats();
   const { hasAnyPermission } = useAuth();
   const PERMISSOES_LISTA = ["contratos.visualizar", "contratos.criar", "contratos.editar"];
-  const PERMISSOES_PASSAGENS = ["contratos.passagens.visualizar", "contratos.passagens.editar"];
   const podeVerLista = hasAnyPermission(PERMISSOES_LISTA);
   const lista = (prazo: string) => (podeVerLista ? `/contratos/lista?prazo=${prazo}` : undefined);
 
@@ -51,12 +50,11 @@ export default function ContratosDashboardPage() {
     },
   ];
 
-  // Só rotas registradas em App.tsx; aditivos, execução e avisos entram com as entregas C2 a C6 (P21)
+  // Só rotas registradas em App.tsx; aditivos, execução e avisos entram com as entregas C2 a C6 (P21).
+  // Pedidos, emissão e faturas das passagens aéreas são do Gabinete da Presidência; aqui fica só o contrato da agência.
   const quickActions: { label: string; description: string; href: string; icon: LucideIcon; permissoes?: string[] }[] = [
     { label: "Lista de contratos", description: "Vigência, gestor e fiscais", href: "/contratos/lista", icon: FileCheck, permissoes: PERMISSOES_LISTA },
     { label: "Importar contratos", description: "Planilha dos contratos vigentes", href: "/contratos/lista?importador=contratos_planilha", icon: Upload, permissoes: ["contratos.criar"] },
-    { label: "Passagens aéreas", description: "Pedidos e emissões", href: "/contratos/passagens", icon: Plane, permissoes: PERMISSOES_PASSAGENS },
-    { label: "Pendências de passagens", description: "Prestação de contas em aberto", href: "/contratos/passagens/pendencias", icon: ClipboardCheck, permissoes: PERMISSOES_PASSAGENS },
     { label: "Processos de contratação", description: "Compras até virar contrato", href: "/compras/processos", icon: ShoppingCart, permissoes: ["compras.processos.visualizar", "compras.processos.editar"] },
     { label: "Contratos publicados", description: "Portal da transparência", href: "/transparencia/contratos", icon: Globe },
   ];
@@ -68,19 +66,14 @@ export default function ContratosDashboardPage() {
           titulo="Contratos"
           descricao="Gestão e execução contratual"
           acoes={
-            <Button asChild>
-              {podeVerLista ? (
+            podeVerLista ? (
+              <Button asChild>
                 <Link to="/contratos/lista">
                   <FileCheck className="h-4 w-4" aria-hidden="true" />
                   Lista de contratos
                 </Link>
-              ) : (
-                <Link to="/contratos/passagens">
-                  <Plane className="h-4 w-4" aria-hidden="true" />
-                  Passagens aéreas
-                </Link>
-              )}
-            </Button>
+              </Button>
+            ) : undefined
           }
         />
 
