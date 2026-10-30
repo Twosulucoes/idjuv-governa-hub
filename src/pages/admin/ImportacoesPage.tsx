@@ -1,75 +1,29 @@
 /**
- * CENTRAL DE IMPORTAÇÕES
+ * HISTÓRICO DE IMPORTAÇÕES (Administração)
  *
- * Lista os importadores que o usuário pode usar (permissão de cada um) e o
- * histórico das importações aplicadas. Cada importador roda no mesmo assistente
- * (ImportacaoWizard): arquivo → conferência → confirmação.
- * `?importador=<id>` abre direto o assistente desse importador, se o usuário tiver a permissão dele
- * (links da tela Atualizar o Financeiro).
+ * Cada setor importa os seus arquivos no próprio menu (Financeiro → Atualizar dados, RH → Folha, Gabinete →
+ * Central de Portarias, Compras → Processos, Contratos → Contratos): o assistente abre na tela do setor
+ * (`?importador=<id>`, ver `local` em cada importador). Aqui a Administração só consulta o histórico e vê onde
+ * cada arquivo entra. O histórico respeita o setor no banco: cada um lê as importações dos módulos a que tem acesso.
  */
 
-import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { FileUp } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { ModuleLayout } from "@/components/layout";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { HistoricoImportacoes, ImportacaoWizard } from "@/components/importacao";
-import { EmptyState, PageHeader } from "@/components/design-system";
-import { useAuth } from "@/contexts/AuthContext";
+import { HistoricoImportacoes } from "@/components/importacao";
+import { PageHeader } from "@/components/design-system";
 import { IMPORTADORES } from "@/lib/importacao/registro";
-import type { Importador } from "@/lib/importacao/types";
 
 export default function ImportacoesPage() {
-  const { hasPermission } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const disponiveis = IMPORTADORES.filter((i) => hasPermission(i.permissao));
-  const pedido = searchParams.get("importador");
-  const [aberto, setAberto] = useState<Importador<unknown> | null>(
-    () => disponiveis.find((i) => i.id === pedido) ?? null,
-  );
-  const [ocupado, setOcupado] = useState(false);
-
-  const fechar = () => {
-    setAberto(null);
-    // Tira o parâmetro para o assistente não reabrir ao recarregar a página
-    if (pedido) setSearchParams((p) => { p.delete("importador"); return p; }, { replace: true });
-  };
-
   return (
     <ModuleLayout module="admin">
       <div className="space-y-6">
         <PageHeader
-          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Importação de dados" }]}
-          titulo="Importação de dados"
-          descricao="Atualize o sistema a partir de arquivos de outros sistemas. Tudo é conferido antes de gravar."
+          migalhas={[{ rotulo: "Administração", href: "/admin" }, { rotulo: "Histórico de importações" }]}
+          titulo="Histórico de importações"
+          descricao="Cada setor importa os seus arquivos no próprio menu. Aqui você consulta tudo o que foi importado."
         />
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {disponiveis.map((imp) => (
-            <Card key={imp.id}>
-              <CardHeader>
-                <CardTitle className="text-h3">{imp.titulo}</CardTitle>
-                <CardDescription>{imp.descricao}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={() => setAberto(imp)}>
-                  <FileUp className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Importar
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-          {disponiveis.length === 0 && (
-            <EmptyState
-              icone={FileUp}
-              titulo="Nenhum importador disponível"
-              descricao="Você não tem permissão para nenhum importador."
-              className="md:col-span-2 xl:col-span-3"
-            />
-          )}
-        </div>
 
         <Card>
           <CardHeader>
@@ -80,17 +34,35 @@ export default function ImportacoesPage() {
             <HistoricoImportacoes />
           </CardContent>
         </Card>
-      </div>
 
-      <Dialog open={!!aberto} onOpenChange={(open) => !open && !ocupado && fechar()}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Importar {aberto?.titulo}</DialogTitle>
-            <DialogDescription>{aberto?.descricao}</DialogDescription>
-          </DialogHeader>
-          {aberto && <ImportacaoWizard importador={aberto} onOcupadoChange={setOcupado} />}
-        </DialogContent>
-      </Dialog>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-h3">Onde cada arquivo é importado</CardTitle>
+            <CardDescription>Quem importa precisa da permissão do importador, dada no Painel de Permissões.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y">
+              {IMPORTADORES.map((imp) => (
+                <li key={imp.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div className="min-w-0">
+                    <p className="text-body font-medium text-foreground">{imp.titulo}</p>
+                    <p className="text-caption text-muted-foreground">
+                      Permissão: <code>{imp.permissao}</code>
+                    </p>
+                  </div>
+                  <Link
+                    to={imp.local.rota}
+                    className="inline-flex shrink-0 items-center gap-1 text-body text-primary underline-offset-4 hover:underline"
+                  >
+                    {imp.local.caminho}
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
     </ModuleLayout>
   );
 }

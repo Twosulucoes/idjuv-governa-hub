@@ -23,7 +23,8 @@ export const importadorPedsFiplan: Importador<LinhaPedFiplan> = {
   titulo: "PEDs do FIPLAN (Consultar PED)",
   descricao: "Traz os pedidos de empenho do exercício, com processo, dotação e situação, para ligar cada PED ao processo de contratação.",
   modulo: "financeiro",
-  permissao: "orcamento.importar",
+  permissao: "financeiro.execucao.importar",
+  local: { rota: "/financeiro/atualizar?importador=peds_fiplan", caminho: "Financeiro → Atualizar dados" },
   aceita: ".xls,.xlsx",
   instrucoes:
     'No FIPLAN, abra "Consultar Pedido de Empenho da Despesa (PED)", filtre pelo exercício e pela unidade ' +

@@ -34,6 +34,7 @@ export const importadorContratosPlanilha: Importador<LinhaContratoPlanilha> = {
   descricao: "Carga dos contratos vigentes: número, contratado, objeto, valores, vigência, setor, gestor e fiscais.",
   modulo: "contratos",
   permissao: "contratos.criar",
+  local: { rota: "/contratos/lista?importador=contratos_planilha", caminho: "Contratos → Contratos" },
   aceita: ".xlsx,.xls,.csv",
   instrucoes:
     'Use o modelo abaixo (aba "Contratos"; exemplos e listas na aba "Como preencher"). O contratado que não estiver ' +

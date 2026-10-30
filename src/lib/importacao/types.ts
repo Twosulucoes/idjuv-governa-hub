@@ -87,6 +87,8 @@ export interface Importador<TLinha = unknown> {
   modulo: Modulo;
   /** Permissão exigida (a RPC confere a mesma) */
   permissao: string;
+  /** Onde o setor dono importa este arquivo: tela que abre o assistente e o caminho no menu */
+  local: { rota: string; caminho: string };
   /** Valor do atributo `accept` do input de arquivo */
   aceita: string;
   /** Texto curto sobre de onde tirar o arquivo */

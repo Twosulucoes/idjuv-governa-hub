@@ -32,6 +32,7 @@ export const importadorFolhaSigrh: Importador<LinhaFolhaSigrh> = {
   descricao: "Registra a folha mensal já paga pelo SIGRH, com a ficha e as rubricas de cada servidor, e a deixa fechada.",
   modulo: "rh",
   permissao: "financeiro.folha.processar",
+  local: { rota: "/folha?importador=folha_sigrh", caminho: "RH → Folha de Pagamento → Importar do SIGRH" },
   aceita: ".pdf,.xlsx,.xls",
   instrucoes:
     "Use o espelho definitivo do mês: o PDF FPAG10 (Folha Analítica por Funcionário), o relatório analítico de " +

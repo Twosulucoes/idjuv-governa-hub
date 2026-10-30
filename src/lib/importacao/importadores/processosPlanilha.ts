@@ -35,6 +35,7 @@ export const importadorProcessosPlanilha: Importador<LinhaProcessoPlanilha> = {
   descricao: "Carga da planilha de acompanhamento dos processos: nº SEI, objeto, forma, fase, setor e andamento.",
   modulo: "compras",
   permissao: "compras.processos.editar",
+  local: { rota: "/compras/processos?importador=processos_planilha", caminho: "Compras → Processos de contratação" },
   aceita: ".xlsx,.xls",
   instrucoes:
     'Use a planilha com as abas "Processos" e "Andamento" (o modelo abaixo tem as colunas e as listas de fase e de forma). ' +

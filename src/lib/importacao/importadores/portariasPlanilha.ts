@@ -101,6 +101,7 @@ export const importadorPortariasPlanilha: Importador<LinhaPortariaPlanilha> = {
   descricao: "Registra portarias já feitas no SEI a partir de uma planilha, uma linha por portaria.",
   modulo: "gabinete",
   permissao: "gabinete.portarias.importar",
+  local: { rota: "/gabinete/portarias?importador=portarias_planilha", caminho: "Gabinete → Central de Portarias" },
   aceita: ".xlsx,.xls,.csv",
   instrucoes:
     "Baixe o modelo e preencha uma linha por portaria. Várias matrículas na mesma portaria vão separadas por \";\". " +

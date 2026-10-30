@@ -47,6 +47,7 @@ import { StatusPortaria, STATUS_PORTARIA_LABELS, Portaria } from '@/types/portar
 import { toast } from 'sonner';
 import { abrirArquivoPortaria } from '@/lib/portarias/arquivoPortaria';
 import { useAuth } from '@/contexts/AuthContext';
+import { ImportacaoDialog, useImportadorDaUrl } from '@/components/importacao';
 
 export default function CentralPortariasPage() {
   const { hasPermission } = useAuth();
@@ -74,6 +75,8 @@ export default function CentralPortariasPage() {
   // ?id=<uuid> (link vindo de /rh/portarias/pendencias) abre a portaria direto.
   const [searchParams, setSearchParams] = useSearchParams();
   const idParam = searchParams.get('id');
+  // Importação da planilha de portarias, aberta aqui mesmo (?importador=portarias_planilha)
+  const importacao = useImportadorDaUrl(['portarias_planilha']);
   useEffect(() => {
     if (!idParam || isLoading) return;
     const alvo = portarias.find((p) => p.id === idParam);
@@ -153,11 +156,9 @@ export default function CentralPortariasPage() {
               Central Relatórios
             </Button>
             {hasPermission('gabinete.portarias.importar') && (
-              <Button variant="outline" asChild>
-                <Link to="/admin/importacoes">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Importar planilha
-                </Link>
+              <Button variant="outline" onClick={() => importacao.abrir('portarias_planilha')}>
+                <Upload className="h-4 w-4 mr-2" />
+                Importar planilha
               </Button>
             )}
             <Button onClick={() => setNovaPortariaOpen(true)}>
@@ -337,6 +338,8 @@ export default function CentralPortariasPage() {
         portaria={selectedPortaria}
         onSuccess={() => refetch()}
       />
+
+      <ImportacaoDialog importador={importacao.aberto} onFechar={importacao.fechar} />
     </ModuleLayout>
   );
 }

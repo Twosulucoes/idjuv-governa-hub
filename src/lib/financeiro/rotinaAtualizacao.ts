@@ -15,7 +15,7 @@ export interface ItemRotina {
   frequencia: FrequenciaRotina;
   /** Passos no FIPLAN (ou no banco), na ordem */
   passos: string[];
-  /** Id do importador da Central de Importações, quando o arquivo entra por ela */
+  /** Id do importador, quando o arquivo entra pelo assistente de importação (aberto na própria tela) */
   importador?: string;
   /** Para onde o botão leva */
   destino: string;
@@ -29,7 +29,8 @@ export const ROTULOS_FREQUENCIA: Record<FrequenciaRotina, string> = {
   sob_demanda: "Depois de cada remessa",
 };
 
-const central = (importador: string) => `/admin/importacoes?importador=${importador}`;
+/** O assistente abre na própria tela Atualizar dados, sem sair do Financeiro */
+const aqui = (importador: string) => `/financeiro/atualizar?importador=${importador}`;
 
 export const ROTINA_FINANCEIRO: ItemRotina[] = [
   {
@@ -43,7 +44,7 @@ export const ROTINA_FINANCEIRO: ItemRotina[] = [
       "Gere o relatório e salve em PDF.",
     ],
     importador: "qdd_fiplan",
-    destino: central("qdd_fiplan"),
+    destino: aqui("qdd_fiplan"),
     rotuloBotao: "Importar agora",
   },
   {
@@ -58,7 +59,22 @@ export const ROTINA_FINANCEIRO: ItemRotina[] = [
       "Salve em Excel (traz a dotação completa e o histórico inteiro).",
     ],
     importador: "empenhos_fip614",
-    destino: central("empenhos_fip614"),
+    destino: aqui("empenhos_fip614"),
+    rotuloBotao: "Importar agora",
+  },
+  {
+    id: "peds_fiplan",
+    titulo: "PEDs do FIPLAN",
+    serve: "Pedidos de empenho com processo e situação. Liga cada PED ao processo de contratação, na fase financeira.",
+    frequencia: "semanal",
+    passos: [
+      "Importe o QDD antes, para os PEDs ligarem à dotação.",
+      "No FIPLAN, abra \"Consultar Pedido de Empenho da Despesa (PED)\".",
+      "Filtre pelo exercício e pela unidade orçamentária.",
+      "Exporte em Excel.",
+    ],
+    importador: "peds_fiplan",
+    destino: aqui("peds_fiplan"),
     rotuloBotao: "Importar agora",
   },
   {
@@ -71,7 +87,7 @@ export const ROTINA_FINANCEIRO: ItemRotina[] = [
       "Importe o arquivo do jeito que veio, sem abrir nem renomear.",
     ],
     importador: "arquivo_bancario",
-    destino: central("arquivo_bancario"),
+    destino: aqui("arquivo_bancario"),
     rotuloBotao: "Importar agora",
   },
   {
@@ -98,7 +114,7 @@ export const ROTINA_FINANCEIRO: ItemRotina[] = [
       "Importe uma tabela por vez, escolhendo o exercício.",
     ],
     importador: "classificadores_fiplan",
-    destino: central("classificadores_fiplan"),
+    destino: aqui("classificadores_fiplan"),
     rotuloBotao: "Importar agora",
   },
 ];

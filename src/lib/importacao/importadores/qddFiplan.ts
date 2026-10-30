@@ -22,6 +22,7 @@ export const importadorQddFiplan: Importador<LinhaQdd> = {
   descricao: "Atualiza as dotações orçamentárias a partir do Quadro de Detalhamento da Despesa exportado do FIPLAN.",
   modulo: "financeiro",
   permissao: "orcamento.importar",
+  local: { rota: "/financeiro/atualizar?importador=qdd_fiplan", caminho: "Financeiro → Atualizar dados" },
   aceita: "application/pdf,.pdf,.xls",
   instrucoes:
     "No FIPLAN, gere o relatório \"Quadro de Detalhamento da Despesa - QDD\" do exercício e salve em PDF ou em Excel. " +

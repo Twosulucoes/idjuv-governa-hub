@@ -1,13 +1,14 @@
 /**
  * ATUALIZAR O FINANCEIRO
  * O que baixar do FIPLAN e do banco, de quanto em quanto tempo, e o que está atrasado. O sistema não entra no FIPLAN:
- * a tela guia quem baixa os arquivos e leva ao importador certo.
+ * a tela guia quem baixa os arquivos e abre ali mesmo o importador certo (`?importador=<id>`).
  * Spec: docs/superpowers/specs/2026-10-23-rotina-atualizacao-financeiro-design.md
  */
 
 import { useMemo } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { PageHeader } from "@/components/design-system";
+import { ImportacaoDialog, useImportadorDaUrl } from "@/components/importacao";
 import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { EstadoQuadro } from "@/components/financeiro/painel/EstadoQuadro";
 import { CartaoRotina } from "@/components/financeiro/atualizacao/CartaoRotina";
@@ -25,6 +26,7 @@ export default function AtualizarFinanceiroPage() {
   const { exercicio } = useExercicioFinanceiro();
   const { hasPermission } = useAuth();
   const ultimas = useRotinaAtualizacao(exercicio, TIPOS);
+  const importacao = useImportadorDaUrl(TIPOS);
   const hoje = useMemo(() => new Date(), []);
   const encerrado = exercicio < hoje.getFullYear();
 
@@ -71,6 +73,8 @@ export default function AtualizarFinanceiroPage() {
           </div>
         </EstadoQuadro>
       </div>
+
+      <ImportacaoDialog importador={importacao.aberto} onFechar={importacao.fechar} />
     </ModuleLayout>
   );
 }

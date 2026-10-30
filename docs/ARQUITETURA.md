@@ -109,13 +109,16 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   editar pedem `orcamento.criar`): autor, objeto, beneficiário e saldo (valor, reservado, empenhado, livre) de cada
   emenda, mais a conferência com as dotações de emenda do QDD. Menu em Financeiro → "Emendas Parlamentares"; o QDD
   (`/financeiro/qdd`) separa a dotação comum das emendas e liga para esta tela.
-- **Central de Importações** em `/admin/importacoes` (`ImportacoesPage`): a rota exige a permissão de
-  algum importador (`PERMISSOES_IMPORTACAO`, de `src/lib/importacao/registro.ts`); o mesmo assistente
-  também abre de dentro da tela do módulo (ex.: "Importar QDD (FIPLAN)" em `/financeiro/qdd`). Ver
-  `docs/GUIA_FRONTEND.md` (Importação de dados). A rota usa a própria `PERMISSOES_IMPORTACAO` e o item de menu repete a mesma lista
-  (`orcamento.importar`, `pagamento.conciliar`, `gabinete.portarias.importar`, `financeiro.folha.processar`, `compras.processos.editar`); `src/lib/importacao/registro.test.ts`
-  reprova se ela se desencontrar de `PERMISSOES_IMPORTACAO`. A Central de Portarias tem o atalho "Importar planilha". `?importador=<id>` abre direto o assistente
-  desse importador quando o usuário tem a permissão dele (atalhos de `/financeiro/atualizar`).
+- **Importação por setor** (desde 29/10/2026): cada setor importa no próprio menu e o assistente abre na tela dele
+  (`ImportacaoDialog` + `useImportadorDaUrl`, `?importador=<id>`, só com a permissão do importador). O campo `local` de
+  cada importador (`src/lib/importacao/importadores/`) diz a tela: Financeiro → Atualizar dados (`/financeiro/atualizar`:
+  QDD, tabelas do FIPLAN, FIP 614, PEDs e retorno do banco), RH → Folha (`/folha`, item de menu "Importar do SIGRH"),
+  Gabinete → Central de Portarias (`/gabinete/portarias`), Compras → Processos (`/compras/processos`) e Contratos →
+  Contratos (`/contratos/lista`). QDD e conciliação também abrem o assistente nas próprias telas. `/admin/importacoes`
+  (`ImportacoesPage`) virou "Histórico de importações": só consulta e a lista de onde cada arquivo entra, com
+  `ProtectedRoute requiredPermissions="admin.auditoria"` e o mesmo código no item de menu; `src/lib/importacao/registro.test.ts`
+  confere a rota, o menu e que cada `local` é uma rota do `App.tsx` com o próprio id. Ver `docs/GUIA_FRONTEND.md`
+  (Importação de dados).
 - **Localizar processo** em `/processos/localizar` (`LocalizarProcessoPage`, `ProtectedRoute` só com login: rota
   transversal, listada em `TRANSVERSAIS` de `src/shared/config/modules.config.test.ts`; quem pode ver cada registro é a
   RLS da fonte, pelas funções INVOKER `localizar_processos_sei` e `processos_parados`). Menu: "Localizar processo" e
@@ -133,8 +136,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `/contratos`), cadastro (`?novo=1`) e ficha com as abas Dados, Itens, Gestor e fiscais e Histórico (`?aba=` abre direto
   numa delas) e a ficha em PDF. `/contratos/:id` fica depois das rotas de passagens no `App.tsx` (o react-router prefere o
   caminho fixo de qualquer jeito). Menu: "Contratos" e "Novo contrato" (`/contratos/lista?novo=1`) no menu geral e
-  "Contratos" no menu do módulo. A carga inicial é pela Central de Importações
-  (`/admin/importacoes?importador=contratos_planilha`). Spec:
+  "Contratos" no menu do módulo. A carga inicial é pela planilha, importada na própria lista
+  (`/contratos/lista?importador=contratos_planilha`). Spec:
   `docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md`.
 - **Passagens aéreas (Contratos)** em `/contratos/passagens`, `/contratos/passagens/:id` e
   `/contratos/passagens/beneficiarios` (`PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,

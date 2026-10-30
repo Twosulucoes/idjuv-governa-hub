@@ -128,6 +128,7 @@ export type PermissaoInstitucional =
   | 'orcamento.criar'
   | 'orcamento.aprovar'
   | 'orcamento.importar'
+  | 'financeiro.execucao.importar'
   | 'financeiro.convenios.visualizar'
   | 'pagamento.conciliar'
   // Gabinete
@@ -469,6 +470,13 @@ export const menuConfig: MenuSection[] = [
             route: "/folha/rubricas",
             icon: Settings,
             permission: "financeiro.folha.configurar",
+          },
+          {
+            id: "folha-importar-sigrh",
+            label: "Importar do SIGRH",
+            route: "/folha?importador=folha_sigrh",
+            icon: Upload,
+            permission: "financeiro.folha.processar",
           },
         ],
       },
@@ -1297,11 +1305,11 @@ export const menuConfig: MenuSection[] = [
       },
       {
         id: "importacoes",
-        label: "Importação de Dados",
+        label: "Histórico de Importações",
         route: "/admin/importacoes",
-        icon: Upload,
-        // Qualquer permissão de importador (mesma lista de PERMISSOES_IMPORTACAO em src/lib/importacao/registro.ts)
-        permissions: ["orcamento.importar", "pagamento.conciliar", "gabinete.portarias.importar", "financeiro.folha.processar", "compras.processos.editar", "contratos.criar"],
+        icon: History,
+        // Cada setor importa no próprio menu; aqui fica só a consulta de tudo que foi importado
+        permission: "admin.auditoria",
       },
       {
         id: "envios",

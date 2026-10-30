@@ -51,17 +51,18 @@ describe("resumirRotina", () => {
 });
 
 describe("ROTINA_FINANCEIRO", () => {
-  it("cada item tem passos e um destino; os importadores apontam para a Central", () => {
+  it("cada item tem passos e um destino; os importadores abrem na própria tela", () => {
     expect(ROTINA_FINANCEIRO.map((i) => i.id)).toEqual([
       "qdd_fiplan",
       "empenhos_fip614",
+      "peds_fiplan",
       "arquivo_bancario",
       "conciliacao",
       "classificadores_fiplan",
     ]);
     for (const item of ROTINA_FINANCEIRO) {
       expect(item.passos.length).toBeGreaterThan(0);
-      if (item.importador) expect(item.destino).toBe(`/admin/importacoes?importador=${item.importador}`);
+      if (item.importador) expect(item.destino).toBe(`/financeiro/atualizar?importador=${item.importador}`);
     }
   });
 });

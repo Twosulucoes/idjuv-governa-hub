@@ -7558,8 +7558,9 @@ END $$;
 
 -- ---------------------------------------------------------------- Financeiro: empenhos do FIPLAN (FIP 614)
 -- Migração 20261027090000_fin_empenhos_fip614.sql (spec docs/superpowers/specs/2026-10-22-importacao-empenhos-fip614-design.md):
---   * importar_empenhos_fip614: sem o módulo financeiro, sem orcamento.importar ou sem sessão recusa (42501); anon e
---     PUBLIC sem EXECUTE; lista vazia = 22023;
+--   * importar_empenhos_fip614: sem o módulo financeiro, só com orcamento.importar ou sem sessão recusa (42501); anon e
+--     PUBLIC sem EXECUTE; lista vazia = 22023 (a permissão é financeiro.execucao.importar desde a migração
+--     20261109090000_importacao_permissao_execucao.sql);
 --   * simulação não grava; aplicação cria o empenho com origem fiplan, liga a dotação única e o favorecido pelo código
 --     do FIPLAN, grava o histórico e o log, e NÃO soma na dotação; dotação ambígua fica sem ligação e com aviso;
 --     reaplicar dá sem_alteracao; empenho do sistema com o mesmo número vira erro e nada é gravado;
@@ -7568,8 +7569,8 @@ END $$;
 -- Banco anterior à migração: o bloco reprova sem abortar.
 DO $$
 DECLARE
-  u_fin uuid := 'a0000000-0000-0000-0000-0000000008e1';   -- módulo financeiro + orcamento.importar
-  u_lei uuid := 'a0000000-0000-0000-0000-0000000008e2';   -- módulo financeiro sem a permissão
+  u_fin uuid := 'a0000000-0000-0000-0000-0000000008e1';   -- módulo financeiro + financeiro.execucao.importar
+  u_lei uuid := 'a0000000-0000-0000-0000-0000000008e2';   -- módulo financeiro só com a permissão do orçamento
   u_rhp uuid := 'a0000000-0000-0000-0000-0000000008e3';   -- a permissão no módulo rh, sem o financeiro
   d_osc1 uuid := 'f3000000-0000-0000-0000-0000000000d1';
   d_osc4 uuid := 'f3000000-0000-0000-0000-0000000000d2';
@@ -7587,9 +7588,9 @@ BEGIN
   INSERT INTO auth.users (id, email) VALUES (u_fin, 'ef_fin@teste.invalid'), (u_lei, 'ef_lei@teste.invalid'), (u_rhp, 'ef_rhp@teste.invalid');
   UPDATE public.profiles SET is_active = true WHERE id IN (u_fin, u_lei, u_rhp);
   INSERT INTO public.user_modules (user_id, module, permissions) VALUES
-    (u_fin, 'financeiro', '{orcamento.importar}'),
-    (u_lei, 'financeiro', '{}'),
-    (u_rhp, 'rh', '{orcamento.importar}');
+    (u_fin, 'financeiro', '{financeiro.execucao.importar}'),
+    (u_lei, 'financeiro', '{orcamento.importar}'),
+    (u_rhp, 'rh', '{financeiro.execucao.importar}');
   -- QDD de 2031: duas dotações de OSC (IDU diferente) e uma de passagens
   INSERT INTO public.fin_dotacoes (id, exercicio, codigo_dotacao, valor_inicial, valor_empenhado) VALUES
     (d_osc1, 2031, '08.244.030.2544.9900.33504100.1.500.0000.Não', 100000, 0),
@@ -7625,7 +7626,7 @@ BEGIN
               WHERE p.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
     PERFORM pg_temp.falha('FIN empenhos FIPLAN: PUBLIC executa ' || fn);
   END IF;
-  FOR x IN SELECT * FROM (VALUES (u_lei, 'sem orcamento.importar'), (u_rhp, 'sem o módulo financeiro'), (NULL::uuid, 'sem sessão')) v(quem, rot) LOOP
+  FOR x IN SELECT * FROM (VALUES (u_lei, 'só com orcamento.importar'), (u_rhp, 'sem o módulo financeiro'), (NULL::uuid, 'sem sessão')) v(quem, rot) LOOP
     r := pg_temp.sql_como(x.quem, 'authenticated', format('SELECT public.importar_empenhos_fip614(2031, %L::jsonb, NULL, NULL, true)', linhas));
     IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('FIN empenhos FIPLAN: ' || x.rot || ' não recusa (' || r || ')'); END IF;
   END LOOP;
@@ -8087,7 +8088,7 @@ END $$;
 -- Migração 20261030090000_compras_processos_reservas_peds.sql (spec §10, plano 2026-10-24-compras-processos-entrega2.md):
 --   * processo_chave_fiplan iguala nº SEI, nº do FIPLAN e do FIP 614; contas internas sem EXECUTE para a API;
 --   * fin_peds e processo_reservas: ninguém grava direto; fin_peds só o módulo financeiro lê;
---   * importar_peds_fiplan: sem orcamento.importar no financeiro = 42501; simulação não grava; reimportar não muda;
+--   * importar_peds_fiplan: sem financeiro.execucao.importar no financeiro = 42501 (só orcamento.importar não basta); simulação não grava; reimportar não muda;
 --   * saldo livre = disponível do QDD (atual − bloqueado − PED) − pendente das outras reservas; justificativa quando falta;
 --   * PED autorizado e empenho do processo saem do pendente; leituras exigem ver processos ou o módulo financeiro.
 DO $$
@@ -8096,7 +8097,8 @@ DECLARE
   u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.visualizar');
   u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_compras');
   u_finm uuid := (SELECT uid FROM persona WHERE nome = 'mod_financeiro');
-  u_imp uuid := 'a0000000-0000-0000-0000-0000000009a1';   -- módulo financeiro + orcamento.importar
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000009a1';   -- módulo financeiro + financeiro.execucao.importar
+  u_orc uuid := 'a0000000-0000-0000-0000-0000000009a2';   -- módulo financeiro só com orcamento.importar
   a1 uuid := 'f7000000-0000-0000-0000-0000000000a1';
   f1 uuid := 'f7000000-0000-0000-0000-0000000000f1';
   n1 uuid := 'f7000000-0000-0000-0000-0000000000b1';
@@ -8133,9 +8135,12 @@ BEGIN
   -- Cenário: dotação de 2098 com atual 1000, empenhado 100, reserva 50 e PED 150 (o PED do QDD soma os dois):
   -- disponível 850.
   SET LOCAL session_replication_role = replica;
-  INSERT INTO auth.users (id, email) VALUES (u_imp, 'res_imp@teste.invalid');
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'res_imp@teste.invalid'), (u_orc, 'res_orc@teste.invalid');
   PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_imp, 'email', 'res_imp@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
-  INSERT INTO public.user_modules (user_id, module, permissions) VALUES (u_imp, 'financeiro', '{orcamento.importar}');
+  PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_orc, 'email', 'res_orc@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_imp, 'financeiro', '{financeiro.execucao.importar}'),
+    (u_orc, 'financeiro', '{orcamento.importar}');
   PERFORM pg_temp.seed_row('fin_acoes_orcamentarias', jsonb_build_object('id', a1, 'codigo', '2544', 'nome', 'Ação de teste'));
   PERFORM pg_temp.seed_row('fin_fontes_recurso', jsonb_build_object('id', f1, 'codigo', '1500', 'nome', 'Fonte de teste'));
   PERFORM pg_temp.seed_row('fin_naturezas_despesa', jsonb_build_object('id', n1, 'codigo', '33903900', 'nome', 'Outros serviços PJ'));
@@ -8168,6 +8173,9 @@ BEGIN
   r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
     'SELECT public.importar_peds_fiplan(2098, %L::jsonb, ''{}''::jsonb, true)::text', linhas));
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: Compras importa PED (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_orc, 'authenticated', format(
+    'SELECT public.importar_peds_fiplan(2098, %L::jsonb, ''{}''::jsonb, true)::text', linhas));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS RESERVAS: só orcamento.importar importa PED (' || r || ')'); END IF;
   PERFORM set_config('request.jwt.claims', json_build_object('sub', u_imp, 'role', 'authenticated')::text, true);
   r := public.importar_peds_fiplan(2098, linhas, '{}'::jsonb, true)->>'totais';
   IF r IS DISTINCT FROM '{"inserir": 2, "atualizar": 0, "sem_alteracao": 0}' OR EXISTS (SELECT 1 FROM public.fin_peds WHERE exercicio = 2098) THEN

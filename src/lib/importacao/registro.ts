@@ -1,5 +1,5 @@
 /**
- * Registro dos importadores disponíveis na Central de Importações.
+ * Registro dos importadores. Cada um é aberto na tela do setor dono (`local`); a Administração só mostra o histórico.
  * Para adicionar um importador, implemente `Importador` em `importadores/` e inclua-o aqui.
  */
 
@@ -33,7 +33,3 @@ export function obterImportador(id: string): Importador<unknown> | undefined {
   return IMPORTADORES.find((i) => i.id === id);
 }
 
-/** Quem tem a permissão de algum importador entra na Central de Importações. */
-// Nunca vazia: ProtectedRoute com lista vazia liberaria a rota para qualquer usuário logado.
-const permissoes = [...new Set(IMPORTADORES.map((i) => i.permissao).filter(Boolean))];
-export const PERMISSOES_IMPORTACAO = permissoes.length ? permissoes : ["admin"];

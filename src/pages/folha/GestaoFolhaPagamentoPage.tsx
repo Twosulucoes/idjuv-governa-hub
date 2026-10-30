@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, FileText, Loader2, Eye, Users, History, Lock, Unlock } from "lucide-react";
+import { Plus, FileText, FileUp, Loader2, Eye, Users, History, Lock, Unlock } from "lucide-react";
 import { useFolhasPagamento } from "@/hooks/useFolhaPagamento";
 import { usePermissoesFolha, useEnviarConferencia } from "@/hooks/useFechamentoFolha";
 import { NovaFolhaForm } from "@/components/folha/NovaFolhaForm";
@@ -15,6 +15,9 @@ import { HistoricoStatusFolhaDialog } from "@/components/folha/HistoricoStatusFo
 import { StatusFolhaIndicator } from "@/components/folha/StatusFolhaIndicator";
 import { MESES, type StatusFolha } from "@/types/folha";
 import { useNavigate } from "react-router-dom";
+import { ImportacaoDialog, useImportadorDaUrl } from "@/components/importacao";
+import { useAuth } from "@/contexts/AuthContext";
+import { importadorFolhaSigrh } from "@/lib/importacao/importadores/folhaSigrh";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const currentYear = new Date().getFullYear();
@@ -38,6 +41,9 @@ export default function GestaoFolhaPagamentoPage() {
   const { data: folhas, isLoading } = useFolhasPagamento(anoFiltro);
   const { data: permissoes } = usePermissoesFolha();
   const enviarConferencia = useEnviarConferencia();
+  const { hasPermission } = useAuth();
+  // Folha já paga no SIGRH, importada aqui mesmo (?importador=folha_sigrh; atalho no menu da Folha)
+  const importacao = useImportadorDaUrl([importadorFolhaSigrh.id]);
 
   const formatCurrency = (value: number | null | undefined) => {
     return (value || 0).toLocaleString("pt-BR", {
@@ -64,6 +70,13 @@ export default function GestaoFolhaPagamentoPage() {
               Gerencie as competências de pagamento dos servidores
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+          {hasPermission(importadorFolhaSigrh.permissao) && (
+            <Button size="lg" variant="outline" onClick={() => importacao.abrir(importadorFolhaSigrh.id)}>
+              <FileUp className="mr-2 h-4 w-4" />
+              Importar do SIGRH
+            </Button>
+          )}
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
               <Button size="lg">
@@ -81,6 +94,7 @@ export default function GestaoFolhaPagamentoPage() {
               <NovaFolhaForm onSuccess={() => setIsFormOpen(false)} />
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Estatísticas Rápidas */}
@@ -356,6 +370,8 @@ export default function GestaoFolhaPagamentoPage() {
           competenciaMes={folhaHistorico.mes}
         />
       )}
+
+      <ImportacaoDialog importador={importacao.aberto} onFechar={importacao.fechar} />
     </ModuleLayout>
   );
 }

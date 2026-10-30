@@ -120,8 +120,8 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   em `src/lib/contratos/`: `vigencia.ts` (dias para vencer, situação da vigência e tom da situação), `lista.ts` (filtros
   de prazo, números do painel e linhas da planilha), `responsaveis.ts` (portaria, período e ordem por papel),
   `historico.ts` (texto de cada registro da trilha) e `ficha.ts` (dados do PDF). A carga entra pelo importador
-  `contratos_planilha` da Central (`/admin/importacoes?importador=contratos_planilha`, botão "Importar planilha" da
-  lista). O painel `/contratos` usa `resumoPainel` em `useContratosDashboardStats`. A busca de servidor reaproveita
+  `contratos_planilha`, aberto na própria lista (`/contratos/lista?importador=contratos_planilha`, botão "Importar
+  planilha"). O painel `/contratos` usa `resumoPainel` em `useContratosDashboardStats`. A busca de servidor reaproveita
   `ServidorBusca` das passagens com a prop `useBusca`. CPF de contratado pessoa física aparece mascarado na ficha, no
   PDF e na planilha (`mascararDocumento` de `src/lib/bancario/comum.ts`). Valores digitados passam por `lerNumeroBr`
   (`src/lib/pca/numero.ts`), que desde a C1 lê "120.000" como milhar, como nos outros formulários de Compras. No menu do
@@ -245,10 +245,16 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
 (transação + log em `importacoes`).
 
 - `types.ts` — contrato `Importador<TLinha>`: `id` (vira `importacoes.tipo`), `modulo`, `permissao`,
-  `aceita`, `colunas` da pré-visualização, `ler(arquivo)` → `ResultadoLeitura` (linhas + problemas
+  `local` (tela do setor que abre o assistente, `rota` com `?importador=<id>`, e o `caminho` no menu), `aceita`, `colunas` da pré-visualização, `ler(arquivo)` → `ResultadoLeitura` (linhas + problemas
   `erro`/`aviso` + cabeçalho + parâmetros) e `enviar(leitura, arquivo, simular)` → `ResultadoBanco`
   (ação por linha: `inserir`/`atualizar`/`sem_alteracao`, cadastros criados, ausentes, totais).
-- `registro.ts` — lista `IMPORTADORES` (a Central mostra os que o usuário tem permissão de usar).
+- `registro.ts` — lista `IMPORTADORES` e `obterImportador(id)`. Não há mais uma central que importa: cada setor
+  importa no próprio menu. Na tela do setor, `useImportadorDaUrl(ids)` (de `@/components/importacao`) lê
+  `?importador=<id>`, devolve o importador só se ele estiver na lista da tela e o usuário tiver a permissão, e
+  `ImportacaoDialog` mostra o assistente numa janela; `abrir(id)` põe o parâmetro e `fechar()` o tira. Usado em
+  `/financeiro/atualizar`, `/folha`, `/gabinete/portarias`, `/compras/processos` e `/contratos/lista`.
+  `/admin/importacoes` é só o histórico com a lista de onde cada arquivo entra (`admin.auditoria`). Importador novo:
+  escolha a tela do setor, ligue o hook nela e preencha `local`; `registro.test.ts` reprova `local` fora do `App.tsx`.
 - `pdfTexto.ts` — texto posicionado de PDF via pdf.js (carregado sob demanda), agrupado em linhas,
   para relatórios tabulares em que colunas vazias somem no texto corrido.
 - `importadores/qddFiplan*.ts` — primeiro importador: PDF do QDD do FIPLAN → `importar_qdd_fiplan`.
@@ -285,7 +291,8 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
   `<meta>`, padrão windows-1252) e `linhasDaTabelaHtml` (texto de cada célula como está, com a coluna real contando o
   `colspan`). A biblioteca de planilhas lê esse arquivo, mas troca dia e mês e estraga números como `-20.329,08`.
 - `importadores/empenhosFip614.ts` + `empenhosFip614Parser.ts` — PDF ou Excel do "FIP 614 - Situação de Empenho" do FIPLAN →
-  `importar_empenhos_fip614` (`id` `empenhos_fip614`, módulo `financeiro`, permissão `orcamento.importar`). O parser
+  `importar_empenhos_fip614` (`id` `empenhos_fip614`, módulo `financeiro`, permissão `financeiro.execucao.importar`
+  desde 29/10/2026; antes `orcamento.importar`). O parser
   (função pura, testada com vitest e dados fictícios) põe cada valor na coluna pela borda direita, junta credor e
   dotação quebrados, guarda o histórico da liquidação, trata o estorno (EST) na coluna onde o valor cai e confere cada
   bloco com o TOTAL e a soma com o TOTAL UG. O Excel vira linhas posicionadas (`linhasFip614DoExcel`, uma posição por

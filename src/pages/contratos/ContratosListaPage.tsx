@@ -1,15 +1,16 @@
 /**
  * Lista dos contratos (entrega C1): número, objeto, contratado, setor, gestor, valor e prazo, com filtros de situação e
  * de prazo (vence em até N dias, vencidos, sem gestor ou fiscal). Cadastrar exige contratos.criar; a carga inicial
- * vem pela Central de Importações. Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md
+ * vem pela planilha, importada aqui mesmo (?importador=contratos_planilha). Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FileSignature, FileSpreadsheet, Plus, Upload } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { DataTable, PageHeader, type ColunaTabela } from "@/components/design-system";
 import { ContratoFormDialog } from "@/components/contratos/ContratoFormDialog";
+import { ImportacaoDialog, useImportadorDaUrl } from "@/components/importacao";
 import { SeloVigencia } from "@/components/contratos/SeloVigencia";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -23,11 +24,12 @@ import { situacaoVigencia } from "@/lib/contratos/vigencia";
 import { nomeContratado, responsaveisAtivos, SITUACOES_CONTRATO, type ContratoLista } from "@/types/contratos";
 
 const TODAS = "todas";
-const IMPORTAR = "/admin/importacoes?importador=contratos_planilha";
+const IMPORTAR = "contratos_planilha";
 
 export default function ContratosListaPage() {
   const { hasPermission } = useAuth();
   const podeCriar = hasPermission("contratos.criar");
+  const importacao = useImportadorDaUrl([IMPORTAR]);
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const contratos = useContratosLista();
@@ -134,11 +136,9 @@ export default function ContratosListaPage() {
               </Button>
               {podeCriar && (
                 <>
-                  <Button variant="outline" asChild>
-                    <Link to={IMPORTAR}>
-                      <Upload className="h-4 w-4" aria-hidden="true" />
-                      Importar planilha
-                    </Link>
+                  <Button variant="outline" onClick={() => importacao.abrir(IMPORTAR)}>
+                    <Upload className="h-4 w-4" aria-hidden="true" />
+                    Importar planilha
                   </Button>
                   <Button onClick={() => setNovo(true)}>
                     <Plus className="h-4 w-4" aria-hidden="true" />
@@ -193,7 +193,7 @@ export default function ContratosListaPage() {
               ? "Mude a situação ou o prazo para ver os outros."
               : podeCriar ? "Cadastre um a um ou traga todos de uma vez pela planilha." : "Ainda não há contratos registrados.",
             acao: !lista.length && podeCriar ? (
-              <Button variant="outline" asChild><Link to={IMPORTAR}>Importar planilha</Link></Button>
+              <Button variant="outline" onClick={() => importacao.abrir(IMPORTAR)}>Importar planilha</Button>
             ) : undefined,
           }}
         />
@@ -208,6 +208,8 @@ export default function ContratosListaPage() {
           navigate(`/contratos/${id}`);
         }}
       />
+
+      <ImportacaoDialog importador={importacao.aberto} onFechar={importacao.fechar} />
     </ModuleLayout>
   );
 }

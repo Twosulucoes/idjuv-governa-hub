@@ -257,7 +257,7 @@ migração reprova aqui). O teste de RLS cobre, com personas reais (`SET ROLE` +
   valor esperado em `calcular_inss_servidor` e `calcular_irrf_mensal`; férias da CLT e 13º ficam listados como fora
   do porte; sem o arquivo, o teste reprova;
 - empenhos do FIPLAN (migração `20261027090000`, bloco "Financeiro: empenhos do FIPLAN (FIP 614)" de `testar-rls.sql`):
-  `importar_empenhos_fip614` recusa (`42501`) sem `orcamento.importar`, sem o módulo financeiro e sem sessão;
+  `importar_empenhos_fip614` recusa (`42501`) sem `financeiro.execucao.importar`, sem o módulo financeiro e sem sessão;
   simulação não grava; aplicação grava empenho e histórico sem somar na dotação; dotação ambígua fica nula com aviso
   e a escolha manual se mantém na reimportação; `origem` não muda; número de empenho do sistema não é sobrescrito;
   INSERT/UPDATE direto no histórico pela API não passa;
@@ -293,6 +293,12 @@ A migração `20261030090000_compras_processos_reservas_peds.sql` (processos de 
 schema regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `rls/mapa.csv` (`fin_peds` e `processo_reservas` na
 classe `preservar`, com as policies da própria migração) e no `overlay/40_privilegios.sql`; o catálogo não muda.
 Testes no bloco "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
+
+A migração `20261109090000_importacao_permissao_execucao.sql` (importações por setor, entrega 2) entrou à mão no
+`01_pre_data.sql` (checagem e comentário de `importar_empenhos_fip614` e `importar_peds_fiplan` passam de
+`orcamento.importar` para `financeiro.execucao.importar`) e no `02_dados_catalogo.sql` (linha nova de
+`financeiro.execucao.importar` e rótulo de `orcamento.importar`); RLS, `rls/mapa.csv` e privilégios sem mudança. Testes
+nos blocos do FIP 614 e dos PEDs de `scripts/db/testar-rls.sql`.
 
 A migração `20261105090000_fin_convenios_transferegov.sql` (convênios federais do Transferegov) entrou no schema
 regenerado (`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_catalogo.sql`: só a linha de

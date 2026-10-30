@@ -189,7 +189,7 @@ export default function EmpenhoDetalhePage() {
             <AlertDescription>
               Os valores vêm do relatório FIP 614
               {e.data_referencia_fiplan ? ` com data de referência ${dataBR(e.data_referencia_fiplan)}` : ""}. Para atualizar,
-              importe um FIP 614 mais recente na Central de Importações.
+              importe um FIP 614 mais recente em Financeiro → Atualizar dados.
             </AlertDescription>
           </Alert>
         )}

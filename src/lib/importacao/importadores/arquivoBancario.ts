@@ -40,6 +40,7 @@ export const importadorArquivoBancario: Importador<LinhaMovimentoBancario> = {
     "Registra os pagamentos de remessas e retornos do banco e marca como pagos ou recusados os pagamentos do sistema.",
   modulo: "financeiro",
   permissao: "pagamento.conciliar",
+  local: { rota: "/financeiro/atualizar?importador=arquivo_bancario", caminho: "Financeiro → Atualizar dados" },
   aceita: ".txt,.TXT,.ret,.RET,.rem,.REM",
   instrucoes:
     "Escolha a remessa ou o retorno de ordens bancárias (OBN600, 350 posições) ou um arquivo CNAB 240 " +
