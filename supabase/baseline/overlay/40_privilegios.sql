@@ -465,3 +465,9 @@ REVOKE ALL ON FUNCTION public.fin_tg_mapa(text) FROM PUBLIC, anon, authenticated
 REVOKE ALL ON FUNCTION public.fin_tg_registrar_diferencas(uuid, text, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.pode_atualizar_convenios_federais() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.pode_atualizar_convenios_federais() TO authenticated;
+
+-- ---- Contratos C2: alterações e vencimentos (migração 20261113090000) ----
+REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_preparar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_aplicar() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.contratos_meus_vencimentos() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.contratos_meus_vencimentos() TO authenticated;

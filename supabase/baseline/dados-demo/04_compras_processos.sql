@@ -330,17 +330,28 @@ INSERT INTO public.itens_contrato (id, contrato_id, item_ata_id, numero_item, de
   -- 015/2025 (dados-teste, encerrado)
   ('d4320000-0000-4000-8000-000000000019', 'f5000000-0000-4000-8000-000000000003', NULL, 1, 'Manutenção preventiva e corretiva de microcomputadores e impressoras', 'mês', 12, 12, 2500.00, 'entregue');
 
--- ===================================================================== aditivos
-INSERT INTO public.aditivos_contrato (id, contrato_id, numero_aditivo, tipo, objeto, valor_acrescimo, valor_supressao, prazo_adicional_dias, nova_data_fim, data_assinatura,
-  data_publicacao_doe, numero_doe, justificativa, fundamentacao_legal, created_by) VALUES
-  ('d4310000-0000-4000-8000-000000000001', 'd4300000-0000-4000-8000-000000000002', 1, 'prazo', 'Prorrogação do prazo de execução da obra por 90 dias.', 0, 0, 90, '2027-03-18', '2026-10-01', '2026-10-06', '5.026',
-   'Chuvas acima da média em agosto e setembro impediram a montagem da cobertura (relatório do fiscal e diário de obra).', 'Lei nº 14.133/2021, art. 107 e art. 124, I', NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid),
-  ('d4310000-0000-4000-8000-000000000002', 'd4300000-0000-4000-8000-000000000003', 1, 'valor', 'Acréscimo quantitativo de 25% para ampliação da licença em 20 competições.', 24000.00, 0, 0, NULL, '2026-08-20', '2026-08-25', '4.990',
-   'Inclusão das etapas municipais dos JERs no sistema, não previstas no dimensionamento inicial.', 'Lei nº 14.133/2021, art. 125', NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid),
-  ('d4310000-0000-4000-8000-000000000003', 'f5000000-0000-4000-8000-000000000002', 1, 'prazo_valor', 'Prorrogação da vigência por 6 meses, com acréscimo do valor correspondente.', 36000.00, 0, 182, '2027-05-31', '2026-10-20', NULL, NULL,
-   'Serviço contínuo com execução satisfatória; pesquisa de preços demonstra vantajosidade da prorrogação.', 'Lei nº 14.133/2021, art. 107', NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid),
-  ('d4310000-0000-4000-8000-000000000004', 'f5000000-0000-4000-8000-000000000001', 1, 'supressao', 'Supressão de 5% do valor contratado (redução de cadeiras do lote do auditório).', 0, 5600.00, 0, NULL, '2026-07-14', '2026-07-17', '4.980',
-   'Readequação do layout do auditório, que dispensou parte das cadeiras.', 'Lei nº 14.133/2021, art. 125', NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid);
+-- ===================================================================== alterações (aditivos, apostilamento, rescisão)
+-- valor atual e fim atual saem daqui (contratos_preparar recalcula a cada alteração)
+INSERT INTO public.contrato_alteracoes (id, contrato_id, especie, numero, altera_prazo, altera_valor, altera_objeto, motivo, valor_acrescimo, valor_supressao,
+  valor_variacao, percentual, indice, nova_data_fim, data_inicio, descricao, justificativa, fundamento_legal, documento_sei, data_assinatura, data_publicacao_doe, numero_doe, created_by) VALUES
+  ('d4310000-0000-4000-8000-000000000001', 'd4300000-0000-4000-8000-000000000002', 'aditivo', 1, true, false, false, NULL, 0, 0, 0, NULL, NULL, '2027-03-18', NULL,
+   'Prorrogação do prazo de execução da obra por 90 dias.',
+   'Chuvas acima da média em agosto e setembro impediram a montagem da cobertura (relatório do fiscal e diário de obra).', 'Lei nº 14.133/2021, art. 107 e art. 124, I', '1523301', '2026-10-01', '2026-10-06', '5.026', NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid),
+  ('d4310000-0000-4000-8000-000000000002', 'd4300000-0000-4000-8000-000000000003', 'aditivo', 1, false, true, false, NULL, 24000.00, 0, 0, NULL, NULL, NULL, NULL,
+   'Acréscimo quantitativo de 25% para ampliação da licença em 20 competições.',
+   'Inclusão das etapas municipais dos JERs no sistema, não previstas no dimensionamento inicial.', 'Lei nº 14.133/2021, art. 125', '1388412', '2026-08-20', '2026-08-25', '4.990', NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid),
+  ('d4310000-0000-4000-8000-000000000003', 'f5000000-0000-4000-8000-000000000002', 'aditivo', 1, true, true, false, NULL, 36000.00, 0, 0, NULL, NULL, '2027-05-31', NULL,
+   'Prorrogação da vigência por 6 meses, com acréscimo do valor correspondente.',
+   'Serviço contínuo com execução satisfatória; pesquisa de preços demonstra vantajosidade da prorrogação.', 'Lei nº 14.133/2021, art. 107', '1560077', '2026-10-20', NULL, NULL, NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid),
+  ('d4310000-0000-4000-8000-000000000004', 'f5000000-0000-4000-8000-000000000001', 'aditivo', 1, false, true, false, NULL, 0, 5600.00, 0, NULL, NULL, NULL, NULL,
+   'Supressão de 5% do valor contratado (redução de cadeiras do lote do auditório).',
+   'Readequação do layout do auditório, que dispensou parte das cadeiras.', 'Lei nº 14.133/2021, art. 125', '1290154', '2026-07-14', '2026-07-17', '4.980', NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid),
+  ('d4310000-0000-4000-8000-000000000005', 'd4300000-0000-4000-8000-000000000001', 'apostilamento', 1, false, false, false, 'dotacao', 0, 0, 0, NULL, NULL, NULL, NULL,
+   'Inclusão da dotação 0202.2050.339039.101 (fonte 101) para as despesas de 2027.',
+   NULL, 'Lei nº 14.133/2021, art. 136, IV', '1571203', '2026-10-15', NULL, NULL, NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid),
+  ('d4310000-0000-4000-8000-000000000006', 'd4300000-0000-4000-8000-000000000004', 'rescisao', NULL, false, false, false, 'unilateral', 0, 0, 0, NULL, NULL, NULL, '2026-02-15',
+   'Rescisão unilateral por inexecução parcial.',
+   'Três viagens não realizadas e frota abaixo do exigido, após notificação e prazo de defesa.', 'Lei nº 14.133/2021, art. 137, I, e art. 138, I', '0876540', '2026-02-13', '2026-02-18', '4.887', NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid);
 
 -- ===================================================================== medições
 -- o trigger atualizar_saldo_contrato recalcula valor_executado/saldo a cada medição (ver ajuste no fim)
@@ -373,13 +384,7 @@ INSERT INTO public.medicoes_contrato (id, contrato_id, numero_medicao, periodo_i
   ('d4330000-0000-4000-8000-000000000019', 'f5000000-0000-4000-8000-000000000002', 6, '2026-09-01', '2026-09-30', 6000.00, 6000.00, 'aprovada', '2026-10-02 09:00-04', '2026-10-06 09:00-04', 'c0000000-0000-4000-8000-000000000012', NULL, '0968', '2026-10-02', 6000.00, NULL, NULL, NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid),
   ('d4330000-0000-4000-8000-000000000020', 'f5000000-0000-4000-8000-000000000002', 7, '2026-10-01', '2026-10-31', 6000.00, NULL, 'rascunho', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Em preenchimento pelo fiscal.', NULL, NULLIF(current_setting('request.jwt.claim.sub'), '')::uuid);
 
--- Valores dos contratos coerentes com aditivos e medições. O trigger atualizar_saldo_contrato só soma medições
--- 'aprovada' (as 'paga' saem do executado: bug relatado); aqui o executado conta aprovadas e pagas.
-UPDATE public.contratos c SET valor_atual = c.valor_inicial
-    + coalesce((SELECT sum(a.valor_acrescimo - a.valor_supressao) FROM public.aditivos_contrato a WHERE a.contrato_id = c.id), 0),
-  data_fim_atual = coalesce((SELECT max(a.nova_data_fim) FROM public.aditivos_contrato a WHERE a.contrato_id = c.id), c.data_fim_atual, c.data_fim)
-WHERE c.id IN ('f5000000-0000-4000-8000-000000000001', 'f5000000-0000-4000-8000-000000000002', 'f5000000-0000-4000-8000-000000000003',
-               'd4300000-0000-4000-8000-000000000002', 'd4300000-0000-4000-8000-000000000003');
+-- Executado e saldo pelas medições. O valor atual e o fim atual já saíram das alterações (contratos_preparar).
 UPDATE public.contratos c SET
   valor_executado = coalesce((SELECT sum(m.valor_aprovado) FROM public.medicoes_contrato m WHERE m.contrato_id = c.id AND m.status IN ('aprovada', 'paga')), 0),
   saldo_contrato = c.valor_atual - coalesce((SELECT sum(m.valor_aprovado) FROM public.medicoes_contrato m WHERE m.contrato_id = c.id AND m.status IN ('aprovada', 'paga')), 0)
@@ -735,7 +740,7 @@ FROM (VALUES
    'Medalhas para os Jogos Escolares: solicitação de despesa aguardando análise.', NULL, NULL, 'high', '2026-10-30 18:00-04'),
   ('d4800000-0000-4000-8000-000000000002', 'medicoes_contrato', 'd4330000-0000-4000-8000-000000000004', 'contratos', 'in_review', '2026-10-21 14:00-04',
    '4ª medição do Contrato nº 021/2026 (R$ 195.000,00), aguardando vistoria do fiscal.', NULL, NULL, 'normal', '2026-10-31 18:00-04'),
-  ('d4800000-0000-4000-8000-000000000003', 'aditivos_contrato', 'd4310000-0000-4000-8000-000000000003', 'contratos', 'approved', '2026-10-14 09:00-04',
+  ('d4800000-0000-4000-8000-000000000003', 'contrato_alteracoes', 'd4310000-0000-4000-8000-000000000003', 'contratos', 'approved', '2026-10-14 09:00-04',
    'Prorrogação do contrato de limpeza do ginásio por 6 meses.', '2026-10-17 16:30-04', 'Aprovado. Providenciar publicação do extrato no DOE.', 'normal', '2026-10-20 18:00-04'),
   ('d4800000-0000-4000-8000-000000000004', 'processos_licitatorios', 'd4200000-0000-4000-8000-000000000006', 'compras', 'rejected', '2026-06-24 10:00-04',
    'Pedido de adjudicação do lote único do PE nº 007/2026 à primeira colocada.', '2026-06-30 17:30-04', 'Rejeitado: proposta acima do estimado e sem aceite de negociação.', 'high', '2026-07-01 18:00-04'),
@@ -753,7 +758,7 @@ UNION ALL SELECT 'documentos_preparatorios_licitacao', count(*) FROM public.docu
 UNION ALL SELECT 'publicacoes_legais', count(*) FROM public.publicacoes_legais
 UNION ALL SELECT 'contratos (novos)', count(*) FROM public.contratos WHERE id::text LIKE 'd43%'
 UNION ALL SELECT 'itens_contrato', count(*) FROM public.itens_contrato
-UNION ALL SELECT 'aditivos_contrato', count(*) FROM public.aditivos_contrato
+UNION ALL SELECT 'contrato_alteracoes', count(*) FROM public.contrato_alteracoes
 UNION ALL SELECT 'medicoes_contrato', count(*) FROM public.medicoes_contrato
 UNION ALL SELECT 'atas_registro_preco', count(*) FROM public.atas_registro_preco
 UNION ALL SELECT 'itens_ata_registro_preco', count(*) FROM public.itens_ata_registro_preco
