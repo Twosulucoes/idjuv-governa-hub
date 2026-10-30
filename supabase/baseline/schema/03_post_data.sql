@@ -3174,6 +3174,14 @@ ALTER TABLE ONLY public.regra_lancamento
 
 
 --
+-- Name: relatorios_modelos relatorios_modelos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.relatorios_modelos
+    ADD CONSTRAINT relatorios_modelos_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: remessas_bancarias remessas_bancarias_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8181,6 +8189,20 @@ CREATE INDEX idx_regimes_trabalho_instituicao ON public.regimes_trabalho USING b
 
 
 --
+-- Name: idx_relatorios_modelos_criado_por; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_relatorios_modelos_criado_por ON public.relatorios_modelos USING btree (criado_por);
+
+
+--
+-- Name: idx_relatorios_modelos_modulo_fonte; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_relatorios_modelos_modulo_fonte ON public.relatorios_modelos USING btree (modulo, fonte);
+
+
+--
 -- Name: idx_remessas_folha_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -11111,6 +11133,13 @@ CREATE TRIGGER trg_registros_ponto_travar_competencia BEFORE INSERT OR DELETE OR
 --
 
 CREATE TRIGGER trg_regra_lancamento_exigir BEFORE INSERT OR UPDATE ON public.regra_lancamento FOR EACH ROW EXECUTE FUNCTION public.regra_lancamento_proteger_exigir();
+
+
+--
+-- Name: relatorios_modelos trg_relatorios_modelos_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_relatorios_modelos_updated_at BEFORE UPDATE ON public.relatorios_modelos FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -18873,6 +18902,14 @@ ALTER TABLE ONLY public.registros_ponto
 
 
 --
+-- Name: relatorios_modelos relatorios_modelos_criado_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.relatorios_modelos
+    ADD CONSTRAINT relatorios_modelos_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: remessas_bancarias remessas_bancarias_conta_autarquia_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -21374,6 +21411,40 @@ ALTER TABLE public.registros_ponto ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.regra_lancamento ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: relatorios_modelos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.relatorios_modelos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: relatorios_modelos relatorios_modelos_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY relatorios_modelos_delete ON public.relatorios_modelos FOR DELETE TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ((criado_por = ( SELECT auth.uid() AS uid)) OR ( SELECT public.is_admin_user() AS is_admin_user))));
+
+
+--
+-- Name: relatorios_modelos relatorios_modelos_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY relatorios_modelos_insert ON public.relatorios_modelos FOR INSERT TO authenticated WITH CHECK ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND (criado_por = ( SELECT auth.uid() AS uid)) AND public.can_access_module(( SELECT auth.uid() AS uid), modulo)));
+
+
+--
+-- Name: relatorios_modelos relatorios_modelos_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY relatorios_modelos_select ON public.relatorios_modelos FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ((criado_por = ( SELECT auth.uid() AS uid)) OR (compartilhado AND public.can_access_module(( SELECT auth.uid() AS uid), modulo)) OR ( SELECT public.is_admin_user() AS is_admin_user))));
+
+
+--
+-- Name: relatorios_modelos relatorios_modelos_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY relatorios_modelos_update ON public.relatorios_modelos FOR UPDATE TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND (criado_por = ( SELECT auth.uid() AS uid)))) WITH CHECK ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND (criado_por = ( SELECT auth.uid() AS uid)) AND public.can_access_module(( SELECT auth.uid() AS uid), modulo)));
+
 
 --
 -- Name: remessas_bancarias; Type: ROW SECURITY; Schema: public; Owner: -

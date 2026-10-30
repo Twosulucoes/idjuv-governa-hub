@@ -9506,6 +9506,68 @@ BEGIN
   PERFORM pg_temp.nota('DIÁRIAS FIPLAN: importar só com financeiro.execucao.importar, simulação não grava, reimportar não muda e atualiza a PC, outro exercício recusado, servidor pelo nome e viagem pela saída, leitura (Financeiro, RH, o próprio servidor) verificados');
 END $$;
 
+-- ---------------------------------------------------------------- Modelos do gerador de relatórios (migração 20261116090000)
+-- relatorios_modelos guarda só a configuração do relatório:
+--   * o autor lê, edita e apaga os seus; cria só em nome próprio e só no módulo a que tem acesso;
+--   * o compartilhado ("do setor") é lido por quem acessa o módulo, mas só o autor edita; o admin lê e apaga todos;
+--   * quem não acessa o módulo não lê nem o compartilhado.
+DO $$
+DECLARE
+  u_dono uuid := (SELECT uid FROM persona WHERE nome = 'mod_financeiro');
+  u_colega uuid := (SELECT uid FROM persona WHERE nome = 'perm_financeiro.convenios.visualizar');
+  u_fora uuid := (SELECT uid FROM persona WHERE nome = 'mod_compras');
+  u_adm uuid := (SELECT uid FROM persona WHERE nome = 'admin');
+  m_meu uuid := 'f7100000-0000-0000-0000-0000000000a1';
+  m_setor uuid := 'f7100000-0000-0000-0000-0000000000a2';
+  r text;
+BEGIN
+  IF to_regclass('public.relatorios_modelos') IS NULL THEN
+    PERFORM pg_temp.falha('RELATÓRIOS MODELOS: tabela da migração 20261116090000 não existe');
+    RETURN;
+  END IF;
+  INSERT INTO public.relatorios_modelos (id, modulo, fonte, nome, configuracao, compartilhado, criado_por) VALUES
+    (m_meu, 'financeiro', 'empenhos', 'Só meu', '{"versao":1}', false, u_dono),
+    (m_setor, 'financeiro', 'empenhos', 'Do setor', '{"versao":1}', true, u_dono);
+
+  r := pg_temp.valor_desfeito_como(u_dono, 'authenticated', format('SELECT count(*)::text FROM public.relatorios_modelos WHERE id IN (%L, %L)', m_meu, m_setor));
+  IF r IS DISTINCT FROM '2' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: autor não lê os seus (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_colega, 'authenticated', format('SELECT string_agg(nome, ''|'') FROM public.relatorios_modelos WHERE id IN (%L, %L)', m_meu, m_setor));
+  IF r IS DISTINCT FROM 'Do setor' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: colega do módulo lê (' || r || '), esperado só o do setor'); END IF;
+  r := pg_temp.valor_desfeito_como(u_fora, 'authenticated', format('SELECT count(*)::text FROM public.relatorios_modelos WHERE id IN (%L, %L)', m_meu, m_setor));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: quem não acessa o módulo lê (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_adm, 'authenticated', format('SELECT count(*)::text FROM public.relatorios_modelos WHERE id IN (%L, %L)', m_meu, m_setor));
+  IF r IS DISTINCT FROM '2' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: admin não lê todos (' || r || ')'); END IF;
+
+  -- edição: só o autor
+  r := pg_temp.valor_desfeito_como(u_colega, 'authenticated', format('WITH x AS (UPDATE public.relatorios_modelos SET nome = ''x'' WHERE id = %L RETURNING 1) SELECT count(*)::text FROM x', m_setor));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: colega edita o compartilhado (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_dono, 'authenticated', format('WITH x AS (UPDATE public.relatorios_modelos SET nome = ''Novo'' WHERE id = %L RETURNING 1) SELECT count(*)::text FROM x', m_meu));
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: autor não edita o seu (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_dono, 'authenticated', format('UPDATE public.relatorios_modelos SET criado_por = %L WHERE id = %L RETURNING id::text', u_colega, m_meu));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: autor passa o modelo para outro (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_dono, 'authenticated', format('UPDATE public.relatorios_modelos SET modulo = ''compras'' WHERE id = %L RETURNING id::text', m_meu));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: autor move o modelo para módulo sem acesso (' || r || ')'); END IF;
+
+  -- criação: em nome próprio e no módulo a que tem acesso
+  r := pg_temp.valor_desfeito_como(u_colega, 'authenticated', 'INSERT INTO public.relatorios_modelos (modulo, fonte, nome, configuracao) VALUES (''financeiro'', ''qdd'', ''Meu'', ''{}'') RETURNING (criado_por = auth.uid())::text');
+  IF r IS DISTINCT FROM 'true' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: usuário do módulo não cria (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_colega, 'authenticated', format('INSERT INTO public.relatorios_modelos (modulo, fonte, nome, configuracao, criado_por) VALUES (''financeiro'', ''qdd'', ''Alheio'', ''{}'', %L) RETURNING id::text', u_dono));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: cria em nome de outro (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_fora, 'authenticated', 'INSERT INTO public.relatorios_modelos (modulo, fonte, nome, configuracao) VALUES (''financeiro'', ''qdd'', ''Fora'', ''{}'') RETURNING id::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: cria em módulo sem acesso (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(NULL, 'anon', 'SELECT count(*)::text FROM public.relatorios_modelos');
+  IF r NOT LIKE 'erro:42501:%' AND r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: anon lê (' || r || ')'); END IF;
+
+  -- apagar: o autor ou o admin
+  r := pg_temp.valor_desfeito_como(u_colega, 'authenticated', format('WITH x AS (DELETE FROM public.relatorios_modelos WHERE id = %L RETURNING 1) SELECT count(*)::text FROM x', m_setor));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: colega apaga o compartilhado (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_adm, 'authenticated', format('WITH x AS (DELETE FROM public.relatorios_modelos WHERE id = %L RETURNING 1) SELECT count(*)::text FROM x', m_meu));
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('RELATÓRIOS MODELOS: admin não apaga (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('RELATÓRIOS MODELOS: autor lê/edita/apaga os seus, compartilhado lido pelo módulo e editado só pelo autor, criação em nome próprio no módulo, sem módulo e anon sem leitura, admin lê e apaga verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off

@@ -3579,6 +3579,9 @@ CREATE POLICY "rls_update" ON public.regra_lancamento FOR UPDATE TO authenticate
   WITH CHECK (public.is_admin_user(auth.uid()));
 DROP POLICY IF EXISTS "rls_delete" ON public.regra_lancamento;
 
+-- relatorios_modelos  [preservar]
+-- (nenhuma policy gerada)
+
 -- remessas_bancarias  [permissao: rh]
 DROP POLICY IF EXISTS "rls_select" ON public.remessas_bancarias;
 CREATE POLICY "rls_select" ON public.remessas_bancarias FOR SELECT TO authenticated
