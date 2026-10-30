@@ -261,6 +261,7 @@ import PagamentoDetalhePage from "./pages/financeiro/PagamentoDetalhePage";
 import EmpenhoDetalhePage from "./pages/financeiro/EmpenhoDetalhePage";
 import ConveniosFederaisPage from "./pages/financeiro/ConveniosFederaisPage";
 import ConvenioFederalPage from "./pages/financeiro/ConvenioFederalPage";
+import DiariasFiplanPage from "./pages/financeiro/DiariasFiplanPage";
 
 // Inventário e Patrimônio
 import {
@@ -1408,6 +1409,11 @@ const App = () => (
               <Route path="/financeiro/conciliacao" element={
                 <ProtectedRoute requiredModule="financeiro" requiredPermissions="pagamento.conciliar">
                   <ConciliacaoBancariaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/financeiro/diarias" element={
+                <ProtectedRoute requiredPermissions={["financeiro.diarias.visualizar", "rh.viagens.visualizar"]}>
+                  <DiariasFiplanPage />
                 </ProtectedRoute>
               } />
               <Route path="/financeiro/convenios" element={

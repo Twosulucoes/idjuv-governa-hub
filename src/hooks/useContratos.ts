@@ -1,7 +1,7 @@
 /**
  * Contratos (entregas C1 e C2): lista, ficha, itens, responsáveis, alterações, providência do vencimento e histórico.
  * A planilha entra pelo importador aberto na lista de contratos (src/lib/importacao/importadores/contratosPlanilha.ts).
- * Migrações 20261104090000 e 20261113090000. Ler: módulo Compras ou Contratos. Cadastrar: `contratos.criar`; alterar:
+ * Migrações 20261104090000 e 20261114090000. Ler: módulo Compras ou Contratos. Cadastrar: `contratos.criar`; alterar:
  * `contratos.editar`; apagar só rascunho, com editar (gatilho contratos_conferir_permissao). Alteração (aditivo,
  * apostilamento, suspensão, rescisão) só com `contratos.editar`; o banco recalcula o valor atual, o fim e a situação.
  * O servidor chega pela RPC estreita contrato_buscar_servidores, porque quem tem Contratos não lê o RH.

@@ -2,7 +2,7 @@
  * Contratos (módulo Contratos, entregas C1 e C2): cadastro, itens, responsáveis (gestor e fiscais), alterações
  * (aditivo, apostilamento, suspensão, rescisão) e histórico.
  * Banco: contratos, itens_contrato e contrato_responsaveis (migração 20261104090000) e contrato_alteracoes (migração
- * 20261113090000); histórico em audit_log_licitacoes.
+ * 20261114090000); histórico em audit_log_licitacoes.
  * Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md
  */
 

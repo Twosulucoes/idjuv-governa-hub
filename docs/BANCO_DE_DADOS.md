@@ -1170,6 +1170,20 @@ Todas idempotentes.
     por processo) e `programacao_por_natureza` (QDD × reservas por combinação, com os processos);
   - sem permissão nova; RLS classe `preservar` nas duas tabelas (policies na migração); testes no bloco
     "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
+- **Diárias do FIPLAN** (`20261113090000_fin_diarias_fiplan.sql`, spec
+  [2026-10-30-diarias-fiplan-design.md](./superpowers/specs/2026-10-30-diarias-fiplan-design.md)):
+  - `fin_diarias_fiplan`: o FIP 002 – Demonstrativo de Diárias, uma linha por diária (única por exercício e nº do
+    empenho, 17 dígitos): credor, quantidade, processo, empenho, liquidação, NOB e data do pagamento, saída e retorno,
+    ordem de serviço e `prestou_contas` (coluna PC). `servidor_id` é o único servidor com o mesmo nome sem acento nem
+    caixa (`fin_nome_comparavel`); `viagem_id` é a única viagem não cancelada de `viagens_diarias` do servidor com a
+    mesma saída. Sem par, ficam nulos (a simulação avisa o nome não achado);
+  - leitura: Financeiro com `financeiro.diarias.visualizar` ou `financeiro.execucao.importar`, RH com
+    `rh.viagens.visualizar` e o próprio servidor; ninguém grava pela API. Grava
+    `importar_diarias_fiplan(p_exercicio, p_linhas, p_arquivo, p_simular)` (DEFINER, módulo financeiro e
+    `financeiro.execucao.importar`; upsert com mudanças por campo, simulação desfeita, ausentes só avisados, log em
+    `importacoes` com tipo `diarias_fiplan`);
+  - sem permissão nova (o rótulo de `financeiro.execucao.importar` passou a citar as diárias); RLS classe `preservar`
+    (policy na migração); testes no bloco "Financeiro: diárias do FIPLAN" de `scripts/db/testar-rls.sql`.
 - **Pesquisa de preços, entrega 1** (`20261106090000_compras_pesquisa_precos.sql`, spec
   [2026-10-29-compras-pesquisa-precos-design.md](./superpowers/specs/2026-10-29-compras-pesquisa-precos-design.md)):
   - `pesquisas_precos`: uma por processo SEI (objeto, `finalidade`, `data_referencia`, responsáveis, observações,
@@ -1209,7 +1223,7 @@ Todas idempotentes.
     normalizada, ou os dígitos quando o termo só tem número) ou por palavras em `processos_administrativos`,
     `processos_licitatorios`, `passagem_pedidos`, `pca_itens`, `fin_empenhos`, `documentos`, `termos_cessao` e
     `viagens_diarias` (e `contratos` desde a migração `20261104090000`, com o processo das alterações e da renovação
-    desde a `20261113090000`); termo com menos de 3 caracteres não devolve
+    desde a `20261114090000`); termo com menos de 3 caracteres não devolve
     nada; limite de 1 a 200;
   - `processos_parados(p_dias default 15)` (INVOKER): contratação fora de encerrado/cancelado e processo do workflow
     aberto ou em tramitação sem movimentação há mais de N dias (por `current_date`), até 200;
@@ -1362,7 +1376,7 @@ Cópia, só para leitura, do que o Transferegov publica sobre o CNPJ da institui
 `processos_licitatorios`, `itens_processo_licitatorio`, `itens_licitacao`,
 `propostas_licitacao`, `documentos_preparatorios_licitacao`, `atas_registro_preco`,
 `itens_ata_registro_preco`, `fornecedores`, `contratos`, `itens_contrato`,
-`contrato_responsaveis`, `contrato_alteracoes` (no lugar de `aditivos_contrato` desde a migração `20261113090000`),
+`contrato_responsaveis`, `contrato_alteracoes` (no lugar de `aditivos_contrato` desde a migração `20261114090000`),
 `medicoes_contrato`.
 
 **Passagens aéreas (entrega 1, migração `20261031090000_contratos_passagens.sql`).** Controle e cadastro; o ato
@@ -1504,7 +1518,7 @@ os pedidos e confere as faturas; o contrato da agência continua do setor de Con
   `contratos.passagens.editar`, que o gatilho limita a marcar o contrato da agência); apagar pede `contratos.editar`.
   Decisão do dono em 27/10/2026. Testes no bloco "Contratos C1" de `scripts/db/testar-rls.sql`.
 
-**Contratos C2: alterações e vencimentos (migração `20261113090000_contratos_c2_alteracoes.sql`).** Spec
+**Contratos C2: alterações e vencimentos (migração `20261114090000_contratos_c2_alteracoes.sql`).** Spec
 [2026-10-27-contratos-gestao-completa-design.md](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)
 (§4, C2) e plano [2026-10-30-contratos-c2-alteracoes-vencimentos.md](./superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md).
 O ato (termo aditivo, apostila, termo de rescisão) continua no SEI; aqui fica o registro, com o nº do processo e do

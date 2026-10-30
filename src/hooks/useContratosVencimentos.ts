@@ -1,7 +1,7 @@
 /**
  * Vencimentos de contratos (C2): a tela /contratos/vencimentos e o aviso do sino.
  * A tela lê os contratos (RLS: módulo Compras ou Contratos); o sino usa a RPC contratos_meus_vencimentos (migração
- * 20261113090000), que devolve só nº, objeto resumido e fim dos contratos do gestor e dos fiscais (pelo servidor do
+ * 20261114090000), que devolve só nº, objeto resumido e fim dos contratos do gestor e dos fiscais (pelo servidor do
  * perfil) ou de todos para quem tem contratos.editar, porque o servidor designado pode não ter o módulo.
  */
 

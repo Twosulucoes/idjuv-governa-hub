@@ -256,8 +256,16 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
   FIPLAN (anual). Cada cartão traz os passos no FIPLAN, a última importação (`importacoes`) ou o último mês fechado
   (`fin_conciliacoes_mensais`), o selo em dia / atrasado / nunca importado e o botão que abre o importador
   (abre na própria tela, `/financeiro/atualizar?importador=<id>`, só com a permissão dele; os PEDs do FIPLAN entram
-  como item semanal). Rotina e regras em
+  como item semanal, e o FIP 002 – Demonstrativo de Diárias também, com o caminho e os filtros no cartão). Rotina e regras em
   `src/lib/financeiro/rotinaAtualizacao.ts` (com testes). O sistema não baixa nada do FIPLAN sozinho.
+- **Diárias `/financeiro/diarias`** (menu "Diárias" no Financeiro e "Diárias pagas (FIPLAN)" no RH;
+  `financeiro.diarias.visualizar` ou `rh.viagens.visualizar`): as diárias pagas no
+  exercício, lidas do FIP 002 (`fin_diarias_fiplan`): total pago, servidores, sem prestação de contas e atrasadas
+  (mais de 10 dias depois do retorno, prazo informado pelo Financeiro), filtro pela prestação, busca e Excel. Cada
+  diária é ligada ao servidor pelo nome e à viagem do RH pela data de saída; a viagem em `/rh/viagens` mostra
+  "Paga no FIPLAN em dd/mm" e se as contas foram prestadas, e a aba Viagens da ficha funcional do servidor
+  (`/rh/servidores/:id`) lista as diárias dele no FIPLAN, com o selo da prestação (`DiariasFiplanServidor`). Regras em `src/lib/financeiro/diariasFiplan.ts`, dados em
+  `src/hooks/useDiariasFiplan.ts`, importador `diarias_fiplan` (`financeiro.execucao.importar`).
 - **Painel `/financeiro` (execução do exercício)**, calculado no navegador sobre o QDD (`fin_dotacoes`) e o
   FIP 614 (`fin_empenhos`), sem tabela própria. As contas ficam em `src/lib/financeiro/painelExecucao.ts` (com
   testes) e os quadros em `src/components/financeiro/painel/`:

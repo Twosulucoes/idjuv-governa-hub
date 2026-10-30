@@ -1063,7 +1063,7 @@ antes, qualquer pessoa com o módulo Compras ou Contratos gravava e apagava cont
 
 ### Contratos: alterações e vencimentos (C2)
 
-Migração `20261113090000_contratos_c2_alteracoes.sql` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#compras-licitações-e-contratos)).
+Migração `20261114090000_contratos_c2_alteracoes.sql` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#compras-licitações-e-contratos)).
 Sem permissão nova. Decisão do dono em 30/10/2026: alteração muda o valor e o prazo do contrato, então registrar,
 corrigir e apagar pedem `contratos.editar` (designar gestor e incluir item continuam com `criar` ou `editar`).
 

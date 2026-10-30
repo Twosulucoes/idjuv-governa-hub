@@ -493,7 +493,7 @@ AS $$
    LIMIT 50
 $$;
 COMMENT ON FUNCTION public.contratos_meus_vencimentos() IS
-  'Sino de avisos: contratos vigentes ou suspensos que vencem em até 120 dias (ou venceram), do gestor e dos fiscais em exercício (pelo servidor do perfil) e, com contratos.editar, todos. Migração 20261113090000.';
+  'Sino de avisos: contratos vigentes ou suspensos que vencem em até 120 dias (ou venceram), do gestor e dos fiscais em exercício (pelo servidor do perfil) e, com contratos.editar, todos. Migração 20261114090000.';
 REVOKE ALL ON FUNCTION public.contratos_meus_vencimentos() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.contratos_meus_vencimentos() TO authenticated;
 
@@ -811,7 +811,7 @@ BEGIN
 END;
 $$;
 COMMENT ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) IS
-  'Importa a planilha de contratos vigentes (p_simular = true só calcula; aplicação é tudo ou nada, com log em importacoes). Nunca apaga nem sobrescreve: contrato existente só ganha o que está vazio. Exige contratos.criar (completar campo vazio de contrato existente exige também contratos.editar; designar pela matrícula basta criar). Contrato novo com valor atual diferente do inicial ganha a situação anterior ao sistema (partida). Migrações 20261104090000 e 20261113090000.';
+  'Importa a planilha de contratos vigentes (p_simular = true só calcula; aplicação é tudo ou nada, com log em importacoes). Nunca apaga nem sobrescreve: contrato existente só ganha o que está vazio. Exige contratos.criar (completar campo vazio de contrato existente exige também contratos.editar; designar pela matrícula basta criar). Contrato novo com valor atual diferente do inicial ganha a situação anterior ao sistema (partida). Migrações 20261104090000 e 20261114090000.';
 REVOKE ALL ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boolean) TO authenticated;
 
@@ -949,7 +949,7 @@ AS $$
    LIMIT least(greatest(coalesce(p_limite, 50), 1), 200)
 $$;
 COMMENT ON FUNCTION public.localizar_processos_sei(text, integer) IS
-  'Localizador de processos do SEI: busca pelo nº (qualquer formato) ou por palavras em nove fontes (o contrato desde a migração 20261104090000; o processo da alteração e o da renovação do contrato desde a 20261113090000); INVOKER (cada fonte com a RLS dela).';
+  'Localizador de processos do SEI: busca pelo nº (qualquer formato) ou por palavras em nove fontes (o contrato desde a migração 20261104090000; o processo da alteração e o da renovação do contrato desde a 20261114090000); INVOKER (cada fonte com a RLS dela).';
 REVOKE ALL ON FUNCTION public.localizar_processos_sei(text, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.localizar_processos_sei(text, integer) TO authenticated;
 

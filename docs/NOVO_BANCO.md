@@ -226,6 +226,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `importar_empenhos_fip614` e `importar_peds_fiplan` (de `orcamento.importar` para `financeiro.execucao.importar`);
   no catálogo, a linha nova e o rótulo de `orcamento.importar`. Mapa e overlay sem mudança; testes nos blocos do FIP 614 e
   dos PEDs de `scripts/db/testar-rls.sql` (só `orcamento.importar` passa a ser recusado).
+- A migração `20261113090000` (diárias do FIPLAN, FIP 002) entrou no mapa (`fin_diarias_fiplan`, classe `preservar`,
+  policy na migração), no schema regenerado, no rótulo de `financeiro.execucao.importar` do catálogo e no
+  `overlay/40_privilegios.sql` (só leitura pela API; `importar_diarias_fiplan` e `fin_nome_comparavel` só para
+  `authenticated`); testes no bloco "Financeiro: diárias do FIPLAN" de `scripts/db/testar-rls.sql`.
 - A migração `20261112090000` (histórico de mudanças dos convênios federais) entrou no mapa (`fin_tg_mudancas`,
   classe `trilha` com `leitura=financeiro.convenios.visualizar`), no schema regenerado e no
   `overlay/40_privilegios.sql` (`fin_tg_mapa` e `fin_tg_registrar_diferencas` sem EXECUTE;
@@ -246,7 +250,7 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `overlay/40_privilegios.sql` (gatilhos sem EXECUTE; `contrato_pode_gravar`, `contrato_buscar_servidores` e
   `contratos_importar_planilha` só para `authenticated`); testes no bloco "Contratos C1" de `scripts/db/testar-rls.sql`
   ([detalhe](./BANCO_DE_DADOS.md)).
-- Os contratos, entrega C2 (migração `20261113090000`), trocaram `aditivos_contrato` por `contrato_alteracoes` no mapa
+- Os contratos, entrega C2 (migração `20261114090000`), trocaram `aditivos_contrato` por `contrato_alteracoes` no mapa
   (classe `permissao`: ler com o módulo, gravar e apagar com `contratos.editar`); schema regenerado, catálogo sem
   mudança, `overlay/40_privilegios.sql` (gatilhos `contrato_alteracoes_preparar` e `contrato_alteracoes_aplicar` sem
   EXECUTE; `contratos_meus_vencimentos` só para `authenticated`) e dados de demonstração refeitos em

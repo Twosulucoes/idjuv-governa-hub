@@ -1510,6 +1510,22 @@ ALTER TABLE ONLY public.fin_contas_bancarias
 
 
 --
+-- Name: fin_diarias_fiplan fin_diarias_fiplan_chave; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_diarias_fiplan
+    ADD CONSTRAINT fin_diarias_fiplan_chave UNIQUE (exercicio, empenho_numero);
+
+
+--
+-- Name: fin_diarias_fiplan fin_diarias_fiplan_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_diarias_fiplan
+    ADD CONSTRAINT fin_diarias_fiplan_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_documentos fin_documentos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5844,6 +5860,20 @@ CREATE INDEX idx_fin_contas_bancarias_responsavel_id ON public.fin_contas_bancar
 --
 
 CREATE INDEX idx_fin_contas_banco ON public.fin_contas_bancarias USING btree (banco_codigo);
+
+
+--
+-- Name: idx_fin_diarias_fiplan_servidor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_diarias_fiplan_servidor ON public.fin_diarias_fiplan USING btree (servidor_id);
+
+
+--
+-- Name: idx_fin_diarias_fiplan_viagem; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_diarias_fiplan_viagem ON public.fin_diarias_fiplan USING btree (viagem_id);
 
 
 --
@@ -16204,6 +16234,30 @@ ALTER TABLE ONLY public.fin_contas_bancarias
 
 
 --
+-- Name: fin_diarias_fiplan fin_diarias_fiplan_importacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_diarias_fiplan
+    ADD CONSTRAINT fin_diarias_fiplan_importacao_id_fkey FOREIGN KEY (importacao_id) REFERENCES public.importacoes(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_diarias_fiplan fin_diarias_fiplan_servidor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_diarias_fiplan
+    ADD CONSTRAINT fin_diarias_fiplan_servidor_id_fkey FOREIGN KEY (servidor_id) REFERENCES public.servidores(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_diarias_fiplan fin_diarias_fiplan_viagem_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_diarias_fiplan
+    ADD CONSTRAINT fin_diarias_fiplan_viagem_id_fkey FOREIGN KEY (viagem_id) REFERENCES public.viagens_diarias(id) ON DELETE SET NULL;
+
+
+--
 -- Name: fin_documentos fin_documentos_documento_anterior_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20466,6 +20520,19 @@ ALTER TABLE public.fin_conciliacoes_mensais ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.fin_contas_bancarias ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_diarias_fiplan; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_diarias_fiplan ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_diarias_fiplan fin_diarias_fiplan_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY fin_diarias_fiplan_select ON public.fin_diarias_fiplan FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ((( SELECT public.can_access_module(auth.uid(), 'financeiro'::text) AS can_access_module) AND (( SELECT public.has_permission_code(auth.uid(), 'financeiro.diarias.visualizar'::text) AS has_permission_code) OR ( SELECT public.has_permission_code(auth.uid(), 'financeiro.execucao.importar'::text) AS has_permission_code))) OR (( SELECT public.can_access_module(auth.uid(), 'rh'::text) AS can_access_module) AND ( SELECT public.has_permission_code(auth.uid(), 'rh.viagens.visualizar'::text) AS has_permission_code)) OR (servidor_id = ( SELECT public.meu_servidor_id() AS meu_servidor_id)))));
+
 
 --
 -- Name: fin_documentos; Type: ROW SECURITY; Schema: public; Owner: -

@@ -129,8 +129,10 @@ INSERT INTO seed_ov VALUES
   ('fin_tg_sincronizacoes', '{"cnpj":"00000000000191"}'),
   ('fin_tg_mudancas', '{"entidade":"proposta","tipo":"novo","campo":null}'),
   ('fin_tg_movimentos', '{"tipo":"empenho"}'),
-  -- alteração do contrato (migração 20261113090000): a situação anterior ao sistema é a de menos campos obrigatórios
-  ('contrato_alteracoes', '{"especie":"partida","valor_variacao":1,"descricao":"Semente"}');
+  -- alteração do contrato (migração 20261114090000): a situação anterior ao sistema é a de menos campos obrigatórios
+  ('contrato_alteracoes', '{"especie":"partida","valor_variacao":1,"descricao":"Semente"}'),
+  -- diárias do FIPLAN (migração 20261113090000): documentos com 17 dígitos; sem LIQ/NOB nem período
+  ('fin_diarias_fiplan', '{"empenho_numero":"17302000199000001","liquidacao_numero":null,"nob_numero":null,"data_saida":null,"data_retorno":null}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
 CREATE TEMP TABLE seed_ov_b (tabela text PRIMARY KEY, ov jsonb);
@@ -9299,8 +9301,116 @@ BEGIN
   PERFORM pg_temp.nota('CONTRATOS C1: cadastrar com criar, alterar com editar (passagens só marca a agência), apagar só rascunho com editar, nº único por ano, responsáveis (nome do RH, um gestor ativo, saída com motivo, trilha), busca estreita no RH, importação (simula, repete, grava, só completa, não troca o gestor em exercício, zero à esquerda, avisa o que difere), autoria, assinado não volta a rascunho, medição e localizador verificados');
 END $$;
 
--- ---------------------------------------------------------------- Contratos C2: alterações e vencimentos (migração 20261113090000) (TRIGGERS LIGADOS)
--- Migração 20261113090000_contratos_c2_alteracoes.sql (plano docs/superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md):
+-- ---------------------------------------------------------------- Financeiro: diárias do FIPLAN (migração 20261113090000)
+-- Migração 20261113090000_fin_diarias_fiplan.sql (spec docs/superpowers/specs/2026-10-30-diarias-fiplan-design.md):
+--   * importar_diarias_fiplan: sem financeiro.execucao.importar no financeiro = 42501; simulação não grava; reimportar
+--     não muda; empenho de outro exercício vira erro da linha; ninguém grava direto na tabela;
+--   * liga o servidor pelo nome (sem acento nem caixa) e a viagem do RH pela mesma saída; nome sem par só avisa;
+--   * leem: Financeiro com financeiro.diarias.visualizar, RH com rh.viagens.visualizar e o próprio servidor; o módulo
+--     sem a permissão e quem não tem módulo não leem.
+DO $$
+DECLARE
+  sa uuid := 'b0000000-0000-0000-0000-00000000000a';
+  u_srv uuid := (SELECT uid FROM persona WHERE nome = 'srv_a');
+  u_finm uuid := (SELECT uid FROM persona WHERE nome = 'mod_financeiro');
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome = 'nenhum');
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000009d1';   -- financeiro + financeiro.execucao.importar
+  u_vis uuid := 'a0000000-0000-0000-0000-0000000009d2';   -- financeiro + financeiro.diarias.visualizar
+  u_rh uuid := 'a0000000-0000-0000-0000-0000000009d3';    -- rh + rh.viagens.visualizar
+  v1 uuid := 'f7000000-0000-0000-0000-0000000009d1';
+  r text; linhas jsonb; j jsonb;
+  arq jsonb := jsonb_build_object('nome', 'fip002.xls', 'sha256', repeat('cd', 32), 'tamanho', 2048);
+BEGIN
+  IF to_regclass('public.fin_diarias_fiplan') IS NULL THEN
+    PERFORM pg_temp.falha('DIÁRIAS FIPLAN: tabela da migração 20261113090000 não existe');
+    RETURN;
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF has_function_privilege('anon', 'public.importar_diarias_fiplan(integer, jsonb, jsonb, boolean)', 'EXECUTE')
+     OR NOT (SELECT p.prosecdef FROM pg_proc p WHERE p.oid = 'public.importar_diarias_fiplan(integer, jsonb, jsonb, boolean)'::regprocedure) THEN
+    PERFORM pg_temp.falha('DIÁRIAS FIPLAN: importação não é SECURITY DEFINER ou anon executa');
+  END IF;
+
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'dia_imp@teste.invalid'), (u_vis, 'dia_vis@teste.invalid'), (u_rh, 'dia_rh@teste.invalid');
+  PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_imp, 'email', 'dia_imp@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
+  PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_vis, 'email', 'dia_vis@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
+  PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_rh, 'email', 'dia_rh@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_imp, 'financeiro', '{financeiro.execucao.importar}'),
+    (u_vis, 'financeiro', '{financeiro.diarias.visualizar}'),
+    (u_rh, 'rh', '{rh.viagens.visualizar}');
+  UPDATE public.servidores SET nome_completo = 'Fulana de Tál  Teste Diária' WHERE id = sa;
+  PERFORM pg_temp.seed_row('viagens_diarias', jsonb_build_object('id', v1, 'servidor_id', sa, 'data_saida', '2098-05-04',
+    'data_retorno', '2098-05-06', 'status', 'concluida'));
+  SET LOCAL session_replication_role = origin;
+
+  linhas := jsonb_build_array(
+    jsonb_build_object('indice', 0, 'empenho_numero', '17302000198000101', 'credor_codigo', '2098000001',
+      'credor_nome', 'FULANA DE TAL TESTE DIARIA', 'quantidade', 2.5, 'processo_fiplan', '000764',
+      'data_empenho', '2098-05-10', 'valor_empenhado', 300, 'liquidacao_numero', '17302000198000201',
+      'valor_liquidado', 300, 'nob_numero', '17302000198000301', 'data_pagamento', '2098-05-12',
+      'data_saida', '2098-05-04', 'data_retorno', '2098-05-06', 'ordem_servico', '17302000198000401', 'prestou_contas', false),
+    jsonb_build_object('indice', 1, 'empenho_numero', '17302000198000102', 'credor_nome', 'Pessoa Que Não Existe',
+      'quantidade', 1, 'valor_empenhado', 120, 'data_saida', '2098-06-01', 'data_retorno', '2098-06-01', 'prestou_contas', true));
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT public.importar_diarias_fiplan(2098, %L::jsonb, ''{}''::jsonb, true)::text', linhas));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('DIÁRIAS FIPLAN: visualizar importa (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_finm, 'authenticated', format(
+    'SELECT public.importar_diarias_fiplan(2098, %L::jsonb, ''{}''::jsonb, true)::text', linhas));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('DIÁRIAS FIPLAN: módulo sem permissão importa (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_imp, 'authenticated',
+    'INSERT INTO public.fin_diarias_fiplan (exercicio, empenho_numero, credor_nome, quantidade, valor_empenhado) VALUES (2098, ''17302000198000999'', ''x'', 1, 1) RETURNING id::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('DIÁRIAS FIPLAN: diária gravada direto na tabela (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_imp, 'role', 'authenticated')::text, true);
+  j := public.importar_diarias_fiplan(2098, linhas, '{}'::jsonb, true);
+  IF j->>'totais' IS DISTINCT FROM '{"inserir": 2, "atualizar": 0, "sem_alteracao": 0}'
+     OR j->'linhas'->0->'avisos' IS DISTINCT FROM 'null'::jsonb
+     OR jsonb_array_length(j->'linhas'->1->'avisos') <> 1
+     OR EXISTS (SELECT 1 FROM public.fin_diarias_fiplan WHERE exercicio = 2098) THEN
+    PERFORM pg_temp.falha('DIÁRIAS FIPLAN: simulação (' || j::text || ')');
+  END IF;
+  r := (public.importar_diarias_fiplan(2098, linhas, arq, false)->>'totais') || '|' || (public.importar_diarias_fiplan(2098, linhas, arq, false)->>'totais');
+  IF r IS DISTINCT FROM '{"inserir": 2, "atualizar": 0, "sem_alteracao": 0}|{"inserir": 0, "atualizar": 0, "sem_alteracao": 2}' THEN
+    PERFORM pg_temp.falha('DIÁRIAS FIPLAN: aplicar duas vezes (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.fin_diarias_fiplan WHERE empenho_numero = '17302000198000101'
+                  AND servidor_id = sa AND viagem_id = v1 AND quantidade = 2.5 AND NOT prestou_contas)
+     OR NOT EXISTS (SELECT 1 FROM public.fin_diarias_fiplan WHERE empenho_numero = '17302000198000102'
+                  AND servidor_id IS NULL AND viagem_id IS NULL AND prestou_contas)
+     OR NOT EXISTS (SELECT 1 FROM public.importacoes WHERE tipo = 'diarias_fiplan' AND created_by = u_imp) THEN
+    PERFORM pg_temp.falha('DIÁRIAS FIPLAN: não ligou servidor e viagem ou não registrou a importação');
+  END IF;
+  -- prestação de contas registrada no FIPLAN: a reimportação atualiza
+  j := public.importar_diarias_fiplan(2098, jsonb_set(linhas, '{0,prestou_contas}', 'true'), arq, false);
+  IF j->'totais'->>'atualizar' <> '1' OR j->'linhas'->0->'mudancas'->'prestou_contas'->>1 <> 'true' THEN
+    PERFORM pg_temp.falha('DIÁRIAS FIPLAN: reimportar com PC = Sim (' || j::text || ')');
+  END IF;
+  -- empenho de outro exercício: erro da linha e nada gravado
+  j := public.importar_diarias_fiplan(2098, jsonb_build_array(linhas->0 || '{"empenho_numero":"17302000197000101"}'), arq, false);
+  IF jsonb_array_length(j->'erros') <> 1 OR j->>'importacao_id' IS NOT NULL THEN
+    PERFORM pg_temp.falha('DIÁRIAS FIPLAN: empenho de outro exercício aceito (' || j::text || ')');
+  END IF;
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT count(*)::text FROM public.fin_diarias_fiplan WHERE exercicio = 2098');
+  IF r IS DISTINCT FROM '2' THEN PERFORM pg_temp.falha('DIÁRIAS FIPLAN: Financeiro com visualizar não lê (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT count(*)::text FROM public.fin_diarias_fiplan WHERE exercicio = 2098');
+  IF r IS DISTINCT FROM '2' THEN PERFORM pg_temp.falha('DIÁRIAS FIPLAN: RH com viagens não lê (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_finm, 'authenticated', 'SELECT count(*)::text FROM public.fin_diarias_fiplan WHERE exercicio = 2098');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('DIÁRIAS FIPLAN: módulo sem permissão lê (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_srv, 'authenticated', 'SELECT count(*)::text FROM public.fin_diarias_fiplan WHERE exercicio = 2098');
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('DIÁRIAS FIPLAN: servidor não lê só a própria (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_nenhum, 'authenticated', 'SELECT count(*)::text FROM public.fin_diarias_fiplan WHERE exercicio = 2098');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('DIÁRIAS FIPLAN: sem módulo lê (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('DIÁRIAS FIPLAN: importar só com financeiro.execucao.importar, simulação não grava, reimportar não muda e atualiza a PC, outro exercício recusado, servidor pelo nome e viagem pela saída, leitura (Financeiro, RH, o próprio servidor) verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Contratos C2: alterações e vencimentos (migração 20261114090000) (TRIGGERS LIGADOS)
+-- Migração 20261114090000_contratos_c2_alteracoes.sql (plano docs/superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md):
 --   * alteração (aditivo, apostilamento, suspensão, rescisão, partida): só contratos.editar registra, corrige e apaga
 --     (módulo e criar = 42501 ou 0 linhas); forma conferida por CHECK (23514); contrato rascunho e troca de contrato = 22023;
 --     autoria pelo banco; trilha em audit_log_licitacoes;

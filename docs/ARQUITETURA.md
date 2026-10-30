@@ -112,7 +112,7 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
 - **Importação por setor** (desde 29/10/2026): cada setor importa no próprio menu e o assistente abre na tela dele
   (`ImportacaoDialog` + `useImportadorDaUrl`, `?importador=<id>`, só com a permissão do importador). O campo `local` de
   cada importador (`src/lib/importacao/importadores/`) diz a tela: Financeiro → Atualizar dados (`/financeiro/atualizar`:
-  QDD, tabelas do FIPLAN, FIP 614, PEDs e retorno do banco), RH → Folha (`/folha`, item de menu "Importar do SIGRH"),
+  QDD, tabelas do FIPLAN, FIP 614, PEDs, diárias do FIP 002 e retorno do banco), RH → Folha (`/folha`, item de menu "Importar do SIGRH"),
   Gabinete → Central de Portarias (`/gabinete/portarias`), Compras → Processos (`/compras/processos`) e Contratos →
   Contratos (`/contratos/lista`). QDD e conciliação também abrem o assistente nas próprias telas. `/admin/importacoes`
   (`ImportacoesPage`) virou "Histórico de importações": só consulta e a lista de onde cada arquivo entra, com

@@ -307,6 +307,13 @@ A migração `20261109090000_importacao_permissao_execucao.sql` (importações p
 `financeiro.execucao.importar` e rótulo de `orcamento.importar`); RLS, `rls/mapa.csv` e privilégios sem mudança. Testes
 nos blocos do FIP 614 e dos PEDs de `scripts/db/testar-rls.sql`.
 
+A migração `20261113090000_fin_diarias_fiplan.sql` (diárias do FIPLAN, FIP 002) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só o rótulo de `financeiro.execucao.importar`,
+editado à mão para não trocar os ids e datas das outras linhas), no `rls/mapa.csv` (`fin_diarias_fiplan` na classe
+`preservar`, policy na migração) e no `overlay/40_privilegios.sql` (tabela só leitura; `importar_diarias_fiplan` e
+`fin_nome_comparavel` só para `authenticated`). Testes no bloco "Financeiro: diárias do FIPLAN" de
+`scripts/db/testar-rls.sql`, com semente de `fin_diarias_fiplan` em `seed_ov`.
+
 A migração `20261112090000_fin_tg_mudancas.sql` (histórico de mudanças dos convênios federais) entrou no schema
 regenerado (`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (`fin_tg_mudancas` na
 classe `trilha` com `leitura=financeiro.convenios.visualizar`) e no `overlay/40_privilegios.sql` (`fin_tg_mapa` e
@@ -333,7 +340,7 @@ policies antigas `comp_module_*` de `contratos` seguem em `remover_policies`) e 
 `contrato_buscar_servidores` e `contratos_importar_planilha` só para `authenticated`); testes no bloco "Contratos C1" de
 `scripts/db/testar-rls.sql` (com os gatilhos ligados), que usam a persona, o fornecedor e o servidor já semeados.
 
-A migração `20261113090000_contratos_c2_alteracoes.sql` (contratos, entrega C2) entrou no schema regenerado
+A migração `20261114090000_contratos_c2_alteracoes.sql` (contratos, entrega C2) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (sai `aditivos_contrato`, que a
 migração apaga depois de copiar as linhas; entra `contrato_alteracoes` na classe `permissao` com
 `escrita=contratos.editar` e `excluir=contratos.editar`), no `overlay/40_privilegios.sql` (gatilhos

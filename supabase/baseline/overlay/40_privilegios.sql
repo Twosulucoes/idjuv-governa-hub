@@ -466,7 +466,15 @@ REVOKE ALL ON FUNCTION public.fin_tg_registrar_diferencas(uuid, text, jsonb, jso
 REVOKE ALL ON FUNCTION public.pode_atualizar_convenios_federais() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.pode_atualizar_convenios_federais() TO authenticated;
 
--- ---- Contratos C2: alterações e vencimentos (migração 20261113090000) ----
+-- ---- Financeiro: diárias do FIPLAN, FIP 002 (migração 20261113090000): só leitura pela API; escrita pela RPC ----
+REVOKE ALL ON public.fin_diarias_fiplan FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_diarias_fiplan FROM authenticated;
+REVOKE ALL ON FUNCTION public.fin_nome_comparavel(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fin_nome_comparavel(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.importar_diarias_fiplan(integer, jsonb, jsonb, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.importar_diarias_fiplan(integer, jsonb, jsonb, boolean) TO authenticated;
+
+-- ---- Contratos C2: alterações e vencimentos (migração 20261114090000) ----
 REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_preparar() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_aplicar() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.contratos_meus_vencimentos() FROM PUBLIC, anon;
