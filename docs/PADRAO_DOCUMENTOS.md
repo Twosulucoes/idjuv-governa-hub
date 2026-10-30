@@ -74,6 +74,10 @@
 > fiscais em exercício e anteriores (com a portaria) e os itens. Não é ato: contrato, aditivo e designação são do SEI. Chamado pelo
 > botão "Ficha (PDF)" da ficha do contrato (`/contratos/:id`); dados montados por `montarFichaContrato`
 > (`src/lib/contratos/ficha.ts`); testes em `__testes__/contratos-ficha.test.ts` (amostras em `amostras.test.ts`).
+> Desde a C2 (30/10/2026), a ficha ganha a seção "Alterações" (cada termo aditivo, apostilamento, suspensão, rescisão
+> e a situação anterior ao sistema, com data, efeito no valor e no prazo e o documento SEI) e imprime os avisos de
+> limite (acréscimo acima de 25% ou 50%, prazo máximo passado) como "Atenção: …"; `montarFichaContrato` recebe as
+> alterações.
 
 > **Passagens aéreas (25/10/2026, dois documentos novos):** `contratos-passagem-ficha-pedido` (ficha) imprime o pedido
 > de passagem para juntar ao processo no SEI quando quiser: dados do pedido, aprovação registrada, cada passageiro com os

@@ -51,7 +51,7 @@ function Linha({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?
   return (
     <div className="flex items-baseline justify-between gap-4 py-1.5">
       <dt className={forte ? "text-sm font-semibold" : "text-sm text-muted-foreground"}>{rotulo}</dt>
-      <dd className={forte ? "text-sm font-semibold tabular-nums" : "text-sm tabular-nums"}>{valor}</dd>
+      <dd className={forte ? "whitespace-nowrap text-sm font-semibold tabular-nums" : "whitespace-nowrap text-sm tabular-nums"}>{valor}</dd>
     </div>
   );
 }

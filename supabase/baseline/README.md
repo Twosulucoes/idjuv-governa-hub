@@ -333,6 +333,15 @@ policies antigas `comp_module_*` de `contratos` seguem em `remover_policies`) e 
 `contrato_buscar_servidores` e `contratos_importar_planilha` só para `authenticated`); testes no bloco "Contratos C1" de
 `scripts/db/testar-rls.sql` (com os gatilhos ligados), que usam a persona, o fornecedor e o servidor já semeados.
 
+A migração `20261113090000_contratos_c2_alteracoes.sql` (contratos, entrega C2) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (sai `aditivos_contrato`, que a
+migração apaga depois de copiar as linhas; entra `contrato_alteracoes` na classe `permissao` com
+`escrita=contratos.editar` e `excluir=contratos.editar`), no `overlay/40_privilegios.sql` (gatilhos
+`contrato_alteracoes_preparar` e `contrato_alteracoes_aplicar` sem EXECUTE; `contratos_meus_vencimentos` só para
+`authenticated`) e nos dados de demonstração (`dados-demo/04_compras_processos.sql`: os aditivos viraram alterações,
+com um apostilamento e uma rescisão, e o valor e o fim atuais deixaram de ser acertados à mão). Testes no bloco
+"Contratos C2" de `scripts/db/testar-rls.sql` (com os gatilhos ligados).
+
 A migração `20261103090000_contratos_passagens_faturas.sql` (passagens aéreas, entrega 3) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_catalogo.sql`: só a linha de
 `contratos.passagens.financeiro` e as concessões aos papéis, copiadas da regeneração), no `rls/mapa.csv`

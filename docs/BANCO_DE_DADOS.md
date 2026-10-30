@@ -1208,7 +1208,8 @@ Todas idempotentes.
   - `localizar_processos_sei(p_termo, p_limite default 50)` (INVOKER, cada fonte com a RLS dela): busca pelo nº (chave
     normalizada, ou os dígitos quando o termo só tem número) ou por palavras em `processos_administrativos`,
     `processos_licitatorios`, `passagem_pedidos`, `pca_itens`, `fin_empenhos`, `documentos`, `termos_cessao` e
-    `viagens_diarias` (e `contratos` desde a migração `20261104090000`); termo com menos de 3 caracteres não devolve
+    `viagens_diarias` (e `contratos` desde a migração `20261104090000`, com o processo das alterações e da renovação
+    desde a `20261113090000`); termo com menos de 3 caracteres não devolve
     nada; limite de 1 a 200;
   - `processos_parados(p_dias default 15)` (INVOKER): contratação fora de encerrado/cancelado e processo do workflow
     aberto ou em tramitação sem movimentação há mais de N dias (por `current_date`), até 200;
@@ -1361,7 +1362,8 @@ Cópia, só para leitura, do que o Transferegov publica sobre o CNPJ da institui
 `processos_licitatorios`, `itens_processo_licitatorio`, `itens_licitacao`,
 `propostas_licitacao`, `documentos_preparatorios_licitacao`, `atas_registro_preco`,
 `itens_ata_registro_preco`, `fornecedores`, `contratos`, `itens_contrato`,
-`aditivos_contrato`, `medicoes_contrato`.
+`contrato_responsaveis`, `contrato_alteracoes` (no lugar de `aditivos_contrato` desde a migração `20261113090000`),
+`medicoes_contrato`.
 
 **Passagens aéreas (entrega 1, migração `20261031090000_contratos_passagens.sql`).** Controle e cadastro; o ato
 (aprovação do Presidente, pedido à agência) continua no SEI e aqui fica só o registro.
@@ -1501,6 +1503,47 @@ os pedidos e confere as faturas; o contrato da agência continua do setor de Con
   módulo Compras ou Contratos; gravar pede `contratos.criar` ou `contratos.editar` (em `contratos` também
   `contratos.passagens.editar`, que o gatilho limita a marcar o contrato da agência); apagar pede `contratos.editar`.
   Decisão do dono em 27/10/2026. Testes no bloco "Contratos C1" de `scripts/db/testar-rls.sql`.
+
+**Contratos C2: alterações e vencimentos (migração `20261113090000_contratos_c2_alteracoes.sql`).** Spec
+[2026-10-27-contratos-gestao-completa-design.md](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)
+(§4, C2) e plano [2026-10-30-contratos-c2-alteracoes-vencimentos.md](./superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md).
+O ato (termo aditivo, apostila, termo de rescisão) continua no SEI; aqui fica o registro, com o nº do processo e do
+documento.
+- `contrato_alteracoes` (substitui `aditivos_contrato`, que não tinha tela; as linhas foram copiadas e a tabela e o tipo
+  `tipo_aditivo` saíram): `especie` `aditivo` (muda prazo, valor e/ou objeto, com `nova_data_fim`, `valor_acrescimo`,
+  `valor_supressao`), `apostilamento` (`motivo` reajuste, repactuação, dotação, prorrogação pelo tempo suspenso ou
+  outro; `valor_variacao`, `percentual`, `indice`; só a prorrogação pela suspensão traz `nova_data_fim`), `suspensao`
+  (`data_inicio` e `data_retomada`), `rescisao` (`data_inicio` é o dia em que terminou; `motivo` unilateral,
+  consensual ou judicial) e `partida` ("situação anterior ao sistema": a diferença de valor e o fim que já vinham
+  alterados). Cada uma tem `processo_sei` (vazio herda o do contrato), `documento_sei`, `data_assinatura`,
+  `data_publicacao_doe`, `numero_doe`, `descricao`, `justificativa` e `fundamento_legal`. Aditivo e apostilamento são
+  numerados por espécie (1º, 2º…); uma rescisão, uma partida e uma suspensão em aberto por contrato (índices únicos);
+  CHECKs amarram os campos de cada espécie.
+- `contrato_alteracoes_preparar` (gatilho, INVOKER): autoria pelo banco; a alteração não muda de contrato; contrato em
+  rascunho não recebe alteração; depois da rescisão só ela se corrige; nenhuma data antes do início do contrato
+  (`22023`). `contrato_alteracoes_aplicar` (SECURITY DEFINER) regrava o contrato para o recálculo e o devolve a
+  vigente quando a rescisão sai ou a suspensão termina. Trilha em `audit_log_licitacoes`.
+- `contratos_preparar` (passa a SECURITY DEFINER, para ler todas as alterações qualquer que seja a RLS de quem grava):
+  `valor_atual` = inicial + acréscimos − supressões ± variações; `data_fim_atual` = data da rescisão, ou a nova data da
+  alteração mais recente (a partida conta como a mais antiga), ou `data_fim`; rescisão deixa `rescindido` e suspensão
+  em aberto deixa `suspenso`. O valor e o fim atuais não se digitam mais.
+- `contratos` ganha `reforma` (limite de acréscimo de 50% em vez de 25%, art. 125) e a providência do vencimento:
+  `renovacao_providencia` (`prorrogar`, `nova_contratacao`, `encerrar`), `renovacao_processo_sei`,
+  `renovacao_observacao` e `renovacao_atualizada_em` (carimbada pelo gatilho). Quando o fim atual vai para depois, o
+  gatilho limpa a providência. Gravar a providência é alterar o contrato: pede `contratos.editar`
+  (`contratos_conferir_permissao`).
+- Carga: o contrato cujo valor atual ou fim atual gravado difere do que as alterações dão ganhou a partida com a
+  diferença, então nenhum número mudou (a migração avisa quantos ainda divergem; o esperado é nenhum).
+- `contratos_meus_vencimentos()` (SECURITY DEFINER, `authenticated`): o sino. Contratos vigentes, aditados ou
+  suspensos que vencem em até 120 dias (ou já venceram), do gestor e dos fiscais em exercício (pelo `servidor_id` do
+  perfil) e, para quem tem `contratos.editar` com o módulo, todos; devolve só nº, objeto resumido, fim, dias, papéis e
+  se a pessoa abre a ficha; até 50.
+- `contratos_importar_planilha`: contrato novo com valor atual diferente do inicial ganha a partida com a diferença
+  (rascunho fica só com o inicial, com aviso).
+- `localizar_processos_sei`: o processo SEI de uma alteração e o da renovação também levam ao contrato.
+- RLS (classe `permissao`, decisão do dono em 30/10/2026): `contrato_alteracoes` é lida com o módulo Compras ou
+  Contratos; registrar, corrigir e apagar pedem `contratos.editar`. Testes no bloco "Contratos C2" de
+  `scripts/db/testar-rls.sql`.
 
 ### Processos administrativos (workflow)
 `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`,
