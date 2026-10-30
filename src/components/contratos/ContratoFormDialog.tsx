@@ -1,7 +1,8 @@
 /**
  * Cadastro (ou edição) do contrato como assinado no SEI: número, contratado, objeto, valores, vigência, orçamento,
- * publicação e garantia. Gestor e fiscais ficam na aba Responsáveis; itens, na aba Itens. Cadastrar exige
- * contratos.criar e alterar exige contratos.editar (conferido também no banco).
+ * publicação e garantia. Gestor e fiscais ficam na aba Responsáveis; itens, na aba Itens. Valor atual, fim atual,
+ * suspensão e rescisão saem da aba Alterações (C2: o banco calcula). Cadastrar exige contratos.criar e alterar exige
+ * contratos.editar (conferido também no banco).
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -27,8 +28,9 @@ import {
   type ContratoInput,
 } from "@/hooks/useContratos";
 import { mascararDocumento } from "@/lib/bancario/comum";
+import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { lerNumeroBr } from "@/lib/pca/numero";
-import { SITUACOES_CONTRATO, TIPOS_CONTRATO, type Contrato, type SituacaoContrato } from "@/types/contratos";
+import { SITUACOES_CONTRATO, SITUACOES_PELAS_ALTERACOES, TIPOS_CONTRATO, type Contrato, type SituacaoContrato } from "@/types/contratos";
 
 const NENHUM = "nenhum";
 const valorBr = (obrigatorio: boolean) =>
@@ -51,12 +53,11 @@ const schema = z
     processo_licitatorio_id: z.string(),
     unidade_demandante_id: z.string().optional(),
     valor_inicial: valorBr(true),
-    valor_atual: valorBr(false),
     data_assinatura: z.string().min(1, "Informe a data"),
     data_inicio: z.string().min(1, "Informe a data"),
     data_fim: z.string().min(1, "Informe a data"),
-    data_fim_atual: z.string().optional(),
     prorrogavel: z.boolean(),
+    reforma: z.boolean(),
     prazo_maximo_meses: z.string().trim().refine((v) => !v || (/^\d+$/.test(v) && +v >= 1 && +v <= 600), "Entre 1 e 600 meses").optional(),
     natureza_despesa: z.string().trim().max(30).optional(),
     dotacao_orcamentaria: z.string().trim().max(200).optional(),
@@ -68,8 +69,7 @@ const schema = z
     garantia_vencimento: z.string().optional(),
     observacoes: z.string().trim().max(4000).optional(),
   })
-  .refine((d) => d.data_fim >= d.data_inicio, { message: "O fim vem depois do início", path: ["data_fim"] })
-  .refine((d) => !d.data_fim_atual || d.data_fim_atual >= d.data_inicio, { message: "O fim atual vem depois do início", path: ["data_fim_atual"] });
+  .refine((d) => d.data_fim >= d.data_inicio, { message: "O fim vem depois do início", path: ["data_fim"] });
 
 type FormData = z.infer<typeof schema>;
 
@@ -115,13 +115,11 @@ export function ContratoFormDialog({ open, onOpenChange, contrato, salvando, onS
       processo_licitatorio_id: c?.processo_licitatorio_id ?? NENHUM,
       unidade_demandante_id: c?.unidade_demandante_id ?? "",
       valor_inicial: valorTexto(c?.valor_inicial),
-      valor_atual: c && c.valor_atual !== c.valor_inicial ? valorTexto(c.valor_atual) : "",
       data_assinatura: c?.data_assinatura ?? "",
       data_inicio: c?.data_inicio ?? "",
       data_fim: c?.data_fim ?? "",
-      // fim atual igual ao original = sem prorrogação registrada: o campo fica vazio e o banco copia o fim
-      data_fim_atual: c?.data_fim_atual && c.data_fim_atual !== c.data_fim ? c.data_fim_atual : "",
       prorrogavel: c?.prorrogavel ?? false,
+      reforma: c?.reforma ?? false,
       prazo_maximo_meses: texto(c?.prazo_maximo_meses),
       natureza_despesa: c?.natureza_despesa ?? "",
       dotacao_orcamentaria: c?.dotacao_orcamentaria ?? "",
@@ -181,12 +179,13 @@ export function ContratoFormDialog({ open, onOpenChange, contrato, salvando, onS
         processo_licitatorio_id: d.processo_licitatorio_id === NENHUM ? null : d.processo_licitatorio_id,
         unidade_demandante_id: d.unidade_demandante_id || null,
         valor_inicial: valorInicial,
-        valor_atual: d.valor_atual ? lerNumeroBr(d.valor_atual) : valorInicial,
+        // o banco recalcula pelas alterações (contratos_preparar); aqui só satisfaz o tipo do cadastro
+        valor_atual: valorInicial,
         data_assinatura: d.data_assinatura,
         data_inicio: d.data_inicio,
         data_fim: d.data_fim,
-        data_fim_atual: d.data_fim_atual || null,
         prorrogavel: d.prorrogavel,
+        reforma: d.reforma,
         prazo_maximo_meses: d.prorrogavel && d.prazo_maximo_meses ? Number(d.prazo_maximo_meses) : null,
         natureza_despesa: ouNulo(d.natureza_despesa),
         dotacao_orcamentaria: ouNulo(d.dotacao_orcamentaria),
@@ -261,8 +260,15 @@ export function ContratoFormDialog({ open, onOpenChange, contrato, salvando, onS
             <FormSection titulo="Identificação" colunas={3}>
               {campo("numero_contrato", "Nº do contrato *", { placeholder: "Ex.: 01" })}
               {campo("ano", "Ano *", { inputMode: "numeric", maxLength: 4 })}
-              {/* contrato assinado não volta a rascunho (o banco também recusa) */}
-              {lista("status", "Situação *", SITUACOES_CONTRATO.filter((s) => s.value !== "rascunho" || !contrato || contrato.status === "rascunho"))}
+              {/* contrato assinado não volta a rascunho (o banco também recusa); suspensão e rescisão vêm das alterações */}
+              {lista("status", "Situação *", SITUACOES_CONTRATO.filter((s) =>
+                (s.value !== "rascunho" || !contrato || contrato.status === "rascunho")
+                && (!SITUACOES_PELAS_ALTERACOES.has(s.value) || contrato?.status === s.value)))}
+              {contrato && SITUACOES_PELAS_ALTERACOES.has(contrato.status ?? "") && (
+                <p className="text-sm text-muted-foreground md:col-span-2 lg:col-span-3">
+                  Suspensão e rescisão mudam pela aba Alterações: registre a retomada ou corrija a rescisão lá.
+                </p>
+              )}
               {campo("processo_sei", "Processo SEI", { placeholder: "00000.000000/0000.00", largo: true })}
               {campo("numero_pncp", "Nº no PNCP")}
             </FormSection>
@@ -362,11 +368,18 @@ export function ContratoFormDialog({ open, onOpenChange, contrato, salvando, onS
 
             <FormSection titulo="Valores e vigência" colunas={3}>
               {campo("valor_inicial", "Valor inicial (R$) *", { inputMode: "decimal", placeholder: "0,00" })}
-              {campo("valor_atual", "Valor atual (R$)", { inputMode: "decimal", placeholder: "igual ao inicial", ajuda: "Com aditivos e apostilas. Vazio = valor inicial." })}
               {campo("data_assinatura", "Assinatura *", { type: "date" })}
               {campo("data_inicio", "Início da vigência *", { type: "date" })}
               {campo("data_fim", "Fim da vigência *", { type: "date" })}
-              {campo("data_fim_atual", "Fim atual (prorrogado)", { type: "date", ajuda: "Só se já houve prorrogação." })}
+              {contrato && (
+                <div className="space-y-1 md:col-span-2" aria-live="polite">
+                  <p className="text-sm font-medium">Valor atual e fim atual</p>
+                  <p className="text-sm tabular-nums">
+                    {formatCurrency(Number(contrato.valor_atual))} · até {formatDateBR(contrato.data_fim_atual || contrato.data_fim)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Calculados pelas alterações: aditivo, apostilamento e rescisão se registram na aba Alterações.</p>
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name="prorrogavel"
@@ -378,6 +391,19 @@ export function ContratoFormDialog({ open, onOpenChange, contrato, salvando, onS
                 )}
               />
               {prorrogavel && campo("prazo_maximo_meses", "Prazo máximo (meses)", { inputMode: "numeric", ajuda: "Somando as prorrogações (ex.: 120 para serviço contínuo)." })}
+              <FormField
+                control={form.control}
+                name="reforma"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-3 space-y-0 md:col-span-2">
+                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                    <div className="space-y-0.5">
+                      <FormLabel className="!mt-0">Reforma de edifício ou de equipamento</FormLabel>
+                      <FormDescription>O limite de acréscimo sobe de 25% para 50% (art. 125 da Lei 14.133).</FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
             </FormSection>
 
             <FormSection titulo="Orçamento" colunas={3}>

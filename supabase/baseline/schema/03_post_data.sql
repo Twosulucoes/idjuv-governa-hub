@@ -62,22 +62,6 @@ ALTER TABLE ONLY public.adicionais_tempo_servico
 
 
 --
--- Name: aditivos_contrato aditivos_contrato_contrato_id_numero_aditivo_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.aditivos_contrato
-    ADD CONSTRAINT aditivos_contrato_contrato_id_numero_aditivo_key UNIQUE (contrato_id, numero_aditivo);
-
-
---
--- Name: aditivos_contrato aditivos_contrato_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.aditivos_contrato
-    ADD CONSTRAINT aditivos_contrato_pkey PRIMARY KEY (id);
-
-
---
 -- Name: agenda_unidade agenda_unidade_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -971,6 +955,14 @@ ALTER TABLE ONLY public.contatos_eventos_esportivos
 
 ALTER TABLE ONLY public.conteudo_rascunho
     ADD CONSTRAINT conteudo_rascunho_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: contrato_alteracoes contrato_alteracoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contrato_alteracoes
+    ADD CONSTRAINT contrato_alteracoes_pkey PRIMARY KEY (id);
 
 
 --
@@ -4839,6 +4831,13 @@ CREATE INDEX idx_conteudo_rascunho_status ON public.conteudo_rascunho USING btre
 --
 
 CREATE INDEX idx_conteudo_rascunho_tipo ON public.conteudo_rascunho USING btree (tipo);
+
+
+--
+-- Name: idx_contrato_alteracoes_contrato; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contrato_alteracoes_contrato ON public.contrato_alteracoes USING btree (contrato_id);
 
 
 --
@@ -8853,6 +8852,34 @@ CREATE UNIQUE INDEX uq_bens_patrimoniais_numero_norm ON public.bens_patrimoniais
 
 
 --
+-- Name: uq_contrato_alteracoes_numero; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_contrato_alteracoes_numero ON public.contrato_alteracoes USING btree (contrato_id, especie, numero) WHERE (numero IS NOT NULL);
+
+
+--
+-- Name: uq_contrato_alteracoes_partida; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_contrato_alteracoes_partida ON public.contrato_alteracoes USING btree (contrato_id) WHERE (especie = 'partida'::text);
+
+
+--
+-- Name: uq_contrato_alteracoes_rescisao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_contrato_alteracoes_rescisao ON public.contrato_alteracoes USING btree (contrato_id) WHERE (especie = 'rescisao'::text);
+
+
+--
+-- Name: uq_contrato_alteracoes_suspensao_aberta; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_contrato_alteracoes_suspensao_aberta ON public.contrato_alteracoes USING btree (contrato_id) WHERE ((especie = 'suspensao'::text) AND (data_retomada IS NULL));
+
+
+--
 -- Name: uq_contrato_responsaveis_gestor_ativo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10169,17 +10196,17 @@ CREATE TRIGGER trg_atualizar_saldo_empenho AFTER INSERT OR DELETE OR UPDATE OF v
 
 
 --
--- Name: aditivos_contrato trg_audit_aditivos_contrato; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_audit_aditivos_contrato AFTER INSERT OR DELETE OR UPDATE ON public.aditivos_contrato FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
-
-
---
 -- Name: atas_registro_preco trg_audit_atas_registro_preco; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER trg_audit_atas_registro_preco AFTER INSERT OR DELETE OR UPDATE ON public.atas_registro_preco FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
+
+
+--
+-- Name: contrato_alteracoes trg_audit_contrato_alteracoes; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_audit_contrato_alteracoes AFTER INSERT OR DELETE OR UPDATE ON public.contrato_alteracoes FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
 
 
 --
@@ -10453,6 +10480,20 @@ CREATE TRIGGER trg_config_tipos_ato_updated_at BEFORE UPDATE ON public.config_ti
 --
 
 CREATE TRIGGER trg_config_tipos_servidor_updated_at BEFORE UPDATE ON public.config_tipos_servidor FOR EACH ROW EXECUTE FUNCTION public.fn_update_timestamp_parametros();
+
+
+--
+-- Name: contrato_alteracoes trg_contrato_alteracoes_aplicar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_contrato_alteracoes_aplicar AFTER INSERT OR DELETE OR UPDATE ON public.contrato_alteracoes FOR EACH ROW EXECUTE FUNCTION public.contrato_alteracoes_aplicar();
+
+
+--
+-- Name: contrato_alteracoes trg_contrato_alteracoes_preparar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_contrato_alteracoes_preparar BEFORE INSERT OR UPDATE ON public.contrato_alteracoes FOR EACH ROW EXECUTE FUNCTION public.contrato_alteracoes_preparar();
 
 
 --
@@ -13929,14 +13970,6 @@ ALTER TABLE ONLY public.adicionais_tempo_servico
 
 
 --
--- Name: aditivos_contrato aditivos_contrato_contrato_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.aditivos_contrato
-    ADD CONSTRAINT aditivos_contrato_contrato_id_fkey FOREIGN KEY (contrato_id) REFERENCES public.contratos(id) ON DELETE CASCADE;
-
-
---
 -- Name: agenda_unidade agenda_unidade_aprovador_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -15158,6 +15191,14 @@ ALTER TABLE ONLY public.conteudo_rascunho
 
 ALTER TABLE ONLY public.conteudo_rascunho
     ADD CONSTRAINT conteudo_rascunho_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id);
+
+
+--
+-- Name: contrato_alteracoes contrato_alteracoes_contrato_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contrato_alteracoes
+    ADD CONSTRAINT contrato_alteracoes_contrato_id_fkey FOREIGN KEY (contrato_id) REFERENCES public.contratos(id) ON DELETE CASCADE;
 
 
 --
@@ -19576,12 +19617,6 @@ ALTER TABLE public.acoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.adicionais_tempo_servico ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: aditivos_contrato; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.aditivos_contrato ENABLE ROW LEVEL SECURITY;
-
---
 -- Name: form_field_config admin_read_form_config; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -20143,6 +20178,12 @@ ALTER TABLE public.contatos_eventos_esportivos ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.conteudo_rascunho ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: contrato_alteracoes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.contrato_alteracoes ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: contrato_responsaveis; Type: ROW SECURITY; Schema: public; Owner: -
@@ -21439,13 +21480,6 @@ CREATE POLICY rls_delete ON public.adicionais_tempo_servico FOR DELETE TO authen
 
 
 --
--- Name: aditivos_contrato rls_delete; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_delete ON public.aditivos_contrato FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
 -- Name: agenda_unidade rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -21905,6 +21939,13 @@ CREATE POLICY rls_delete ON public.contatos_eventos_esportivos FOR DELETE TO aut
 --
 
 CREATE POLICY rls_delete ON public.conteudo_rascunho FOR DELETE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: contrato_alteracoes rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.contrato_alteracoes FOR DELETE TO authenticated USING (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.editar'::text)));
 
 
 --
@@ -23102,13 +23143,6 @@ CREATE POLICY rls_insert ON public.adicionais_tempo_servico FOR INSERT TO authen
 
 
 --
--- Name: aditivos_contrato rls_insert; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_insert ON public.aditivos_contrato FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
 -- Name: agenda_unidade rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -23596,6 +23630,13 @@ CREATE POLICY rls_insert ON public.contatos_eventos_esportivos FOR INSERT TO aut
 --
 
 CREATE POLICY rls_insert ON public.conteudo_rascunho FOR INSERT TO authenticated WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: contrato_alteracoes rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.contrato_alteracoes FOR INSERT TO authenticated WITH CHECK (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.editar'::text)));
 
 
 --
@@ -24872,13 +24913,6 @@ CREATE POLICY rls_select ON public.adicionais_tempo_servico FOR SELECT TO authen
 
 
 --
--- Name: aditivos_contrato rls_select; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_select ON public.aditivos_contrato FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
 -- Name: agenda_unidade rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -25391,6 +25425,13 @@ CREATE POLICY rls_select ON public.contatos_eventos_esportivos FOR SELECT TO aut
 --
 
 CREATE POLICY rls_select ON public.conteudo_rascunho FOR SELECT TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: contrato_alteracoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.contrato_alteracoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
 
 
 --
@@ -26781,13 +26822,6 @@ CREATE POLICY rls_update ON public.adicionais_tempo_servico FOR UPDATE TO authen
 
 
 --
--- Name: aditivos_contrato rls_update; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY rls_update ON public.aditivos_contrato FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)));
-
-
---
 -- Name: agenda_unidade rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -27275,6 +27309,13 @@ CREATE POLICY rls_update ON public.contatos_eventos_esportivos FOR UPDATE TO aut
 --
 
 CREATE POLICY rls_update ON public.conteudo_rascunho FOR UPDATE TO authenticated USING (public.can_access_module(auth.uid(), 'comunicacao'::text)) WITH CHECK (public.can_access_module(auth.uid(), 'comunicacao'::text));
+
+
+--
+-- Name: contrato_alteracoes rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.contrato_alteracoes FOR UPDATE TO authenticated USING (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.editar'::text))) WITH CHECK (((public.can_access_module(auth.uid(), 'compras'::text) OR public.can_access_module(auth.uid(), 'contratos'::text)) AND public.has_permission_code(auth.uid(), 'contratos.editar'::text)));
 
 
 --

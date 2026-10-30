@@ -988,21 +988,6 @@ CREATE TYPE public.status_workflow_financeiro AS ENUM (
 
 
 --
--- Name: tipo_aditivo; Type: TYPE; Schema: public; Owner: -
---
-
-CREATE TYPE public.tipo_aditivo AS ENUM (
-    'prazo',
-    'valor',
-    'prazo_valor',
-    'objeto',
-    'supressao',
-    'reequilibrio',
-    'apostilamento'
-);
-
-
---
 -- Name: tipo_afastamento; Type: TYPE; Schema: public; Owner: -
 --
 
@@ -2936,6 +2921,98 @@ $$;
 
 
 --
+-- Name: contrato_alteracoes_aplicar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.contrato_alteracoes_aplicar() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_volta boolean := false;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    v_volta := OLD.especie = 'rescisao' OR (OLD.especie = 'suspensao' AND OLD.data_retomada IS NULL);
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_volta := OLD.especie = 'suspensao' AND OLD.data_retomada IS NULL AND NEW.data_retomada IS NOT NULL;
+  END IF;
+  UPDATE public.contratos c
+     SET status = CASE WHEN v_volta AND c.status IN ('rescindido', 'suspenso') THEN 'vigente'::public.status_contrato
+                       ELSE c.status END,
+         updated_at = now()
+   WHERE c.id = coalesce(NEW.contrato_id, OLD.contrato_id);
+  RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: contrato_alteracoes_preparar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.contrato_alteracoes_preparar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_ct record;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.created_by := coalesce(auth.uid(), NEW.created_by);
+    NEW.created_at := now();
+  ELSE
+    IF NEW.contrato_id IS DISTINCT FROM OLD.contrato_id THEN
+      RAISE EXCEPTION 'A alteração não muda de contrato.' USING ERRCODE = '22023';
+    END IF;
+    IF NEW.especie IS DISTINCT FROM OLD.especie THEN
+      RAISE EXCEPTION 'A espécie da alteração não muda: apague e registre de novo.' USING ERRCODE = '22023';
+    END IF;
+    NEW.created_by := OLD.created_by;
+    NEW.created_at := OLD.created_at;
+    NEW.updated_by := coalesce(auth.uid(), NEW.updated_by);
+  END IF;
+  NEW.updated_at := now();
+
+  NEW.descricao := btrim(NEW.descricao);
+  NEW.justificativa := nullif(btrim(NEW.justificativa), '');
+  NEW.fundamento_legal := nullif(btrim(NEW.fundamento_legal), '');
+  NEW.indice := nullif(btrim(NEW.indice), '');
+  NEW.processo_sei := nullif(btrim(NEW.processo_sei), '');
+  NEW.documento_sei := nullif(btrim(NEW.documento_sei), '');
+  NEW.documento_retomada_sei := nullif(btrim(NEW.documento_retomada_sei), '');
+  NEW.numero_doe := nullif(btrim(NEW.numero_doe), '');
+
+  SELECT c.status, c.data_inicio, c.processo_sei INTO v_ct FROM public.contratos c WHERE c.id = NEW.contrato_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Contrato não encontrado.' USING ERRCODE = '22023';
+  END IF;
+  IF v_ct.status = 'rascunho' THEN
+    RAISE EXCEPTION 'Contrato em rascunho ainda não foi assinado: mude a situação para vigente antes de registrar alteração.'
+      USING ERRCODE = '22023';
+  END IF;
+  IF NEW.especie <> 'rescisao' AND EXISTS (
+       SELECT 1 FROM public.contrato_alteracoes a
+        WHERE a.contrato_id = NEW.contrato_id AND a.especie = 'rescisao' AND a.id <> NEW.id) THEN
+    RAISE EXCEPTION 'Contrato rescindido não recebe alteração: corrija ou apague a rescisão antes.' USING ERRCODE = '22023';
+  END IF;
+  IF NEW.especie = 'suspensao' AND NEW.data_retomada IS NULL AND EXISTS (
+       SELECT 1 FROM public.contrato_alteracoes a
+        WHERE a.contrato_id = NEW.contrato_id AND a.especie = 'suspensao' AND a.data_retomada IS NULL AND a.id <> NEW.id) THEN
+    RAISE EXCEPTION 'Já há uma suspensão em aberto: registre a retomada dela antes.' USING ERRCODE = '22023';
+  END IF;
+  IF NEW.nova_data_fim < v_ct.data_inicio OR NEW.data_inicio < v_ct.data_inicio THEN
+    RAISE EXCEPTION 'A data vem antes do início do contrato (%).', to_char(v_ct.data_inicio, 'DD/MM/YYYY')
+      USING ERRCODE = '22023';
+  END IF;
+  IF NEW.processo_sei IS NULL AND NEW.especie <> 'partida' THEN
+    NEW.processo_sei := v_ct.processo_sei;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: contrato_buscar_servidores(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3102,6 +3179,7 @@ DECLARE
   v_rotulo text;
   v_difere text[];
   v_inicio_resp date;
+  v_valor_atual numeric;
   v_campo text;
   v_valor text;
   v_linhas_res jsonb := '[]'::jsonb;
@@ -3208,7 +3286,7 @@ BEGIN
             v_numero, v_ano, nullif(btrim(l->>'processo_sei'), ''), nullif(btrim(l->>'numero_pncp'), ''), v_fornecedor,
             btrim(l->>'objeto'), nullif(btrim(l->>'objeto_resumido'), ''), nullif(btrim(l->>'tipo_contrato'), ''),
             nullif(btrim(l->>'fundamento_legal'), ''), (l->>'valor_inicial')::numeric,
-            coalesce(nullif(l->>'valor_atual', '')::numeric, (l->>'valor_inicial')::numeric),
+            (l->>'valor_inicial')::numeric,  -- o valor atual sai das alterações (contratos_preparar)
             (l->>'data_assinatura')::date, (l->>'data_inicio')::date, (l->>'data_fim')::date,
             coalesce(nullif(btrim(l->>'situacao'), ''), 'vigente')::public.status_contrato,
             v_unidade, nullif(btrim(l->>'natureza_despesa'), ''), coalesce(nullif(l->>'prorrogavel', '')::boolean, false),
@@ -3216,9 +3294,22 @@ BEGIN
             nullif(btrim(l->>'numero_doe'), ''), v_uid)
           RETURNING id INTO v_id;
           v_acao := 'inserir';
+          -- valor atual diferente do inicial: o que já vinha alterado vira a situação anterior ao sistema
+          v_valor_atual := nullif(l->>'valor_atual', '')::numeric;
+          IF v_valor_atual IS NOT NULL AND v_valor_atual <> (l->>'valor_inicial')::numeric THEN
+            IF coalesce(nullif(btrim(l->>'situacao'), ''), 'vigente') = 'rascunho' THEN
+              v_avisos := v_avisos || to_jsonb('Contrato em rascunho: o valor atual da planilha ficou de fora (vale o inicial).'::text);
+            ELSE
+              INSERT INTO public.contrato_alteracoes (contrato_id, especie, valor_variacao, descricao)
+              VALUES (v_id, 'partida', v_valor_atual - (l->>'valor_inicial')::numeric,
+                      'Situação anterior ao sistema: valor atual informado na planilha de importação.');
+              v_avisos := v_avisos || to_jsonb(
+                'Valor atual diferente do inicial: a diferença fica como "situação anterior ao sistema" na aba Alterações.'::text);
+            END IF;
+          END IF;
         ELSE
           v_id := v_ct.id;
-          -- o que a planilha traz diferente do cadastro não muda (o aditivo é da C2): só avisa
+          -- o que a planilha traz diferente do cadastro não muda (valor e prazo mudam pela aba Alterações): só avisa
           v_difere := array_remove(ARRAY[
             CASE WHEN nullif(l->>'valor_inicial', '')::numeric IS DISTINCT FROM v_ct.valor_inicial
                   AND nullif(l->>'valor_inicial', '') IS NOT NULL THEN 'valor inicial' END,
@@ -3232,7 +3323,7 @@ BEGIN
                   AND nullif(btrim(l->>'documento'), '') IS NOT NULL THEN 'CNPJ ou CPF do contratado' END
           ], NULL);
           IF cardinality(v_difere) > 0 THEN
-            v_avisos := v_avisos || to_jsonb(format('A planilha difere do cadastro em %s: ficou o que está no sistema.',
+            v_avisos := v_avisos || to_jsonb(format('A planilha difere do cadastro em %s: ficou o que está no sistema (valor e prazo mudam pela aba Alterações da ficha).',
                                                    array_to_string(v_difere, ', ')));
           END IF;
           -- só completa o que está vazio (campo → [antes, depois])
@@ -3358,7 +3449,56 @@ $_$;
 -- Name: FUNCTION contratos_importar_planilha(p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.contratos_importar_planilha(p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa a planilha de contratos vigentes (p_simular = true só calcula; aplicação é tudo ou nada, com log em importacoes). Nunca apaga nem sobrescreve: contrato existente só ganha o que está vazio. Exige contratos.criar (completar campo vazio de contrato existente exige também contratos.editar; designar pela matrícula basta criar). Migração 20261104090000.';
+COMMENT ON FUNCTION public.contratos_importar_planilha(p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa a planilha de contratos vigentes (p_simular = true só calcula; aplicação é tudo ou nada, com log em importacoes). Nunca apaga nem sobrescreve: contrato existente só ganha o que está vazio. Exige contratos.criar (completar campo vazio de contrato existente exige também contratos.editar; designar pela matrícula basta criar). Contrato novo com valor atual diferente do inicial ganha a situação anterior ao sistema (partida). Migrações 20261104090000 e 20261115090000.';
+
+
+--
+-- Name: contratos_meus_vencimentos(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.contratos_meus_vencimentos() RETURNS TABLE(contrato_id uuid, numero text, objeto text, data_fim_atual date, dias integer, papeis text[], abre_ficha boolean)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  WITH eu AS (
+    SELECT auth.uid() AS uid,
+           (SELECT p.servidor_id FROM public.profiles p WHERE p.id = auth.uid()) AS servidor_id,
+           (now() AT TIME ZONE 'America/Boa_Vista')::date AS hoje
+  ), acesso AS (
+    SELECT eu.*,
+           public.perfil_ativo_atual() AS ativo,
+           (public.can_access_module(eu.uid, 'compras') OR public.can_access_module(eu.uid, 'contratos'))
+             AND public.has_permission_code(eu.uid, 'contratos.editar') AS todos,
+           public.can_access_module(eu.uid, 'contratos')
+             AND (public.has_permission_code(eu.uid, 'contratos.visualizar')
+                  OR public.has_permission_code(eu.uid, 'contratos.criar')
+                  OR public.has_permission_code(eu.uid, 'contratos.editar')) AS abre
+      FROM eu
+  )
+  SELECT c.id, c.numero_contrato || '/' || c.ano, left(coalesce(c.objeto_resumido, c.objeto), 200),
+         c.data_fim_atual, (c.data_fim_atual - a.hoje)::integer,
+         coalesce((SELECT array_agg(DISTINCT r.papel ORDER BY r.papel) FROM public.contrato_responsaveis r
+                    WHERE r.contrato_id = c.id AND r.data_fim IS NULL AND r.servidor_id = a.servidor_id), '{}'),
+         a.abre
+    FROM public.contratos c, acesso a
+   WHERE a.uid IS NOT NULL AND a.ativo
+     AND c.status IN ('vigente', 'aditado', 'suspenso')
+     AND c.data_fim_atual <= a.hoje + 120
+     AND (a.todos OR EXISTS (SELECT 1 FROM public.contrato_responsaveis r
+                              WHERE r.contrato_id = c.id AND r.data_fim IS NULL AND r.servidor_id = a.servidor_id))
+   -- primeiro o que ainda vai vencer (o mais próximo antes), depois os vencidos (o mais recente antes): vencido antigo
+   -- esquecido como vigente não esconde o que vence nesta semana
+   ORDER BY c.data_fim_atual < a.hoje, CASE WHEN c.data_fim_atual >= a.hoje THEN c.data_fim_atual END, c.data_fim_atual DESC,
+            c.ano, c.numero_contrato
+   LIMIT 50
+$$;
+
+
+--
+-- Name: FUNCTION contratos_meus_vencimentos(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.contratos_meus_vencimentos() IS 'Sino de avisos: contratos vigentes ou suspensos que vencem em até 120 dias (ou venceram), do gestor e dos fiscais em exercício (pelo servidor do perfil) e, com contratos.editar, todos. Migração 20261115090000.';
 
 
 --
@@ -3366,9 +3506,14 @@ COMMENT ON FUNCTION public.contratos_importar_planilha(p_linhas jsonb, p_arquivo
 --
 
 CREATE FUNCTION public.contratos_preparar() RETURNS trigger
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
+DECLARE
+  v_delta numeric;
+  v_fim date;
+  v_rescisao date;
+  v_suspenso boolean;
 BEGIN
   IF TG_OP = 'INSERT' THEN
     NEW.created_by := coalesce(auth.uid(), NEW.created_by);
@@ -3376,11 +3521,49 @@ BEGIN
     NEW.created_by := OLD.created_by;
     NEW.updated_by := coalesce(auth.uid(), NEW.updated_by);
   END IF;
-  IF NEW.data_fim_atual IS NULL THEN
-    NEW.data_fim_atual := NEW.data_fim;
-  END IF;
   NEW.processo_sei := nullif(btrim(NEW.processo_sei), '');
   NEW.numero_pncp := nullif(btrim(NEW.numero_pncp), '');
+  NEW.renovacao_processo_sei := nullif(btrim(NEW.renovacao_processo_sei), '');
+  NEW.renovacao_observacao := nullif(btrim(NEW.renovacao_observacao), '');
+
+  SELECT coalesce(sum(a.valor_acrescimo - a.valor_supressao + a.valor_variacao), 0)
+    INTO v_delta FROM public.contrato_alteracoes a WHERE a.contrato_id = NEW.id;
+  SELECT a.data_inicio INTO v_rescisao
+    FROM public.contrato_alteracoes a WHERE a.contrato_id = NEW.id AND a.especie = 'rescisao';
+  SELECT a.nova_data_fim INTO v_fim
+    FROM public.contrato_alteracoes a
+   WHERE a.contrato_id = NEW.id AND a.nova_data_fim IS NOT NULL
+   ORDER BY (a.especie = 'partida'), a.data_assinatura DESC NULLS LAST, a.created_at DESC, a.nova_data_fim DESC
+   LIMIT 1;
+  v_suspenso := EXISTS (SELECT 1 FROM public.contrato_alteracoes a
+                         WHERE a.contrato_id = NEW.id AND a.especie = 'suspensao' AND a.data_retomada IS NULL);
+
+  NEW.valor_atual := NEW.valor_inicial + v_delta;
+  NEW.data_fim_atual := coalesce(v_rescisao, v_fim, NEW.data_fim);
+  IF v_rescisao IS NOT NULL THEN
+    NEW.status := 'rescindido';
+  ELSIF v_suspenso AND NEW.status IN ('vigente', 'aditado', 'suspenso') THEN
+    NEW.status := 'suspenso';
+  ELSIF NEW.status IN ('suspenso', 'rescindido') AND (TG_OP = 'INSERT' OR NEW.status IS DISTINCT FROM OLD.status) THEN
+    RAISE EXCEPTION 'Suspensão e rescisão se registram na aba Alterações do contrato, com o documento do SEI.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF TG_OP = 'INSERT' OR NEW.valor_atual IS DISTINCT FROM OLD.valor_atual THEN
+    NEW.saldo_contrato := NEW.valor_atual - coalesce(NEW.valor_executado, 0);
+  END IF;
+  -- cadastro novo não traz providência; prorrogou (o fim foi para depois): a providência do vencimento antigo acabou
+  IF TG_OP = 'INSERT' OR NEW.data_fim_atual > OLD.data_fim_atual THEN
+    NEW.renovacao_providencia := NULL;
+    NEW.renovacao_processo_sei := NULL;
+    NEW.renovacao_observacao := NULL;
+    NEW.renovacao_atualizada_em := NULL;
+  ELSIF (NEW.renovacao_providencia, NEW.renovacao_processo_sei, NEW.renovacao_observacao)
+        IS DISTINCT FROM (OLD.renovacao_providencia, OLD.renovacao_processo_sei, OLD.renovacao_observacao) THEN
+    NEW.renovacao_atualizada_em := CASE WHEN NEW.renovacao_providencia IS NULL THEN NULL ELSE now() END;
+  ELSE
+    NEW.renovacao_atualizada_em := OLD.renovacao_atualizada_em;
+  END IF;
   RETURN NEW;
 END;
 $$;
@@ -11319,6 +11502,42 @@ CREATE FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer DE
       LEFT JOIN public.fornecedores f ON f.id = ct.fornecedor_id
      WHERE nullif(btrim(ct.processo_sei), '') IS NOT NULL
     UNION ALL
+    -- alteração com processo próprio (ex.: a prorrogação), um por contrato e processo (a mais recente)
+    (SELECT DISTINCT ON (public.sei_normalizar(a.processo_sei), a.contrato_id)
+           a.processo_sei, 'contrato', a.contrato_id, ct.numero_contrato || '/' || ct.ano,
+           concat_ws(' · ', 'Contrato ' || ct.numero_contrato || '/' || ct.ano,
+                     CASE a.especie WHEN 'aditivo' THEN a.numero || 'º termo aditivo'
+                                    WHEN 'apostilamento' THEN a.numero || 'º apostilamento'
+                                    WHEN 'suspensao' THEN 'suspensão' WHEN 'rescisao' THEN 'rescisão'
+                                    ELSE 'situação anterior' END,
+                     coalesce(ct.objeto_resumido, ct.objeto)),
+           ct.status::text, f.razao_social, coalesce(a.updated_at, a.created_at)::date, ct.valor_atual,
+           concat_ws(' ', ct.numero_contrato, a.descricao, ct.objeto_resumido, f.razao_social)
+      FROM public.contrato_alteracoes a
+      JOIN public.contratos ct ON ct.id = a.contrato_id
+      LEFT JOIN public.fornecedores f ON f.id = ct.fornecedor_id
+     WHERE nullif(btrim(a.processo_sei), '') IS NOT NULL
+       AND public.sei_normalizar(a.processo_sei) IS DISTINCT FROM public.sei_normalizar(ct.processo_sei)
+     ORDER BY public.sei_normalizar(a.processo_sei), a.contrato_id, coalesce(a.data_assinatura, a.data_inicio) DESC NULLS LAST,
+              a.created_at DESC)
+    UNION ALL
+    -- processo aberto para a renovação (providência do vencimento), se ainda não é o de uma alteração
+    SELECT ct.renovacao_processo_sei, 'contrato', ct.id, ct.numero_contrato || '/' || ct.ano,
+           concat_ws(' · ', 'Contrato ' || ct.numero_contrato || '/' || ct.ano,
+                     CASE ct.renovacao_providencia WHEN 'prorrogar' THEN 'prorrogação'
+                                                   WHEN 'nova_contratacao' THEN 'nova contratação'
+                                                   WHEN 'encerrar' THEN 'encerramento' ELSE 'renovação' END,
+                     coalesce(ct.objeto_resumido, ct.objeto)),
+           ct.status::text, f.razao_social, coalesce(ct.renovacao_atualizada_em, ct.updated_at)::date, ct.valor_atual,
+           concat_ws(' ', ct.numero_contrato, ct.renovacao_observacao, ct.objeto_resumido, f.razao_social)
+      FROM public.contratos ct
+      LEFT JOIN public.fornecedores f ON f.id = ct.fornecedor_id
+     WHERE nullif(btrim(ct.renovacao_processo_sei), '') IS NOT NULL
+       AND public.sei_normalizar(ct.renovacao_processo_sei) IS DISTINCT FROM public.sei_normalizar(ct.processo_sei)
+       AND NOT EXISTS (SELECT 1 FROM public.contrato_alteracoes a
+                        WHERE a.contrato_id = ct.id
+                          AND public.sei_normalizar(a.processo_sei) = public.sei_normalizar(ct.renovacao_processo_sei))
+    UNION ALL
     SELECT pp.numero_sei, 'passagem', pp.id, NULL, coalesce(pp.evento, pp.finalidade), pp.situacao,
            concat_ws('/', pp.destino_cidade, pp.destino_uf), pp.updated_at::date, NULL,
            concat_ws(' ', pp.finalidade, pp.evento, pp.solicitante_nome, pp.destino_cidade)
@@ -11371,7 +11590,7 @@ $_$;
 -- Name: FUNCTION localizar_processos_sei(p_termo text, p_limite integer); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer) IS 'Localizador de processos do SEI: busca pelo nº (qualquer formato) ou por palavras em nove fontes (o contrato desde a migração 20261104090000); INVOKER (cada fonte com a RLS dela).';
+COMMENT ON FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer) IS 'Localizador de processos do SEI: busca pelo nº (qualquer formato) ou por palavras em nove fontes (o contrato desde a migração 20261104090000; o processo da alteração e o da renovação do contrato desde a 20261115090000); INVOKER (cada fonte com a RLS dela).';
 
 
 --
@@ -19817,30 +20036,6 @@ CREATE TABLE public.adicionais_tempo_servico (
 
 
 --
--- Name: aditivos_contrato; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.aditivos_contrato (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    contrato_id uuid NOT NULL,
-    numero_aditivo integer NOT NULL,
-    tipo public.tipo_aditivo NOT NULL,
-    objeto text NOT NULL,
-    valor_acrescimo numeric(15,2) DEFAULT 0,
-    valor_supressao numeric(15,2) DEFAULT 0,
-    prazo_adicional_dias integer DEFAULT 0,
-    nova_data_fim date,
-    data_assinatura date NOT NULL,
-    data_publicacao_doe date,
-    numero_doe character varying(20),
-    justificativa text,
-    fundamentacao_legal text,
-    created_at timestamp with time zone DEFAULT now(),
-    created_by uuid
-);
-
-
---
 -- Name: agenda_unidade; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -22345,6 +22540,62 @@ CREATE TABLE public.conteudo_rascunho (
 
 
 --
+-- Name: contrato_alteracoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contrato_alteracoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    contrato_id uuid NOT NULL,
+    especie text NOT NULL,
+    numero integer,
+    altera_prazo boolean DEFAULT false NOT NULL,
+    altera_valor boolean DEFAULT false NOT NULL,
+    altera_objeto boolean DEFAULT false NOT NULL,
+    motivo text,
+    valor_acrescimo numeric(15,2) DEFAULT 0 NOT NULL,
+    valor_supressao numeric(15,2) DEFAULT 0 NOT NULL,
+    valor_variacao numeric(15,2) DEFAULT 0 NOT NULL,
+    percentual numeric(9,4),
+    indice text,
+    nova_data_fim date,
+    data_inicio date,
+    data_retomada date,
+    descricao text NOT NULL,
+    justificativa text,
+    fundamento_legal text,
+    processo_sei text,
+    documento_sei text,
+    documento_retomada_sei text,
+    data_assinatura date,
+    data_publicacao_doe date,
+    numero_doe character varying(20),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT contrato_alteracoes_aditivo_check CHECK (((especie <> 'aditivo'::text) OR ((altera_prazo OR altera_valor OR altera_objeto) AND (altera_prazo = (nova_data_fim IS NOT NULL)) AND (altera_valor = ((valor_acrescimo > (0)::numeric) OR (valor_supressao > (0)::numeric))) AND (data_assinatura IS NOT NULL) AND (motivo IS NULL) AND (data_inicio IS NULL) AND (data_retomada IS NULL)))),
+    CONSTRAINT contrato_alteracoes_apostilamento_check CHECK (((especie <> 'apostilamento'::text) OR ((motivo = ANY (ARRAY['reajuste'::text, 'repactuacao'::text, 'dotacao'::text, 'prorrogacao_suspensao'::text, 'outro'::text])) AND ((nova_data_fim IS NULL) OR (motivo = 'prorrogacao_suspensao'::text)) AND ((valor_variacao = (0)::numeric) OR (motivo = ANY (ARRAY['reajuste'::text, 'repactuacao'::text, 'outro'::text]))) AND (data_assinatura IS NOT NULL) AND (data_inicio IS NULL) AND (data_retomada IS NULL)))),
+    CONSTRAINT contrato_alteracoes_especie_check CHECK ((especie = ANY (ARRAY['aditivo'::text, 'apostilamento'::text, 'suspensao'::text, 'rescisao'::text, 'partida'::text]))),
+    CONSTRAINT contrato_alteracoes_flags_check CHECK (((especie = 'aditivo'::text) OR (NOT (altera_prazo OR altera_valor OR altera_objeto)))),
+    CONSTRAINT contrato_alteracoes_numero_check CHECK ((((especie = ANY (ARRAY['aditivo'::text, 'apostilamento'::text])) = (numero IS NOT NULL)) AND ((numero IS NULL) OR ((numero >= 1) AND (numero <= 999))))),
+    CONSTRAINT contrato_alteracoes_partida_check CHECK (((especie <> 'partida'::text) OR (((valor_variacao <> (0)::numeric) OR (nova_data_fim IS NOT NULL)) AND (motivo IS NULL) AND (data_inicio IS NULL)))),
+    CONSTRAINT contrato_alteracoes_percentual_check CHECK (((percentual IS NULL) OR ((especie = 'apostilamento'::text) AND (motivo = ANY (ARRAY['reajuste'::text, 'repactuacao'::text])) AND ((percentual >= ('-100'::integer)::numeric) AND (percentual <= (1000)::numeric))))),
+    CONSTRAINT contrato_alteracoes_rescisao_check CHECK (((especie <> 'rescisao'::text) OR ((data_inicio IS NOT NULL) AND (motivo = ANY (ARRAY['unilateral'::text, 'consensual'::text, 'judicial'::text])) AND (nova_data_fim IS NULL)))),
+    CONSTRAINT contrato_alteracoes_retomada_check CHECK (((especie = 'suspensao'::text) OR ((data_retomada IS NULL) AND (documento_retomada_sei IS NULL)))),
+    CONSTRAINT contrato_alteracoes_suspensao_check CHECK (((especie <> 'suspensao'::text) OR ((data_inicio IS NOT NULL) AND ((data_retomada IS NULL) OR (data_retomada >= data_inicio)) AND (motivo IS NULL) AND (nova_data_fim IS NULL)))),
+    CONSTRAINT contrato_alteracoes_textos_check CHECK ((((char_length(btrim(descricao)) >= 1) AND (char_length(btrim(descricao)) <= 2000)) AND ((justificativa IS NULL) OR (char_length(justificativa) <= 2000)) AND ((fundamento_legal IS NULL) OR (char_length(fundamento_legal) <= 500)) AND ((indice IS NULL) OR (char_length(indice) <= 60)) AND ((processo_sei IS NULL) OR (char_length(processo_sei) <= 60)) AND ((documento_sei IS NULL) OR (char_length(documento_sei) <= 60)) AND ((documento_retomada_sei IS NULL) OR (char_length(documento_retomada_sei) <= 60)))),
+    CONSTRAINT contrato_alteracoes_valores_check CHECK (((valor_acrescimo >= (0)::numeric) AND (valor_supressao >= (0)::numeric) AND ((especie = ANY (ARRAY['apostilamento'::text, 'partida'::text])) OR (valor_variacao = (0)::numeric)) AND ((especie = 'aditivo'::text) OR ((valor_acrescimo = (0)::numeric) AND (valor_supressao = (0)::numeric)))))
+);
+
+
+--
+-- Name: TABLE contrato_alteracoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.contrato_alteracoes IS 'Alterações do contrato registradas a partir do SEI (aditivo, apostilamento, suspensão, rescisão) e a situação anterior ao sistema (partida). O valor atual, o fim atual e a situação do contrato saem daqui (contratos_preparar).';
+
+
+--
 -- Name: contrato_responsaveis; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -22426,20 +22677,35 @@ CREATE TABLE public.contratos (
     prazo_maximo_meses integer,
     unidade_demandante_id uuid,
     natureza_despesa text,
+    reforma boolean DEFAULT false NOT NULL,
+    renovacao_providencia text,
+    renovacao_processo_sei text,
+    renovacao_observacao text,
+    renovacao_atualizada_em timestamp with time zone,
     CONSTRAINT contratos_fundamento_legal_check CHECK (((fundamento_legal IS NULL) OR (char_length(fundamento_legal) <= 500))),
     CONSTRAINT contratos_natureza_despesa_check CHECK (((natureza_despesa IS NULL) OR (char_length(natureza_despesa) <= 30))),
     CONSTRAINT contratos_numero_pncp_check CHECK (((numero_pncp IS NULL) OR ((char_length(btrim(numero_pncp)) >= 1) AND (char_length(btrim(numero_pncp)) <= 80)))),
     CONSTRAINT contratos_prazo_maximo_meses_check CHECK (((prazo_maximo_meses IS NULL) OR ((prazo_maximo_meses >= 1) AND (prazo_maximo_meses <= 600)))),
     CONSTRAINT contratos_processo_sei_check CHECK (((processo_sei IS NULL) OR ((char_length(btrim(processo_sei)) >= 1) AND (char_length(btrim(processo_sei)) <= 60)))),
+    CONSTRAINT contratos_renovacao_observacao_check CHECK (((renovacao_observacao IS NULL) OR (char_length(renovacao_observacao) <= 1000))),
+    CONSTRAINT contratos_renovacao_processo_sei_check CHECK (((renovacao_processo_sei IS NULL) OR ((char_length(btrim(renovacao_processo_sei)) >= 1) AND (char_length(btrim(renovacao_processo_sei)) <= 60)))),
+    CONSTRAINT contratos_renovacao_providencia_check CHECK (((renovacao_providencia IS NULL) OR (renovacao_providencia = ANY (ARRAY['prorrogar'::text, 'nova_contratacao'::text, 'encerrar'::text])))),
     CONSTRAINT contratos_tipo_contrato_check CHECK (((tipo_contrato IS NULL) OR (tipo_contrato = ANY (ARRAY['servico_continuo'::text, 'servico_escopo'::text, 'fornecimento'::text, 'obra'::text, 'locacao'::text, 'outro'::text]))))
 );
+
+
+--
+-- Name: COLUMN contratos.valor_atual; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.valor_atual IS 'Valor inicial + acréscimos − supressões ± variações (apostilamentos e situação anterior), calculado pelo banco a partir de contrato_alteracoes (C2).';
 
 
 --
 -- Name: COLUMN contratos.data_fim_atual; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.contratos.data_fim_atual IS 'Fim da vigência depois das alterações; igual a data_fim até a entrega C2 (aditivos).';
+COMMENT ON COLUMN public.contratos.data_fim_atual IS 'Fim da vigência depois das alterações, calculado pelo banco: data da rescisão, ou a nova data da última alteração (a situação anterior conta como a mais antiga), ou data_fim (C2).';
 
 
 --
@@ -22496,6 +22762,20 @@ COMMENT ON COLUMN public.contratos.tipo_contrato IS 'servico_continuo, servico_e
 --
 
 COMMENT ON COLUMN public.contratos.unidade_demandante_id IS 'Setor que pediu a contratação (estrutura organizacional).';
+
+
+--
+-- Name: COLUMN contratos.reforma; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.reforma IS 'Reforma de edifício ou de equipamento: o limite de acréscimo é 50% do valor inicial atualizado (Lei 14.133/2021, art. 125), não 25%.';
+
+
+--
+-- Name: COLUMN contratos.renovacao_providencia; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.contratos.renovacao_providencia IS 'O que o NuAC decidiu para o vencimento (prorrogar, nova_contratacao, encerrar), com o processo SEI em renovacao_processo_sei. Limpa quando o fim atual passa para depois.';
 
 
 --

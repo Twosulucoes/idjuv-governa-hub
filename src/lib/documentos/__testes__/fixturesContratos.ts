@@ -22,6 +22,11 @@ export const dadosFichaContrato = (itens = 3): DadosFichaContrato => ({
   prorrogacao: 'Prorrogável, até 120 meses',
   publicacaoDoe: '10/01/2026 (DOE nº 1234)',
   garantia: undefined,
+  alteracoes: [
+    { data: '—', alteracao: 'Situação anterior ao sistema', efeito: 'soma R$ 2.500,50', documento: '' },
+    { data: '20/12/2026', alteracao: '1º termo aditivo', efeito: 'prorroga até 01/01/2028; acrescenta R$ 10.000,00', documento: 'Processo 00000.000123/2025.11 · documento 12345678' },
+  ],
+  avisosAlteracoes: [],
   responsaveis: [
     { nome: 'Servidor Gestor', papel: 'Gestor', portaria: 'Portaria 10/2026, de 05/01/2026', periodo: 'desde 05/01/2026' },
     { nome: 'Servidor Fiscal', papel: 'Fiscal técnico', periodo: 'desde 05/01/2026' },

@@ -245,6 +245,7 @@ import ConciliacaoBancariaPage from "./pages/financeiro/ConciliacaoBancariaPage"
 import PcaListaPage from "./pages/compras/PcaListaPage";
 import ContratosListaPage from "./pages/contratos/ContratosListaPage";
 import ContratoFichaPage from "./pages/contratos/ContratoFichaPage";
+import ContratosVencimentosPage from "./pages/contratos/ContratosVencimentosPage";
 import PassagensPedidosPage from "./pages/gabinete/PassagensPedidosPage";
 import PassagemPedidoPage from "./pages/gabinete/PassagemPedidoPage";
 import PassagensBeneficiariosPage from "./pages/gabinete/PassagensBeneficiariosPage";
@@ -539,6 +540,11 @@ const App = () => (
               <Route path="/contratos/lista" element={
                 <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.visualizar", "contratos.criar", "contratos.editar"]}>
                   <ContratosListaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/contratos/vencimentos" element={
+                <ProtectedRoute requiredModule="contratos" requiredPermissions={["contratos.visualizar", "contratos.criar", "contratos.editar"]}>
+                  <ContratosVencimentosPage />
                 </ProtectedRoute>
               } />
               {/* Passagens aéreas foram para o Gabinete da Presidência: links antigos continuam abrindo. */}

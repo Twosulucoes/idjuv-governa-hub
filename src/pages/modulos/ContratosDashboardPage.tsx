@@ -4,7 +4,7 @@
  * (PageHeader, KpiCard).
  */
 
-import { FileText, Calendar, UserX, BarChart3, Globe, AlertCircle, ShoppingCart, FileCheck, Upload } from "lucide-react";
+import { FileText, Calendar, CalendarClock, CalendarX2, ClipboardX, UserX, BarChart3, Globe, AlertCircle, ShoppingCart, FileCheck, Upload } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { useContratosDashboardStats } from "@/hooks/dashboard";
@@ -34,6 +34,7 @@ export default function ContratosDashboardPage() {
   const PERMISSOES_LISTA = ["contratos.visualizar", "contratos.criar", "contratos.editar"];
   const podeVerLista = hasAnyPermission(PERMISSOES_LISTA);
   const lista = (prazo: string) => (podeVerLista ? `/contratos/lista?prazo=${prazo}` : undefined);
+  const vencimentos = (filtro: string) => (podeVerLista ? `/contratos/vencimentos${filtro}` : undefined);
 
   // Sem dado (erro) mostra "—" em vez de um zero que parece real
   const valor = (n: number | undefined) => (stats ? numero.format(n || 0) : "—");
@@ -41,6 +42,8 @@ export default function ContratosDashboardPage() {
   const indicadores: Indicador[] = [
     { rotulo: "Contratos em vigor", valor: valor(stats?.emVigor), icone: FileText, href: lista("em_vigor") },
     { rotulo: "Vencem em até 90 dias", valor: valor(stats?.vencem90), icone: Calendar, href: lista("90") },
+    { rotulo: "Vencidos sem encerrar", valor: valor(stats?.vencidos), icone: CalendarX2, href: vencimentos("?faixa=vencido") },
+    { rotulo: "Sem providência do vencimento", valor: valor(stats?.semProvidencia), icone: ClipboardX, href: vencimentos("?providencia=sem") },
     { rotulo: "Sem gestor ou fiscal", valor: valor(stats?.semResponsavel), icone: UserX, href: lista("sem_responsavel") },
     {
       rotulo: "Valor em vigor",
@@ -50,10 +53,11 @@ export default function ContratosDashboardPage() {
     },
   ];
 
-  // Só rotas registradas em App.tsx; aditivos, execução e avisos entram com as entregas C2 a C6 (P21).
+  // Só rotas registradas em App.tsx; aditivos ficam na ficha (C2) e execução, fiscalização e atas entram com as C3 a C6 (P21).
   // Pedidos, emissão e faturas das passagens aéreas são do Gabinete da Presidência; aqui fica só o contrato da agência.
   const quickActions: { label: string; description: string; href: string; icon: LucideIcon; permissoes?: string[] }[] = [
     { label: "Lista de contratos", description: "Vigência, gestor e fiscais", href: "/contratos/lista", icon: FileCheck, permissoes: PERMISSOES_LISTA },
+    { label: "Vencimentos", description: "O que vence em 120 dias e a providência", href: "/contratos/vencimentos", icon: CalendarClock, permissoes: PERMISSOES_LISTA },
     { label: "Importar contratos", description: "Planilha dos contratos vigentes", href: "/contratos/lista?importador=contratos_planilha", icon: Upload, permissoes: ["contratos.criar"] },
     { label: "Processos de contratação", description: "Compras até virar contrato", href: "/compras/processos", icon: ShoppingCart, permissoes: ["compras.processos.visualizar", "compras.processos.editar"] },
     { label: "Contratos publicados", description: "Portal da transparência", href: "/transparencia/contratos", icon: Globe },
@@ -92,7 +96,7 @@ export default function ContratosDashboardPage() {
         {/* Indicadores: os que têm tela própria levam a ela */}
         <section aria-labelledby="contratos-indicadores">
           <h2 id="contratos-indicadores" className="sr-only">Indicadores</h2>
-          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-3">
             {indicadores.map((ind) => {
               const cartao = (
                 <KpiCard
@@ -128,7 +132,7 @@ export default function ContratosDashboardPage() {
             <CardDescription>Acesse as principais funcionalidades</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {quickActions.filter((a) => !a.permissoes || hasAnyPermission(a.permissoes)).map((action) => {
                 const Icon = action.icon;
                 return (
