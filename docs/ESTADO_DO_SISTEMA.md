@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 232 |
-| Componentes (`.tsx` em `src/components`) | 382 |
+| Componentes (`.tsx` em `src/components`) | 384 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 339 |
+| — fora de `ui/` | 341 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 116 |
 | Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 97 |
 | Linhas de `src/App.tsx` | 1489 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30194 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30260 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -69,17 +69,17 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 328 |
-| Migração mais recente | `20261111090000_fin_tg_carregar_safeupdate.sql` |
-| Tabelas do schema public (baseline) | 292 |
+| Migrações (`supabase/migrations/*.sql`) | 329 |
+| Migração mais recente | `20261112090000_fin_tg_mudancas.sql` |
+| Tabelas do schema public (baseline) | 293 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 379 |
+| Funções (baseline) | 382 |
 | — de gatilho (`RETURNS trigger`) | 147 |
-| — demais | 232 |
+| — demais | 235 |
 | Enums (baseline) | 109 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2088 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 292 |
-| Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 13 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2090 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 293 |
+| Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 14 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.
 

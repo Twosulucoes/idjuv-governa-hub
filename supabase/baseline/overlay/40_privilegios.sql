@@ -457,3 +457,11 @@ GRANT EXECUTE ON FUNCTION public.contratos_importar_planilha(jsonb, jsonb, boole
 
 -- ---- Compras: pesquisa de preços (migração 20261106090000): gatilho sem EXECUTE para a API ----
 REVOKE EXECUTE ON FUNCTION public.pesquisa_precos_conferir() FROM PUBLIC, anon, authenticated;
+
+-- ---- Convênios federais: histórico de mudanças e pedido de carga na hora (migração 20261112090000) ----
+REVOKE ALL ON public.fin_tg_mudancas FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_tg_mudancas FROM authenticated;
+REVOKE ALL ON FUNCTION public.fin_tg_mapa(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.fin_tg_registrar_diferencas(uuid, text, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.pode_atualizar_convenios_federais() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.pode_atualizar_convenios_federais() TO authenticated;

@@ -307,6 +307,13 @@ A migração `20261109090000_importacao_permissao_execucao.sql` (importações p
 `financeiro.execucao.importar` e rótulo de `orcamento.importar`); RLS, `rls/mapa.csv` e privilégios sem mudança. Testes
 nos blocos do FIP 614 e dos PEDs de `scripts/db/testar-rls.sql`.
 
+A migração `20261112090000_fin_tg_mudancas.sql` (histórico de mudanças dos convênios federais) entrou no schema
+regenerado (`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (`fin_tg_mudancas` na
+classe `trilha` com `leitura=financeiro.convenios.visualizar`) e no `overlay/40_privilegios.sql` (`fin_tg_mapa` e
+`fin_tg_registrar_diferencas` sem EXECUTE; `pode_atualizar_convenios_federais` só para `authenticated`). Testes no
+bloco "Financeiro: convênios federais, histórico de mudanças" de `scripts/db/testar-rls.sql`, com semente de
+`fin_tg_mudancas` em `seed_ov`.
+
 A migração `20261111090000_fin_tg_carregar_safeupdate.sql` refez `fin_tg_carregar` com `DELETE ... WHERE true` (o
 `pg_safeupdate` do PostgREST recusa DELETE sem WHERE); só `01_pre_data.sql` muda. O teste de RLS reprova a função se
 ela voltar a ter DELETE/UPDATE sem WHERE.

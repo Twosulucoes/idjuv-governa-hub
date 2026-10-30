@@ -2191,6 +2191,11 @@ DROP POLICY IF EXISTS "rls_select" ON public.fin_tg_emendas;
 CREATE POLICY "rls_select" ON public.fin_tg_emendas FOR SELECT TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'));
 
+-- fin_tg_mudancas  [trilha: financeiro]
+DROP POLICY IF EXISTS "rls_select" ON public.fin_tg_mudancas;
+CREATE POLICY "rls_select" ON public.fin_tg_mudancas FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'financeiro')) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'));
+
 -- fin_tg_movimentos  [trilha: financeiro]
 DROP POLICY IF EXISTS "rls_select" ON public.fin_tg_movimentos;
 CREATE POLICY "rls_select" ON public.fin_tg_movimentos FOR SELECT TO authenticated

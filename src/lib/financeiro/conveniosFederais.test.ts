@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alertasConvenio, diasAte, espelhoDesatualizado, percentual, rotuloTipoAutor } from "./conveniosFederais";
+import { alertasConvenio, descreverMudanca, diasAte, espelhoDesatualizado, formatarValorMudanca, percentual, rotuloTipoAutor } from "./conveniosFederais";
 
 const hoje = new Date(2026, 9, 29); // 29/10/2026
 
@@ -60,5 +60,32 @@ describe("rotuloTipoAutor", () => {
     expect(rotuloTipoAutor("COMISSAO")).toBe("Comissão");
     expect(rotuloTipoAutor("INDIVIDUAL")).toBe("Individual");
     expect(rotuloTipoAutor("OUTRO TIPO")).toBe("Outro tipo");
+  });
+});
+
+describe("descreverMudanca", () => {
+  const base = { chave: "7AADDI", campo: null, valor_anterior: null, valor_novo: null, dados: null };
+
+  it("campo alterado com rótulo e valor no jeito da tela", () => {
+    expect(descreverMudanca({ ...base, entidade: "convenio", tipo: "alterado", campo: "assinado", valor_anterior: "false", valor_novo: "true" }))
+      .toBe("Convênio · Assinado: Não → Sim");
+    expect(descreverMudanca({ ...base, entidade: "convenio", tipo: "alterado", campo: "fim_vigencia", valor_anterior: "2026-12-31", valor_novo: "2027-06-30" }))
+      .toBe("Convênio · Fim da vigência: 31/12/2026 → 30/06/2027");
+    expect(descreverMudanca({ ...base, entidade: "convenio", tipo: "alterado", campo: "valor_desembolsado", valor_anterior: null, valor_novo: "1000.5" }))
+      .toBe("Convênio · Desembolsado: vazio → R$ 1.000,50");
+  });
+
+  it("novo e removido dizem o que é", () => {
+    expect(descreverMudanca({ ...base, entidade: "movimento", tipo: "novo", chave: "desembolso:7",
+      dados: { tipo: "desembolso", numero: "2026OB1", valor: 2450000 } }))
+      .toBe("Desembolso 2026OB1 de R$ 2.450.000,00: novo no Transferegov");
+    expect(descreverMudanca({ ...base, entidade: "emenda", tipo: "removido", chave: "2214543:50060001", dados: { numero_emenda: "50060001" } }))
+      .toBe("Emenda 50060001: saiu do Transferegov");
+  });
+
+  it("campo sem rótulo fica legível", () => {
+    expect(formatarValorMudanca("objeto", "Arena")).toBe("Arena");
+    expect(descreverMudanca({ ...base, entidade: "proposta", tipo: "alterado", campo: "campo_novo", valor_anterior: "a", valor_novo: "b" }))
+      .toBe("Proposta · campo novo: a → b");
   });
 });

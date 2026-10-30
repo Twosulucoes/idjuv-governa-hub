@@ -68,7 +68,20 @@ GitHub Actions (todo dia 09:00 Boa Vista, ou Run workflow)
   de contas a 60 dias ou menos (pendente) ou vencida (erro).
 - Menu: Financeiro → "Convênios federais", com a permissão nova.
 
-## 5. Fora da T1
+## 5. Histórico de mudanças e "Atualizar agora" (pedido de 30/10)
+
+- **Histórico:** `fin_tg_carregar` tira uma foto do espelho antes da troca e compara com a carga nova. Grava em
+  `fin_tg_mudancas` o que é novo, o que saiu do Transferegov e cada campo alterado (com antes e depois). A primeira
+  carga e a carga igual não gravam nada. Tela: "O que mudou no Transferegov" na lista (as 50 mais recentes, por dia
+  de carga) e "Histórico no Transferegov" na ficha. Frases em `descreverMudanca` (`src/lib/financeiro/conveniosFederais.ts`).
+- **Atualizar agora:** botão no topo da lista. A Edge Function `transferegov-atualizar` confere a permissão, recusa
+  se uma rodada estiver rodando ou se a última começou há menos de 5 minutos, e dispara o workflow pela API do
+  GitHub (token fine-grained só com Actions do repositório, guardado no `.env` das funções). A tela relê a última
+  carga a cada 10 s até chegar a nova (até 4 minutos) e então recarrega lista e histórico.
+- Quem pode apertar: quem vê a tela (`financeiro.convenios.visualizar`). O dado é público e a rotina é idempotente;
+  o intervalo mínimo segura cliques repetidos.
+
+## 6. Fora da T1
 
 - **T2:** ligar convênio e empenho federal ao FIPLAN (fonte de recurso e conta do convênio) e ao processo SEI.
 - **T3:** nome do parlamentar e número da emenda federal no painel de emendas do Financeiro.

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { MudancasConvenios } from "@/components/financeiro/convenios/MudancasConvenios";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useConvenioFederal,
@@ -263,6 +264,8 @@ export default function ConvenioFederalPage() {
             />
           </section>
         )}
+
+        <MudancasConvenios idProposta={p.id_proposta} titulo="Histórico no Transferegov" />
       </div>
     </ModuleLayout>
   );

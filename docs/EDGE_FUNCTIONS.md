@@ -32,6 +32,7 @@ Aposentada no P06 (2026-10-15): `backup-offsite` (backup antigo em JSON para out
 | `catalogo-compras` | Ponte com o catálogo CATMAT/CATSER do portal de dados abertos do Compras.gov.br para o PCA: baixa os tipos de material e os serviços para o banco, lista os itens de um tipo de material, grava o item escolhido e lê as naturezas de despesa que o catálogo indica. Exige o módulo `compras` e a permissão do PCA (ver abaixo). |
 | `pesquisa-precos` | Pesquisa de preços de Compras: lê os preços praticados do Compras.gov.br (módulo Pesquisa de Preço da API de dados abertos) pelo código do CATMAT/CATSER e os resultados homologados do PNCP, de uma compra ou pela busca por nome. Só leitura, sem service role: a tela grava os preços escolhidos. Exige o módulo `compras` e a permissão da pesquisa de preços (ver abaixo). |
 | `bb-api` | APIs de leitura do Banco do Brasil: `status` da conexão, `extrato` (API Extratos v2, grava em `fin_extrato_lancamentos`) e `validar-conta` (API Validação de Contas v1). Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
+| `transferegov-atualizar` | Botão "Atualizar agora" de Financeiro → Convênios federais: pede ao GitHub uma rodada da rotina do Transferegov. Exige sessão, o módulo `financeiro` e `financeiro.convenios.visualizar`; uma rodada por vez e 5 minutos entre pedidos (ver abaixo). |
 | `transferegov` | Recebe da rotina diária do GitHub Actions o que o Transferegov tem do CNPJ da instituição e troca o espelho `fin_tg_*` pela RPC `fin_tg_carregar`. Não é chamada pelo navegador: exige o segredo `TRANSFEREGOV_TOKEN` (ver abaixo). |
 
 ### Envio de e-mail e WhatsApp (`_shared/envio`)
@@ -149,6 +150,18 @@ comparado em tempo constante (`supabase/functions/transferegov/token.ts`, com te
   vira `422` com a mensagem dela. Corpo acima de 10 MB: `413`. O log só tem contagens.
 
 Configuração: [INTEGRACOES_EXTERNAS.md](./INTEGRACOES_EXTERNAS.md) §4.5.
+
+### Atualizar agora (`transferegov-atualizar`)
+
+Chamada pela tela (`useAtualizarConveniosFederais`), com a sessão do usuário. Confere a permissão pela RPC
+`pode_atualizar_convenios_federais` (perfil ativo, módulo `financeiro` e `financeiro.convenios.visualizar`; nega em
+erro), olha a última rodada do workflow `transferegov.yml` na API do GitHub e só dispara (`workflow_dispatch` na
+`main`) se nenhuma estiver rodando (`409`) e a última tiver começado há mais de 5 minutos (`429`, com quanto falta).
+Regras em `supabase/functions/transferegov-atualizar/regras.ts` (testes vitest). Tempo limite de 15 s no GitHub
+(`504`). Segredos no `.env` das funções e no `environment` do serviço `functions`: `GITHUB_DISPATCH_TOKEN` (token
+fine-grained só deste repositório, permissão Actions: leitura e escrita) e `GITHUB_REPO` (`dono/repositório`);
+opcionais `GITHUB_TRANSFEREGOV_WORKFLOW` (padrão `transferegov.yml`) e `GITHUB_TRANSFEREGOV_REF` (padrão `main`).
+Sem eles a função devolve `503` e a tela diz que o botão não foi configurado. O log só tem a etapa e o status.
 
 ### Convite de reunião (`enviar-convite-reuniao`)
 

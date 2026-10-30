@@ -141,6 +141,23 @@ Configurar (uma vez, por quem administra a VPS e o GitHub; nenhum valor vai para
 5. **Primeira carga.** Actions → "Convênios federais (Transferegov)" → Run workflow (branch `main`). O resumo do job
    mostra as contagens; a tela passa a mostrar a data da carga.
 
+**Botão "Atualizar agora"** (Edge Function `transferegov-atualizar`, migração `20261112090000`): dispara a mesma
+rotina pela API do GitHub. Configurar uma vez:
+
+1. No GitHub: foto do perfil → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** →
+   Generate new token. Repository access: **Only select repositories**, só este repositório. Permissions →
+   Repository permissions → **Actions: Read and write** (o resto fica "No access"). Validade de até 1 ano; anote
+   para renovar.
+2. Na VPS, no `.env` do Supabase: `GITHUB_DISPATCH_TOKEN=<o token>` e `GITHUB_REPO=<dono>/<repositório>`; no
+   `environment` do serviço `functions` do docker compose, `GITHUB_DISPATCH_TOKEN: ${GITHUB_DISPATCH_TOKEN}` e
+   `GITHUB_REPO: ${GITHUB_REPO}`; depois `docker compose up -d functions`.
+
+Uma rodada por vez e 5 minutos entre pedidos. A tela relê a última carga a cada 10 s até a nova chegar.
+
+**Histórico de mudanças:** cada carga é comparada com a anterior e o que mudou (convênio novo, situação, assinatura,
+prazo, valor, empenho ou desembolso novo) fica em `fin_tg_mudancas`. A tela mostra "O que mudou no Transferegov" na
+lista e o histórico na ficha.
+
 Erros comuns: o job falha logo em "Conferir configuração" (falta o segredo do ambiente ou as variáveis); `401` (o
 segredo do GitHub não é igual ao da VPS, ou a VPS não recarregou o `.env`); `409` (CNPJ não cadastrado); `500` com `codigo` no log da função `supabase-edge-functions` (erro do banco; `21000` foi o DELETE sem WHERE da
 primeira versão, corrigido em 30/10); `422` (a
