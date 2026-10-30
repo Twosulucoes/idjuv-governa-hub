@@ -4476,8 +4476,8 @@ BEGIN
     RAISE EXCEPTION 'Nenhuma proposta veio e o espelho tem propostas: confira a leitura ou use p_forcar' USING ERRCODE = '22023';
   END IF;
 
-  -- O espelho inteiro é trocado: o que sumiu do Transferegov sai daqui também (filhas saem em cascata)
-  DELETE FROM public.fin_tg_propostas;
+  -- O espelho inteiro é trocado (WHERE true: o pg_safeupdate recusa DELETE sem WHERE): o que sumiu do Transferegov sai daqui também (filhas saem em cascata)
+  DELETE FROM public.fin_tg_propostas WHERE true;
 
   INSERT INTO public.fin_tg_propostas (
     id_proposta, numero, ano, data_proposta, cnpj_proponente, orgao_superior, orgao, modalidade, objeto, situacao,

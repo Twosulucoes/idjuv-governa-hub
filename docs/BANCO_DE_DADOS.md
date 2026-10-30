@@ -1339,7 +1339,9 @@ Cópia, só para leitura, do que o Transferegov publica sobre o CNPJ da institui
 - RPC `fin_tg_carregar(p_cnpj, p_data_carga, p_dados, p_forcar)` (`SECURITY DEFINER`, `search_path` fixo, `EXECUTE`
   só para `service_role`): numa transação apaga o espelho e grava a carga nova. Recusa (`22023`) CNPJ diferente do da
   Configuração do cliente, proposta de outro proponente e carga vazia quando o espelho tem dados (a não ser com
-  `p_forcar`). Quem chama é a Edge Function `transferegov`.
+  `p_forcar`). Quem chama é a Edge Function `transferegov`. O DELETE da troca é `WHERE true`: em produção o
+  PostgREST roda com o `pg_safeupdate`, que recusa DELETE/UPDATE sem WHERE (erro `21000`; corrigido na migração
+  `20261111090000_fin_tg_carregar_safeupdate.sql`, e o teste de RLS reprova função assim).
 - Permissão nova `financeiro.convenios.visualizar` (catálogo do financeiro), dada na migração a quem já tinha
   `orcamento.visualizar` (papéis, usuários e concessões do módulo).
 - Testes no bloco "Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`.

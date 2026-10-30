@@ -226,6 +226,9 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `importar_empenhos_fip614` e `importar_peds_fiplan` (de `orcamento.importar` para `financeiro.execucao.importar`);
   no catálogo, a linha nova e o rótulo de `orcamento.importar`. Mapa e overlay sem mudança; testes nos blocos do FIP 614 e
   dos PEDs de `scripts/db/testar-rls.sql` (só `orcamento.importar` passa a ser recusado).
+- A migração `20261111090000` refez `fin_tg_carregar` com `DELETE ... WHERE true` (o `pg_safeupdate` do PostgREST
+  recusa DELETE sem WHERE); schema regenerado e verificação nova no bloco "Financeiro: convênios federais do
+  Transferegov" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - Os convênios federais (migração `20261105090000`) entraram no mapa (`fin_tg_propostas`, `fin_tg_emendas`,
   `fin_tg_convenios`, `fin_tg_movimentos` e `fin_tg_sincronizacoes`, classe `trilha` com
   `leitura=financeiro.convenios.visualizar`), no schema regenerado, no catálogo (a permissão nova e as concessões aos
