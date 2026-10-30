@@ -4,11 +4,20 @@
  * Spec docs/superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, Handshake, Info, Landmark, Wallet, AlertTriangle } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
+import {
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  aplicarFiltros,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+} from "@/components/design-system";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { BotaoAtualizarConvenios } from "@/components/financeiro/convenios/BotaoAtualizarConvenios";
@@ -22,6 +31,49 @@ import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { dataBR } from "@/lib/bancario/exibicao";
 import { alertasConvenio, espelhoDesatualizado } from "@/lib/financeiro/conveniosFederais";
 import { formatCurrency } from "@/lib/formatters";
+
+const fimVigencia = (p: PropostaComConvenio) => p.convenio?.fim_vigencia ?? p.fim_vigencia ?? null;
+
+/** Faixa do fim da vigência em relação a hoje. */
+function faixaVigencia(p: PropostaComConvenio): string {
+  const fim = fimVigencia(p);
+  if (!fim) return "sem_data";
+  const dias = Math.floor((new Date(`${fim.slice(0, 10)}T00:00:00`).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000);
+  if (dias < 0) return "vencida";
+  if (dias <= 30) return "ate_30";
+  if (dias <= 90) return "ate_90";
+  return "mais_90";
+}
+
+const filtrosConvenio: FiltroDef<PropostaComConvenio>[] = [
+  { tipo: "lista", id: "situacao", rotulo: "Situação", principal: true, valor: (p) => p.convenio?.situacao || p.situacao },
+  {
+    tipo: "lista",
+    id: "vigencia",
+    rotulo: "Vigência",
+    principal: true,
+    valor: faixaVigencia,
+    opcoes: [
+      { valor: "vencida", rotulo: "Já vencida" },
+      { valor: "ate_30", rotulo: "Vence em até 30 dias" },
+      { valor: "ate_90", rotulo: "Vence em 31 a 90 dias" },
+      { valor: "mais_90", rotulo: "Vence em mais de 90 dias" },
+      { valor: "sem_data", rotulo: "Sem data de vigência" },
+    ],
+  },
+  { tipo: "booleano", id: "atencao", rotulo: "Pedem atenção", principal: true, valor: (p) => alertasConvenio(p.convenio).length > 0 },
+  { tipo: "lista", id: "orgao", rotulo: "Órgão", valor: (p) => p.orgao_superior ?? p.orgao },
+  { tipo: "lista", id: "parlamentar", rotulo: "Parlamentar", valor: (p) => p.emendas.map((e) => e.parlamentar ?? "").filter(Boolean) },
+  { tipo: "booleano", id: "com_convenio", rotulo: "Só os que viraram convênio", valor: (p) => Boolean(p.convenio) },
+  { tipo: "periodo", id: "fim", rotulo: "Fim da vigência", valor: fimVigencia },
+  {
+    tipo: "faixa",
+    id: "valor",
+    rotulo: "Valor global",
+    formato: "moeda",
+    valor: (p) => Number(p.convenio?.valor_global ?? p.valor_global ?? 0),
+  },
+];
 
 const colunas: ColunaTabela<PropostaComConvenio>[] = [
   {
@@ -101,7 +153,10 @@ export default function ConveniosFederaisPage() {
   const propostas = useConveniosFederais();
   const [aguardandoDesde, setAguardandoDesde] = useState<number | null>(null);
   const sincronizacao = useUltimaSincronizacaoTransferegov(aguardandoDesde !== null);
-  const lista = propostas.data ?? [];
+  const todas = useMemo(() => propostas.data ?? [], [propostas.data]);
+  const filtros = useEstadoFiltros("financeiro.convenios", filtrosConvenio);
+  // Os cartões acompanham os filtros escolhidos
+  const lista = useMemo(() => aplicarFiltros(todas, filtros.definicoes, filtros.estado), [todas, filtros.definicoes, filtros.estado]);
   const ultima = sincronizacao.data;
 
   const soma = (f: (p: PropostaComConvenio) => number | null | undefined) => lista.reduce((t, p) => t + Number(f(p) ?? 0), 0);
@@ -152,13 +207,14 @@ export default function ConveniosFederaisPage() {
 
         <DataTable
           rotulo="Convênios federais"
-          dados={lista}
+          dados={todas}
           colunas={colunas}
           chaveLinha={(p) => String(p.id_proposta)}
           carregando={carregando}
           erro={propostas.isError ? "Verifique sua conexão e tente novamente." : null}
           aoTentarNovamente={() => propostas.refetch()}
           busca={{ placeholder: "Buscar por objeto, número, emenda, parlamentar..." }}
+          filtrosDinamicos={filtros}
           aoClicarLinha={(p) => navigate(`/financeiro/convenios/${p.id_proposta}`)}
           vazio={{
             icone: Handshake,

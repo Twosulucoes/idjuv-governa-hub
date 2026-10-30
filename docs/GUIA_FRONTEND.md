@@ -576,6 +576,15 @@ migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`;
     - `DataTable` — busca (`buscarPor`), ordenação (`ordenarPor`), seleção + `acoesEmLote`,
       `acoesLinha`, paginação no cliente, densidade lembrada no navegador, estados
       `carregando`/`erro`/`vazio` e cartões abaixo de `md` (`mobile: "titulo" | "oculta"` por coluna).
+    - **Filtros dinâmicos** (`filtros/`): declare os filtros da tela como `FiltroDef<T>[]` (tipos
+      `lista` com várias escolhas e quantidade por opção, `periodo` com atalhos relativos e datas,
+      `faixa` de valor e `booleano`; `principal: true` deixa à vista, o resto vai para "Mais filtros"),
+      ligue com `useEstadoFiltros("<modulo>.<tela>", defs)` e passe para `DataTable` em
+      `filtrosDinamicos`. O estado vai para a URL (link já filtrado; o `id` do filtro é o nome do
+      parâmetro, então `?status=pago` continua valendo) e o navegador lembra o último de cada tela.
+      Chips com ✕, "Limpar filtros", contador e gaveta no celular vêm prontos. Tela sem `DataTable`
+      usa `BarraFiltros` + `ChipsFiltros` + `aplicarFiltros` (ex.: QDD); cartões de totais que devem
+      acompanhar o filtro usam `aplicarFiltros` na página. Regras puras e testadas em `filtros/logica.ts`.
     - `StatusBadge` — cor + ícone + texto; o tom sai do texto (`tomDaSituacao`: ativo, pendente,
       em análise, cancelado…) ou de `tom` explícito.
     - `EmptyState`, `KpiCard` (variação com sinal e ícone; `subirEhBom={false}` para despesas/faltas;

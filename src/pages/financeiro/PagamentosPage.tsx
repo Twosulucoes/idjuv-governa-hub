@@ -2,21 +2,24 @@
  * Página de Listagem de Pagamentos
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import PagamentoFormDialog from "@/components/financeiro/PagamentoFormDialog";
 import { ModuleLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  aplicarFiltros,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+  type TomStatus,
+} from "@/components/design-system";
 import { Plus, Eye, CreditCard, CalendarClock, CheckCircle2, ListOrdered } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { usePagamentos } from "@/hooks/useFinanceiro";
 import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
@@ -39,6 +42,29 @@ function StatusPagamentoBadge({ status }: { status: string }) {
   if (!label) return <StatusBadge tom="neutro">{status || "Sem status"}</StatusBadge>;
   return <StatusBadge tom={TOM_STATUS_PAGAMENTO[status as StatusPagamento]}>{label}</StatusBadge>;
 }
+
+// "status" mantém o nome do parâmetro dos atalhos do painel (?status=pago).
+const filtrosPagamento: FiltroDef<Pagamento>[] = [
+  {
+    tipo: "lista",
+    id: "status",
+    rotulo: "Situação",
+    principal: true,
+    valor: (pag) => pag.status,
+    opcoes: Object.entries(STATUS_PAGAMENTO_LABELS).map(([valor, rotulo]) => ({ valor, rotulo })),
+  },
+  { tipo: "periodo", id: "periodo", rotulo: "Data do pagamento", principal: true, valor: (pag) => pag.data_pagamento },
+  { tipo: "lista", id: "favorecido", rotulo: "Favorecido", principal: true, valor: (pag) => pag.fornecedor?.razao_social },
+  {
+    tipo: "lista",
+    id: "conta",
+    rotulo: "Conta bancária",
+    valor: (pag) => pag.conta_bancaria?.nome_conta ?? null,
+  },
+  { tipo: "lista", id: "forma", rotulo: "Forma de pagamento", valor: (pag) => pag.forma_pagamento?.toUpperCase() },
+  { tipo: "faixa", id: "valor", rotulo: "Valor bruto", formato: "moeda", valor: (pag) => Number(pag.valor_bruto) },
+  { tipo: "booleano", id: "estornado", rotulo: "Só estornados", valor: (pag) => pag.estornado },
+];
 
 const colunas: ColunaTabela<Pagamento>[] = [
   {
@@ -106,23 +132,21 @@ const colunas: ColunaTabela<Pagamento>[] = [
 ];
 
 export default function PagamentosPage() {
-  const [searchParams] = useSearchParams();
-  const statusParam = searchParams.get("status") || "";
-  
-  const [filtroStatus, setFiltroStatus] = useState(statusParam);
   const [formOpen, setFormOpen] = useState(false);
   const { exercicio, comExercicio } = useExercicioFinanceiro();
-  
-  const { data: pagamentos, isLoading, isError, refetch } = usePagamentos({ 
-    exercicio,
-    status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined 
-  });
+  const filtros = useEstadoFiltros("financeiro.pagamentos", filtrosPagamento);
 
-  // Calcular totais
-  const totalProgramado = pagamentos?.filter(p => p.status === 'programado')
-    .reduce((acc, p) => acc + Number(p.valor_bruto), 0) || 0;
-  const totalPago = pagamentos?.filter(p => p.status === 'pago')
-    .reduce((acc, p) => acc + Number(p.valor_bruto), 0) || 0;
+  const { data: pagamentos, isLoading, isError, refetch } = usePagamentos({ exercicio });
+
+  // Totais acompanham os filtros escolhidos
+  const filtrados = useMemo(
+    () => aplicarFiltros(pagamentos ?? [], filtros.definicoes, filtros.estado),
+    [pagamentos, filtros.definicoes, filtros.estado],
+  );
+  const totalProgramado = filtrados.filter(p => p.status === 'programado')
+    .reduce((acc, p) => acc + Number(p.valor_bruto), 0);
+  const totalPago = filtrados.filter(p => p.status === 'pago')
+    .reduce((acc, p) => acc + Number(p.valor_bruto), 0);
 
   return (
     <ModuleLayout module="financeiro">
@@ -145,7 +169,7 @@ export default function PagamentosPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <KpiCard rotulo="Programados" valor={formatCurrency(totalProgramado)} icone={CalendarClock} carregando={isLoading} />
           <KpiCard rotulo="Pagos no período" valor={formatCurrency(totalPago)} icone={CheckCircle2} carregando={isLoading} />
-          <KpiCard rotulo="Total de registros" valor={pagamentos?.length || 0} icone={ListOrdered} carregando={isLoading} />
+          <KpiCard rotulo="Total de registros" valor={filtrados.length} icone={ListOrdered} carregando={isLoading} />
         </div>
 
         <DataTable
@@ -157,21 +181,7 @@ export default function PagamentosPage() {
           erro={isError ? "Não foi possível carregar os pagamentos." : null}
           aoTentarNovamente={() => refetch()}
           busca={{ placeholder: "Buscar por número, fornecedor, empenho…" }}
-          filtros={
-            <Select value={filtroStatus || "todos"} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por situação">
-                <SelectValue placeholder="Todas as situações" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todas as situações</SelectItem>
-                <SelectItem value="programado">Programado</SelectItem>
-                <SelectItem value="autorizado">Autorizado</SelectItem>
-                <SelectItem value="pago">Pago</SelectItem>
-                <SelectItem value="devolvido">Devolvido</SelectItem>
-                <SelectItem value="estornado">Estornado</SelectItem>
-              </SelectContent>
-            </Select>
-          }
+          filtrosDinamicos={filtros}
           vazio={{
             icone: CreditCard,
             titulo: "Nenhum pagamento encontrado",
