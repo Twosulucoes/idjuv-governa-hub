@@ -909,6 +909,7 @@ permissão e a RPC confere a mesma no banco. A rota da tela continua com a permi
 | Empenhos (FIP 614), PEDs do FIPLAN | `financeiro.execucao.importar` | Financeiro → Atualizar dados |
 | Retorno do banco (OBN600/CNAB 240) | `pagamento.conciliar` | Financeiro → Atualizar dados (e a Conciliação) |
 | Folha do SIGRH | `financeiro.folha.processar` (catálogo do RH) | RH → Folha → Importar do SIGRH |
+| Servidores pelo arquivo da Seplan (SIGRH) | `rh.servidores.importar` (dada a quem tem `rh.servidores.criar`) | RH → Servidores → Importar do SIGRH |
 | Portarias (planilha) | `gabinete.portarias.importar` | Gabinete → Central de Portarias |
 | Processos de contratação | `compras.processos.editar` | Compras → Processos |
 | Contratos | `contratos.criar` | Contratos → Contratos |

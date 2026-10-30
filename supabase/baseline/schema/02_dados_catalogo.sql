@@ -615,6 +615,7 @@ INSERT INTO public.module_permissions_catalog (id, module_code, permission_code,
 INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('545e4fba-2aa5-40ec-b0b3-46de751e38a5', 'gabinete', 'contratos.passagens.editar', 'Editar passagens aéreas', NULL, 'Passagens', 'editar', 702, '2026-10-24 17:55:13.90989+00');
 INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('94aa404c-1568-48ac-b0f4-54efccf58fe9', 'gabinete', 'contratos.passagens.financeiro', 'Faturas e empenhos das passagens aéreas', NULL, 'Passagens', 'gerenciar', 703, '2026-10-25 04:34:32.46097+00');
 INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('8d0d1afc-b2aa-4c9b-bc57-e8e1ca209726', 'financeiro', 'financeiro.convenios.visualizar', 'Ver convênios federais (Transferegov)', NULL, 'Convênios', 'visualizar', 520, '2026-10-29 21:55:07.924083+00');
+INSERT INTO public.module_permissions_catalog (id, module_code, permission_code, label, description, category, action_type, sort_order, created_at) VALUES ('5823102d-0658-469e-b1ae-15add936636c', 'rh', 'rh.servidores.importar', 'Importar servidores do SIGRH (arquivo de créditos da Seplan)', NULL, 'Servidores', 'importar', 5, '2026-10-30 05:29:45.224257+00');
 
 
 --
@@ -1215,6 +1216,8 @@ INSERT INTO public.role_permissions (id, role, permission, created_at, created_b
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('c6737b98-bdbd-46fb-9e81-8ded58455f5b', 'manager', 'financeiro.convenios.visualizar', '2026-10-29 21:55:07.924083+00', NULL);
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('91073411-ded9-41e7-be7d-d1f1e623cc04', 'user', 'financeiro.convenios.visualizar', '2026-10-29 21:55:07.924083+00', NULL);
 INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('8382bb47-1ce8-4aa5-af47-f7a317c1183b', 'manager', 'contratos.passagens.visualizar', '2026-10-24 17:55:13.90989+00', NULL);
+INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('48ae4c6e-5b47-4ccb-867a-da6ab957218e', 'admin', 'rh.servidores.importar', '2026-10-30 05:29:45.224257+00', NULL);
+INSERT INTO public.role_permissions (id, role, permission, created_at, created_by) VALUES ('00a79e3d-912e-4d14-8e1d-d45524c60463', 'manager', 'rh.servidores.importar', '2026-10-30 05:29:45.224257+00', NULL);
 
 
 --
