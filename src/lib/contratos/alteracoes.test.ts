@@ -8,7 +8,7 @@ import {
   proximoNumero,
   resumoAlteracoes,
   simularAlteracao,
-  textoAlteracao,
+  textoDocumentoSei,
   tituloAlteracao,
   valorCalculado,
 } from "./alteracoes";
@@ -89,6 +89,7 @@ describe("resumoAlteracoes", () => {
     const r = resumoAlteracoes(contrato, [
       alt({ altera_valor: true, valor_acrescimo: 26_000 }),
       alt({ especie: "apostilamento", motivo: "reajuste", valor_variacao: 4_000 }),
+      alt({ especie: "apostilamento", numero: 2, motivo: "outro", valor_variacao: 2_000 }),
       alt({ especie: "partida", numero: null, data_assinatura: null, valor_variacao: 1_000 }),
     ]);
     expect(r).toMatchObject({
@@ -96,8 +97,9 @@ describe("resumoAlteracoes", () => {
       acrescimos: 26_000,
       supressoes: 0,
       reajustes: 4_000,
+      outrosApostilamentos: 2_000,
       anterior: 1_000,
-      valorAtual: 131_000,
+      valorAtual: 133_000,
       valorInicialAtualizado: 104_000,
       percentualAcrescimo: 25,
       limitePercentual: 25,
@@ -159,26 +161,36 @@ describe("textos de cada alteração", () => {
   it("aditivo e apostilamento com número, efeito e valores", () => {
     const aditivo = alt({ numero: 2, altera_prazo: true, altera_valor: true, altera_objeto: true, nova_data_fim: "2027-12-31", valor_acrescimo: 12_000 });
     expect(tituloAlteracao(aditivo)).toBe("2º termo aditivo");
-    expect(sp(textoAlteracao(aditivo))).toBe("2º termo aditivo: prorroga até 31/12/2027, acrescenta R$ 12.000,00 e altera o objeto");
+    expect(efeitosAlteracao(aditivo).map(sp)).toEqual(["prorroga até 31/12/2027", "acrescenta R$ 12.000,00", "altera o objeto"]);
     const reajuste = alt({ especie: "apostilamento", motivo: "reajuste", percentual: 4.5, indice: "IPCA", valor_variacao: 3_200 });
-    expect(sp(textoAlteracao(reajuste))).toBe("1º apostilamento: reajuste de 4,5% (IPCA) e soma R$ 3.200,00");
+    expect(efeitosAlteracao(reajuste).map(sp)).toEqual(["reajuste de 4,5% (IPCA)", "soma R$ 3.200,00"]);
     const baixa = alt({ especie: "apostilamento", motivo: "repactuacao", valor_variacao: -800 });
     expect(efeitosAlteracao(baixa).map(sp)).toEqual(["repactuação", "reduz R$ 800,00"]);
-    expect(textoAlteracao(alt({ especie: "apostilamento", motivo: "dotacao" }))).toBe("1º apostilamento: dotação orçamentária");
-    expect(sp(textoAlteracao(alt({ especie: "apostilamento", numero: 3, motivo: "prorrogacao_suspensao", nova_data_fim: "2027-02-10" }))))
-      .toBe("3º apostilamento: prorroga até 10/02/2027 pelo tempo suspenso");
-    expect(textoAlteracao(alt({ especie: "apostilamento", motivo: "outro", descricao: "Troca do preposto" }))).toBe("1º apostilamento: Troca do preposto");
+    expect(efeitosAlteracao(alt({ especie: "apostilamento", motivo: "dotacao" }))).toEqual(["dotação orçamentária"]);
+    const prorroga = alt({ especie: "apostilamento", numero: 3, motivo: "prorrogacao_suspensao", nova_data_fim: "2027-02-10" });
+    expect(tituloAlteracao(prorroga)).toBe("3º apostilamento");
+    expect(efeitosAlteracao(prorroga).map(sp)).toEqual(["prorroga até 10/02/2027 pelo tempo suspenso"]);
+    expect(efeitosAlteracao(alt({ especie: "apostilamento", motivo: "outro", descricao: "Troca do preposto" }))).toEqual([]);
   });
 
   it("suspensão, rescisão e situação anterior", () => {
-    expect(textoAlteracao(alt({ especie: "suspensao", numero: null, data_inicio: "2026-03-10" })))
-      .toBe("Suspensão: desde 10/03/2026, em aberto");
-    expect(textoAlteracao(alt({ especie: "suspensao", numero: null, data_inicio: "2026-03-10", data_retomada: "2026-04-20" })))
-      .toBe("Suspensão: de 10/03/2026 a 20/04/2026 (41 dias)");
-    expect(textoAlteracao(alt({ especie: "rescisao", numero: null, motivo: "consensual", data_inicio: "2026-02-15" })))
-      .toBe("Rescisão: consensual (acordo entre as partes), em 15/02/2026");
-    expect(sp(textoAlteracao(alt({ especie: "partida", numero: null, data_assinatura: null, valor_variacao: 1_000, nova_data_fim: "2027-12-31" }))))
-      .toBe("Situação anterior ao sistema: soma R$ 1.000,00 e fim em 31/12/2027");
+    const aberta = alt({ especie: "suspensao", numero: null, data_inicio: "2026-03-10" });
+    expect(tituloAlteracao(aberta)).toBe("Suspensão");
+    expect(efeitosAlteracao(aberta)).toEqual(["desde 10/03/2026, em aberto"]);
+    expect(efeitosAlteracao(alt({ especie: "suspensao", numero: null, data_inicio: "2026-03-10", data_retomada: "2026-04-20" })))
+      .toEqual(["de 10/03/2026 a 20/04/2026 (41 dias)"]);
+    expect(efeitosAlteracao(alt({ especie: "rescisao", numero: null, motivo: "consensual", data_inicio: "2026-02-15" })))
+      .toEqual(["consensual (acordo entre as partes), em 15/02/2026"]);
+    const partida = alt({ especie: "partida", numero: null, data_assinatura: null, valor_variacao: 1_000, nova_data_fim: "2027-12-31" });
+    expect(tituloAlteracao(partida)).toBe("Situação anterior ao sistema");
+    expect(efeitosAlteracao(partida).map(sp)).toEqual(["soma R$ 1.000,00", "fim em 31/12/2027"]);
+  });
+
+  it("documento no SEI numa linha", () => {
+    expect(textoDocumentoSei(alt({ processo_sei: "17302.000123/2025.11", documento_sei: "23456789", data_publicacao_doe: "2026-07-22", numero_doe: "4890" })))
+      .toBe("Processo 17302.000123/2025.11 · documento 23456789 · DOE 22/07/2026 nº 4890");
+    expect(textoDocumentoSei(alt({ documento_sei: "1" }))).toBe("documento 1");
+    expect(textoDocumentoSei(alt({}))).toBe("");
   });
 });
 

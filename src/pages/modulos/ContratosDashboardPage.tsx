@@ -41,7 +41,7 @@ export default function ContratosDashboardPage() {
 
   const indicadores: Indicador[] = [
     { rotulo: "Contratos em vigor", valor: valor(stats?.emVigor), icone: FileText, href: lista("em_vigor") },
-    { rotulo: "Vencem em até 90 dias", valor: valor(stats?.vencem90), icone: Calendar, href: vencimentos("") },
+    { rotulo: "Vencem em até 90 dias", valor: valor(stats?.vencem90), icone: Calendar, href: lista("90") },
     { rotulo: "Vencidos sem encerrar", valor: valor(stats?.vencidos), icone: CalendarX2, href: vencimentos("?faixa=vencido") },
     { rotulo: "Sem providência do vencimento", valor: valor(stats?.semProvidencia), icone: ClipboardX, href: vencimentos("?providencia=sem") },
     { rotulo: "Sem gestor ou fiscal", valor: valor(stats?.semResponsavel), icone: UserX, href: lista("sem_responsavel") },

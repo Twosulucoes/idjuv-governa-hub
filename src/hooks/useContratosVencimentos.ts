@@ -14,7 +14,7 @@ const SELECT_VENCIMENTOS =
   'id, numero_contrato, ano, objeto, objeto_resumido, status, data_inicio, data_fim, data_fim_atual, prorrogavel, '
   + 'prazo_maximo_meses, garantia_tipo, garantia_vencimento, renovacao_providencia, renovacao_processo_sei, '
   + 'renovacao_observacao, renovacao_atualizada_em, '
-  + 'fornecedor:fornecedores(id, razao_social, nome_fantasia, cpf_cnpj), '
+  + 'fornecedor:fornecedores(id, razao_social, nome_fantasia), '
   + 'responsaveis:contrato_responsaveis(papel, nome, servidor_id, data_fim)';
 
 const somarDias = (iso: string, dias: number) =>

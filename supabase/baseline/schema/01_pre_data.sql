@@ -2964,6 +2964,9 @@ BEGIN
     IF NEW.contrato_id IS DISTINCT FROM OLD.contrato_id THEN
       RAISE EXCEPTION 'A alteração não muda de contrato.' USING ERRCODE = '22023';
     END IF;
+    IF NEW.especie IS DISTINCT FROM OLD.especie THEN
+      RAISE EXCEPTION 'A espécie da alteração não muda: apague e registre de novo.' USING ERRCODE = '22023';
+    END IF;
     NEW.created_by := OLD.created_by;
     NEW.created_at := OLD.created_at;
     NEW.updated_by := coalesce(auth.uid(), NEW.updated_by);
@@ -3483,7 +3486,10 @@ CREATE FUNCTION public.contratos_meus_vencimentos() RETURNS TABLE(contrato_id uu
      AND c.data_fim_atual <= a.hoje + 120
      AND (a.todos OR EXISTS (SELECT 1 FROM public.contrato_responsaveis r
                               WHERE r.contrato_id = c.id AND r.data_fim IS NULL AND r.servidor_id = a.servidor_id))
-   ORDER BY c.data_fim_atual, c.ano, c.numero_contrato
+   -- primeiro o que ainda vai vencer (o mais próximo antes), depois os vencidos (o mais recente antes): vencido antigo
+   -- esquecido como vigente não esconde o que vence nesta semana
+   ORDER BY c.data_fim_atual < a.hoje, CASE WHEN c.data_fim_atual >= a.hoje THEN c.data_fim_atual END, c.data_fim_atual DESC,
+            c.ano, c.numero_contrato
    LIMIT 50
 $$;
 
@@ -3538,20 +3544,25 @@ BEGIN
     NEW.status := 'rescindido';
   ELSIF v_suspenso AND NEW.status IN ('vigente', 'aditado', 'suspenso') THEN
     NEW.status := 'suspenso';
+  ELSIF NEW.status IN ('suspenso', 'rescindido') AND (TG_OP = 'INSERT' OR NEW.status IS DISTINCT FROM OLD.status) THEN
+    RAISE EXCEPTION 'Suspensão e rescisão se registram na aba Alterações do contrato, com o documento do SEI.'
+      USING ERRCODE = '22023';
   END IF;
 
   IF TG_OP = 'INSERT' OR NEW.valor_atual IS DISTINCT FROM OLD.valor_atual THEN
     NEW.saldo_contrato := NEW.valor_atual - coalesce(NEW.valor_executado, 0);
   END IF;
-  -- prorrogou (o fim foi para depois): a providência do vencimento antigo acabou
-  IF TG_OP = 'UPDATE' AND NEW.data_fim_atual > OLD.data_fim_atual THEN
+  -- cadastro novo não traz providência; prorrogou (o fim foi para depois): a providência do vencimento antigo acabou
+  IF TG_OP = 'INSERT' OR NEW.data_fim_atual > OLD.data_fim_atual THEN
     NEW.renovacao_providencia := NULL;
     NEW.renovacao_processo_sei := NULL;
     NEW.renovacao_observacao := NULL;
     NEW.renovacao_atualizada_em := NULL;
-  ELSIF TG_OP = 'UPDATE' AND (NEW.renovacao_providencia, NEW.renovacao_processo_sei, NEW.renovacao_observacao)
+  ELSIF (NEW.renovacao_providencia, NEW.renovacao_processo_sei, NEW.renovacao_observacao)
         IS DISTINCT FROM (OLD.renovacao_providencia, OLD.renovacao_processo_sei, OLD.renovacao_observacao) THEN
-    NEW.renovacao_atualizada_em := now();
+    NEW.renovacao_atualizada_em := CASE WHEN NEW.renovacao_providencia IS NULL THEN NULL ELSE now() END;
+  ELSE
+    NEW.renovacao_atualizada_em := OLD.renovacao_atualizada_em;
   END IF;
   RETURN NEW;
 END;
@@ -11236,8 +11247,8 @@ CREATE FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer DE
       LEFT JOIN public.fornecedores f ON f.id = ct.fornecedor_id
      WHERE nullif(btrim(ct.processo_sei), '') IS NOT NULL
     UNION ALL
-    -- alteração com processo próprio (ex.: a prorrogação), um por contrato e processo
-    SELECT DISTINCT ON (public.sei_normalizar(a.processo_sei), a.contrato_id)
+    -- alteração com processo próprio (ex.: a prorrogação), um por contrato e processo (a mais recente)
+    (SELECT DISTINCT ON (public.sei_normalizar(a.processo_sei), a.contrato_id)
            a.processo_sei, 'contrato', a.contrato_id, ct.numero_contrato || '/' || ct.ano,
            concat_ws(' · ', 'Contrato ' || ct.numero_contrato || '/' || ct.ano,
                      CASE a.especie WHEN 'aditivo' THEN a.numero || 'º termo aditivo'
@@ -11252,6 +11263,8 @@ CREATE FUNCTION public.localizar_processos_sei(p_termo text, p_limite integer DE
       LEFT JOIN public.fornecedores f ON f.id = ct.fornecedor_id
      WHERE nullif(btrim(a.processo_sei), '') IS NOT NULL
        AND public.sei_normalizar(a.processo_sei) IS DISTINCT FROM public.sei_normalizar(ct.processo_sei)
+     ORDER BY public.sei_normalizar(a.processo_sei), a.contrato_id, coalesce(a.data_assinatura, a.data_inicio) DESC NULLS LAST,
+              a.created_at DESC)
     UNION ALL
     -- processo aberto para a renovação (providência do vencimento), se ainda não é o de uma alteração
     SELECT ct.renovacao_processo_sei, 'contrato', ct.id, ct.numero_contrato || '/' || ct.ano,
@@ -22036,7 +22049,7 @@ CREATE TABLE public.contrato_alteracoes (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_by uuid,
     CONSTRAINT contrato_alteracoes_aditivo_check CHECK (((especie <> 'aditivo'::text) OR ((altera_prazo OR altera_valor OR altera_objeto) AND (altera_prazo = (nova_data_fim IS NOT NULL)) AND (altera_valor = ((valor_acrescimo > (0)::numeric) OR (valor_supressao > (0)::numeric))) AND (data_assinatura IS NOT NULL) AND (motivo IS NULL) AND (data_inicio IS NULL) AND (data_retomada IS NULL)))),
-    CONSTRAINT contrato_alteracoes_apostilamento_check CHECK (((especie <> 'apostilamento'::text) OR ((motivo = ANY (ARRAY['reajuste'::text, 'repactuacao'::text, 'dotacao'::text, 'prorrogacao_suspensao'::text, 'outro'::text])) AND ((nova_data_fim IS NULL) OR (motivo = 'prorrogacao_suspensao'::text)) AND (data_assinatura IS NOT NULL) AND (data_inicio IS NULL) AND (data_retomada IS NULL)))),
+    CONSTRAINT contrato_alteracoes_apostilamento_check CHECK (((especie <> 'apostilamento'::text) OR ((motivo = ANY (ARRAY['reajuste'::text, 'repactuacao'::text, 'dotacao'::text, 'prorrogacao_suspensao'::text, 'outro'::text])) AND ((nova_data_fim IS NULL) OR (motivo = 'prorrogacao_suspensao'::text)) AND ((valor_variacao = (0)::numeric) OR (motivo = ANY (ARRAY['reajuste'::text, 'repactuacao'::text, 'outro'::text]))) AND (data_assinatura IS NOT NULL) AND (data_inicio IS NULL) AND (data_retomada IS NULL)))),
     CONSTRAINT contrato_alteracoes_especie_check CHECK ((especie = ANY (ARRAY['aditivo'::text, 'apostilamento'::text, 'suspensao'::text, 'rescisao'::text, 'partida'::text]))),
     CONSTRAINT contrato_alteracoes_flags_check CHECK (((especie = 'aditivo'::text) OR (NOT (altera_prazo OR altera_valor OR altera_objeto)))),
     CONSTRAINT contrato_alteracoes_numero_check CHECK ((((especie = ANY (ARRAY['aditivo'::text, 'apostilamento'::text])) = (numero IS NOT NULL)) AND ((numero IS NULL) OR ((numero >= 1) AND (numero <= 999))))),

@@ -59,10 +59,10 @@ function Campo({ rotulo, children, largo }: { rotulo: string; children: React.Re
   );
 }
 
-function Dados({ c, processoContratacao }: { c: ContratoFicha; processoContratacao?: string }) {
+function Dados({ c, processoContratacao, rescisao }: { c: ContratoFicha; processoContratacao?: string; rescisao: boolean }) {
   const prorrogado = c.data_fim_atual && c.data_fim_atual !== c.data_fim;
-  // rescindido: o fim atual é a data da rescisão (C2)
-  const fimRescisao = c.status === "rescindido";
+  // com a rescisão registrada, o fim atual é a data dela (C2)
+  const fimRescisao = rescisao;
   return (
     <Card>
       <CardContent className="pt-6">
@@ -195,7 +195,7 @@ export default function ContratoFichaPage() {
             <TabsTrigger value="historico">Histórico</TabsTrigger>
           </TabsList>
           <TabsContent value="dados" className="mt-4">
-            <Dados c={c} processoContratacao={processoContratacao} />
+            <Dados c={c} processoContratacao={processoContratacao} rescisao={!!alteracoes.data?.some((a) => a.especie === "rescisao")} />
           </TabsContent>
           <TabsContent value="alteracoes" className="mt-4">
             <AlteracoesContratoTab contrato={c} podeEditar={podeEditar} />

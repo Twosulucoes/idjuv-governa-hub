@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS public.contrato_alteracoes (
     CHECK (especie <> 'apostilamento' OR (
       motivo IN ('reajuste', 'repactuacao', 'dotacao', 'prorrogacao_suspensao', 'outro')
       AND (nova_data_fim IS NULL OR motivo = 'prorrogacao_suspensao')
+      AND (valor_variacao = 0 OR motivo IN ('reajuste', 'repactuacao', 'outro'))
       AND data_assinatura IS NOT NULL AND data_inicio IS NULL AND data_retomada IS NULL)),
   CONSTRAINT contrato_alteracoes_suspensao_check
     CHECK (especie <> 'suspensao' OR (
@@ -154,8 +155,9 @@ ALTER TABLE public.contrato_alteracoes ENABLE ROW LEVEL SECURITY;
 -- ----------------------------------------------------------------------------
 -- 3. Gatilhos
 -- ----------------------------------------------------------------------------
--- Autoria pelo banco; o contrato não muda; o contrato precisa estar assinado; depois da rescisão só ela se corrige;
--- datas não antes do início do contrato; processo SEI vazio herda o do contrato.
+-- Autoria pelo banco; o contrato e a espécie não mudam (errou a espécie: apague e registre de novo); o contrato precisa
+-- estar assinado; depois da rescisão só ela se corrige; datas não antes do início do contrato; processo SEI vazio herda
+-- o do contrato.
 CREATE OR REPLACE FUNCTION public.contrato_alteracoes_preparar()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -170,6 +172,9 @@ BEGIN
   ELSE
     IF NEW.contrato_id IS DISTINCT FROM OLD.contrato_id THEN
       RAISE EXCEPTION 'A alteração não muda de contrato.' USING ERRCODE = '22023';
+    END IF;
+    IF NEW.especie IS DISTINCT FROM OLD.especie THEN
+      RAISE EXCEPTION 'A espécie da alteração não muda: apague e registre de novo.' USING ERRCODE = '22023';
     END IF;
     NEW.created_by := OLD.created_by;
     NEW.created_at := OLD.created_at;
@@ -253,7 +258,9 @@ CREATE TRIGGER trg_audit_contrato_alteracoes AFTER INSERT OR DELETE OR UPDATE ON
   FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_licitacoes();
 
 -- Autoria fixada pelo banco (quem cadastrou não muda; quem alterou é o usuário da sessão). Valor atual, fim atual e
--- situação saem das alterações (C2): rescisão → rescindido e fim na data dela; suspensão em aberto → suspenso.
+-- situação saem das alterações (C2): rescisão → rescindido e fim na data dela; suspensão em aberto → suspenso; sem
+-- elas, ninguém põe o contrato em suspenso ou rescindido (o que já estava assim fica). A providência do vencimento não
+-- nasce com o cadastro (é alteração do contrato: contratos.editar) e a data dela é sempre a do banco.
 -- SECURITY DEFINER para ler todas as alterações, qualquer que seja a RLS de quem grava o contrato.
 CREATE OR REPLACE FUNCTION public.contratos_preparar()
 RETURNS trigger
@@ -296,20 +303,25 @@ BEGIN
     NEW.status := 'rescindido';
   ELSIF v_suspenso AND NEW.status IN ('vigente', 'aditado', 'suspenso') THEN
     NEW.status := 'suspenso';
+  ELSIF NEW.status IN ('suspenso', 'rescindido') AND (TG_OP = 'INSERT' OR NEW.status IS DISTINCT FROM OLD.status) THEN
+    RAISE EXCEPTION 'Suspensão e rescisão se registram na aba Alterações do contrato, com o documento do SEI.'
+      USING ERRCODE = '22023';
   END IF;
 
   IF TG_OP = 'INSERT' OR NEW.valor_atual IS DISTINCT FROM OLD.valor_atual THEN
     NEW.saldo_contrato := NEW.valor_atual - coalesce(NEW.valor_executado, 0);
   END IF;
-  -- prorrogou (o fim foi para depois): a providência do vencimento antigo acabou
-  IF TG_OP = 'UPDATE' AND NEW.data_fim_atual > OLD.data_fim_atual THEN
+  -- cadastro novo não traz providência; prorrogou (o fim foi para depois): a providência do vencimento antigo acabou
+  IF TG_OP = 'INSERT' OR NEW.data_fim_atual > OLD.data_fim_atual THEN
     NEW.renovacao_providencia := NULL;
     NEW.renovacao_processo_sei := NULL;
     NEW.renovacao_observacao := NULL;
     NEW.renovacao_atualizada_em := NULL;
-  ELSIF TG_OP = 'UPDATE' AND (NEW.renovacao_providencia, NEW.renovacao_processo_sei, NEW.renovacao_observacao)
+  ELSIF (NEW.renovacao_providencia, NEW.renovacao_processo_sei, NEW.renovacao_observacao)
         IS DISTINCT FROM (OLD.renovacao_providencia, OLD.renovacao_processo_sei, OLD.renovacao_observacao) THEN
-    NEW.renovacao_atualizada_em := now();
+    NEW.renovacao_atualizada_em := CASE WHEN NEW.renovacao_providencia IS NULL THEN NULL ELSE now() END;
+  ELSE
+    NEW.renovacao_atualizada_em := OLD.renovacao_atualizada_em;
   END IF;
   RETURN NEW;
 END;
@@ -334,33 +346,53 @@ BEGIN
   ALTER TABLE public.contrato_alteracoes DISABLE TRIGGER trg_audit_contrato_alteracoes;
 
   IF to_regclass('public.aditivos_contrato') IS NOT NULL THEN
+    -- Numeração refeita por contrato e espécie (1º, 2º... na ordem do nº antigo), para caber no 1 a 999 e não repetir.
+    -- Se a nova data do aditivo mais recente não bate com o fim atual gravado, as datas antigas vão só para o texto e o
+    -- fim gravado fica na situação anterior (senão a alteração copiada mudaria o fim quando o contrato fosse regravado).
     INSERT INTO public.contrato_alteracoes (
       id, contrato_id, especie, numero, altera_prazo, altera_valor, altera_objeto, motivo,
       valor_acrescimo, valor_supressao, nova_data_fim, descricao, justificativa, fundamento_legal,
       data_assinatura, data_publicacao_doe, numero_doe, created_at, created_by, updated_at)
-    SELECT a.id, a.contrato_id,
-           CASE WHEN a.tipo::text = 'apostilamento' THEN 'apostilamento' ELSE 'aditivo' END,
-           a.numero_aditivo,
-           a.tipo::text <> 'apostilamento' AND a.nova_data_fim IS NOT NULL,
-           a.tipo::text <> 'apostilamento' AND (coalesce(a.valor_acrescimo, 0) > 0 OR coalesce(a.valor_supressao, 0) > 0),
-           a.tipo::text <> 'apostilamento' AND (a.tipo::text IN ('objeto', 'reequilibrio')
-             OR NOT (a.nova_data_fim IS NOT NULL OR coalesce(a.valor_acrescimo, 0) > 0 OR coalesce(a.valor_supressao, 0) > 0)),
-           CASE WHEN a.tipo::text = 'apostilamento' THEN 'outro' END,
-           CASE WHEN a.tipo::text = 'apostilamento' THEN 0 ELSE greatest(coalesce(a.valor_acrescimo, 0), 0) END,
-           CASE WHEN a.tipo::text = 'apostilamento' THEN 0 ELSE greatest(coalesce(a.valor_supressao, 0), 0) END,
-           CASE WHEN a.tipo::text = 'apostilamento' THEN NULL ELSE a.nova_data_fim END,
-           left(concat_ws(' ', btrim(a.objeto),
+    SELECT a.id, a.contrato_id, a.esp,
+           row_number() OVER (PARTITION BY a.contrato_id, a.esp ORDER BY a.numero_aditivo, a.data_assinatura, a.criado, a.id)::integer,
+           a.fim IS NOT NULL,
+           a.esp = 'aditivo' AND (a.acrescimo > 0 OR a.supressao > 0),
+           a.esp = 'aditivo' AND (a.tipo::text IN ('objeto', 'reequilibrio') OR NOT (a.fim IS NOT NULL OR a.acrescimo > 0 OR a.supressao > 0)),
+           CASE WHEN a.esp = 'apostilamento' THEN 'outro' END,
+           CASE WHEN a.esp = 'apostilamento' THEN 0 ELSE a.acrescimo END,
+           CASE WHEN a.esp = 'apostilamento' THEN 0 ELSE a.supressao END,
+           a.fim,
+           left(concat_ws(' ', coalesce(nullif(btrim(a.objeto), ''), 'Registro copiado da tabela antiga de aditivos.'),
                 CASE WHEN coalesce(a.prazo_adicional_dias, 0) <> 0 THEN format('(prazo adicional: %s dias)', a.prazo_adicional_dias) END,
-                CASE WHEN a.tipo::text = 'apostilamento' AND (a.nova_data_fim IS NOT NULL
-                       OR coalesce(a.valor_acrescimo, 0) <> 0 OR coalesce(a.valor_supressao, 0) <> 0)
+                CASE WHEN (a.esp = 'apostilamento' AND (a.nova_data_fim IS NOT NULL OR coalesce(a.valor_acrescimo, 0) <> 0
+                                                        OR coalesce(a.valor_supressao, 0) <> 0))
+                          OR (a.esp = 'aditivo' AND a.nova_data_fim IS NOT NULL AND a.fim IS NULL)
                      THEN format('(registro antigo: nova data %s, acréscimo %s, supressão %s)',
                                  coalesce(to_char(a.nova_data_fim, 'DD/MM/YYYY'), '-'), coalesce(a.valor_acrescimo, 0), coalesce(a.valor_supressao, 0)) END),
                 2000),
            left(a.justificativa, 2000), left(a.fundamentacao_legal, 500),
            a.data_assinatura, a.data_publicacao_doe, a.numero_doe,
-           coalesce(a.created_at, now()), a.created_by, coalesce(a.created_at, now())
-      FROM public.aditivos_contrato a
-     WHERE NOT EXISTS (SELECT 1 FROM public.contrato_alteracoes x WHERE x.id = a.id);
+           a.criado, a.created_by, a.criado
+      FROM (
+        SELECT x.*, CASE WHEN x.esp = 'aditivo' AND x.fim_confere THEN x.nova_data_fim END AS fim
+          FROM (
+            SELECT ad.*, coalesce(ad.created_at, now()) AS criado,
+                   greatest(coalesce(ad.valor_acrescimo, 0), 0) AS acrescimo,
+                   greatest(coalesce(ad.valor_supressao, 0), 0) AS supressao,
+                   CASE WHEN ad.tipo::text = 'apostilamento' THEN 'apostilamento' ELSE 'aditivo' END AS esp,
+                   -- a nova data do aditivo mais recente (a mesma ordem de contratos_preparar) é o fim atual gravado?
+                   first_value(CASE WHEN ad.tipo::text <> 'apostilamento' THEN ad.nova_data_fim END) OVER (
+                     PARTITION BY ad.contrato_id
+                     ORDER BY (ad.tipo::text = 'apostilamento' OR ad.nova_data_fim IS NULL), ad.data_assinatura DESC NULLS LAST,
+                              coalesce(ad.created_at, now()) DESC, ad.nova_data_fim DESC)
+                     IS NOT DISTINCT FROM ct.data_fim_atual
+                   OR NOT bool_or(ad.tipo::text <> 'apostilamento' AND ad.nova_data_fim IS NOT NULL) OVER (PARTITION BY ad.contrato_id)
+                     AS fim_confere
+              FROM public.aditivos_contrato ad
+              JOIN public.contratos ct ON ct.id = ad.contrato_id
+          ) x
+      ) a
+     WHERE NOT EXISTS (SELECT 1 FROM public.contrato_alteracoes y WHERE y.id = a.id);
   END IF;
 
   -- situação anterior: o que está gravado menos o que as alterações dão
@@ -454,7 +486,10 @@ AS $$
      AND c.data_fim_atual <= a.hoje + 120
      AND (a.todos OR EXISTS (SELECT 1 FROM public.contrato_responsaveis r
                               WHERE r.contrato_id = c.id AND r.data_fim IS NULL AND r.servidor_id = a.servidor_id))
-   ORDER BY c.data_fim_atual, c.ano, c.numero_contrato
+   -- primeiro o que ainda vai vencer (o mais próximo antes), depois os vencidos (o mais recente antes): vencido antigo
+   -- esquecido como vigente não esconde o que vence nesta semana
+   ORDER BY c.data_fim_atual < a.hoje, CASE WHEN c.data_fim_atual >= a.hoje THEN c.data_fim_atual END, c.data_fim_atual DESC,
+            c.ano, c.numero_contrato
    LIMIT 50
 $$;
 COMMENT ON FUNCTION public.contratos_meus_vencimentos() IS
@@ -831,8 +866,8 @@ AS $$
       LEFT JOIN public.fornecedores f ON f.id = ct.fornecedor_id
      WHERE nullif(btrim(ct.processo_sei), '') IS NOT NULL
     UNION ALL
-    -- alteração com processo próprio (ex.: a prorrogação), um por contrato e processo
-    SELECT DISTINCT ON (public.sei_normalizar(a.processo_sei), a.contrato_id)
+    -- alteração com processo próprio (ex.: a prorrogação), um por contrato e processo (a mais recente)
+    (SELECT DISTINCT ON (public.sei_normalizar(a.processo_sei), a.contrato_id)
            a.processo_sei, 'contrato', a.contrato_id, ct.numero_contrato || '/' || ct.ano,
            concat_ws(' · ', 'Contrato ' || ct.numero_contrato || '/' || ct.ano,
                      CASE a.especie WHEN 'aditivo' THEN a.numero || 'º termo aditivo'
@@ -847,6 +882,8 @@ AS $$
       LEFT JOIN public.fornecedores f ON f.id = ct.fornecedor_id
      WHERE nullif(btrim(a.processo_sei), '') IS NOT NULL
        AND public.sei_normalizar(a.processo_sei) IS DISTINCT FROM public.sei_normalizar(ct.processo_sei)
+     ORDER BY public.sei_normalizar(a.processo_sei), a.contrato_id, coalesce(a.data_assinatura, a.data_inicio) DESC NULLS LAST,
+              a.created_at DESC)
     UNION ALL
     -- processo aberto para a renovação (providência do vencimento), se ainda não é o de uma alteração
     SELECT ct.renovacao_processo_sei, 'contrato', ct.id, ct.numero_contrato || '/' || ct.ano,

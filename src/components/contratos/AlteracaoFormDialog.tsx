@@ -38,6 +38,7 @@ type ContratoBase = Pick<
 >;
 
 const COM_PERCENTUAL = new Set(["reajuste", "repactuacao"]);
+const COM_VARIACAO = new Set(["reajuste", "repactuacao", "outro"]);
 const numero = (t: string) => {
   const v = t ? lerNumeroBr(t) : 0;
   return Number.isFinite(v) ? v : 0;
@@ -45,6 +46,20 @@ const numero = (t: string) => {
 const valorInvalido = (t: string) => !!t && !(Number.isFinite(lerNumeroBr(t)) && lerNumeroBr(t) >= 0);
 const valorTexto = (v: number | null | undefined) =>
   v ? Math.abs(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+
+type CamposEspecie = Partial<{ especie: EspecieAlteracao; motivo: string; altera_prazo: boolean; altera_valor: boolean }>;
+
+/** Os campos que a espécie (e o motivo) usa: só eles são conferidos e gravados (os CHECKs da tabela pedem isso). */
+function camposUsados(d: CamposEspecie) {
+  const e = d.especie;
+  const motivo = d.motivo ?? "";
+  return {
+    prazo: (e === "aditivo" && d.altera_prazo) || (e === "apostilamento" && motivo === "prorrogacao_suspensao") || e === "partida",
+    acrescimo: e === "aditivo" && !!d.altera_valor,
+    variacao: e === "partida" || (e === "apostilamento" && COM_VARIACAO.has(motivo)),
+    percentual: e === "apostilamento" && COM_PERCENTUAL.has(motivo),
+  };
+}
 
 function criarSchema(inicioContrato: string) {
   return z
@@ -78,24 +93,26 @@ function criarSchema(inicioContrato: string) {
       const erro = (path: string, message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
       const antesDoInicio = (v: string) => !!v && v < inicioContrato;
       const e = d.especie;
+      const usa = camposUsados(d);
       if ((e === "aditivo" || e === "apostilamento") && !(/^\d+$/.test(d.numero) && +d.numero >= 1 && +d.numero <= 999)) {
         erro("numero", "De 1 a 999");
       }
       if ((e === "aditivo" || e === "apostilamento") && !d.data_assinatura) erro("data_assinatura", "Informe a data de assinatura");
-      for (const campo of ["valor_acrescimo", "valor_supressao", "valor_variacao"] as const) {
+      const numericos = [...(usa.acrescimo ? ["valor_acrescimo", "valor_supressao"] as const : []), ...(usa.variacao ? ["valor_variacao"] as const : [])];
+      for (const campo of numericos) {
         if (valorInvalido(d[campo])) erro(campo, "Valor inválido (ex.: 12.000,00)");
       }
       if (e === "aditivo") {
         if (!d.altera_prazo && !d.altera_valor && !d.altera_objeto) erro("altera_objeto", "Marque o que o aditivo muda");
         if (d.altera_prazo && !d.nova_data_fim) erro("nova_data_fim", "Informe o novo fim da vigência");
-        if (d.altera_valor && numero(d.valor_acrescimo) <= 0 && numero(d.valor_supressao) <= 0) {
+        if (usa.acrescimo && numero(d.valor_acrescimo) <= 0 && numero(d.valor_supressao) <= 0) {
           erro("valor_acrescimo", "Informe o acréscimo ou a supressão");
         }
       }
       if (e === "apostilamento") {
         if (!d.motivo) erro("motivo", "Escolha o motivo");
         if (d.motivo === "prorrogacao_suspensao" && !d.nova_data_fim) erro("nova_data_fim", "Informe o novo fim da vigência");
-        if (d.percentual && COM_PERCENTUAL.has(d.motivo)) {
+        if (d.percentual && usa.percentual) {
           const p = lerNumeroBr(d.percentual);
           if (!Number.isFinite(p) || p < -100 || p > 1000) erro("percentual", "Entre -100 e 1000");
         }
@@ -111,7 +128,7 @@ function criarSchema(inicioContrato: string) {
       if (e === "partida" && numero(d.valor_variacao) === 0 && !d.nova_data_fim) {
         erro("valor_variacao", "Informe a diferença de valor ou o fim");
       }
-      if (antesDoInicio(d.nova_data_fim)) erro("nova_data_fim", `Não pode ser antes do início do contrato (${formatDateBR(inicioContrato)})`);
+      if (usa.prazo && antesDoInicio(d.nova_data_fim)) erro("nova_data_fim", `Não pode ser antes do início do contrato (${formatDateBR(inicioContrato)})`);
     });
 }
 
@@ -120,8 +137,7 @@ type FormData = z.infer<ReturnType<typeof criarSchema>>;
 /** Do formulário para a linha do banco: cada espécie só leva os campos dela (os CHECKs da tabela pedem isso). */
 function montarAlteracao(d: FormData, contratoId: string): AlteracaoInput {
   const e = d.especie;
-  const prazo = (e === "aditivo" && d.altera_prazo) || (e === "apostilamento" && d.motivo === "prorrogacao_suspensao") || e === "partida";
-  const comPercentual = e === "apostilamento" && COM_PERCENTUAL.has(d.motivo);
+  const usa = camposUsados(d);
   const ou = (t: string) => t.trim() || null;
   return {
     contrato_id: contratoId,
@@ -131,12 +147,12 @@ function montarAlteracao(d: FormData, contratoId: string): AlteracaoInput {
     altera_valor: e === "aditivo" && d.altera_valor,
     altera_objeto: e === "aditivo" && d.altera_objeto,
     motivo: e === "apostilamento" || e === "rescisao" ? d.motivo || null : null,
-    valor_acrescimo: e === "aditivo" && d.altera_valor ? numero(d.valor_acrescimo) : 0,
-    valor_supressao: e === "aditivo" && d.altera_valor ? numero(d.valor_supressao) : 0,
-    valor_variacao: e === "apostilamento" || e === "partida" ? (d.sentido === "reduz" ? -1 : 1) * numero(d.valor_variacao) : 0,
-    percentual: comPercentual && d.percentual ? lerNumeroBr(d.percentual) : null,
-    indice: comPercentual ? ou(d.indice) : null,
-    nova_data_fim: prazo ? d.nova_data_fim || null : null,
+    valor_acrescimo: usa.acrescimo ? numero(d.valor_acrescimo) : 0,
+    valor_supressao: usa.acrescimo ? numero(d.valor_supressao) : 0,
+    valor_variacao: usa.variacao ? (d.sentido === "reduz" ? -1 : 1) * numero(d.valor_variacao) : 0,
+    percentual: usa.percentual && d.percentual ? lerNumeroBr(d.percentual) : null,
+    indice: usa.percentual ? ou(d.indice) : null,
+    nova_data_fim: usa.prazo ? d.nova_data_fim || null : null,
     data_inicio: e === "suspensao" || e === "rescisao" ? d.data_inicio : null,
     data_retomada: e === "suspensao" ? d.data_retomada || null : null,
     documento_retomada_sei: e === "suspensao" && d.data_retomada ? ou(d.documento_retomada_sei) : null,

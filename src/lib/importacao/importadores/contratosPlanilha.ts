@@ -12,7 +12,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/formatters";
-import { SITUACOES_CONTRATO, TIPOS_CONTRATO } from "@/types/contratos";
+import { SITUACOES_CONTRATO, SITUACOES_PELAS_ALTERACOES, TIPOS_CONTRATO } from "@/types/contratos";
 import { baixarModeloPlanilha, lerPrimeiraAba } from "../planilha";
 import type { Importador, ResultadoBanco } from "../types";
 import {
@@ -28,6 +28,8 @@ const dataBR = (iso: string | null) => (iso ? iso.split("-").reverse().join("/")
 
 const CAMPOS_MODELO = Object.keys(CABECALHOS_MODELO) as CampoPlanilha[];
 const exemplo = (valores: Partial<Record<CampoPlanilha, string>>) => CAMPOS_MODELO.map((campo) => valores[campo] ?? "");
+// suspensão e rescisão se registram na aba Alterações (C2): a planilha não as aceita
+const SITUACOES_IMPORTAVEIS = SITUACOES_CONTRATO.filter((s) => !SITUACOES_PELAS_ALTERACOES.has(s.value));
 
 export const importadorContratosPlanilha: Importador<LinhaContratoPlanilha> = {
   id: "contratos_planilha",
@@ -113,9 +115,9 @@ export const importadorContratosPlanilha: Importador<LinhaContratoPlanilha> = {
             }),
             [],
             ["Tipo (use um destes)", "Situação (use uma destas)"],
-            ...Array.from({ length: Math.max(TIPOS_CONTRATO.length, SITUACOES_CONTRATO.length) }, (_, i) => [
+            ...Array.from({ length: Math.max(TIPOS_CONTRATO.length, SITUACOES_IMPORTAVEIS.length) }, (_, i) => [
               TIPOS_CONTRATO[i]?.label ?? "",
-              SITUACOES_CONTRATO[i]?.label ?? "",
+              SITUACOES_IMPORTAVEIS[i]?.label ?? "",
             ]),
           ],
         },

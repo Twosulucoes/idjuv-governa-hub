@@ -141,7 +141,7 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `ProvidenciaRenovacaoDialog`. O `ContratoFormDialog` não pede mais valor atual nem fim atual (saem das alterações) e
   ganha "Reforma". Regras puras com testes vitest: `src/lib/contratos/alteracoes.ts` (valor e fim calculados, limite de
   prorrogação, percentuais de acréscimo e supressão sobre o valor inicial atualizado, avisos de limite, títulos e
-  efeitos de cada alteração) e `src/lib/contratos/vencimentos.ts` (faixas, ação esperada, garantia vencendo, filtros,
+  efeitos de cada alteração, documento no SEI) e `src/lib/contratos/vencimentos.ts` (faixas, ação esperada, garantia vencendo, filtros,
   resumo e planilha); `vigencia.ts` ganha `textoDias` e `lista.ts` conta os vencimentos sem providência.
 - **Localizador de processos do SEI** (`src/hooks/useLocalizadorSei.ts`: `useLocalizarProcessos(termo)`, com 300 ms de
   espera depois da última tecla e só com 3 caracteres ou mais, e `useProcessosParados()`): RPCs INVOKER

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useSalvarProvidencia } from "@/hooks/useContratos";
+import { minuscula } from "@/lib/contratos/alteracoes";
 import { textoAcao, type LinhaVencimento } from "@/lib/contratos/vencimentos";
 import { PROVIDENCIAS_RENOVACAO, type ProvidenciaRenovacao } from "@/types/contratos";
 
@@ -26,7 +27,7 @@ export function ProvidenciaRenovacaoDialog({ linha, onClose }: { linha: LinhaVen
   useEffect(() => {
     if (!linha) return;
     const c = linha.contrato;
-    setProvidencia((c.renovacao_providencia as ProvidenciaRenovacao | null) ?? (linha.acao === "prorrogar" ? "prorrogar" : NENHUMA));
+    setProvidencia((c.renovacao_providencia as ProvidenciaRenovacao | null) ?? NENHUMA);
     setProcesso(c.renovacao_processo_sei ?? "");
     setObservacao(c.renovacao_observacao ?? "");
   }, [linha]);
@@ -54,7 +55,7 @@ export function ProvidenciaRenovacaoDialog({ linha, onClose }: { linha: LinhaVen
         <DialogHeader>
           <DialogTitle>Providência do vencimento</DialogTitle>
           <DialogDescription>
-            {c ? `Contrato ${c.numero_contrato}/${c.ano}` : ""}. Ação esperada: {linha ? textoAcao(linha.acao).toLowerCase() : ""}. Quando o aditivo de
+            {c ? `Contrato ${c.numero_contrato}/${c.ano}` : ""}. Ação esperada: {linha ? minuscula(textoAcao(linha.acao)) : ""}. Quando o aditivo de
             prazo for registrado, a providência sai sozinha.
           </DialogDescription>
         </DialogHeader>

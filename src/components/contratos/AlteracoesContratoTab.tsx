@@ -33,6 +33,7 @@ import {
   efeitosAlteracao,
   ordenarAlteracoes,
   resumoAlteracoes,
+  textoDocumentoSei,
   tituloAlteracao,
 } from "@/lib/contratos/alteracoes";
 import { diasAte, hojeIso } from "@/lib/contratos/vigencia";
@@ -98,7 +99,7 @@ export function AlteracoesContratoTab({ contrato: c, podeEditar }: Props) {
               Contrato suspenso desde {formatDateBR(resumo.suspensaoAberta.data_inicio)}. Quando o SEI registrar a retomada, registre aqui; depois, o
               apostilamento que prorroga o fim pelo tempo parado (art. 115, §5º).
             </span>
-            {podeEditar && (
+            {podeEditar && !rescindido && (
               <Button size="sm" variant="outline" className="self-start sm:self-auto" onClick={() => setRetomando(resumo.suspensaoAberta as ContratoAlteracao)}>
                 Registrar retomada
               </Button>
@@ -130,6 +131,7 @@ export function AlteracoesContratoTab({ contrato: c, podeEditar }: Props) {
                 <Linha rotulo={`Supressões (${pct(resumo.percentualSupressao)}; limite 25%)`} valor={sinal(-resumo.supressoes)} />
               )}
               {resumo.reajustes !== 0 && <Linha rotulo="Reajustes e repactuações" valor={sinal(resumo.reajustes)} />}
+              {resumo.outrosApostilamentos !== 0 && <Linha rotulo="Outros apostilamentos" valor={sinal(resumo.outrosApostilamentos)} />}
               {resumo.anterior !== 0 && <Linha rotulo="Situação anterior ao sistema" valor={sinal(resumo.anterior)} />}
               <Linha rotulo="Valor atual" valor={formatCurrency(Number(c.valor_atual))} forte />
             </dl>
@@ -183,13 +185,9 @@ export function AlteracoesContratoTab({ contrato: c, podeEditar }: Props) {
               {linhaDoTempo.map((a) => {
                 const data = dataAlteracao(a);
                 const efeitos = efeitosAlteracao(a);
-                const sei = [
-                  a.processo_sei && `Processo ${a.processo_sei}`,
-                  a.documento_sei && `documento ${a.documento_sei}`,
-                  a.data_publicacao_doe && `DOE ${formatDateBR(a.data_publicacao_doe)}${a.numero_doe ? ` nº ${a.numero_doe}` : ""}`,
-                ].filter(Boolean).join(" · ");
-                // com a rescisão, só ela se corrige (o banco recusa as outras)
-                const podeCorrigir = podeEditar && (!rescindido || a.especie === "rescisao");
+                const sei = textoDocumentoSei(a);
+                // com a rescisão, só ela se corrige (o banco recusa as outras); rascunho não recebe alteração
+                const podeCorrigir = podeEditar && !rascunho && (!rescindido || a.especie === "rescisao");
                 return (
                   <li key={a.id} className="relative">
                     <span className="absolute -left-[1.81rem] top-1.5 h-3 w-3 rounded-full border-2 border-background bg-primary" aria-hidden="true" />
@@ -206,7 +204,7 @@ export function AlteracoesContratoTab({ contrato: c, podeEditar }: Props) {
                           <p className="text-sm text-muted-foreground">Retomada: documento {a.documento_retomada_sei}</p>
                         )}
                       </div>
-                      {podeEditar && (
+                      {podeCorrigir && (
                         <div className="flex shrink-0 gap-1 self-start">
                           {a.especie === "suspensao" && !a.data_retomada && (
                             <Button variant="outline" size="sm" onClick={() => setRetomando(a)}>

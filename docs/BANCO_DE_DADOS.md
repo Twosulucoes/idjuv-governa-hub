@@ -1518,26 +1518,31 @@ documento.
   alterados). Cada uma tem `processo_sei` (vazio herda o do contrato), `documento_sei`, `data_assinatura`,
   `data_publicacao_doe`, `numero_doe`, `descricao`, `justificativa` e `fundamento_legal`. Aditivo e apostilamento são
   numerados por espécie (1º, 2º…); uma rescisão, uma partida e uma suspensão em aberto por contrato (índices únicos);
-  CHECKs amarram os campos de cada espécie.
-- `contrato_alteracoes_preparar` (gatilho, INVOKER): autoria pelo banco; a alteração não muda de contrato; contrato em
+  CHECKs amarram os campos de cada espécie (a diferença de valor do apostilamento só vale em reajuste, repactuação e
+  outro).
+- `contrato_alteracoes_preparar` (gatilho, INVOKER): autoria pelo banco; a alteração não muda de contrato nem de
+  espécie (errou: apaga e registra de novo); contrato em
   rascunho não recebe alteração; depois da rescisão só ela se corrige; nenhuma data antes do início do contrato
   (`22023`). `contrato_alteracoes_aplicar` (SECURITY DEFINER) regrava o contrato para o recálculo e o devolve a
   vigente quando a rescisão sai ou a suspensão termina. Trilha em `audit_log_licitacoes`.
 - `contratos_preparar` (passa a SECURITY DEFINER, para ler todas as alterações qualquer que seja a RLS de quem grava):
   `valor_atual` = inicial + acréscimos − supressões ± variações; `data_fim_atual` = data da rescisão, ou a nova data da
   alteração mais recente (a partida conta como a mais antiga), ou `data_fim`; rescisão deixa `rescindido` e suspensão
-  em aberto deixa `suspenso`. O valor e o fim atuais não se digitam mais.
+  em aberto deixa `suspenso`, e sem elas ninguém põe o contrato nessas situações (`22023`; o que já estava assim fica).
+  O valor e o fim atuais não se digitam mais.
 - `contratos` ganha `reforma` (limite de acréscimo de 50% em vez de 25%, art. 125) e a providência do vencimento:
   `renovacao_providencia` (`prorrogar`, `nova_contratacao`, `encerrar`), `renovacao_processo_sei`,
-  `renovacao_observacao` e `renovacao_atualizada_em` (carimbada pelo gatilho). Quando o fim atual vai para depois, o
-  gatilho limpa a providência. Gravar a providência é alterar o contrato: pede `contratos.editar`
+  `renovacao_observacao` e `renovacao_atualizada_em` (carimbada pelo gatilho; o cliente não a forja). O cadastro não
+  traz providência, e quando o fim atual vai para depois o gatilho a limpa. Gravar a providência é alterar o contrato: pede `contratos.editar`
   (`contratos_conferir_permissao`).
-- Carga: o contrato cujo valor atual ou fim atual gravado difere do que as alterações dão ganhou a partida com a
-  diferença, então nenhum número mudou (a migração avisa quantos ainda divergem; o esperado é nenhum).
+- Carga: as linhas de `aditivos_contrato` viraram aditivos e apostilamentos (numerados de novo por contrato e espécie);
+  quando a nova data do aditivo mais recente não batia com o fim atual gravado, as datas antigas foram só para o texto.
+  O contrato cujo valor atual ou fim atual gravado difere do que as alterações dão ganhou a partida com a diferença,
+  então nenhum número mudou (a migração avisa quantos ainda divergem; o esperado é nenhum).
 - `contratos_meus_vencimentos()` (SECURITY DEFINER, `authenticated`): o sino. Contratos vigentes, aditados ou
   suspensos que vencem em até 120 dias (ou já venceram), do gestor e dos fiscais em exercício (pelo `servidor_id` do
   perfil) e, para quem tem `contratos.editar` com o módulo, todos; devolve só nº, objeto resumido, fim, dias, papéis e
-  se a pessoa abre a ficha; até 50.
+  se a pessoa abre a ficha; até 50, primeiro o que ainda vai vencer e depois os vencidos.
 - `contratos_importar_planilha`: contrato novo com valor atual diferente do inicial ganha a partida com a diferença
   (rascunho fica só com o inicial, com aviso).
 - `localizar_processos_sei`: o processo SEI de uma alteração e o da renovação também levam ao contrato.

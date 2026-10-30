@@ -69,6 +69,9 @@ export const SITUACOES_CONTRATO = [
   { value: "rescindido", label: "Rescindido" },
 ] as const satisfies readonly { value: SituacaoContrato; label: string }[];
 
+/** Situações que só a aba Alterações dá (suspensão em aberto e rescisão): o banco recusa digitá-las (C2). */
+export const SITUACOES_PELAS_ALTERACOES: ReadonlySet<string> = new Set<SituacaoContrato>(["suspenso", "rescindido"]);
+
 /** Mesma lista do CHECK contratos_tipo_contrato_check. */
 export const TIPOS_CONTRATO = [
   { value: "servico_continuo", label: "Serviço contínuo" },
@@ -129,7 +132,6 @@ const rotulo = (lista: readonly { value: string; label: string }[], v: string | 
 export const rotuloSituacaoContrato = (v: string | null | undefined) => rotulo(SITUACOES_CONTRATO, v);
 export const rotuloTipoContrato = (v: string | null | undefined) => rotulo(TIPOS_CONTRATO, v);
 export const rotuloPapel = (v: string | null | undefined) => rotulo(PAPEIS_RESPONSAVEL, v);
-export const rotuloEspecie = (v: string | null | undefined) => rotulo(ESPECIES_ALTERACAO, v);
 export const rotuloMotivoApostilamento = (v: string | null | undefined) => rotulo(MOTIVOS_APOSTILAMENTO, v);
 export const rotuloMotivoRescisao = (v: string | null | undefined) => rotulo(MOTIVOS_RESCISAO, v);
 export const rotuloProvidencia = (v: string | null | undefined) => rotulo(PROVIDENCIAS_RENOVACAO, v);

@@ -31,7 +31,7 @@ const ct = (o: Partial<ContratoVencimento> = {}): ContratoVencimento => ({
   renovacao_processo_sei: null,
   renovacao_observacao: null,
   renovacao_atualizada_em: null,
-  fornecedor: { id: "f", razao_social: "Empresa Fictícia Ltda", nome_fantasia: null, cpf_cnpj: "11222333000181" },
+  fornecedor: { id: "f", razao_social: "Empresa Fictícia Ltda", nome_fantasia: null },
   responsaveis: [{ papel: "gestor", nome: "Gestora Exemplo", servidor_id: "s", data_fim: null }],
   ...o,
 });

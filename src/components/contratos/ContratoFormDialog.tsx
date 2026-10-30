@@ -30,7 +30,7 @@ import {
 import { mascararDocumento } from "@/lib/bancario/comum";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { lerNumeroBr } from "@/lib/pca/numero";
-import { SITUACOES_CONTRATO, TIPOS_CONTRATO, type Contrato, type SituacaoContrato } from "@/types/contratos";
+import { SITUACOES_CONTRATO, SITUACOES_PELAS_ALTERACOES, TIPOS_CONTRATO, type Contrato, type SituacaoContrato } from "@/types/contratos";
 
 const NENHUM = "nenhum";
 const valorBr = (obrigatorio: boolean) =>
@@ -70,9 +70,6 @@ const schema = z
     observacoes: z.string().trim().max(4000).optional(),
   })
   .refine((d) => d.data_fim >= d.data_inicio, { message: "O fim vem depois do início", path: ["data_fim"] });
-
-/** Suspenso e Rescindido saem das alterações (C2): o formulário só os mostra para o contrato que já está assim. */
-const PELAS_ALTERACOES = new Set<string>(["suspenso", "rescindido"]);
 
 type FormData = z.infer<typeof schema>;
 
@@ -266,8 +263,8 @@ export function ContratoFormDialog({ open, onOpenChange, contrato, salvando, onS
               {/* contrato assinado não volta a rascunho (o banco também recusa); suspensão e rescisão vêm das alterações */}
               {lista("status", "Situação *", SITUACOES_CONTRATO.filter((s) =>
                 (s.value !== "rascunho" || !contrato || contrato.status === "rascunho")
-                && (!PELAS_ALTERACOES.has(s.value) || contrato?.status === s.value)))}
-              {contrato && PELAS_ALTERACOES.has(contrato.status ?? "") && (
+                && (!SITUACOES_PELAS_ALTERACOES.has(s.value) || contrato?.status === s.value)))}
+              {contrato && SITUACOES_PELAS_ALTERACOES.has(contrato.status ?? "") && (
                 <p className="text-sm text-muted-foreground md:col-span-2 lg:col-span-3">
                   Suspensão e rescisão mudam pela aba Alterações: registre a retomada ou corrija a rescisão lá.
                 </p>

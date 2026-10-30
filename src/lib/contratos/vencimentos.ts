@@ -32,7 +32,10 @@ export type ContratoVencimento = Pick<
   | "renovacao_observacao"
   | "renovacao_atualizada_em"
 > &
-  Pick<ContratoLista, "fornecedor" | "responsaveis">;
+  Pick<ContratoLista, "responsaveis"> & {
+    /** Sem o CPF/CNPJ: a tela e a planilha não mostram o documento do contratado. */
+    fornecedor: Omit<NonNullable<ContratoLista["fornecedor"]>, "cpf_cnpj"> | null;
+  };
 
 export type AcaoEsperada = "regularizar" | "suspenso" | "prorrogar" | "nova_contratacao";
 

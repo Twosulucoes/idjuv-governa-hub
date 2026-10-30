@@ -1071,12 +1071,14 @@ corrigir e apagar pedem `contratos.editar` (designar gestor e incluir item conti
 |---|---|---|
 | Ver a aba Alterações | módulo `compras` ou `contratos` (RLS); a ficha pede o módulo `contratos` **e** `contratos.visualizar`, `criar` ou `editar` | RLS de SELECT de `contrato_alteracoes`; `ProtectedRoute` de `/contratos/:id` |
 | Registrar, corrigir ou apagar alteração (aditivo, apostilamento, suspensão, retomada, rescisão, situação anterior) | `contratos.editar` | RLS de INSERT/UPDATE/DELETE de `contrato_alteracoes`; o recálculo do contrato (`contratos_preparar`, `contrato_alteracoes_aplicar`) é SECURITY DEFINER e não passa pelo gatilho de permissão |
+| Situação anterior ao sistema pela importação | `contratos.criar` (só no contrato novo da planilha com valor atual diferente do inicial; equivale a digitar o valor atual, como na C1) | `contratos_importar_planilha` (SECURITY DEFINER) |
 | Ver a tela Vencimentos | módulo `contratos` **e** `contratos.visualizar`, `criar` ou `editar` | `ProtectedRoute` de `/contratos/vencimentos`; os dados vêm da RLS de `contratos` |
-| Registrar a providência do vencimento | `contratos.editar` | RLS de UPDATE e gatilho `contratos_conferir_permissao` (é alteração do contrato) |
+| Registrar a providência do vencimento | `contratos.editar` | RLS de UPDATE e gatilho `contratos_conferir_permissao` (é alteração do contrato); o cadastro não a traz e a data dela é do banco (`contratos_preparar`) |
 | Ver "Contratos vencendo" no sino | gestor ou fiscal em exercício do contrato (pelo servidor do perfil), sem precisar do módulo; com o módulo Compras ou Contratos e `contratos.editar`, todos | `contratos_meus_vencimentos` (SECURITY DEFINER, perfil ativo; só nº, objeto resumido, fim e papel); o link para a ficha só aparece para quem tem a rota |
 
 - O valor atual, o fim atual e a situação rescindido/suspenso saem das alterações: não se digitam no cadastro, nem com
-  `editar`.
+  `editar` (`contratos_preparar` recalcula o valor e o fim e recusa a situação sem a alteração, `22023`; a planilha de
+  importação também não as aceita).
 - Os botões (Registrar alteração, Corrigir, Apagar, Registrar retomada, Providência) só aparecem com `editar`, mas
   quem decide é o banco.
 

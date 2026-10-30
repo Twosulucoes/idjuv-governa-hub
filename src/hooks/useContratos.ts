@@ -63,16 +63,21 @@ function mensagemErro(e: unknown): string {
     if (texto.includes('saida_check')) return 'Informe o motivo da saída.';
     if (texto.includes('periodo_check')) return 'O fim da designação não pode ser antes do início.';
     if (texto.includes('vigencia_check')) return 'O fim da vigência não pode ser antes do início.';
-    if (texto.includes('valores_check')) return 'Os valores não podem ser negativos.';
     if (texto.includes('alteracoes_aditivo_check')) {
       return 'No aditivo, marque o que ele muda (prazo pede o novo fim; valor pede o acréscimo ou a supressão) e informe a assinatura.';
     }
-    if (texto.includes('alteracoes_apostilamento_check')) return 'No apostilamento, informe o motivo e a assinatura.';
+    if (texto.includes('alteracoes_apostilamento_check')) {
+      return 'No apostilamento, informe o motivo e a assinatura; diferença de valor só no reajuste, na repactuação e em "outro".';
+    }
+    if (texto.includes('alteracoes_valores_check')) {
+      return 'Acréscimo e supressão só no termo aditivo; diferença de valor só no apostilamento e na situação anterior.';
+    }
     if (texto.includes('alteracoes_suspensao_check')) return 'Informe o início da suspensão; a retomada não pode ser antes dele.';
     if (texto.includes('alteracoes_rescisao_check')) return 'Na rescisão, informe a data e a forma.';
     if (texto.includes('alteracoes_partida_check')) return 'A situação anterior precisa de uma diferença de valor ou de um fim.';
     if (texto.includes('alteracoes_percentual_check')) return 'Percentual só no reajuste ou na repactuação, entre -100% e 1000%.';
     if (texto.includes('alteracoes_numero_check')) return 'Informe o número (de 1 a 999).';
+    if (texto.includes('valores_check')) return 'Os valores não podem ser negativos.';
     if (texto.includes('textos_check') || texto.includes('renovacao_')) return 'Algum texto passou do tamanho máximo.';
     return 'Algum campo está fora do permitido.';
   }
@@ -328,7 +333,9 @@ const invalidarResponsaveis = (qc: ReturnType<typeof useQueryClient>, contratoId
   qc.invalidateQueries({ queryKey: [CHAVE, 'responsaveis', contratoId] });
   qc.invalidateQueries({ queryKey: [CHAVE, 'historico', contratoId] });
   qc.invalidateQueries({ queryKey: [CHAVE, 'lista'] });
+  qc.invalidateQueries({ queryKey: [CHAVE, 'vencimentos'] });
   qc.invalidateQueries({ queryKey: ['contratos-dashboard-stats'] });
+  qc.invalidateQueries({ queryKey: ['contratos-meus-vencimentos'] });
 };
 
 export function useDesignarResponsavel() {

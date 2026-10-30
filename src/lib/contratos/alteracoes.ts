@@ -83,8 +83,10 @@ export interface ResumoAlteracoes {
   valorInicial: number;
   acrescimos: number;
   supressoes: number;
-  /** Variações dos apostilamentos (reajuste e repactuação, com sinal). */
+  /** Variações dos apostilamentos de reajuste e repactuação, com sinal (atualizam a base do art. 125). */
   reajustes: number;
+  /** Variações dos outros apostilamentos (motivo "outro"), com sinal: mudam o valor, não a base. */
+  outrosApostilamentos: number;
   /** Diferença que já vinha antes do sistema (situação anterior). */
   anterior: number;
   valorAtual: number;
@@ -107,7 +109,9 @@ export function resumoAlteracoes(c: ContratoBase, alteracoes: Alteracao[]): Resu
   const valorInicial = Number(c.valor_inicial);
   const acrescimos = soma(alteracoes, (a) => Number(a.valor_acrescimo));
   const supressoes = soma(alteracoes, (a) => Number(a.valor_supressao));
-  const reajustes = soma(alteracoes.filter((a) => a.especie === "apostilamento"), (a) => Number(a.valor_variacao));
+  const apostilas = alteracoes.filter((a) => a.especie === "apostilamento");
+  const reajustes = soma(apostilas.filter((a) => a.motivo === "reajuste" || a.motivo === "repactuacao"), (a) => Number(a.valor_variacao));
+  const outrosApostilamentos = soma(apostilas.filter((a) => a.motivo !== "reajuste" && a.motivo !== "repactuacao"), (a) => Number(a.valor_variacao));
   const anterior = soma(alteracoes.filter((a) => a.especie === "partida"), (a) => Number(a.valor_variacao));
   const base = centavos(valorInicial + reajustes);
   const limite = c.reforma ? 50 : 25;
@@ -119,6 +123,7 @@ export function resumoAlteracoes(c: ContratoBase, alteracoes: Alteracao[]): Resu
     acrescimos,
     supressoes,
     reajustes,
+    outrosApostilamentos,
     anterior,
     valorAtual: valorCalculado(valorInicial, alteracoes),
     valorInicialAtualizado: base,
@@ -179,11 +184,8 @@ export function tituloAlteracao(a: Pick<Alteracao, "especie" | "numero">): strin
   }
 }
 
-const juntar = (partes: string[]) =>
-  partes.length <= 1 ? (partes[0] ?? "") : `${partes.slice(0, -1).join(", ")} e ${partes[partes.length - 1]}`;
-
 /** Rótulo no meio da frase: só a primeira letra muda ("Reajuste" → "reajuste"; "Administração" fica). */
-const minuscula = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
+export const minuscula = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
 const variacao = (v: number) => (v > 0 ? `soma ${formatCurrency(v)}` : `reduz ${formatCurrency(Math.abs(v))}`);
 
 /** O que a alteração faz, em pedaços: "prorroga até 31/12/2027", "acrescenta R$ 12.000,00"... */
@@ -224,11 +226,13 @@ export function efeitosAlteracao(a: Alteracao): string[] {
   return efeitos;
 }
 
-/** Uma linha: "2º termo aditivo: prorroga até 31/12/2027, acrescenta R$ 12.000,00 e altera o objeto". */
-export function textoAlteracao(a: Alteracao): string {
-  const efeitos = efeitosAlteracao(a);
-  const resto = efeitos.length ? juntar(efeitos) : a.descricao.length > 80 ? `${a.descricao.slice(0, 77)}…` : a.descricao;
-  return `${tituloAlteracao(a)}: ${resto}`;
+/** Onde está no SEI: "Processo 17302.000123/2025.11 · documento 23456789 · DOE 22/07/2026 nº 4890" (vazio sem nada). */
+export function textoDocumentoSei(a: Pick<ContratoAlteracao, "processo_sei" | "documento_sei" | "data_publicacao_doe" | "numero_doe">): string {
+  return [
+    a.processo_sei && `Processo ${a.processo_sei}`,
+    a.documento_sei && `documento ${a.documento_sei}`,
+    a.data_publicacao_doe && `DOE ${formatDateBR(a.data_publicacao_doe)}${a.numero_doe ? ` nº ${a.numero_doe}` : ""}`,
+  ].filter(Boolean).join(" · ");
 }
 
 /** Data do ato: assinatura (aditivo, apostilamento) ou início (suspensão, rescisão). A situação anterior não tem. */

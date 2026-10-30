@@ -6,7 +6,7 @@
 import type { DadosFichaContrato } from "@/lib/documentos/modelos/contratos/fichaContrato";
 import { mascararDocumento } from "@/lib/bancario/comum";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
-import { avisosLimites, dataAlteracao, efeitosAlteracao, ordenarAlteracoes, tituloAlteracao } from "@/lib/contratos/alteracoes";
+import { avisosLimites, dataAlteracao, efeitosAlteracao, ordenarAlteracoes, textoDocumentoSei, tituloAlteracao } from "@/lib/contratos/alteracoes";
 import { descricaoPortaria, ordenarPorPapel, periodoDesignacao } from "@/lib/contratos/responsaveis";
 import { descricaoVigencia, situacaoVigencia } from "@/lib/contratos/vigencia";
 import {
@@ -31,7 +31,7 @@ export function montarFichaContrato(
 ): DadosFichaContrato {
   const mudouFim = c.data_fim_atual && c.data_fim_atual !== c.data_fim;
   const fimAtual = mudouFim
-    ? `, ${c.status === "rescindido" ? "encerrada pela rescisão em" : "prorrogada até"} ${formatDateBR(c.data_fim_atual)}`
+    ? `, ${alteracoes.some((a) => a.especie === "rescisao") ? "encerrada pela rescisão em" : "prorrogada até"} ${formatDateBR(c.data_fim_atual)}`
     : "";
   const garantia = c.garantia_tipo
     ? [
@@ -79,11 +79,7 @@ export function montarFichaContrato(
         data: data ? formatDateBR(data) : "",
         alteracao: tituloAlteracao(a),
         efeito: efeitosAlteracao(a).join("; ") || a.descricao,
-        documento: [
-          a.processo_sei && `Processo ${a.processo_sei}`,
-          a.documento_sei && `documento ${a.documento_sei}`,
-          a.data_publicacao_doe && `DOE ${formatDateBR(a.data_publicacao_doe)}${a.numero_doe ? ` nº ${a.numero_doe}` : ""}`,
-        ].filter(Boolean).join(" · "),
+        documento: textoDocumentoSei(a),
       };
     }),
     avisosAlteracoes: avisosLimites(c, alteracoes),
