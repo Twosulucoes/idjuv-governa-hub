@@ -2,17 +2,17 @@
  * Página de Listagem de Solicitações de Despesa
  */
 
-import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
+  DataTable,
+  PageHeader,
+  StatusBadge,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+  type TomStatus,
+} from "@/components/design-system";
 import { Plus, Eye, FileText } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useSolicitacoes } from "@/hooks/useFinanceiro";
@@ -43,6 +43,35 @@ const PRIORIDADE_SOLICITACAO: Record<string, { label: string; tom: TomStatus }> 
   alta: { label: "Alta", tom: "pendente" },
   urgente: { label: "Urgente", tom: "destaque" },
 };
+
+// "status" mantém o nome do parâmetro dos atalhos do painel (?status=pendente_analise).
+const filtrosSolicitacao: FiltroDef<SolicitacaoDespesa>[] = [
+  {
+    tipo: "lista",
+    id: "status",
+    rotulo: "Situação",
+    principal: true,
+    valor: (sol) => sol.status,
+    opcoes: Object.entries(SITUACAO_SOLICITACAO).map(([valor, s]) => ({ valor, rotulo: s.label })),
+  },
+  { tipo: "periodo", id: "periodo", rotulo: "Data da solicitação", principal: true, valor: (sol) => sol.data_solicitacao },
+  {
+    tipo: "lista",
+    id: "unidade",
+    rotulo: "Unidade",
+    principal: true,
+    valor: (sol) => sol.unidade_solicitante?.sigla || sol.unidade_solicitante?.nome,
+  },
+  {
+    tipo: "lista",
+    id: "prioridade",
+    rotulo: "Prioridade",
+    valor: (sol) => sol.prioridade,
+    opcoes: Object.entries(PRIORIDADE_SOLICITACAO).map(([valor, p]) => ({ valor, rotulo: p.label })),
+  },
+  { tipo: "lista", id: "tipo", rotulo: "Tipo de despesa", valor: (sol) => sol.tipo_despesa },
+  { tipo: "faixa", id: "valor", rotulo: "Valor estimado", formato: "moeda", valor: (sol) => Number(sol.valor_estimado) },
+];
 
 const colunas: ColunaTabela<SolicitacaoDespesa>[] = [
   {
@@ -106,17 +135,13 @@ const colunas: ColunaTabela<SolicitacaoDespesa>[] = [
 
 export default function SolicitacoesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const statusParam = searchParams.get("status") || "";
   // "?acao=nova" (botão do cabeçalho, atalho do painel) abre o formulário
   const formAberto = searchParams.get("acao") === "nova";
   const { exercicio, comExercicio } = useExercicioFinanceiro();
 
-  const [filtroStatus, setFiltroStatus] = useState(statusParam);
+  const filtros = useEstadoFiltros("financeiro.solicitacoes", filtrosSolicitacao);
 
-  const { data: solicitacoes, isLoading, isError, refetch } = useSolicitacoes({
-    exercicio,
-    status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined
-  });
+  const { data: solicitacoes, isLoading, isError, refetch } = useSolicitacoes({ exercicio });
 
   const alterarFormulario = (aberto: boolean) => {
     setSearchParams(
@@ -159,22 +184,7 @@ export default function SolicitacoesPage() {
           erro={isError ? "Verifique sua conexão e tente novamente." : null}
           aoTentarNovamente={() => refetch()}
           busca={{ placeholder: "Buscar por número, objeto, unidade..." }}
-          filtros={
-            <Select value={filtroStatus || "todos"} onValueChange={(v) => setFiltroStatus(v === "todos" ? "" : v)}>
-              <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por situação">
-                <SelectValue placeholder="Todas as situações" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todas as situações</SelectItem>
-                <SelectItem value="rascunho">Rascunho</SelectItem>
-                <SelectItem value="pendente_analise">Pendente de análise</SelectItem>
-                <SelectItem value="em_analise">Em análise</SelectItem>
-                <SelectItem value="aprovado">Aprovado</SelectItem>
-                <SelectItem value="rejeitado">Rejeitado</SelectItem>
-                <SelectItem value="executado">Executado</SelectItem>
-              </SelectContent>
-            </Select>
-          }
+          filtrosDinamicos={filtros}
           vazio={{
             icone: FileText,
             titulo: "Nenhuma solicitação encontrada",

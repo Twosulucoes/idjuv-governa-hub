@@ -2,7 +2,15 @@ import { useState } from "react";
 import { ModuleLayout } from "@/components/layout";
 import FavorecidoFormDialog from "@/components/financeiro/FavorecidoFormDialog";
 import { Button } from "@/components/ui/button";
-import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
+import {
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+} from "@/components/design-system";
 import { Plus, Users, CheckCircle2, AlertTriangle, Pencil } from "lucide-react";
 import { agenciaValida, contaValida } from "@/lib/bancario/favorecido";
 import { useFavorecidos, type Favorecido } from "@/hooks/useFavorecidos";
@@ -10,6 +18,33 @@ import { useFavorecidos, type Favorecido } from "@/hooks/useFavorecidos";
 /** Tem banco, agência e conta no formato que a remessa OBN600 aceita. */
 const contaPronta = (f: Favorecido) =>
   !!f.banco_codigo && agenciaValida(f.agencia ?? "") && contaValida(f.conta ?? "");
+
+const filtrosFavorecido: FiltroDef<Favorecido>[] = [
+  {
+    tipo: "lista",
+    id: "pessoa",
+    rotulo: "Pessoa",
+    principal: true,
+    valor: (f) => (f.cpf_cnpj.replace(/\D/g, "").length > 11 ? "pj" : "pf"),
+    opcoes: [
+      { valor: "pj", rotulo: "Jurídica (CNPJ)" },
+      { valor: "pf", rotulo: "Física (CPF)" },
+    ],
+  },
+  {
+    tipo: "lista",
+    id: "situacao",
+    rotulo: "Situação",
+    principal: true,
+    valor: (f) => (f.ativo ? "ativo" : "inativo"),
+    opcoes: [
+      { valor: "ativo", rotulo: "Ativo" },
+      { valor: "inativo", rotulo: "Inativo" },
+    ],
+  },
+  { tipo: "booleano", id: "sem_conta", rotulo: "Sem conta válida", principal: true, valor: (f) => !contaPronta(f) },
+  { tipo: "lista", id: "banco", rotulo: "Banco", valor: (f) => f.banco_codigo },
+];
 
 const colunas: ColunaTabela<Favorecido>[] = [
   {
@@ -60,6 +95,7 @@ export default function FavorecidosPage() {
   const { data: favorecidos, isLoading, isError, refetch } = useFavorecidos();
   const [formOpen, setFormOpen] = useState(false);
   const [emEdicao, setEmEdicao] = useState<Favorecido | null>(null);
+  const filtros = useEstadoFiltros("financeiro.favorecidos", filtrosFavorecido);
 
   const abrir = (f: Favorecido | null) => {
     setEmEdicao(f);
@@ -105,6 +141,7 @@ export default function FavorecidosPage() {
             </Button>
           )}
           busca={{ placeholder: "Buscar por nome ou CPF/CNPJ…" }}
+          filtrosDinamicos={filtros}
           vazio={{
             icone: Users,
             titulo: "Nenhum favorecido encontrado",
