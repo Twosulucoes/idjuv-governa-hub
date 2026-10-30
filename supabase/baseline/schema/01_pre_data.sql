@@ -1909,11 +1909,12 @@ CREATE FUNCTION public.atualizar_saldo_contrato() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 BEGIN
-  UPDATE public.contratos SET 
-    valor_executado = (SELECT COALESCE(SUM(valor_aprovado), 0) FROM public.medicoes_contrato 
-      WHERE contrato_id = COALESCE(NEW.contrato_id, OLD.contrato_id) AND status = 'aprovada'),
-    saldo_contrato = valor_atual - (SELECT COALESCE(SUM(valor_aprovado), 0) FROM public.medicoes_contrato 
-      WHERE contrato_id = COALESCE(NEW.contrato_id, OLD.contrato_id) AND status = 'aprovada')
+  -- executado = medições aprovadas e pagas (a paga continua executada)
+  UPDATE public.contratos SET
+    valor_executado = (SELECT COALESCE(SUM(valor_aprovado), 0) FROM public.medicoes_contrato
+      WHERE contrato_id = COALESCE(NEW.contrato_id, OLD.contrato_id) AND status IN ('aprovada', 'paga')),
+    saldo_contrato = valor_atual - (SELECT COALESCE(SUM(valor_aprovado), 0) FROM public.medicoes_contrato
+      WHERE contrato_id = COALESCE(NEW.contrato_id, OLD.contrato_id) AND status IN ('aprovada', 'paga'))
   WHERE id = COALESCE(NEW.contrato_id, OLD.contrato_id);
   RETURN COALESCE(NEW, OLD);
 END;
@@ -4702,24 +4703,44 @@ CREATE FUNCTION public.fn_atualizar_empenho_liquidacao() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
+DECLARE
+  v_delta numeric := 0;
 BEGIN
-  IF TG_OP = 'INSERT' AND NEW.status = 'aprovada' THEN
-    UPDATE fin_empenhos
-    SET valor_liquidado = valor_liquidado + NEW.valor_liquidado,
-        status = CASE 
-          WHEN valor_liquidado + NEW.valor_liquidado >= valor_empenhado - COALESCE(valor_anulado, 0) THEN 'liquidado'
-          ELSE 'parcialmente_liquidado'
-        END,
-        updated_at = now()
-    WHERE id = NEW.empenho_id;
-    
-    -- Atualizar dotação
-    UPDATE fin_dotacoes
-    SET valor_liquidado = valor_liquidado + NEW.valor_liquidado,
-        updated_at = now()
-    WHERE id = (SELECT dotacao_id FROM fin_empenhos WHERE id = NEW.empenho_id);
+  -- conta quando entra em "aprovada" (no INSERT ou na aprovação) e devolve quando sai
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.status = 'aprovada' THEN
+      v_delta := NEW.valor_liquidado;
+    END IF;
+  ELSIF OLD.status IS DISTINCT FROM NEW.status THEN
+    IF NEW.status = 'aprovada' THEN
+      v_delta := NEW.valor_liquidado;
+    ELSIF OLD.status = 'aprovada' THEN
+      v_delta := -OLD.valor_liquidado;
+    END IF;
   END IF;
-  
+
+  IF v_delta = 0 THEN
+    RETURN NEW;
+  END IF;
+
+  -- com pagamento, o status é do gatilho do pagamento
+  UPDATE fin_empenhos
+  SET valor_liquidado = COALESCE(valor_liquidado, 0) + v_delta,
+      status = (CASE
+        WHEN status = 'anulado' OR COALESCE(valor_pago, 0) > 0 THEN status::text
+        WHEN COALESCE(valor_liquidado, 0) + v_delta <= 0 THEN 'emitido'
+        WHEN COALESCE(valor_liquidado, 0) + v_delta >= valor_empenhado - COALESCE(valor_anulado, 0) THEN 'liquidado'
+        ELSE 'parcialmente_liquidado'
+      END)::public.status_empenho,
+      updated_at = now()
+  WHERE id = NEW.empenho_id;
+
+  -- Atualizar dotação
+  UPDATE fin_dotacoes
+  SET valor_liquidado = COALESCE(valor_liquidado, 0) + v_delta,
+      updated_at = now()
+  WHERE id = (SELECT dotacao_id FROM fin_empenhos WHERE id = NEW.empenho_id);
+
   RETURN NEW;
 END;
 $$;
@@ -4736,11 +4757,11 @@ CREATE FUNCTION public.fn_atualizar_empenho_pagamento() RETURNS trigger
 BEGIN
   IF NEW.status = 'pago'
      AND (TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM 'pago')) THEN
-    -- Atualizar empenho
+    -- Atualizar empenho: "pago" só com o empenho inteiro pago (empenhado − anulado)
     UPDATE fin_empenhos
     SET valor_pago = valor_pago + NEW.valor_bruto,
         status = (CASE
-          WHEN valor_pago + NEW.valor_bruto >= valor_liquidado THEN 'pago'
+          WHEN valor_pago + NEW.valor_bruto >= valor_empenhado - COALESCE(valor_anulado, 0) THEN 'pago'
           ELSE 'parcialmente_pago'
         END)::public.status_empenho,
         updated_at = now()
@@ -4954,33 +4975,31 @@ CREATE FUNCTION public.fn_atualizar_saldo_sub_empenho() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 BEGIN
+  -- saldo_liquidar é coluna gerada; a dotação do reforço segue pelo gatilho trg_atualizar_saldo_empenho
   IF NEW.tipo = 'reforco' THEN
     UPDATE public.fin_empenhos
     SET valor_empenhado = valor_empenhado + NEW.valor,
-        saldo_liquidar = COALESCE(saldo_liquidar, 0) + NEW.valor,
         updated_at = now()
     WHERE id = NEW.empenho_id;
-    
-    -- Atualizar dotação
-    UPDATE public.fin_dotacoes
-    SET valor_empenhado = COALESCE(valor_empenhado, 0) + NEW.valor,
-        updated_at = now()
-    WHERE id = (SELECT dotacao_id FROM public.fin_empenhos WHERE id = NEW.empenho_id);
-        
+
   ELSIF NEW.tipo = 'anulacao' THEN
     UPDATE public.fin_empenhos
     SET valor_anulado = COALESCE(valor_anulado, 0) + NEW.valor,
-        saldo_liquidar = COALESCE(saldo_liquidar, 0) - NEW.valor,
+        status = (CASE
+          WHEN valor_empenhado - COALESCE(valor_anulado, 0) - NEW.valor <= 0
+               AND COALESCE(valor_liquidado, 0) = 0 AND COALESCE(valor_pago, 0) = 0 THEN 'anulado'
+          ELSE status::text
+        END)::public.status_empenho,
         updated_at = now()
     WHERE id = NEW.empenho_id;
-    
-    -- Devolver saldo à dotação
+
+    -- Devolver saldo à dotação (empenho do FIPLAN: a dotação vem do QDD)
     UPDATE public.fin_dotacoes
     SET valor_empenhado = COALESCE(valor_empenhado, 0) - NEW.valor,
         updated_at = now()
-    WHERE id = (SELECT dotacao_id FROM public.fin_empenhos WHERE id = NEW.empenho_id);
+    WHERE id = (SELECT dotacao_id FROM public.fin_empenhos WHERE id = NEW.empenho_id AND origem = 'sistema');
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -13095,8 +13114,6 @@ BEGIN
     format('Processamento da folha %s/%s (%s)', v_folha.competencia_mes, v_folha.competencia_ano, v_tipo),
     NULL, jsonb_build_object('folha_id', p_folha_id, 'tipo_folha', v_tipo));
 
-  UPDATE public.folhas_pagamento SET status = 'processando', updated_at = now() WHERE id = p_folha_id;
-
   -- tabelas e parâmetros necessários: existência na data de referência
   v_tem_inss := EXISTS (SELECT 1 FROM public.tabela_inss t WHERE t.vigencia_inicio <= v_d2 AND (t.vigencia_fim IS NULL OR t.vigencia_fim >= v_d2));
   v_tem_irrf := EXISTS (SELECT 1 FROM public.tabela_irrf t WHERE t.vigencia_inicio <= v_d2 AND (t.vigencia_fim IS NULL OR t.vigencia_fim >= v_d2));
@@ -13257,7 +13274,6 @@ EXCEPTION
     RAISE;
   WHEN OTHERS THEN
     PERFORM set_config('trilha.renovar_decisao', '', true);
-    UPDATE public.folhas_pagamento SET status = 'aberta', updated_at = now() WHERE id = p_folha_id;
     RETURN jsonb_build_object('sucesso', false, 'erro', SQLERRM, 'servidores_processados', v_count);
 END;
 $$;
@@ -13986,7 +14002,8 @@ BEGIN
     status = 'reaberta',
     reaberto_por = v_user_id,
     reaberto_em = now(),
-    justificativa_reabertura = p_justificativa
+    justificativa_reabertura = p_justificativa,
+    quantidade_reaberturas = COALESCE(quantidade_reaberturas, 0) + 1
   WHERE id = p_folha_id;
 
   -- Eventos do eSocial rascunho da folha saem da vigência (E3)

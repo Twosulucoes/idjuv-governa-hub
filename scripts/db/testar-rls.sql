@@ -1460,6 +1460,9 @@ BEGIN
   END IF;
   r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.reabrir_folha(%L::uuid, ''teste de reabertura'')::text', folha));
   IF r NOT LIKE '%"success": true%' THEN PERFORM pg_temp.falha('reabrir_folha falha para o administrador (' || left(r, 120) || ')'); END IF;
+  IF (SELECT quantidade_reaberturas FROM public.folhas_pagamento WHERE id = folha::uuid) IS DISTINCT FROM 1 THEN
+    PERFORM pg_temp.falha('reabrir_folha não conta a reabertura (quantidade_reaberturas)');
+  END IF;
   r := pg_temp.sql_como(u_admin, 'authenticated', 'UPDATE public.config_parametros_valores SET ativo = ativo');
   IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('escrita em config_parametros_valores falha (fn_audit_parametros): ' || r); END IF;
 
@@ -3062,6 +3065,11 @@ BEGIN
   ELSIF (SELECT processado_por FROM public.folhas_pagamento WHERE id = f2) IS DISTINCT FROM u_proc
         OR (SELECT data_processamento FROM public.folhas_pagamento WHERE id = f2) < '2001-01-01' THEN
     PERFORM pg_temp.falha('E1 folha: processar_folha_pagamento não grava processado_por/data_processamento');
+  END IF;
+  -- processar não é enviar à conferência: sem passagem por "processando" no histórico nem conferido_por
+  IF EXISTS (SELECT 1 FROM public.folha_historico_status WHERE folha_id = f2 AND status_novo = 'processando')
+     OR (SELECT conferido_por FROM public.folhas_pagamento WHERE id = f2) IS NOT NULL THEN
+    PERFORM pg_temp.falha('E1 folha: processar_folha_pagamento registra envio à conferência (status processando/conferido_por)');
   END IF;
   r := pg_temp.exec_como(u_proc, 'authenticated', format('UPDATE public.folhas_pagamento SET data_processamento = ''2000-01-01'' WHERE id = %L', f2));
   IF (SELECT data_processamento FROM public.folhas_pagamento WHERE id = f2) < '2001-01-01' THEN
@@ -7991,6 +7999,89 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('COMPRAS PROCESSOS: nº SEI sem espaço, andamento só com compras.processos.editar, estado atual pela movimentação mais recente, andamento não se apaga, empenhos pelo nº SEI e importação (simulação, aplicação e reimportação) verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro e contratos: gatilhos de saldo (TRIGGERS LIGADOS)
+-- Migração 20261107090000_fin_gatilhos_empenho_contrato.sql (defeitos da demonstração, 24/10/2026):
+--   * reforço de sub-empenho grava e soma uma vez na dotação; anulação devolve à dotação e anula o empenho inteiro;
+--   * liquidação conta quando entra em "aprovada" (INSERT ou UPDATE) e devolve quando sai, com status do empenho;
+--   * pagamento só marca "pago" com o empenho inteiro pago; medição "paga" continua no executado do contrato.
+DO $$
+DECLARE
+  d uuid := 'f3000000-0000-0000-0000-0000000001d1';
+  f uuid := 'f3000000-0000-0000-0000-0000000001f1';
+  e1 uuid := 'f3000000-0000-0000-0000-0000000001e1';
+  e2 uuid := 'f3000000-0000-0000-0000-0000000001e2';
+  ct text; md text; r text; x record;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO public.fin_dotacoes (id, exercicio, codigo_dotacao, valor_inicial, valor_empenhado)
+    VALUES (d, 2032, '99.999.999.9999.9999.33903900.1.500.0000.Não', 100000, 0);
+  INSERT INTO public.fornecedores (id, tipo_pessoa, cpf_cnpj, razao_social) VALUES (f, 'PJ', '00.000.000/0002-72', 'Fornecedor Gatilhos');
+  INSERT INTO public.fin_empenhos (id, numero, exercicio, dotacao_id, fornecedor_id, valor_empenhado, objeto) VALUES
+    (e1, 'NE-2032-G01', 2032, d, f, 1000, 'Gatilhos 1'), (e2, 'NE-2032-G02', 2032, d, f, 500, 'Gatilhos 2');
+
+  BEGIN
+    INSERT INTO public.fin_sub_empenhos (empenho_id, numero, tipo, valor, justificativa) VALUES (e1, 'RF-G1', 'reforco', 200, 'teste');
+    SELECT e.valor_empenhado, e.saldo_liquidar, dt.valor_empenhado AS dot INTO x
+      FROM public.fin_empenhos e JOIN public.fin_dotacoes dt ON dt.id = e.dotacao_id WHERE e.id = e1;
+    IF x.valor_empenhado <> 1200 OR x.saldo_liquidar <> 1200 OR x.dot <> 1700 THEN
+      PERFORM pg_temp.falha(format('FIN gatilhos: reforço (empenho %s, saldo %s, dotação %s; esperado 1200, 1200, 1700)', x.valor_empenhado, x.saldo_liquidar, x.dot));
+    END IF;
+    INSERT INTO public.fin_sub_empenhos (empenho_id, numero, tipo, valor, justificativa) VALUES (e2, 'AN-G1', 'anulacao', 500, 'teste');
+    SELECT e.valor_anulado, e.saldo_liquidar, e.status::text AS status, dt.valor_empenhado AS dot INTO x
+      FROM public.fin_empenhos e JOIN public.fin_dotacoes dt ON dt.id = e.dotacao_id WHERE e.id = e2;
+    IF x.valor_anulado <> 500 OR x.saldo_liquidar <> 0 OR x.status <> 'anulado' OR x.dot <> 1200 THEN
+      PERFORM pg_temp.falha(format('FIN gatilhos: anulação total (anulado %s, saldo %s, status %s, dotação %s)', x.valor_anulado, x.saldo_liquidar, x.status, x.dot));
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM pg_temp.falha('FIN gatilhos: sub-empenho falha (' || SQLERRM || ')');
+  END;
+
+  BEGIN
+    INSERT INTO public.fin_liquidacoes (numero, exercicio, empenho_id, tipo_documento, numero_documento, data_documento, valor_documento, valor_liquidado, status)
+      VALUES ('LQ-G1', 2032, e1, 'nota_fiscal', 'NF-G1', '2032-01-10', 300, 300, 'aprovada');
+    INSERT INTO public.fin_liquidacoes (numero, exercicio, empenho_id, tipo_documento, numero_documento, data_documento, valor_documento, valor_liquidado, status)
+      VALUES ('LQ-G2', 2032, e1, 'nota_fiscal', 'NF-G2', '2032-01-11', 900, 900, 'pendente');
+    SELECT valor_liquidado, status::text AS status INTO x FROM public.fin_empenhos WHERE id = e1;
+    IF x.valor_liquidado <> 300 OR x.status <> 'parcialmente_liquidado' THEN
+      PERFORM pg_temp.falha(format('FIN gatilhos: liquidação aprovada no INSERT (%s, %s)', x.valor_liquidado, x.status));
+    END IF;
+    UPDATE public.fin_liquidacoes SET status = 'aprovada' WHERE numero = 'LQ-G2';
+    SELECT valor_liquidado, status::text AS status INTO x FROM public.fin_empenhos WHERE id = e1;
+    IF x.valor_liquidado <> 1200 OR x.status <> 'liquidado' THEN
+      PERFORM pg_temp.falha(format('FIN gatilhos: aprovação por UPDATE (%s, %s)', x.valor_liquidado, x.status));
+    END IF;
+    UPDATE public.fin_liquidacoes SET status = 'cancelada' WHERE numero = 'LQ-G2';
+    SELECT valor_liquidado, status::text AS status INTO x FROM public.fin_empenhos WHERE id = e1;
+    IF x.valor_liquidado <> 300 OR x.status <> 'parcialmente_liquidado' THEN
+      PERFORM pg_temp.falha(format('FIN gatilhos: liquidação que sai de aprovada não devolve (%s, %s)', x.valor_liquidado, x.status));
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM pg_temp.falha('FIN gatilhos: liquidação falha (' || SQLERRM || ')');
+  END;
+
+  -- pagamento: o corpo do gatilho só lê o NEW; parte paga não é "pago"
+  IF (SELECT prosrc FROM pg_proc WHERE oid = 'public.fn_atualizar_empenho_pagamento()'::regprocedure) !~ 'valor_empenhado - COALESCE\(valor_anulado' THEN
+    PERFORM pg_temp.falha('FIN gatilhos: pagamento marca "pago" sem comparar com empenhado − anulado');
+  END IF;
+
+  BEGIN
+    INSERT INTO public.contratos (numero_contrato, fornecedor_id, objeto, valor_inicial, valor_atual, data_assinatura, data_inicio, data_fim)
+      VALUES ('CT-G-2032', f, 'Contrato gatilhos', 10000, 10000, '2032-01-01', '2032-01-01', '2032-12-31') RETURNING id::text INTO ct;
+    INSERT INTO public.medicoes_contrato (contrato_id, numero_medicao, periodo_inicio, periodo_fim, valor_medido, valor_aprovado, status)
+      VALUES (ct::uuid, 1, '2032-01-01', '2032-01-31', 400, 400, 'aprovada') RETURNING id::text INTO md;
+    UPDATE public.medicoes_contrato SET status = 'paga' WHERE id = md::uuid;
+    SELECT valor_executado, saldo_contrato INTO x FROM public.contratos WHERE id = ct::uuid;
+    IF x.valor_executado <> 400 OR x.saldo_contrato <> 9600 THEN
+      PERFORM pg_temp.falha(format('FIN gatilhos: medição paga sai do executado (executado %s, saldo %s)', x.valor_executado, x.saldo_contrato));
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM pg_temp.falha('FIN gatilhos: medição do contrato falha (' || SQLERRM || ')');
+  END;
+
+  PERFORM pg_temp.nota('FIN e contratos (gatilhos de saldo): reforço e anulação de sub-empenho, liquidação aprovada no INSERT e por UPDATE, devolução ao sair de aprovada, pagamento parcial e medição paga no executado verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Compras: reservas e PEDs (migração 20261030090000) (TRIGGERS LIGADOS)

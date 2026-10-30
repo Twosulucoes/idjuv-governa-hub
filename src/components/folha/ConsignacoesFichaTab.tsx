@@ -37,7 +37,7 @@ import {
   avaliarMargem,
   baseMargemConsignavel,
   formatarPercentual,
-  itemJaLancado,
+  consignacaoJaLancada,
   situacaoConsignacao,
   ultimoDiaCompetencia,
   type ItemParaReferencia,
@@ -134,6 +134,7 @@ export function ConsignacoesFichaTab({
           rubrica_id: c.rubrica_id,
           descricao: `${TIPO_CONSIGNACAO_LABELS[c.tipo_consignacao ?? ""] ?? "Consignação"} - ${c.consignataria_nome}`,
           numero_contrato: c.numero_contrato,
+          consignataria_nome: c.consignataria_nome,
           valor_parcela: Number(c.valor_parcela),
         });
       }
@@ -266,7 +267,7 @@ export function ConsignacoesFichaTab({
             <TableBody>
               {filtradas.map((c) => {
                 const situacao = situacaoConsignacao(c);
-                const jaLancada = itemJaLancado(itens, c.numero_contrato);
+                const jaLancada = consignacaoJaLancada(itens, c);
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.consignataria_nome}</TableCell>
