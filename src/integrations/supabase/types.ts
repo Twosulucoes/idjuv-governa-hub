@@ -13506,6 +13506,60 @@ export type Database = {
           },
         ]
       }
+      fin_tg_mudancas: {
+        Row: {
+          campo: string | null
+          chave: string
+          dados: Json | null
+          entidade: string
+          id: string
+          id_proposta: number | null
+          numero_convenio: string | null
+          registrada_em: string
+          sincronizacao_id: string
+          tipo: string
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          campo?: string | null
+          chave: string
+          dados?: Json | null
+          entidade: string
+          id?: string
+          id_proposta?: number | null
+          numero_convenio?: string | null
+          registrada_em?: string
+          sincronizacao_id: string
+          tipo: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          campo?: string | null
+          chave?: string
+          dados?: Json | null
+          entidade?: string
+          id?: string
+          id_proposta?: number | null
+          numero_convenio?: string | null
+          registrada_em?: string
+          sincronizacao_id?: string
+          tipo?: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_tg_mudancas_sincronizacao_id_fkey"
+            columns: ["sincronizacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_tg_sincronizacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_tg_propostas: {
         Row: {
           agencia: string | null
@@ -13585,6 +13639,7 @@ export type Database = {
           executada_em: string
           id: string
           movimentos: number
+          mudancas: number
           propostas: number
         }
         ComputedFields: never
@@ -13596,6 +13651,7 @@ export type Database = {
           executada_em?: string
           id?: string
           movimentos?: number
+          mudancas?: number
           propostas?: number
         }
         Update: {
@@ -13606,6 +13662,7 @@ export type Database = {
           executada_em?: string
           id?: string
           movimentos?: number
+          mudancas?: number
           propostas?: number
         }
         Relationships: []
@@ -27105,6 +27162,11 @@ export type Database = {
         }
         Returns: Json
       }
+      fin_tg_mapa: { Args: { p_entidade: string }; Returns: Json }
+      fin_tg_registrar_diferencas: {
+        Args: { p_ant: Json; p_entidade: string; p_novo: Json; p_sinc: string }
+        Returns: number
+      }
       fn_atualizar_situacao_servidor: {
         Args: { p_servidor_id: string }
         Returns: undefined
@@ -27731,6 +27793,10 @@ export type Database = {
       pca_classificadores: { Args: { _exercicio: number }; Returns: Json }
       pca_usar_qdd: { Args: { _plano_id: string }; Returns: number }
       perfil_ativo_atual: { Args: Record<PropertyKey, never>; Returns: boolean }
+      pode_atualizar_convenios_federais: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       pode_conciliar_pagamentos: {
         Args: Record<PropertyKey, never>
         Returns: boolean

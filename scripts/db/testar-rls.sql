@@ -127,6 +127,7 @@ INSERT INTO seed_ov VALUES
   -- espelho do Transferegov (migração 20261105090000): CNPJ com 14 dígitos; movimento é empenho ou desembolso
   ('fin_tg_propostas', '{"cnpj_proponente":"00000000000191"}'),
   ('fin_tg_sincronizacoes', '{"cnpj":"00000000000191"}'),
+  ('fin_tg_mudancas', '{"entidade":"proposta","tipo":"novo","campo":null}'),
   ('fin_tg_movimentos', '{"tipo":"empenho"}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
 -- escapam de UNIQUE entre colunas (o gerador de sementes repete os mesmos valores fictícios).
@@ -8953,6 +8954,106 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('FIN TRANSFEREGOV: carga só pela service role, CNPJ conferido com a Configuração do cliente, proposta de outro proponente recusada, troca do espelho inteiro, carga vazia protegida, leitura só com financeiro.convenios.visualizar e nenhuma escrita pela API verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro: convênios federais, histórico de mudanças (migração 20261112090000)
+-- Migração 20261112090000_fin_tg_mudancas.sql:
+--   * cada carga compara com a anterior e grava em fin_tg_mudancas o que é novo, o que sumiu e cada campo alterado;
+--     carga igual não grava nada; carga sobre espelho vazio (a primeira) não grava nada;
+--   * fin_tg_mudancas: lê quem tem o módulo financeiro E financeiro.convenios.visualizar; ninguém grava pela API;
+--   * fin_tg_mapa e fin_tg_registrar_diferencas sem EXECUTE para a API; pode_atualizar_convenios_federais só
+--     verdadeira com o módulo e a permissão.
+DO $$
+DECLARE
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_financeiro.convenios.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_financeiro');
+  c_cnpj text := '11222333000181';
+  chamada text := 'SELECT public.fin_tg_carregar(%L, now(), %L::jsonb, %L)::text';
+  base jsonb; mudada jsonb; r text; v_sinc uuid; v_antes uuid[];
+BEGIN
+  IF to_regclass('public.fin_tg_mudancas') IS NULL THEN
+    PERFORM pg_temp.falha('FIN TG MUDANÇAS: tabela fin_tg_mudancas não existe');
+    RETURN;
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF has_function_privilege('authenticated', 'public.fin_tg_mapa(text)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.fin_tg_registrar_diferencas(uuid, text, jsonb, jsonb)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.pode_atualizar_convenios_federais()', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.pode_atualizar_convenios_federais()', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('FIN TG MUDANÇAS: privilégios das funções novas errados');
+  END IF;
+  IF pg_get_functiondef('public.fin_tg_carregar(text, timestamp with time zone, jsonb, boolean)'::regprocedure)
+       ~* '(DELETE\s+FROM|UPDATE)\s+[a-z_.]+\s*;' THEN
+    PERFORM pg_temp.falha('FIN TG MUDANÇAS: fin_tg_carregar tem DELETE/UPDATE sem WHERE (o pg_safeupdate recusa)');
+  END IF;
+
+  DELETE FROM public.dados_oficiais WHERE chave = 'cnpj';
+  INSERT INTO public.dados_oficiais (chave, valor) VALUES ('cnpj', c_cnpj);
+  base := jsonb_build_object(
+    'propostas', jsonb_build_array(jsonb_build_object('id_proposta', 990101, 'numero', '9/2099', 'ano', 2099,
+      'cnpj_proponente', c_cnpj, 'objeto', 'Objeto antigo', 'valor_global', 200)),
+    'emendas', jsonb_build_array(jsonb_build_object('id_proposta', 990101, 'numero_emenda', '70000001', 'valor_repasse_emenda', 200)),
+    'convenios', jsonb_build_array(jsonb_build_object('numero', 'X9TEST', 'id_proposta', 990101, 'assinado', false)),
+    'movimentos', jsonb_build_array(jsonb_build_object('tipo', 'empenho', 'id_origem', 91, 'numero_convenio', 'X9TEST',
+      'numero', '2099NE000091', 'valor', 200)));
+  mudada := jsonb_set(jsonb_set(base, '{propostas,0,objeto}', '"Objeto novo"'), '{convenios,0,assinado}', 'true')
+            - 'emendas'
+            || jsonb_build_object('movimentos', (base->'movimentos') || jsonb_build_array(jsonb_build_object('tipo', 'desembolso',
+                 'id_origem', 92, 'numero_convenio', 'X9TEST', 'numero', '2099OB000092', 'valor', 50)));
+
+  -- primeira carga (espelho vazio): nada registrado
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, '{}', true));
+  v_antes := ARRAY(SELECT id FROM public.fin_tg_sincronizacoes);
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, base, false));
+  SELECT id INTO v_sinc FROM public.fin_tg_sincronizacoes WHERE id <> ALL (v_antes);
+  IF r <> 'ok' OR EXISTS (SELECT 1 FROM public.fin_tg_mudancas WHERE sincronizacao_id = v_sinc) THEN
+    PERFORM pg_temp.falha('FIN TG MUDANÇAS: carga sobre espelho vazio registrou mudança (' || r || ')');
+  END IF;
+  -- carga igual: nada
+  r := pg_temp.valor_desfeito_como(u_vis, 'service_role',
+         format('SELECT (public.fin_tg_carregar(%L, now(), %L::jsonb, false)->>''mudancas'')', c_cnpj, base));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN TG MUDANÇAS: carga igual registrou mudança (' || r || ')'); END IF;
+  -- carga mudada: objeto e assinatura alterados, emenda removida, desembolso novo
+  v_antes := ARRAY(SELECT id FROM public.fin_tg_sincronizacoes);
+  r := pg_temp.exec_como(u_vis, 'service_role', format(chamada, c_cnpj, mudada, false));
+  SELECT id INTO v_sinc FROM public.fin_tg_sincronizacoes WHERE id <> ALL (v_antes);
+  IF r <> 'ok'
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_mudancas WHERE sincronizacao_id = v_sinc AND entidade = 'proposta'
+                    AND tipo = 'alterado' AND campo = 'objeto' AND valor_anterior = 'Objeto antigo' AND valor_novo = 'Objeto novo')
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_mudancas WHERE sincronizacao_id = v_sinc AND entidade = 'convenio'
+                    AND tipo = 'alterado' AND campo = 'assinado' AND valor_anterior = 'false' AND valor_novo = 'true'
+                    AND numero_convenio = 'X9TEST' AND id_proposta = 990101)
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_mudancas WHERE sincronizacao_id = v_sinc AND entidade = 'emenda'
+                    AND tipo = 'removido' AND id_proposta = 990101)
+     OR NOT EXISTS (SELECT 1 FROM public.fin_tg_mudancas WHERE sincronizacao_id = v_sinc AND entidade = 'movimento'
+                    AND tipo = 'novo' AND chave = 'desembolso:92' AND id_proposta = 990101 AND numero_convenio = 'X9TEST')
+     OR (SELECT count(*) FROM public.fin_tg_mudancas WHERE sincronizacao_id = v_sinc) <> 4
+     OR (SELECT mudancas FROM public.fin_tg_sincronizacoes WHERE id = v_sinc) <> 4 THEN
+    PERFORM pg_temp.falha('FIN TG MUDANÇAS: carga mudada não registrou as 4 mudanças esperadas (' || r || ', '
+      || coalesce((SELECT string_agg(entidade || '/' || tipo || '/' || coalesce(campo, '-'), ' ') FROM public.fin_tg_mudancas
+                   WHERE sincronizacao_id = v_sinc), 'nada') || ')');
+  END IF;
+
+  -- leitura e escrita
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+         format('SELECT count(*)::text FROM public.fin_tg_mudancas WHERE sincronizacao_id = %L', v_sinc));
+  IF r IS DISTINCT FROM '4' THEN PERFORM pg_temp.falha('FIN TG MUDANÇAS: quem tem a permissão não lê as mudanças (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', 'SELECT count(*)::text FROM public.fin_tg_mudancas');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('FIN TG MUDANÇAS: módulo sem a permissão lê as mudanças (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated',
+         format('INSERT INTO public.fin_tg_mudancas (sincronizacao_id, entidade, chave, tipo) VALUES (%L, ''proposta'', ''x'', ''novo'') RETURNING chave', v_sinc));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TG MUDANÇAS: authenticated grava mudança (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'DELETE FROM public.fin_tg_mudancas WHERE true RETURNING chave');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('FIN TG MUDANÇAS: authenticated apaga mudança (' || r || ')'); END IF;
+
+  -- quem pode pedir carga na hora
+  IF pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT public.pode_atualizar_convenios_federais()::text') <> 'true'
+     OR pg_temp.valor_desfeito_como(u_mod, 'authenticated', 'SELECT public.pode_atualizar_convenios_federais()::text') <> 'false' THEN
+    PERFORM pg_temp.falha('FIN TG MUDANÇAS: pode_atualizar_convenios_federais não confere a permissão');
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('FIN TG MUDANÇAS: primeira carga e carga igual sem registro, carga mudada registra campo alterado, removido e novo (com proposta e convênio), leitura só com financeiro.convenios.visualizar, nenhuma escrita pela API e pode_atualizar_convenios_federais verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Contratos C1: cadastro, ficha e responsáveis (migração 20261104090000) (TRIGGERS LIGADOS)

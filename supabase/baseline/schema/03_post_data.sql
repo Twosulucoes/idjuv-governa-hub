@@ -1894,6 +1894,14 @@ ALTER TABLE ONLY public.fin_tg_movimentos
 
 
 --
+-- Name: fin_tg_mudancas fin_tg_mudancas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_mudancas
+    ADD CONSTRAINT fin_tg_mudancas_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_tg_propostas fin_tg_propostas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6425,6 +6433,27 @@ CREATE INDEX idx_fin_tg_convenios_proposta ON public.fin_tg_convenios USING btre
 --
 
 CREATE INDEX idx_fin_tg_movimentos_convenio ON public.fin_tg_movimentos USING btree (numero_convenio, data);
+
+
+--
+-- Name: idx_fin_tg_mudancas_proposta; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_mudancas_proposta ON public.fin_tg_mudancas USING btree (id_proposta, registrada_em DESC);
+
+
+--
+-- Name: idx_fin_tg_mudancas_registrada; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_mudancas_registrada ON public.fin_tg_mudancas USING btree (registrada_em DESC);
+
+
+--
+-- Name: idx_fin_tg_mudancas_sincronizacao; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_tg_mudancas_sincronizacao ON public.fin_tg_mudancas USING btree (sincronizacao_id);
 
 
 --
@@ -16838,6 +16867,14 @@ ALTER TABLE ONLY public.fin_tg_movimentos
 
 
 --
+-- Name: fin_tg_mudancas fin_tg_mudancas_sincronizacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_tg_mudancas
+    ADD CONSTRAINT fin_tg_mudancas_sincronizacao_id_fkey FOREIGN KEY (sincronizacao_id) REFERENCES public.fin_tg_sincronizacoes(id) ON DELETE CASCADE;
+
+
+--
 -- Name: estrutura_organizacional fk_cargo_chefe; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20597,6 +20634,12 @@ ALTER TABLE public.fin_tg_emendas ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.fin_tg_movimentos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_tg_mudancas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_tg_mudancas ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: fin_tg_propostas; Type: ROW SECURITY; Schema: public; Owner: -
@@ -25750,6 +25793,13 @@ CREATE POLICY rls_select ON public.fin_tg_emendas FOR SELECT TO authenticated US
 --
 
 CREATE POLICY rls_select ON public.fin_tg_movimentos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
+
+
+--
+-- Name: fin_tg_mudancas rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.fin_tg_mudancas FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'financeiro'::text) AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'::text)));
 
 
 --

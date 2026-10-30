@@ -4452,6 +4452,13 @@ DECLARE
   v_emendas integer;
   v_convenios integer;
   v_movimentos integer;
+  v_sinc uuid;
+  v_mudancas integer := 0;
+  v_tinha boolean;
+  v_ant_propostas jsonb;
+  v_ant_emendas jsonb;
+  v_ant_convenios jsonb;
+  v_ant_movimentos jsonb;
 BEGIN
   IF p_cnpj IS NULL OR p_cnpj !~ '^[0-9]{14}$' THEN
     RAISE EXCEPTION 'CNPJ inválido' USING ERRCODE = '22023';
@@ -4475,6 +4482,13 @@ BEGIN
      AND EXISTS (SELECT 1 FROM public.fin_tg_propostas) THEN
     RAISE EXCEPTION 'Nenhuma proposta veio e o espelho tem propostas: confira a leitura ou use p_forcar' USING ERRCODE = '22023';
   END IF;
+
+  -- Foto do espelho antes da troca, para registrar o que mudou (a primeira carga não registra nada)
+  v_tinha := EXISTS (SELECT 1 FROM public.fin_tg_propostas);
+  v_ant_propostas := public.fin_tg_mapa('proposta');
+  v_ant_emendas := public.fin_tg_mapa('emenda');
+  v_ant_convenios := public.fin_tg_mapa('convenio');
+  v_ant_movimentos := public.fin_tg_mapa('movimento');
 
   -- O espelho inteiro é trocado (WHERE true: o pg_safeupdate recusa DELETE sem WHERE): o que sumiu do Transferegov sai daqui também (filhas saem em cascata)
   DELETE FROM public.fin_tg_propostas WHERE true;
@@ -4518,10 +4532,19 @@ BEGIN
   GET DIAGNOSTICS v_movimentos = ROW_COUNT;
 
   INSERT INTO public.fin_tg_sincronizacoes (data_carga, cnpj, propostas, emendas, convenios, movimentos)
-  VALUES (p_data_carga, p_cnpj, v_propostas, v_emendas, v_convenios, v_movimentos);
+  VALUES (p_data_carga, p_cnpj, v_propostas, v_emendas, v_convenios, v_movimentos)
+  RETURNING id INTO v_sinc;
+
+  IF v_tinha THEN
+    v_mudancas := public.fin_tg_registrar_diferencas(v_sinc, 'proposta', v_ant_propostas, public.fin_tg_mapa('proposta'))
+                + public.fin_tg_registrar_diferencas(v_sinc, 'emenda', v_ant_emendas, public.fin_tg_mapa('emenda'))
+                + public.fin_tg_registrar_diferencas(v_sinc, 'convenio', v_ant_convenios, public.fin_tg_mapa('convenio'))
+                + public.fin_tg_registrar_diferencas(v_sinc, 'movimento', v_ant_movimentos, public.fin_tg_mapa('movimento'));
+  END IF;
+  UPDATE public.fin_tg_sincronizacoes SET mudancas = v_mudancas WHERE id = v_sinc;
 
   RETURN jsonb_build_object('propostas', v_propostas, 'emendas', v_emendas, 'convenios', v_convenios,
-                            'movimentos', v_movimentos);
+                            'movimentos', v_movimentos, 'mudancas', v_mudancas);
 END;
 $_$;
 
@@ -4530,7 +4553,75 @@ $_$;
 -- Name: FUNCTION fin_tg_carregar(p_cnpj text, p_data_carga timestamp with time zone, p_dados jsonb, p_forcar boolean); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.fin_tg_carregar(p_cnpj text, p_data_carga timestamp with time zone, p_dados jsonb, p_forcar boolean) IS 'Troca o espelho do Transferegov (propostas, emendas, convênios e movimentos) numa transação. Só a service role executa.';
+COMMENT ON FUNCTION public.fin_tg_carregar(p_cnpj text, p_data_carga timestamp with time zone, p_dados jsonb, p_forcar boolean) IS 'Troca o espelho do Transferegov (propostas, emendas, convênios e movimentos) numa transação e registra em fin_tg_mudancas o que mudou desde a carga anterior. Só a service role executa.';
+
+
+--
+-- Name: fin_tg_mapa(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_tg_mapa(p_entidade text) RETURNS jsonb
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT CASE p_entidade
+    WHEN 'proposta' THEN (SELECT coalesce(jsonb_object_agg(id_proposta::text, to_jsonb(t) - 'atualizado_em'), '{}')
+                            FROM public.fin_tg_propostas t)
+    WHEN 'emenda' THEN (SELECT coalesce(jsonb_object_agg(id_proposta::text || ':' || numero_emenda, to_jsonb(t) - 'atualizado_em'), '{}')
+                          FROM public.fin_tg_emendas t)
+    WHEN 'convenio' THEN (SELECT coalesce(jsonb_object_agg(numero, to_jsonb(t) - 'atualizado_em'), '{}')
+                            FROM public.fin_tg_convenios t)
+    WHEN 'movimento' THEN (SELECT coalesce(jsonb_object_agg(tipo || ':' || id_origem::text,
+                                     to_jsonb(t) - 'atualizado_em' || jsonb_build_object('id_proposta', c.id_proposta)), '{}')
+                             FROM public.fin_tg_movimentos t
+                             LEFT JOIN public.fin_tg_convenios c ON c.numero = t.numero_convenio)
+  END;
+$$;
+
+
+--
+-- Name: fin_tg_registrar_diferencas(uuid, text, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_tg_registrar_diferencas(p_sinc uuid, p_entidade text, p_ant jsonb, p_novo jsonb) RETURNS integer
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_total integer := 0;
+  v_n integer;
+BEGIN
+  -- novo: chave que não existia
+  INSERT INTO public.fin_tg_mudancas (sincronizacao_id, entidade, chave, id_proposta, numero_convenio, tipo, dados)
+  SELECT p_sinc, p_entidade, n.chave, (n.linha->>'id_proposta')::bigint,
+         CASE WHEN p_entidade = 'convenio' THEN n.chave ELSE n.linha->>'numero_convenio' END, 'novo', n.linha
+    FROM jsonb_each(p_novo) AS n(chave, linha)
+   WHERE NOT p_ant ? n.chave;
+  GET DIAGNOSTICS v_n = ROW_COUNT; v_total := v_total + v_n;
+
+  -- removido: chave que sumiu do Transferegov
+  INSERT INTO public.fin_tg_mudancas (sincronizacao_id, entidade, chave, id_proposta, numero_convenio, tipo, dados)
+  SELECT p_sinc, p_entidade, a.chave, (a.linha->>'id_proposta')::bigint,
+         CASE WHEN p_entidade = 'convenio' THEN a.chave ELSE a.linha->>'numero_convenio' END, 'removido', a.linha
+    FROM jsonb_each(p_ant) AS a(chave, linha)
+   WHERE NOT p_novo ? a.chave;
+  GET DIAGNOSTICS v_n = ROW_COUNT; v_total := v_total + v_n;
+
+  -- alterado: um registro por campo que mudou
+  INSERT INTO public.fin_tg_mudancas (sincronizacao_id, entidade, chave, id_proposta, numero_convenio, tipo, campo,
+                                      valor_anterior, valor_novo)
+  SELECT p_sinc, p_entidade, n.chave, (n.linha->>'id_proposta')::bigint,
+         CASE WHEN p_entidade = 'convenio' THEN n.chave ELSE n.linha->>'numero_convenio' END, 'alterado', c.campo,
+         a.linha->>c.campo, n.linha->>c.campo
+    FROM jsonb_each(p_novo) AS n(chave, linha)
+    JOIN jsonb_each(p_ant) AS a(chave, linha) ON a.chave = n.chave
+   CROSS JOIN LATERAL (SELECT k AS campo FROM jsonb_object_keys(n.linha || a.linha) AS k) c
+   WHERE (a.linha -> c.campo) IS DISTINCT FROM (n.linha -> c.campo);
+  GET DIAGNOSTICS v_n = ROW_COUNT; v_total := v_total + v_n;
+
+  RETURN v_total;
+END;
+$$;
 
 
 --
@@ -12637,6 +12728,28 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+--
+-- Name: pode_atualizar_convenios_federais(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pode_atualizar_convenios_federais() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  SELECT COALESCE(auth.uid() IS NOT NULL
+                  AND public.perfil_ativo_atual()
+                  AND public.can_access_module(auth.uid(), 'financeiro')
+                  AND public.has_permission_code(auth.uid(), 'financeiro.convenios.visualizar'), false);
+$$;
+
+
+--
+-- Name: FUNCTION pode_atualizar_convenios_federais(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.pode_atualizar_convenios_federais() IS 'Verdadeiro se o usuário logado tem perfil ativo, o módulo financeiro e financeiro.convenios.visualizar (Edge Function transferegov-atualizar).';
 
 
 --
@@ -24610,6 +24723,36 @@ COMMENT ON TABLE public.fin_tg_movimentos IS 'Empenhos e desembolsos federais de
 
 
 --
+-- Name: fin_tg_mudancas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_tg_mudancas (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    sincronizacao_id uuid NOT NULL,
+    registrada_em timestamp with time zone DEFAULT now() NOT NULL,
+    entidade text NOT NULL,
+    chave text NOT NULL,
+    id_proposta bigint,
+    numero_convenio text,
+    tipo text NOT NULL,
+    campo text,
+    valor_anterior text,
+    valor_novo text,
+    dados jsonb,
+    CONSTRAINT fin_tg_mudancas_campo_ck CHECK (((tipo = 'alterado'::text) = (campo IS NOT NULL))),
+    CONSTRAINT fin_tg_mudancas_entidade_check CHECK ((entidade = ANY (ARRAY['proposta'::text, 'emenda'::text, 'convenio'::text, 'movimento'::text]))),
+    CONSTRAINT fin_tg_mudancas_tipo_check CHECK ((tipo = ANY (ARRAY['novo'::text, 'removido'::text, 'alterado'::text])))
+);
+
+
+--
+-- Name: TABLE fin_tg_mudancas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_tg_mudancas IS 'O que mudou no Transferegov entre uma carga e a anterior (novo, removido ou campo alterado). Sem chave estrangeira para o espelho: a mudança fica mesmo quando a proposta some de lá.';
+
+
+--
 -- Name: fin_tg_propostas; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -24658,6 +24801,7 @@ CREATE TABLE public.fin_tg_sincronizacoes (
     emendas integer DEFAULT 0 NOT NULL,
     convenios integer DEFAULT 0 NOT NULL,
     movimentos integer DEFAULT 0 NOT NULL,
+    mudancas integer DEFAULT 0 NOT NULL,
     CONSTRAINT fin_tg_sincronizacoes_cnpj_check CHECK ((cnpj ~ '^[0-9]{14}$'::text))
 );
 
@@ -24667,6 +24811,13 @@ CREATE TABLE public.fin_tg_sincronizacoes (
 --
 
 COMMENT ON TABLE public.fin_tg_sincronizacoes IS 'Cada carga da rotina diária do Transferegov: quando rodou, a data da carga do Transferegov e quantas linhas vieram.';
+
+
+--
+-- Name: COLUMN fin_tg_sincronizacoes.mudancas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_tg_sincronizacoes.mudancas IS 'Quantas mudanças a carga achou em relação à anterior (fin_tg_mudancas).';
 
 
 --
