@@ -27,13 +27,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -57,7 +50,16 @@ import { formatCurrency } from "@/lib/formatters";
 import { useDotacoes, useResumoOrcamentario, useUltimaImportacaoQdd } from "@/hooks/useFinanceiro";
 import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
-import { EmptyState, KpiCard, PageHeader } from "@/components/design-system";
+import {
+  BarraFiltros,
+  ChipsFiltros,
+  EmptyState,
+  KpiCard,
+  PageHeader,
+  aplicarFiltros,
+  useEstadoFiltros,
+  type FiltroDef,
+} from "@/components/design-system";
 import { useAuth } from "@/contexts/AuthContext";
 import { ImportacaoWizard } from "@/components/importacao";
 import { importadorQddFiplan } from "@/lib/importacao/importadores/qddFiplan";
@@ -118,13 +120,27 @@ const valorOuTraco = (v: number | null | undefined) => (v ? formatCurrency(v) : 
 
 const percentual = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+const codigoNome = (x?: { codigo?: string | null; nome?: string | null } | null) =>
+  x?.codigo ? (x.nome ? `${x.codigo} - ${x.nome}` : x.codigo) : null;
+
+const filtrosQdd: FiltroDef<Dotacao>[] = [
+  { tipo: "lista", id: "origem", rotulo: "Origem", principal: true, valor: (d) => rotuloOrigem(d.idu) },
+  { tipo: "lista", id: "natureza", rotulo: "Natureza", principal: true, valor: (d) => codigoNome(d.natureza_despesa) },
+  { tipo: "lista", id: "fonte", rotulo: "Fonte", principal: true, valor: (d) => codigoNome(d.fonte_recurso) },
+  { tipo: "booleano", id: "com_saldo", rotulo: "Com saldo disponível", principal: true, valor: (d) => Number(d.saldo_disponivel) > 0 },
+  { tipo: "lista", id: "programa", rotulo: "Programa", valor: (d) => codigoNome(d.programa) },
+  { tipo: "lista", id: "paoe", rotulo: "PAOE", valor: (d) => (d.paoe ? (d.acao?.nome ? `${d.paoe} - ${d.acao.nome}` : d.paoe) : null) },
+  { tipo: "lista", id: "regional", rotulo: "Regional", valor: (d) => d.regional },
+  { tipo: "booleano", id: "com_bloqueio", rotulo: "Com bloqueio", valor: (d) => Number(d.valor_bloqueado) > 0 },
+  { tipo: "faixa", id: "disponivel", rotulo: "Saldo disponível", formato: "moeda", valor: (d) => Number(d.saldo_disponivel) },
+];
+
 export default function QDDPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { exercicio, setExercicio, comExercicio } = useExercicioFinanceiro();
   const [importOpen, setImportOpen] = useState(false);
   const [importando, setImportando] = useState(false);
-  /** "todos", "comum", "emendas" ou a sigla de uma emenda (ECI, EII...) */
-  const [filtroOrigem, setFiltroOrigem] = useState("todos");
+  const filtros = useEstadoFiltros("financeiro.qdd", filtrosQdd);
   const [visao, setVisao] = useState<VisaoColunas>(lerVisao);
   const colunas = visao === "completo" ? COLUNAS_VALOR : COLUNAS_VALOR.filter((c) => c.resumo);
   const { hasPermission } = useAuth();
@@ -139,7 +155,7 @@ export default function QDDPage() {
   // Filtro
   const filtered = useMemo(() => {
     if (!dotacoes) return [];
-    return dotacoes.filter((d) => {
+    return aplicarFiltros(dotacoes, filtros.definicoes, filtros.estado).filter((d) => {
       const matchSearch =
         !searchTerm ||
         d.codigo_dotacao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -147,14 +163,9 @@ export default function QDDPage() {
         d.programa?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         d.acao?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         d.paoe?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchOrigem =
-        filtroOrigem === "todos" ||
-        (filtroOrigem === "comum" && !ehEmenda(d.idu)) ||
-        (filtroOrigem === "emendas" && ehEmenda(d.idu)) ||
-        (ehEmenda(d.idu) && d.idu?.trim() === filtroOrigem);
-      return matchSearch && matchOrigem;
+      return matchSearch;
     });
-  }, [dotacoes, searchTerm, filtroOrigem]);
+  }, [dotacoes, searchTerm, filtros.definicoes, filtros.estado]);
 
   // Dotação comum × emendas, no exercício inteiro (não acompanha os filtros da tabela)
   const origem = useMemo(() => resumirPorOrigem(dotacoes ?? []), [dotacoes]);
@@ -375,21 +386,7 @@ export default function QDDPage() {
               className="pl-10"
             />
           </div>
-          {origem.porTipo.length > 0 && (
-            <Select value={filtroOrigem} onValueChange={setFiltroOrigem}>
-              <SelectTrigger className="w-full sm:w-72" aria-label="Filtrar por origem">
-                <SelectValue placeholder="Origem" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Comum e emendas</SelectItem>
-                <SelectItem value="comum">Só dotação comum</SelectItem>
-                <SelectItem value="emendas">Só emendas</SelectItem>
-                {origem.porTipo.map(({ idu }) => (
-                  <SelectItem key={idu} value={idu}>{rotuloOrigem(idu)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <BarraFiltros filtros={filtros.definicoes} dados={dotacoes ?? []} estado={filtros.estado} aoMudar={filtros.aoMudar} />
           <ToggleGroup
             type="single"
             variant="outline"
@@ -403,6 +400,12 @@ export default function QDDPage() {
             <ToggleGroupItem value="completo" title="Todas as colunas do QDD do FIPLAN">Todas as colunas</ToggleGroupItem>
           </ToggleGroup>
         </div>
+        <ChipsFiltros
+          filtros={filtros.definicoes}
+          estado={filtros.estado}
+          aoMudar={filtros.aoMudar}
+          contagem={{ visiveis: filtered.length, total: dotacoes?.length ?? 0, rotulo: "dotações" }}
+        />
 
         <Card>
           <CardContent className="p-0 sm:p-0">
@@ -412,7 +415,7 @@ export default function QDDPage() {
                 titulo={dotacoes?.length ? "Nenhuma dotação com esses filtros" : "Nenhuma dotação encontrada"}
                 descricao={
                   dotacoes?.length
-                    ? "Limpe a busca ou escolha outra origem."
+                    ? "Limpe a busca ou os filtros."
                     : "Importe o QDD do FIPLAN (PDF ou Excel) para carregar as dotações orçamentárias."
                 }
                 acao={!dotacoes?.length && podeImportar ? (

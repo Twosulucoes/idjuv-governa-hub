@@ -9,3 +9,18 @@ export { ChartCard, type ChartCardProps, type TabelaAlternativa } from "./ChartC
 export { FormSection, type FormSectionProps } from "./form/FormSection";
 export { ErrorSummary, type ErrorSummaryProps } from "./form/ErrorSummary";
 export { SkipLink, type SkipLinkProps } from "./SkipLink";
+export { BarraFiltros, ChipsFiltros, type BarraFiltrosProps, type ChipsFiltrosProps } from "./filtros/BarraFiltros";
+export { useEstadoFiltros, type FiltrosDaTela } from "./filtros/useEstadoFiltros";
+export {
+  aplicarFiltros,
+  resolverPeriodo,
+  descreverFiltro,
+  estadoParaParams,
+  paramsParaEstado,
+  PERIODOS_RELATIVOS,
+  type FiltroDef,
+  type EstadoFiltros,
+  type ValorFiltro,
+  type PeriodoRelativo,
+  type OpcaoFiltro,
+} from "./filtros/logica";

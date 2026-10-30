@@ -14,7 +14,15 @@ import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DataTable, KpiCard, PageHeader, type ColunaTabela } from "@/components/design-system";
+import {
+  DataTable,
+  KpiCard,
+  PageHeader,
+  aplicarFiltros,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+} from "@/components/design-system";
 import { Landmark, PiggyBank, Plus, Pencil, Trash2, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import {
@@ -33,6 +41,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Emenda } from "@/types/financeiro";
 
 type LinhaEmenda = Emenda & { saldo: SaldoEmenda; dotacaoRotulo: string; empenhos: number };
+
+const filtrosEmenda: FiltroDef<LinhaEmenda>[] = [
+  { tipo: "lista", id: "autor", rotulo: "Autor", principal: true, valor: (e) => e.autor },
+  { tipo: "lista", id: "tipo", rotulo: "Tipo de emenda", principal: true, valor: (e) => rotuloOrigem(e.idu) },
+  { tipo: "booleano", id: "com_livre", rotulo: "Com saldo livre", principal: true, valor: (e) => e.saldo.livre > 0 },
+  { tipo: "booleano", id: "sem_empenho", rotulo: "Sem empenho", valor: (e) => e.empenhos === 0 },
+  { tipo: "booleano", id: "estourada", rotulo: "Saldo negativo", valor: (e) => e.saldo.livre < 0 },
+  { tipo: "lista", id: "beneficiario", rotulo: "Beneficiário", valor: (e) => e.beneficiario },
+  { tipo: "faixa", id: "valor", rotulo: "Valor da emenda", formato: "moeda", valor: (e) => e.saldo.valor },
+];
 
 const colunas: ColunaTabela<LinhaEmenda>[] = [
   {
@@ -146,7 +164,14 @@ export default function EmendasPage() {
     });
   }, [emendas, empenhos, dotacoesEmenda]);
 
-  const totais = linhas.reduce(
+  const filtros = useEstadoFiltros("financeiro.emendas", filtrosEmenda);
+  // Os cartões de totais acompanham os filtros escolhidos
+  const filtradas = useMemo(
+    () => aplicarFiltros(linhas, filtros.definicoes, filtros.estado),
+    [linhas, filtros.definicoes, filtros.estado],
+  );
+
+  const totais = filtradas.reduce(
     (t, l) => ({
       valor: t.valor + l.saldo.valor,
       reservado: t.reservado + l.saldo.reservado,
@@ -233,6 +258,7 @@ export default function EmendasPage() {
               : undefined
           }
           busca={{ placeholder: "Buscar por número, autor, objeto ou beneficiário…" }}
+          filtrosDinamicos={filtros}
           vazio={{
             icone: Landmark,
             titulo: "Nenhuma emenda cadastrada",

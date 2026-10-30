@@ -8,15 +8,16 @@ import { ModuleLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { DataTable, PageHeader, StatusBadge, type ColunaTabela, type TomStatus } from "@/components/design-system";
+  DataTable,
+  PageHeader,
+  StatusBadge,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+  type TomStatus,
+} from "@/components/design-system";
 import { Plus, Eye, Receipt } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useEmpenhos } from "@/hooks/useFinanceiro";
 import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
@@ -34,6 +35,53 @@ const SITUACAO_EMPENHO: Record<StatusEmpenho, { label: string; tom: TomStatus }>
   pago: { label: "Pago", tom: "sucesso" },
   anulado: { label: "Anulado", tom: "erro" },
 };
+
+const credorDoEmpenho = (emp: Empenho) => emp.fornecedor?.razao_social || emp.credor_nome || null;
+
+// Filtros da tela; "status" mantém o nome do parâmetro dos atalhos do painel (?status=emitido).
+const filtrosEmpenho: FiltroDef<Empenho>[] = [
+  {
+    tipo: "lista",
+    id: "status",
+    rotulo: "Situação",
+    principal: true,
+    valor: (emp) => emp.status,
+    opcoes: Object.entries(SITUACAO_EMPENHO).map(([valor, s]) => ({ valor, rotulo: s.label })),
+  },
+  { tipo: "periodo", id: "periodo", rotulo: "Data do empenho", principal: true, valor: (emp) => emp.data_empenho },
+  { tipo: "lista", id: "credor", rotulo: "Credor", principal: true, valor: credorDoEmpenho },
+  {
+    tipo: "lista",
+    id: "natureza",
+    rotulo: "Natureza",
+    valor: (emp) => (emp.natureza_despesa ? `${emp.natureza_despesa.codigo} - ${emp.natureza_despesa.nome}` : null),
+  },
+  {
+    tipo: "lista",
+    id: "fonte",
+    rotulo: "Fonte",
+    valor: (emp) => (emp.fonte_recurso ? `${emp.fonte_recurso.codigo} - ${emp.fonte_recurso.nome}` : null),
+  },
+  {
+    tipo: "lista",
+    id: "tipo",
+    rotulo: "Tipo",
+    valor: (emp) => emp.tipo,
+    opcoes: Object.entries(TIPO_EMPENHO_LABELS).map(([valor, rotulo]) => ({ valor, rotulo })),
+  },
+  {
+    tipo: "lista",
+    id: "origem",
+    rotulo: "Origem",
+    valor: (emp) => emp.origem,
+    opcoes: [
+      { valor: "fiplan", rotulo: "FIPLAN" },
+      { valor: "sistema", rotulo: "Contingência (sistema)" },
+    ],
+  },
+  { tipo: "faixa", id: "valor", rotulo: "Valor empenhado", formato: "moeda", valor: (emp) => Number(emp.valor_empenhado) },
+  { tipo: "booleano", id: "com_saldo", rotulo: "Com saldo a liquidar", valor: (emp) => Number(emp.saldo_liquidar) > 0 },
+];
 
 const colunas: ColunaTabela<Empenho>[] = [
   {
@@ -114,17 +162,11 @@ const colunas: ColunaTabela<Empenho>[] = [
 ];
 
 export default function EmpenhosPage() {
-  const [searchParams] = useSearchParams();
-  const statusParam = searchParams.get("status") || "";
-
-  const [filtroStatus, setFiltroStatus] = useState(statusParam);
   const [formOpen, setFormOpen] = useState(false);
   const { exercicio, comExercicio } = useExercicioFinanceiro();
+  const filtros = useEstadoFiltros("financeiro.empenhos", filtrosEmpenho);
 
-  const { data: empenhos, isLoading, isError, refetch } = useEmpenhos({
-    exercicio,
-    status: filtroStatus && filtroStatus !== "todos" ? filtroStatus : undefined
-  });
+  const { data: empenhos, isLoading, isError, refetch } = useEmpenhos({ exercicio });
 
   return (
     <ModuleLayout module="financeiro">
@@ -153,22 +195,7 @@ export default function EmpenhosPage() {
           erro={isError ? "Verifique sua conexão e tente novamente." : null}
           aoTentarNovamente={() => refetch()}
           busca={{ placeholder: "Buscar por número, objeto, fornecedor..." }}
-          filtros={
-            <Select value={filtroStatus || "todos"} onValueChange={(v) => setFiltroStatus(v === "todos" ? "" : v)}>
-              <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por situação">
-                <SelectValue placeholder="Todas as situações" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todas as situações</SelectItem>
-                <SelectItem value="emitido">Emitido</SelectItem>
-                <SelectItem value="parcialmente_liquidado">Parc. liquidado</SelectItem>
-                <SelectItem value="liquidado">Liquidado</SelectItem>
-                <SelectItem value="parcialmente_pago">Parc. pago</SelectItem>
-                <SelectItem value="pago">Pago</SelectItem>
-                <SelectItem value="anulado">Anulado</SelectItem>
-              </SelectContent>
-            </Select>
-          }
+          filtrosDinamicos={filtros}
           vazio={{
             icone: Receipt,
             titulo: "Nenhum empenho encontrado",

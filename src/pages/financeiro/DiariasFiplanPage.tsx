@@ -5,13 +5,21 @@
  * Spec: docs/superpowers/specs/2026-10-30-diarias-fiplan-design.md
  */
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, FileSpreadsheet, FileUp, Plane, Users, Wallet } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
-import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
+import {
+  DataTable,
+  KpiCard,
+  PageHeader,
+  StatusBadge,
+  aplicarFiltros,
+  useEstadoFiltros,
+  type ColunaTabela,
+  type FiltroDef,
+} from "@/components/design-system";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDiariasFiplan, useUltimaImportacaoDiarias, type DiariaFiplan } from "@/hooks/useDiariasFiplan";
@@ -27,14 +35,12 @@ import {
 } from "@/lib/financeiro/diariasFiplan";
 import { formatCurrency } from "@/lib/formatters";
 
-type Filtro = "todas" | "pendentes" | "atrasadas" | "prestou";
-
-const FILTROS: Record<Filtro, string> = {
-  todas: "Todas as diárias",
-  pendentes: "Sem prestação de contas",
-  atrasadas: `Atrasadas (mais de ${PRAZO_PRESTACAO_DIAS} dias)`,
-  prestou: "Com prestação de contas",
-};
+const OPCOES_PRESTACAO = [
+  { valor: "no_prazo", rotulo: "Sem prestação, no prazo" },
+  { valor: "atrasada", rotulo: `Atrasada (mais de ${PRAZO_PRESTACAO_DIAS} dias)` },
+  { valor: "sem_retorno", rotulo: "Sem data de retorno" },
+  { valor: "prestou", rotulo: "Prestou contas" },
+];
 
 const PERMISSAO_IMPORTAR = "financeiro.execucao.importar";
 
@@ -44,20 +50,30 @@ export default function DiariasFiplanPage() {
   const diarias = useDiariasFiplan(exercicio);
   const ultima = useUltimaImportacaoDiarias(exercicio);
   const hoje = useMemo(() => new Date(), []);
-  const [filtro, setFiltro] = useState<Filtro>("todas");
+  const definicoes = useMemo<FiltroDef<DiariaFiplan>[]>(
+    () => [
+      {
+        tipo: "lista",
+        id: "prestacao",
+        rotulo: "Prestação de contas",
+        principal: true,
+        valor: (d) => situacaoPrestacao(d, hoje),
+        opcoes: OPCOES_PRESTACAO,
+      },
+      { tipo: "periodo", id: "saida", rotulo: "Data da saída", principal: true, valor: (d) => d.data_saida },
+      { tipo: "lista", id: "servidor", rotulo: "Servidor", principal: true, valor: (d) => d.credor_nome },
+      { tipo: "periodo", id: "pagamento", rotulo: "Data do pagamento", valor: (d) => d.data_pagamento },
+      { tipo: "faixa", id: "valor", rotulo: "Valor", formato: "moeda", valor: (d) => Number(d.valor_empenhado) },
+      { tipo: "booleano", id: "sem_cadastro", rotulo: "Servidor sem cadastro no RH", valor: (d) => !d.servidor_id },
+    ],
+    [hoje],
+  );
+  const filtros = useEstadoFiltros("financeiro.diarias", definicoes);
 
   const todas = useMemo(() => diarias.data ?? [], [diarias.data]);
-  const resumo = resumirDiarias(todas, hoje);
-  const lista = useMemo(
-    () =>
-      todas.filter((d) => {
-        if (filtro === "pendentes") return !d.prestou_contas;
-        if (filtro === "prestou") return d.prestou_contas;
-        if (filtro === "atrasadas") return situacaoPrestacao(d, hoje) === "atrasada";
-        return true;
-      }),
-    [todas, filtro, hoje],
-  );
+  // Cartões e Excel acompanham os filtros; a busca por texto fica só na tabela
+  const lista = useMemo(() => aplicarFiltros(todas, definicoes, filtros.estado, hoje), [todas, definicoes, filtros.estado, hoje]);
+  const resumo = resumirDiarias(lista, hoje);
   const carregando = diarias.isLoading;
 
   const colunas: ColunaTabela<DiariaFiplan>[] = [
@@ -187,37 +203,24 @@ export default function DiariasFiplanPage() {
 
         <DataTable
           rotulo="Diárias pagas"
-          dados={lista}
+          dados={todas}
           colunas={colunas}
           chaveLinha={(d) => d.id}
           carregando={carregando}
           erro={diarias.isError ? "Verifique sua conexão e tente novamente." : null}
           aoTentarNovamente={() => diarias.refetch()}
           busca={{ placeholder: "Buscar por servidor, processo ou empenho..." }}
+          filtrosDinamicos={filtros}
           filtros={
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={filtro} onValueChange={(v) => setFiltro(v as Filtro)}>
-                <SelectTrigger className="w-[260px]" aria-label="Filtrar pela prestação de contas">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(FILTROS) as Filtro[]).map((f) => (
-                    <SelectItem key={f} value={f}>{FILTROS[f]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="sm" onClick={exportar} disabled={lista.length === 0}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" aria-hidden="true" />
-                Exportar Excel
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={exportar} disabled={lista.length === 0}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" aria-hidden="true" />
+              Exportar Excel
+            </Button>
           }
           vazio={{
             icone: Plane,
-            titulo: todas.length ? "Nenhuma diária neste filtro" : "Nenhuma diária importada",
-            descricao: todas.length
-              ? "Troque o filtro para ver as outras diárias."
-              : "Importe o FIP 002 em Financeiro → Atualizar dados para ver as diárias do exercício.",
+            titulo: "Nenhuma diária importada",
+            descricao: "Importe o FIP 002 em Financeiro → Atualizar dados para ver as diárias do exercício.",
           }}
         />
       </div>
