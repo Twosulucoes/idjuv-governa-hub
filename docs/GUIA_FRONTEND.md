@@ -73,9 +73,15 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   Function `catalogo-compras`.
   `usePesquisaPrecos` (`usePesquisasPrecos`, `usePesquisaPrecos`, `useItensPesquisa`, `useSalvarPesquisa`,
   `useSituacaoPesquisa`, `useSalvarItemPesquisa`, `useExcluirItemPesquisa`, `useIncluirAmostras`, `useAlterarAmostra`,
-  `useExcluirAmostra`, e as buscas `buscarPrecosComprasGov`, `buscarCompraPncp`, `buscarResultadosPncp`): telas
-  `/compras/pesquisa-precos` e `/compras/pesquisa-precos/:id` (componentes em `src/components/compras/pesquisa-precos/`).
-  Saneamento, CV, método e prazos em `src/lib/compras/pesquisaPrecos.ts`; relatório, formatação e texto de apoio da
+  `useExcluirAmostra`, e as buscas `buscarPrecosComprasGov`, `buscarCompraPncp`, `buscarResultadosPncp`; na entrega 2,
+  `buscarPrecosPncp`, `useSugestaoCatalogo`, `useSalvarItensPesquisa`, `useItensPcaDoSei`, `usePcaDosItens` e
+  `useLevarAoPca`): telas `/compras/pesquisa-precos` e `/compras/pesquisa-precos/:id` (componentes em
+  `src/components/compras/pesquisa-precos/`: um botão "Buscar preços" por item, com `BuscarPrecosDialog`, que sugere o
+  código do catálogo pelo nome e junta Compras.gov.br e PNCP numa lista com os preços já marcados; "Adicionar outro
+  preço" para o edital do PNCP pelo link e o lançamento à mão; `ColarItensDialog` para a tabela de itens do TR, lida em
+  `src/lib/compras/itensColados.ts`; `ImportarPcaDialog` para os itens do PCA do mesmo processo SEI).
+  Saneamento, CV, método, prazos, unidade equivalente, preços pré-marcados e comparação com a ata em
+  `src/lib/compras/pesquisaPrecos.ts`; relatório, formatação e texto de apoio da
   nota técnica em `src/lib/compras/relatorioPesquisaPrecos.ts` (testes vitest). As buscas passam pela Edge Function
   `pesquisa-precos`.
   `useProcessosContratacao` (`useProcessos`, `useProcesso`, `useSalvarProcesso`, `useAndamentos`, `useNovaMovimentacao`,

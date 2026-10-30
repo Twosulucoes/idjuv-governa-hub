@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   compraDoIdCompra,
+  dentroDoPeriodo,
+  itemCombina,
   linkEditalPncp,
   mapearCompraPncp,
   mapearItemPncp,
   mapearPrecoCompras,
   mapearResultadoPncp,
+  palavrasDoTermo,
+  referenciaDaBusca,
   referenciaValida,
+  urlBuscaPncp,
   urlCompraPncp,
   urlItensPncp,
   urlPrecosCompras,
@@ -141,5 +146,33 @@ describe("PNCP — compra, itens e resultados", () => {
     expect(mapearResultadoPncp({ valorUnitarioHomologado: 0 }, ref, compra, item)).toBeNull();
     const semData = mapearResultadoPncp({ valorUnitarioHomologado: 1 }, ref, compra, item)!;
     expect(semData.dataReferencia).toBe("2026-02-01");
+  });
+});
+
+describe("PNCP — busca por nome", () => {
+  it("monta a busca de editais mais recentes", () => {
+    expect(urlBuscaPncp("bola futebol")).toBe(
+      "https://pncp.gov.br/api/search/?q=bola+futebol&tipos_documento=edital&ordenacao=-data&pagina=1&tam_pagina=20",
+    );
+  });
+
+  it("lê a compra pelos campos do resultado ou pelo número de controle", () => {
+    expect(referenciaDaBusca({ orgao_cnpj: "12.345.678/0001-90", ano: "2026", numero_sequencial: 15 }))
+      .toEqual({ cnpj: "12345678000190", ano: 2026, sequencial: 15 });
+    expect(referenciaDaBusca({ numero_controle_pncp: "12345678000190-1-000015/2026" }))
+      .toEqual({ cnpj: "12345678000190", ano: 2026, sequencial: 15 });
+    expect(referenciaDaBusca({ orgao_cnpj: "123", ano: 2026 })).toBeNull();
+  });
+
+  it("fica só com o item que tem as palavras buscadas e no período", () => {
+    const palavras = palavrasDoTermo("Bola de futebol");
+    expect(palavras).toEqual(["bola", "futebol"]);
+    expect(palavrasDoTermo("bola futebol conforme especificação do TR")).toEqual(["bola", "futebol", "especificacao"]);
+    expect(itemCombina("BOLAS DE FUTEBOL DE CAMPO", palavras)).toBe(true);
+    expect(itemCombina("Bola de vôlei", palavras)).toBe(false);
+    expect(itemCombina("qualquer", [])).toBe(false);
+    expect(dentroDoPeriodo("2026-05-01", "2025-10-30", "2026-10-30")).toBe(true);
+    expect(dentroDoPeriodo("2025-01-01", "2025-10-30", "2026-10-30")).toBe(false);
+    expect(dentroDoPeriodo(null, "2025-10-30", "2026-10-30")).toBe(false);
   });
 });

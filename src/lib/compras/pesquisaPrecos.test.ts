@@ -2,13 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   arredondar,
   avisoDePrazo,
+  compararComAta,
+  descricaoCombina,
   desvioPadraoAmostral,
   documentoFornecedor,
   lerReferenciaPncp,
   linkEditalPncp,
   medianaDe,
+  mesmaUnidade,
+  palavrasDaBusca,
+  preMarcar,
   sanear,
   somarMeses,
+  termosDoCatalogo,
   valorPeloMetodo,
 } from "./pesquisaPrecos";
 
@@ -117,5 +123,56 @@ describe("referências das fontes", () => {
     expect(documentoFornecedor("12.345.678/0001-90")).toBe("12345678000190");
     expect(documentoFornecedor("000.000.001-91")).toBe("00000000191");
     expect(documentoFornecedor("123")).toBeNull();
+  });
+});
+
+describe("busca simples: palavras, unidade e preços já marcados", () => {
+  it("tira as palavras de ligação e fica com as 3 primeiras que contam", () => {
+    expect(palavrasDaBusca("Bola de futebol de campo, oficial, em couro")).toEqual(["bola", "futebol", "campo"]);
+    expect(palavrasDaBusca("Serviço de manutenção predial", 2)).toEqual(["servico", "manutencao"]);
+    expect(palavrasDaBusca("  ")).toEqual([]);
+  });
+
+  it("tenta o catálogo do termo mais longo ao mais curto", () => {
+    expect(termosDoCatalogo("bola futebol campo")).toEqual(["bola futebol campo", "bola futebol", "bola"]);
+    expect(termosDoCatalogo("de")).toEqual([]);
+  });
+
+  it("confere as palavras na descrição sem acento e aceitando plural", () => {
+    expect(descricaoCombina("BOLAS FUTEBOL, MATERIAL: COURO, USO: CAMPO", ["bola", "futebol", "campo"])).toBe(true);
+    expect(descricaoCombina("BOLA VOLEIBOL", ["bola", "futebol"])).toBe(false);
+    expect(descricaoCombina(null, ["bola"])).toBe(false);
+    expect(descricaoCombina("qualquer", [])).toBe(true);
+  });
+
+  it("reconhece a mesma unidade por sinônimo e recusa embalagem com outra capacidade", () => {
+    expect(mesmaUnidade("UN", "unidade")).toBe(true);
+    expect(mesmaUnidade("Unid.", "UNIDADE")).toBe(true);
+    expect(mesmaUnidade("CAIXA", "cx")).toBe(true);
+    expect(mesmaUnidade("mês", "MES")).toBe(true);
+    expect(mesmaUnidade("unidade", "CAIXA")).toBe(false);
+    expect(mesmaUnidade("caixa", "CAIXA (12)")).toBe(false);
+    expect(mesmaUnidade("unidade", "UNIDADE (1)")).toBe(true);
+    expect(mesmaUnidade("unidade", null)).toBe(false);
+  });
+
+  it("marca os mais recentes da mesma unidade com as palavras buscadas, sem repetir o que já está no item", () => {
+    const p = (id: string, data: string, unidade: string, descricao = "BOLA FUTEBOL CAMPO") => ({ idExterno: id, dataReferencia: data, unidade, descricao });
+    const precos = [
+      p("a", "2026-01-10", "UN"), p("b", "2026-05-10", "UNIDADE"), p("c", "2026-06-10", "CAIXA"), p("d", "2026-07-10", "UN", "BOLA VOLEI"),
+      p("e", "2026-08-10", "UN"), p("f", "2026-09-10", "UN"),
+    ];
+    const marcados = preMarcar(precos, { unidade: "unidade", palavras: ["bola", "futebol"], jaNoItem: new Set(["f"]), limite: 2 });
+    expect([...marcados]).toEqual(["e", "b"]);
+  });
+});
+
+describe("compararComAta (Lei 14.133, art. 86, § 2º, II)", () => {
+  it("diz se o preço da ata fica abaixo, igual ou acima do estimado", () => {
+    expect(compararComAta(90, 100)).toEqual({ preco: 90, diferenca: -0.1, situacao: "abaixo" });
+    expect(compararComAta(100.001, 100)).toEqual({ preco: 100.001, diferenca: 0, situacao: "igual" });
+    expect(compararComAta(129, 100)).toEqual({ preco: 129, diferenca: 0.29, situacao: "acima" });
+    expect(compararComAta(null, 100)).toBeNull();
+    expect(compararComAta(90, null)).toBeNull();
   });
 });

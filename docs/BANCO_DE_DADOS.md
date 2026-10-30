@@ -1189,6 +1189,16 @@ Todas idempotentes.
   - permissões `compras.pesquisa_precos.visualizar` e `compras.pesquisa_precos.editar` (concedidas a quem tem
     `compras.criar`); RLS classe `permissao` (`leitura=` das duas; a pesquisa com `excluir=ninguem`, itens e amostras
     apagam com `editar`); testes no bloco "Compras: pesquisa de preços" de `scripts/db/testar-rls.sql`.
+- **Pesquisa de preços, entrega 2** (`20261110090000_compras_pesquisa_precos_pca_ata.sql`, spec
+  [2026-10-30-compras-pesquisa-precos-entrega2-design.md](./superpowers/specs/2026-10-30-compras-pesquisa-precos-entrega2-design.md)):
+  duas colunas em `pesquisas_precos_itens`, sem tabela, policy ou permissão nova:
+  - `pca_item_id` (FK para `pca_itens`, índice parcial): o item do PCA de onde o item da pesquisa veio. A tela lê o
+    item do PCA e grava nele o valor estimado ("Levar ao PCA") com a RLS do próprio PCA (`compras.pca.visualizar` e
+    `compras.pca.editar`); o histórico do PCA registra a mudança;
+  - `preco_comparado` (`numeric(15,4)`, maior que zero): preço registrado na ata (adesão, Lei 14.133, art. 86, § 2º,
+    II) ou do contrato vigente (prorrogação, art. 107). A diferença para o estimado é calculada na tela, não gravada;
+  - as duas seguem o gatilho `pesquisa_precos_conferir` (travadas com a pesquisa concluída); a coluna
+    `pesquisas_precos.pca_item_id` da entrega 1 continua sem uso. Testes no mesmo bloco do `testar-rls.sql`.
 - **Localizador de processos do SEI** (`20261102090000`, só funções; spec
   [2026-10-25-localizador-processos-sei-design.md](./superpowers/specs/2026-10-25-localizador-processos-sei-design.md)).
   Nenhuma tabela, coluna, policy ou permissão nova:

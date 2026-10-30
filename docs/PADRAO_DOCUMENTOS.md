@@ -63,7 +63,10 @@
 > (média, limites, média saneada, CV, mediana, menor), o método e a justificativa e as pendências; no fim, o resumo
 > com o total. Não é ato: a nota técnica é do SEI. Chamado pelo botão "Relatório PDF" da ficha da pesquisa
 > (`/compras/pesquisa-precos/:id`); dados montados por `montarItemRelatorio` (`src/lib/compras/relatorioPesquisaPrecos.ts`);
-> testes em `__testes__/compras-pesquisa-precos.test.ts` (amostras em `amostras.test.ts`).
+> testes em `__testes__/compras-pesquisa-precos.test.ts` (amostras em `amostras.test.ts`). Desde a entrega 2
+> (30/10/2026), na adesão a ata e na prorrogação o item traz também o preço registrado na ata ou do contrato vigente
+> e a diferença para o estimado (Lei 14.133, art. 86, § 2º, II, e art. 107), e o resumo ganha essa coluna
+> (`comparacao` nos dados).
 
 > **Contratos C1 (27/10/2026, documento novo):** `contratos-ficha-contrato` (ficha) imprime a ficha do contrato para
 > consulta ou para juntar ao processo no SEI quando quiser: dados do contrato (contratado, objeto, tipo, fundamento,

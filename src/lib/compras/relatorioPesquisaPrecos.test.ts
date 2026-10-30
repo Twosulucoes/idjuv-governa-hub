@@ -107,3 +107,33 @@ describe("textoNotaTecnica", () => {
     expect(t).toContain("R$ 10,00: Promoção");
   });
 });
+
+describe("comparação com a ata (adesão) ou o contrato (prorrogação)", () => {
+  const serie = () => [amostra(100), amostra(95), amostra(105)];
+
+  it("só na adesão e na prorrogação; acima do estimado vira pendência até ser justificado", () => {
+    expect(montarItemRelatorio(item({ preco_comparado: 90 }), serie(), "2026-10-29", "licitacao").comparacao).toBeNull();
+    const abaixo = montarItemRelatorio(item({ preco_comparado: 90 }), serie(), "2026-10-29", "adesao_ata");
+    expect(abaixo.comparacao).toEqual({ preco: 90, diferenca: -0.1, situacao: "abaixo" });
+    expect(abaixo.pendencias).toEqual([]);
+    const acima = montarItemRelatorio(item({ preco_comparado: 129 }), serie(), "2026-10-29", "adesao_ata");
+    expect(acima.pendencias[0]).toContain("29,00% acima");
+    expect(acima.pendencias[0]).toContain("art. 86, § 2º, II");
+    expect(montarItemRelatorio(item({ preco_comparado: 129, justificativa: "SINAPI." }), serie(), "2026-10-29", "adesao_ata").pendencias).toEqual([]);
+    expect(montarItemRelatorio(item(), serie(), "2026-10-29", "adesao_ata").pendencias[0]).toContain("Informe o preço registrado na ata");
+    expect(montarItemRelatorio(item({ preco_comparado: 120 }), serie(), "2026-10-29", "prorrogacao").pendencias[0]).toContain("art. 107");
+  });
+
+  it("entra como seção 6 do texto da nota", () => {
+    const i1 = montarItemRelatorio(item({ preco_comparado: 90 }), serie(), "2026-10-29", "adesao_ata");
+    const i2 = montarItemRelatorio(item({ numero: 2, preco_comparado: 130 }), serie(), "2026-10-29", "adesao_ata");
+    const t = textoNotaTecnica({ numeroSei: "x", objeto: "y", dataReferencia: "2026-10-29", finalidade: "adesao_ata", itens: [i1, i2] });
+    expect(t).toContain("6. COMPATIBILIDADE DO PREÇO REGISTRADO NA ATA");
+    expect(t).toContain("6.1. Item 1: preço registrado na ata de R$ 90,00, 10,00% abaixo do valor estimado de R$ 100,00.");
+    expect(t).toContain("6.2. Item 2: preço registrado na ata de R$ 130,00, 30,00% acima do valor estimado de R$ 100,00.");
+    expect(t).toContain("[JUSTIFICAR]");
+    const so = textoNotaTecnica({ numeroSei: "x", objeto: "y", dataReferencia: "2026-10-29", finalidade: "adesao_ata", itens: [i1] });
+    expect(so).toContain("compatíveis com os praticados no mercado (Lei nº 14.133/2021, art. 86, § 2º, II)");
+    expect(textoNotaTecnica({ numeroSei: "x", objeto: "y", dataReferencia: "2026-10-29", itens: [i1] })).not.toContain("6. ");
+  });
+});

@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, FileDown, FileSpreadsheet, FileText, Lock, Pencil, Plus, Scale, Unlock } from "lucide-react";
+import { CheckCircle2, ClipboardPaste, FileDown, FileSpreadsheet, FileText, ListPlus, Lock, Pencil, Plus, Scale, Unlock } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,15 @@ import { useToast } from "@/hooks/use-toast";
 import { exportarParaExcel } from "@/export/exportExcel";
 import { PARAMETROS, type ParametroPesquisa } from "@/lib/compras/pesquisaPrecos";
 import {
-  dataBR, dataHoraConsulta, documentoNoRelatorio, fonteDaAmostra, moedaBR, montarItemRelatorio, SITUACAO_RELATORIO_LABEL, textoNotaTecnica,
+  COMPARACAO_DA_FINALIDADE, dataBR, dataHoraConsulta, documentoNoRelatorio, fonteDaAmostra, moedaBR, montarItemRelatorio, pctBR,
+  SITUACAO_RELATORIO_LABEL, textoNotaTecnica,
 } from "@/lib/compras/relatorioPesquisaPrecos";
 import {
-  useItensPesquisa, usePesquisaPrecos, useSalvarItemPesquisa, useSalvarPesquisa, useSituacaoPesquisa, type PesquisaPrecosItem,
+  useItensPesquisa, usePcaDosItens, usePesquisaPrecos, useSalvarItemPesquisa, useSalvarItensPesquisa, useSalvarPesquisa,
+  useSituacaoPesquisa, type PesquisaPrecosItem,
 } from "@/hooks/usePesquisaPrecos";
+import { ColarItensDialog } from "@/components/compras/pesquisa-precos/ColarItensDialog";
+import { ImportarPcaDialog } from "@/components/compras/pesquisa-precos/ImportarPcaDialog";
 import { ItemCard } from "@/components/compras/pesquisa-precos/ItemCard";
 import { ItemDialog } from "@/components/compras/pesquisa-precos/ItemDialog";
 import { PesquisaDialog } from "@/components/compras/pesquisa-precos/PesquisaDialog";
@@ -35,15 +39,23 @@ export default function PesquisaPrecosPage() {
   const { hasPermission, user } = useAuth();
   const { toast } = useToast();
   const temEdicao = hasPermission("compras.pesquisa_precos.editar");
+  const podeEditarPca = hasPermission("compras.pca.editar");
+  const podeVerPca = podeEditarPca || hasPermission("compras.pca.visualizar");
   const pesquisa = usePesquisaPrecos(id);
   const itens = useItensPesquisa(id);
   const salvarPesquisa = useSalvarPesquisa();
   const situacao = useSituacaoPesquisa();
   const salvarItem = useSalvarItemPesquisa(id);
+  const salvarItens = useSalvarItensPesquisa(id);
+  const idsPca = useMemo(() => (itens.data ?? []).map((i) => i.pca_item_id).filter((x): x is string => !!x), [itens.data]);
+  const pcaNaPesquisa = useMemo(() => new Set(idsPca), [idsPca]);
+  const pcaDosItens = usePcaDosItens(podeVerPca ? idsPca : []);
 
   const [editandoPesquisa, setEditandoPesquisa] = useState(false);
   const [itemEmEdicao, setItemEmEdicao] = useState<PesquisaPrecosItem | null | undefined>(undefined);
   const [verNota, setVerNota] = useState(false);
+  const [colando, setColando] = useState(false);
+  const [trazendoPca, setTrazendoPca] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
 
   const p = pesquisa.data;
@@ -51,13 +63,15 @@ export default function PesquisaPrecosPage() {
   const podeEditar = temEdicao && !concluida;
 
   const relatorios = useMemo(
-    () => (p ? (itens.data ?? []).map((i) => montarItemRelatorio({ ...i, quantidade: Number(i.quantidade) },
-      i.amostras.map((a) => ({ ...a, preco_unitario: Number(a.preco_unitario) })), p.data_referencia)) : []),
+    () => (p ? (itens.data ?? []).map((i) => montarItemRelatorio(
+      { ...i, quantidade: Number(i.quantidade), preco_comparado: i.preco_comparado == null ? null : Number(i.preco_comparado) },
+      i.amostras.map((a) => ({ ...a, preco_unitario: Number(a.preco_unitario) })), p.data_referencia, p.finalidade)) : []),
     [itens.data, p],
   );
   const total = relatorios.reduce((s, r) => s + (r.valorTotal ?? 0), 0);
   const pendencias = relatorios.reduce((s, r) => s + r.pendencias.length, 0);
   const proximoNumero = Math.max(0, ...(itens.data ?? []).map((i) => i.numero)) + 1;
+  const regra = p ? COMPARACAO_DA_FINALIDADE[p.finalidade] : undefined;
 
   const baixarPdf = async () => {
     if (!p) return;
@@ -73,6 +87,7 @@ export default function PesquisaPrecosPage() {
           dataReferencia: p.data_referencia,
           situacao: SITUACAO_PESQUISA_LABEL[p.situacao] ?? p.situacao,
           responsaveis: p.responsaveis ?? undefined,
+          comparacao: regra ? { rotulo: regra.rotulo, artigo: regra.artigo } : undefined,
           itens: relatorios,
         },
         { emitidoPor: user?.fullName ?? user?.email ?? undefined },
@@ -105,11 +120,18 @@ export default function PesquisaPrecosPage() {
       Aviso: a.aviso ?? "",
       Link: a.link ?? "",
       "Consultado em": dataHoraConsulta(a.consultado_em),
+      "Valor unitário estimado do item": r.valorUnitario ?? "",
+      ...(regra ? {
+        [regra.rotulo.charAt(0).toUpperCase() + regra.rotulo.slice(1)]: r.comparacao?.preco ?? "",
+        "Diferença para o estimado": r.comparacao ? pctBR(r.comparacao.diferenca) : "",
+      } : {}),
     })));
     exportarParaExcel(linhas, `pesquisa-precos-${p.numero_sei.replace(/\W+/g, "-")}`, "Preços");
   };
 
-  const texto = p ? textoNotaTecnica({ numeroSei: p.numero_sei, objeto: p.objeto, dataReferencia: p.data_referencia, itens: relatorios }) : "";
+  const texto = p
+    ? textoNotaTecnica({ numeroSei: p.numero_sei, objeto: p.objeto, dataReferencia: p.data_referencia, finalidade: p.finalidade, itens: relatorios })
+    : "";
 
   if (pesquisa.isLoading || itens.isLoading) {
     return (
@@ -192,7 +214,15 @@ export default function PesquisaPrecosPage() {
         </Card>
 
         {podeEditar && (
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            {podeVerPca && (
+              <Button variant="outline" onClick={() => setTrazendoPca(true)}>
+                <ListPlus className="h-4 w-4" aria-hidden="true" />Trazer do PCA
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setColando(true)}>
+              <ClipboardPaste className="h-4 w-4" aria-hidden="true" />Colar itens do TR
+            </Button>
             <Button onClick={() => setItemEmEdicao(null)}>
               <Plus className="h-4 w-4" aria-hidden="true" />Novo item
             </Button>
@@ -209,7 +239,9 @@ export default function PesquisaPrecosPage() {
           <EmptyState
             icone={Scale}
             titulo="Nenhum item ainda"
-            descricao={podeEditar ? "Lance os itens do termo de referência, com o código do CATMAT ou do CATSER." : "A pesquisa ainda não tem itens."}
+            descricao={podeEditar
+              ? "Cole a tabela de itens do termo de referência, traga os itens do PCA ou lance um a um."
+              : "A pesquisa ainda não tem itens."}
           />
         ) : (
           <div className="space-y-4">
@@ -220,7 +252,10 @@ export default function PesquisaPrecosPage() {
                 relatorio={relatorios[n]}
                 pesquisaId={p.id}
                 dataReferencia={p.data_referencia}
+                finalidade={p.finalidade}
                 podeEditar={podeEditar}
+                pca={i.pca_item_id ? pcaDosItens.data?.get(i.pca_item_id) : undefined}
+                podeEditarPca={podeEditarPca}
                 onEditar={() => setItemEmEdicao(i)}
               />
             ))}
@@ -244,6 +279,12 @@ export default function PesquisaPrecosPage() {
         onSalvar={salvarItem.mutateAsync}
       />
       <TextoNotaDialog open={verNota} onOpenChange={setVerNota} texto={texto} />
+      <ColarItensDialog open={colando} onOpenChange={setColando} proximoNumero={proximoNumero} salvando={salvarItens.isPending}
+        onSalvar={salvarItens.mutateAsync} />
+      {podeVerPca && (
+        <ImportarPcaDialog open={trazendoPca} onOpenChange={setTrazendoPca} numeroSei={p.numero_sei} proximoNumero={proximoNumero}
+          jaNaPesquisa={pcaNaPesquisa} salvando={salvarItens.isPending} onSalvar={salvarItens.mutateAsync} />
+      )}
     </ModuleLayout>
   );
 }
