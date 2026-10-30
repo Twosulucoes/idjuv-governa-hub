@@ -226,8 +226,9 @@ Fluxo: dotação (FIPLAN) → solicitação → empenho → liquidação → pag
   Pagamentos ficam no submenu **"Contingência (regularizar no FIPLAN)"**: lançamentos que não entram direto no
   FIPLAN (FIPLAN fechado de janeiro a abril, tarifas bancárias, contas de convênio) e saem pela remessa OBN600,
   regularizados depois no FIPLAN. O botão da tela de Empenhos virou "Empenho de contingência". Solicitações,
-  Sub-Empenhos, Restos a Pagar, Alterações Orçamentárias, Adiantamentos e Relatórios saíram do menu (e dos
-  atalhos do painel e do QDD); as rotas continuam no `App.tsx` até a limpeza do banco.
+  Sub-Empenhos, Restos a Pagar, Alterações Orçamentárias e Adiantamentos saíram do menu (e dos
+  atalhos do painel e do QDD); as rotas continuam no `App.tsx` até a limpeza do banco. "Relatórios" voltou ao menu em
+  30/10/2026 como o Gerador de relatórios (abaixo).
 Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./superpowers/specs/2026-10-11-financeiro-fiplan-banco-design.md).
 
 - **O FIPLAN é a fonte da verdade do orçamento.** O `QDDPage` importa o PDF "Quadro de Detalhamento da
@@ -256,6 +257,17 @@ Spec da reorganização: [`2026-10-11-financeiro-fiplan-banco-design.md`](./supe
   "Paga no FIPLAN em dd/mm" e se as contas foram prestadas, e a aba Viagens da ficha funcional do servidor
   (`/rh/servidores/:id`) lista as diárias dele no FIPLAN, com o selo da prestação (`DiariasFiplanServidor`). Regras em `src/lib/financeiro/diariasFiplan.ts`, dados em
   `src/hooks/useDiariasFiplan.ts`, importador `diarias_fiplan` (`financeiro.execucao.importar`).
+- **Gerador de relatórios `/financeiro/relatorios`** (menu "Relatórios", `orcamento.visualizar`; spec
+  [`2026-10-30-gerador-relatorios-design.md`](./superpowers/specs/2026-10-30-gerador-relatorios-design.md)): o usuário
+  escolhe a fonte (QDD, Empenhos do FIP 614, PEDs, Documentos do empenho, Diárias, Emendas, Convênios federais; Diárias e
+  Convênios só aparecem com `financeiro.diarias.visualizar` e `financeiro.convenios.visualizar`), marca e ordena as
+  colunas, filtra com a barra de filtros do design system, agrupa em até 2 níveis, escolhe soma, média, maior ou menor
+  em cada coluna de valor e a ordem; a prévia mostra as primeiras linhas com subtotais e total, o PDF sai pelo motor
+  (`relatorios-gerador`, com a linha dos filtros) e a planilha leva tudo, com R$ como número. Modelos: prontos (no código,
+  `src/config/relatoriosDinamicos/index.ts`), meus e do setor (`relatorios_modelos`; período como "este mês" fica
+  relativo; só o autor altera). Fontes em `src/config/relatoriosDinamicos/financeiro.ts` (leitura de mil em mil até 20 mil
+  linhas), lógica pura em `src/lib/relatoriosDinamicos/` (com testes), dados em `src/hooks/useRelatoriosDinamicos.ts`. A
+  Central de relatórios da Administração lista o gerador.
 - **Painel `/financeiro` (execução do exercício)**, calculado no navegador sobre o QDD (`fin_dotacoes`) e o
   FIP 614 (`fin_empenhos`), sem tabela própria. As contas ficam em `src/lib/financeiro/painelExecucao.ts` (com
   testes) e os quadros em `src/components/financeiro/painel/`:

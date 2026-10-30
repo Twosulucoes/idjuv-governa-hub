@@ -231,6 +231,9 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `importar_empenhos_fip614` e `importar_peds_fiplan` (de `orcamento.importar` para `financeiro.execucao.importar`);
   no catálogo, a linha nova e o rótulo de `orcamento.importar`. Mapa e overlay sem mudança; testes nos blocos do FIP 614 e
   dos PEDs de `scripts/db/testar-rls.sql` (só `orcamento.importar` passa a ser recusado).
+- A migração `20261116090000` (modelos do Gerador de relatórios) entrou no mapa (`relatorios_modelos`, classe
+  `preservar`, policies na migração) e no schema regenerado; catálogo e overlay sem mudança. Testes no bloco "Modelos
+  do gerador de relatórios" de `scripts/db/testar-rls.sql` (autor, colega do módulo, fora do módulo, admin e anon).
 - A migração `20261113090000` (diárias do FIPLAN, FIP 002) entrou no mapa (`fin_diarias_fiplan`, classe `preservar`,
   policy na migração), no schema regenerado, no rótulo de `financeiro.execucao.importar` do catálogo e no
   `overlay/40_privilegios.sql` (só leitura pela API; `importar_diarias_fiplan` e `fin_nome_comparavel` só para

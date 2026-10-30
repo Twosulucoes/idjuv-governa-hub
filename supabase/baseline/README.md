@@ -307,6 +307,11 @@ A migração `20261109090000_importacao_permissao_execucao.sql` (importações p
 `financeiro.execucao.importar` e rótulo de `orcamento.importar`); RLS, `rls/mapa.csv` e privilégios sem mudança. Testes
 nos blocos do FIP 614 e dos PEDs de `scripts/db/testar-rls.sql`.
 
+A migração `20261116090000_relatorios_modelos.sql` (modelos do Gerador de relatórios) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança) e no `rls/mapa.csv` (`relatorios_modelos` na classe
+`preservar`, policies na migração); overlay sem mudança. Testes no bloco "Modelos do gerador de relatórios" de
+`scripts/db/testar-rls.sql`.
+
 A migração `20261113090000_fin_diarias_fiplan.sql` (diárias do FIPLAN, FIP 002) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só o rótulo de `financeiro.execucao.importar`,
 editado à mão para não trocar os ids e datas das outras linhas), no `rls/mapa.csv` (`fin_diarias_fiplan` na classe

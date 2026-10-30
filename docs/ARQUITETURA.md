@@ -163,8 +163,11 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   (`AtualizarFinanceiroPage`, `requiredModule="financeiro"`, item "Atualizar dados" no menu): rotina de importações
   do FIPLAN, só leitura; cada botão leva ao importador, que confere a própria permissão. Menu do Financeiro (26/10/2026): Liquidações e
   Pagamentos ficam no submenu "Contingência (regularizar no FIPLAN)"; `/financeiro/solicitacoes`, `/sub-empenhos`,
-  `/restos-a-pagar`, `/alteracoes-orcamentarias`, `/adiantamentos` e `/relatorios` saíram dos menus, mas as rotas
-  continuam registradas (ver [MODULOS.md](./MODULOS.md)).
+  `/restos-a-pagar`, `/alteracoes-orcamentarias` e `/adiantamentos` saíram dos menus, mas as rotas
+  continuam registradas (ver [MODULOS.md](./MODULOS.md)). `/financeiro/relatorios` (`RelatoriosFinanceiroPage`,
+  `requiredPermissions="orcamento.visualizar"`) voltou ao menu como "Relatórios": é o Gerador de relatórios (catálogo de
+  fontes em `src/config/relatoriosDinamicos/`, lógica pura em `src/lib/relatoriosDinamicos/`, modelos em
+  `relatorios_modelos`); fonte com `permissao` some para quem não a tem.
 - Quadro de vagas: `/cargos/vagas` (`QuadroVagasPage`, `ProtectedRoute requiredPermissions="governanca.cargos.visualizar"`;
   a página exige ainda o módulo `governanca`), com link em `/cargos` e item "Quadro de
   Vagas" no menu de governança. Importar a planilha exige `governanca.cargos.gerenciar` (ver
