@@ -114,10 +114,11 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 - [ ] **Site**: página pública de estrutura organizacional (LAI); o card saiu da Transparência pública no #120 porque
   levava a uma tela com login.
 - [ ] **Convênios e emendas federais pelo Transferegov** ([INTEGRACOES_EXTERNAS.md](../INTEGRACOES_EXTERNAS.md) §4,
-  [spec](../superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md)). **T1 feita (PR rascunho, 29/10):**
+  [spec](../superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md)). **T1 feita (PR #191, 29/10):**
   rotina diária no GitHub Actions lê os CSV do Transferegov e grava, pela Edge Function `transferegov`, o espelho
   `fin_tg_*` (só leitura, permissão `financeiro.convenios.visualizar`); tela Financeiro → Convênios federais com lista,
-  ficha e alertas de prazo. Falta: aprovar a migração `20261105090000` em `producao` e configurar o segredo (§4.5).
+  ficha e alertas de prazo. Segredo configurado em 30/10; a primeira carga deu `21000` (o `pg_safeupdate` recusa o DELETE sem
+  WHERE da RPC), corrigido na migração `20261111090000` (PR rascunho); falta aprovar e rodar a rotina de novo.
   Próximas: T2 ligar convênio e empenho federal ao FIPLAN (fonte de recurso e conta do convênio); T3 nome do
   parlamentar e número da emenda federal no painel de emendas.
 - [x] **Integrações — achados da revisão de 27/10/2026** ([INTEGRACOES_EXTERNAS.md](../INTEGRACOES_EXTERNAS.md) §3), PR
