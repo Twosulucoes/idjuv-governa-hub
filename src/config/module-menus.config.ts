@@ -180,9 +180,10 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
   // Contratos
   contratos: {
     dashboard: { label: "Painel de Contratos", route: "/contratos" },
-    // Execução, aditivos e avisos de vencimento entram com as entregas C2 a C6 (P21).
+    // Aditivos e apostilamentos ficam na ficha (aba Alterações, C2); execução, fiscalização e atas entram com as C3 a C6 (P21).
     items: [
       { id: "contratos-lista", label: "Contratos", icon: FileCheck, route: "/contratos/lista", algumaPermissao: ["contratos.visualizar", "contratos.criar", "contratos.editar"] },
+      { id: "contratos-vencimentos", label: "Vencimentos", icon: CalendarDays, route: "/contratos/vencimentos", algumaPermissao: ["contratos.visualizar", "contratos.criar", "contratos.editar"] },
     ],
   },
 

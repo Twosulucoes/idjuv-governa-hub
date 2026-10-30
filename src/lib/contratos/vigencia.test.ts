@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FAIXAS_VENCIMENTO, descricaoVigencia, dentroDoPrazo, diasAte, situacaoVigencia, tomFaixa } from "./vigencia";
+import { FAIXAS_VENCIMENTO, descricaoVigencia, dentroDoPrazo, diasAte, situacaoVigencia, textoDias, tomFaixa } from "./vigencia";
 
 const HOJE = "2026-10-27";
 const ct = (o: Partial<Parameters<typeof situacaoVigencia>[0]> = {}) => ({
@@ -63,6 +63,9 @@ describe("descricaoVigencia e tomFaixa", () => {
     expect(descricaoVigencia({ faixa: "vigente", dias: 400 })).toBe("Vigente");
     expect(descricaoVigencia({ faixa: "rascunho", dias: null })).toBe("Rascunho");
     expect(descricaoVigencia({ faixa: "encerrado", dias: null })).toBe("Encerrado");
+    // o sino só tem os dias (calculados pelo banco)
+    expect(textoDias(-3)).toBe("Vencido há 3 dias");
+    expect(textoDias(110)).toBe("Vence em 110 dias");
   });
   it("tom do selo pela urgência", () => {
     expect(tomFaixa("vencido")).toBe("erro");

@@ -249,72 +249,6 @@ export type Database = {
           },
         ]
       }
-      aditivos_contrato: {
-        Row: {
-          contrato_id: string
-          created_at: string | null
-          created_by: string | null
-          data_assinatura: string
-          data_publicacao_doe: string | null
-          fundamentacao_legal: string | null
-          id: string
-          justificativa: string | null
-          nova_data_fim: string | null
-          numero_aditivo: number
-          numero_doe: string | null
-          objeto: string
-          prazo_adicional_dias: number | null
-          tipo: Database["public"]["Enums"]["tipo_aditivo"]
-          valor_acrescimo: number | null
-          valor_supressao: number | null
-        }
-        ComputedFields: never
-        Insert: {
-          contrato_id: string
-          created_at?: string | null
-          created_by?: string | null
-          data_assinatura: string
-          data_publicacao_doe?: string | null
-          fundamentacao_legal?: string | null
-          id?: string
-          justificativa?: string | null
-          nova_data_fim?: string | null
-          numero_aditivo: number
-          numero_doe?: string | null
-          objeto: string
-          prazo_adicional_dias?: number | null
-          tipo: Database["public"]["Enums"]["tipo_aditivo"]
-          valor_acrescimo?: number | null
-          valor_supressao?: number | null
-        }
-        Update: {
-          contrato_id?: string
-          created_at?: string | null
-          created_by?: string | null
-          data_assinatura?: string
-          data_publicacao_doe?: string | null
-          fundamentacao_legal?: string | null
-          id?: string
-          justificativa?: string | null
-          nova_data_fim?: string | null
-          numero_aditivo?: number
-          numero_doe?: string | null
-          objeto?: string
-          prazo_adicional_dias?: number | null
-          tipo?: Database["public"]["Enums"]["tipo_aditivo"]
-          valor_acrescimo?: number | null
-          valor_supressao?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "aditivos_contrato_contrato_id_fkey"
-            columns: ["contrato_id"]
-            isOneToOne: false
-            referencedRelation: "contratos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       agenda_unidade: {
         Row: {
           ano_vigencia: number | null
@@ -6322,6 +6256,111 @@ export type Database = {
         }
         Relationships: []
       }
+      contrato_alteracoes: {
+        Row: {
+          altera_objeto: boolean
+          altera_prazo: boolean
+          altera_valor: boolean
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          data_assinatura: string | null
+          data_inicio: string | null
+          data_publicacao_doe: string | null
+          data_retomada: string | null
+          descricao: string
+          documento_retomada_sei: string | null
+          documento_sei: string | null
+          especie: string
+          fundamento_legal: string | null
+          id: string
+          indice: string | null
+          justificativa: string | null
+          motivo: string | null
+          nova_data_fim: string | null
+          numero: number | null
+          numero_doe: string | null
+          percentual: number | null
+          processo_sei: string | null
+          updated_at: string
+          updated_by: string | null
+          valor_acrescimo: number
+          valor_supressao: number
+          valor_variacao: number
+        }
+        ComputedFields: never
+        Insert: {
+          altera_objeto?: boolean
+          altera_prazo?: boolean
+          altera_valor?: boolean
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          data_assinatura?: string | null
+          data_inicio?: string | null
+          data_publicacao_doe?: string | null
+          data_retomada?: string | null
+          descricao: string
+          documento_retomada_sei?: string | null
+          documento_sei?: string | null
+          especie: string
+          fundamento_legal?: string | null
+          id?: string
+          indice?: string | null
+          justificativa?: string | null
+          motivo?: string | null
+          nova_data_fim?: string | null
+          numero?: number | null
+          numero_doe?: string | null
+          percentual?: number | null
+          processo_sei?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valor_acrescimo?: number
+          valor_supressao?: number
+          valor_variacao?: number
+        }
+        Update: {
+          altera_objeto?: boolean
+          altera_prazo?: boolean
+          altera_valor?: boolean
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_assinatura?: string | null
+          data_inicio?: string | null
+          data_publicacao_doe?: string | null
+          data_retomada?: string | null
+          descricao?: string
+          documento_retomada_sei?: string | null
+          documento_sei?: string | null
+          especie?: string
+          fundamento_legal?: string | null
+          id?: string
+          indice?: string | null
+          justificativa?: string | null
+          motivo?: string | null
+          nova_data_fim?: string | null
+          numero?: number | null
+          numero_doe?: string | null
+          percentual?: number | null
+          processo_sei?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valor_acrescimo?: number
+          valor_supressao?: number
+          valor_variacao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_alteracoes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contrato_responsaveis: {
         Row: {
           contrato_id: string
@@ -6455,6 +6494,11 @@ export type Database = {
           processo_licitatorio_id: string | null
           processo_sei: string | null
           prorrogavel: boolean
+          reforma: boolean
+          renovacao_atualizada_em: string | null
+          renovacao_observacao: string | null
+          renovacao_processo_sei: string | null
+          renovacao_providencia: string | null
           saldo_contrato: number | null
           status: Database["public"]["Enums"]["status_contrato"] | null
           tipo_contrato: string | null
@@ -6497,6 +6541,11 @@ export type Database = {
           processo_licitatorio_id?: string | null
           processo_sei?: string | null
           prorrogavel?: boolean
+          reforma?: boolean
+          renovacao_atualizada_em?: string | null
+          renovacao_observacao?: string | null
+          renovacao_processo_sei?: string | null
+          renovacao_providencia?: string | null
           saldo_contrato?: number | null
           status?: Database["public"]["Enums"]["status_contrato"] | null
           tipo_contrato?: string | null
@@ -6538,6 +6587,11 @@ export type Database = {
           processo_licitatorio_id?: string | null
           processo_sei?: string | null
           prorrogavel?: boolean
+          reforma?: boolean
+          renovacao_atualizada_em?: string | null
+          renovacao_observacao?: string | null
+          renovacao_processo_sei?: string | null
+          renovacao_providencia?: string | null
           saldo_contrato?: number | null
           status?: Database["public"]["Enums"]["status_contrato"] | null
           tipo_contrato?: string | null
@@ -27220,6 +27274,18 @@ export type Database = {
         Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
         Returns: Json
       }
+      contratos_meus_vencimentos: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          abre_ficha: boolean
+          contrato_id: string
+          data_fim_atual: string
+          dias: number
+          numero: string
+          objeto: string
+          papeis: string[]
+        }[]
+      }
       corrigir_conta_movimento: {
         Args: {
           p_agencia: string
@@ -28403,6 +28469,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      rh_importar_cargos_ocupantes: {
+        Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
+        Returns: Json
+      }
       rh_importar_quadro_vagas: {
         Args: { p_gravar?: boolean; p_linhas: Json }
         Returns: Json
@@ -29227,14 +29297,6 @@ export type Database = {
         | "cancelado"
         | "executado"
         | "estornado"
-      tipo_aditivo:
-        | "prazo"
-        | "valor"
-        | "prazo_valor"
-        | "objeto"
-        | "supressao"
-        | "reequilibrio"
-        | "apostilamento"
       tipo_afastamento:
         | "licenca"
         | "suspensao"
@@ -30090,15 +30152,6 @@ export const Constants = {
         "cancelado",
         "executado",
         "estornado",
-      ],
-      tipo_aditivo: [
-        "prazo",
-        "valor",
-        "prazo_valor",
-        "objeto",
-        "supressao",
-        "reequilibrio",
-        "apostilamento",
       ],
       tipo_afastamento: [
         "licenca",

@@ -387,6 +387,33 @@
 
 @layer components {
   /* ========================================
+     CARTÃO E TABELA - espaçamento padrão
+     ======================================== */
+
+  /* O padrão responsivo dos componentes Card e Table fica na camada de componentes para que qualquer utilitário passado em
+     className (p-0, p-4, pb-2, py-2, h-9, text-xs...) vença em todas as larguras. Como utilitário, o "sm:p-6"
+     do padrão ganhava do "p-0" da tela no desktop (o tailwind-merge não troca variantes diferentes). */
+  .card-header-espaco {
+    @apply p-4 sm:p-6;
+  }
+
+  .card-content-espaco {
+    @apply p-4 pt-0 sm:p-6;
+  }
+
+  .card-footer-espaco {
+    @apply p-4 pt-0 sm:p-6;
+  }
+
+  .table-head-espaco {
+    @apply h-11 px-3 text-xs sm:h-12 sm:px-4 sm:text-sm;
+  }
+
+  .table-cell-espaco {
+    @apply p-3 text-sm sm:p-4;
+  }
+
+  /* ========================================
      LOGO SYSTEM - Tamanhos e proporções
      ======================================== */
 

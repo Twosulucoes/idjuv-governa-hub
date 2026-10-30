@@ -16,6 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DataTable, KpiCard, PageHeader, type ColunaTabela } from "@/components/design-system";
 import {
   Plus,
@@ -41,6 +47,7 @@ import { SituacaoServidorBadge } from "@/components/rh/SituacaoServidorBadge";
 import { useNavigate } from "react-router-dom";
 import { ImportacaoDialog, useImportadorDaUrl } from "@/components/importacao";
 import { useAuth } from "@/contexts/AuthContext";
+import { importadorCargosOcupantes } from "@/lib/importacao/importadores/cargosOcupantes";
 import { importadorServidoresSigrh } from "@/lib/importacao/importadores/servidoresSigrh";
 import { cn } from "@/lib/utils";
 import {
@@ -137,8 +144,11 @@ const numero = new Intl.NumberFormat("pt-BR");
 export default function GestaoServidoresPage() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
-  // Arquivo da Seplan (créditos do SIGRH), importado aqui mesmo (?importador=servidores_sigrh)
-  const importacao = useImportadorDaUrl([importadorServidoresSigrh.id]);
+  // Carga do cadastro, importada aqui mesmo: arquivo da Seplan (?importador=servidores_sigrh) e, depois, cargo e
+  // lotação pela planilha de ocupantes (?importador=cargos_ocupantes)
+  const importadoresDaTela = [importadorServidoresSigrh, importadorCargosOcupantes];
+  const importacao = useImportadorDaUrl(importadoresDaTela.map((i) => i.id));
+  const importadoresPermitidos = importadoresDaTela.filter((i) => hasPermission(i.permissao));
   const [filterTipoServidor, setFilterTipoServidor] = useState<string>("all");
   const [filterSituacao, setFilterSituacao] = useState<string>("all");
   const [filterUnidade, setFilterUnidade] = useState<string>("all");
@@ -463,10 +473,21 @@ export default function GestaoServidoresPage() {
                 <Button variant="outline" onClick={() => setCentralRelatoriosOpen(true)}>
                   <BarChart3 className="h-4 w-4" aria-hidden="true" />Relatórios
                 </Button>
-                {hasPermission(importadorServidoresSigrh.permissao) && (
-                  <Button variant="outline" onClick={() => importacao.abrir(importadorServidoresSigrh.id)}>
-                    <Upload className="h-4 w-4" aria-hidden="true" />Importar do SIGRH
-                  </Button>
+                {importadoresPermitidos.length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        <Upload className="h-4 w-4" aria-hidden="true" />Importar
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {importadoresPermitidos.map((i) => (
+                        <DropdownMenuItem key={i.id} onSelect={() => importacao.abrir(i.id)}>
+                          {i.id === importadorServidoresSigrh.id ? "Servidores do SIGRH (arquivo da Seplan)" : "Cargo e lotação (planilha de ocupantes)"}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
                 <Button onClick={() => navigate('/rh/servidores/novo')}>
                   <Plus className="h-4 w-4" aria-hidden="true" />Novo servidor
