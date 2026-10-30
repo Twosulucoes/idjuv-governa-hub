@@ -8891,6 +8891,10 @@ BEGIN
   IF NOT has_function_privilege('service_role', fn, 'EXECUTE') THEN
     PERFORM pg_temp.falha('FIN TRANSFEREGOV: service_role sem EXECUTE em fin_tg_carregar');
   END IF;
+  -- produção roda o pg_safeupdate nas conexões do PostgREST: DELETE/UPDATE sem WHERE dá 21000 (migração 20261111090000)
+  IF pg_get_functiondef(fn::regprocedure) ~* '(DELETE\s+FROM|UPDATE)\s+[a-z_.]+\s*;' THEN
+    PERFORM pg_temp.falha('FIN TRANSFEREGOV: fin_tg_carregar tem DELETE/UPDATE sem WHERE (o pg_safeupdate recusa)');
+  END IF;
   DELETE FROM public.dados_oficiais WHERE chave = 'cnpj';
   INSERT INTO public.dados_oficiais (chave, valor) VALUES ('cnpj', '11.222.333/0001-81');
   dados := jsonb_build_object(

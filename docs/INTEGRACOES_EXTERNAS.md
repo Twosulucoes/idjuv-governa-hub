@@ -142,7 +142,8 @@ Configurar (uma vez, por quem administra a VPS e o GitHub; nenhum valor vai para
    mostra as contagens; a tela passa a mostrar a data da carga.
 
 Erros comuns: o job falha logo em "Conferir configuração" (falta o segredo do ambiente ou as variáveis); `401` (o
-segredo do GitHub não é igual ao da VPS, ou a VPS não recarregou o `.env`); `409` (CNPJ não cadastrado); `422` (a
+segredo do GitHub não é igual ao da VPS, ou a VPS não recarregou o `.env`); `409` (CNPJ não cadastrado); `500` com `codigo` no log da função `supabase-edge-functions` (erro do banco; `21000` foi o DELETE sem WHERE da
+primeira versão, corrigido em 30/10); `422` (a
 RPC recusou: CNPJ diferente do da Configuração do cliente ou carga vazia com espelho cheio); "o leiaute mudou" (o
 Transferegov mudou as colunas do CSV: ajustar `scripts/transferegov/mapear.mjs`). A tela avisa quando a última
 leitura tem mais de 3 dias.
