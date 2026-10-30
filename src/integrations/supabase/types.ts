@@ -28469,6 +28469,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      rh_importar_cargos_ocupantes: {
+        Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
+        Returns: Json
+      }
       rh_importar_quadro_vagas: {
         Args: { p_gravar?: boolean; p_linhas: Json }
         Returns: Json
