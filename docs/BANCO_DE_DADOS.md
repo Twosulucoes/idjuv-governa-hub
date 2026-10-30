@@ -713,6 +713,22 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   servidor de cada linha, sem CPF. A permissão nova vai para quem já tinha `rh.servidores.criar` (papéis, módulos e
   avulsas). Cargo, lotação e dados pessoais não vêm no arquivo. Testes no bloco "RH: servidores pelo arquivo da Seplan"
   de `scripts/db/testar-rls.sql`.
+- <a id="cargo-e-lotacao-pela-planilha-de-ocupantes-rh_importar_cargos_ocupantes"></a>**Cargo e lotação pela planilha
+  de ocupantes** (migração `20261116090000_rh_importar_cargos_ocupantes.sql`) — RPC `rh_importar_cargos_ocupantes(p_linhas,
+  p_arquivo, p_simular DEFAULT true)` (SECURITY DEFINER; perfil ativo, módulo `rh` e `rh.servidores.importar`, senão
+  `42501`; só `authenticated`), segunda etapa da carga inicial. Recebe por linha o servidor e a unidade já casados no
+  navegador (a planilha não tem CPF: nome igual ou o mais parecido sem empate, com aviso) e o cargo e símbolo como na
+  planilha. O cargo é achado pelo nome e símbolo (sem acento nem diferença de maiúscula; só pelo nome quando há um único
+  cargo com ele, com aviso); cargo fora do cadastro é erro (importe antes o Quadro de vagas). Cria o provimento `ativo`
+  (a vaga livre do cargo vem do gatilho `trg_provimento_vaga`) com a data de nomeação da portaria de nomeação do servidor
+  em `documentos` (categoria `nomeacao`, fora rascunho/minuta/revogada, do mesmo cargo ou sem cargo; vigência,
+  publicação ou data do ato) ou, sem portaria, 1º de janeiro do ano corrente com a observação "a conferir"; e a lotação
+  na unidade quando o servidor não tem lotação ativa (com o ato da portaria e o município na observação). Provimento em
+  vigor no mesmo cargo fica como está; em outro cargo vira aviso e a linha não muda nada; lotação ativa em outra unidade
+  também só avisa. Tudo ou nada (`p_simular` desfaz no fim); servidor repetido é erro da linha. Log em `importacoes`
+  (`tipo` `cargos_ocupantes`, módulo `rh`) com totais, quantas datas ficaram a conferir e, por linha, servidor e
+  provimento. Nenhuma tabela, policy ou permissão nova. Testes no bloco "RH: cargo e lotação pela planilha de ocupantes"
+  de `scripts/db/testar-rls.sql`.
 - **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
   `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez**, depois do INSERT, e só
   por quem: tem o módulo `rh` e `financeiro.folha.processar` (`42501`), **gerou a remessa** (`gerado_por`, fixado pela

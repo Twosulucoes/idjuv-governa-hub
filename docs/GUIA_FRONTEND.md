@@ -304,13 +304,21 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
   `fichas-financeiras`, `contracheques-rh` e `meus-contracheques`. Regras de negócio:
   [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-a-folha-do-sigrh-importar_folha_sigrh).
 - `importadores/servidoresSigrh.ts` + `servidoresSigrhParser.ts` — arquivo de créditos bancários da Seplan (SIGRH) →
-  `rh_importar_servidores_sigrh` (`id` `servidores_sigrh`, módulo `rh`, permissão `rh.servidores.importar`; botão
-  "Importar do SIGRH" em RH → Servidores). Aceita o PDF "Relação de Crédito Bancário — Servidores Ativos" (matrícula,
+  `rh_importar_servidores_sigrh` (`id` `servidores_sigrh`, módulo `rh`, permissão `rh.servidores.importar`; menu
+  "Importar → Servidores do SIGRH" em RH → Servidores). Aceita o PDF "Relação de Crédito Bancário — Servidores Ativos" (matrícula,
   nome, CPF, banco, agência, conta, proventos, descontos e líquido; confere o nº de pessoas e o líquido com os totais do
   fim do relatório) e o TXT CNAB 240 do banco (`_Fun`; lê conta e endereço do segmento B e confere a soma com o trailer
   do lote). Os arquivos `_Pen` (pensão alimentícia) são recusados. Valores em centavos; a prévia mostra o CPF mascarado.
   Invalida `servidores-rh`, `servidores-gestao`, `servidores-tipo-derivado` e `servidores-situacao`. Regras de negócio:
   [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-servidores-do-sigrh-rh_importar_servidores_sigrh).
+- `importadores/cargosOcupantes.ts` + `cargosOcupantesParser.ts` — planilha de ocupantes dos cargos comissionados
+  (aba "ativos": CARGO, CODIGO, NOME DO OCUPANTE, MUNIC., LOCAL) → `rh_importar_cargos_ocupantes` (`id`
+  `cargos_ocupantes`, módulo `rh`, permissão `rh.servidores.importar`). A leitura busca os servidores (em páginas de 1000)
+  e as unidades ativas e casa no navegador: nome igual ou, se não houver, o mais parecido (Levenshtein ≥ 0,72 e 0,15 à
+  frente do segundo), sempre com aviso; lotação pela parte depois da "/" da coluna LOCAL, pela sigla ou pelo nome quase
+  igual. Nome sem par seguro e pessoa repetida são erro de leitura; lotação fora da estrutura é aviso (entra só o cargo).
+  O nome do servidor não vai para a RPC, só os ids. As duas importações ficam no menu "Importar" de RH → Servidores.
+  Regras de negócio: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#cargo-e-lotacao-pela-planilha-de-ocupantes-rh_importar_cargos_ocupantes).
 - `importadores/classificadoresFiplan.ts` + `classificadoresFiplanParser.ts` — tabelas do FIPLAN (`.xls` das consultas
   "Consultar ...") → `importar_classificadores_fiplan` (`id` `classificadores_fiplan`, módulo `financeiro`, permissão
   `orcamento.importar`). Um arquivo por tabela; o parser (função pura, testada com vitest) reconhece a tabela pelo

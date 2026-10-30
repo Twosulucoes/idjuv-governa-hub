@@ -34,7 +34,7 @@ export const importadorServidoresSigrh: Importador<LinhaServidorSigrh> = {
     "Cadastra os servidores que recebem pela folha do SIGRH e mantém a conta bancária em dia; o arquivo do banco completa o endereço.",
   modulo: "rh",
   permissao: "rh.servidores.importar",
-  local: { rota: "/rh/servidores?importador=servidores_sigrh", caminho: "RH → Servidores → Importar do SIGRH" },
+  local: { rota: "/rh/servidores?importador=servidores_sigrh", caminho: "RH → Servidores → Importar → Servidores do SIGRH" },
   aceita: ".pdf,.txt",
   instrucoes:
     "Abra o zip que a Seplan manda todo mês (\"…CreditosBancarios<Mês><Ano> - FOLHA MENSAL\"). Primeiro envie o PDF " +
