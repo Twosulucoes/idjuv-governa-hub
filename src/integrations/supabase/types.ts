@@ -20527,7 +20527,9 @@ export type Database = {
           metodo: string | null
           nome_catalogo: string | null
           numero: number
+          pca_item_id: string | null
           pesquisa_id: string
+          preco_comparado: number | null
           quantidade: number
           tipo: string
           unidade: string
@@ -20546,7 +20548,9 @@ export type Database = {
           metodo?: string | null
           nome_catalogo?: string | null
           numero: number
+          pca_item_id?: string | null
           pesquisa_id: string
+          preco_comparado?: number | null
           quantidade: number
           tipo: string
           unidade: string
@@ -20564,7 +20568,9 @@ export type Database = {
           metodo?: string | null
           nome_catalogo?: string | null
           numero?: number
+          pca_item_id?: string | null
           pesquisa_id?: string
+          preco_comparado?: number | null
           quantidade?: number
           tipo?: string
           unidade?: string
@@ -20572,6 +20578,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pesquisas_precos_itens_pca_item_id_fkey"
+            columns: ["pca_item_id"]
+            isOneToOne: false
+            referencedRelation: "pca_itens"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pesquisas_precos_itens_pesquisa_id_fkey"
             columns: ["pesquisa_id"]

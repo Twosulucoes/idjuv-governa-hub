@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 232 |
-| Componentes (`.tsx` em `src/components`) | 380 |
+| Componentes (`.tsx` em `src/components`) | 382 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 337 |
+| — fora de `ui/` | 339 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 116 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 96 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 97 |
 | Linhas de `src/App.tsx` | 1489 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30181 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30194 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -69,7 +69,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 326 |
+| Migrações (`supabase/migrations/*.sql`) | 327 |
 | Migração mais recente | `20261110120000_passagens_gabinete.sql` |
 | Tabelas do schema public (baseline) | 292 |
 | Views (baseline) | 18 |

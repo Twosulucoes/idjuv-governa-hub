@@ -3,13 +3,15 @@
  * 20261106090000; leitura com `compras.pesquisa_precos.visualizar`, escrita com `compras.pesquisa_precos.editar`
  * (RLS). Os preços do Compras.gov.br e do PNCP vêm da Edge Function `pesquisa-precos` (só leitura); a tela grava as
  * amostras escolhidas. O saneamento e o método são calculados em `src/lib/compras/pesquisaPrecos.ts`.
+ * Entrega 2 (migração 20261110090000): busca por nome (catálogo sugerido + PNCP), itens colados em lote, item ligado ao
+ * PCA (`pca_item_id`; ler e levar o valor ao PCA seguem a RLS do PCA) e preço da ata ou do contrato (`preco_comparado`).
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
-import type { ReferenciaPncp } from '@/lib/compras/pesquisaPrecos';
+import { termosDoCatalogo, type ReferenciaPncp } from '@/lib/compras/pesquisaPrecos';
 
 export type PesquisaPrecos = Tables<'pesquisas_precos'>;
 export type PesquisaPrecosItem = Tables<'pesquisas_precos_itens'>;
@@ -191,6 +193,25 @@ export function useSalvarItemPesquisa(pesquisaId: string | undefined) {
   });
 }
 
+/** Vários itens de uma vez (itens colados do TR ou trazidos do PCA). */
+export function useSalvarItensPesquisa(pesquisaId: string | undefined) {
+  const invalidar = useInvalidar();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (itens: PesquisaPrecosItemInput[]) => {
+      const { error } = await supabase.from('pesquisas_precos_itens')
+        .insert(itens.map(({ id: _id, ...campos }) => ({ ...campos, pesquisa_id: pesquisaId! })));
+      if (error) throw error;
+      return itens.length;
+    },
+    onSuccess: (n) => {
+      invalidar();
+      toast({ title: `${n} item(ns) incluído(s) na pesquisa` });
+    },
+    onError: (e) => toast({ title: 'Não foi possível incluir os itens', description: mensagemErro(e), variant: 'destructive' }),
+  });
+}
+
 export function useExcluirItemPesquisa() {
   const invalidar = useInvalidar();
   const { toast } = useToast();
@@ -315,4 +336,106 @@ export function amostraDoPreco(p: PrecoEncontrado, consultadoEm: string): Amostr
     link: p.link,
     consultado_em: consultadoEm,
   };
+}
+
+export const buscarPrecosPncp = (termo: string, dataInicio: string, dataFim: string) =>
+  chamarFuncao<{ precos: PrecoEncontrado[]; comprasConsultadas: number; comprasComFalha: number }>({
+    acao: 'pncp_busca', termo, dataInicio, dataFim,
+  });
+
+export interface SugestaoCatalogo {
+  codigo: number;
+  nome: string;
+  grupo: string;
+}
+
+/**
+ * Código do catálogo sugerido pelo nome do produto, na cópia local do CATMAT (tipo de material) ou do CATSER: tenta
+ * do termo mais completo ao mais curto e para no primeiro que acha algo. Até 8 opções.
+ */
+export function useSugestaoCatalogo(termo: string, tipo: 'material' | 'servico') {
+  const termos = termosDoCatalogo(termo);
+  return useQuery({
+    queryKey: [CHAVE, 'sugestao-catalogo', tipo, termos[0] ?? ''],
+    enabled: termos.length > 0,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<{ termo: string | null; opcoes: SugestaoCatalogo[] }> => {
+      for (const t of termos) {
+        if (tipo === 'material') {
+          const { data, error } = await supabase.from('cat_material_pdms').select('codigo_pdm, nome_pdm, nome_classe').eq('ativo', true)
+            .textSearch('nome_pdm', t, { type: 'websearch', config: 'portuguese' }).order('nome_pdm').limit(8);
+          if (error) throw error;
+          if (data?.length) return { termo: t, opcoes: data.map((r) => ({ codigo: r.codigo_pdm, nome: r.nome_pdm, grupo: r.nome_classe })) };
+        } else {
+          const { data, error } = await supabase.from('cat_servicos').select('codigo_servico, nome_servico, nome_classe, nome_secao')
+            .eq('ativo', true).textSearch('nome_servico', t, { type: 'websearch', config: 'portuguese' }).order('nome_servico').limit(8);
+          if (error) throw error;
+          if (data?.length) {
+            return { termo: t, opcoes: data.map((r) => ({ codigo: r.codigo_servico, nome: r.nome_servico, grupo: r.nome_classe ?? r.nome_secao })) };
+          }
+        }
+      }
+      return { termo: null, opcoes: [] };
+    },
+  });
+}
+
+// ---------------------------------------------------------------- PCA (a RLS do PCA decide quem lê e quem grava)
+
+export type ItemPcaResumo = Pick<
+  Tables<'pca_itens'>,
+  'id' | 'numero_sei' | 'tipo' | 'codigo_pdm' | 'codigo_servico' | 'codigo_item' | 'descricao' | 'unidade_fornecimento' | 'quantidade' | 'valor_unitario'
+>;
+const CAMPOS_PCA = 'id, numero_sei, tipo, codigo_pdm, codigo_servico, codigo_item, descricao, unidade_fornecimento, quantidade, valor_unitario';
+
+/** Itens ativos do PCA de um processo SEI (o DFD), para trazer à pesquisa. */
+export function useItensPcaDoSei(numeroSei: string, ativo: boolean) {
+  const sei = numeroSei.trim();
+  return useQuery({
+    queryKey: [CHAVE, 'pca-do-sei', sei],
+    enabled: ativo && sei.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pca_itens').select(CAMPOS_PCA).eq('numero_sei', sei).eq('situacao', 'ativo')
+        .order('created_at');
+      if (error) throw error;
+      return data as ItemPcaResumo[];
+    },
+  });
+}
+
+/** Os itens do PCA ligados aos itens da pesquisa (vazio para quem não lê o PCA). */
+export function usePcaDosItens(ids: string[]) {
+  const chave = [...new Set(ids)].sort();
+  return useQuery({
+    queryKey: [CHAVE, 'pca-dos-itens', chave.join(',')],
+    enabled: chave.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pca_itens').select(CAMPOS_PCA).in('id', chave);
+      if (error) throw error;
+      return new Map((data as ItemPcaResumo[]).map((i) => [i.id, i]));
+    },
+  });
+}
+
+/** Grava o valor unitário estimado pela pesquisa no item do PCA (compras.pca.editar; o histórico do PCA registra). */
+export function useLevarAoPca() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, valorUnitario }: { id: string; valorUnitario: number }) => {
+      const { data, error } = await supabase.from('pca_itens').update({ valor_unitario: valorUnitario }).eq('id', id).select('id');
+      if (error) throw error;
+      if (!data?.length) throw Object.assign(new Error('Sem permissão para editar o PCA.'), { code: '42501' });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [CHAVE] });
+      qc.invalidateQueries({ queryKey: ['pca'] });
+      toast({ title: 'Valor levado ao PCA' });
+    },
+    onError: (e) => toast({
+      title: 'Não foi possível levar o valor ao PCA',
+      description: (e as { code?: string })?.code === '42501' ? 'Você não tem permissão para editar o PCA.' : mensagemErro(e),
+      variant: 'destructive',
+    }),
+  });
 }

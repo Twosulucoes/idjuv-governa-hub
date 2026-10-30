@@ -184,3 +184,111 @@ export function documentoFornecedor(v: string | null | undefined): string | null
   const d = String(v ?? "").replace(/\D/g, "");
   return d.length === 14 || d.length === 11 ? d : null;
 }
+
+// ---------------------------------------------------------------- busca simples (nome do produto, unidade, marcação)
+
+/** Minúsculas, sem acento e sem pontuação: "Peça, Nº 5" → "peca n 5". */
+export function normalizarTexto(t: string | null | undefined): string {
+  return String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+const PALAVRAS_VAZIAS = new Set([
+  "de", "da", "do", "das", "dos", "em", "na", "no", "nas", "nos", "para", "por", "com", "sem", "and", "uma", "um", "tipo",
+  "aos", "que", "pela", "pelo", "conforme", "cada",
+]);
+
+/** As primeiras palavras que identificam o produto (3 letras ou mais, sem as de ligação), sem acento. */
+export function palavrasDaBusca(texto: string | null | undefined, maximo = 3): string[] {
+  return normalizarTexto(texto).split(" ").filter((p) => p.length >= 3 && !PALAVRAS_VAZIAS.has(p)).slice(0, maximo);
+}
+
+/** Termos para achar o código no catálogo: do mais completo ao mais curto ("bola futebol campo", "bola futebol", "bola"). */
+export function termosDoCatalogo(termo: string): string[] {
+  const palavras = palavrasDaBusca(termo, 5);
+  return palavras.map((_, i) => palavras.slice(0, palavras.length - i).join(" "));
+}
+
+const radical = (p: string) => (p.length > 4 ? p.replace(/(es|s)$/, "") : p);
+
+/** A descrição tem todas as palavras buscadas (começo da palavra, sem acento, singular ou plural)? */
+export function descricaoCombina(descricao: string | null | undefined, palavras: string[]): boolean {
+  if (!palavras.length) return true;
+  const tokens = normalizarTexto(descricao).split(" ").filter(Boolean);
+  return palavras.every((p) => tokens.some((t) => t.startsWith(radical(p))));
+}
+
+const SINONIMOS_UNIDADE: Record<string, string> = {
+  u: "unidade", un: "unidade", und: "unidade", unid: "unidade", unidade: "unidade", unidades: "unidade",
+  pc: "peca", pca: "peca", peca: "peca", pecas: "peca",
+  cx: "caixa", caixa: "caixa", caixas: "caixa",
+  pct: "pacote", pt: "pacote", pacote: "pacote", pacotes: "pacote",
+  kg: "kg", quilo: "kg", quilograma: "kg", quilogramas: "kg",
+  g: "grama", gr: "grama", grama: "grama", gramas: "grama",
+  l: "litro", lt: "litro", litro: "litro", litros: "litro",
+  ml: "ml", mililitro: "ml",
+  m: "metro", mt: "metro", metro: "metro", metros: "metro",
+  m2: "m2", "metro quadrado": "m2", m3: "m3", "metro cubico": "m3",
+  mes: "mes", meses: "mes", mensal: "mes",
+  sv: "servico", serv: "servico", servico: "servico", servicos: "servico",
+  par: "par", pares: "par", jg: "jogo", jogo: "jogo", jogos: "jogo", kit: "kit", kits: "kit",
+  rl: "rolo", rolo: "rolo", rolos: "rolo", rs: "resma", resma: "resma", resmas: "resma",
+  fr: "frasco", frasco: "frasco", frascos: "frasco", gl: "galao", galao: "galao", dz: "duzia", duzia: "duzia",
+  h: "hora", hr: "hora", hora: "hora", horas: "hora", dia: "dia", dias: "dia", diaria: "diaria", diarias: "diaria",
+};
+
+function unidadeCanonica(u: string | null | undefined): { base: string; capacidade: number | null } | null {
+  const bruto = String(u ?? "");
+  const capacidade = bruto.match(/\((\d+(?:[.,]\d+)?)\)/);
+  const base = normalizarTexto(bruto.replace(/\(.*?\)/g, " "));
+  if (!base) return null;
+  return { base: SINONIMOS_UNIDADE[base] ?? base, capacidade: capacidade ? Number(capacidade[1].replace(",", ".")) : null };
+}
+
+/**
+ * Mesma unidade de fornecimento, por sinônimo (UN = unidade, CX = caixa, mês = MES). Embalagem com capacidade diferente
+ * de 1 no portal (ex.: "CAIXA (12)") não conta como a mesma: a quantidade dentro dela pode ser outra.
+ */
+export function mesmaUnidade(doItem: string | null | undefined, doPreco: string | null | undefined): boolean {
+  const a = unidadeCanonica(doItem);
+  const b = unidadeCanonica(doPreco);
+  if (!a || !b) return false;
+  if (b.capacidade !== null && b.capacidade !== 1 && b.capacidade !== a.capacidade) return false;
+  return a.base === b.base;
+}
+
+export const LIMITE_PRE_MARCADOS = 10;
+
+/**
+ * Preços que já vêm marcados na busca: da mesma unidade do item, com as palavras buscadas na descrição, que ainda não
+ * estão no item; os mais recentes primeiro, até o limite. Quem pesquisa confere e desmarca antes de usar.
+ */
+export function preMarcar(
+  precos: { idExterno: string; dataReferencia: string | null; unidade: string | null; descricao: string | null }[],
+  o: { unidade: string; palavras: string[]; jaNoItem: Set<string>; limite?: number },
+): Set<string> {
+  return new Set(precos
+    .filter((p) => !o.jaNoItem.has(p.idExterno) && mesmaUnidade(o.unidade, p.unidade) && descricaoCombina(p.descricao, o.palavras))
+    .sort((a, b) => (b.dataReferencia ?? "").localeCompare(a.dataReferencia ?? ""))
+    .slice(0, o.limite ?? LIMITE_PRE_MARCADOS)
+    .map((p) => p.idExterno));
+}
+
+// ---------------------------------------------------------------- comparação com a ata ou o contrato
+
+export interface ComparacaoAta {
+  preco: number;
+  /** Fração: −0,10 = 10% abaixo do estimado. */
+  diferenca: number;
+  situacao: "abaixo" | "igual" | "acima";
+}
+
+/**
+ * Preço registrado na ata (adesão, Lei 14.133, art. 86, § 2º, II) ou do contrato (prorrogação, art. 107) diante do
+ * valor estimado pela pesquisa. "igual" quando os dois batem no centavo.
+ */
+export function compararComAta(preco: number | null | undefined, estimado: number | null | undefined): ComparacaoAta | null {
+  if (!preco || preco <= 0 || !estimado || estimado <= 0) return null;
+  if (arredondar(preco, 2) === arredondar(estimado, 2)) return { preco, diferenca: 0, situacao: "igual" };
+  const diferenca = arredondar(preco / estimado - 1, 4);
+  return { preco, diferenca, situacao: diferenca < 0 ? "abaixo" : "acima" };
+}

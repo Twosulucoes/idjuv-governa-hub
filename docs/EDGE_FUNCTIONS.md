@@ -30,7 +30,7 @@ Aposentada no P06 (2026-10-15): `backup-offsite` (backup antigo em JSON para out
 | `cpsi-ai-assistant` | Assistente de IA do antigo formulário CPSI. A tela saiu na onda 5 do P23 (DFD/ETP/TR são do SEI); a função segue publicada sem chamador no front até a decisão D2 do roadmap. |
 | `conciliacao-ia-sugestoes` | Sugere casamentos para as pendências da conciliação mensal (aba "Fechamento mensal") pelo Gemini. Não grava nada: a tela mostra cada sugestão e o usuário aceita ou recusa. Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
 | `catalogo-compras` | Ponte com o catálogo CATMAT/CATSER do portal de dados abertos do Compras.gov.br para o PCA: baixa os tipos de material e os serviços para o banco, lista os itens de um tipo de material, grava o item escolhido e lê as naturezas de despesa que o catálogo indica. Exige o módulo `compras` e a permissão do PCA (ver abaixo). |
-| `pesquisa-precos` | Pesquisa de preços de Compras: lê os preços praticados do Compras.gov.br (módulo Pesquisa de Preço da API de dados abertos) pelo código do CATMAT/CATSER e os resultados homologados de uma compra do PNCP. Só leitura, sem service role: a tela grava os preços escolhidos. Exige o módulo `compras` e a permissão da pesquisa de preços (ver abaixo). |
+| `pesquisa-precos` | Pesquisa de preços de Compras: lê os preços praticados do Compras.gov.br (módulo Pesquisa de Preço da API de dados abertos) pelo código do CATMAT/CATSER e os resultados homologados do PNCP, de uma compra ou pela busca por nome. Só leitura, sem service role: a tela grava os preços escolhidos. Exige o módulo `compras` e a permissão da pesquisa de preços (ver abaixo). |
 | `bb-api` | APIs de leitura do Banco do Brasil: `status` da conexão, `extrato` (API Extratos v2, grava em `fin_extrato_lancamentos`) e `validar-conta` (API Validação de Contas v1). Exige o módulo `financeiro` e `pagamento.conciliar` (ver abaixo). |
 | `transferegov` | Recebe da rotina diária do GitHub Actions o que o Transferegov tem do CNPJ da instituição e troca o espelho `fin_tg_*` pela RPC `fin_tg_carregar`. Não é chamada pelo navegador: exige o segredo `TRANSFEREGOV_TOKEN` (ver abaixo). |
 
@@ -123,11 +123,17 @@ Exige sessão, o módulo `compras` e `compras.pesquisa_precos.visualizar` ou `co
 conferidos com o token do próprio usuário (sem service role; não grava nada). Ações: `precos_compras` (uma página de
 até 500 preços de `1_consultarMaterial` ou `3_consultarServico` do módulo Pesquisa de Preço, por item do catálogo ou
 tipo de material, no período pedido; a tela faz o laço de páginas, até 6), `pncp_compra` (dados da compra e itens, pelo
-CNPJ, ano e sequencial do número de controle) e `pncp_resultados` (preços homologados de um item). Cada preço volta com
+CNPJ, ano e sequencial do número de controle), `pncp_resultados` (preços homologados de um item) e `pncp_busca`
+(entrega 2: busca por nome, de 3 a 80 caracteres; usa a busca pública de editais do PNCP, `/api/search/`, lê até 8
+compras, até 3 itens de cada com todas as palavras buscadas e com resultado, e devolve os preços homologados dentro do
+período pedido; compra que falha é pulada e contada em `comprasComFalha`). A busca pública do PNCP não tem manual
+oficial: os campos (`orgao_cnpj`, `ano`, `numero_sequencial`, `numero_controle_pncp`) vieram de clientes públicos, e o
+primeiro teste real é depois do merge. Cada preço volta com
 a fonte (órgão, UASG, UF, compra, data, fornecedor, link) e um `idExterno` estável, que impede gravar a mesma linha duas
 vezes no item. Só chama `https://dadosabertos.compras.gov.br` e `https://pncp.gov.br` (hosts fixos em `portal.ts`, sem
 redirecionamento, 25 s por chamada); portal fora do ar ou resposta fora do formato vira `502` com mensagem em
-português, compra inexistente `404`. Público e sem chave: não há segredo novo. O log leva só ação, tipo, página e quantidade. As
+português, compra inexistente `404`. Público e sem chave: não há segredo novo. O log leva só ação, tipo, página e
+quantidade (na busca por nome, o número de compras e de falhas; o termo buscado não vai para o log). As
 funções puras (`portal.ts`) têm teste vitest.
 
 ### Convênios federais (`transferegov`)

@@ -262,6 +262,9 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   schema do baseline regenerado, no catálogo (as duas permissões e a concessão aos papéis que têm `compras.criar`) e no
   `overlay/40_privilegios.sql` (EXECUTE do gatilho `pesquisa_precos_conferir` revogado); testes no bloco "Compras:
   pesquisa de preços" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- A pesquisa de preços, entrega 2 (migração `20261110090000`), entrou só no schema do baseline regenerado
+  (`pesquisas_precos_itens.pca_item_id` e `preco_comparado`, índice e FK); mapa, catálogo e overlays sem mudança;
+  testes novos no bloco "Compras: pesquisa de preços" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - Os processos de contratação, entrega 1 (migração `20261029090000`), entraram no mapa (`processo_andamentos`, classe
   `permissao` com `compras.processos.editar`), no schema do baseline regenerado, no catálogo (as duas permissões e a
   concessão aos papéis `admin` e `manager`) e no `overlay/40_privilegios.sql`; testes no bloco "Compras: processos de

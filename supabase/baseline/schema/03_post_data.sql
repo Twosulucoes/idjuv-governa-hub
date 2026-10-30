@@ -7618,6 +7618,13 @@ CREATE INDEX idx_pesquisas_precos_criacao ON public.pesquisas_precos USING btree
 
 
 --
+-- Name: idx_pesquisas_precos_itens_pca; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pesquisas_precos_itens_pca ON public.pesquisas_precos_itens USING btree (pca_item_id) WHERE (pca_item_id IS NOT NULL);
+
+
+--
 -- Name: idx_pesquisas_precos_itens_pesquisa; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -18332,6 +18339,14 @@ ALTER TABLE ONLY public.pensoes_alimenticias
 
 ALTER TABLE ONLY public.pesquisas_precos_amostras
     ADD CONSTRAINT pesquisas_precos_amostras_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.pesquisas_precos_itens(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pesquisas_precos_itens pesquisas_precos_itens_pca_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pesquisas_precos_itens
+    ADD CONSTRAINT pesquisas_precos_itens_pca_item_id_fkey FOREIGN KEY (pca_item_id) REFERENCES public.pca_itens(id);
 
 
 --

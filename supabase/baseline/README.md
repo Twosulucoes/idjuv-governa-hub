@@ -356,6 +356,12 @@ A migração `20261106090000_compras_pesquisa_precos.sql` (pesquisa de preços, 
 `scripts/db/testar-rls.sql`, com sementes de `pesquisas_precos_itens` e `pesquisas_precos_amostras` em `seed_ov`.
 Validado com `validar-baseline.sh` em PostgreSQL 16: **APROVADO**, RLS com 0 falhas.
 
+A migração `20261110090000_compras_pesquisa_precos_pca_ata.sql` (pesquisa de preços, entrega 2) entrou só no schema
+regenerado (`01_pre_data.sql`: colunas `pca_item_id` e `preco_comparado` de `pesquisas_precos_itens` com o CHECK e os
+comentários; `03_post_data.sql`: índice parcial e FK para `pca_itens`); `02_dados_catalogo.sql`, `rls/mapa.csv` e
+overlays sem mudança. Testes novos no bloco "Compras: pesquisa de preços" de `scripts/db/testar-rls.sql`. Validado com
+`validar-baseline.sh` em PostgreSQL 16: **APROVADO**, RLS com 0 falhas.
+
 A migração `20261029090000_compras_processos_andamento.sql` (processos de contratação, entrega 1) entrou no schema
 regenerado (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só as linhas das permissões
 `compras.processos.visualizar`/`editar` e da concessão a `admin` e `manager`, copiadas da regeneração), no
