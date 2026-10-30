@@ -1345,6 +1345,17 @@ Cópia, só para leitura, do que o Transferegov publica sobre o CNPJ da institui
 - Permissão nova `financeiro.convenios.visualizar` (catálogo do financeiro), dada na migração a quem já tinha
   `orcamento.visualizar` (papéis, usuários e concessões do módulo).
 - Testes no bloco "Financeiro: convênios federais do Transferegov" de `scripts/db/testar-rls.sql`.
+- **Histórico de mudanças** (migração `20261112090000_fin_tg_mudancas.sql`): `fin_tg_mudancas` guarda, a cada carga, o
+  que mudou em relação à anterior. Cada linha diz a `entidade` (`proposta`, `emenda`, `convenio`, `movimento`), a
+  `chave`, a proposta e o convênio, o `tipo` (`novo`, `removido` ou `alterado`) e, no alterado, o `campo` com
+  `valor_anterior` e `valor_novo` (texto); no novo e no removido, a linha inteira em `dados`. Sem chave estrangeira
+  para o espelho: a mudança fica mesmo quando a proposta some do Transferegov. A primeira carga (espelho vazio) e
+  uma carga igual não registram nada. `fin_tg_sincronizacoes.mudancas` conta quantas a carga achou. Quem compara é
+  `fin_tg_carregar`, com `fin_tg_mapa` (foto de uma tabela em jsonb) e `fin_tg_registrar_diferencas`, ambas sem
+  EXECUTE para a API. Mesma RLS das outras `fin_tg_*` (trilha, `leitura=financeiro.convenios.visualizar`).
+- `pode_atualizar_convenios_federais()` (`SECURITY DEFINER`, EXECUTE só `authenticated`): perfil ativo, módulo
+  `financeiro` e `financeiro.convenios.visualizar`; a Edge Function `transferegov-atualizar` pergunta antes de
+  disparar a rotina. Testes no bloco "Financeiro: convênios federais, histórico de mudanças".
 
 ### Compras, licitações e contratos
 `processos_licitatorios`, `itens_processo_licitatorio`, `itens_licitacao`,

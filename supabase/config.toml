@@ -48,3 +48,7 @@ verify_jwt = true
 # Chamada pela rotina diária do GitHub Actions com a chave anon (JWT) e o segredo TRANSFEREGOV_TOKEN; sem usuário.
 [functions.transferegov]
 verify_jwt = true
+
+# Botão "Atualizar agora" de Financeiro → Convênios federais: sessão do usuário; dispara a rotina no GitHub.
+[functions.transferegov-atualizar]
+verify_jwt = true

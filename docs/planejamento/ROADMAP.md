@@ -118,7 +118,9 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   rotina diária no GitHub Actions lê os CSV do Transferegov e grava, pela Edge Function `transferegov`, o espelho
   `fin_tg_*` (só leitura, permissão `financeiro.convenios.visualizar`); tela Financeiro → Convênios federais com lista,
   ficha e alertas de prazo. Segredo configurado em 30/10; a primeira carga deu `21000` (o `pg_safeupdate` recusa o DELETE sem
-  WHERE da RPC), corrigido na migração `20261111090000` (PR rascunho); falta aprovar e rodar a rotina de novo.
+  WHERE da RPC), corrigido na migração `20261111090000` (PR rascunho); rotina verde em 30/10 (carga real no ar). **Histórico de
+  mudanças e botão "Atualizar agora"** (PR rascunho, 30/10): migração `20261112090000` (`fin_tg_mudancas`), Edge
+  Function `transferegov-atualizar` e tela; falta configurar o token do GitHub na VPS (§4.5).
   Próximas: T2 ligar convênio e empenho federal ao FIPLAN (fonte de recurso e conta do convênio); T3 nome do
   parlamentar e número da emenda federal no painel de emendas.
 - [x] **Integrações — achados da revisão de 27/10/2026** ([INTEGRACOES_EXTERNAS.md](../INTEGRACOES_EXTERNAS.md) §3), PR

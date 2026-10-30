@@ -4,12 +4,15 @@
  * Spec docs/superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md.
  */
 
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, Handshake, Info, Landmark, Wallet, AlertTriangle } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { DataTable, KpiCard, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { BotaoAtualizarConvenios } from "@/components/financeiro/convenios/BotaoAtualizarConvenios";
+import { MudancasConvenios } from "@/components/financeiro/convenios/MudancasConvenios";
 import {
   useConveniosFederais,
   useUltimaSincronizacaoTransferegov,
@@ -96,7 +99,8 @@ export default function ConveniosFederaisPage() {
   const navigate = useNavigate();
   const { comExercicio } = useExercicioFinanceiro();
   const propostas = useConveniosFederais();
-  const sincronizacao = useUltimaSincronizacaoTransferegov();
+  const [aguardandoDesde, setAguardandoDesde] = useState<number | null>(null);
+  const sincronizacao = useUltimaSincronizacaoTransferegov(aguardandoDesde !== null);
   const lista = propostas.data ?? [];
   const ultima = sincronizacao.data;
 
@@ -112,6 +116,13 @@ export default function ConveniosFederaisPage() {
           migalhas={[{ rotulo: "Financeiro", href: comExercicio("/financeiro") }, { rotulo: "Convênios federais" }]}
           titulo="Convênios federais"
           descricao="Propostas, emendas e convênios com a União, lidos todo dia do Transferegov"
+          acoes={
+            <BotaoAtualizarConvenios
+              ultimaExecutadaEm={ultima?.executada_em}
+              aguardandoDesde={aguardandoDesde}
+              aoMudarAguardando={setAguardandoDesde}
+            />
+          }
         />
 
         {!sincronizacao.isLoading && espelhoDesatualizado(ultima?.executada_em) && (
@@ -164,6 +175,8 @@ export default function ConveniosFederaisPage() {
             </Button>
           )}
         />
+
+        <MudancasConvenios />
 
         {ultima && (
           <p className="text-xs text-muted-foreground">
