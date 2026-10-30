@@ -13,6 +13,7 @@ import { importadorPedsFiplan } from "./importadores/pedsFiplan";
 import { importadorPortariasPlanilha } from "./importadores/portariasPlanilha";
 import { importadorProcessosPlanilha } from "./importadores/processosPlanilha";
 import { importadorQddFiplan } from "./importadores/qddFiplan";
+import { importadorServidoresSigrh } from "./importadores/servidoresSigrh";
 
 // Cada importador é coerente com o próprio tipo de linha; na lista o tipo da linha não importa.
 const generico = <T,>(imp: Importador<T>) => imp as unknown as Importador<unknown>;
@@ -25,6 +26,7 @@ export const IMPORTADORES: Importador<unknown>[] = [
   generico(importadorArquivoBancario),
   generico(importadorPortariasPlanilha),
   generico(importadorFolhaSigrh),
+  generico(importadorServidoresSigrh),
   generico(importadorProcessosPlanilha),
   generico(importadorContratosPlanilha),
 ];
