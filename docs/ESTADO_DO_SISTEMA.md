@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 232 |
-| Componentes (`.tsx` em `src/components`) | 379 |
+| Componentes (`.tsx` em `src/components`) | 381 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 336 |
+| — fora de `ui/` | 338 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 116 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 96 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 97 |
 | Linhas de `src/App.tsx` | 1485 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30166 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30179 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -69,8 +69,8 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 325 |
-| Migração mais recente | `20261109090000_importacao_permissao_execucao.sql` |
+| Migrações (`supabase/migrations/*.sql`) | 326 |
+| Migração mais recente | `20261110090000_compras_pesquisa_precos_pca_ata.sql` |
 | Tabelas do schema public (baseline) | 292 |
 | Views (baseline) | 18 |
 | Funções (baseline) | 378 |

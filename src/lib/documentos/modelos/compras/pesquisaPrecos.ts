@@ -30,6 +30,8 @@ export interface DadosRelatorioPesquisaPrecos {
   dataReferencia: string;
   situacao: string;
   responsaveis?: string;
+  /** Na adesão e na prorrogação: o que se compara com o estimado (preço da ata ou do contrato) e a norma. */
+  comparacao?: { rotulo: string; artigo: string };
   itens: ItemRelatorio[];
 }
 
@@ -57,7 +59,16 @@ const COLUNAS_RESUMO: ColunaTabela[] = [
 
 const inciso = (p: number) => PARAMETROS[p as ParametroPesquisa]?.inciso ?? String(p);
 
-function blocosDoItem(i: ItemRelatorio): Bloco[] {
+const maiuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/** "R$ 90,00 (10,00% abaixo do estimado)". */
+function textoComparacao(i: ItemRelatorio): string {
+  const c = i.comparacao;
+  if (!c) return '—';
+  return `${precoBR(c.preco)} (${c.situacao === 'igual' ? 'igual ao estimado' : `${pctBR(Math.abs(c.diferenca))} ${c.situacao} do estimado`})`;
+}
+
+function blocosDoItem(i: ItemRelatorio, comparacao?: DadosRelatorioPesquisaPrecos['comparacao']): Bloco[] {
   const a = i.analise;
   const catalogo = catalogoDoItem(i);
   const blocos: Bloco[] = [
@@ -106,6 +117,7 @@ function blocosDoItem(i: ItemRelatorio): Bloco[] {
       { rotulo: 'Método adotado', valor: i.metodoAdotado ? METODO_LABEL[i.metodoAdotado] : '—' },
       { rotulo: 'Valor unitário estimado', valor: i.valorUnitario === null ? '—' : precoBR(i.valorUnitario) },
       { rotulo: 'Valor total do item', valor: i.valorTotal === null ? '—' : moedaBR(i.valorTotal) },
+      ...(comparacao ? [{ rotulo: `${maiuscula(comparacao.rotulo)} (Lei 14.133, ${comparacao.artigo})`, valor: textoComparacao(i) }] : []),
     ],
   }));
   if (i.justificativa?.trim()) blocos.push(paragrafo({ texto: `Justificativa: ${i.justificativa.trim()}` }));
@@ -140,12 +152,14 @@ export const relatorioPesquisaPrecos: DocumentoModelo<DadosRelatorioPesquisaPrec
           + 'da data de referência. Saneamento (art. 2º, IX e X, e art. 18, § 1º): fora da série o preço mais de 30% acima da média '
           + 'ou 30% ou mais abaixo dela; coeficiente de variação até 30% = média saneada; acima de 30% = mediana.',
       }),
-      ...d.itens.flatMap(blocosDoItem),
+      ...d.itens.flatMap((i) => blocosDoItem(i, d.comparacao)),
       secao({ texto: 'Resumo' }),
       d.itens.length === 0
         ? paragrafo({ texto: 'Nenhum item na pesquisa.' })
         : tabela({
-            colunas: COLUNAS_RESUMO,
+            colunas: d.comparacao
+              ? [...COLUNAS_RESUMO, { chave: 'comparado', titulo: maiuscula(d.comparacao.rotulo), peso: 4, alinhamento: 'direita' as const }]
+              : COLUNAS_RESUMO,
             linhas: d.itens.map((i) => ({
               numero: String(i.numero),
               descricao: i.descricao,
@@ -154,6 +168,7 @@ export const relatorioPesquisaPrecos: DocumentoModelo<DadosRelatorioPesquisaPrec
               metodo: i.metodoAdotado ? METODO_LABEL[i.metodoAdotado] : '—',
               unitario: i.valorUnitario === null ? '—' : precoBR(i.valorUnitario),
               total: i.valorTotal === null ? '—' : moedaBR(i.valorTotal),
+              comparado: textoComparacao(i),
             })),
             totais: { descricao: 'TOTAL', total: moedaBR(total) },
           }),

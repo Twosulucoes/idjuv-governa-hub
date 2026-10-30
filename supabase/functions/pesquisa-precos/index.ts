@@ -3,12 +3,20 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { CABECALHOS_CLIENTE_SUPABASE, montarCors } from "../_shared/cors.ts";
 import {
   type CampoCatalogo,
+  dentroDoPeriodo,
+  itemCombina,
   mapearCompraPncp,
   mapearItemPncp,
   mapearPrecoCompras,
   mapearResultadoPncp,
+  MAX_COMPRAS_BUSCA,
+  MAX_ITENS_POR_COMPRA,
+  palavrasDoTermo,
+  type PrecoEncontrado,
+  referenciaDaBusca,
   referenciaValida,
   type TipoCatalogo,
+  urlBuscaPncp,
   urlCompraPncp,
   urlItensPncp,
   urlPrecosCompras,
@@ -21,6 +29,8 @@ import {
 //                    serviço do CATSER, no período pedido (art. 17, I, do Decreto 39.050-E/2025).
 //   pncp_compra      cabeçalho e itens de uma compra do PNCP (link ou número de controle lido na tela).
 //   pncp_resultados  preços homologados de um item dessa compra (contratação similar, art. 17, II).
+//   pncp_busca       busca por nome: editais recentes do PNCP com o termo, até 8 compras, até 3 itens de cada com as
+//                    palavras buscadas e resultado, e os preços homologados dentro do período (art. 17, II).
 // Exige o módulo compras e compras.pesquisa_precos.visualizar ou editar, conferidos com o token do próprio usuário.
 
 const TEMPO_LIMITE_MS = 25_000;
@@ -56,6 +66,26 @@ const lista = (v: unknown): Record<string, unknown>[] =>
 const inteiroPositivo = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v > 0 ? v : null);
 const dataIso = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 
+const resultadosDaBusca = (v: unknown): Record<string, unknown>[] =>
+  Array.isArray((v as { items?: unknown })?.items) ? (v as { items: Record<string, unknown>[] }).items : lista(v);
+
+/** Preços homologados das compras do PNCP achadas pelo nome. Compra que falha é pulada; conta as consultadas. */
+async function buscarPorNome(termo: string, inicio: string, fim: string) {
+  const palavras = palavrasDoTermo(termo);
+  const achadas = resultadosDaBusca(await lerJson(urlBuscaPncp(termo)));
+  const refs = [...new Map(achadas.map(referenciaDaBusca).filter((r) => r !== null).map((r) => [`${r!.cnpj}:${r!.ano}:${r!.sequencial}`, r!])).values()]
+    .slice(0, MAX_COMPRAS_BUSCA);
+  const porCompra = await Promise.allSettled(refs.map(async (ref) => {
+    const { compra, itens } = await compraEItens(ref);
+    const alvo = itens.filter((i) => i.temResultado && itemCombina(i.descricao, palavras)).slice(0, MAX_ITENS_POR_COMPRA);
+    const resultados = await Promise.all(alvo.map(async (item) =>
+      lista(await lerJson(urlResultadosPncp(ref, item.numeroItem))).map((r) => mapearResultadoPncp(r, ref, compra, item))));
+    return resultados.flat().filter((p): p is PrecoEncontrado => p !== null && dentroDoPeriodo(p.dataReferencia, inicio, fim));
+  }));
+  const precos = porCompra.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+  return { precos, comprasConsultadas: refs.length, comprasComFalha: porCompra.filter((r) => r.status === "rejected").length };
+}
+
 async function compraEItens(ref: NonNullable<ReturnType<typeof referenciaValida>>) {
   const [bruto, itens] = await Promise.all([lerJson(urlCompraPncp(ref)), lerJson(urlItensPncp(ref))]);
   if (!bruto || typeof bruto !== "object") throw new NaoEncontrado();
@@ -82,7 +112,7 @@ serve(async (req) => {
 
     const pedido = await req.json().catch(() => null);
     const acao = pedido?.acao;
-    if (!["precos_compras", "pncp_compra", "pncp_resultados"].includes(acao)) return respostaJson(cors, 400, { error: "Pedido inválido" });
+    if (!["precos_compras", "pncp_compra", "pncp_resultados", "pncp_busca"].includes(acao)) return respostaJson(cors, 400, { error: "Pedido inválido" });
 
     const [{ data: temModulo, error: e1 }, { data: podeVer, error: e2 }, { data: podeEditar, error: e3 }] = await Promise.all([
       supabaseUser.rpc("can_access_module", { _user_id: caller.id, _module: "compras" }),
@@ -115,6 +145,18 @@ serve(async (req) => {
         totalPaginas: inteiroPositivo(corpo?.totalPaginas) ?? (resultado.length ? 1 : 0),
         totalRegistros: typeof corpo?.totalRegistros === "number" ? corpo.totalRegistros : precos.length,
       });
+    }
+
+    if (acao === "pncp_busca") {
+      const termo = typeof pedido.termo === "string" ? pedido.termo.replace(/\s+/g, " ").trim() : "";
+      const dataInicio = dataIso(pedido.dataInicio);
+      const dataFim = dataIso(pedido.dataFim);
+      if (termo.length < 3 || termo.length > 80 || !palavrasDoTermo(termo).length || !dataInicio || !dataFim || dataInicio > dataFim) {
+        return respostaJson(cors, 400, { error: "Pedido inválido" });
+      }
+      const r = await buscarPorNome(termo, dataInicio, dataFim);
+      console.log(JSON.stringify({ funcao: "pesquisa-precos", acao, compras: r.comprasConsultadas, falhas: r.comprasComFalha, linhas: r.precos.length }));
+      return respostaJson(cors, 200, r);
     }
 
     const ref = referenciaValida(pedido);

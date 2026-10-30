@@ -7819,7 +7819,9 @@ END $$;
 --   * inciso I só do Compras.gov.br e II só do PNCP; III pede site ou fonte; IV e V pedem CNPJ/CPF e nome do
 --     fornecedor; desconsiderar pede motivo (23514); a mesma linha da fonte não entra duas vezes no item (23505);
 --   * pesquisa concluída trava itens e amostras (55000) até ser reaberta; apagar o item leva as amostras;
---     pesquisa_precos_conferir sem EXECUTE para a API.
+--     pesquisa_precos_conferir sem EXECUTE para a API;
+--   * entrega 2 (migração 20261110090000): preco_comparado só positivo, pca_item_id com FK, os dois travados com a
+--     pesquisa concluída.
 DO $$
 DECLARE
   u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.pesquisa_precos.editar');
@@ -7872,8 +7874,20 @@ BEGIN
   r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(ins, item, 1, 'compras_gov', 'cg:1', NULL, NULL, NULL, 'true', NULL, NULL));
   IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: mesma linha da fonte duas vezes (' || r || ')'); END IF;
 
+  -- entrega 2 (migração 20261110090000): preço da ata só positivo; item do PCA precisa existir
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.pesquisas_precos_itens SET preco_comparado = 0 WHERE id = %L', item));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: preço da ata zero aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.pesquisas_precos_itens SET pca_item_id = gen_random_uuid() WHERE id = %L', item));
+  IF r NOT LIKE 'erro:23503:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: item do PCA inexistente aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.pesquisas_precos_itens SET preco_comparado = 97.5 WHERE id = %L', item));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: editor não grava o preço da ata (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_vis, 'authenticated', format('UPDATE public.pesquisas_precos_itens SET preco_comparado = 90 WHERE id = %L', item));
+  IF r NOT IN ('ok:0') AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: só visualizar grava o preço da ata (' || r || ')'); END IF;
+
   -- concluída: nada muda em item nem amostra (55000), nem nos dados da pesquisa; reabrir libera
   UPDATE public.pesquisas_precos SET situacao = 'concluida' WHERE id = pesq;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.pesquisas_precos_itens SET preco_comparado = 80 WHERE id = %L', item));
+  IF r NOT LIKE 'erro:55000:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: preço da ata alterado com a pesquisa concluída (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.pesquisas_precos_amostras SET preco_unitario = 11 WHERE id = %L', amostra));
   IF r NOT LIKE 'erro:55000:%' THEN PERFORM pg_temp.falha('COMPRAS PESQUISA DE PREÇOS: amostra alterada com a pesquisa concluída (' || r || ')'); END IF;
   r := pg_temp.sql_como(u_ed, 'authenticated', format('DELETE FROM public.pesquisas_precos_itens WHERE id = %L', item));
@@ -7895,7 +7909,7 @@ BEGIN
   END IF;
 
   PERFORM set_config('request.jwt.claims', '', true);
-  PERFORM pg_temp.nota('COMPRAS PESQUISA DE PREÇOS: gravação só com compras.pesquisa_precos.editar, autoria e nº SEI, origem × inciso, fonte dos incisos III a V, motivo da desconsideração, linha da fonte única, pesquisa concluída travada e reaberta, item levando as amostras verificados');
+  PERFORM pg_temp.nota('COMPRAS PESQUISA DE PREÇOS: gravação só com compras.pesquisa_precos.editar, autoria e nº SEI, origem × inciso, fonte dos incisos III a V, motivo da desconsideração, linha da fonte única, pesquisa concluída travada e reaberta, item levando as amostras, preço da ata e item do PCA (entrega 2) verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Compras: processos de contratação (migração 20261029090000) (TRIGGERS LIGADOS)

@@ -6,11 +6,13 @@
 
 import {
   avisoDePrazo,
+  compararComAta,
   METODO_LABEL,
   PARAMETROS,
   sanear,
   valorPeloMetodo,
   arredondar,
+  type ComparacaoAta,
   type MetodoPesquisa,
   type ParametroPesquisa,
   type ResultadoSaneamento,
@@ -58,6 +60,8 @@ export interface ItemBase {
   quantidade: number;
   metodo: string | null;
   justificativa: string | null;
+  /** Preço registrado na ata (adesão) ou do contrato vigente (prorrogação), para comparar com o estimado. */
+  preco_comparado?: number | null;
 }
 
 export interface AmostraRelatorio extends AmostraBase {
@@ -71,6 +75,8 @@ export interface ItemRelatorio extends ItemBase {
   metodoAdotado: MetodoPesquisa | null;
   valorUnitario: number | null;
   valorTotal: number | null;
+  /** Só na adesão e na prorrogação, com o preço informado e o valor estimado. */
+  comparacao: ComparacaoAta | null;
   /** O que impede usar o resultado sem mais nada (justificativa que falta, amostra fora do prazo). */
   pendencias: string[];
 }
@@ -80,7 +86,25 @@ const METODO_NO_TEXTO: Record<MetodoPesquisa, string> = { media: "a média sanea
 const ehMetodo = (m: string | null): m is MetodoPesquisa => !!m && (METODOS as readonly string[]).includes(m);
 const ehParametro = (p: number): p is ParametroPesquisa => p >= 1 && p <= 5 && Number.isInteger(p);
 
-export function montarItemRelatorio(item: ItemBase, amostras: AmostraBase[], dataReferencia: string): ItemRelatorio {
+/** O que se compara com o estimado em cada finalidade, e a norma que pede a comparação. */
+export const COMPARACAO_DA_FINALIDADE: Record<string, { rotulo: string; titulo: string; artigo: string; conclusao: string }> = {
+  adesao_ata: {
+    rotulo: "preço registrado na ata",
+    titulo: "COMPATIBILIDADE DO PREÇO REGISTRADO NA ATA",
+    artigo: "art. 86, § 2º, II",
+    conclusao: "Os preços registrados na ata estão compatíveis com os praticados no mercado",
+  },
+  prorrogacao: {
+    rotulo: "preço do contrato vigente",
+    titulo: "VANTAJOSIDADE DO PREÇO DO CONTRATO",
+    artigo: "art. 107",
+    conclusao: "Os preços do contrato vigente continuam vantajosos diante dos praticados no mercado",
+  },
+};
+
+const primeiraMaiuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+export function montarItemRelatorio(item: ItemBase, amostras: AmostraBase[], dataReferencia: string, finalidade?: string): ItemRelatorio {
   const consideradas = amostras.filter((a) => a.considerada);
   const analise = sanear(consideradas.map((a) => ({ id: a.id, preco: Number(a.preco_unitario) })));
   const escolhido = ehMetodo(item.metodo) ? item.metodo : null;
@@ -104,6 +128,14 @@ export function montarItemRelatorio(item: ItemBase, amostras: AmostraBase[], dat
   }
   const foraDoPrazo = linhas.filter((l) => l.considerada && l.aviso).length;
   if (foraDoPrazo) pendencias.push(`${foraDoPrazo} preço(s) considerado(s) com aviso de prazo ou sem data: confira ou desconsidere.`);
+  const regra = finalidade ? COMPARACAO_DA_FINALIDADE[finalidade] : undefined;
+  const preco = item.preco_comparado == null ? null : Number(item.preco_comparado);
+  const comparacao = regra ? compararComAta(preco, valorUnitario) : null;
+  if (regra && !preco) pendencias.push(`Informe o ${regra.rotulo} para a comparação com o mercado (Lei 14.133, ${regra.artigo}).`);
+  if (regra && comparacao?.situacao === "acima" && semJustificativa) {
+    pendencias.push(`${primeiraMaiuscula(regra.rotulo)} ${pctBR(comparacao.diferenca)} acima do estimado: demonstre a compatibilidade `
+      + `com o mercado ou negocie a redução, e registre na justificativa (Lei 14.133, ${regra.artigo}).`);
+  }
   return {
     ...item,
     amostras: linhas,
@@ -111,6 +143,7 @@ export function montarItemRelatorio(item: ItemBase, amostras: AmostraBase[], dat
     metodoAdotado,
     valorUnitario,
     valorTotal: valorUnitario === null ? null : arredondar(valorUnitario * Number(item.quantidade), 2),
+    comparacao,
     pendencias,
   };
 }
@@ -155,6 +188,8 @@ export interface DadosNota {
   numeroSei: string;
   objeto: string;
   dataReferencia: string;
+  /** Na adesão e na prorrogação entra a seção 6, com a comparação do preço da ata ou do contrato. */
+  finalidade?: string;
   itens: ItemRelatorio[];
 }
 
@@ -228,5 +263,23 @@ export function textoNotaTecnica(d: DadosNota): string {
   });
   linhas.push(`5.${d.itens.length + 1}. O valor estimado da contratação é de ${moedaBR(arredondar(total, 2))}, compatível com os preços `
     + "praticados no mercado, na forma do art. 23 da Lei nº 14.133/2021 e dos arts. 17 e 18 do Decreto nº 39.050-E/2025.");
+
+  const regra = d.finalidade ? COMPARACAO_DA_FINALIDADE[d.finalidade] : undefined;
+  if (regra) {
+    linhas.push("", `6. ${regra.titulo}`, "");
+    d.itens.forEach((i, n) => {
+      const c = i.comparacao;
+      linhas.push(c
+        ? `6.${n + 1}. Item ${i.numero}: ${regra.rotulo} de ${precoBR(c.preco)}, `
+          + (c.situacao === "igual" ? "igual ao" : `${pctBR(Math.abs(c.diferenca))} ${c.situacao} do`)
+          + ` valor estimado de ${precoBR(i.valorUnitario!)}.`
+        : `6.${n + 1}. Item ${i.numero}: sem ${regra.rotulo} ou sem valor estimado para comparar.`);
+    });
+    const acima = d.itens.filter((i) => i.comparacao?.situacao === "acima");
+    const todos = d.itens.length > 0 && d.itens.every((i) => i.comparacao);
+    linhas.push(`6.${d.itens.length + 1}. ` + (todos && !acima.length
+      ? `${regra.conclusao} (Lei nº 14.133/2021, ${regra.artigo}).`
+      : `${acima.length ? `Item(ns) ${acima.map((i) => i.numero).join(", ")} acima do valor estimado: ` : ""}[JUSTIFICAR] (Lei nº 14.133/2021, ${regra.artigo}).`));
+  }
   return linhas.join("\n");
 }

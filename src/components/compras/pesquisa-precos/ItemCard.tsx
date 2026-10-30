@@ -1,11 +1,13 @@
 /**
  * Um item da pesquisa: os preços coletados com a fonte, a situação de cada um no saneamento (art. 2º, IX e X, do
- * Decreto 39.050-E/2025), a estatística, o método do art. 18 e as pendências. Daqui saem as três formas de coletar:
- * busca no Compras.gov.br (I), contratação similar no PNCP (II) e lançamento à mão (I a V).
+ * Decreto 39.050-E/2025), a estatística, o método do art. 18 e as pendências. A coleta é um botão só, "Buscar preços"
+ * (Compras.gov.br e PNCP pelo nome); "Adicionar outro preço" abre o edital do PNCP pelo link e o lançamento à mão
+ * (incisos I a V). Quando o item veio do PCA, mostra a estimativa do DFD e leva o valor ao PCA; na adesão e na
+ * prorrogação, compara o preço da ata ou do contrato com o estimado (Lei 14.133, art. 86, § 2º, II, e art. 107).
  */
 
 import { useEffect, useState } from "react";
-import { ExternalLink, FileSearch, Globe, MoreHorizontal, Pencil, PenLine, RotateCcw, Trash2, XCircle } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ExternalLink, Globe, MoreHorizontal, Pencil, PenLine, RotateCcw, Search, Trash2, XCircle } from "lucide-react";
 import { StatusBadge } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,19 +17,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { METODO_LABEL, PARAMETROS, type MetodoPesquisa, type ParametroPesquisa } from "@/lib/compras/pesquisaPrecos";
+import { lerNumeroBr } from "@/lib/pca/numero";
+import { compararComAta, METODO_LABEL, PARAMETROS, type MetodoPesquisa, type ParametroPesquisa } from "@/lib/compras/pesquisaPrecos";
 import {
-  catalogoDoItem, dataBR, dataHoraConsulta, fonteDaAmostra, moedaBR, pctBR, precoBR, quantidadeBR, SITUACAO_RELATORIO_LABEL,
-  type AmostraRelatorio, type ItemRelatorio,
+  catalogoDoItem, COMPARACAO_DA_FINALIDADE, dataBR, dataHoraConsulta, fonteDaAmostra, moedaBR, pctBR, precoBR, quantidadeBR,
+  SITUACAO_RELATORIO_LABEL, type AmostraRelatorio, type ItemRelatorio,
 } from "@/lib/compras/relatorioPesquisaPrecos";
 import {
-  useAlterarAmostra, useExcluirAmostra, useExcluirItemPesquisa, useIncluirAmostras, useSalvarItemPesquisa, type ItemComAmostras,
+  useAlterarAmostra, useExcluirAmostra, useExcluirItemPesquisa, useIncluirAmostras, useLevarAoPca, useSalvarItemPesquisa,
+  type ItemComAmostras, type ItemPcaResumo, type PesquisaPrecosItemInput,
 } from "@/hooks/usePesquisaPrecos";
 import { AmostraManualDialog } from "./AmostraManualDialog";
-import { BuscaComprasGovDialog } from "./BuscaComprasGovDialog";
+import { BuscarPrecosDialog } from "./BuscarPrecosDialog";
 import { ImportarPncpDialog } from "./ImportarPncpDialog";
 import { ORIGEM_LABEL, TOM_SITUACAO_AMOSTRA } from "./rotulos";
 
@@ -38,16 +43,23 @@ interface ItemCardProps {
   relatorio: ItemRelatorio;
   pesquisaId: string;
   dataReferencia: string;
+  finalidade: string;
   podeEditar: boolean;
+  /** Item do PCA ligado (só chega para quem lê o PCA). */
+  pca?: ItemPcaResumo;
+  podeEditarPca: boolean;
   onEditar: () => void;
 }
 
-export function ItemCard({ item, relatorio: r, pesquisaId, dataReferencia, podeEditar, onEditar }: ItemCardProps) {
+const paraTexto = (n: number | null | undefined) => (n == null ? "" : String(n).replace(".", ","));
+
+export function ItemCard({ item, relatorio: r, pesquisaId, dataReferencia, finalidade, podeEditar, pca, podeEditarPca, onEditar }: ItemCardProps) {
   const incluir = useIncluirAmostras(item.id);
   const alterar = useAlterarAmostra();
   const excluirAmostra = useExcluirAmostra();
   const salvarItem = useSalvarItemPesquisa(pesquisaId);
   const excluirItem = useExcluirItemPesquisa();
+  const levarAoPca = useLevarAoPca();
 
   const [dialogo, setDialogo] = useState<"compras" | "pncp" | "manual" | null>(null);
   const [desconsiderar, setDesconsiderar] = useState<AmostraRelatorio | null>(null);
@@ -55,17 +67,27 @@ export function ItemCard({ item, relatorio: r, pesquisaId, dataReferencia, podeE
   const [apagarItem, setApagarItem] = useState(false);
   const [apagarAmostra, setApagarAmostra] = useState<AmostraRelatorio | null>(null);
   const [justificativa, setJustificativa] = useState(item.justificativa ?? "");
+  const [precoAta, setPrecoAta] = useState(paraTexto(item.preco_comparado));
 
   useEffect(() => setJustificativa(item.justificativa ?? ""), [item.justificativa]);
+  useEffect(() => setPrecoAta(paraTexto(item.preco_comparado)), [item.preco_comparado]);
 
   const a = r.analise;
   const sugerido = a.metodoSugerido;
 
-  const salvarMetodo = (metodo: string | null, texto: string | null) => salvarItem.mutateAsync({
+  const salvarCom = (campos: Partial<PesquisaPrecosItemInput>) => salvarItem.mutateAsync({
     id: item.id, numero: item.numero, tipo: item.tipo, catalogo_campo: item.catalogo_campo, codigo_catalogo: item.codigo_catalogo,
     nome_catalogo: item.nome_catalogo, descricao: item.descricao, unidade: item.unidade, quantidade: item.quantidade,
-    metodo, justificativa: texto?.trim() || null,
-  }).catch(() => undefined);
+    metodo: item.metodo, justificativa: item.justificativa, ...campos,
+  });
+  const salvarMetodo = (metodo: string | null, texto: string | null) =>
+    salvarCom({ metodo, justificativa: texto?.trim() || null }).catch(() => undefined);
+
+  const regra = COMPARACAO_DA_FINALIDADE[finalidade];
+  const precoAtaNumero = lerNumeroBr(precoAta);
+  const precoAtaValido = precoAta.trim() === "" || precoAtaNumero > 0;
+  const pcaUnitario = pca ? Number(pca.valor_unitario) : null;
+  const diferencaPca = pca ? compararComAta(pcaUnitario, r.valorUnitario) : null;
 
   const confirmarDesconsiderar = async () => {
     if (!desconsiderar || !motivo.trim()) return;
@@ -100,15 +122,20 @@ export function ItemCard({ item, relatorio: r, pesquisaId, dataReferencia, podeE
         </div>
         {podeEditar && (
           <div className="flex shrink-0 flex-wrap justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={() => setDialogo("compras")} disabled={!item.codigo_catalogo}>
-              <FileSearch className="h-4 w-4" aria-hidden="true" />Compras.gov.br
+            <Button size="sm" onClick={() => setDialogo("compras")}>
+              <Search className="h-4 w-4" aria-hidden="true" />Buscar preços
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setDialogo("pncp")}>
-              <Globe className="h-4 w-4" aria-hidden="true" />PNCP
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setDialogo("manual")}>
-              <PenLine className="h-4 w-4" aria-hidden="true" />À mão
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline">Adicionar outro preço<ChevronDown className="h-4 w-4" aria-hidden="true" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setDialogo("pncp")}><Globe className="mr-2 h-4 w-4" aria-hidden="true" />Edital do PNCP pelo link</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDialogo("manual")}>
+                  <PenLine className="mr-2 h-4 w-4" aria-hidden="true" />Orçamento, site ou nota fiscal
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" variant="ghost" aria-label={`Mais ações do item ${item.numero}`}>
@@ -239,6 +266,51 @@ export function ItemCard({ item, relatorio: r, pesquisaId, dataReferencia, podeE
           </div>
         </div>
 
+        {(pca || regra) && (
+          <div className="grid gap-4 rounded-md border p-3 text-sm lg:grid-cols-2">
+            {pca && (
+              <div className="space-y-1">
+                <p className="font-medium">PCA (estimativa preliminar do DFD, SEI {pca.numero_sei})</p>
+                <p>
+                  {precoBR(pcaUnitario!)} por {pca.unidade_fornecimento}
+                  {diferencaPca && diferencaPca.situacao !== "igual" && (
+                    <span className="text-muted-foreground"> · {pctBR(Math.abs(diferencaPca.diferenca))} {diferencaPca.situacao} do estimado na pesquisa</span>
+                  )}
+                  {diferencaPca?.situacao === "igual" && <span className="text-muted-foreground"> · igual ao estimado na pesquisa</span>}
+                </p>
+                {podeEditarPca && r.valorUnitario !== null && diferencaPca?.situacao !== "igual" && (
+                  <Button size="sm" variant="outline" disabled={levarAoPca.isPending}
+                    onClick={() => levarAoPca.mutate({ id: pca.id, valorUnitario: r.valorUnitario! })}>
+                    <ArrowUpRight className="h-4 w-4" aria-hidden="true" />Levar {precoBR(r.valorUnitario)} ao PCA
+                  </Button>
+                )}
+              </div>
+            )}
+            {regra && (
+              <div className="space-y-1">
+                <Label htmlFor={`pp-ata-${item.id}`}>{regra.rotulo.charAt(0).toUpperCase() + regra.rotulo.slice(1)} (Lei 14.133, {regra.artigo})</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input id={`pp-ata-${item.id}`} className="w-40" inputMode="decimal" placeholder="R$ por unidade" value={precoAta}
+                    disabled={!podeEditar} onChange={(e) => setPrecoAta(e.target.value)} aria-invalid={!precoAtaValido} />
+                  {podeEditar && precoAta !== paraTexto(item.preco_comparado) && (
+                    <Button size="sm" disabled={!precoAtaValido || salvarItem.isPending}
+                      onClick={() => salvarCom({ preco_comparado: precoAta.trim() === "" ? null : precoAtaNumero }).catch(() => undefined)}>
+                      Salvar
+                    </Button>
+                  )}
+                </div>
+                {!precoAtaValido && <p className="text-destructive">Informe um valor maior que zero.</p>}
+                {r.comparacao && (
+                  <p className={r.comparacao.situacao === "acima" ? "font-medium text-destructive" : "font-medium"}>
+                    {r.comparacao.situacao === "igual" ? "Igual ao valor estimado"
+                      : `${pctBR(Math.abs(r.comparacao.diferenca))} ${r.comparacao.situacao} do valor estimado (${precoBR(r.valorUnitario!)})`}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {r.pendencias.length > 0 && (
           <ul className="list-disc space-y-1 rounded-md border border-destructive/40 p-3 pl-7 text-sm" aria-label={`Pendências do item ${item.numero}`}>
             {r.pendencias.map((p) => <li key={p}>{p}</li>)}
@@ -247,8 +319,8 @@ export function ItemCard({ item, relatorio: r, pesquisaId, dataReferencia, podeE
       </CardContent>
 
       {dialogo === "compras" && (
-        <BuscaComprasGovDialog open onOpenChange={(o) => !o && setDialogo(null)} item={item} dataReferencia={dataReferencia}
-          incluindo={incluir.isPending} onIncluir={incluir.mutateAsync} />
+        <BuscarPrecosDialog open onOpenChange={(o) => !o && setDialogo(null)} item={item} dataReferencia={dataReferencia}
+          incluindo={incluir.isPending} onIncluir={incluir.mutateAsync} onSalvarCatalogo={(c) => salvarCom(c)} />
       )}
       {dialogo === "pncp" && (
         <ImportarPncpDialog open onOpenChange={(o) => !o && setDialogo(null)} item={item} incluindo={incluir.isPending} onIncluir={incluir.mutateAsync} />

@@ -252,3 +252,50 @@ export function mapearResultadoPncp(j: Bruto, r: ReferenciaPncp, compra: CompraP
     link: compra.link,
   };
 }
+
+// ---------------------------------------------------------------- busca por nome no PNCP (contratações similares)
+
+export const MAX_COMPRAS_BUSCA = 8;
+export const MAX_ITENS_POR_COMPRA = 3;
+
+/** Busca pública do PNCP (a do portal), editais mais recentes primeiro. Sem manual oficial: campos de clientes públicos. */
+export function urlBuscaPncp(termo: string, pagina = 1): string {
+  const busca = new URLSearchParams();
+  busca.set("q", termo);
+  busca.set("tipos_documento", "edital");
+  busca.set("ordenacao", "-data");
+  busca.set("pagina", String(inteiro(pagina) ?? 1));
+  busca.set("tam_pagina", "20");
+  return `https://${HOST_PNCP}/api/search/?${busca.toString()}`;
+}
+
+/** Compra de um resultado da busca: pelos campos orgao_cnpj/ano/numero_sequencial ou pelo número de controle. */
+export function referenciaDaBusca(j: Bruto): ReferenciaPncp | null {
+  const direta = referenciaValida({
+    cnpj: soDigitos(j.orgao_cnpj) || undefined,
+    ano: numero(j.ano) ?? undefined,
+    sequencial: numero(j.numero_sequencial) ?? undefined,
+  });
+  if (direta) return direta;
+  const controle = String(j.numero_controle_pncp ?? "").trim().match(/^(\d{14})-\d-(\d{1,6})\/(\d{4})$/);
+  return controle ? referenciaValida({ cnpj: controle[1], ano: Number(controle[3]), sequencial: Number(controle[2]) }) : null;
+}
+
+const semAcento = (t: string | null | undefined) =>
+  String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const VAZIAS = new Set(["de", "da", "do", "das", "dos", "em", "na", "no", "nas", "nos", "para", "por", "com", "sem", "uma", "tipo"]);
+
+/** Palavras do termo (3 letras ou mais, sem as de ligação), como na tela. */
+export const palavrasDoTermo = (termo: string) => semAcento(termo).split(" ").filter((p) => p.length >= 3 && !VAZIAS.has(p)).slice(0, 5);
+
+/** O item da compra tem todas as palavras buscadas (começo da palavra, singular ou plural)? */
+export function itemCombina(descricao: string | null, palavras: string[]): boolean {
+  if (!palavras.length) return false;
+  const tokens = semAcento(descricao).split(" ");
+  return palavras.every((p) => {
+    const r = p.length > 4 ? p.replace(/(es|s)$/, "") : p;
+    return tokens.some((t) => t.startsWith(r));
+  });
+}
+
+export const dentroDoPeriodo = (data: string | null, inicio: string, fim: string) => !!data && data >= inicio && data <= fim;

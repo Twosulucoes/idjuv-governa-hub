@@ -27061,6 +27061,8 @@ CREATE TABLE public.pesquisas_precos_itens (
     created_by uuid DEFAULT auth.uid(),
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_by uuid,
+    pca_item_id uuid,
+    preco_comparado numeric(15,4),
     CONSTRAINT pesquisas_precos_itens_catalogo_campo_check CHECK ((catalogo_campo = ANY (ARRAY['codigoItemCatalogo'::text, 'codigoPdm'::text]))),
     CONSTRAINT pesquisas_precos_itens_catalogo_check CHECK ((((codigo_catalogo IS NULL) AND (catalogo_campo IS NULL)) OR ((codigo_catalogo IS NOT NULL) AND (catalogo_campo = 'codigoItemCatalogo'::text)) OR ((codigo_catalogo IS NOT NULL) AND (catalogo_campo = 'codigoPdm'::text) AND (tipo = 'material'::text)))),
     CONSTRAINT pesquisas_precos_itens_codigo_catalogo_check CHECK ((codigo_catalogo > 0)),
@@ -27069,6 +27071,7 @@ CREATE TABLE public.pesquisas_precos_itens (
     CONSTRAINT pesquisas_precos_itens_metodo_check CHECK ((metodo = ANY (ARRAY['media'::text, 'mediana'::text, 'menor'::text]))),
     CONSTRAINT pesquisas_precos_itens_nome_catalogo_check CHECK ((char_length(nome_catalogo) <= 1000)),
     CONSTRAINT pesquisas_precos_itens_numero_check CHECK (((numero >= 1) AND (numero <= 9999))),
+    CONSTRAINT pesquisas_precos_itens_preco_comparado_check CHECK ((preco_comparado > (0)::numeric)),
     CONSTRAINT pesquisas_precos_itens_quantidade_check CHECK ((quantidade > (0)::numeric)),
     CONSTRAINT pesquisas_precos_itens_tipo_check CHECK ((tipo = ANY (ARRAY['material'::text, 'servico'::text]))),
     CONSTRAINT pesquisas_precos_itens_unidade_check CHECK (((char_length(btrim(unidade)) >= 1) AND (char_length(btrim(unidade)) <= 60)))
@@ -27080,6 +27083,20 @@ CREATE TABLE public.pesquisas_precos_itens (
 --
 
 COMMENT ON TABLE public.pesquisas_precos_itens IS 'Item da pesquisa de preços. codigo_catalogo: item do CATMAT (codigoItemCatalogo), tipo de material (codigoPdm) ou serviço do CATSER. metodo nulo = o do art. 18, § 1º, VII (CV até 30%: média saneada; acima: mediana); outro método ou menos de 3 preços pedem justificativa.';
+
+
+--
+-- Name: COLUMN pesquisas_precos_itens.pca_item_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.pesquisas_precos_itens.pca_item_id IS 'Item do PCA (estimativa preliminar do DFD) de onde o item da pesquisa veio.';
+
+
+--
+-- Name: COLUMN pesquisas_precos_itens.preco_comparado; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.pesquisas_precos_itens.preco_comparado IS 'Preço registrado na ata (adesão, Lei 14.133, art. 86, § 2º, II) ou do contrato vigente (prorrogação, art. 107), comparado com o valor estimado.';
 
 
 --
