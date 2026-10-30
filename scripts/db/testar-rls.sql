@@ -129,7 +129,7 @@ INSERT INTO seed_ov VALUES
   ('fin_tg_sincronizacoes', '{"cnpj":"00000000000191"}'),
   ('fin_tg_mudancas', '{"entidade":"proposta","tipo":"novo","campo":null}'),
   ('fin_tg_movimentos', '{"tipo":"empenho"}'),
-  -- alteração do contrato (migração 20261114090000): a situação anterior ao sistema é a de menos campos obrigatórios
+  -- alteração do contrato (migração 20261115090000): a situação anterior ao sistema é a de menos campos obrigatórios
   ('contrato_alteracoes', '{"especie":"partida","valor_variacao":1,"descricao":"Semente"}'),
   -- diárias do FIPLAN (migração 20261113090000): documentos com 17 dígitos; sem LIQ/NOB nem período
   ('fin_diarias_fiplan', '{"empenho_numero":"17302000199000001","liquidacao_numero":null,"nob_numero":null,"data_saida":null,"data_retorno":null}');
@@ -7561,6 +7561,105 @@ BEGIN
   PERFORM pg_temp.nota('FOLHA SIGRH: permissão (processar e fechar), competência futura, simulação sem gravar, CPF desconhecido sem gravar nem devolver o CPF, folha fechada com fichas, itens e totais, log sem CPF e competência repetida verificados');
 END $$;
 
+-- ---------------------------------------------------------------- RH: servidores pelo arquivo da Seplan (migração 20261114090000)
+--   * rh_importar_servidores_sigrh: anon e PUBLIC sem EXECUTE; sem rh.servidores.importar recusa (42501); origem
+--     inválida e lista vazia recusadas (22023);
+--   * simulação não grava; aplicação (credito) cria o servidor pelo CPF com matrícula e conta, vínculo comissionado,
+--     ativo e autoria; log em importacoes sem CPF;
+--   * de novo: conta trocada atualiza, matrícula diferente vira aviso e não troca;
+--   * banco: completa o endereço vazio; CPF não cadastrado é erro da linha e nada é gravado.
+CREATE FUNCTION pg_temp.sv_chamar(p_uid uuid, p_origem text, p_linhas jsonb, p_simular boolean) RETURNS text
+LANGUAGE sql AS $$
+  SELECT pg_temp.valor_como(p_uid, 'authenticated', format(
+    'SELECT public.rh_importar_servidores_sigrh(%L, %L::jsonb, %L::jsonb, %L)::text', p_origem, p_linhas,
+    jsonb_build_object('nome', 'Relatorio_102026_Fun.pdf', 'sha256', repeat('ab', 32), 'tamanho', 2048, 'ano', 2026, 'mes', 10),
+    p_simular))
+$$;
+
+DO $$
+DECLARE
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000007b1';   -- módulo rh + rh.servidores.importar
+  u_sem uuid := 'a0000000-0000-0000-0000-0000000007b2';   -- módulo rh sem a permissão
+  fn text := 'public.rh_importar_servidores_sigrh(text, jsonb, jsonb, boolean)';
+  credito jsonb := '[{"indice": 0, "cpf": "00000080101", "nome": "SEPLAN SERVIDOR UM", "matricula": "0999901-1",
+                      "banco_codigo": "001", "banco_agencia": "5780-0", "banco_conta": "38235-3", "proventos": "2871.43"}]';
+  r text; j jsonb; modo_rh text; s record; n int;
+BEGIN
+  IF to_regprocedure(fn) IS NULL THEN
+    PERFORM pg_temp.falha('SERVIDORES SIGRH: ' || fn || ' não existe');
+    RETURN;
+  END IF;
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'sv_imp@teste.invalid'), (u_sem, 'sv_sem@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_imp, u_sem);
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_imp, 'rh', '{rh.servidores.importar,rh.servidores.visualizar}'),
+    (u_sem, 'rh', '{rh.servidores.visualizar,rh.servidores.criar}');
+  SELECT modo INTO modo_rh FROM public.regra_lancamento WHERE modulo = 'rh';
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = 'registrar' WHERE modulo = 'rh';
+
+  -- ===== quem chama
+  IF has_function_privilege('anon', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('SERVIDORES SIGRH: anon executa ' || fn); END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              WHERE p.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    PERFORM pg_temp.falha('SERVIDORES SIGRH: PUBLIC executa ' || fn);
+  END IF;
+  r := pg_temp.sv_chamar(u_sem, 'credito', credito, true);
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('SERVIDORES SIGRH: sem rh.servidores.importar importa (' || r || ')'); END IF;
+  r := pg_temp.sv_chamar(u_imp, 'outra', credito, true);
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('SERVIDORES SIGRH: origem inválida aceita (' || r || ')'); END IF;
+  r := pg_temp.sv_chamar(u_imp, 'credito', '[]', true);
+  IF r NOT LIKE 'erro:22023%' THEN PERFORM pg_temp.falha('SERVIDORES SIGRH: lista vazia aceita (' || r || ')'); END IF;
+
+  -- ===== simulação não grava; aplicação cria
+  r := pg_temp.sv_chamar(u_imp, 'credito', credito, true);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR (j -> 'totais' ->> 'inserir')::int <> 1
+     OR EXISTS (SELECT 1 FROM public.servidores WHERE cpf = '00000080101') THEN
+    PERFORM pg_temp.falha('SERVIDORES SIGRH: simulação deveria prever 1 inclusão sem gravar (' || r || ')');
+  END IF;
+  r := pg_temp.sv_chamar(u_imp, 'credito', credito, false);
+  SELECT * INTO s FROM public.servidores WHERE cpf = '00000080101';
+  IF s.id IS NULL OR s.matricula <> '0999901-1' OR s.banco_conta <> '38235-3' OR s.vinculo <> 'comissionado'
+     OR s.situacao <> 'ativo' OR s.created_by IS DISTINCT FROM u_imp OR s.nome_completo <> 'SEPLAN SERVIDOR UM' THEN
+    PERFORM pg_temp.falha('SERVIDORES SIGRH: servidor não criado como no arquivo (' || r || ')');
+  END IF;
+  SELECT count(*) INTO n FROM public.importacoes
+   WHERE tipo = 'servidores_sigrh' AND modulo = 'rh' AND exercicio = 2026
+     AND detalhes::text NOT LIKE '%00000080101%' AND resumo::text NOT LIKE '%00000080101%';
+  IF n <> 1 THEN PERFORM pg_temp.falha('SERVIDORES SIGRH: log em importacoes ausente ou com CPF'); END IF;
+
+  -- ===== de novo: conta muda, matrícula diferente só avisa
+  r := pg_temp.sv_chamar(u_imp, 'credito', jsonb_set(jsonb_set(credito, '{0,banco_conta}', '"99-9"'), '{0,matricula}', '"0111111-1"'), false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR j -> 'linhas' -> 0 ->> 'acao' <> 'atualizar' OR (j -> 'linhas' -> 0 -> 'avisos')::text NOT LIKE '%Matrícula%'
+     OR (SELECT banco_conta FROM public.servidores WHERE id = s.id) <> '99-9'
+     OR (SELECT matricula FROM public.servidores WHERE id = s.id) <> '0999901-1' THEN
+    PERFORM pg_temp.falha('SERVIDORES SIGRH: reimportação deveria trocar a conta e manter a matrícula (' || r || ')');
+  END IF;
+
+  -- ===== banco: endereço vazio completado; CPF desconhecido trava tudo
+  r := pg_temp.sv_chamar(u_imp, 'banco', '[{"indice": 0, "cpf": "00000080101", "nome": "SEPLAN SERVIDOR UM",
+      "endereco": {"logradouro": "RUA TESTE", "numero": "10", "cidade": "BOA VISTA", "uf": "RR", "cep": "69301-160"}},
+     {"indice": 1, "cpf": "00000080202", "nome": "NAO CADASTRADO"}]', false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR jsonb_array_length(j -> 'erros') <> 1
+     OR (SELECT endereco_logradouro FROM public.servidores WHERE id = s.id) IS NOT NULL THEN
+    PERFORM pg_temp.falha('SERVIDORES SIGRH: CPF desconhecido deveria travar a gravação do endereço (' || r || ')');
+  END IF;
+  r := pg_temp.sv_chamar(u_imp, 'banco', '[{"indice": 0, "cpf": "00000080101", "nome": "SEPLAN SERVIDOR UM",
+      "endereco": {"logradouro": "RUA TESTE", "numero": "10", "cidade": "BOA VISTA", "uf": "RR", "cep": "69301-160"}}]', false);
+  IF (SELECT endereco_logradouro || '|' || endereco_cidade || '|' || endereco_cep FROM public.servidores WHERE id = s.id)
+       IS DISTINCT FROM 'RUA TESTE|BOA VISTA|69301-160' THEN
+    PERFORM pg_temp.falha('SERVIDORES SIGRH: endereço não completado pelo arquivo do banco (' || r || ')');
+  END IF;
+
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
+  PERFORM pg_temp.nota('SERVIDORES SIGRH: permissão, simulação sem gravar, criação pelo CPF com autoria, log sem CPF, conta atualizada sem trocar matrícula e endereço só com o arquivo inteiro válido verificados');
+END $$;
+
 -- ---------------------------------------------------------------- Financeiro: empenhos do FIPLAN (FIP 614)
 -- Migração 20261027090000_fin_empenhos_fip614.sql (spec docs/superpowers/specs/2026-10-22-importacao-empenhos-fip614-design.md):
 --   * importar_empenhos_fip614: sem o módulo financeiro, só com orcamento.importar ou sem sessão recusa (42501); anon e
@@ -9409,8 +9508,8 @@ BEGIN
   PERFORM pg_temp.nota('DIÁRIAS FIPLAN: importar só com financeiro.execucao.importar, simulação não grava, reimportar não muda e atualiza a PC, outro exercício recusado, servidor pelo nome e viagem pela saída, leitura (Financeiro, RH, o próprio servidor) verificados');
 END $$;
 
--- ---------------------------------------------------------------- Contratos C2: alterações e vencimentos (migração 20261114090000) (TRIGGERS LIGADOS)
--- Migração 20261114090000_contratos_c2_alteracoes.sql (plano docs/superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md):
+-- ---------------------------------------------------------------- Contratos C2: alterações e vencimentos (migração 20261115090000) (TRIGGERS LIGADOS)
+-- Migração 20261115090000_contratos_c2_alteracoes.sql (plano docs/superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md):
 --   * alteração (aditivo, apostilamento, suspensão, rescisão, partida): só contratos.editar registra, corrige e apaga
 --     (módulo e criar = 42501 ou 0 linhas); forma conferida por CHECK (23514); contrato rascunho e troca de contrato = 22023;
 --     autoria pelo banco; trilha em audit_log_licitacoes;

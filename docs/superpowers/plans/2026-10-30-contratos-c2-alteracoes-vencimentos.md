@@ -86,7 +86,7 @@ React Query, vitest, motor de documentos.
 
 ### Task 1: Migração, RLS, baseline e tipos (agente `dev-banco-supabase`)
 
-**Files:** `supabase/migrations/20261114090000_contratos_c2_alteracoes.sql` (novo); `supabase/baseline/rls/mapa.csv`,
+**Files:** `supabase/migrations/20261115090000_contratos_c2_alteracoes.sql` (novo); `supabase/baseline/rls/mapa.csv`,
 `rls/35_policies_geradas.sql` (gerado), `schema/01_pre_data.sql` e `03_post_data.sql` (regenerados),
 `supabase/baseline/dados-demo/04_compras_processos.sql` (aditivos de demonstração na tabela nova),
 `scripts/db/testar-rls.sql`, `src/integrations/supabase/types.ts` (gerado).

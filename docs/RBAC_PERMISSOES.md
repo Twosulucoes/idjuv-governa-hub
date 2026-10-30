@@ -909,6 +909,7 @@ permissão e a RPC confere a mesma no banco. A rota da tela continua com a permi
 | Empenhos (FIP 614), PEDs do FIPLAN | `financeiro.execucao.importar` | Financeiro → Atualizar dados |
 | Retorno do banco (OBN600/CNAB 240) | `pagamento.conciliar` | Financeiro → Atualizar dados (e a Conciliação) |
 | Folha do SIGRH | `financeiro.folha.processar` (catálogo do RH) | RH → Folha → Importar do SIGRH |
+| Servidores pelo arquivo da Seplan (SIGRH) | `rh.servidores.importar` (dada a quem tem `rh.servidores.criar`) | RH → Servidores → Importar do SIGRH |
 | Portarias (planilha) | `gabinete.portarias.importar` | Gabinete → Central de Portarias |
 | Processos de contratação | `compras.processos.editar` | Compras → Processos |
 | Contratos | `contratos.criar` | Contratos → Contratos |
@@ -1063,7 +1064,7 @@ antes, qualquer pessoa com o módulo Compras ou Contratos gravava e apagava cont
 
 ### Contratos: alterações e vencimentos (C2)
 
-Migração `20261114090000_contratos_c2_alteracoes.sql` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#compras-licitações-e-contratos)).
+Migração `20261115090000_contratos_c2_alteracoes.sql` ([BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#compras-licitações-e-contratos)).
 Sem permissão nova. Decisão do dono em 30/10/2026: alteração muda o valor e o prazo do contrato, então registrar,
 corrigir e apagar pedem `contratos.editar` (designar gestor e incluir item continuam com `criar` ou `editar`).
 

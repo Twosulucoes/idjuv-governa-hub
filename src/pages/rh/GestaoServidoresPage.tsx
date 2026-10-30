@@ -30,6 +30,7 @@ import {
   Briefcase,
   Layers,
   Tag,
+  Upload,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CentralRelatoriosDialog } from "@/components/relatorios/CentralRelatoriosDialog";
@@ -38,6 +39,9 @@ import { GerenciarTagsDialog, getTagColorClass } from "@/components/rh/Gerenciar
 import { ServidorTagsPopover } from "@/components/rh/ServidorTagsPopover";
 import { SituacaoServidorBadge } from "@/components/rh/SituacaoServidorBadge";
 import { useNavigate } from "react-router-dom";
+import { ImportacaoDialog, useImportadorDaUrl } from "@/components/importacao";
+import { useAuth } from "@/contexts/AuthContext";
+import { importadorServidoresSigrh } from "@/lib/importacao/importadores/servidoresSigrh";
 import { cn } from "@/lib/utils";
 import {
   type SituacaoFuncional,
@@ -132,6 +136,9 @@ const numero = new Intl.NumberFormat("pt-BR");
 
 export default function GestaoServidoresPage() {
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  // Arquivo da Seplan (créditos do SIGRH), importado aqui mesmo (?importador=servidores_sigrh)
+  const importacao = useImportadorDaUrl([importadorServidoresSigrh.id]);
   const [filterTipoServidor, setFilterTipoServidor] = useState<string>("all");
   const [filterSituacao, setFilterSituacao] = useState<string>("all");
   const [filterUnidade, setFilterUnidade] = useState<string>("all");
@@ -456,6 +463,11 @@ export default function GestaoServidoresPage() {
                 <Button variant="outline" onClick={() => setCentralRelatoriosOpen(true)}>
                   <BarChart3 className="h-4 w-4" aria-hidden="true" />Relatórios
                 </Button>
+                {hasPermission(importadorServidoresSigrh.permissao) && (
+                  <Button variant="outline" onClick={() => importacao.abrir(importadorServidoresSigrh.id)}>
+                    <Upload className="h-4 w-4" aria-hidden="true" />Importar do SIGRH
+                  </Button>
+                )}
                 <Button onClick={() => navigate('/rh/servidores/novo')}>
                   <Plus className="h-4 w-4" aria-hidden="true" />Novo servidor
                 </Button>
@@ -629,6 +641,7 @@ export default function GestaoServidoresPage() {
         <EdicaoLoteBancarioDialog open={showEdicaoBancaria} onOpenChange={setShowEdicaoBancaria} />
         <CentralRelatoriosDialog open={centralRelatoriosOpen} onOpenChange={setCentralRelatoriosOpen} tipoInicial="servidores" />
         <GerenciarTagsDialog open={gerenciarTagsOpen} onOpenChange={setGerenciarTagsOpen} />
+        <ImportacaoDialog importador={importacao.aberto} onFechar={importacao.fechar} />
       </ModuleLayout>
     </ProtectedRoute>
   );

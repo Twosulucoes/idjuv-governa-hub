@@ -201,6 +201,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - A importação da folha do SIGRH (migração `20261022090000`) entrou no schema do baseline regenerado
   (`importar_folha_sigrh`, com os ajustes da revisão na `20261022100000`); o EXECUTE só para `authenticated` no overlay 40; testes no bloco "FOLHA: importação da
   folha do SIGRH" de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- A importação dos servidores pelo arquivo da Seplan (migração `20261114090000`) entrou no schema do baseline só com
+  os trechos do dump (`rh_importar_servidores_sigrh` no `01_pre_data.sql`; a permissão `rh.servidores.importar` no
+  catálogo e nos papéis `admin` e `manager` no `02_dados_catalogo.sql`); o EXECUTE só para `authenticated` no overlay 40;
+  sem tabela nova nem mudança no `rls/mapa.csv`; testes no bloco "RH: servidores pelo arquivo da Seplan" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#importar-servidores-do-sigrh-rh_importar_servidores_sigrh)).
 - A remessa OBN600 dos pagamentos (migração `20261024090000`) entrou no schema do baseline regenerado (colunas novas
   em `contas_autarquia`, `fin_remessas_bancarias` e `fin_pagamentos`, `registrar_remessa_obn600` e as versões finais
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
@@ -250,7 +255,7 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `overlay/40_privilegios.sql` (gatilhos sem EXECUTE; `contrato_pode_gravar`, `contrato_buscar_servidores` e
   `contratos_importar_planilha` só para `authenticated`); testes no bloco "Contratos C1" de `scripts/db/testar-rls.sql`
   ([detalhe](./BANCO_DE_DADOS.md)).
-- Os contratos, entrega C2 (migração `20261114090000`), trocaram `aditivos_contrato` por `contrato_alteracoes` no mapa
+- Os contratos, entrega C2 (migração `20261115090000`), trocaram `aditivos_contrato` por `contrato_alteracoes` no mapa
   (classe `permissao`: ler com o módulo, gravar e apagar com `contratos.editar`); schema regenerado, catálogo sem
   mudança, `overlay/40_privilegios.sql` (gatilhos `contrato_alteracoes_preparar` e `contrato_alteracoes_aplicar` sem
   EXECUTE; `contratos_meus_vencimentos` só para `authenticated`) e dados de demonstração refeitos em

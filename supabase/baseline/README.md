@@ -340,7 +340,7 @@ policies antigas `comp_module_*` de `contratos` seguem em `remover_policies`) e 
 `contrato_buscar_servidores` e `contratos_importar_planilha` só para `authenticated`); testes no bloco "Contratos C1" de
 `scripts/db/testar-rls.sql` (com os gatilhos ligados), que usam a persona, o fornecedor e o servidor já semeados.
 
-A migração `20261114090000_contratos_c2_alteracoes.sql` (contratos, entrega C2) entrou no schema regenerado
+A migração `20261115090000_contratos_c2_alteracoes.sql` (contratos, entrega C2) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (sai `aditivos_contrato`, que a
 migração apaga depois de copiar as linhas; entra `contrato_alteracoes` na classe `permissao` com
 `escrita=contratos.editar` e `excluir=contratos.editar`), no `overlay/40_privilegios.sql` (gatilhos
@@ -615,3 +615,10 @@ Limites conhecidos:
   tolera a falta das RPCs (`CadastroArbitroPage.tsx`), mas o log de acesso ao contracheque e o cadastro de
   árbitros só ficam íntegros depois de aplicada a migração `20261006230500`.
 - O banco ao vivo nunca foi inspecionado: o baseline foi derivado só dos arquivos do repositório.
+
+A migração `20261114090000_rh_importar_servidores_sigrh.sql` (servidores pelo arquivo da Seplan) entrou no schema
+regenerado (`01_pre_data.sql`: `rh_importar_servidores_sigrh`; `03_post_data.sql` sem mudança), no
+`overlay/40_privilegios.sql` (`EXECUTE` só para `authenticated`) e, à mão, no `02_dados_catalogo.sql` (linha nova de
+`rh.servidores.importar` no catálogo e nos papéis `admin` e `manager`, os que já tinham `rh.servidores.criar`; o resto
+da regeneração do catálogo só trocava ids e datas e foi descartado). RLS e `rls/mapa.csv` sem mudança. Testes no
+bloco "RH: servidores pelo arquivo da Seplan" de `scripts/db/testar-rls.sql`.

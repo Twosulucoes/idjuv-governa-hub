@@ -697,6 +697,22 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   cada linha, sem CPF. Sem as alíquotas patronais no mês, avisa que a parte patronal sai zero. Ajustes da revisão na
   migração `20261022100000` (mês corrente, CPF do cadastro com mais de 11 dígitos não casa, base de INSS, aviso das
   alíquotas). Testes no bloco "FOLHA: importação da folha do SIGRH" de `scripts/db/testar-rls.sql`.
+- <a id="importar-servidores-do-sigrh-rh_importar_servidores_sigrh"></a>**Importar servidores pelo arquivo da Seplan**
+  (migração `20261114090000_rh_importar_servidores_sigrh.sql`) — RPC `rh_importar_servidores_sigrh(p_origem, p_linhas,
+  p_arquivo, p_simular DEFAULT true)` (SECURITY DEFINER; perfil ativo, módulo `rh` e `rh.servidores.importar`, senão
+  `42501`; só `authenticated`) para a carga inicial e a atualização mensal do cadastro pelo zip de créditos bancários que
+  a Seplan manda (SIGRH). `p_origem` `credito` (PDF "Relação de Crédito Bancário — Servidores Ativos"): cria pelo CPF
+  (só dígitos) o servidor que não existe, com nome, CPF, matrícula do SIGRH sem a sequência do vínculo, banco, agência,
+  conta, `vinculo` `comissionado`, `tipo_servidor` `comissionado_idjuv`, `situacao` `ativo`, `remuneracao_bruta` = proventos
+  do mês e observação "Cadastro inicial importado do SIGRH"; no que já existe troca só a conta e preenche a matrícula
+  vazia (nome e matrícula diferentes viram aviso; situação diferente de ativo também). `p_origem` `banco` (remessa CNAB
+  240 do mesmo zip): completa o endereço de quem já está cadastrado e tem o endereço todo vazio; CPF não cadastrado é
+  erro da linha. Tudo ou nada (`p_simular` desfaz no fim); CPF repetido, CPF em dois cadastros e matrícula de outro
+  servidor são erro da linha. Na origem `credito`, `ausentes` lista os comissionados ativos que não vieram no arquivo.
+  Log em `importacoes` (`tipo` `servidores_sigrh`, módulo `rh`, `exercicio` = ano) com origem, competência, totais e o
+  servidor de cada linha, sem CPF. A permissão nova vai para quem já tinha `rh.servidores.criar` (papéis, módulos e
+  avulsas). Cargo, lotação e dados pessoais não vêm no arquivo. Testes no bloco "RH: servidores pelo arquivo da Seplan"
+  de `scripts/db/testar-rls.sql`.
 - **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
   `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez**, depois do INSERT, e só
   por quem: tem o módulo `rh` e `financeiro.folha.processar` (`42501`), **gerou a remessa** (`gerado_por`, fixado pela
@@ -1223,7 +1239,7 @@ Todas idempotentes.
     normalizada, ou os dígitos quando o termo só tem número) ou por palavras em `processos_administrativos`,
     `processos_licitatorios`, `passagem_pedidos`, `pca_itens`, `fin_empenhos`, `documentos`, `termos_cessao` e
     `viagens_diarias` (e `contratos` desde a migração `20261104090000`, com o processo das alterações e da renovação
-    desde a `20261114090000`); termo com menos de 3 caracteres não devolve
+    desde a `20261115090000`); termo com menos de 3 caracteres não devolve
     nada; limite de 1 a 200;
   - `processos_parados(p_dias default 15)` (INVOKER): contratação fora de encerrado/cancelado e processo do workflow
     aberto ou em tramitação sem movimentação há mais de N dias (por `current_date`), até 200;
@@ -1376,7 +1392,7 @@ Cópia, só para leitura, do que o Transferegov publica sobre o CNPJ da institui
 `processos_licitatorios`, `itens_processo_licitatorio`, `itens_licitacao`,
 `propostas_licitacao`, `documentos_preparatorios_licitacao`, `atas_registro_preco`,
 `itens_ata_registro_preco`, `fornecedores`, `contratos`, `itens_contrato`,
-`contrato_responsaveis`, `contrato_alteracoes` (no lugar de `aditivos_contrato` desde a migração `20261114090000`),
+`contrato_responsaveis`, `contrato_alteracoes` (no lugar de `aditivos_contrato` desde a migração `20261115090000`),
 `medicoes_contrato`.
 
 **Passagens aéreas (entrega 1, migração `20261031090000_contratos_passagens.sql`).** Controle e cadastro; o ato
@@ -1518,7 +1534,7 @@ os pedidos e confere as faturas; o contrato da agência continua do setor de Con
   `contratos.passagens.editar`, que o gatilho limita a marcar o contrato da agência); apagar pede `contratos.editar`.
   Decisão do dono em 27/10/2026. Testes no bloco "Contratos C1" de `scripts/db/testar-rls.sql`.
 
-**Contratos C2: alterações e vencimentos (migração `20261114090000_contratos_c2_alteracoes.sql`).** Spec
+**Contratos C2: alterações e vencimentos (migração `20261115090000_contratos_c2_alteracoes.sql`).** Spec
 [2026-10-27-contratos-gestao-completa-design.md](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)
 (§4, C2) e plano [2026-10-30-contratos-c2-alteracoes-vencimentos.md](./superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md).
 O ato (termo aditivo, apostila, termo de rescisão) continua no SEI; aqui fica o registro, com o nº do processo e do

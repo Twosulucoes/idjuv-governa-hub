@@ -321,6 +321,11 @@ GRANT EXECUTE ON FUNCTION public.registrar_retorno_remessa(uuid, jsonb, jsonb) T
 REVOKE ALL ON FUNCTION public.importar_folha_sigrh(jsonb, jsonb, jsonb, boolean) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.importar_folha_sigrh(jsonb, jsonb, jsonb, boolean) TO authenticated;
 
+-- ---- RH (migração 20261114090000): cadastro dos servidores pelo arquivo da Seplan (créditos do SIGRH) ----
+-- só para authenticated (a guarda no corpo exige o módulo rh e rh.servidores.importar)
+REVOKE ALL ON FUNCTION public.rh_importar_servidores_sigrh(text, jsonb, jsonb, boolean) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.rh_importar_servidores_sigrh(text, jsonb, jsonb, boolean) TO authenticated;
+
 -- ---- patrimônio (migração 20261023100000, P14 entrega 4): funções de trigger só por dentro ----
 -- fn_atualizar_estatisticas_campanha virou SECURITY DEFINER (o coletor não altera campanhas_inventario) e
 -- fn_bens_proteger_colunas guarda valor, data e forma de aquisição e situação do bem
@@ -474,7 +479,7 @@ GRANT EXECUTE ON FUNCTION public.fin_nome_comparavel(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.importar_diarias_fiplan(integer, jsonb, jsonb, boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.importar_diarias_fiplan(integer, jsonb, jsonb, boolean) TO authenticated;
 
--- ---- Contratos C2: alterações e vencimentos (migração 20261114090000) ----
+-- ---- Contratos C2: alterações e vencimentos (migração 20261115090000) ----
 REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_preparar() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_aplicar() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.contratos_meus_vencimentos() FROM PUBLIC, anon;
