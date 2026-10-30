@@ -78,6 +78,21 @@ export const ROTINA_FINANCEIRO: ItemRotina[] = [
     rotuloBotao: "Importar agora",
   },
   {
+    id: "diarias_fiplan",
+    titulo: "FIP 002 – Demonstrativo de Diárias",
+    serve: "Diárias pagas, com o período da viagem e se o servidor prestou contas. Alimenta a tela Diárias.",
+    frequencia: "semanal",
+    passos: [
+      "No FIPLAN, digite \"FIP 002\" na caixa Pesquise menu (fica em Relatórios > Financeiro/Contábil > Operacionais > Despesa – Diárias/SDF).",
+      "Em Campo, adicione \"Exercício\" igual a o ano (ex.: 2026).",
+      "Adicione \"Código da Unidade Orçamentária\" igual a 17302.0001.",
+      "Em Tipo de Relatório, escolha xls e clique em Consultar.",
+    ],
+    importador: "diarias_fiplan",
+    destino: aqui("diarias_fiplan"),
+    rotuloBotao: "Importar agora",
+  },
+  {
     id: "arquivo_bancario",
     titulo: "Retorno do banco (OBN600 / CNAB 240)",
     serve: "Confirma no sistema os pagamentos que o banco efetivou ou recusou.",

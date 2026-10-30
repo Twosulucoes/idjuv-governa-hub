@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,7 @@ import {
   SemPermissaoError,
   formatarDataViagem,
 } from "@/hooks/useViagens";
+import { useDiariasPagasPorViagem } from "@/hooks/useDiariasFiplan";
 import { ViagemFormDialog } from "@/components/rh/viagens/ViagemFormDialog";
 import { CancelarViagemDialog } from "@/components/rh/viagens/CancelarViagemDialog";
 import {
@@ -115,6 +116,8 @@ export default function GestaoViagensPage() {
   });
 
   const { data: viagens = [], isLoading } = useViagens();
+  // Diária paga no FIPLAN (FIP 002), ligada à viagem pelo importador do Financeiro
+  const { data: pagasNoFiplan } = useDiariasPagasPorViagem(useMemo(() => viagens.map((v) => v.id), [viagens]));
   const { data: servidores = [] } = useServidoresParaViagem();
   const atualizarStatus = useAtualizarStatusViagem();
   const cancelar = useCancelarViagem();
@@ -341,6 +344,7 @@ export default function GestaoViagensPage() {
                     const excluivel = podeExcluir(viagem, isSuperAdmin);
                     const permitidos = statusPermitidos(viagem.status);
                     const workflowLabel = WORKFLOW_DIRAF_STATUS.find(w => w.value === viagem.workflow_diraf_status)?.label || 'Pendente';
+                    const pago = pagasNoFiplan?.get(viagem.id);
                     return (
                     <TableRow key={viagem.id}>
                       <TableCell>
@@ -366,6 +370,12 @@ export default function GestaoViagensPage() {
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {viagem.tipo_onus === 'sem_onus' ? '-' : formatCurrency(viagem.valor_total)}
+                        {pago && (
+                          <p className="text-xs font-normal text-muted-foreground">
+                            Paga no FIPLAN{pago.data_pagamento ? ` em ${formatDate(pago.data_pagamento)}` : ""}
+                            {pago.prestou_contas ? " · contas prestadas" : " · sem prestação de contas"}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         {viagem.tipo_onus === 'sem_onus' ? (

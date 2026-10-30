@@ -35,6 +35,7 @@ describe("importadores por setor", () => {
     expect(permissao("classificadores_fiplan")).toBe("orcamento.importar");
     expect(permissao("empenhos_fip614")).toBe("financeiro.execucao.importar");
     expect(permissao("peds_fiplan")).toBe("financeiro.execucao.importar");
+    expect(permissao("diarias_fiplan")).toBe("financeiro.execucao.importar");
   });
 });
 
