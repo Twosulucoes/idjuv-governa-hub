@@ -30,6 +30,11 @@ describe("lerItensColados (tabela de itens do TR copiada do Word ou do Excel)", 
     expect(r.ignoradas).toEqual([4, 5]);
   });
 
+  it("linha de dado cuja descrição começa por Material ou Serviço não vira cabeçalho", () => {
+    expect(lerItensColados("1\tMaterial de limpeza\tun\t10\n2\tBola\tun\t5").itens.map((i) => i.descricao)).toEqual(["Material de limpeza", "Bola"]);
+    expect(lerItensColados("Serviço de manutenção\tmês\t12").itens).toHaveLength(1);
+  });
+
   it("aceita ponto e vírgula quando não há tabulação", () => {
     expect(lerItensColados("Bola;un;10").itens[0]).toMatchObject({ descricao: "Bola", quantidade: 10 });
   });

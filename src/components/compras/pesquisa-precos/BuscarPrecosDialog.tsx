@@ -62,6 +62,8 @@ export function BuscarPrecosDialog({ open, onOpenChange, item, dataReferencia, i
   const [soMesmaUnidade, setSoMesmaUnidade] = useState(true);
   const [uf, setUf] = useState("");
   const buscouAoAbrir = useRef(false);
+  // só a resposta da busca mais recente vale (fechar e reabrir, ou buscar de novo, no meio de uma busca)
+  const buscaAtual = useRef(0);
 
   useEffect(() => {
     if (!open) return;
@@ -74,6 +76,7 @@ export function BuscarPrecosDialog({ open, onOpenChange, item, dataReferencia, i
     setSoMesmaUnidade(true);
     setUf("");
     buscouAoAbrir.current = false;
+    buscaAtual.current += 1;
     // só ao abrir: gravar o código no item (ao usar os preços) não pode reiniciar a busca
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -94,6 +97,7 @@ export function BuscarPrecosDialog({ open, onOpenChange, item, dataReferencia, i
   const jaNoItem = useMemo(() => new Set(item.amostras.map((a) => a.id_externo).filter((x): x is string => !!x)), [item.amostras]);
 
   const buscar = async (cat: Catalogo, nome: string) => {
+    const esta = ++buscaAtual.current;
     setBuscando(true);
     setResultado(null);
     setMarcados(new Set());
@@ -106,6 +110,7 @@ export function BuscarPrecosDialog({ open, onOpenChange, item, dataReferencia, i
       : Promise.resolve(null);
     const pncp = palavrasDaBusca(nome).length ? buscarPrecosPncp(nome, inicio, fim) : Promise.resolve(null);
     const [rc, rp] = await Promise.allSettled([compras, pncp]);
+    if (esta !== buscaAtual.current) return;
     const precos: PrecoEncontrado[] = [];
     if (rc.status === "fulfilled" && rc.value) {
       precos.push(...rc.value.precos);
@@ -158,6 +163,8 @@ export function BuscarPrecosDialog({ open, onOpenChange, item, dataReferencia, i
   const visiveis = filtrados.slice(0, LIMITE_LISTA);
   const marcaveis = visiveis.filter((p) => !jaNoItem.has(p.idExterno));
   const todosMarcados = marcaveis.length > 0 && marcaveis.every((p) => marcados.has(p.idExterno));
+  // só entra o que está marcado E à vista: o filtro de UF ou de unidade esconde o resto
+  const escolhidos = marcaveis.filter((p) => marcados.has(p.idExterno));
 
   const alternar = (id: string) => setMarcados((m) => {
     const n = new Set(m);
@@ -167,7 +174,6 @@ export function BuscarPrecosDialog({ open, onOpenChange, item, dataReferencia, i
 
   const usar = async () => {
     if (!resultado) return;
-    const escolhidos = resultado.precos.filter((p) => marcados.has(p.idExterno));
     try {
       if (catalogo.codigo_catalogo && catalogo.codigo_catalogo !== item.codigo_catalogo) await onSalvarCatalogo(catalogo);
       await onIncluir(escolhidos.map((p) => amostraDoPreco(p, resultado.em)));
@@ -318,7 +324,7 @@ export function BuscarPrecosDialog({ open, onOpenChange, item, dataReferencia, i
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
-          <Button onClick={usar} disabled={!marcados.size || incluindo || buscando}>Usar {marcados.size || ""} preço(s)</Button>
+          <Button onClick={usar} disabled={!escolhidos.length || incluindo || buscando}>Usar {escolhidos.length || ""} preço(s)</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

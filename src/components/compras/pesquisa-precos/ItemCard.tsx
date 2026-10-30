@@ -300,6 +300,9 @@ export function ItemCard({ item, relatorio: r, pesquisaId, dataReferencia, final
                   )}
                 </div>
                 {!precoAtaValido && <p className="text-destructive">Informe um valor maior que zero.</p>}
+                {precoAtaValido && precoAta.trim() !== "" && precoAta !== paraTexto(item.preco_comparado) && (
+                  <p className="text-muted-foreground">Será gravado como {precoBR(precoAtaNumero)} (use vírgula para os centavos).</p>
+                )}
                 {r.comparacao && (
                   <p className={r.comparacao.situacao === "acima" ? "font-medium text-destructive" : "font-medium"}>
                     {r.comparacao.situacao === "igual" ? "Igual ao valor estimado"

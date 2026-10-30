@@ -283,10 +283,14 @@ export function referenciaDaBusca(j: Bruto): ReferenciaPncp | null {
 
 const semAcento = (t: string | null | undefined) =>
   String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-const VAZIAS = new Set(["de", "da", "do", "das", "dos", "em", "na", "no", "nas", "nos", "para", "por", "com", "sem", "uma", "tipo"]);
+// a mesma lista e o mesmo limite de palavrasDaBusca (src/lib/compras/pesquisaPrecos.ts)
+const VAZIAS = new Set([
+  "de", "da", "do", "das", "dos", "em", "na", "no", "nas", "nos", "para", "por", "com", "sem", "and", "uma", "um", "tipo",
+  "aos", "que", "pela", "pelo", "conforme", "cada",
+]);
 
-/** Palavras do termo (3 letras ou mais, sem as de ligação), como na tela. */
-export const palavrasDoTermo = (termo: string) => semAcento(termo).split(" ").filter((p) => p.length >= 3 && !VAZIAS.has(p)).slice(0, 5);
+/** Palavras do termo (3 letras ou mais, sem as de ligação, as 3 primeiras), como na tela. */
+export const palavrasDoTermo = (termo: string) => semAcento(termo).split(" ").filter((p) => p.length >= 3 && !VAZIAS.has(p)).slice(0, 3);
 
 /** O item da compra tem todas as palavras buscadas (começo da palavra, singular ou plural)? */
 export function itemCombina(descricao: string | null, palavras: string[]): boolean {

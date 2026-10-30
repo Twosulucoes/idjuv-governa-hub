@@ -34,10 +34,13 @@ export function ColarItensDialog({ open, onOpenChange, proximoNumero, salvando, 
   }, [open]);
 
   const lidos = useMemo(() => lerItensColados(texto), [texto]);
+  // o nº do TR só vale numa pesquisa vazia, com todas as linhas numeradas e sem repetir; senão, segue a numeração dela
+  const usaNumeroDoTr = proximoNumero === 1 && lidos.itens.every((i) => i.numero !== null)
+    && new Set(lidos.itens.map((i) => i.numero)).size === lidos.itens.length;
   const itens: PesquisaPrecosItemInput[] = useMemo(() => {
     let seguinte = proximoNumero;
     return lidos.itens.map((i) => ({
-      numero: i.numero ?? seguinte++,
+      numero: usaNumeroDoTr ? i.numero! : seguinte++,
       tipo,
       catalogo_campo: i.codigo ? "codigoItemCatalogo" : null,
       codigo_catalogo: i.codigo,
@@ -46,7 +49,7 @@ export function ColarItensDialog({ open, onOpenChange, proximoNumero, salvando, 
       unidade: i.unidade,
       quantidade: i.quantidade,
     }));
-  }, [lidos, tipo, proximoNumero]);
+  }, [lidos, tipo, proximoNumero, usaNumeroDoTr]);
 
   const salvar = async () => {
     try {
@@ -81,6 +84,9 @@ export function ColarItensDialog({ open, onOpenChange, proximoNumero, salvando, 
             <p className="text-sm text-destructive">
               Linha(s) {lidos.ignoradas.join(", ")} sem descrição, unidade ou quantidade válida: ficam de fora. Corrija na tabela e cole de novo.
             </p>
+          )}
+          {itens.length > 0 && !usaNumeroDoTr && lidos.itens.some((i) => i.numero !== null) && (
+            <p className="text-sm text-muted-foreground">Os itens seguem a numeração da pesquisa, a partir do nº {proximoNumero}.</p>
           )}
           {itens.length > 0 && (
             <div className="max-h-[40vh] overflow-auto rounded-md border">

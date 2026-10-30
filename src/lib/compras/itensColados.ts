@@ -42,7 +42,10 @@ export function lerItensColados(texto: string): { itens: ItemColado[]; ignoradas
   let mapa: Partial<Record<Coluna, number>> = {};
   let corpo = linhas;
   const cab = linhas[0].celulas.map(colunaDoCabecalho);
-  if (cab.includes("descricao")) {
+  // cabeçalho: descrição e unidade ou quantidade reconhecidas, e nenhuma célula só com número (linha de dado, não título)
+  const ehCabecalho = cab.includes("descricao") && (cab.includes("unidade") || cab.includes("quantidade"))
+    && !linhas[0].celulas.some((c) => /^\d+(?:[.,]\d+)*$/.test(c));
+  if (ehCabecalho) {
     cab.forEach((c, i) => { if (c && mapa[c] === undefined) mapa[c] = i; });
     corpo = linhas.slice(1);
   }

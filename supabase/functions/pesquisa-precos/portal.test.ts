@@ -167,6 +167,7 @@ describe("PNCP — busca por nome", () => {
   it("fica só com o item que tem as palavras buscadas e no período", () => {
     const palavras = palavrasDoTermo("Bola de futebol");
     expect(palavras).toEqual(["bola", "futebol"]);
+    expect(palavrasDoTermo("bola futebol conforme especificação do TR")).toEqual(["bola", "futebol", "especificacao"]);
     expect(itemCombina("BOLAS DE FUTEBOL DE CAMPO", palavras)).toBe(true);
     expect(itemCombina("Bola de vôlei", palavras)).toBe(false);
     expect(itemCombina("qualquer", [])).toBe(false);
