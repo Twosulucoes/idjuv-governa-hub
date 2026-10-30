@@ -113,6 +113,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "ferias", label: "Férias", icon: Calendar, route: "/rh/ferias" },
       { id: "licencas", label: "Licenças", icon: FileText, route: "/rh/licencas" },
       { id: "viagens", label: "Viagens", icon: Plane, route: "/rh/viagens" },
+      { id: "diarias-fiplan", label: "Diárias pagas (FIPLAN)", icon: Plane, route: "/financeiro/diarias", permission: "rh.viagens.visualizar" },
       { 
         id: "folha-pagamento", 
         label: "Folha de Pagamento", 
@@ -143,6 +144,7 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       { id: "qdd", label: "QDD - Detalhamento", icon: FileText, route: "/financeiro/qdd" },
       { id: "emendas", label: "Emendas Parlamentares", icon: Landmark, route: "/financeiro/emendas" },
       { id: "empenhos", label: "Empenhos", icon: FileText, route: "/financeiro/empenhos" },
+      { id: "diarias", label: "Diárias", icon: Plane, route: "/financeiro/diarias", permission: "financeiro.diarias.visualizar" },
       // Lançamentos fora do FIPLAN, regularizados depois nele (FIPLAN fechado, tarifas, contas de convênio)
       {
         id: "contingencia",

@@ -63,6 +63,9 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useConveniosFederais` (`useConveniosFederais`, `useConvenioFederal`, `useMovimentosConvenioFederal`,
   `useUltimaSincronizacaoTransferegov`): espelho do Transferegov, só leitura (`/financeiro/convenios`); alertas de
   prazo, espelho desatualizado e rótulos em `src/lib/financeiro/conveniosFederais.ts` (testes vitest).
+  `useDiariasFiplan` (`useDiariasFiplan`, `useUltimaImportacaoDiarias`, `useDiariasPagasPorViagem`): diárias do FIP 002,
+  só leitura (`/financeiro/diarias` e o selo "Paga no FIPLAN" em `/rh/viagens`); prazo de 10 dias da prestação de contas e
+  totais em `src/lib/financeiro/diariasFiplan.ts` (testes vitest).
   `useFavorecidos` (`useFavorecidos`, `useSalvarFavorecido`): favorecidos da tela Financeiro → Favorecidos (tabela
   `fornecedores`); agência e conta validadas por `src/lib/bancario/favorecido.ts`, com a regra da remessa OBN600.
 - **Compras:** `usePca` (`usePcaPlanos`, `usePcaPlano`, `useCriarPcaPlano`, `usePcaTetos`, `useSalvarPcaTeto`,

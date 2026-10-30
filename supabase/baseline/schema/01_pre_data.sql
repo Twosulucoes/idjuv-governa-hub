@@ -4359,6 +4359,27 @@ COMMENT ON FUNCTION public.fin_marcar_pagamento_pago(p_pagamento_id uuid, p_data
 
 
 --
+-- Name: fin_nome_comparavel(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_nome_comparavel(p_nome text) RETURNS text
+    LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT regexp_replace(
+    translate(lower(btrim(COALESCE(p_nome, ''))), 'áàâãäéèêëíìîïóòôõöúùûüçñ', 'aaaaaeeeeiiiiooooouuuucn'),
+    '\s+', ' ', 'g');
+$$;
+
+
+--
+-- Name: FUNCTION fin_nome_comparavel(p_nome text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.fin_nome_comparavel(p_nome text) IS 'Nome sem acento, em minúsculas e com um espaço entre as palavras, para ligar o credor do FIPLAN ao servidor.';
+
+
+--
 -- Name: fin_pagamentos_proteger_baixa(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -8852,6 +8873,240 @@ $_$;
 --
 
 COMMENT ON FUNCTION public.importar_classificadores_fiplan(p_tipo text, p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa uma tabela de classificação do FIPLAN (planilha "Consultar ...") para fin_classificadores_fiplan e corrige nomes de fontes, programas e naturezas provisórias (p_simular = true só calcula as mudanças). Exige orcamento.importar.';
+
+
+--
+-- Name: importar_diarias_fiplan(integer, jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  c_doc constant text := '^\d{17}$';
+  c_campos constant text[] := ARRAY['credor_codigo', 'credor_nome', 'servidor_id', 'viagem_id', 'quantidade',
+    'processo_fiplan', 'data_empenho', 'valor_empenhado', 'liquidacao_numero', 'valor_liquidado', 'nob_numero',
+    'data_pagamento', 'data_saida', 'data_retorno', 'ordem_servico', 'prestou_contas'];
+  c_numericos constant text[] := ARRAY['quantidade', 'valor_empenhado', 'valor_liquidado'];
+  v_uid uuid := auth.uid();
+  v_linha jsonb;
+  v_ind integer;
+  v_empenho text;
+  v_chaves text[] := '{}';
+  v_novo jsonb;
+  v_antigo jsonb;
+  v_mudancas jsonb;
+  v_avisos text[];
+  v_campo text;
+  v_existente public.fin_diarias_fiplan%ROWTYPE;
+  v_servidores uuid[];
+  v_viagens uuid[];
+  v_servidor uuid;
+  v_viagem uuid;
+  v_acao text;
+  v_linhas_res jsonb := '[]'::jsonb;
+  v_erros jsonb := '[]'::jsonb;
+  v_ins integer := 0; v_atu integer := 0; v_igual integer := 0;
+  v_ausentes text[];
+  v_totais jsonb;
+  v_import_id uuid;
+BEGIN
+  p_simular := COALESCE(p_simular, true);
+
+  -- COALESCE: um NULL em qualquer checagem nega (NOT NULL não dispararia o RAISE).
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'financeiro.execucao.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar a execução do FIPLAN (financeiro.execucao.importar).' USING ERRCODE = '42501';
+  END IF;
+  IF p_exercicio IS NULL OR p_exercicio NOT BETWEEN 2000 AND 2100 THEN
+    RAISE EXCEPTION 'Exercício inválido: %', p_exercicio USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_linhas) IS DISTINCT FROM 'array'
+     OR jsonb_array_length(p_linhas) NOT BETWEEN 1 AND 10000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 10000 diárias.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT p_simular AND (
+       char_length(COALESCE(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
+       OR COALESCE(p_arquivo->>'sha256', '') !~ '^[0-9a-f]{64}$'
+       OR COALESCE(p_arquivo->>'tamanho', '') !~ '^\d{1,15}$') THEN
+    RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Uma importação de diárias por exercício de cada vez
+  PERFORM pg_advisory_xact_lock(hashtext('importar_diarias_fiplan'), p_exercicio);
+
+  BEGIN
+    IF NOT p_simular THEN
+      INSERT INTO public.importacoes (tipo, modulo, arquivo_nome, arquivo_sha256, arquivo_tamanho, exercicio, created_by)
+      VALUES ('diarias_fiplan', 'financeiro', p_arquivo->>'nome', p_arquivo->>'sha256',
+              (p_arquivo->>'tamanho')::bigint, p_exercicio, v_uid)
+      RETURNING id INTO v_import_id;
+    END IF;
+
+    FOR v_linha IN SELECT value FROM jsonb_array_elements(p_linhas) LOOP
+      v_ind := COALESCE((v_linha->>'indice')::integer, -1);
+      BEGIN
+        v_empenho := btrim(COALESCE(v_linha->>'empenho_numero', ''));
+        -- 17302 0001 26 001077: UO, UG, ano com dois dígitos, sequencial
+        IF v_empenho !~ c_doc OR substr(v_empenho, 10, 2) <> right(p_exercicio::text, 2) THEN
+          RAISE EXCEPTION 'Empenho "%" fora do padrão ou de outro exercício.', left(v_empenho, 30) USING ERRCODE = '22023';
+        END IF;
+        IF v_empenho = ANY (v_chaves) THEN
+          RAISE EXCEPTION 'Empenho % repetido no arquivo.', v_empenho USING ERRCODE = '22023';
+        END IF;
+        v_chaves := v_chaves || v_empenho;
+        IF NULLIF(btrim(v_linha->>'credor_nome'), '') IS NULL THEN
+          RAISE EXCEPTION 'Empenho %: sem nome do credor.', v_empenho USING ERRCODE = '22023';
+        END IF;
+        IF (v_linha->>'valor_empenhado') IS NULL OR (v_linha->>'valor_empenhado')::numeric < 0 THEN
+          RAISE EXCEPTION 'Empenho %: valor inválido.', v_empenho USING ERRCODE = '22023';
+        END IF;
+
+        v_avisos := '{}';
+
+        -- Servidor: o único com o mesmo nome comparável
+        SELECT array_agg(s.id) INTO v_servidores
+          FROM public.servidores s
+         WHERE public.fin_nome_comparavel(s.nome_completo) = public.fin_nome_comparavel(v_linha->>'credor_nome');
+        v_servidor := CASE WHEN cardinality(v_servidores) = 1 THEN v_servidores[1] END;
+        IF v_servidor IS NULL THEN
+          v_avisos := v_avisos || CASE WHEN cardinality(v_servidores) > 1
+            THEN 'Mais de um servidor com este nome: a diária fica sem servidor.'
+            ELSE 'Nenhum servidor com este nome no cadastro: a diária fica sem servidor.' END;
+        END IF;
+
+        -- Viagem do RH: a única do servidor com a mesma saída (sem as canceladas)
+        v_viagem := NULL;
+        IF v_servidor IS NOT NULL AND (v_linha->>'data_saida') IS NOT NULL THEN
+          SELECT array_agg(v.id) INTO v_viagens
+            FROM public.viagens_diarias v
+           WHERE v.servidor_id = v_servidor
+             AND v.data_saida = (v_linha->>'data_saida')::date
+             AND v.status IS DISTINCT FROM 'cancelada';
+          v_viagem := CASE WHEN cardinality(v_viagens) = 1 THEN v_viagens[1] END;
+        END IF;
+
+        v_novo := jsonb_build_object(
+          'credor_codigo',     NULLIF(btrim(v_linha->>'credor_codigo'), ''),
+          'credor_nome',       left(btrim(v_linha->>'credor_nome'), 300),
+          'servidor_id',       v_servidor,
+          'viagem_id',         v_viagem,
+          'quantidade',        round(COALESCE((v_linha->>'quantidade')::numeric, 0), 1),
+          'processo_fiplan',   NULLIF(btrim(v_linha->>'processo_fiplan'), ''),
+          'data_empenho',      (v_linha->>'data_empenho')::date,
+          'valor_empenhado',   round((v_linha->>'valor_empenhado')::numeric, 2),
+          'liquidacao_numero', NULLIF(btrim(v_linha->>'liquidacao_numero'), ''),
+          'valor_liquidado',   round((v_linha->>'valor_liquidado')::numeric, 2),
+          'nob_numero',        NULLIF(btrim(v_linha->>'nob_numero'), ''),
+          'data_pagamento',    (v_linha->>'data_pagamento')::date,
+          'data_saida',        (v_linha->>'data_saida')::date,
+          'data_retorno',      (v_linha->>'data_retorno')::date,
+          'ordem_servico',     NULLIF(btrim(v_linha->>'ordem_servico'), ''),
+          'prestou_contas',    COALESCE((v_linha->>'prestou_contas')::boolean, false));
+
+        SELECT * INTO v_existente FROM public.fin_diarias_fiplan
+         WHERE exercicio = p_exercicio AND empenho_numero = v_empenho
+         FOR UPDATE;
+        IF NOT FOUND THEN
+          INSERT INTO public.fin_diarias_fiplan
+            (exercicio, empenho_numero, credor_codigo, credor_nome, servidor_id, viagem_id, quantidade, processo_fiplan,
+             data_empenho, valor_empenhado, liquidacao_numero, valor_liquidado, nob_numero, data_pagamento, data_saida,
+             data_retorno, ordem_servico, prestou_contas, importacao_id)
+          VALUES
+            (p_exercicio, v_empenho, v_novo->>'credor_codigo', v_novo->>'credor_nome', (v_novo->>'servidor_id')::uuid,
+             (v_novo->>'viagem_id')::uuid, (v_novo->>'quantidade')::numeric, v_novo->>'processo_fiplan',
+             (v_novo->>'data_empenho')::date, (v_novo->>'valor_empenhado')::numeric, v_novo->>'liquidacao_numero',
+             (v_novo->>'valor_liquidado')::numeric, v_novo->>'nob_numero', (v_novo->>'data_pagamento')::date,
+             (v_novo->>'data_saida')::date, (v_novo->>'data_retorno')::date, v_novo->>'ordem_servico',
+             (v_novo->>'prestou_contas')::boolean, v_import_id);
+          v_acao := 'inserir';
+          v_mudancas := NULL;
+          v_ins := v_ins + 1;
+        ELSE
+          v_antigo := to_jsonb(v_existente);
+          v_mudancas := '{}'::jsonb;
+          FOREACH v_campo IN ARRAY c_campos LOOP
+            -- valores numéricos comparam como número (300 = 300.00)
+            IF (CASE WHEN v_campo = ANY (c_numericos)
+                     THEN (v_antigo->>v_campo)::numeric IS DISTINCT FROM (v_novo->>v_campo)::numeric
+                     ELSE v_antigo->v_campo IS DISTINCT FROM v_novo->v_campo END) THEN
+              v_mudancas := v_mudancas || jsonb_build_object(v_campo, jsonb_build_array(v_antigo->v_campo, v_novo->v_campo));
+            END IF;
+          END LOOP;
+          IF v_mudancas = '{}'::jsonb THEN
+            v_acao := 'sem_alteracao';
+            v_mudancas := NULL;
+            v_igual := v_igual + 1;
+          ELSE
+            UPDATE public.fin_diarias_fiplan
+               SET credor_codigo = v_novo->>'credor_codigo', credor_nome = v_novo->>'credor_nome',
+                   servidor_id = (v_novo->>'servidor_id')::uuid, viagem_id = (v_novo->>'viagem_id')::uuid,
+                   quantidade = (v_novo->>'quantidade')::numeric, processo_fiplan = v_novo->>'processo_fiplan',
+                   data_empenho = (v_novo->>'data_empenho')::date,
+                   valor_empenhado = (v_novo->>'valor_empenhado')::numeric,
+                   liquidacao_numero = v_novo->>'liquidacao_numero',
+                   valor_liquidado = (v_novo->>'valor_liquidado')::numeric, nob_numero = v_novo->>'nob_numero',
+                   data_pagamento = (v_novo->>'data_pagamento')::date, data_saida = (v_novo->>'data_saida')::date,
+                   data_retorno = (v_novo->>'data_retorno')::date, ordem_servico = v_novo->>'ordem_servico',
+                   prestou_contas = (v_novo->>'prestou_contas')::boolean,
+                   importacao_id = COALESCE(v_import_id, importacao_id), updated_at = now()
+             WHERE id = v_existente.id;
+            v_acao := 'atualizar';
+            v_atu := v_atu + 1;
+          END IF;
+        END IF;
+
+        v_linhas_res := v_linhas_res || jsonb_build_object('indice', v_ind, 'acao', v_acao, 'mudancas', v_mudancas,
+          'avisos', CASE WHEN cardinality(v_avisos) > 0 THEN to_jsonb(v_avisos) END);
+      EXCEPTION
+        WHEN OTHERS THEN
+          v_erros := v_erros || jsonb_build_object('indice', v_ind, 'mensagem',
+            CASE WHEN left(SQLSTATE, 2) IN ('22', '23') OR SQLSTATE IN ('P0001', '42501') THEN SQLERRM
+                 ELSE format('Erro inesperado ao gravar a linha (código %s).', SQLSTATE) END);
+      END;
+    END LOOP;
+
+    IF p_simular OR jsonb_array_length(v_erros) > 0 THEN
+      RAISE EXCEPTION 'importação desfeita' USING ERRCODE = 'DIA01';
+    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'DIA01' THEN v_import_id := NULL;  -- desfaz tudo, inclusive o log; as variáveis continuam valendo
+  END;
+
+  -- Diárias do exercício que não vieram no arquivo: só avisadas, nunca apagadas.
+  SELECT array_agg(empenho_numero ORDER BY empenho_numero) INTO v_ausentes
+    FROM public.fin_diarias_fiplan
+   WHERE exercicio = p_exercicio
+     AND NOT (empenho_numero = ANY (v_chaves));
+
+  v_totais := jsonb_build_object('inserir', v_ins, 'atualizar', v_atu, 'sem_alteracao', v_igual);
+
+  IF v_import_id IS NOT NULL THEN
+    UPDATE public.importacoes
+       SET resumo = jsonb_build_object('totais', v_totais, 'ausentes', to_jsonb(COALESCE(v_ausentes, '{}'::text[])))
+     WHERE id = v_import_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'simulacao', p_simular,
+    'importacao_id', v_import_id,
+    'totais', v_totais,
+    'ausentes', to_jsonb(COALESCE(v_ausentes, '{}'::text[])),
+    'linhas', v_linhas_res,
+    'erros', v_erros
+  );
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o FIP 002 (Demonstrativo de Diárias) do FIPLAN para fin_diarias_fiplan, ligando servidor e viagem do RH (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
 
 
 --
@@ -23513,6 +23768,69 @@ CREATE TABLE public.fin_contas_bancarias (
 );
 
 ALTER TABLE ONLY public.fin_contas_bancarias FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: fin_diarias_fiplan; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_diarias_fiplan (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    exercicio integer NOT NULL,
+    empenho_numero text NOT NULL,
+    credor_codigo text,
+    credor_nome text NOT NULL,
+    servidor_id uuid,
+    viagem_id uuid,
+    quantidade numeric(5,1) NOT NULL,
+    processo_fiplan text,
+    data_empenho date,
+    valor_empenhado numeric(12,2) NOT NULL,
+    liquidacao_numero text,
+    valor_liquidado numeric(12,2),
+    nob_numero text,
+    data_pagamento date,
+    data_saida date,
+    data_retorno date,
+    ordem_servico text,
+    prestou_contas boolean DEFAULT false NOT NULL,
+    importacao_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_diarias_fiplan_credor_codigo_check CHECK ((char_length(credor_codigo) <= 20)),
+    CONSTRAINT fin_diarias_fiplan_credor_nome_check CHECK (((char_length(btrim(credor_nome)) >= 1) AND (char_length(btrim(credor_nome)) <= 300))),
+    CONSTRAINT fin_diarias_fiplan_empenho_numero_check CHECK ((empenho_numero ~ '^\d{17}$'::text)),
+    CONSTRAINT fin_diarias_fiplan_exercicio_check CHECK (((exercicio >= 2000) AND (exercicio <= 2100))),
+    CONSTRAINT fin_diarias_fiplan_liquidacao_numero_check CHECK ((liquidacao_numero ~ '^\d{17}$'::text)),
+    CONSTRAINT fin_diarias_fiplan_nob_numero_check CHECK ((nob_numero ~ '^\d{17}$'::text)),
+    CONSTRAINT fin_diarias_fiplan_ordem_servico_check CHECK ((char_length(ordem_servico) <= 30)),
+    CONSTRAINT fin_diarias_fiplan_periodo CHECK (((data_retorno IS NULL) OR (data_saida IS NULL) OR (data_retorno >= data_saida))),
+    CONSTRAINT fin_diarias_fiplan_processo_fiplan_check CHECK ((char_length(processo_fiplan) <= 30)),
+    CONSTRAINT fin_diarias_fiplan_quantidade_check CHECK ((quantidade >= (0)::numeric)),
+    CONSTRAINT fin_diarias_fiplan_valor_empenhado_check CHECK ((valor_empenhado >= (0)::numeric)),
+    CONSTRAINT fin_diarias_fiplan_valor_liquidado_check CHECK ((valor_liquidado >= (0)::numeric))
+);
+
+
+--
+-- Name: TABLE fin_diarias_fiplan; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_diarias_fiplan IS 'Diárias do FIPLAN (FIP 002 – Demonstrativo de Diárias): empenho, liquidação, NOB, período da viagem e prestação de contas. Escrita só pela RPC importar_diarias_fiplan.';
+
+
+--
+-- Name: COLUMN fin_diarias_fiplan.viagem_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_diarias_fiplan.viagem_id IS 'Viagem do RH (viagens_diarias) do mesmo servidor com a mesma data de saída, quando há uma só.';
+
+
+--
+-- Name: COLUMN fin_diarias_fiplan.prestou_contas; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.fin_diarias_fiplan.prestou_contas IS 'Coluna PC do FIP 002 ("Sim"/"Não").';
 
 
 --

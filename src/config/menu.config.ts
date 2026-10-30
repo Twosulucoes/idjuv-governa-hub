@@ -130,6 +130,7 @@ export type PermissaoInstitucional =
   | 'orcamento.importar'
   | 'financeiro.execucao.importar'
   | 'financeiro.convenios.visualizar'
+  | 'financeiro.diarias.visualizar'
   | 'pagamento.conciliar'
   // Gabinete
   | 'gabinete.portarias.importar'
@@ -418,6 +419,15 @@ export const menuConfig: MenuSection[] = [
         permission: "rh.viagens.visualizar",
       },
       {
+        // Mesma tela do Financeiro (FIP 002): o RH acompanha a prestação de contas
+        id: "rh-diarias-fiplan",
+        label: "Diárias pagas (FIPLAN)",
+        labelShort: "Diárias pagas",
+        route: "/financeiro/diarias",
+        icon: Plane,
+        permission: "rh.viagens.visualizar",
+      },
+      {
         id: "folha-pagamento",
         label: "Folha de Pagamento",
         icon: Receipt,
@@ -663,6 +673,15 @@ export const menuConfig: MenuSection[] = [
         route: "/financeiro/empenhos",
         icon: FileCheck,
         permission: "orcamento.criar",
+        priority: 3,
+      },
+      {
+        // Diárias pagas no FIPLAN (FIP 002), com a prestação de contas
+        id: "fin-diarias",
+        label: "Diárias",
+        route: "/financeiro/diarias",
+        icon: Plane,
+        permission: "financeiro.diarias.visualizar",
         priority: 3,
       },
       {

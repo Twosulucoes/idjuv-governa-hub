@@ -1170,6 +1170,20 @@ Todas idempotentes.
     por processo) e `programacao_por_natureza` (QDD × reservas por combinação, com os processos);
   - sem permissão nova; RLS classe `preservar` nas duas tabelas (policies na migração); testes no bloco
     "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
+- **Diárias do FIPLAN** (`20261113090000_fin_diarias_fiplan.sql`, spec
+  [2026-10-30-diarias-fiplan-design.md](./superpowers/specs/2026-10-30-diarias-fiplan-design.md)):
+  - `fin_diarias_fiplan`: o FIP 002 – Demonstrativo de Diárias, uma linha por diária (única por exercício e nº do
+    empenho, 17 dígitos): credor, quantidade, processo, empenho, liquidação, NOB e data do pagamento, saída e retorno,
+    ordem de serviço e `prestou_contas` (coluna PC). `servidor_id` é o único servidor com o mesmo nome sem acento nem
+    caixa (`fin_nome_comparavel`); `viagem_id` é a única viagem não cancelada de `viagens_diarias` do servidor com a
+    mesma saída. Sem par, ficam nulos (a simulação avisa o nome não achado);
+  - leitura: Financeiro com `financeiro.diarias.visualizar` ou `financeiro.execucao.importar`, RH com
+    `rh.viagens.visualizar` e o próprio servidor; ninguém grava pela API. Grava
+    `importar_diarias_fiplan(p_exercicio, p_linhas, p_arquivo, p_simular)` (DEFINER, módulo financeiro e
+    `financeiro.execucao.importar`; upsert com mudanças por campo, simulação desfeita, ausentes só avisados, log em
+    `importacoes` com tipo `diarias_fiplan`);
+  - sem permissão nova (o rótulo de `financeiro.execucao.importar` passou a citar as diárias); RLS classe `preservar`
+    (policy na migração); testes no bloco "Financeiro: diárias do FIPLAN" de `scripts/db/testar-rls.sql`.
 - **Pesquisa de preços, entrega 1** (`20261106090000_compras_pesquisa_precos.sql`, spec
   [2026-10-29-compras-pesquisa-precos-design.md](./superpowers/specs/2026-10-29-compras-pesquisa-precos-design.md)):
   - `pesquisas_precos`: uma por processo SEI (objeto, `finalidade`, `data_referencia`, responsáveis, observações,
