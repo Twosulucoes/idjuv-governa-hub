@@ -6,6 +6,7 @@
 import { mascararDocumento } from "@/lib/bancario/comum";
 import { formatDateBR } from "@/lib/formatters";
 import { descricaoVigencia, situacaoVigencia, FAIXAS_VENCIMENTO, dentroDoPrazo, type SituacaoVigencia } from "@/lib/contratos/vigencia";
+import { HORIZONTE_DIAS } from "@/lib/contratos/vencimentos";
 import {
   nomeContratado,
   responsaveisAtivos,
@@ -53,15 +54,20 @@ export interface ResumoPainel {
   emVigor: number;
   vencem90: number;
   vencidos: number;
+  /** Vencidos ou vencendo em até 120 dias sem providência registrada (tela Vencimentos, C2). */
+  semProvidencia: number;
   semResponsavel: number;
   valorEmVigor: number;
 }
 
-export function resumoPainel(lista: (ContratoPrazo & Pick<ContratoLista, "valor_atual">)[], hoje: Date | string = new Date()): ResumoPainel {
-  const r: ResumoPainel = { emVigor: 0, vencem90: 0, vencidos: 0, semResponsavel: 0, valorEmVigor: 0 };
+type LinhaPainel = ContratoPrazo & Pick<ContratoLista, "valor_atual"> & { renovacao_providencia?: string | null };
+
+export function resumoPainel(lista: LinhaPainel[], hoje: Date | string = new Date()): ResumoPainel {
+  const r: ResumoPainel = { emVigor: 0, vencem90: 0, vencidos: 0, semProvidencia: 0, semResponsavel: 0, valorEmVigor: 0 };
   for (const c of lista) {
     const s = situacaoVigencia(c, hoje);
     if (s.faixa === "vencido") r.vencidos += 1;
+    if ((s.faixa === "vencido" || dentroDoPrazo(s, HORIZONTE_DIAS)) && !c.renovacao_providencia) r.semProvidencia += 1;
     if (!emVigor(s)) continue;
     r.emVigor += 1;
     r.valorEmVigor += Number(c.valor_atual ?? 0);

@@ -3,9 +3,10 @@ import type { DocumentoModelo } from '../../tipos';
 import { moeda } from '../rh/comum';
 
 /**
- * Ficha do contrato (Contratos, entrega C1), para consulta e para juntar ao processo no SEI quando quiser: dados do
- * contrato, vigência, publicação, responsáveis designados (com a portaria) e itens. Não é ato: contrato, aditivo e
- * designação são do SEI; a ficha só mostra o que foi registrado. Valores em reais; datas já formatadas (dd/mm/aaaa).
+ * Ficha do contrato (Contratos, entregas C1 e C2), para consulta e para juntar ao processo no SEI quando quiser: dados
+ * do contrato, vigência, alterações (aditivos, apostilamentos, suspensão, rescisão), publicação, responsáveis
+ * designados (com a portaria) e itens. Não é ato: contrato, aditivo e designação são do SEI; a ficha só mostra o que
+ * foi registrado. Valores em reais; datas já formatadas (dd/mm/aaaa).
  */
 
 export interface ResponsavelFicha {
@@ -15,6 +16,17 @@ export interface ResponsavelFicha {
   portaria?: string;
   /** Ex.: "desde 05/01/2026" ou "05/01/2026 a 30/06/2026 · exonerado". */
   periodo: string;
+}
+
+export interface AlteracaoFicha {
+  /** Data do ato (assinatura ou início); vazio na situação anterior ao sistema. */
+  data: string;
+  /** Ex.: "2º termo aditivo". */
+  alteracao: string;
+  /** Ex.: "prorroga até 31/12/2027; acrescenta R$ 12.000,00". */
+  efeito: string;
+  /** Ex.: "Processo 00000.000123/2025.11 · documento 12345678 · DOE 10/01/2027". */
+  documento: string;
 }
 
 export interface ItemFicha {
@@ -48,6 +60,9 @@ export interface DadosFichaContrato {
   prorrogacao: string;
   publicacaoDoe?: string;
   garantia?: string;
+  alteracoes: AlteracaoFicha[];
+  /** Avisos dos limites da Lei 14.133 (acréscimo, supressão, prazo máximo). */
+  avisosAlteracoes: string[];
   responsaveis: ResponsavelFicha[];
   responsaveisAnteriores: ResponsavelFicha[];
   itens: ItemFicha[];
@@ -59,6 +74,13 @@ const COLUNAS_RESP: ColunaTabela[] = [
   { chave: 'nome', titulo: 'Servidor', peso: 5 },
   { chave: 'portaria', titulo: 'Portaria', peso: 5 },
   { chave: 'periodo', titulo: 'Período', peso: 4 },
+];
+
+const COLUNAS_ALTERACOES: ColunaTabela[] = [
+  { chave: 'data', titulo: 'Data', peso: 2 },
+  { chave: 'alteracao', titulo: 'Alteração', peso: 3 },
+  { chave: 'efeito', titulo: 'O que muda', peso: 6 },
+  { chave: 'documento', titulo: 'Documento no SEI', peso: 5 },
 ];
 
 const COLUNAS_ITENS: ColunaTabela[] = [
@@ -114,6 +136,11 @@ export const fichaContrato: DocumentoModelo<DadosFichaContrato> = {
           { rotulo: 'Garantia', valor: d.garantia },
         ],
       }),
+      secao({ texto: 'Alterações' }),
+      d.alteracoes.length === 0
+        ? paragrafo({ texto: 'Nenhuma alteração registrada.' })
+        : tabela({ colunas: COLUNAS_ALTERACOES, linhas: d.alteracoes.map((a) => ({ ...a, data: a.data || '—', documento: a.documento || '—' })) }),
+      ...d.avisosAlteracoes.map((t) => paragrafo({ texto: `Atenção: ${t}` })),
       secao({ texto: 'Gestor e fiscais' }),
       d.responsaveis.length === 0
         ? paragrafo({ texto: 'Nenhum responsável designado.' })

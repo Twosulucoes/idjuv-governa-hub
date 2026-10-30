@@ -1,6 +1,7 @@
 /**
  * Regras puras da vigência do contrato: em que faixa de vencimento ele está (para o selo, os filtros e o painel).
- * Usa o fim da vigência atual (`data_fim_atual`, que a C2 recalcula pelos aditivos) e, sem ele, o fim original.
+ * Usa o fim da vigência atual (`data_fim_atual`, que o banco calcula pelas alterações desde a C2) e, sem ele, o fim
+ * original.
  * Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md (C1 e C2: avisos em 120/90/60/30 dias).
  */
 
@@ -56,6 +57,14 @@ export function situacaoVigencia(c: ContratoVigencia, hoje: Date | string = new 
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
+/** "Vencido há 3 dias", "Vence hoje", "Vence amanhã", "Vence em 45 dias" (dias até o fim; negativo = vencido). */
+export function textoDias(dias: number): string {
+  if (dias < 0) return `Vencido há ${plural(Math.abs(dias), "dia", "dias")}`;
+  if (dias === 0) return "Vence hoje";
+  if (dias === 1) return "Vence amanhã";
+  return `Vence em ${dias} dias`;
+}
+
 /** Texto do selo: "Vencido há 3 dias", "Vence hoje", "Vence em 45 dias", "Vigente"... */
 export function descricaoVigencia(s: SituacaoVigencia): string {
   switch (s.faixa) {
@@ -65,12 +74,8 @@ export function descricaoVigencia(s: SituacaoVigencia): string {
       return "Encerrado";
     case "vigente":
       return "Vigente";
-    case "vencido":
-      return `Vencido há ${plural(Math.abs(s.dias ?? 0), "dia", "dias")}`;
     default:
-      if (s.dias === 0) return "Vence hoje";
-      if (s.dias === 1) return "Vence amanhã";
-      return `Vence em ${s.dias} dias`;
+      return textoDias(s.dias ?? 0);
   }
 }
 

@@ -292,6 +292,13 @@ export const menuConfig: MenuSection[] = [
             permissions: ["contratos.visualizar", "contratos.criar", "contratos.editar"],
           },
           {
+            id: "contratos-vencimentos",
+            label: "Vencimentos",
+            route: "/contratos/vencimentos",
+            icon: CalendarDays,
+            permissions: ["contratos.visualizar", "contratos.criar", "contratos.editar"],
+          },
+          {
             id: "contratos-novo",
             label: "Novo contrato",
             route: "/contratos/lista?novo=1",

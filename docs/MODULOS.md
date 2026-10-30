@@ -192,15 +192,16 @@ escrita é por RPC `wf_*`).
 Licitações, aquisições e gestão contratual. Operados via
 `src/pages/processos/ComprasProcessoPage` e dashboards de módulo
 (`ComprasDashboardPage`, `ContratosDashboardPage`). Backend: `processos_licitatorios`,
-`contratos`, `atas_registro_preco`, `fornecedores`, etc. Atas SRP, fornecedores e as telas de execução, aditivos e
-vencimentos dos contratos ainda não existem (voltam no P20/P21, entregas C2 a C6). Os menus seguem
+`contratos`, `atas_registro_preco`, `fornecedores`, etc. Atas SRP, fornecedores e as telas de execução e fiscalização
+dos contratos ainda não existem (voltam no P20/P21, entregas C3 a C6); alterações e vencimentos chegaram na C2. Os menus seguem
 o ciclo: Compras tem PCA, Programação por natureza (`/compras/programacao`: disponível do QDD, reservado em
 processos e saldo livre), Processos de contratação e "Como funciona uma compra" (o guia `/processos/compras`, por
 último); Contratos tem o que vem depois do contrato assinado (a lista e a ficha dos contratos; as passagens aéreas
 foram para o Gabinete da Presidência, que emite os pedidos e confere as faturas, e o contrato da agência continua
-aqui). O painel de Contratos mostra os contratos em vigor, os que vencem em até 90 dias, os sem gestor ou fiscal e o
-valor em vigor (cada número abre a lista já filtrada); os atalhos levam à lista, à importação e aos processos de
-contratação, cada um só para quem tem a permissão; nenhum aponta mais para o guia de Compras.
+aqui). O painel de Contratos mostra os contratos em vigor, os que vencem em até 90 dias, os vencidos sem encerrar, os
+vencimentos sem providência, os sem gestor ou fiscal e o valor em vigor (cada número abre a lista ou a tela
+Vencimentos já filtrada); os atalhos levam à lista, aos vencimentos, à importação e aos processos de contratação, cada
+um só para quem tem a permissão; nenhum aponta mais para o guia de Compras.
 
 - **Contratos (entrega C1):** `/contratos/lista` lista os contratos com nº, processo SEI, objeto, contratado, setor,
   gestor, valor atual e vigência (selo de prazo), com filtros de situação e de prazo (em vigor, vence em até 30, 60, 90
@@ -211,6 +212,19 @@ contratação, cada um só para quem tem a permissão; nenhum aponta mais para o
   emitem a ficha em PDF, editam e apagam o rascunho. O contrato entra no localizador de processos do SEI. Cadastrar pede
   `contratos.criar`, alterar pede `contratos.editar` e só o rascunho se apaga
   ([spec](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)).
+- **Contratos (entrega C2):** a ficha ganha a aba **Alterações**: termo aditivo (prazo, valor e/ou objeto),
+  apostilamento (reajuste, repactuação, dotação, prorrogação pelo tempo suspenso), suspensão (com a retomada),
+  rescisão (unilateral, consensual ou judicial) e a "situação anterior ao sistema", cada uma com o processo e o
+  documento do SEI, a data e o DOE. O banco calcula o valor atual, o fim atual e a situação (rescindido, suspenso); o
+  cadastro não pede mais esses campos e ganha "Reforma". A aba mostra o quadro (inicial, acréscimos, supressões,
+  reajustes, atual; fim original, atual e limite de prorrogação) e avisa, sem bloquear, quando os acréscimos passam de
+  25% do valor inicial atualizado (50% em reforma, art. 125) ou o prazo passa do máximo. A tela
+  **Vencimentos** (`/contratos/vencimentos`) mostra o que venceu e o que vence em 30, 60, 90 e 120 dias e as garantias
+  que acabam antes, com a ação esperada (prorrogar, nova contratação, regularizar), o limite de prorrogação e a
+  providência registrada pelo NuAC (com o processo SEI; sai sozinha quando o aditivo de prazo é registrado), filtro
+  "Só sem providência" e planilha. O sino avisa "Contratos vencendo" ao gestor e aos fiscais dos contratos deles e a
+  quem tem `contratos.editar`. Registrar alteração e providência pede `contratos.editar`. Aviso por e-mail fica para
+  depois ([plano](./superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md)).
 
 ## Financeiro (`financeiro`)
 

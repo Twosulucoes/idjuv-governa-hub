@@ -713,6 +713,22 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   servidor de cada linha, sem CPF. A permissão nova vai para quem já tinha `rh.servidores.criar` (papéis, módulos e
   avulsas). Cargo, lotação e dados pessoais não vêm no arquivo. Testes no bloco "RH: servidores pelo arquivo da Seplan"
   de `scripts/db/testar-rls.sql`.
+- <a id="cargo-e-lotacao-pela-planilha-de-ocupantes-rh_importar_cargos_ocupantes"></a>**Cargo e lotação pela planilha
+  de ocupantes** (migração `20261116090000_rh_importar_cargos_ocupantes.sql`) — RPC `rh_importar_cargos_ocupantes(p_linhas,
+  p_arquivo, p_simular DEFAULT true)` (SECURITY DEFINER; perfil ativo, módulo `rh` e `rh.servidores.importar`, senão
+  `42501`; só `authenticated`), segunda etapa da carga inicial. Recebe por linha o servidor e a unidade já casados no
+  navegador (a planilha não tem CPF: nome igual ou o mais parecido sem empate, com aviso) e o cargo e símbolo como na
+  planilha. O cargo é achado pelo nome e símbolo (sem acento nem diferença de maiúscula; só pelo nome quando há um único
+  cargo com ele, com aviso); cargo fora do cadastro é erro (importe antes o Quadro de vagas). Cria o provimento `ativo`
+  (a vaga livre do cargo vem do gatilho `trg_provimento_vaga`) com a data de nomeação da portaria de nomeação do servidor
+  em `documentos` (categoria `nomeacao`, fora rascunho/minuta/revogada, do mesmo cargo ou sem cargo; vigência,
+  publicação ou data do ato) ou, sem portaria, 1º de janeiro do ano corrente com a observação "a conferir"; e a lotação
+  na unidade quando o servidor não tem lotação ativa (com o ato da portaria e o município na observação). Provimento em
+  vigor no mesmo cargo fica como está; em outro cargo vira aviso e a linha não muda nada; lotação ativa em outra unidade
+  também só avisa. Tudo ou nada (`p_simular` desfaz no fim); servidor repetido é erro da linha. Log em `importacoes`
+  (`tipo` `cargos_ocupantes`, módulo `rh`) com totais, quantas datas ficaram a conferir e, por linha, servidor e
+  provimento. Nenhuma tabela, policy ou permissão nova. Testes no bloco "RH: cargo e lotação pela planilha de ocupantes"
+  de `scripts/db/testar-rls.sql`.
 - **Arquivo guardado** — colunas `arquivo_path` (`<remessa_id>.rem` no bucket privado `remessas-cnab`) e
   `arquivo_sha256` (64 dígitos hex minúsculos). Gravadas juntas, de nulo para valor, **uma vez**, depois do INSERT, e só
   por quem: tem o módulo `rh` e `financeiro.folha.processar` (`42501`), **gerou a remessa** (`gerado_por`, fixado pela
@@ -1186,7 +1202,7 @@ Todas idempotentes.
     por processo) e `programacao_por_natureza` (QDD × reservas por combinação, com os processos);
   - sem permissão nova; RLS classe `preservar` nas duas tabelas (policies na migração); testes no bloco
     "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
-- **Modelos do Gerador de relatórios** (`20261116090000_relatorios_modelos.sql`, spec
+- **Modelos do Gerador de relatórios** (`20261117090000_relatorios_modelos.sql`, spec
   [2026-10-30-gerador-relatorios-design.md](./superpowers/specs/2026-10-30-gerador-relatorios-design.md)):
   - `relatorios_modelos`: um modelo por linha com `modulo`, `fonte` (id do catálogo do front), `nome`, `descricao`,
     `configuracao` jsonb (colunas, filtros, agrupamentos, totais, ordem; nunca dados, até 64 KB), `compartilhado`
@@ -1248,7 +1264,8 @@ Todas idempotentes.
   - `localizar_processos_sei(p_termo, p_limite default 50)` (INVOKER, cada fonte com a RLS dela): busca pelo nº (chave
     normalizada, ou os dígitos quando o termo só tem número) ou por palavras em `processos_administrativos`,
     `processos_licitatorios`, `passagem_pedidos`, `pca_itens`, `fin_empenhos`, `documentos`, `termos_cessao` e
-    `viagens_diarias` (e `contratos` desde a migração `20261104090000`); termo com menos de 3 caracteres não devolve
+    `viagens_diarias` (e `contratos` desde a migração `20261104090000`, com o processo das alterações e da renovação
+    desde a `20261115090000`); termo com menos de 3 caracteres não devolve
     nada; limite de 1 a 200;
   - `processos_parados(p_dias default 15)` (INVOKER): contratação fora de encerrado/cancelado e processo do workflow
     aberto ou em tramitação sem movimentação há mais de N dias (por `current_date`), até 200;
@@ -1401,7 +1418,8 @@ Cópia, só para leitura, do que o Transferegov publica sobre o CNPJ da institui
 `processos_licitatorios`, `itens_processo_licitatorio`, `itens_licitacao`,
 `propostas_licitacao`, `documentos_preparatorios_licitacao`, `atas_registro_preco`,
 `itens_ata_registro_preco`, `fornecedores`, `contratos`, `itens_contrato`,
-`aditivos_contrato`, `medicoes_contrato`.
+`contrato_responsaveis`, `contrato_alteracoes` (no lugar de `aditivos_contrato` desde a migração `20261115090000`),
+`medicoes_contrato`.
 
 **Passagens aéreas (entrega 1, migração `20261031090000_contratos_passagens.sql`).** Controle e cadastro; o ato
 (aprovação do Presidente, pedido à agência) continua no SEI e aqui fica só o registro.
@@ -1541,6 +1559,52 @@ os pedidos e confere as faturas; o contrato da agência continua do setor de Con
   módulo Compras ou Contratos; gravar pede `contratos.criar` ou `contratos.editar` (em `contratos` também
   `contratos.passagens.editar`, que o gatilho limita a marcar o contrato da agência); apagar pede `contratos.editar`.
   Decisão do dono em 27/10/2026. Testes no bloco "Contratos C1" de `scripts/db/testar-rls.sql`.
+
+**Contratos C2: alterações e vencimentos (migração `20261115090000_contratos_c2_alteracoes.sql`).** Spec
+[2026-10-27-contratos-gestao-completa-design.md](./superpowers/specs/2026-10-27-contratos-gestao-completa-design.md)
+(§4, C2) e plano [2026-10-30-contratos-c2-alteracoes-vencimentos.md](./superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md).
+O ato (termo aditivo, apostila, termo de rescisão) continua no SEI; aqui fica o registro, com o nº do processo e do
+documento.
+- `contrato_alteracoes` (substitui `aditivos_contrato`, que não tinha tela; as linhas foram copiadas e a tabela e o tipo
+  `tipo_aditivo` saíram): `especie` `aditivo` (muda prazo, valor e/ou objeto, com `nova_data_fim`, `valor_acrescimo`,
+  `valor_supressao`), `apostilamento` (`motivo` reajuste, repactuação, dotação, prorrogação pelo tempo suspenso ou
+  outro; `valor_variacao`, `percentual`, `indice`; só a prorrogação pela suspensão traz `nova_data_fim`), `suspensao`
+  (`data_inicio` e `data_retomada`), `rescisao` (`data_inicio` é o dia em que terminou; `motivo` unilateral,
+  consensual ou judicial) e `partida` ("situação anterior ao sistema": a diferença de valor e o fim que já vinham
+  alterados). Cada uma tem `processo_sei` (vazio herda o do contrato), `documento_sei`, `data_assinatura`,
+  `data_publicacao_doe`, `numero_doe`, `descricao`, `justificativa` e `fundamento_legal`. Aditivo e apostilamento são
+  numerados por espécie (1º, 2º…); uma rescisão, uma partida e uma suspensão em aberto por contrato (índices únicos);
+  CHECKs amarram os campos de cada espécie (a diferença de valor do apostilamento só vale em reajuste, repactuação e
+  outro).
+- `contrato_alteracoes_preparar` (gatilho, INVOKER): autoria pelo banco; a alteração não muda de contrato nem de
+  espécie (errou: apaga e registra de novo); contrato em
+  rascunho não recebe alteração; depois da rescisão só ela se corrige; nenhuma data antes do início do contrato
+  (`22023`). `contrato_alteracoes_aplicar` (SECURITY DEFINER) regrava o contrato para o recálculo e o devolve a
+  vigente quando a rescisão sai ou a suspensão termina. Trilha em `audit_log_licitacoes`.
+- `contratos_preparar` (passa a SECURITY DEFINER, para ler todas as alterações qualquer que seja a RLS de quem grava):
+  `valor_atual` = inicial + acréscimos − supressões ± variações; `data_fim_atual` = data da rescisão, ou a nova data da
+  alteração mais recente (a partida conta como a mais antiga), ou `data_fim`; rescisão deixa `rescindido` e suspensão
+  em aberto deixa `suspenso`, e sem elas ninguém põe o contrato nessas situações (`22023`; o que já estava assim fica).
+  O valor e o fim atuais não se digitam mais.
+- `contratos` ganha `reforma` (limite de acréscimo de 50% em vez de 25%, art. 125) e a providência do vencimento:
+  `renovacao_providencia` (`prorrogar`, `nova_contratacao`, `encerrar`), `renovacao_processo_sei`,
+  `renovacao_observacao` e `renovacao_atualizada_em` (carimbada pelo gatilho; o cliente não a forja). O cadastro não
+  traz providência, e quando o fim atual vai para depois o gatilho a limpa. Gravar a providência é alterar o contrato: pede `contratos.editar`
+  (`contratos_conferir_permissao`).
+- Carga: as linhas de `aditivos_contrato` viraram aditivos e apostilamentos (numerados de novo por contrato e espécie);
+  quando a nova data do aditivo mais recente não batia com o fim atual gravado, as datas antigas foram só para o texto.
+  O contrato cujo valor atual ou fim atual gravado difere do que as alterações dão ganhou a partida com a diferença,
+  então nenhum número mudou (a migração avisa quantos ainda divergem; o esperado é nenhum).
+- `contratos_meus_vencimentos()` (SECURITY DEFINER, `authenticated`): o sino. Contratos vigentes, aditados ou
+  suspensos que vencem em até 120 dias (ou já venceram), do gestor e dos fiscais em exercício (pelo `servidor_id` do
+  perfil) e, para quem tem `contratos.editar` com o módulo, todos; devolve só nº, objeto resumido, fim, dias, papéis e
+  se a pessoa abre a ficha; até 50, primeiro o que ainda vai vencer e depois os vencidos.
+- `contratos_importar_planilha`: contrato novo com valor atual diferente do inicial ganha a partida com a diferença
+  (rascunho fica só com o inicial, com aviso).
+- `localizar_processos_sei`: o processo SEI de uma alteração e o da renovação também levam ao contrato.
+- RLS (classe `permissao`, decisão do dono em 30/10/2026): `contrato_alteracoes` é lida com o módulo Compras ou
+  Contratos; registrar, corrigir e apagar pedem `contratos.editar`. Testes no bloco "Contratos C2" de
+  `scripts/db/testar-rls.sql`.
 
 ### Processos administrativos (workflow)
 `processos_administrativos`, `movimentacoes_processo`, `documentos_processo`,

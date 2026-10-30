@@ -7,7 +7,7 @@
  * Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md (C1, importar planilha)
  */
 
-import { SITUACOES_CONTRATO, TIPOS_CONTRATO } from "@/types/contratos";
+import { SITUACOES_CONTRATO, SITUACOES_PELAS_ALTERACOES, TIPOS_CONTRATO } from "@/types/contratos";
 import {
   cabecalhosIgnorados,
   campoDoCabecalho,
@@ -285,6 +285,9 @@ export function interpretarContratosPlanilha({ cabecalhos, linhas: brutas }: Pla
     if (tipo === undefined) erro(`tipo "${t("tipo_contrato")}" desconhecido.`);
     const situacao = daLista(SITUACOES_CONTRATO, t("situacao"));
     if (situacao === undefined) erro(`situação "${t("situacao")}" desconhecida.`);
+    else if (situacao && SITUACOES_PELAS_ALTERACOES.has(situacao)) {
+      erro(`situação "${t("situacao")}" não se importa: cadastre como vigente e registre a suspensão ou a rescisão na aba Alterações da ficha.`);
+    }
     const prorrogavel = paraSimNao(t("prorrogavel"));
     if (prorrogavel === undefined) erro(`"Prorrogável" deve ser sim ou não (veio "${t("prorrogavel")}").`);
     const prazoTexto = t("prazo_maximo_meses");

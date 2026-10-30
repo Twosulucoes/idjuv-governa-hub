@@ -307,7 +307,7 @@ A migração `20261109090000_importacao_permissao_execucao.sql` (importações p
 `financeiro.execucao.importar` e rótulo de `orcamento.importar`); RLS, `rls/mapa.csv` e privilégios sem mudança. Testes
 nos blocos do FIP 614 e dos PEDs de `scripts/db/testar-rls.sql`.
 
-A migração `20261116090000_relatorios_modelos.sql` (modelos do Gerador de relatórios) entrou no schema regenerado
+A migração `20261117090000_relatorios_modelos.sql` (modelos do Gerador de relatórios) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança) e no `rls/mapa.csv` (`relatorios_modelos` na classe
 `preservar`, policies na migração); overlay sem mudança. Testes no bloco "Modelos do gerador de relatórios" de
 `scripts/db/testar-rls.sql`.
@@ -344,6 +344,15 @@ policies antigas `comp_module_*` de `contratos` seguem em `remover_policies`) e 
 `contratos_preparar`, `contratos_conferir_permissao` e `contrato_resp_preparar` sem EXECUTE; `contrato_pode_gravar`,
 `contrato_buscar_servidores` e `contratos_importar_planilha` só para `authenticated`); testes no bloco "Contratos C1" de
 `scripts/db/testar-rls.sql` (com os gatilhos ligados), que usam a persona, o fornecedor e o servidor já semeados.
+
+A migração `20261115090000_contratos_c2_alteracoes.sql` (contratos, entrega C2) entrou no schema regenerado
+(`01_pre_data.sql` e `03_post_data.sql`; catálogo sem mudança), no `rls/mapa.csv` (sai `aditivos_contrato`, que a
+migração apaga depois de copiar as linhas; entra `contrato_alteracoes` na classe `permissao` com
+`escrita=contratos.editar` e `excluir=contratos.editar`), no `overlay/40_privilegios.sql` (gatilhos
+`contrato_alteracoes_preparar` e `contrato_alteracoes_aplicar` sem EXECUTE; `contratos_meus_vencimentos` só para
+`authenticated`) e nos dados de demonstração (`dados-demo/04_compras_processos.sql`: os aditivos viraram alterações,
+com um apostilamento e uma rescisão, e o valor e o fim atuais deixaram de ser acertados à mão). Testes no bloco
+"Contratos C2" de `scripts/db/testar-rls.sql` (com os gatilhos ligados).
 
 A migração `20261103090000_contratos_passagens_faturas.sql` (passagens aéreas, entrega 3) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`), no catálogo (`02_dados_catalogo.sql`: só a linha de
@@ -618,3 +627,8 @@ regenerado (`01_pre_data.sql`: `rh_importar_servidores_sigrh`; `03_post_data.sql
 `rh.servidores.importar` no catálogo e nos papéis `admin` e `manager`, os que já tinham `rh.servidores.criar`; o resto
 da regeneração do catálogo só trocava ids e datas e foi descartado). RLS e `rls/mapa.csv` sem mudança. Testes no
 bloco "RH: servidores pelo arquivo da Seplan" de `scripts/db/testar-rls.sql`.
+
+A migração `20261116090000_rh_importar_cargos_ocupantes.sql` (cargo e lotação pela planilha de ocupantes) entrou no
+`01_pre_data.sql` (`rh_importar_cargos_ocupantes`) e no `overlay/40_privilegios.sql` (`EXECUTE` só para
+`authenticated`). Usa a permissão `rh.servidores.importar` da migração anterior: catálogo, RLS e `rls/mapa.csv` sem
+mudança. Testes no bloco "RH: cargo e lotação pela planilha de ocupantes" de `scripts/db/testar-rls.sql`.

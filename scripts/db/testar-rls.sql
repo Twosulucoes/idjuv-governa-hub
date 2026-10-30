@@ -129,6 +129,8 @@ INSERT INTO seed_ov VALUES
   ('fin_tg_sincronizacoes', '{"cnpj":"00000000000191"}'),
   ('fin_tg_mudancas', '{"entidade":"proposta","tipo":"novo","campo":null}'),
   ('fin_tg_movimentos', '{"tipo":"empenho"}'),
+  -- alteração do contrato (migração 20261115090000): a situação anterior ao sistema é a de menos campos obrigatórios
+  ('contrato_alteracoes', '{"especie":"partida","valor_variacao":1,"descricao":"Semente"}'),
   -- diárias do FIPLAN (migração 20261113090000): documentos com 17 dígitos; sem LIQ/NOB nem período
   ('fin_diarias_fiplan', '{"empenho_numero":"17302000199000001","liquidacao_numero":null,"nob_numero":null,"data_saida":null,"data_retorno":null}');
 -- Segunda linha (B) de tabelas semeadas em dupla sem servidor_id (classe permissao;filho=): valores que
@@ -6812,8 +6814,8 @@ END $$;
 -- Banco anterior à migração: o bloco reprova sem abortar.
 DO $$
 DECLARE
-  u_fin uuid := 'a0000000-0000-0000-0000-0000000007c1';   -- módulo financeiro + orcamento.importar
-  u_lei uuid := 'a0000000-0000-0000-0000-0000000007c2';   -- módulo financeiro sem a permissão
+  u_fin uuid := 'a0000000-0000-0000-0000-0000000007d1';   -- módulo financeiro + orcamento.importar
+  u_lei uuid := 'a0000000-0000-0000-0000-0000000007d2';   -- módulo financeiro sem a permissão
   u_rhp uuid := 'a0000000-0000-0000-0000-0000000007c3';   -- a permissão no módulo rh, sem o financeiro
   fn text := 'public.importar_classificadores_fiplan(text, integer, jsonb, jsonb, boolean)';
   arq text := jsonb_build_object('nome', 'fonte.xls', 'sha256', repeat('cd', 32), 'tamanho', 1024)::text;
@@ -7656,6 +7658,121 @@ BEGIN
   PERFORM pg_temp.ls_sistema();
   UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
   PERFORM pg_temp.nota('SERVIDORES SIGRH: permissão, simulação sem gravar, criação pelo CPF com autoria, log sem CPF, conta atualizada sem trocar matrícula e endereço só com o arquivo inteiro válido verificados');
+END $$;
+
+-- ---------------------------------------------------------------- RH: cargo e lotação pela planilha de ocupantes (migração 20261116090000)
+--   * rh_importar_cargos_ocupantes: anon e PUBLIC sem EXECUTE; sem rh.servidores.importar recusa (42501);
+--   * cargo que não está no quadro é erro da linha e nada é gravado;
+--   * simulação não grava; aplicação cria o provimento ativo com vaga do quadro e a lotação: com portaria de
+--     nomeação, a data dela; sem portaria, 1º de janeiro marcado "a conferir"; log em importacoes;
+--   * de novo: sem alteração; cargo diferente do provimento em vigor só avisa.
+CREATE FUNCTION pg_temp.co_chamar(p_uid uuid, p_linhas jsonb, p_simular boolean) RETURNS text
+LANGUAGE sql AS $$
+  SELECT pg_temp.valor_como(p_uid, 'authenticated', format(
+    'SELECT public.rh_importar_cargos_ocupantes(%L::jsonb, %L::jsonb, %L)::text', p_linhas,
+    jsonb_build_object('nome', 'ocupantes.xlsx', 'sha256', repeat('cd', 32), 'tamanho', 4096), p_simular))
+$$;
+
+DO $$
+DECLARE
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000007f1';   -- módulo rh + rh.servidores.importar
+  u_sem uuid := 'a0000000-0000-0000-0000-0000000007f2';   -- módulo rh sem a permissão
+  s_a uuid := 'f6000000-0000-0000-0000-0000000000a1';
+  s_b uuid := 'f6000000-0000-0000-0000-0000000000a2';
+  s_c uuid := 'f6000000-0000-0000-0000-0000000000a3';
+  c_ch uuid := 'f6000000-0000-0000-0000-0000000000c1';
+  c_ou uuid := 'f6000000-0000-0000-0000-0000000000c2';
+  un uuid := 'f6000000-0000-0000-0000-0000000000e1';
+  fn text := 'public.rh_importar_cargos_ocupantes(jsonb, jsonb, boolean)';
+  linhas jsonb; r text; j jsonb; modo_rh text; p record; n int;
+BEGIN
+  IF to_regprocedure(fn) IS NULL THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: ' || fn || ' não existe');
+    RETURN;
+  END IF;
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'co_imp@teste.invalid'), (u_sem, 'co_sem@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_imp, u_sem);
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_imp, 'rh', '{rh.servidores.importar,rh.servidores.visualizar}'),
+    (u_sem, 'rh', '{rh.servidores.visualizar,rh.servidores.criar}');
+  SELECT modo INTO modo_rh FROM public.regra_lancamento WHERE modulo = 'rh';
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = 'registrar' WHERE modulo = 'rh';
+  INSERT INTO public.servidores (id, nome_completo, cpf, vinculo, situacao, ativo) VALUES
+    (s_a, 'OCUPANTE TESTE A', '00000090101', 'comissionado', 'ativo', true),
+    (s_b, 'OCUPANTE TESTE B', '00000090202', 'comissionado', 'ativo', true),
+    (s_c, 'OCUPANTE TESTE C', '00000090303', 'comissionado', 'ativo', true);
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, quantidade_vagas) VALUES
+    (c_ch, 'Chefe de Núcleo Teste', 'CDS-T', 'comissionado', 'comissionado', 2),
+    (c_ou, 'Outro Cargo Teste', 'CNES-T', 'comissionado', 'comissionado', 1);
+  INSERT INTO public.vagas_cargo (codigo, cargo_id, data_criacao) VALUES
+    ('CDS-T.001', c_ch, '2026-01-01'), ('CDS-T.002', c_ch, '2026-01-01'), ('CNES-T.001', c_ou, '2026-01-01');
+  INSERT INTO public.estrutura_organizacional (id, nome, sigla, tipo, ativo)
+    VALUES (un, 'Núcleo de Teste Ocupantes', 'NUTO', (enum_range(NULL::public.tipo_unidade))[1], true);
+  INSERT INTO public.documentos (numero, titulo, tipo, status, categoria, data_documento, data_publicacao, doe_numero, doe_data, servidores_ids)
+    VALUES ('777/2026', 'Nomeia ocupante A', 'portaria', 'publicado', 'nomeacao', '2026-02-03', '2026-02-05', '5100', '2026-02-05', ARRAY[s_a]);
+
+  -- ===== quem chama
+  IF has_function_privilege('anon', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('CARGOS OCUPANTES: anon executa ' || fn); END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc pr, aclexplode(coalesce(pr.proacl, acldefault('f', pr.proowner))) a
+              WHERE pr.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: PUBLIC executa ' || fn);
+  END IF;
+  linhas := jsonb_build_array(
+    jsonb_build_object('indice', 0, 'linha', 2, 'servidor_id', s_a, 'cargo', 'CHEFE DE NUCLEO TESTE', 'simbolo', 'CDS-T',
+                       'unidade_id', un, 'municipio', 'BV'),
+    jsonb_build_object('indice', 1, 'linha', 3, 'servidor_id', s_b, 'cargo', 'chefe de núcleo teste', 'simbolo', 'cds-t'));
+  r := pg_temp.co_chamar(u_sem, linhas, true);
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('CARGOS OCUPANTES: sem rh.servidores.importar importa (' || r || ')'); END IF;
+
+  -- ===== cargo fora do quadro trava tudo
+  r := pg_temp.co_chamar(u_imp, linhas || jsonb_build_array(jsonb_build_object('indice', 2, 'servidor_id', s_c,
+         'cargo', 'CARGO INEXISTENTE', 'simbolo', 'X')), false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR jsonb_array_length(j -> 'erros') < 1 OR (j -> 'erros')::text NOT LIKE '%Quadro de vagas%'
+     OR EXISTS (SELECT 1 FROM public.provimentos WHERE servidor_id IN (s_a, s_b, s_c)) THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: cargo fora do quadro deveria travar a gravação (' || r || ')');
+  END IF;
+
+  -- ===== simulação não grava; aplicação cria provimento, vaga e lotação
+  r := pg_temp.co_chamar(u_imp, linhas, true);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR (j -> 'totais' ->> 'inserir')::int <> 2
+     OR EXISTS (SELECT 1 FROM public.provimentos WHERE servidor_id IN (s_a, s_b)) THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: simulação deveria prever 2 nomeações sem gravar (' || r || ')');
+  END IF;
+  r := pg_temp.co_chamar(u_imp, linhas, false);
+  SELECT pr.data_nomeacao, pr.status, pr.vaga_id, pr.unidade_id, pr.created_by INTO p
+    FROM public.provimentos pr WHERE pr.servidor_id = s_a AND pr.cargo_id = c_ch;
+  IF p.data_nomeacao IS DISTINCT FROM '2026-02-05'::date OR p.status <> 'ativo' OR p.vaga_id IS NULL
+     OR p.unidade_id IS DISTINCT FROM un OR p.created_by IS DISTINCT FROM u_imp
+     OR NOT EXISTS (SELECT 1 FROM public.lotacoes WHERE servidor_id = s_a AND unidade_id = un AND ativo
+                     AND data_inicio = '2026-02-05' AND ato_numero = '777/2026') THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: ocupante com portaria não nomeado como esperado (' || r || ')');
+  END IF;
+  SELECT pr.data_nomeacao, pr.observacoes, pr.vaga_id INTO p
+    FROM public.provimentos pr WHERE pr.servidor_id = s_b AND pr.cargo_id = c_ch AND pr.status = 'ativo';
+  IF p.data_nomeacao IS DISTINCT FROM make_date(extract(year FROM public.data_local())::int, 1, 1)
+     OR p.observacoes NOT LIKE '%a conferir%' OR p.vaga_id IS NULL
+     OR EXISTS (SELECT 1 FROM public.lotacoes WHERE servidor_id = s_b) THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: ocupante sem portaria deveria entrar em 1º de janeiro, a conferir, sem lotação (' || r || ')');
+  END IF;
+  SELECT count(*) INTO n FROM public.importacoes WHERE tipo = 'cargos_ocupantes' AND modulo = 'rh'
+     AND (resumo ->> 'data_a_conferir')::int = 1;
+  IF n <> 1 THEN PERFORM pg_temp.falha('CARGOS OCUPANTES: log em importacoes ausente'); END IF;
+
+  -- ===== de novo: sem alteração; outro cargo só avisa
+  r := pg_temp.co_chamar(u_imp, jsonb_set(linhas, '{1,cargo}', '"OUTRO CARGO TESTE"') #- '{1,simbolo}', false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR (j -> 'totais' ->> 'sem_alteracao')::int <> 2 OR (j -> 'linhas' -> 1 -> 'avisos')::text NOT LIKE '%Já está nomeado%'
+     OR EXISTS (SELECT 1 FROM public.provimentos WHERE servidor_id = s_b AND cargo_id = c_ou) THEN
+    PERFORM pg_temp.falha('CARGOS OCUPANTES: reimportação deveria ficar sem alteração e só avisar a troca de cargo (' || r || ')');
+  END IF;
+
+  PERFORM pg_temp.ls_sistema();
+  UPDATE public.regra_lancamento SET modo = modo_rh WHERE modulo = 'rh';
+  PERFORM pg_temp.nota('CARGOS OCUPANTES: permissão, cargo fora do quadro travando tudo, simulação sem gravar, provimento com vaga e data da portaria (ou 1º de janeiro a conferir), lotação, log e reimportação sem alteração verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Financeiro: empenhos do FIPLAN (FIP 614)
@@ -9506,7 +9623,250 @@ BEGIN
   PERFORM pg_temp.nota('DIÁRIAS FIPLAN: importar só com financeiro.execucao.importar, simulação não grava, reimportar não muda e atualiza a PC, outro exercício recusado, servidor pelo nome e viagem pela saída, leitura (Financeiro, RH, o próprio servidor) verificados');
 END $$;
 
--- ---------------------------------------------------------------- Modelos do gerador de relatórios (migração 20261116090000)
+-- ---------------------------------------------------------------- Contratos C2: alterações e vencimentos (migração 20261115090000) (TRIGGERS LIGADOS)
+-- Migração 20261115090000_contratos_c2_alteracoes.sql (plano docs/superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md):
+--   * alteração (aditivo, apostilamento, suspensão, rescisão, partida): só contratos.editar registra, corrige e apaga
+--     (módulo e criar = 42501 ou 0 linhas); forma conferida por CHECK (23514); contrato rascunho e troca de contrato = 22023;
+--     autoria pelo banco; trilha em audit_log_licitacoes;
+--   * valor atual, fim atual e situação saem das alterações (o cliente não grava à mão): aditivo de prazo e valor,
+--     apostila de reajuste para baixo, partida única (23505), suspensão (suspenso; segunda em aberto = 22023; retomada
+--     volta a vigente), rescisão (rescindido, fim na data dela, alteração nova = 22023; apagada volta a vigente);
+--     quem só marca o contrato da agência (passagens) não zera o valor;
+--   * espécie da alteração não muda (22023); diferença de valor só no apostilamento de reajuste, repactuação ou outro;
+--   * situação suspenso/rescindido sem a alteração = 22023 (cadastro e edição);
+--   * providência de renovação: editar grava (nº SEI aparado, data carimbada), criar e passagens não; o cadastro não a
+--     traz e a data não se forja; prorrogar limpa;
+--   * sino (contratos_meus_vencimentos): o fiscal sem módulo vê o seu contrato (sem abrir a ficha), perfil inativo não
+--     vê, o módulo sem editar não vê, editar vê todos, anon não executa;
+--   * localizador: processo SEI da alteração leva ao contrato; importação de contrato novo com valor atual diferente
+--     do inicial grava a partida.
+DO $$
+DECLARE
+  u_criar uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.criar');
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.editar');
+  u_pass uuid := (SELECT uid FROM persona WHERE nome = 'perm_contratos.passagens.editar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_contratos');
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome = 'nenhum');
+  u_admin uuid := (SELECT uid FROM persona WHERE nome = 'admin');
+  u_srv uuid := (SELECT uid FROM persona WHERE nome = 'srv_a');
+  forn uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'fornecedores');
+  srv uuid;
+  hoje date := (now() AT TIME ZONE 'America/Boa_Vista')::date;
+  ins text; ct uuid; rasc uuid; sino uuid; adit uuid; susp uuid; resc uuid; r text; x text; j jsonb; arq jsonb; ativo boolean;
+  alt text := 'INSERT INTO public.contrato_alteracoes (contrato_id, especie, numero, altera_prazo, altera_valor, '
+    || 'nova_data_fim, valor_acrescimo, valor_supressao, valor_variacao, motivo, data_inicio, descricao, data_assinatura, '
+    || 'processo_sei) VALUES (%L, %L, %s, %s, %s, %s, %s, 0, %s, %s, %s, ''Teste'', ''2099-02-01'', %s) RETURNING id::text';
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.contrato_alteracoes_preparar()', 'public.contrato_alteracoes_aplicar()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('CONTRATOS C2: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  IF has_function_privilege('anon', 'public.contratos_meus_vencimentos()', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: anon executa contratos_meus_vencimentos');
+  END IF;
+  IF NOT (SELECT bool_and(p.prosecdef) FROM pg_proc p WHERE p.oid IN ('public.contratos_preparar()'::regprocedure,
+            'public.contrato_alteracoes_aplicar()'::regprocedure, 'public.contratos_meus_vencimentos()'::regprocedure)) THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: recálculo ou sino sem SECURITY DEFINER');
+  END IF;
+  IF to_regclass('public.aditivos_contrato') IS NOT NULL THEN PERFORM pg_temp.falha('CONTRATOS C2: aditivos_contrato ainda existe'); END IF;
+  srv := (SELECT servidor_id FROM public.profiles WHERE id = u_srv);
+  IF u_criar IS NULL OR u_ed IS NULL OR u_pass IS NULL OR forn IS NULL OR srv IS NULL
+     OR NOT EXISTS (SELECT 1 FROM public.servidores WHERE id = srv) THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: persona, fornecedor ou servidor ausente'); RETURN;
+  END IF;
+  UPDATE public.servidores SET ativo = true WHERE id = srv;
+
+  ins := format('INSERT INTO public.contratos (numero_contrato, ano, fornecedor_id, objeto, valor_inicial, valor_atual, '
+    || 'data_assinatura, data_inicio, data_fim, data_fim_atual, status, processo_sei) VALUES (''C2-01'', 2099, %L, ''Vigilância'', 1000, 5555, '
+    || '''2099-01-01'', ''2099-01-01'', ''2099-12-31'', ''2101-01-01'', ''vigente'', ''99999.000888/2099.22'') RETURNING id::text', forn);
+  r := pg_temp.valor_como(u_criar, 'authenticated', ins);
+  IF r LIKE 'erro:%' OR r IS NULL THEN PERFORM pg_temp.falha('CONTRATOS C2: criar não cadastra (' || coalesce(r, 'nulo') || ')'); RETURN; END IF;
+  ct := r::uuid;
+  IF (SELECT (valor_atual, data_fim_atual, saldo_contrato) FROM public.contratos WHERE id = ct)
+     IS DISTINCT FROM (1000::numeric(15,2), DATE '2099-12-31', 1000::numeric(15,2)) THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: contrato novo aceitou valor atual ou fim atual do cliente');
+  END IF;
+
+  -- quem registra: só editar
+  x := format(alt, ct, 'aditivo', '1', 'true', 'true', '''2100-06-30''', '200', '0', 'NULL', 'NULL', 'NULL');
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', x);
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: módulo sem permissão registra aditivo (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_criar, 'authenticated', x);
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: criar registra aditivo (' || r || ')'); END IF;
+  r := pg_temp.valor_como(u_ed, 'authenticated', x);
+  IF r LIKE 'erro:%' OR r IS NULL THEN PERFORM pg_temp.falha('CONTRATOS C2: editar não registra aditivo (' || coalesce(r, 'nulo') || ')'); RETURN; END IF;
+  adit := r::uuid;
+  IF (SELECT (valor_atual, data_fim_atual, saldo_contrato) FROM public.contratos WHERE id = ct)
+     IS DISTINCT FROM (1200::numeric(15,2), DATE '2100-06-30', 1200::numeric(15,2)) THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: aditivo de prazo e valor não recalculou o contrato');
+  END IF;
+  IF (SELECT created_by FROM public.contrato_alteracoes WHERE id = adit) IS DISTINCT FROM u_ed THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: autoria da alteração não é do banco');
+  END IF;
+  IF (SELECT processo_sei FROM public.contrato_alteracoes WHERE id = adit) IS DISTINCT FROM '99999.000888/2099.22' THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: alteração sem processo não herdou o do contrato');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.audit_log_licitacoes WHERE tabela_origem = 'contrato_alteracoes' AND registro_id = adit) THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: alteração sem trilha em audit_log_licitacoes');
+  END IF;
+  -- forma e regras
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(alt, ct, 'aditivo', '2', 'true', 'false', 'NULL', '0', '0', 'NULL', 'NULL', 'NULL'));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: aditivo de prazo sem a nova data aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(alt, ct, 'aditivo', '1', 'false', 'true', 'NULL', '5', '0', 'NULL', 'NULL', 'NULL'));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: dois 1º aditivos aceitos (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(alt, ct, 'aditivo', '3', 'true', 'false', '''2098-06-30''', '0', '0', 'NULL', 'NULL', 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: nova data antes do início aceita (' || r || ')'); END IF;
+  rasc := pg_temp.valor_como(u_criar, 'authenticated', replace(replace(ins, 'C2-01', 'C2-02'), '''vigente''', '''rascunho'''))::uuid;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(alt, rasc, 'partida', 'NULL', 'false', 'false', 'NULL', '0', '10', 'NULL', 'NULL', 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: alteração em contrato rascunho aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contrato_alteracoes SET contrato_id = %L WHERE id = %L', rasc, adit));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: alteração mudou de contrato (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.contrato_alteracoes SET especie = ''apostilamento'', motivo = ''outro'' WHERE id = %L', adit));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: espécie da alteração mudou (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(alt, ct, 'apostilamento', '9', 'false', 'false', 'NULL', '0', '50', '''dotacao''', 'NULL', 'NULL'));
+  IF r NOT LIKE 'erro:23514:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: apostila de dotação mudou o valor (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('UPDATE public.contrato_alteracoes SET descricao = ''Outra'' WHERE id = %L', adit));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('CONTRATOS C2: criar corrige alteração (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('DELETE FROM public.contrato_alteracoes WHERE id = %L', adit));
+  IF r <> 'ok:0' THEN PERFORM pg_temp.falha('CONTRATOS C2: criar apaga alteração (' || r || ')'); END IF;
+
+  -- apostila de reajuste para baixo e partida única
+  r := pg_temp.valor_como(u_ed, 'authenticated', format(alt, ct, 'apostilamento', '1', 'false', 'false', 'NULL', '0', '-50', '''reajuste''', 'NULL', 'NULL'));
+  r := pg_temp.valor_como(u_ed, 'authenticated', format(alt, ct, 'partida', 'NULL', 'false', 'false', 'NULL', '0', '10', 'NULL', 'NULL', 'NULL'));
+  IF (SELECT valor_atual FROM public.contratos WHERE id = ct) IS DISTINCT FROM 1160::numeric(15,2) THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: apostila de reajuste e partida não somaram (' || (SELECT valor_atual FROM public.contratos WHERE id = ct) || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(alt, ct, 'partida', 'NULL', 'false', 'false', 'NULL', '0', '1', 'NULL', 'NULL', 'NULL'));
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: segunda partida aceita (' || r || ')'); END IF;
+
+  -- o cliente não grava valor nem fim à mão; passagens marca a agência sem zerar o valor
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.contratos SET valor_atual = 1, data_fim_atual = ''2099-02-01'' WHERE id = %L RETURNING valor_atual::text || ''|'' || data_fim_atual', ct));
+  IF r IS DISTINCT FROM '1160.00|2100-06-30' THEN PERFORM pg_temp.falha('CONTRATOS C2: valor ou fim gravado à mão (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_pass, 'authenticated', format(
+    'UPDATE public.contratos SET controla_passagens = true WHERE id = %L RETURNING valor_atual::text', ct));
+  IF r IS DISTINCT FROM '1160.00' THEN PERFORM pg_temp.falha('CONTRATOS C2: passagens marcou a agência e mudou o valor (' || coalesce(r, 'nulo') || ')'); END IF;
+
+  -- suspensão e retomada
+  r := pg_temp.valor_como(u_ed, 'authenticated', format(alt, ct, 'suspensao', 'NULL', 'false', 'false', 'NULL', '0', '0', 'NULL', '''2099-06-01''', 'NULL'));
+  IF r LIKE 'erro:%' OR (SELECT status FROM public.contratos WHERE id = ct) <> 'suspenso' THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: suspensão não suspendeu (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  susp := CASE WHEN r NOT LIKE 'erro:%' THEN r::uuid END;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(alt, ct, 'suspensao', 'NULL', 'false', 'false', 'NULL', '0', '0', 'NULL', '''2099-07-01''', 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: segunda suspensão em aberto aceita (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_ed, 'authenticated', format('UPDATE public.contrato_alteracoes SET data_retomada = ''2099-06-20'' WHERE id = %L', susp));
+  IF r <> 'ok' OR (SELECT status FROM public.contratos WHERE id = ct) <> 'vigente' THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: retomada não voltou a vigente (' || r || ')');
+  END IF;
+  -- suspenso e rescindido só pelas alterações
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('UPDATE public.contratos SET status = ''suspenso'' WHERE id = %L RETURNING status::text', ct));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: suspenso sem a suspensão registrada (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_criar, 'authenticated', replace(replace(ins, 'C2-01', 'C2-04'), '''vigente''', '''rescindido'''));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: cadastro já rescindido aceito (' || r || ')'); END IF;
+
+  -- providência de renovação
+  r := pg_temp.sql_como(u_criar, 'authenticated', format('UPDATE public.contratos SET renovacao_providencia = ''prorrogar'' WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: criar registra providência (' || r || ')'); END IF;
+  r := pg_temp.exec_como(u_ed, 'authenticated', format(
+    'UPDATE public.contratos SET renovacao_providencia = ''prorrogar'', renovacao_processo_sei = ''  99999.000999/2099.33  '' WHERE id = %L', ct));
+  IF r <> 'ok' OR (SELECT (renovacao_processo_sei, renovacao_atualizada_em IS NOT NULL) FROM public.contratos WHERE id = ct)
+                  IS DISTINCT FROM ('99999.000999/2099.33'::text, true) THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: providência sem aparar ou sem data (' || r || ')');
+  END IF;
+  r := pg_temp.sql_como(u_pass, 'authenticated', format('UPDATE public.contratos SET renovacao_providencia = ''encerrar'' WHERE id = %L', ct));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: passagens registra providência (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'UPDATE public.contratos SET renovacao_atualizada_em = ''2000-01-01'' WHERE id = %L RETURNING (renovacao_atualizada_em::date = DATE ''2000-01-01'')::text', ct));
+  IF r IS DISTINCT FROM 'false' THEN PERFORM pg_temp.falha('CONTRATOS C2: data da providência forjada (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_criar, 'authenticated', format('INSERT INTO public.contratos (numero_contrato, ano, fornecedor_id, objeto, '
+    || 'valor_inicial, data_assinatura, data_inicio, data_fim, status, renovacao_providencia, renovacao_processo_sei, renovacao_atualizada_em) '
+    || 'VALUES (''C2-03'', 2099, %L, ''Teste'', 10, ''2099-01-01'', ''2099-01-01'', ''2099-12-31'', ''vigente'', ''encerrar'', '
+    || '''99999.000777/2099.77'', ''2000-01-01'') RETURNING (renovacao_providencia IS NULL AND renovacao_processo_sei IS NULL '
+    || 'AND renovacao_atualizada_em IS NULL)::text', forn));
+  IF r IS DISTINCT FROM 'true' THEN PERFORM pg_temp.falha('CONTRATOS C2: cadastro já trouxe a providência (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated',
+    'SELECT string_agg(origem || '':'' || ref, '','') FROM public.localizar_processos_sei(''000999/99-33'')');
+  IF r IS DISTINCT FROM 'contrato:C2-01/2099' THEN PERFORM pg_temp.falha('LOCALIZADOR: contrato pelo processo da renovação (' || coalesce(r, 'nulo') || ')'); END IF;
+  -- o 2º aditivo prorroga (num processo próprio): a providência acaba e o processo leva ao contrato
+  r := pg_temp.valor_como(u_ed, 'authenticated', format(alt, ct, 'aditivo', '2', 'true', 'false', '''2101-06-30''', '0', '0', 'NULL', 'NULL', '''99999.000444/2099.44'''));
+  IF r LIKE 'erro:%' OR (SELECT (data_fim_atual, renovacao_providencia, renovacao_processo_sei) FROM public.contratos WHERE id = ct)
+                        IS DISTINCT FROM (DATE '2101-06-30', NULL::text, NULL::text) THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: prorrogação não moveu o fim ou não limpou a providência (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated',
+    'SELECT string_agg(origem || '':'' || ref, '','') FROM public.localizar_processos_sei(''000444/99-44'')');
+  IF r IS DISTINCT FROM 'contrato:C2-01/2099' THEN PERFORM pg_temp.falha('LOCALIZADOR: contrato pelo processo da alteração (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_nenhum, 'authenticated',
+    'SELECT count(*)::text FROM public.localizar_processos_sei(''000444/99-44'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('LOCALIZADOR: alteração vista sem o módulo (' || coalesce(r, 'nulo') || ')'); END IF;
+
+  -- rescisão
+  r := pg_temp.valor_como(u_ed, 'authenticated', format(alt, ct, 'rescisao', 'NULL', 'false', 'false', 'NULL', '0', '0', '''unilateral''', '''2099-08-01''', 'NULL'));
+  IF r LIKE 'erro:%' OR (SELECT (status::text, data_fim_atual) FROM public.contratos WHERE id = ct) IS DISTINCT FROM ('rescindido'::text, DATE '2099-08-01') THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: rescisão não rescindiu (' || coalesce(r, 'nulo') || ')');
+  END IF;
+  resc := CASE WHEN r NOT LIKE 'erro:%' THEN r::uuid END;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(alt, ct, 'aditivo', '3', 'false', 'true', 'NULL', '9', '0', 'NULL', 'NULL', 'NULL'));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: aditivo em contrato rescindido aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('UPDATE public.contratos SET status = ''vigente'' WHERE id = %L RETURNING status::text', ct));
+  IF r IS DISTINCT FROM 'rescindido' THEN PERFORM pg_temp.falha('CONTRATOS C2: rescindido voltou a vigente sem apagar a rescisão (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.exec_como(u_ed, 'authenticated', format('DELETE FROM public.contrato_alteracoes WHERE id = %L', resc));
+  IF r <> 'ok' OR (SELECT (status::text, data_fim_atual) FROM public.contratos WHERE id = ct) IS DISTINCT FROM ('vigente'::text, DATE '2101-06-30') THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: apagar a rescisão não desfez (' || r || ')');
+  END IF;
+  r := pg_temp.exec_como(u_ed, 'authenticated', format('DELETE FROM public.contrato_alteracoes WHERE id = %L', adit));
+  IF r <> 'ok' OR (SELECT valor_atual FROM public.contratos WHERE id = ct) IS DISTINCT FROM 960::numeric(15,2) THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: apagar o aditivo não desfez o acréscimo (' || r || ')');
+  END IF;
+
+  -- sino: o fiscal (servidor do perfil, sem o módulo) vê o seu contrato; módulo sem editar não vê; editar vê
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('INSERT INTO public.contratos (numero_contrato, ano, fornecedor_id, '
+    || 'objeto, valor_inicial, valor_atual, data_assinatura, data_inicio, data_fim, status) VALUES (''C2-SINO'', 2099, %L, '
+    || '''Limpeza'', 10, 10, %L, %L, %L, ''vigente'') RETURNING id::text', forn, hoje - 200, hoje - 200, hoje + 45));
+  IF r LIKE 'erro:%' OR r IS NULL THEN PERFORM pg_temp.falha('CONTRATOS C2: contrato do sino (' || coalesce(r, 'nulo') || ')'); RETURN; END IF;
+  sino := r::uuid;
+  r := pg_temp.valor_como(u_ed, 'authenticated', format('INSERT INTO public.contrato_responsaveis (contrato_id, servidor_id, papel, '
+    || 'data_inicio) VALUES (%L, %L, ''fiscal_tecnico'', %L) RETURNING id::text', sino, srv, hoje - 200));
+  IF r LIKE 'erro:%' THEN PERFORM pg_temp.falha('CONTRATOS C2: designar o fiscal do sino (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_srv, 'authenticated', format(
+    'SELECT string_agg(dias || '':'' || array_to_string(papeis, ''+'') || '':'' || abre_ficha, '','') FROM public.contratos_meus_vencimentos() WHERE contrato_id = %L', sino));
+  IF r IS DISTINCT FROM '45:fiscal_tecnico:false' THEN PERFORM pg_temp.falha('CONTRATOS C2: o fiscal não vê o seu contrato no sino (' || coalesce(r, 'nulo') || ')'); END IF;
+  ativo := (SELECT is_active FROM public.profiles WHERE id = u_srv);
+  UPDATE public.profiles SET is_active = false WHERE id = u_srv;
+  r := pg_temp.valor_desfeito_como(u_srv, 'authenticated', 'SELECT count(*)::text FROM public.contratos_meus_vencimentos()');
+  UPDATE public.profiles SET is_active = ativo WHERE id = u_srv;
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('CONTRATOS C2: perfil inativo vê o sino (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format(
+    'SELECT count(*)::text FROM public.contratos_meus_vencimentos() WHERE contrato_id = %L', sino));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('CONTRATOS C2: módulo sem editar vê contrato alheio no sino (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'SELECT string_agg(dias || '':'' || cardinality(papeis) || '':'' || abre_ficha, '','') FROM public.contratos_meus_vencimentos() WHERE contrato_id = %L', sino));
+  IF r IS DISTINCT FROM '45:0:true' THEN PERFORM pg_temp.falha('CONTRATOS C2: editar não vê os contratos que vencem (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', 'SELECT count(*)::text FROM public.contratos_meus_vencimentos() WHERE numero LIKE ''C2-01/%''');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('CONTRATOS C2: contrato que vence em mais de 120 dias no sino (' || coalesce(r, 'nulo') || ')'); END IF;
+
+  -- importação: contrato novo com valor atual diferente do inicial grava a partida (basta criar)
+  arq := '{"nome":"contratos-c2.xlsx","sha256":"' || repeat('b', 64) || '","tamanho":"10"}';
+  j := jsonb_build_array(jsonb_build_object('indice', 0, 'numero', 'IMP-C2', 'ano', '2099', 'documento', '11.222.333/0001-81',
+    'razao_social', 'Empresa Importada', 'objeto', 'Vigilância', 'valor_inicial', '1000', 'valor_atual', '1250',
+    'data_assinatura', '2099-01-10', 'data_inicio', '2099-01-10', 'data_fim', '2099-12-31'));
+  r := pg_temp.valor_como(u_criar, 'authenticated', format('SELECT public.contratos_importar_planilha(%L::jsonb, %L::jsonb, false)::text', j, arq));
+  IF r::jsonb->>'importacao_id' IS NULL
+     OR NOT EXISTS (SELECT 1 FROM public.contratos c JOIN public.contrato_alteracoes a ON a.contrato_id = c.id
+                     WHERE c.numero_contrato = 'IMP-C2' AND c.valor_inicial = 1000 AND c.valor_atual = 1250
+                       AND a.especie = 'partida' AND a.valor_variacao = 250)
+     OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(r::jsonb->'linhas'->0->'avisos') a(t) WHERE a.t LIKE '%situação anterior%') THEN
+    PERFORM pg_temp.falha('CONTRATOS C2: importação não gravou a partida (' || coalesce(r, 'nulo') || ')');
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('CONTRATOS C2: alterações só com editar (forma, rascunho, troca de contrato e de espécie, apostila sem diferença fora do reajuste, autoria, trilha), valor/fim/situação pelo banco (aditivo, apostila, partida única, suspensão e retomada, rescisão e desfazer, suspenso/rescindido só pelas alterações, passagens não zera), providência (editar, apara, criar e passagens não, cadastro sem providência, data não forjada, prorrogar limpa), sino (fiscal sem módulo, perfil inativo, módulo sem editar, editar), localizador e importação com partida verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Modelos do gerador de relatórios (migração 20261117090000)
 -- relatorios_modelos guarda só a configuração do relatório:
 --   * o autor lê, edita e apaga os seus; cria só em nome próprio e só no módulo a que tem acesso;
 --   * o compartilhado ("do setor") é lido por quem acessa o módulo, mas só o autor edita; o admin lê e apaga todos;
@@ -9522,7 +9882,7 @@ DECLARE
   r text;
 BEGIN
   IF to_regclass('public.relatorios_modelos') IS NULL THEN
-    PERFORM pg_temp.falha('RELATÓRIOS MODELOS: tabela da migração 20261116090000 não existe');
+    PERFORM pg_temp.falha('RELATÓRIOS MODELOS: tabela da migração 20261117090000 não existe');
     RETURN;
   END IF;
   INSERT INTO public.relatorios_modelos (id, modulo, fonte, nome, configuracao, compartilhado, criado_por) VALUES

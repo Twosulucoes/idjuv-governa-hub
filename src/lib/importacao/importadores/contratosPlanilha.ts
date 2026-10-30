@@ -5,13 +5,14 @@
  * módulo e a permissão `contratos.criar`, cadastra o contratado que falta (pelo CNPJ/CPF), designa gestor e fiscais
  * pela matrícula e grava tudo ou nada. Contrato que já existe (nº + ano) só tem os campos vazios completados, o que
  * exige também `contratos.editar`; designar gestor e fiscais pela matrícula basta `contratos.criar`. Nada é apagado.
- * Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md (C1)
+ * Desde a C2, o "Valor atual" diferente do inicial vira a "situação anterior ao sistema" (aba Alterações da ficha).
+ * Spec: docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md (C1 e C2)
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/formatters";
-import { SITUACOES_CONTRATO, TIPOS_CONTRATO } from "@/types/contratos";
+import { SITUACOES_CONTRATO, SITUACOES_PELAS_ALTERACOES, TIPOS_CONTRATO } from "@/types/contratos";
 import { baixarModeloPlanilha, lerPrimeiraAba } from "../planilha";
 import type { Importador, ResultadoBanco } from "../types";
 import {
@@ -27,6 +28,8 @@ const dataBR = (iso: string | null) => (iso ? iso.split("-").reverse().join("/")
 
 const CAMPOS_MODELO = Object.keys(CABECALHOS_MODELO) as CampoPlanilha[];
 const exemplo = (valores: Partial<Record<CampoPlanilha, string>>) => CAMPOS_MODELO.map((campo) => valores[campo] ?? "");
+// suspensão e rescisão se registram na aba Alterações (C2): a planilha não as aceita
+const SITUACOES_IMPORTAVEIS = SITUACOES_CONTRATO.filter((s) => !SITUACOES_PELAS_ALTERACOES.has(s.value));
 
 export const importadorContratosPlanilha: Importador<LinhaContratoPlanilha> = {
   id: "contratos_planilha",
@@ -39,7 +42,8 @@ export const importadorContratosPlanilha: Importador<LinhaContratoPlanilha> = {
   instrucoes:
     'Use o modelo abaixo (aba "Contratos"; exemplos e listas na aba "Como preencher"). O contratado que não estiver ' +
     "cadastrado entra pelo CNPJ ou CPF; gestor e fiscais, pela matrícula. Contrato que já existe só tem os campos " +
-    "vazios completados; nada é apagado.",
+    "vazios completados; nada é apagado. Valor atual diferente do inicial vira, na ficha, a linha \"Situação anterior " +
+    "ao sistema\" da aba Alterações; os aditivos seguintes se registram lá.",
   colunas: [
     { id: "contrato", rotulo: "Contrato", valor: (l) => `${l.numero}/${l.ano ?? "?"}` },
     { id: "contratado", rotulo: "Contratado", valor: (l) => l.razao_social ?? l.documento ?? "" },
@@ -111,9 +115,9 @@ export const importadorContratosPlanilha: Importador<LinhaContratoPlanilha> = {
             }),
             [],
             ["Tipo (use um destes)", "Situação (use uma destas)"],
-            ...Array.from({ length: Math.max(TIPOS_CONTRATO.length, SITUACOES_CONTRATO.length) }, (_, i) => [
+            ...Array.from({ length: Math.max(TIPOS_CONTRATO.length, SITUACOES_IMPORTAVEIS.length) }, (_, i) => [
               TIPOS_CONTRATO[i]?.label ?? "",
-              SITUACOES_CONTRATO[i]?.label ?? "",
+              SITUACOES_IMPORTAVEIS[i]?.label ?? "",
             ]),
           ],
         },
@@ -135,5 +139,5 @@ export const importadorContratosPlanilha: Importador<LinhaContratoPlanilha> = {
   },
 
   // Chaves de src/hooks/useContratos.ts e do painel do módulo
-  invalidar: [["contratos"], ["contrato"], ["contratos-dashboard-stats"]],
+  invalidar: [["contratos"], ["contrato"], ["contratos-dashboard-stats"], ["contratos-meus-vencimentos"]],
 };

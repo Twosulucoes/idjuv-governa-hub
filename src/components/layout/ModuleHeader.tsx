@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { Logo } from "@/components/ui/Logo";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { AvisosSino } from "@/components/avisos";
+import { AlternarTema } from "./AlternarTema";
 import { MODULES_CONFIG, type Modulo } from "@/shared/config/modules.config";
 import { cn } from "@/lib/utils";
 
@@ -48,8 +49,9 @@ export function ModuleHeader({ module, children }: ModuleHeaderProps) {
         )}
       </div>
 
-      {/* Right: User Menu */}
+      {/* Right: tema, avisos e User Menu */}
       <div className="flex items-center gap-2 sm:gap-4">
+        <AlternarTema />
         <AvisosSino />
         <UserMenu />
       </div>

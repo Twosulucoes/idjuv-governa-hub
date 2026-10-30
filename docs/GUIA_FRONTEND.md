@@ -136,6 +136,17 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   PDF e na planilha (`mascararDocumento` de `src/lib/bancario/comum.ts`). Valores digitados passam por `lerNumeroBr`
   (`src/lib/pca/numero.ts`), que desde a C1 lê "120.000" como milhar, como nos outros formulários de Compras. No menu do
   módulo, `algumaPermissao` (`ModuleMenuItem`) mostra o item para quem tem uma das permissões da rota.
+- **Contratos (entrega C2):** `useContratos` ganha `useAlteracoesContrato`, `useSalvarAlteracao` (na correção não
+  troca o contrato e confere que a linha mudou), `useRegistrarRetomada`, `useExcluirAlteracao` e `useSalvarProvidencia`;
+  `src/hooks/useContratosVencimentos.ts` tem `useVencimentos` (contratos em vigor que vencem em até 120 dias, já
+  venceram ou têm garantia vencendo) e `useMeusVencimentos` (RPC `contratos_meus_vencimentos`, usada pelo sino). Aba
+  `AlteracoesContratoTab` (quadro de valor e prazo, linha do tempo e avisos) com `AlteracaoFormDialog` (campos por
+  espécie e prévia do valor e do fim) e a retomada da suspensão; tela `ContratosVencimentosPage` com
+  `ProvidenciaRenovacaoDialog`. O `ContratoFormDialog` não pede mais valor atual nem fim atual (saem das alterações) e
+  ganha "Reforma". Regras puras com testes vitest: `src/lib/contratos/alteracoes.ts` (valor e fim calculados, limite de
+  prorrogação, percentuais de acréscimo e supressão sobre o valor inicial atualizado, avisos de limite, títulos e
+  efeitos de cada alteração, documento no SEI) e `src/lib/contratos/vencimentos.ts` (faixas, ação esperada, garantia vencendo, filtros,
+  resumo e planilha); `vigencia.ts` ganha `textoDias` e `lista.ts` conta os vencimentos sem providência.
 - **Localizador de processos do SEI** (`src/hooks/useLocalizadorSei.ts`: `useLocalizarProcessos(termo)`, com 300 ms de
   espera depois da última tecla e só com 3 caracteres ou mais, e `useProcessosParados()`): RPCs INVOKER
   `localizar_processos_sei` e `processos_parados`, tipadas pelo `types.ts` (a `origem` é estreitada para as fontes de `OrigemLocalizador`; o contrato entrou na C1). Chave do nº SEI em `src/lib/processos/numeroSei.ts` (espelha `sei_normalizar` do banco) e
@@ -293,13 +304,21 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
   `fichas-financeiras`, `contracheques-rh` e `meus-contracheques`. Regras de negócio:
   [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-a-folha-do-sigrh-importar_folha_sigrh).
 - `importadores/servidoresSigrh.ts` + `servidoresSigrhParser.ts` — arquivo de créditos bancários da Seplan (SIGRH) →
-  `rh_importar_servidores_sigrh` (`id` `servidores_sigrh`, módulo `rh`, permissão `rh.servidores.importar`; botão
-  "Importar do SIGRH" em RH → Servidores). Aceita o PDF "Relação de Crédito Bancário — Servidores Ativos" (matrícula,
+  `rh_importar_servidores_sigrh` (`id` `servidores_sigrh`, módulo `rh`, permissão `rh.servidores.importar`; menu
+  "Importar → Servidores do SIGRH" em RH → Servidores). Aceita o PDF "Relação de Crédito Bancário — Servidores Ativos" (matrícula,
   nome, CPF, banco, agência, conta, proventos, descontos e líquido; confere o nº de pessoas e o líquido com os totais do
   fim do relatório) e o TXT CNAB 240 do banco (`_Fun`; lê conta e endereço do segmento B e confere a soma com o trailer
   do lote). Os arquivos `_Pen` (pensão alimentícia) são recusados. Valores em centavos; a prévia mostra o CPF mascarado.
   Invalida `servidores-rh`, `servidores-gestao`, `servidores-tipo-derivado` e `servidores-situacao`. Regras de negócio:
   [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#importar-servidores-do-sigrh-rh_importar_servidores_sigrh).
+- `importadores/cargosOcupantes.ts` + `cargosOcupantesParser.ts` — planilha de ocupantes dos cargos comissionados
+  (aba "ativos": CARGO, CODIGO, NOME DO OCUPANTE, MUNIC., LOCAL) → `rh_importar_cargos_ocupantes` (`id`
+  `cargos_ocupantes`, módulo `rh`, permissão `rh.servidores.importar`). A leitura busca os servidores (em páginas de 1000)
+  e as unidades ativas e casa no navegador: nome igual ou, se não houver, o mais parecido (Levenshtein ≥ 0,72 e 0,15 à
+  frente do segundo), sempre com aviso; lotação pela parte depois da "/" da coluna LOCAL, pela sigla ou pelo nome quase
+  igual. Nome sem par seguro e pessoa repetida são erro de leitura; lotação fora da estrutura é aviso (entra só o cargo).
+  O nome do servidor não vai para a RPC, só os ids. As duas importações ficam no menu "Importar" de RH → Servidores.
+  Regras de negócio: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#cargo-e-lotacao-pela-planilha-de-ocupantes-rh_importar_cargos_ocupantes).
 - `importadores/classificadoresFiplan.ts` + `classificadoresFiplanParser.ts` — tabelas do FIPLAN (`.xls` das consultas
   "Consultar ...") → `importar_classificadores_fiplan` (`id` `classificadores_fiplan`, módulo `financeiro`, permissão
   `orcamento.importar`). Um arquivo por tabela; o parser (função pura, testada com vitest) reconhece a tabela pelo
@@ -524,7 +543,9 @@ migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`;
 
 - **shadcn/ui** (Radix) em `@/components/ui/*` + **Tailwind**. Componha; evite CSS
   solto. Use os tokens de cor existentes (ex.: `MODULO_COR_CLASSES`,
-  `statusColors.ts`) e suporte a dark mode (`next-themes`).
+  `statusColors.ts`) e suporte a dark mode (`next-themes`). O botão claro/escuro fica no topo de todas as telas: nos
+  módulos pelo `AlternarTema` (`src/components/layout/AlternarTema.tsx`, no `ModuleHeader`), no Admin pelo `TopBarDesktop` e no
+  portal pelo `Header`.
 - **Design System** (direção em
   [`superpowers/specs/2026-10-09-design-system-design.md`](./superpowers/specs/2026-10-09-design-system-design.md),
   fases em [`superpowers/plans/2026-10-09-design-system.md`](./superpowers/plans/2026-10-09-design-system.md);
@@ -543,6 +564,10 @@ migração `supabase/migrations/20261011010000_rh_cnab_esocial_integridade.sql`;
     `cn("text-h3", "text-lg")` fica só com `text-lg`; `CardTitle` usa `text-h3` por padrão. As tags `h1`–`h3` ainda têm o tamanho antigo
     (base de `src/index.css`); telas novas ou migradas usam as classes da escala (`text-h1`…), e
     o tamanho base é alinhado quando o `PageHeader` da Fase 2 existir.
+  - **Espaçamento de `Card` e `Table`:** o padrão (`p-4 sm:p-6` no cartão, `p-3 sm:p-4` na célula, altura e texto do
+    cabeçalho) mora na camada de componentes de `src/index.css` (`card-*-espaco`, `table-*-espaco`). Assim, o que a tela
+    passa em `className` (`p-0`, `p-4`, `pb-2`, `py-2`, `h-9`, `text-xs`) vale em todas as larguras; antes o `sm:` do
+    padrão ganhava no desktop, porque o `cn` não troca variantes diferentes.
   - **Gráficos:** série `--chart-1` a `--chart-8` via `ChartContainer`/`chartConfig` de
     `@/components/ui/chart` — nada de `fill="#…"`.
   - **Movimento:** `--duration-fast` (150ms) / `--duration-base` (200ms); `prefers-reduced-motion`

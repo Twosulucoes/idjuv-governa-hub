@@ -139,6 +139,15 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   "Contratos" no menu do módulo. A carga inicial é pela planilha, importada na própria lista
   (`/contratos/lista?importador=contratos_planilha`). Spec:
   `docs/superpowers/specs/2026-10-27-contratos-gestao-completa-design.md`.
+- **Contratos (entrega C2)**: a ficha `/contratos/:id` ganha a aba Alterações (`?aba=alteracoes`, logo depois de
+  Dados: termo aditivo, apostilamento, suspensão com retomada, rescisão e a situação anterior ao sistema, com os avisos
+  de limite de acréscimo e de prazo máximo) e a tela `/contratos/vencimentos` (`ContratosVencimentosPage`,
+  `requiredModule="contratos"` e `contratos.visualizar`, `contratos.criar` ou `contratos.editar`; fica antes de
+  `/contratos/:id` no `App.tsx`): cartões de vencidos, 30, 60, 90 e 120 dias e garantias vencendo, tabela com a ação
+  esperada e a providência, filtros na URL (`?faixa=vencido|ate30|ate60|ate90|ate120|garantia` e `?providencia=sem`,
+  usados pelo painel `/contratos`) e planilha. Registrar a providência pede `contratos.editar`. O sino de avisos
+  (`AvisosSino`) ganha "Contratos vencendo" pela RPC `contratos_meus_vencimentos`. Menu: "Vencimentos" no menu geral e
+  no menu do módulo. Plano: `docs/superpowers/plans/2026-10-30-contratos-c2-alteracoes-vencimentos.md`.
 - **Passagens aéreas (Gabinete da Presidência)** em `/gabinete/passagens`, `/gabinete/passagens/:id`,
   `/gabinete/passagens/beneficiarios`, `/gabinete/passagens/pendencias` e `/gabinete/passagens/faturas`
   (`src/pages/gabinete/`: `PassagensPedidosPage`, `PassagemPedidoPage`, `PassagensBeneficiariosPage`,
