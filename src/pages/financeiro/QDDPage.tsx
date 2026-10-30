@@ -224,8 +224,7 @@ export default function QDDPage() {
   }
 
   // Célula compacta (densidade de tabela financeira) e coluna fixa à esquerda a partir do tablet
-  // (repete o sm: porque TableCell/TableHead trazem sm:p-4 e o tailwind-merge não troca variantes diferentes)
-  const celula = "px-3 py-2 sm:px-3 sm:py-2";
+  const celula = "px-3 py-2";
   const celulaValor = cn(celula, "text-right whitespace-nowrap");
   const colunaFixa = "sm:sticky sm:left-0 sm:z-10 sm:shadow-[1px_0_0_hsl(var(--border))]";
 
@@ -305,7 +304,7 @@ export default function QDDPage() {
             </p>
           </div>
           <Card>
-            <CardContent className="p-0 sm:p-0">
+            <CardContent className="p-0">
               <Table>
                 <caption className="sr-only">Disponível da dotação comum e das emendas em {exercicio}</caption>
                 <TableHeader>
@@ -405,7 +404,7 @@ export default function QDDPage() {
         </div>
 
         <Card>
-          <CardContent className="p-0 sm:p-0">
+          <CardContent className="p-0">
             {filtered.length === 0 ? (
               <EmptyState
                 icone={FileSpreadsheet}
