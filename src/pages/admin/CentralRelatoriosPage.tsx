@@ -358,6 +358,16 @@ const CATALOGO_RELATORIOS: RelatorioItem[] = [
 
   // ========== ORÇAMENTO ==========
   {
+    id: 'orc-gerador',
+    nome: 'Gerador de relatórios do Financeiro',
+    descricao: 'Monte o relatório: QDD, empenhos, PEDs, liquidações e NOBs, diárias, emendas e convênios, em PDF ou Excel',
+    rota: '/financeiro/relatorios',
+    permissao: 'orcamento.visualizar',
+    modulo: 'orcamento',
+    tipo: 'pagina',
+    tags: ['financeiro', 'gerador', 'personalizado', 'empenhos', 'qdd', 'diárias', 'emendas'],
+  },
+  {
     id: 'orc-execucao',
     nome: 'Execução Orçamentária',
     descricao: 'Dotações e execução do orçamento',

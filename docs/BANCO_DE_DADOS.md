@@ -1202,6 +1202,16 @@ Todas idempotentes.
     por processo) e `programacao_por_natureza` (QDD × reservas por combinação, com os processos);
   - sem permissão nova; RLS classe `preservar` nas duas tabelas (policies na migração); testes no bloco
     "Compras: reservas e PEDs" de `scripts/db/testar-rls.sql`.
+- **Modelos do Gerador de relatórios** (`20261117090000_relatorios_modelos.sql`, spec
+  [2026-10-30-gerador-relatorios-design.md](./superpowers/specs/2026-10-30-gerador-relatorios-design.md)):
+  - `relatorios_modelos`: um modelo por linha com `modulo`, `fonte` (id do catálogo do front), `nome`, `descricao`,
+    `configuracao` jsonb (colunas, filtros, agrupamentos, totais, ordem; nunca dados, até 64 KB), `compartilhado`
+    (`true` = do setor) e `criado_por` (padrão `auth.uid()`);
+  - leitura: o autor, os compartilhados por quem acessa o módulo (`can_access_module`) e o admin; criar: em nome
+    próprio e no módulo a que tem acesso; editar: só o autor (sem trocar o autor nem ir para módulo sem acesso);
+    apagar: o autor ou o admin. As linhas do relatório continuam vindo das tabelas de origem, com o RLS delas;
+  - sem permissão nova; RLS classe `preservar` (policies na migração); testes no bloco "Modelos do gerador de
+    relatórios" de `scripts/db/testar-rls.sql`.
 - **Diárias do FIPLAN** (`20261113090000_fin_diarias_fiplan.sql`, spec
   [2026-10-30-diarias-fiplan-design.md](./superpowers/specs/2026-10-30-diarias-fiplan-design.md)):
   - `fin_diarias_fiplan`: o FIP 002 – Demonstrativo de Diárias, uma linha por diária (única por exercício e nº do

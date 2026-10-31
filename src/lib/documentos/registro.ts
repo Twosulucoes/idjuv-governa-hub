@@ -1,5 +1,6 @@
 import { amostraFicha, amostraRelatorio } from './modelos/amostras';
 import { relatorioDinamico, relatorioDinamicoPaisagem } from './modelos/relatorios/colunasDinamicas';
+import { relatorioGerador, relatorioGeradorPaisagem } from './modelos/relatorios/gerador';
 import { estruturaOrganizacional } from './modelos/relatorios/estruturaOrganizacional';
 import { folhaSimplificada } from './modelos/relatorios/folhaSimplificada';
 import { pendenciasPreCadastros } from './modelos/rh/pendenciasPreCadastros';
@@ -65,6 +66,8 @@ export const REGISTRO = {
   'relatorios-folha-simplificada': folhaSimplificada,
   'relatorios-colunas-dinamicas': relatorioDinamico,
   'relatorios-colunas-dinamicas-paisagem': relatorioDinamicoPaisagem,
+  'relatorios-gerador': relatorioGerador,
+  'relatorios-gerador-paisagem': relatorioGeradorPaisagem,
   'relatorios-estrutura-organizacional': estruturaOrganizacional,
   // RH — RelatoriosRHPage
   'rh-servidores-diretoria': relatorioServidoresDiretoria,

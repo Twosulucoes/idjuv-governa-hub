@@ -23275,6 +23275,46 @@ export type Database = {
         }
         Relationships: []
       }
+      relatorios_modelos: {
+        Row: {
+          compartilhado: boolean
+          configuracao: NonNullable<Json>
+          created_at: string
+          criado_por: string
+          descricao: string | null
+          fonte: string
+          id: string
+          modulo: string
+          nome: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          compartilhado?: boolean
+          configuracao: NonNullable<Json>
+          created_at?: string
+          criado_por?: string
+          descricao?: string | null
+          fonte: string
+          id?: string
+          modulo: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          compartilhado?: boolean
+          configuracao?: NonNullable<Json>
+          created_at?: string
+          criado_por?: string
+          descricao?: string | null
+          fonte?: string
+          id?: string
+          modulo?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       remessas_bancarias: {
         Row: {
           arquivo_path: string | null

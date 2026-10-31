@@ -266,6 +266,12 @@ imprimem por conta própria, à espera de modelo: `src/lib/etiquetasPatrimonio.t
 Se faltar um bloco (ex.: lista numerada, QR), crie em `blocos/`, exporte em `blocos/index.ts` e teste;
 não desenhe direto no `doc` dentro de um modelo.
 
+**Relatório montado pelo usuário** não precisa de modelo novo: o Gerador de relatórios (Financeiro → Relatórios) usa
+`relatorios-gerador` (+ `-paisagem`, `modelos/relatorios/gerador.ts`), que recebe colunas, grupos (até 2 níveis),
+subtotais e total geral já formatados e imprime a linha "Filtros: …" e a legenda dos totais. Fonte nova entra no
+catálogo `src/config/relatoriosDinamicos/`, não em `src/lib/documentos/`. O diálogo de colunas do RH segue no
+`relatorios-colunas-dinamicas`.
+
 ## 4. Anatomia
 
 ```

@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 234 |
-| Componentes (`.tsx` em `src/components`) | 390 |
+| Componentes (`.tsx` em `src/components`) | 394 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 347 |
-| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 118 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 104 |
+| — fora de `ui/` | 351 |
+| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 119 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 107 |
 | Linhas de `src/App.tsx` | 1501 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30458 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30498 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -69,16 +69,16 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 333 |
-| Migração mais recente | `20261116090000_rh_importar_cargos_ocupantes.sql` |
-| Tabelas do schema public (baseline) | 294 |
+| Migrações (`supabase/migrations/*.sql`) | 334 |
+| Migração mais recente | `20261117090000_relatorios_modelos.sql` |
+| Tabelas do schema public (baseline) | 295 |
 | Views (baseline) | 18 |
 | Funções (baseline) | 389 |
 | — de gatilho (`RETURNS trigger`) | 149 |
 | — demais | 240 |
 | Enums (baseline) | 108 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2091 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 294 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2095 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 295 |
 | Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 14 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.

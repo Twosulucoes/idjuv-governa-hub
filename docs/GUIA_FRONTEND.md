@@ -160,6 +160,11 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `comExercicio(href)` para links internos levarem o ano. A UI é `SeletorExercicio`
   (`src/components/financeiro/SeletorExercicio.tsx`). Tela nova do financeiro que filtra por ano deve usar este
   hook, não um `useState` próprio.
+- **Gerador de relatórios** (`src/hooks/useRelatoriosDinamicos.ts`): `useLinhasFonte(fonte, exercicio)` carrega as
+  linhas de uma fonte do catálogo (`src/config/relatoriosDinamicos/`, cache de 5 min, teto de linhas com aviso);
+  `useModelosRelatorio(modulo)`, `useSalvarModeloRelatorio` e `useExcluirModeloRelatorio` leem e gravam os modelos
+  em `relatorios_modelos` (o RLS decide quem vê o compartilhado). Montagem, filtros, totais e exportação são puros, em
+  `src/lib/relatoriosDinamicos/`; a tela é `/financeiro/relatorios`. Fonte nova entra no catálogo, não na tela.
 - **Patrimônio**: `usePatrimonio`, `useCadastroLote`, `useCadastroBemSimplificado`,
   `useMovimentacaoLote`, `useAlmoxarifado`, `useColetaOffline`, `useTermosCessao` (termos de cessão da unidade
   local: registro da reserva aprovada e ciclo do SEI; a etapa e a validação ficam em `src/lib/registroSei.ts`, com

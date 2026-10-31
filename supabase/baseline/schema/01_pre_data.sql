@@ -29070,6 +29070,50 @@ COMMENT ON TABLE public.regra_lancamento IS 'Modo da regra de lançamento por se
 
 
 --
+-- Name: relatorios_modelos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.relatorios_modelos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    modulo text NOT NULL,
+    fonte text NOT NULL,
+    nome text NOT NULL,
+    descricao text,
+    configuracao jsonb NOT NULL,
+    compartilhado boolean DEFAULT false NOT NULL,
+    criado_por uuid DEFAULT auth.uid() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT relatorios_modelos_configuracao_check CHECK (((jsonb_typeof(configuracao) = 'object'::text) AND (pg_column_size(configuracao) <= 65536))),
+    CONSTRAINT relatorios_modelos_descricao_check CHECK ((char_length(descricao) <= 500)),
+    CONSTRAINT relatorios_modelos_fonte_check CHECK ((fonte ~ '^[a-z0-9_]{2,60}$'::text)),
+    CONSTRAINT relatorios_modelos_modulo_check CHECK ((modulo ~ '^[a-z_]{2,40}$'::text)),
+    CONSTRAINT relatorios_modelos_nome_check CHECK (((char_length(btrim(nome)) >= 1) AND (char_length(btrim(nome)) <= 120)))
+);
+
+
+--
+-- Name: TABLE relatorios_modelos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.relatorios_modelos IS 'Modelos do gerador de relatórios dinâmicos: só a configuração (fonte, colunas, filtros, agrupamentos, totais, ordem), nunca os dados.';
+
+
+--
+-- Name: COLUMN relatorios_modelos.fonte; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.relatorios_modelos.fonte IS 'Id da fonte no catálogo do front (src/config/relatoriosDinamicos/).';
+
+
+--
+-- Name: COLUMN relatorios_modelos.compartilhado; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.relatorios_modelos.compartilhado IS 'true = do setor: quem acessa o módulo do modelo vê e usa; só o autor edita.';
+
+
+--
 -- Name: remessas_bancarias; Type: TABLE; Schema: public; Owner: -
 --
 
