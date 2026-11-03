@@ -632,3 +632,9 @@ A migração `20261116090000_rh_importar_cargos_ocupantes.sql` (cargo e lotaçã
 `01_pre_data.sql` (`rh_importar_cargos_ocupantes`) e no `overlay/40_privilegios.sql` (`EXECUTE` só para
 `authenticated`). Usa a permissão `rh.servidores.importar` da migração anterior: catálogo, RLS e `rls/mapa.csv` sem
 mudança. Testes no bloco "RH: cargo e lotação pela planilha de ocupantes" de `scripts/db/testar-rls.sql`.
+
+A migração `20261119090000_governanca_importar_estrutura.sql` (estrutura organizacional pela planilha) entrou no
+`01_pre_data.sql` (`governanca_importar_estrutura`) e no `overlay/40_privilegios.sql` (`EXECUTE` só para
+`authenticated`). Usa a permissão `governanca.estrutura.editar`, que já existe: catálogo, RLS e `rls/mapa.csv` sem
+mudança. Testes no bloco "Governança: estrutura pela planilha" de `scripts/db/testar-rls.sql`. A carga das 42
+unidades da Lei nº 2.301/2025 (`20261118090000`) é dado do IDJUV e não entra no baseline.

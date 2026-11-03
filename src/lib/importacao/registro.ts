@@ -10,6 +10,7 @@ import { importadorClassificadoresFiplan } from "./importadores/classificadoresF
 import { importadorContratosPlanilha } from "./importadores/contratosPlanilha";
 import { importadorDiariasFiplan } from "./importadores/diariasFiplan";
 import { importadorEmpenhosFip614 } from "./importadores/empenhosFip614";
+import { importadorEstruturaPlanilha } from "./importadores/estruturaPlanilha";
 import { importadorFolhaSigrh } from "./importadores/folhaSigrh";
 import { importadorPedsFiplan } from "./importadores/pedsFiplan";
 import { importadorPortariasPlanilha } from "./importadores/portariasPlanilha";
@@ -33,6 +34,7 @@ export const IMPORTADORES: Importador<unknown>[] = [
   generico(importadorCargosOcupantes),
   generico(importadorProcessosPlanilha),
   generico(importadorContratosPlanilha),
+  generico(importadorEstruturaPlanilha),
 ];
 
 export function obterImportador(id: string): Importador<unknown> | undefined {

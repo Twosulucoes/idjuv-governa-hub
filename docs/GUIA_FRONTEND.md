@@ -324,6 +324,13 @@ Estrutura genérica para trazer dados de arquivos de outros sistemas, sempre em 
   igual. Nome sem par seguro e pessoa repetida são erro de leitura; lotação fora da estrutura é aviso (entra só o cargo).
   O nome do servidor não vai para a RPC, só os ids. As duas importações ficam no menu "Importar" de RH → Servidores.
   Regras de negócio: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#cargo-e-lotacao-pela-planilha-de-ocupantes-rh_importar_cargos_ocupantes).
+- `importadores/estruturaPlanilha.ts` + `estruturaPlanilhaParser.ts` — planilha da estrutura organizacional (Sigla,
+  Nome da unidade, Tipo, Responde a (sigla), Descrição, Lei de criação, Data da lei) → `governanca_importar_estrutura`
+  (`id` `estrutura_planilha`, módulo `governanca`, permissão `governanca.estrutura.editar`; botão "Importar planilha"
+  em Governança → Gestão do organograma). O parser (função pura, testada com vitest) traduz o tipo pelo rótulo, acusa
+  sigla repetida e hierarquia em ciclo, e `ordemDeEnvio` manda o superior antes do subordinado (a leitura fica na
+  ordem da planilha, que é como o assistente casa resultado e linha). A tela recarrega a lista ao fechar o assistente.
+  Regras de negócio: [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#estrutura-organizacional-pela-planilha-governanca_importar_estrutura).
 - `importadores/classificadoresFiplan.ts` + `classificadoresFiplanParser.ts` — tabelas do FIPLAN (`.xls` das consultas
   "Consultar ...") → `importar_classificadores_fiplan` (`id` `classificadores_fiplan`, módulo `financeiro`, permissão
   `orcamento.importar`). Um arquivo por tabela; o parser (função pura, testada com vitest) reconhece a tabela pelo

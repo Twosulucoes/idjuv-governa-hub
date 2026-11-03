@@ -210,6 +210,10 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   trecho do dump (`rh_importar_cargos_ocupantes` no `01_pre_data.sql`) e o EXECUTE só para `authenticated` no overlay 40;
   sem tabela, permissão ou mudança no `rls/mapa.csv`; testes no bloco "RH: cargo e lotação pela planilha de ocupantes" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#cargo-e-lotacao-pela-planilha-de-ocupantes-rh_importar_cargos_ocupantes)).
+- A importação da estrutura organizacional pela planilha (migração `20261119090000`) entrou no schema do baseline só
+  com o trecho do dump (`governanca_importar_estrutura` no `01_pre_data.sql`) e o EXECUTE só para `authenticated` no
+  overlay 40; sem tabela, permissão ou mudança no `rls/mapa.csv`; testes no bloco "Governança: estrutura pela planilha"
+  de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#estrutura-organizacional-pela-planilha-governanca_importar_estrutura)).
 - A remessa OBN600 dos pagamentos (migração `20261024090000`) entrou no schema do baseline regenerado (colunas novas
   em `contas_autarquia`, `fin_remessas_bancarias` e `fin_pagamentos`, `registrar_remessa_obn600` e as versões finais
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem

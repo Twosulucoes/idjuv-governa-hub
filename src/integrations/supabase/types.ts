@@ -27645,6 +27645,10 @@ export type Database = {
         Returns: string[]
       }
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
+      governanca_importar_estrutura: {
+        Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
+        Returns: Json
+      }
       has_module:
         | {
             Args: { _module: Database["public"]["Enums"]["app_module"] }
