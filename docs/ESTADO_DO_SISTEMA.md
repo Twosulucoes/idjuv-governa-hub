@@ -69,8 +69,8 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 334 |
-| Migração mais recente | `20261117090000_relatorios_modelos.sql` |
+| Migrações (`supabase/migrations/*.sql`) | 335 |
+| Migração mais recente | `20261118090000_estrutura_unidades_lei_2301.sql` |
 | Tabelas do schema public (baseline) | 295 |
 | Views (baseline) | 18 |
 | Funções (baseline) | 389 |
