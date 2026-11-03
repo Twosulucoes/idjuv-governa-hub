@@ -713,6 +713,12 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   servidor de cada linha, sem CPF. A permissão nova vai para quem já tinha `rh.servidores.criar` (papéis, módulos e
   avulsas). Cargo, lotação e dados pessoais não vêm no arquivo. Testes no bloco "RH: servidores pelo arquivo da Seplan"
   de `scripts/db/testar-rls.sql`.
+- **Unidades da Lei nº 2.301/2025** (migração `20261118090000_estrutura_unidades_lei_2301.sql`) — só dados: carrega em
+  `estrutura_organizacional` a Presidência, as 6 unidades de assessoramento, as 3 diretorias, as 10 divisões e os 22 núcleos
+  do art. 4º (hierarquia do Decreto nº 39.840-E/2026), com sigla, tipo, nível, superior, `base_legal` e a lei de criação.
+  O banco novo do baseline nasce sem unidades, e sem elas o quadro de vagas e a importação de cargo e lotação não acham a
+  unidade. Idempotente: unidade que já existe com a mesma sigla ou nome não é inserida nem alterada. As 40 Unidades Locais
+  ficam de fora (não há documento com o nome de cada uma).
 - <a id="cargo-e-lotacao-pela-planilha-de-ocupantes-rh_importar_cargos_ocupantes"></a>**Cargo e lotação pela planilha
   de ocupantes** (migração `20261116090000_rh_importar_cargos_ocupantes.sql`) — RPC `rh_importar_cargos_ocupantes(p_linhas,
   p_arquivo, p_simular DEFAULT true)` (SECURITY DEFINER; perfil ativo, módulo `rh` e `rh.servidores.importar`, senão
