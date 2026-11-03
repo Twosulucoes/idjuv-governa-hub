@@ -24,6 +24,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganograma } from '@/hooks/useOrganograma';
+import { useAuth } from '@/contexts/AuthContext';
+import { ImportacaoDialog, useImportadorDaUrl } from '@/components/importacao';
+import { importadorEstruturaPlanilha } from '@/lib/importacao/importadores/estruturaPlanilha';
 import { 
   Plus, 
   Edit, 
@@ -34,6 +37,7 @@ import {
   ChevronRight,
   Loader2,
   AlertTriangle,
+  FileUp,
   Users
 } from 'lucide-react';
 import { LABELS_UNIDADE, TipoUnidade, UnidadeOrganizacional } from '@/types/organograma';
@@ -79,6 +83,8 @@ export default function GestaoOrganogramaPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UnidadeOrganizacional | null>(null);
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
+  const importacao = useImportadorDaUrl([importadorEstruturaPlanilha.id]);
 
   const filteredUnidades = unidades.filter(u =>
     u.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -278,10 +284,18 @@ export default function GestaoOrganogramaPage() {
           titulo="Gestão do organograma"
           descricao="Gerencie as unidades organizacionais da instituição"
           acoes={
-            <Button onClick={handleOpenCreate}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Nova unidade
-            </Button>
+            <>
+              {hasPermission(importadorEstruturaPlanilha.permissao) && (
+                <Button variant="outline" onClick={() => importacao.abrir(importadorEstruturaPlanilha.id)}>
+                  <FileUp className="h-4 w-4" aria-hidden="true" />
+                  Importar planilha
+                </Button>
+              )}
+              <Button onClick={handleOpenCreate}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Nova unidade
+              </Button>
+            </>
           }
         />
 
@@ -552,6 +566,15 @@ export default function GestaoOrganogramaPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* a lista desta tela não usa React Query: recarrega ao fechar o assistente */}
+        <ImportacaoDialog
+          importador={importacao.aberto}
+          onFechar={() => {
+            importacao.fechar();
+            refetch();
+          }}
+        />
       </div>
     </ModuleLayout>
   );

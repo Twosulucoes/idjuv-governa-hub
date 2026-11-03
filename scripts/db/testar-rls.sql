@@ -9928,6 +9928,97 @@ BEGIN
   PERFORM pg_temp.nota('RELATÓRIOS MODELOS: autor lê/edita/apaga os seus, compartilhado lido pelo módulo e editado só pelo autor, criação em nome próprio no módulo, sem módulo e anon sem leitura, admin lê e apaga verificados');
 END $$;
 
+-- ---------------------------------------------------------------- Governança: estrutura pela planilha (migração 20261119090000)
+--   * governanca_importar_estrutura: anon e PUBLIC sem EXECUTE; sem governanca.estrutura.editar recusa (42501);
+--   * superior fora da planilha e do cadastro é erro da linha e nada é gravado;
+--   * simulação não grava; aplicação cria as unidades com superior e nível (a superior criada na mesma importação
+--     conta), grava o log em importacoes;
+--   * de novo: sem alteração; unidade existente só ganha o campo vazio e o nome diferente só avisa.
+CREATE FUNCTION pg_temp.ei_chamar(p_uid uuid, p_linhas jsonb, p_simular boolean) RETURNS text
+LANGUAGE sql AS $$
+  SELECT pg_temp.valor_como(p_uid, 'authenticated', format(
+    'SELECT public.governanca_importar_estrutura(%L::jsonb, %L::jsonb, %L)::text', p_linhas,
+    jsonb_build_object('nome', 'estrutura.xlsx', 'sha256', repeat('ab', 32), 'tamanho', 1024), p_simular))
+$$;
+
+DO $$
+DECLARE
+  u_imp uuid := 'a0000000-0000-0000-0000-0000000009e1';   -- módulo governanca + governanca.estrutura.editar
+  u_sem uuid := 'a0000000-0000-0000-0000-0000000009e2';   -- módulo governanca só com visualizar
+  fn text := 'public.governanca_importar_estrutura(jsonb, jsonb, boolean)';
+  linhas jsonb; r text; j jsonb; x record; n int;
+BEGIN
+  IF to_regprocedure(fn) IS NULL THEN
+    PERFORM pg_temp.falha('ESTRUTURA PLANILHA: ' || fn || ' não existe');
+    RETURN;
+  END IF;
+  SET LOCAL session_replication_role = origin;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'ei_imp@teste.invalid'), (u_sem, 'ei_sem@teste.invalid');
+  UPDATE public.profiles SET is_active = true WHERE id IN (u_imp, u_sem);
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_imp, 'governanca', '{governanca.estrutura.editar,governanca.estrutura.visualizar}'),
+    (u_sem, 'governanca', '{governanca.estrutura.visualizar}');
+  PERFORM pg_temp.ls_sistema();
+  INSERT INTO public.estrutura_organizacional (nome, sigla, tipo, nivel, ativo)
+    VALUES ('Setor Antigo Teste', NULL, 'setor', 1, true);
+
+  IF has_function_privilege('anon', fn, 'EXECUTE') THEN PERFORM pg_temp.falha('ESTRUTURA PLANILHA: anon executa ' || fn); END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc pr, aclexplode(coalesce(pr.proacl, acldefault('f', pr.proowner))) a
+              WHERE pr.oid = to_regprocedure(fn) AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    PERFORM pg_temp.falha('ESTRUTURA PLANILHA: PUBLIC executa ' || fn);
+  END IF;
+  linhas := jsonb_build_array(
+    jsonb_build_object('indice', 1, 'sigla', 'TPRES', 'nome', 'Presidência Teste', 'tipo', 'presidencia',
+                       'lei_criacao_numero', '1/2025', 'lei_criacao_data', '2025-01-01'),
+    jsonb_build_object('indice', 0, 'sigla', 'TDIR', 'nome', 'Diretoria Teste', 'tipo', 'diretoria', 'superior_sigla', 'tpres'),
+    jsonb_build_object('indice', 2, 'sigla', 'TSA', 'nome', 'setor antigo teste', 'tipo', 'setor', 'superior_sigla', 'TDIR'));
+  r := pg_temp.ei_chamar(u_sem, linhas, true);
+  IF r NOT LIKE 'erro:42501%' THEN PERFORM pg_temp.falha('ESTRUTURA PLANILHA: sem governanca.estrutura.editar importa (' || r || ')'); END IF;
+
+  -- ===== superior que não existe trava tudo
+  r := pg_temp.ei_chamar(u_imp, linhas || jsonb_build_array(jsonb_build_object('indice', 3, 'sigla', 'TX', 'nome', 'X',
+         'tipo', 'setor', 'superior_sigla', 'NAOEXISTE')), false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR jsonb_array_length(j -> 'erros') <> 1 OR (j -> 'erros' -> 0 ->> 'indice')::int <> 3
+     OR EXISTS (SELECT 1 FROM public.estrutura_organizacional WHERE sigla IN ('TPRES', 'TDIR')) THEN
+    PERFORM pg_temp.falha('ESTRUTURA PLANILHA: superior inexistente deveria travar a gravação (' || r || ')');
+  END IF;
+
+  -- ===== simulação não grava; aplicação cria com superior e nível e completa a unidade antiga
+  r := pg_temp.ei_chamar(u_imp, linhas, true);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR (j -> 'totais' ->> 'inserir')::int <> 2 OR (j -> 'totais' ->> 'atualizar')::int <> 1
+     OR EXISTS (SELECT 1 FROM public.estrutura_organizacional WHERE sigla IN ('TPRES', 'TDIR')) THEN
+    PERFORM pg_temp.falha('ESTRUTURA PLANILHA: simulação deveria prever 2 novas e 1 completada sem gravar (' || r || ')');
+  END IF;
+  r := pg_temp.ei_chamar(u_imp, linhas, false);
+  SELECT d.nivel, d.tipo::text AS tipo, p.sigla AS superior, p.lei_criacao_numero AS lei, p.base_legal INTO x
+    FROM public.estrutura_organizacional d JOIN public.estrutura_organizacional p ON p.id = d.superior_id
+   WHERE d.sigla = 'TDIR';
+  IF x.nivel IS DISTINCT FROM 2 OR x.tipo <> 'diretoria' OR x.superior <> 'TPRES' OR x.lei <> '1/2025' OR NOT x.base_legal THEN
+    PERFORM pg_temp.falha('ESTRUTURA PLANILHA: unidades novas sem superior, nível ou lei esperados (' || r || ')');
+  END IF;
+  SELECT e.sigla, e.nivel, s.sigla AS superior INTO x FROM public.estrutura_organizacional e
+    JOIN public.estrutura_organizacional s ON s.id = e.superior_id WHERE e.nome = 'Setor Antigo Teste';
+  IF x.sigla IS DISTINCT FROM 'TSA' OR x.superior IS DISTINCT FROM 'TDIR' OR x.nivel IS DISTINCT FROM 3 THEN
+    PERFORM pg_temp.falha('ESTRUTURA PLANILHA: unidade existente sem sigla e superior completados (' || r || ')');
+  END IF;
+  SELECT count(*) INTO n FROM public.importacoes WHERE tipo = 'estrutura_planilha' AND modulo = 'governanca'
+     AND (resumo -> 'totais' ->> 'inserir')::int = 2 AND created_by = u_imp;
+  IF n <> 1 THEN PERFORM pg_temp.falha('ESTRUTURA PLANILHA: log em importacoes ausente'); END IF;
+
+  -- ===== de novo: sem alteração; nome diferente só avisa
+  r := pg_temp.ei_chamar(u_imp, jsonb_set(linhas, '{0,nome}', '"Presidência Renomeada"'), false);
+  j := CASE WHEN left(r, 1) = '{' THEN r::jsonb END;
+  IF j IS NULL OR (j -> 'totais' ->> 'sem_alteracao')::int <> 3 OR (j -> 'linhas' -> 0 -> 'avisos')::text NOT LIKE '%fica o do cadastro%'
+     OR NOT EXISTS (SELECT 1 FROM public.estrutura_organizacional WHERE sigla = 'TPRES' AND nome = 'Presidência Teste') THEN
+    PERFORM pg_temp.falha('ESTRUTURA PLANILHA: reimportação deveria ficar sem alteração e só avisar o nome (' || r || ')');
+  END IF;
+
+  PERFORM pg_temp.ls_sistema();
+  PERFORM pg_temp.nota('ESTRUTURA PLANILHA: permissão, superior inexistente travando tudo, simulação sem gravar, superior e nível das novas, unidade antiga completada, log e reimportação sem alteração verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off

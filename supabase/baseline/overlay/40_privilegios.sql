@@ -331,6 +331,11 @@ GRANT EXECUTE ON FUNCTION public.rh_importar_servidores_sigrh(text, jsonb, jsonb
 REVOKE ALL ON FUNCTION public.rh_importar_cargos_ocupantes(jsonb, jsonb, boolean) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.rh_importar_cargos_ocupantes(jsonb, jsonb, boolean) TO authenticated;
 
+-- ---- governança (migração 20261119090000): estrutura organizacional pela planilha ----
+-- só para authenticated (a guarda no corpo exige o módulo governanca e governanca.estrutura.editar)
+REVOKE ALL ON FUNCTION public.governanca_importar_estrutura(jsonb, jsonb, boolean) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.governanca_importar_estrutura(jsonb, jsonb, boolean) TO authenticated;
+
 -- ---- patrimônio (migração 20261023100000, P14 entrega 4): funções de trigger só por dentro ----
 -- fn_atualizar_estatisticas_campanha virou SECURITY DEFINER (o coletor não altera campanhas_inventario) e
 -- fn_bens_proteger_colunas guarda valor, data e forma de aquisição e situação do bem

@@ -713,6 +713,18 @@ de CNAB, a tela e o eSocial do front são da mesma spec.
   servidor de cada linha, sem CPF. A permissão nova vai para quem já tinha `rh.servidores.criar` (papéis, módulos e
   avulsas). Cargo, lotação e dados pessoais não vêm no arquivo. Testes no bloco "RH: servidores pelo arquivo da Seplan"
   de `scripts/db/testar-rls.sql`.
+- <a id="estrutura-organizacional-pela-planilha-governanca_importar_estrutura"></a>**Estrutura organizacional pela
+  planilha** (migração `20261119090000_governanca_importar_estrutura.sql`) — RPC `governanca_importar_estrutura(p_linhas,
+  p_arquivo, p_simular DEFAULT true)` (SECURITY DEFINER; perfil ativo, módulo `governanca` ou `organizacoes` e
+  `governanca.estrutura.editar`, senão `42501`; só `authenticated`). Recebe as unidades em ordem de hierarquia (o
+  navegador põe o superior antes do subordinado) e, por linha, acha a unidade pela sigla (sem diferença de maiúscula;
+  sem sigla igual, pelo nome de uma ativa sem sigla) e o superior pela sigla entre as ativas, contando as criadas na
+  mesma importação. Unidade nova entra com nível = nível do superior + 1 e a ordem da planilha; a existente só tem
+  sigla, superior, descrição e lei completados quando vazios (nome, tipo ou superior diferentes viram aviso). Superior
+  inexistente, superior abaixo da própria unidade, sigla repetida e unidade desativada são erro da linha. Nada é
+  apagado nem desativado; tudo ou nada, com log em `importacoes` (`tipo` `estrutura_planilha`, módulo `governanca`).
+  Sem tabela, policy ou permissão nova. Testes no bloco "Governança: estrutura pela planilha" de
+  `scripts/db/testar-rls.sql`.
 - **Unidades da Lei nº 2.301/2025** (migração `20261118090000_estrutura_unidades_lei_2301.sql`) — só dados: carrega em
   `estrutura_organizacional` a Presidência, as 6 unidades de assessoramento, as 3 diretorias, as 10 divisões e os 22 núcleos
   do art. 4º (hierarquia do Decreto nº 39.840-E/2026), com sigla, tipo, nível, superior, `base_legal` e a lei de criação.

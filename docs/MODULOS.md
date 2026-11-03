@@ -382,6 +382,11 @@ unidade, situação (livre, ocupada, extinta) e ocupante; KPIs de vagas ativas, 
 `governanca.cargos.gerenciar`) baixa o modelo XLSX, lê XLSX/XLS/CSV, simula e depois grava. Dados em
 `useQuadroVagas`; regras no banco em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#quadro-de-vagas).
 
+`GestaoOrganogramaPage` (`/organograma/gestao`) tem "Importar planilha" (só com `governanca.estrutura.editar`): o
+importador `estrutura_planilha` cadastra as unidades de uma vez (sigla, nome, tipo e a sigla da unidade a que cada
+uma responde), para a instituição nova montar a estrutura sozinha; unidade que já existe só ganha o que está vazio.
+Regras no banco em [BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md#estrutura-organizacional-pela-planilha-governanca_importar_estrutura).
+
 ## Integridade (`integridade`)
 
 Ética e canal de denúncias. `src/pages/integridade/`: `DenunciasPage` (público),
