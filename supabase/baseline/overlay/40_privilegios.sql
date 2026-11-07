@@ -369,6 +369,12 @@ REVOKE EXECUTE ON FUNCTION public.processo_andamento_carimbar() FROM PUBLIC, ano
 REVOKE EXECUTE ON FUNCTION public.processo_recalcular_estado(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.processo_andamento_alterar() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.processo_andamento_registrar_alteracao() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.compras_etapa_parametros_carimbar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.processo_andamento_responsavel_nome() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.processo_proxima_acao_falta(text, date, text, uuid, text, date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_proxima_acao_falta(text, date, text, uuid, text, date) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_buscar_servidores(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_buscar_servidores(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.processo_empenhos(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.processo_empenhos(uuid) TO authenticated;
 REVOKE ALL ON FUNCTION public.importar_processos_planilha(jsonb, jsonb, boolean) FROM PUBLIC, anon;
