@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { empenhadoLiquido } from "@/lib/financeiro/empenhos";
 import { Link, useParams } from "react-router-dom";
 import { FileSearch, Info, ScrollText } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
@@ -253,8 +254,9 @@ export default function EmpenhoDetalhePage() {
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-2 gap-4 lg:grid-cols-1">
-                <Campo rotulo="Empenhado"><Moeda valor={e.valor_empenhado} /></Campo>
+                <Campo rotulo="Empenhado (original)"><Moeda valor={e.valor_empenhado} /></Campo>
                 <Campo rotulo="Estornado"><Moeda valor={e.valor_anulado} /></Campo>
+                <Campo rotulo="Empenhado líquido"><Moeda valor={empenhadoLiquido(e)} destaque /></Campo>
                 <Campo rotulo="Liquidado"><Moeda valor={e.valor_liquidado} /></Campo>
                 <Campo rotulo="Pago"><Moeda valor={e.valor_pago} /></Campo>
                 <Campo rotulo="Saldo a liquidar"><Moeda valor={e.saldo_liquidar} destaque /></Campo>

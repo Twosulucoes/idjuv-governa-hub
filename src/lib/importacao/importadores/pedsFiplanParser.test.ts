@@ -68,7 +68,7 @@ describe("interpretarPedsFiplan", () => {
     expect(erros(r)).toEqual([]);
     expect(r.linhas.map((l) => l.estorno)).toEqual([false, false, true, false]);
     expect(r.linhas[2].data_autorizacao).toBeNull();
-    expect(r.cabecalho["PEDs no arquivo"]).toBe("3");
+    expect(r.cabecalho["Linhas no arquivo"]).toBe("4 (3 PEDs; um PED com mais de um estorno ocupa uma linha por estorno)");
     expect(r.cabecalho["PEDs autorizados sem empenho"]).toContain("0 (");
   });
 
