@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { mensagemDeErro } from "@/lib/erroBanco";
+import { filtroDiasNaoUteis, projetarDiasNaoUteis } from "@/lib/frequencia/diasNaoUteis";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
   ConfigJornadaPadrao,
@@ -174,15 +175,13 @@ export function useDiasNaoUteis(ano?: number) {
         .select("*")
         .order("data", { ascending: true });
 
-      if (ano) {
-        query = query
-          .gte("data", `${ano}-01-01`)
-          .lte("data", `${ano}-12-31`);
-      }
+      // com o ano, os feriados recorrentes entram com a data daquele ano (item 17 do teste do RH de 06/11/2026)
+      if (ano) query = query.or(filtroDiasNaoUteis(`${ano}-01-01`, `${ano}-12-31`));
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as DiaNaoUtil[];
+      const dias = (data || []) as unknown as DiaNaoUtil[];
+      return ano ? projetarDiasNaoUteis(dias, `${ano}-01-01`, `${ano}-12-31`) : dias;
     },
   });
 }

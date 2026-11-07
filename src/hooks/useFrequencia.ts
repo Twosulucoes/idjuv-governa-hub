@@ -26,6 +26,7 @@ import {
 } from "@/lib/frequenciaCalculoService";
 import { lancamentoBloqueado } from "@/lib/frequenciaFluxo";
 import { descreverErroBanco } from "@/lib/folhaFichaRegras";
+import { filtroDiasNaoUteis, limitesDoMes, projetarDiasNaoUteis } from "@/lib/frequencia/diasNaoUteis";
 import type { StatusFechamento } from "@/types/frequencia";
 
 // ============================================
@@ -126,16 +127,14 @@ export function useFrequenciaResumo(ano: number, mes: number) {
       if (errFreq) throw errFreq;
 
       // PARAMETRIZADO: Buscar dias não úteis do banco
-      const dataInicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
-      const ultimoDia = new Date(ano, mes, 0).getDate();
-      const dataFim = `${ano}-${String(mes).padStart(2, "0")}-${ultimoDia}`;
-
-      const { data: diasNaoUteis } = await supabase
+      // recorrentes (Natal, Finados…) com a data deste ano: item 17 do teste do RH de 06/11/2026
+      const { inicio: dataInicio, fim: dataFim } = limitesDoMes(ano, mes);
+      const { data: linhasDiasNaoUteis } = await supabase
         .from("dias_nao_uteis")
         .select("*")
-        .gte("data", dataInicio)
-        .lte("data", dataFim)
+        .or(filtroDiasNaoUteis(dataInicio, dataFim))
         .eq("ativo", true);
+      const diasNaoUteis = projetarDiasNaoUteis(linhasDiasNaoUteis || [], dataInicio, dataFim);
 
       // PARAMETRIZADO: Calcular dias úteis usando função parametrizada
       // Cast para DiaNaoUtil[] - necessário pois o banco retorna strings para enums

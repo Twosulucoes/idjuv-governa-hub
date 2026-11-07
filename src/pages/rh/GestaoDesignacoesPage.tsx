@@ -59,6 +59,8 @@ import {
   STATUS_DESIGNACAO_COLORS,
   type StatusDesignacao 
 } from "@/types/designacao";
+import { hojeISO } from "@/lib/datas/hojeLocal";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 export default function GestaoDesignacoesPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -68,7 +70,7 @@ export default function GestaoDesignacoesPage() {
   const [isEncerrarOpen, setIsEncerrarOpen] = useState(false);
   const [selectedDesignacao, setSelectedDesignacao] = useState<any>(null);
   const [motivoRejeicao, setMotivoRejeicao] = useState("");
-  const [dataEncerramento, setDataEncerramento] = useState(new Date().toISOString().split("T")[0]);
+  const [dataEncerramento, setDataEncerramento] = useState(hojeISO());
 
   const { data: designacoes = [], isLoading } = useDesignacoes();
   const aprovarMutation = useAprovarDesignacao();
@@ -140,7 +142,7 @@ export default function GestaoDesignacoesPage() {
 
   const openEncerrarDialog = (designacao: any) => {
     setSelectedDesignacao(designacao);
-    setDataEncerramento(new Date().toISOString().split("T")[0]);
+    setDataEncerramento(hojeISO());
     setIsEncerrarOpen(true);
   };
 
@@ -293,11 +295,11 @@ export default function GestaoDesignacoesPage() {
                       <TableCell>
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>{format(new Date(designacao.data_inicio), 'dd/MM/yyyy')}</span>
+                          <span>{format(paraDataLocal(designacao.data_inicio), 'dd/MM/yyyy')}</span>
                           {designacao.data_fim && (
                             <>
                               <span className="text-muted-foreground">até</span>
-                              <span>{format(new Date(designacao.data_fim), 'dd/MM/yyyy')}</span>
+                              <span>{format(paraDataLocal(designacao.data_fim), 'dd/MM/yyyy')}</span>
                             </>
                           )}
                         </div>

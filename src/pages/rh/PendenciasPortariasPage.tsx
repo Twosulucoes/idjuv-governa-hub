@@ -50,6 +50,7 @@ import { usePortarias } from '@/hooks/usePortarias';
 import { VisualizarPortariaDialog } from '@/components/portarias/VisualizarPortariaDialog';
 import { NomeacoesSemPortariaCard } from '@/components/portarias/NomeacoesSemPortariaCard';
 import { STATUS_PORTARIA_LABELS, StatusPortaria, Portaria } from '@/types/portaria';
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 const STATUS_PENDENTES: StatusPortaria[] = ['minuta', 'aguardando_assinatura', 'aguardando_publicacao'];
 
@@ -275,7 +276,7 @@ export default function PendenciasPortariasPage() {
                           </TableCell>
                           <TableCell>
                             {portaria.data_documento 
-                              ? format(new Date(portaria.data_documento), "dd/MM/yyyy", { locale: ptBR })
+                              ? format(paraDataLocal(portaria.data_documento), "dd/MM/yyyy", { locale: ptBR })
                               : '-'
                             }
                           </TableCell>

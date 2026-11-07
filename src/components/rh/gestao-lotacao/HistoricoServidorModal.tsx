@@ -11,6 +11,7 @@ import { History, Building2, Briefcase, Calendar, ArrowRight } from "lucide-reac
 import { useHistoricoLotacoes, type ServidorGestao } from "@/hooks/useGestaoLotacao";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 interface Props {
   servidor: ServidorGestao | null;
@@ -109,13 +110,13 @@ export function HistoricoServidorModal({ servidor, open, onOpenChange }: Props) 
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Calendar className="h-4 w-4" />
                           <span>
-                            {format(new Date(item.data_inicio), "dd/MM/yyyy", { locale: ptBR })}
+                            {format(paraDataLocal(item.data_inicio), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
                           {item.data_fim ? (
                             <>
                               <ArrowRight className="h-3 w-3" />
                               <span>
-                                {format(new Date(item.data_fim), "dd/MM/yyyy", { locale: ptBR })}
+                                {format(paraDataLocal(item.data_fim), "dd/MM/yyyy", { locale: ptBR })}
                               </span>
                             </>
                           ) : (

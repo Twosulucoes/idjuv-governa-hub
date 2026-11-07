@@ -23,7 +23,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
 | — fora de `ui/` | 352 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 119 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 114 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 118 |
 | Linhas de `src/App.tsx` | 1501 |
 | Linhas de `src/integrations/supabase/types.ts` (gerado) | 30581 |
 
@@ -69,8 +69,8 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 338 |
-| Migração mais recente | `20261121090000_rh_testes_folha_contracheque.sql` |
+| Migrações (`supabase/migrations/*.sql`) | 339 |
+| Migração mais recente | `20261122090000_rh_testes_calendario_oficial.sql` |
 | Tabelas do schema public (baseline) | 296 |
 | Views (baseline) | 18 |
 | Funções (baseline) | 396 |

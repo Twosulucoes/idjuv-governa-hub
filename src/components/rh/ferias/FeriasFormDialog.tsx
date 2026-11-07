@@ -40,6 +40,7 @@ import {
   registrosDoPeriodo,
   sugerirPeriodoAquisitivo,
   validarAbono,
+  validarGozoAposAquisitivo,
   validarParcelas,
 } from "@/lib/feriasRegras";
 import type { FeriasServidor, FeriasServidorInput, Ocupacao } from "@/types/rh";
@@ -183,6 +184,9 @@ export function FeriasFormDialog({ open, onOpenChange, servidores, ferias, servi
           return;
         }
         const dias = calcularDias(d.data_inicio, d.data_fim);
+
+        const antecipado = validarGozoAposAquisitivo(d.data_inicio, d.periodo_aquisitivo_fim, d.observacoes);
+        if (antecipado) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["data_inicio"], message: antecipado });
 
         for (const msg of validarAbono(d.dias_abono, d.abono_pecuniario)) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["dias_abono"], message: msg });

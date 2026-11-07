@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Save, X } from "lucide-react";
 import { useSaveFaixaINSS } from "@/hooks/useFolhaPagamento";
 import { aliquotaEmFracao, aliquotaEmPercentual } from "@/lib/parametrosFolha";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 const faixaINSSSchema = z.object({
   faixa_ordem: z.coerce.number().min(1, "Ordem é obrigatória"),
@@ -47,7 +48,7 @@ export function TabelaINSSForm({ faixa, onSuccess, onCancel }: TabelaINSSFormPro
       valor_minimo: faixa?.valor_minimo || 0,
       valor_maximo: faixa?.valor_maximo || 0,
       aliquota: faixa ? aliquotaEmPercentual(faixa.aliquota) : 0,
-      vigencia_inicio: faixa?.vigencia_inicio?.split("T")[0] || new Date().toISOString().split("T")[0],
+      vigencia_inicio: faixa?.vigencia_inicio?.split("T")[0] || hojeISO(),
       vigencia_fim: faixa?.vigencia_fim?.split("T")[0] || "",
       descricao: faixa?.descricao || "",
     },

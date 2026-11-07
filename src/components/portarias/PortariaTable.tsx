@@ -51,6 +51,7 @@ import {
   useEnviarParaPublicacao,
   useRevogarPortaria,
 } from '@/hooks/usePortarias';
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 interface PortariaTableProps {
   portarias: Portaria[];
@@ -261,7 +262,7 @@ export function PortariaTable({
                     )}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {format(new Date(portaria.data_documento), 'dd/MM/yyyy', {
+                    {format(paraDataLocal(portaria.data_documento), 'dd/MM/yyyy', {
                       locale: ptBR,
                     })}
                   </TableCell>

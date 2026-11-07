@@ -647,6 +647,10 @@ entrou no `01_pre_data.sql` (colunas de exclusão e de edição em `processo_and
 (`leitura=compras.processos.visualizar|compras.processos.editar`). Sem permissão nova. Testes no bloco
 "Compras: processos, P1" de `scripts/db/testar-rls.sql`.
 
+A migração `20261122090000_rh_testes_calendario_oficial.sql` (teste do RH de 06/11/2026, entrega 3) só inclui
+feriados em `dias_nao_uteis`: as mesmas três linhas, com os mesmos ids, entraram no `02_dados_catalogo.sql`
+(Consciência Negra recorrente, Sexta-feira Santa e Corpus Christi de 2027). Sem mudança de schema.
+
 A migração `20261121090000_rh_testes_folha_contracheque.sql` (teste do RH de 06/11/2026, entrega 1: folha e
 contracheque) entrou no `01_pre_data.sql` (`rh_dia_nao_util`, `folha_inconsistencias_bloqueantes`,
 `registros_ponto_validar_falta`, `folha_montar_ficha` e `processar_folha_pagamento`), no `03_post_data.sql` (gatilho

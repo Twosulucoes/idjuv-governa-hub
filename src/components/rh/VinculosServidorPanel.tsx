@@ -863,7 +863,7 @@ function NovoVinculoWizard({
               <Alert>
                 <AlertDescription>
                   {cargos.length === 0
-                    ? 'Nenhum cargo com vagas disponíveis para esta natureza.'
+                    ? 'Nenhum cargo cadastrado nesta categoria. Cadastre o cargo em Governança → Cargos.'
                     : 'Nenhum cargo encontrado com a busca aplicada.'}
                 </AlertDescription>
               </Alert>

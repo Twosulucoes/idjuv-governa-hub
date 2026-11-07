@@ -43,6 +43,7 @@ import {
   useEnviarParaAssinatura,
   useEnviarParaPublicacao,
 } from '@/hooks/usePortarias';
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 interface PortariaKanbanProps {
   portarias: Portaria[];
@@ -317,7 +318,7 @@ export function PortariaKanban({
 
                           <div className="flex items-center justify-between mt-2 pt-2 border-t">
                             <span className="text-[10px] text-muted-foreground">
-                              {format(new Date(portaria.data_documento), 'dd/MM/yy', {
+                              {format(paraDataLocal(portaria.data_documento), 'dd/MM/yy', {
                                 locale: ptBR,
                               })}
                             </span>

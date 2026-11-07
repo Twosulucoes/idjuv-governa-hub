@@ -216,3 +216,25 @@ export function statusPermitidos(atual?: string | null): FeriasServidor["status"
       return ["programada", "em_gozo", "concluida", "interrompida", "cancelada"];
   }
 }
+
+/** Tamanho mínimo da justificativa para antecipar o gozo (mesmo critério do fechamento da folha com inconsistência). */
+export const JUSTIFICATIVA_MINIMA_ANTECIPACAO = 20;
+
+/**
+ * O gozo começa depois do fim do período aquisitivo: antes disso o servidor ainda não completou os 12 meses que dão
+ * direito àquelas férias. Antecipar é exceção e exige justificativa nas observações (teste do RH de 06/11/2026,
+ * item 16: gozo em 04/01/2027 aceito para o período aquisitivo de 07/11/2026 a 06/11/2027).
+ */
+export function validarGozoAposAquisitivo(
+  inicioGozo: string,
+  fimAquisitivo: string,
+  justificativa?: string | null,
+): string | null {
+  if (!inicioGozo || !fimAquisitivo || inicioGozo > fimAquisitivo) return null;
+  if ((justificativa ?? "").trim().length >= JUSTIFICATIVA_MINIMA_ANTECIPACAO) return null;
+  const [a, m, d] = fimAquisitivo.slice(0, 10).split("-");
+  return (
+    `O gozo começa antes do fim do período aquisitivo (${d}/${m}/${a}). Para antecipar, escreva o motivo ` +
+    `nas observações (mínimo de ${JUSTIFICATIVA_MINIMA_ANTECIPACAO} caracteres).`
+  );
+}

@@ -51,7 +51,7 @@ export function VinculoFuncionalForm({
   disabled = false,
 }: VinculoFuncionalFormProps) {
   // Buscar cargos baseado no tipo de servidor
-  const { data: cargos } = useQuery({
+  const { data: cargos, isSuccess: cargosCarregados } = useQuery({
     queryKey: ["cargos-vinculo", tipoServidor],
     queryFn: async () => {
       if (!tipoServidor) return [];
@@ -269,6 +269,17 @@ export function VinculoFuncionalForm({
               ))}
             </SelectContent>
           </Select>
+          {/* lista vazia não pode ser muda: o IDJUV não tinha cargo efetivo cadastrado (item 12 do teste do RH) */}
+          {cargosCarregados && (cargos?.length ?? 0) === 0 && tipoServidor && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Nenhum cargo cadastrado para {TIPO_SERVIDOR_LABELS[tipoServidor as TipoServidor]}
+                {regras.tiposCargo.length > 0 ? ` (categoria ${regras.tiposCargo.join(" ou ")})` : ""}. Cadastre o
+                cargo em Governança → Cargos e volte a este formulário.
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       )}
 

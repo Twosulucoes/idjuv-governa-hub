@@ -4,6 +4,7 @@ import { Calendar, Building2, ArrowRight, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { useDesignacaoServidor } from "@/hooks/useDesignacoes";
 import { STATUS_DESIGNACAO_LABELS, STATUS_DESIGNACAO_COLORS, type StatusDesignacao } from "@/types/designacao";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 interface DesignacoesSectionProps {
   servidorId: string;
@@ -103,11 +104,11 @@ export function DesignacoesSection({ servidorId }: DesignacoesSectionProps) {
                     <div className="text-right text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {format(new Date(designacao.data_inicio), "dd/MM/yyyy")}
+                        {format(paraDataLocal(designacao.data_inicio), "dd/MM/yyyy")}
                       </div>
                       {designacao.data_fim && (
                         <div className="text-xs">
-                          até {format(new Date(designacao.data_fim), "dd/MM/yyyy")}
+                          até {format(paraDataLocal(designacao.data_fim), "dd/MM/yyyy")}
                         </div>
                       )}
                     </div>

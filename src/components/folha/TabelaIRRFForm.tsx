@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Save, X } from "lucide-react";
 import { useSaveFaixaIRRF } from "@/hooks/useFolhaPagamento";
 import { aliquotaEmFracao, aliquotaEmPercentual } from "@/lib/parametrosFolha";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 const faixaIRRFSchema = z.object({
   faixa_ordem: z.coerce.number().min(0, "Ordem é obrigatória"),
@@ -50,7 +51,7 @@ export function TabelaIRRFForm({ faixa, onSuccess, onCancel }: TabelaIRRFFormPro
       valor_maximo: faixa?.valor_maximo || 0,
       aliquota: faixa ? aliquotaEmPercentual(faixa.aliquota) : 0,
       parcela_deduzir: faixa?.parcela_deduzir || 0,
-      vigencia_inicio: faixa?.vigencia_inicio?.split("T")[0] || new Date().toISOString().split("T")[0],
+      vigencia_inicio: faixa?.vigencia_inicio?.split("T")[0] || hojeISO(),
       vigencia_fim: faixa?.vigencia_fim?.split("T")[0] || "",
       descricao: faixa?.descricao || "",
     },

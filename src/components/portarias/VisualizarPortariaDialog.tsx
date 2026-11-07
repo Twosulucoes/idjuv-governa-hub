@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { STATUS_PORTARIA_LABELS, Portaria } from '@/types/portaria';
 import { abrirArquivoPortaria } from '@/lib/portarias/arquivoPortaria';
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 /** Abre o PDF da portaria por URL assinada (bucket privado); erro vira toast. */
 function abrirArquivo(valor?: string | null) {
@@ -85,7 +86,7 @@ export function VisualizarPortariaDialog({
               <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Data do Documento</p>
                 <p className="text-sm font-semibold">
-                  {new Date(portaria.data_documento).toLocaleDateString('pt-BR')}
+                  {paraDataLocal(portaria.data_documento).toLocaleDateString('pt-BR')}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {portaria.processo_sei ? `Processo SEI ${portaria.processo_sei}` : 'Processo SEI não informado'}
@@ -96,7 +97,7 @@ export function VisualizarPortariaDialog({
                 <p className="text-xs font-medium text-muted-foreground">Assinatura</p>
                 <p className="text-sm font-semibold">
                   {portaria.data_assinatura
-                    ? new Date(portaria.data_assinatura).toLocaleDateString('pt-BR')
+                    ? paraDataLocal(portaria.data_assinatura).toLocaleDateString('pt-BR')
                     : <span className="text-muted-foreground font-normal">Não assinada</span>}
                 </p>
                 {(portaria.assinante?.full_name || portaria.assinado_por) && (
@@ -201,9 +202,9 @@ export function VisualizarPortariaDialog({
               <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Vigência</p>
                 <p className="text-sm">
-                  {portaria.data_vigencia_inicio && new Date(portaria.data_vigencia_inicio).toLocaleDateString('pt-BR')}
+                  {portaria.data_vigencia_inicio && paraDataLocal(portaria.data_vigencia_inicio).toLocaleDateString('pt-BR')}
                   {portaria.data_vigencia_inicio && portaria.data_vigencia_fim && ' a '}
-                  {portaria.data_vigencia_fim && new Date(portaria.data_vigencia_fim).toLocaleDateString('pt-BR')}
+                  {portaria.data_vigencia_fim && paraDataLocal(portaria.data_vigencia_fim).toLocaleDateString('pt-BR')}
                 </p>
               </div>
             )}

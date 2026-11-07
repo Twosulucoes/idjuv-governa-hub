@@ -408,6 +408,12 @@ export default function GestaoLotacaoPage() {
                               ) : (
                                 <span className="text-muted-foreground text-sm">—</span>
                               )}
+                              {servidor.agendada_inicio && (
+                                <p className="text-xs text-muted-foreground">
+                                  Agendada: {servidor.agendada_unidade_sigla || servidor.agendada_unidade_nome} a partir de{" "}
+                                  {servidor.agendada_inicio.split("-").reverse().join("/")}
+                                </p>
+                              )}
                             </TableCell>
 
                             {/* Status */}

@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { orgaoEmTexto, ufDaSede } from "@/lib/rotulosInstituicao";
 import { desligarServidor, MOTIVOS_QUE_DESLIGAM, type MotivoDesligamento } from "@/lib/rhRpc";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 // Tipos
 export type TipoVinculoServidor =
@@ -217,7 +218,7 @@ async function abrirPendenciaPortaria(params: {
 }) {
   try {
     const { data: userData } = await supabase.auth.getUser();
-    const dataDoc = params.data_documento || new Date().toISOString().split("T")[0];
+    const dataDoc = params.data_documento || hojeISO();
     const numero = `PENDENTE/${new Date(dataDoc).getFullYear()}`;
 
     const { data, error } = await supabase
