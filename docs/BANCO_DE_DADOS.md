@@ -1200,6 +1200,22 @@ Todas idempotentes.
   - `atualizar_saldo_contrato`: o executado conta medição `aprovada` e `paga` (a paga saía do executado). A migração
     recalcula o contrato com medição paga;
   - testes no bloco "Financeiro e contratos: gatilhos de saldo" de `scripts/db/testar-rls.sql`.
+- **RH: correções do teste de 06/11/2026, entrega 1** (`20261121090000_rh_testes_folha_contracheque.sql`; sem tabela nova
+  nem mudança de RLS):
+  - `rh_dia_nao_util(data)` (INVOKER): nome do feriado/ponto facultativo de `dias_nao_uteis` (ativo, sem contar
+    frequência, na data ou recorrente no dia e mês), ou nulo;
+  - gatilho `trg_registros_ponto_validar_falta` (`registros_ponto_validar_falta`, BEFORE INSERT/UPDATE): falta antes da
+    admissão (ou do primeiro exercício) ou em dia não útil é recusada com P0001 e mensagem para a tela;
+  - `folha_montar_ficha`: falta lançada fora dos dias pagos ou em dia não útil sai do total do resumo mensal e a ficha
+    ganha `falta_fora_dos_dias_pagos_ignorada` (antes a falta antes da admissão era descontada além do proporcional);
+  - `processar_folha_pagamento`: a ficha guarda a lotação vigente no fim da competência (`lotacao_vigente`), com a unidade
+    do provimento como reserva, e `unidade_nome` nulo sem nenhuma (antes `" - "`); sem alíquota patronal ou de RAT, a
+    ficha de quem contribui para o regime geral ganha `aliquota_patronal_ou_rat_nao_configurada`;
+  - `fechar_folha`: ficha com inconsistência de `folha_inconsistencias_bloqueantes()` (tabela de INSS/IRRF, dedução por
+    dependente, desconto simplificado, redução do IRRF, alíquota patronal/RAT) impede o fechamento; as demais exigem
+    justificativa de 20+ caracteres, que vai para o protocolo com a lista. A resposta traz `inconsistencias` e
+    `bloqueante`. A folha importada do SIGRH não tem ficha com inconsistência e fecha como antes;
+  - testes no bloco "RH, teste de 06/11/2026" de `scripts/db/testar-rls.sql`.
 - **Folha: processar e reabrir** (`20261107091000_folha_processar_reabertura.sql`): `processar_folha_pagamento` não
   passa mais a folha por `processando` (status da folha enviada à conferência; o histórico registrava cada
   processamento como envio à conferência e o gatilho marcava quem processou como quem conferiu); no erro a folha fica

@@ -27579,6 +27579,10 @@ export type Database = {
         Returns: number
       }
       folha_esta_bloqueada: { Args: { p_folha_id: string }; Returns: boolean }
+      folha_inconsistencias_bloqueantes: {
+        Args: Record<PropertyKey, never>
+        Returns: string[]
+      }
       folha_item: {
         Args: {
           p_base?: number
@@ -28583,6 +28587,7 @@ export type Database = {
         }
         Returns: Json
       }
+      rh_dia_nao_util: { Args: { p_data: string }; Returns: string }
       rh_exige_servidor_vinculado: {
         Args: Record<PropertyKey, never>
         Returns: boolean

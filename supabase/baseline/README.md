@@ -646,3 +646,10 @@ entrou no `01_pre_data.sql` (colunas de exclusão e de edição em `processo_and
 `overlay/40_privilegios.sql` (funções sem EXECUTE para a API). No `rls/mapa.csv`, a trilha entra como classe `trilha`
 (`leitura=compras.processos.visualizar|compras.processos.editar`). Sem permissão nova. Testes no bloco
 "Compras: processos, P1" de `scripts/db/testar-rls.sql`.
+
+A migração `20261121090000_rh_testes_folha_contracheque.sql` (teste do RH de 06/11/2026, entrega 1: folha e
+contracheque) entrou no `01_pre_data.sql` (`rh_dia_nao_util`, `folha_inconsistencias_bloqueantes`,
+`registros_ponto_validar_falta`, `folha_montar_ficha` e `processar_folha_pagamento`), no `03_post_data.sql` (gatilho
+`trg_registros_ponto_validar_falta`), no `overlay/18_funcoes_rpc.sql` (`fechar_folha` recusa ficha com inconsistência)
+e no `overlay/40_privilegios.sql`. Sem tabela, permissão ou mudança no `rls/mapa.csv`. Testes no bloco
+"RH, teste de 06/11/2026" de `scripts/db/testar-rls.sql`.
