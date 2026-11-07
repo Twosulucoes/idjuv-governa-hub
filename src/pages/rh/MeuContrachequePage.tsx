@@ -21,8 +21,8 @@ import {
   AlertCircle,
   Loader2,
 } from 'lucide-react';
-import { useMeusContracheques, useServidorLogado, useLogAcessoContracheque } from '@/hooks/useContracheque';
-import { generateContracheque } from '@/lib/pdfContracheque';
+import { useMeusContracheques, useServidorLogado, useLogAcessoContracheque, imprimirContracheques } from '@/hooks/useContracheque';
+
 import { MESES } from '@/types/folha';
 import { toast } from 'sonner';
 import { MSG_FALHA_REGISTRO } from '@/hooks/useTrilhaAuditoria';
@@ -62,31 +62,7 @@ export default function MeuContrachequePage() {
       }
       const competencia = `${MESES[ficha.competencia_mes - 1]}/${ficha.competencia_ano}`;
       
-      await generateContracheque({
-        ficha: {
-          id: ficha.id,
-          servidor_id: ficha.servidor_id,
-          cargo_nome: ficha.cargo_nome,
-          unidade_nome: ficha.unidade_nome,
-          total_proventos: ficha.total_proventos || 0,
-          total_descontos: ficha.total_descontos || 0,
-          valor_liquido: ficha.valor_liquido || 0,
-          base_inss: ficha.base_inss,
-          valor_inss: ficha.valor_inss,
-          base_irrf: ficha.base_irrf,
-          valor_irrf: ficha.valor_irrf,
-          quantidade_dependentes: ficha.quantidade_dependentes,
-          servidor: ficha.servidor ? {
-            nome_completo: ficha.servidor.nome_completo,
-            cpf: ficha.servidor.cpf || '',
-            matricula: ficha.servidor.matricula,
-            pis_pasep: ficha.servidor.pis_pasep,
-          } : undefined,
-        },
-        competencia,
-        competenciaAno: ficha.competencia_ano,
-        competenciaMes: ficha.competencia_mes,
-      });
+      await imprimirContracheques([ficha.id], competencia);
       toast.success('Contracheque gerado com sucesso!');
     } catch (error) {
       console.error('Erro ao gerar contracheque:', error);

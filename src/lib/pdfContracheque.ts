@@ -9,8 +9,8 @@ import type { FichaContracheque } from '@/lib/documentos/modelos/folha/contrache
 interface DadosContracheque {
   ficha: FichaContracheque;
   competencia: string;
-  competenciaAno: number;
-  competenciaMes: number;
+  competenciaAno?: number;
+  competenciaMes?: number;
 }
 
 /** Gera o contracheque individual de um servidor. */
@@ -25,8 +25,8 @@ export const generateContracheque = async (dados: DadosContracheque): Promise<vo
 export const generateContrachequeEmLote = async (
   fichas: FichaContracheque[],
   competencia: string,
-  _competenciaAno: number,
-  _competenciaMes: number,
+  _competenciaAno?: number,
+  _competenciaMes?: number,
 ): Promise<void> => {
   const semPis = fichas.map((f) => (f.servidor ? { ...f, servidor: { ...f.servidor, pis_pasep: null } } : f));
   baixarDocumento(await emitirDocumento('folha-contracheque', { competencia, fichas: semPis }));

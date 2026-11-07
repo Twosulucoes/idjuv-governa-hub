@@ -38,6 +38,13 @@
 > contracheque o PIS continua fora. Plano:
 > [`superpowers/plans/2026-10-20-padrao-relatorios-onda3.md`](./superpowers/plans/2026-10-20-padrao-relatorios-onda3.md).
 
+> **Contracheque, teste do RH de 06/11/2026:** as quatro telas que imprimem o contracheque passam por
+> `imprimirContracheques` (`@/hooks/useContracheque`), que carrega a ficha com os itens e o código da rubrica, e a regra
+> pura `montarFichaContracheque` (`src/lib/contrachequeDados.ts`). O PDF lista cada provento e desconto com a referência
+> da ficha ("24/30 dias"), a lotação vigente quando a ficha não a guardou, admissão, vínculo e regime, conta de pagamento
+> e os encargos do empregador; folha não fechada sai como PRÉVIA. Sem rubricas, o vencimento sai sem referência
+> inventada e a diferença para o total vira "Outros proventos/descontos".
+
 > **Onda 4 (20/10/2026, demais relatórios):** unidades locais (`unidades-relatorio-unidades-locais`: lista, ficha por
 > unidade e resumo) e listagem de unidades (`unidades-listagem`); cargos e vagas (`cargos-relatorio-cargos-vagas`),
 > quadro de cargos (`cargos-quadro-cargos`) e relatório anual de governança (`governanca-relatorio-anual`, os

@@ -56,7 +56,7 @@ import {
 } from "@/hooks/useArquivosFolha";
 import { FichaFinanceiraDialog } from "@/components/folha/FichaFinanceiraDialog";
 import { format } from "date-fns";
-import { generateContracheque } from "@/lib/pdfContracheque";
+import { imprimirContracheques } from "@/hooks/useContracheque";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { HistoricoAlteracoesTab } from "@/components/auditoria/HistoricoAlteracoesTab";
@@ -664,29 +664,7 @@ export default function FolhaDetalhePage() {
                                       });
                                       if (!ok) return;
                                       try {
-                                        await generateContracheque({
-                                          ficha: {
-                                            id: ficha.id,
-                                            servidor_id: ficha.servidor_id || "",
-                                            cargo_nome: ficha.cargo_nome || undefined,
-                                            total_proventos: ficha.total_proventos || 0,
-                                            total_descontos: ficha.total_descontos || 0,
-                                            valor_liquido: ficha.valor_liquido || 0,
-                                            base_inss: ficha.base_inss || undefined,
-                                            valor_inss: ficha.valor_inss || undefined,
-                                            base_irrf: ficha.base_irrf || undefined,
-                                            valor_irrf: ficha.valor_irrf || undefined,
-                                            quantidade_dependentes: ficha.quantidade_dependentes || undefined,
-                                            servidor: ficha.servidor ? {
-                                              nome_completo: ficha.servidor.nome_completo,
-                                              cpf: ficha.servidor.cpf || "",
-                                              matricula: ficha.servidor.matricula || undefined,
-                                            } : undefined,
-                                          },
-                                          competencia: `${MESES[folha.competencia_mes - 1]}/${folha.competencia_ano}`,
-                                          competenciaAno: folha.competencia_ano,
-                                          competenciaMes: folha.competencia_mes,
-                                        });
+                                        await imprimirContracheques([ficha.id], `${MESES[folha.competencia_mes - 1]}/${folha.competencia_ano}`);
                                         toast.success("Contracheque gerado!");
                                       } catch (error) {
                                         console.error("Erro ao gerar contracheque:", error);

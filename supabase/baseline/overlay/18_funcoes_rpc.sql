@@ -287,6 +287,8 @@ ALTER FUNCTION public.desmarcar_escola_cadastrada() SECURITY DEFINER;
 --     vigência os eventos do eSocial rascunho da folha.
 --     Desde o protocolo do RH (20261012110000, mesmo texto) as duas registram protocolo (`rh_protocolo_atual`).
 --     Desde 20261107091000 (mesmo texto) reabrir_folha conta as reaberturas (`quantidade_reaberturas`).
+--     Desde 20261121090000 (mesmo texto) fechar_folha recusa ficha com inconsistência: de tributo sempre; as demais
+--     só com justificativa de 20+ caracteres (teste do RH de 06/11/2026, item 7).
 CREATE OR REPLACE FUNCTION public.fechar_folha(p_folha_id uuid, p_justificativa text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -296,6 +298,8 @@ AS $function$
 DECLARE
   v_folha RECORD;
   v_user_id UUID;
+  v_bloqueantes jsonb;
+  v_pendentes jsonb;
 BEGIN
   v_user_id := auth.uid();
   
@@ -325,7 +329,29 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Folha deve estar em conferência ou aberta para ser fechada');
   END IF;
   
-  PERFORM public.rh_protocolo_atual('folha', format('Fechamento da folha %s/%s', v_folha.competencia_mes, v_folha.competencia_ano), NULL, jsonb_build_object('folha_id', p_folha_id, 'justificativa', p_justificativa));
+  -- Fichas com inconsistência (processar_folha_pagamento). As de tributo sem tabela ou alíquota não fecham nunca:
+  -- o INSS, o IRRF ou a parte patronal saíram zero. As demais fecham só com justificativa (20+ caracteres),
+  -- que vai para o protocolo junto com a lista.
+  SELECT coalesce(jsonb_agg(jsonb_build_object('servidor', s.nome_completo, 'inconsistencias', fc.inconsistencias)
+                            ORDER BY s.nome_completo) FILTER (WHERE fc.inconsistencias ?| public.folha_inconsistencias_bloqueantes()), '[]'::jsonb),
+         coalesce(jsonb_agg(jsonb_build_object('servidor', s.nome_completo, 'inconsistencias', fc.inconsistencias)
+                            ORDER BY s.nome_completo), '[]'::jsonb)
+    INTO v_bloqueantes, v_pendentes
+    FROM public.fichas_financeiras fc JOIN public.servidores s ON s.id = fc.servidor_id
+   WHERE fc.folha_id = p_folha_id AND fc.tem_inconsistencia;
+  IF jsonb_array_length(v_bloqueantes) > 0 THEN
+    RETURN jsonb_build_object('success', false, 'inconsistencias', v_bloqueantes, 'bloqueante', true,
+      'error', format('A folha não pode ser fechada: %s ficha(s) com INSS, IRRF ou parte patronal calculados sem tabela ou alíquota. '
+                      'Cadastre as tabelas e os parâmetros em Configurações da Folha e processe de novo.', jsonb_array_length(v_bloqueantes)));
+  END IF;
+  IF jsonb_array_length(v_pendentes) > 0 AND length(btrim(coalesce(p_justificativa, ''))) < 20 THEN
+    RETURN jsonb_build_object('success', false, 'inconsistencias', v_pendentes, 'bloqueante', false,
+      'error', format('%s ficha(s) com inconsistência. Corrija e processe de novo, ou informe uma justificativa (pelo menos 20 caracteres) para fechar assim mesmo.',
+                      jsonb_array_length(v_pendentes)));
+  END IF;
+
+  PERFORM public.rh_protocolo_atual('folha', format('Fechamento da folha %s/%s', v_folha.competencia_mes, v_folha.competencia_ano), NULL,
+    jsonb_build_object('folha_id', p_folha_id, 'justificativa', p_justificativa, 'fichas_com_inconsistencia', v_pendentes));
 
   -- Atualizar para fechada
   UPDATE public.folhas_pagamento

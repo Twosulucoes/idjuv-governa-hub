@@ -23,9 +23,9 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
 | — fora de `ui/` | 351 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 119 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 108 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 110 |
 | Linhas de `src/App.tsx` | 1501 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30576 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30581 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -69,13 +69,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 337 |
-| Migração mais recente | `20261120090000_compras_processos_andamento_edicao.sql` |
+| Migrações (`supabase/migrations/*.sql`) | 338 |
+| Migração mais recente | `20261121090000_rh_testes_folha_contracheque.sql` |
 | Tabelas do schema public (baseline) | 296 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 393 |
-| — de gatilho (`RETURNS trigger`) | 151 |
-| — demais | 242 |
+| Funções (baseline) | 396 |
+| — de gatilho (`RETURNS trigger`) | 152 |
+| — demais | 244 |
 | Enums (baseline) | 108 |
 | Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2097 |
 | Linhas de `supabase/baseline/rls/mapa.csv` | 296 |

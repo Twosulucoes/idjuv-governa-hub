@@ -29,8 +29,8 @@ import {
   CreditCard,
   Printer,
 } from 'lucide-react';
-import { useContrachequesRH, useContrachequeDetalhe, useLogAcessoContracheque, registrarLoteContracheques, type FichaFinanceiraComServidor } from '@/hooks/useContracheque';
-import { generateContracheque, generateContrachequeEmLote } from '@/lib/pdfContracheque';
+import { useContrachequesRH, useContrachequeDetalhe, useLogAcessoContracheque, registrarLoteContracheques, imprimirContracheques, type FichaFinanceiraComServidor } from '@/hooks/useContracheque';
+
 import { MESES } from '@/types/folha';
 import { toast } from 'sonner';
 import { MSG_FALHA_REGISTRO } from '@/hooks/useTrilhaAuditoria';
@@ -87,31 +87,7 @@ export default function ConsultaContrachequesPage() {
       }
       const competencia = `${MESES[ficha.competencia_mes - 1]}/${ficha.competencia_ano}`;
       
-      await generateContracheque({
-        ficha: {
-          id: ficha.id,
-          servidor_id: ficha.servidor_id,
-          cargo_nome: ficha.cargo_nome,
-          unidade_nome: ficha.unidade_nome,
-          total_proventos: ficha.total_proventos || 0,
-          total_descontos: ficha.total_descontos || 0,
-          valor_liquido: ficha.valor_liquido || 0,
-          base_inss: ficha.base_inss,
-          valor_inss: ficha.valor_inss,
-          base_irrf: ficha.base_irrf,
-          valor_irrf: ficha.valor_irrf,
-          quantidade_dependentes: ficha.quantidade_dependentes,
-          servidor: ficha.servidor ? {
-            nome_completo: ficha.servidor.nome_completo,
-            cpf: ficha.servidor.cpf || '',
-            matricula: ficha.servidor.matricula,
-            pis_pasep: ficha.servidor.pis_pasep,
-          } : undefined,
-        },
-        competencia,
-        competenciaAno: ficha.competencia_ano,
-        competenciaMes: ficha.competencia_mes,
-      });
+      await imprimirContracheques([ficha.id], competencia);
       
       toast.success('Contracheque gerado!');
     } catch (error) {
@@ -145,29 +121,8 @@ export default function ConsultaContrachequesPage() {
         return;
       }
       
-      const fichasParaLote = contrachequesFiltered.map(f => ({
-        id: f.id,
-        servidor_id: f.servidor_id,
-        cargo_nome: f.cargo_nome,
-        unidade_nome: f.unidade_nome,
-        total_proventos: f.total_proventos || 0,
-        total_descontos: f.total_descontos || 0,
-        valor_liquido: f.valor_liquido || 0,
-        base_inss: f.base_inss,
-        valor_inss: f.valor_inss,
-        base_irrf: f.base_irrf,
-        valor_irrf: f.valor_irrf,
-        quantidade_dependentes: f.quantidade_dependentes,
-        servidor: f.servidor ? {
-          nome_completo: f.servidor.nome_completo,
-          cpf: f.servidor.cpf || '',
-          matricula: f.servidor.matricula,
-          pis_pasep: f.servidor.pis_pasep,
-        } : undefined,
-      }));
-      
-      await generateContrachequeEmLote(fichasParaLote, competencia, ano, mes);
-      toast.success(`${fichasParaLote.length} contracheques gerados!`);
+      const quantidade = await imprimirContracheques(contrachequesFiltered.map(f => f.id), competencia);
+      toast.success(`${quantidade} contracheques gerados!`);
     } catch (error) {
       console.error('Erro ao gerar lote:', error);
       toast.error('Erro ao gerar contracheques em lote');

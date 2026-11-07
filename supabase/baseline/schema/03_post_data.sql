@@ -11206,6 +11206,13 @@ CREATE TRIGGER trg_registros_ponto_travar_competencia BEFORE INSERT OR DELETE OR
 
 
 --
+-- Name: registros_ponto trg_registros_ponto_validar_falta; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_registros_ponto_validar_falta BEFORE INSERT OR UPDATE ON public.registros_ponto FOR EACH ROW EXECUTE FUNCTION public.registros_ponto_validar_falta();
+
+
+--
 -- Name: regra_lancamento trg_regra_lancamento_exigir; Type: TRIGGER; Schema: public; Owner: -
 --
 
