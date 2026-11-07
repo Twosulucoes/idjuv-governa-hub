@@ -3350,6 +3350,11 @@ DROP POLICY IF EXISTS "rls_delete" ON public.pre_cadastros;
 CREATE POLICY "rls_delete" ON public.pre_cadastros FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'gabinete')));
 
+-- processo_andamento_alteracoes  [trilha: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.processo_andamento_alteracoes;
+CREATE POLICY "rls_select" ON public.processo_andamento_alteracoes FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar') OR public.has_permission_code(auth.uid(), 'compras.processos.editar')));
+
 -- processo_andamentos  [permissao: compras]
 DROP POLICY IF EXISTS "rls_select" ON public.processo_andamentos;
 CREATE POLICY "rls_select" ON public.processo_andamentos FOR SELECT TO authenticated

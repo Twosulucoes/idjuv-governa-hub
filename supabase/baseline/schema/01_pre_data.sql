@@ -14139,6 +14139,70 @@ COMMENT ON FUNCTION public.processar_folha_pagamento(p_folha_id uuid) IS 'Proces
 
 
 --
+-- Name: processo_andamento_alterar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_andamento_alterar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF OLD.excluido_em IS NOT NULL THEN
+    RAISE EXCEPTION 'Esta movimentação foi excluída e não pode mais ser alterada.' USING ERRCODE = '22023';
+  END IF;
+
+  NEW.id := OLD.id;
+  NEW.processo_id := OLD.processo_id;
+  NEW.created_at := OLD.created_at;
+  NEW.created_by := OLD.created_by;
+
+  IF NEW.excluido_em IS NOT NULL THEN
+    NEW.excluido_motivo := btrim(COALESCE(NEW.excluido_motivo, ''));
+    IF char_length(NEW.excluido_motivo) NOT BETWEEN 3 AND 500 THEN
+      RAISE EXCEPTION 'Informe o motivo da exclusão (de 3 a 500 caracteres).' USING ERRCODE = '22023';
+    END IF;
+    NEW.excluido_em := now();
+    NEW.excluido_por := auth.uid();
+    NEW.data := OLD.data;
+    NEW.data_informada := OLD.data_informada;
+    NEW.etapa := OLD.etapa;
+    NEW.setor := OLD.setor;
+    NEW.situacao := OLD.situacao;
+    NEW.alterado_em := OLD.alterado_em;
+    NEW.alterado_por := OLD.alterado_por;
+    NEW.alteracao_motivo := OLD.alteracao_motivo;
+    RETURN NEW;
+  END IF;
+
+  NEW.excluido_por := NULL;
+  NEW.excluido_motivo := NULL;
+  NEW.setor := NULLIF(btrim(NEW.setor), '');
+  NEW.situacao := btrim(NEW.situacao);
+  IF NEW.data IS DISTINCT FROM OLD.data THEN
+    NEW.data_informada := true;
+  END IF;
+
+  IF (NEW.data, NEW.data_informada, NEW.etapa, NEW.setor, NEW.situacao)
+     IS NOT DISTINCT FROM (OLD.data, OLD.data_informada, OLD.etapa, OLD.setor, OLD.situacao) THEN
+    RETURN OLD;  -- nada mudou: não grava nem vai para a trilha
+  END IF;
+
+  IF NEW.data > CURRENT_DATE THEN
+    RAISE EXCEPTION 'A data da movimentação não pode ser futura.' USING ERRCODE = '22023';
+  END IF;
+  NEW.alteracao_motivo := btrim(COALESCE(NEW.alteracao_motivo, ''));
+  IF NEW.alteracao_motivo = '' OR NEW.alteracao_motivo IS NOT DISTINCT FROM OLD.alteracao_motivo
+     OR char_length(NEW.alteracao_motivo) NOT BETWEEN 3 AND 500 THEN
+    RAISE EXCEPTION 'Informe o motivo da correção (de 3 a 500 caracteres).' USING ERRCODE = '22023';
+  END IF;
+  NEW.alterado_em := now();
+  NEW.alterado_por := auth.uid();
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: processo_andamento_carimbar(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -14151,6 +14215,12 @@ BEGIN
   NEW.created_at := now();
   NEW.setor := NULLIF(btrim(NEW.setor), '');
   NEW.situacao := btrim(NEW.situacao);
+  NEW.excluido_em := NULL;
+  NEW.excluido_por := NULL;
+  NEW.excluido_motivo := NULL;
+  NEW.alterado_em := NULL;
+  NEW.alterado_por := NULL;
+  NEW.alteracao_motivo := NULL;
   RETURN NEW;
 END;
 $$;
@@ -14165,17 +14235,39 @@ CREATE FUNCTION public.processo_andamento_no_processo() RETURNS trigger
     SET search_path TO 'public'
     AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.processo_andamentos a
-                  WHERE a.processo_id = NEW.processo_id AND a.id <> NEW.id AND a.data > NEW.data) THEN
-    UPDATE public.processos_licitatorios
-       SET etapa = NEW.etapa,
-           setor_atual = COALESCE(NEW.setor, setor_atual),
-           situacao_atual = NEW.situacao,
-           atualizado_em = CASE WHEN NEW.data_informada THEN NEW.data ELSE atualizado_em END,
-           updated_at = now()
-     WHERE id = NEW.processo_id;
-  END IF;
+  PERFORM public.processo_recalcular_estado(NEW.processo_id);
   RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: processo_andamento_registrar_alteracao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_andamento_registrar_alteracao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_antes jsonb := jsonb_build_object('data', OLD.data, 'data_informada', OLD.data_informada, 'etapa', OLD.etapa,
+                                      'setor', OLD.setor, 'situacao', OLD.situacao);
+BEGIN
+  IF NEW.excluido_em IS NULL AND NEW.alterado_em IS NOT DISTINCT FROM OLD.alterado_em THEN
+    RETURN NULL;  -- UPDATE sem mudança (o gatilho de antes devolveu a linha como estava)
+  END IF;
+  IF NEW.excluido_em IS NOT NULL THEN
+    INSERT INTO public.processo_andamento_alteracoes (andamento_id, processo_id, acao, antes, depois, motivo, feito_por)
+    VALUES (NEW.id, NEW.processo_id, 'exclusao', v_antes, NULL, NEW.excluido_motivo, auth.uid());
+  ELSE
+    INSERT INTO public.processo_andamento_alteracoes (andamento_id, processo_id, acao, antes, depois, motivo, feito_por)
+    VALUES (NEW.id, NEW.processo_id, 'edicao', v_antes,
+            jsonb_build_object('data', NEW.data, 'data_informada', NEW.data_informada, 'etapa', NEW.etapa,
+                               'setor', NEW.setor, 'situacao', NEW.situacao),
+            NEW.alteracao_motivo, auth.uid());
+  END IF;
+  PERFORM public.processo_recalcular_estado(NEW.processo_id);
+  RETURN NULL;
 END;
 $$;
 
@@ -14271,6 +14363,56 @@ BEGIN
    ORDER BY f.exercicio DESC, f.numero DESC;
 END;
 $$;
+
+
+--
+-- Name: processo_recalcular_estado(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_recalcular_estado(p_processo_id uuid) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_ult public.processo_andamentos%ROWTYPE;
+  v_setor text;
+  v_data date;
+BEGIN
+  SELECT * INTO v_ult
+    FROM public.processo_andamentos a
+   WHERE a.processo_id = p_processo_id AND a.excluido_em IS NULL
+   ORDER BY a.data_informada DESC, a.data DESC, a.created_at DESC
+   LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT a.setor INTO v_setor
+    FROM public.processo_andamentos a
+   WHERE a.processo_id = p_processo_id AND a.excluido_em IS NULL AND a.setor IS NOT NULL
+   ORDER BY a.data_informada DESC, a.data DESC, a.created_at DESC
+   LIMIT 1;
+
+  SELECT max(a.data) INTO v_data
+    FROM public.processo_andamentos a
+   WHERE a.processo_id = p_processo_id AND a.excluido_em IS NULL AND a.data_informada;
+
+  UPDATE public.processos_licitatorios
+     SET etapa = v_ult.etapa,
+         setor_atual = COALESCE(v_setor, setor_atual),
+         situacao_atual = v_ult.situacao,
+         atualizado_em = COALESCE(v_data, atualizado_em),
+         updated_at = now()
+   WHERE id = p_processo_id;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION processo_recalcular_estado(p_processo_id uuid); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.processo_recalcular_estado(p_processo_id uuid) IS 'Copia para o processo a etapa, o setor e a situação da movimentação que vale (não excluída; com data antes da sem data; mais recente) e a data da última movimentação com data. Só os gatilhos de processo_andamentos chamam.';
 
 
 --
@@ -28810,6 +28952,32 @@ ALTER TABLE ONLY public.prazos_processo FORCE ROW LEVEL SECURITY;
 
 
 --
+-- Name: processo_andamento_alteracoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processo_andamento_alteracoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    andamento_id uuid NOT NULL,
+    processo_id uuid NOT NULL,
+    acao text NOT NULL,
+    antes jsonb NOT NULL,
+    depois jsonb,
+    motivo text NOT NULL,
+    feito_em timestamp with time zone DEFAULT now() NOT NULL,
+    feito_por uuid,
+    CONSTRAINT processo_andamento_alteracoes_acao_check CHECK ((acao = ANY (ARRAY['edicao'::text, 'exclusao'::text]))),
+    CONSTRAINT processo_andamento_alteracoes_motivo_check CHECK (((char_length(btrim(motivo)) >= 3) AND (char_length(btrim(motivo)) <= 500)))
+);
+
+
+--
+-- Name: TABLE processo_andamento_alteracoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.processo_andamento_alteracoes IS 'Trilha das edições e exclusões das movimentações do processo de contratação (gatilho processo_andamento_registrar_alteracao); imutável.';
+
+
+--
 -- Name: processo_andamentos; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -28823,7 +28991,15 @@ CREATE TABLE public.processo_andamentos (
     situacao text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by uuid DEFAULT auth.uid(),
+    excluido_em timestamp with time zone,
+    excluido_por uuid,
+    excluido_motivo text,
+    alterado_em timestamp with time zone,
+    alterado_por uuid,
+    alteracao_motivo text,
+    CONSTRAINT processo_andamentos_alteracao_motivo_check CHECK (((alteracao_motivo IS NULL) OR ((char_length(btrim(alteracao_motivo)) >= 3) AND (char_length(btrim(alteracao_motivo)) <= 500)))),
     CONSTRAINT processo_andamentos_etapa_check CHECK ((etapa = ANY (ARRAY['abertura'::text, 'dfd'::text, 'etp'::text, 'tr'::text, 'cotacao'::text, 'levantamento_tecnico'::text, 'instrucao_adesao'::text, 'analise_juridica'::text, 'selecao'::text, 'contrato'::text, 'execucao'::text, 'encerrado'::text, 'cancelado'::text]))),
+    CONSTRAINT processo_andamentos_exclusao_check CHECK ((((excluido_em IS NULL) AND (excluido_motivo IS NULL)) OR ((excluido_em IS NOT NULL) AND ((char_length(btrim(excluido_motivo)) >= 3) AND (char_length(btrim(excluido_motivo)) <= 500))))),
     CONSTRAINT processo_andamentos_setor_check CHECK (((setor IS NULL) OR (char_length(setor) <= 200))),
     CONSTRAINT processo_andamentos_situacao_check CHECK (((char_length(btrim(situacao)) >= 1) AND (char_length(btrim(situacao)) <= 2000)))
 );
@@ -28834,6 +29010,20 @@ CREATE TABLE public.processo_andamentos (
 --
 
 COMMENT ON TABLE public.processo_andamentos IS 'Andamento do processo de contratação no SEI (uma linha por movimentação). data_informada = false: a planilha não trazia a data e foi usada a da carga.';
+
+
+--
+-- Name: COLUMN processo_andamentos.excluido_em; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processo_andamentos.excluido_em IS 'Movimentação excluída (exclusão lógica): some da linha do tempo e não conta para o estado do processo; a linha e o motivo ficam guardados.';
+
+
+--
+-- Name: COLUMN processo_andamentos.alteracao_motivo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processo_andamentos.alteracao_motivo IS 'Motivo da última edição (obrigatório em toda edição; o histórico completo fica em processo_andamento_alteracoes).';
 
 
 --
