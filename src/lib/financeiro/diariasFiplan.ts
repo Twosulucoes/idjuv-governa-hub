@@ -57,20 +57,30 @@ export interface ResumoDiarias {
   quantidade: number;
   valor: number;
   servidores: number;
+  /** Diárias sem prestação de contas */
   pendentes: number;
+  /** Servidores com ao menos uma diária sem prestação */
+  servidoresPendentes: number;
   valorPendente: number;
+  /** Diárias com prestação atrasada */
   atrasadas: number;
+  /** Servidores com ao menos uma diária atrasada */
+  servidoresAtrasados: number;
 }
 
 export function resumirDiarias(diarias: DiariaParaRegra[], hoje: Date): ResumoDiarias {
   const valor = (d: DiariaParaRegra) => Number(d.valor_empenhado) || 0;
   const pendentes = diarias.filter((d) => !d.prestou_contas);
+  const atrasadas = pendentes.filter((d) => situacaoPrestacao(d, hoje) === "atrasada");
+  const servidores = (lista: DiariaParaRegra[]) => new Set(lista.map((d) => d.servidor_id ?? d.credor_codigo ?? d.credor_nome)).size;
   return {
     quantidade: diarias.length,
     valor: diarias.reduce((s, d) => s + valor(d), 0),
-    servidores: new Set(diarias.map((d) => d.servidor_id ?? d.credor_codigo ?? d.credor_nome)).size,
+    servidores: servidores(diarias),
     pendentes: pendentes.length,
+    servidoresPendentes: servidores(pendentes),
     valorPendente: pendentes.reduce((s, d) => s + valor(d), 0),
-    atrasadas: pendentes.filter((d) => situacaoPrestacao(d, hoje) === "atrasada").length,
+    atrasadas: atrasadas.length,
+    servidoresAtrasados: servidores(atrasadas),
   };
 }

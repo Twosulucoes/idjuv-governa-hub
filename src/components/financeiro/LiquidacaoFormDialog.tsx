@@ -24,6 +24,8 @@ import {
 import { Loader2 } from "lucide-react";
 import { useCriarLiquidacao, useEmpenhos } from "@/hooks/useFinanceiro";
 import { formatCurrency } from "@/lib/formatters";
+import { hojeISO } from "@/lib/datas/hojeLocal";
+import { validarLiquidacao, type CampoLiquidacao, type ErrosFormulario } from "@/lib/financeiro/validacaoLancamentos";
 
 interface LiquidacaoFormDialogProps {
   open: boolean;
@@ -45,7 +47,7 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
     tipo_documento: "nota_fiscal",
     numero_documento: "",
     serie_documento: "",
-    data_documento: new Date().toISOString().split("T")[0],
+    data_documento: hojeISO(),
     chave_nfe: "",
     valor_documento: "",
     valor_liquidado: "",
@@ -55,6 +57,13 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
     outras_retencoes: "",
     observacoes: "",
   });
+
+  const [erros, setErros] = useState<ErrosFormulario<CampoLiquidacao>>({});
+  /** Atualiza o campo e apaga a mensagem dele */
+  const mudar = (campo: keyof typeof form, valor: string) => {
+    setForm((f) => ({ ...f, [campo]: valor }));
+    setErros((e) => ({ ...e, [campo]: undefined }));
+  };
 
   const empenhoSelecionado = empenhos?.find((e) => e.id === form.empenho_id);
 
@@ -70,7 +79,7 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
       tipo_documento: "nota_fiscal",
       numero_documento: "",
       serie_documento: "",
-      data_documento: new Date().toISOString().split("T")[0],
+      data_documento: hojeISO(),
       chave_nfe: "",
       valor_documento: "",
       valor_liquidado: "",
@@ -80,10 +89,15 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
       outras_retencoes: "",
       observacoes: "",
     });
+    setErros({});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const saldo = empenhoSelecionado ? Number(empenhoSelecionado.saldo_liquidar) : null;
+    const encontrados = validarLiquidacao(form, saldo);
+    setErros(encontrados);
+    if (Object.keys(encontrados).length > 0) return;
     await criarLiquidacao.mutateAsync({
       empenho_id: form.empenho_id,
       tipo_documento: form.tipo_documento,
@@ -108,14 +122,14 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova Liquidação</DialogTitle>
+          <DialogTitle>Nova liquidação</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {/* Empenho */}
           <div className="space-y-2">
             <Label>Empenho *</Label>
-            <Select value={form.empenho_id} onValueChange={(v) => setForm((f) => ({ ...f, empenho_id: v }))}>
+            <Select value={form.empenho_id} onValueChange={(v) => mudar("empenho_id", v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o empenho" />
               </SelectTrigger>
@@ -127,6 +141,7 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
                 ))}
               </SelectContent>
             </Select>
+            {erros.empenho_id && <p className="text-sm font-medium text-destructive">{erros.empenho_id}</p>}
             {empenhoSelecionado && (
               <p className="text-xs text-muted-foreground">
                 Objeto: {empenhoSelecionado.objeto} | Saldo a liquidar:{" "}
@@ -139,7 +154,7 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
             {/* Tipo Documento */}
             <div className="space-y-2">
               <Label>Tipo de Documento *</Label>
-              <Select value={form.tipo_documento} onValueChange={(v) => setForm((f) => ({ ...f, tipo_documento: v }))}>
+              <Select value={form.tipo_documento} onValueChange={(v) => mudar("tipo_documento", v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -160,10 +175,11 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
               <Input
                 placeholder="Número"
                 value={form.numero_documento}
-                onChange={(e) => setForm((f) => ({ ...f, numero_documento: e.target.value }))}
-                required
+                onChange={(e) => mudar("numero_documento", e.target.value)}
+                aria-invalid={!!erros.numero_documento}
                 maxLength={50}
               />
+              {erros.numero_documento && <p className="text-sm font-medium text-destructive">{erros.numero_documento}</p>}
             </div>
           </div>
 
@@ -174,9 +190,10 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
               <Input
                 type="date"
                 value={form.data_documento}
-                onChange={(e) => setForm((f) => ({ ...f, data_documento: e.target.value }))}
-                required
+                onChange={(e) => mudar("data_documento", e.target.value)}
+                aria-invalid={!!erros.data_documento}
               />
+              {erros.data_documento && <p className="text-sm font-medium text-destructive">{erros.data_documento}</p>}
             </div>
 
             {/* Chave NFe */}
@@ -185,7 +202,7 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
               <Input
                 placeholder="44 dígitos"
                 value={form.chave_nfe}
-                onChange={(e) => setForm((f) => ({ ...f, chave_nfe: e.target.value }))}
+                onChange={(e) => mudar("chave_nfe", e.target.value)}
                 maxLength={44}
               />
             </div>
@@ -200,9 +217,10 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
                 step="0.01"
                 min="0.01"
                 value={form.valor_documento}
-                onChange={(e) => setForm((f) => ({ ...f, valor_documento: e.target.value }))}
-                required
+                onChange={(e) => mudar("valor_documento", e.target.value)}
+                aria-invalid={!!erros.valor_documento}
               />
+              {erros.valor_documento && <p className="text-sm font-medium text-destructive">{erros.valor_documento}</p>}
             </div>
 
             {/* Valor Liquidado */}
@@ -213,9 +231,10 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
                 step="0.01"
                 min="0.01"
                 value={form.valor_liquidado}
-                onChange={(e) => setForm((f) => ({ ...f, valor_liquidado: e.target.value }))}
-                required
+                onChange={(e) => mudar("valor_liquidado", e.target.value)}
+                aria-invalid={!!erros.valor_liquidado}
               />
+              {erros.valor_liquidado && <p className="text-sm font-medium text-destructive">{erros.valor_liquidado}</p>}
             </div>
           </div>
 
@@ -230,8 +249,9 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
                   step="0.01"
                   placeholder="0,00"
                   value={form.retencao_inss}
-                  onChange={(e) => setForm((f) => ({ ...f, retencao_inss: e.target.value }))}
+                  onChange={(e) => mudar("retencao_inss", e.target.value)}
                 />
+                {erros.retencao_inss && <p className="text-sm font-medium text-destructive">{erros.retencao_inss}</p>}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">IRRF</Label>
@@ -240,8 +260,9 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
                   step="0.01"
                   placeholder="0,00"
                   value={form.retencao_irrf}
-                  onChange={(e) => setForm((f) => ({ ...f, retencao_irrf: e.target.value }))}
+                  onChange={(e) => mudar("retencao_irrf", e.target.value)}
                 />
+                {erros.retencao_irrf && <p className="text-sm font-medium text-destructive">{erros.retencao_irrf}</p>}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">ISS</Label>
@@ -250,8 +271,9 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
                   step="0.01"
                   placeholder="0,00"
                   value={form.retencao_iss}
-                  onChange={(e) => setForm((f) => ({ ...f, retencao_iss: e.target.value }))}
+                  onChange={(e) => mudar("retencao_iss", e.target.value)}
                 />
+                {erros.retencao_iss && <p className="text-sm font-medium text-destructive">{erros.retencao_iss}</p>}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Outras</Label>
@@ -260,8 +282,9 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
                   step="0.01"
                   placeholder="0,00"
                   value={form.outras_retencoes}
-                  onChange={(e) => setForm((f) => ({ ...f, outras_retencoes: e.target.value }))}
+                  onChange={(e) => mudar("outras_retencoes", e.target.value)}
                 />
+                {erros.outras_retencoes && <p className="text-sm font-medium text-destructive">{erros.outras_retencoes}</p>}
               </div>
             </div>
             {valorRetencoes > 0 && (
@@ -278,7 +301,7 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
             <Textarea
               placeholder="Observações adicionais..."
               value={form.observacoes}
-              onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
+              onChange={(e) => mudar("observacoes", e.target.value)}
               rows={2}
               maxLength={1000}
             />
@@ -290,12 +313,10 @@ export default function LiquidacaoFormDialog({ open, onOpenChange, empenhoIdPadr
             </Button>
             <Button
               type="submit"
-              disabled={
-                !form.empenho_id || !form.numero_documento || !form.valor_liquidado || criarLiquidacao.isPending
-              }
+              disabled={criarLiquidacao.isPending}
             >
               {criarLiquidacao.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Registrar Liquidação
+              Registrar liquidação
             </Button>
           </DialogFooter>
         </form>
