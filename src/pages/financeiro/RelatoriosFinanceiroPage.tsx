@@ -153,6 +153,7 @@ export default function RelatoriosFinanceiroPage() {
       const dados = paraPdf(fonte, config, resultado, descricaoFiltros);
       const tipo = orientacaoEfetiva(config) === "paisagem" ? "relatorios-gerador-paisagem" : "relatorios-gerador";
       baixarDocumento(await emitirDocumento(tipo, dados, { emitidoPor: user?.fullName ?? user?.email }));
+      toast({ title: "PDF gerado", description: "O arquivo foi baixado para o seu computador." });
     } catch (e) {
       toast({ title: "Não deu para gerar o PDF", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -162,11 +163,17 @@ export default function RelatoriosFinanceiroPage() {
 
   const baixarPlanilha = () => {
     if (!resultado) return;
-    const p = paraPlanilha(fonte, config, resultado, descricaoFiltros);
-    exportarLinhasParaExcel(p.linhas, nomeDoArquivo(config.titulo || fonte.rotulo, "xlsx"), {
-      colunasMoeda: p.colunasMoeda,
-      linhaCabecalho: p.linhaCabecalho,
-    });
+    try {
+      const p = paraPlanilha(fonte, config, resultado, descricaoFiltros);
+      exportarLinhasParaExcel(p.linhas, nomeDoArquivo(config.titulo || fonte.rotulo, "xlsx"), {
+        colunasMoeda: p.colunasMoeda,
+        linhaCabecalho: p.linhaCabecalho,
+      });
+      // Mesma confirmação das planilhas do RH (achado F8 do teste do Financeiro)
+      toast({ title: "Planilha Excel gerada", description: "O arquivo foi baixado para o seu computador." });
+    } catch (e) {
+      toast({ title: "Não deu para gerar a planilha", description: (e as Error).message, variant: "destructive" });
+    }
   };
 
   const selecionado = aberto?.tipo === "pronto" ? `pronto:${aberto.id}` : aberto?.tipo === "salvo" ? aberto.modelo.id : null;

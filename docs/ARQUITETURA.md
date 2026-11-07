@@ -171,7 +171,7 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   (painel do módulo, `FinanceiroDashboardPage`, `requiredModule="financeiro"`). `/financeiro/atualizar`
   (`AtualizarFinanceiroPage`, `requiredModule="financeiro"`, item "Atualizar dados" no menu): rotina de importações
   do FIPLAN, só leitura; cada botão leva ao importador, que confere a própria permissão. Menu do Financeiro (26/10/2026): Liquidações e
-  Pagamentos ficam no submenu "Contingência (regularizar no FIPLAN)"; `/financeiro/solicitacoes`, `/sub-empenhos`,
+  Pagamentos ficam no submenu "Contingência" (lançamentos fora do FIPLAN, regularizados nele depois; rótulo encurtado em 07/11/2026); `/financeiro/solicitacoes`, `/sub-empenhos`,
   `/restos-a-pagar`, `/alteracoes-orcamentarias` e `/adiantamentos` saíram dos menus, mas as rotas
   continuam registradas (ver [MODULOS.md](./MODULOS.md)). `/financeiro/relatorios` (`RelatoriosFinanceiroPage`,
   `requiredPermissions="orcamento.visualizar"`) voltou ao menu como "Relatórios": é o Gerador de relatórios (catálogo de

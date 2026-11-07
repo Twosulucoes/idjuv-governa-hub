@@ -11,6 +11,12 @@ describe("diasAte", () => {
     expect(diasAte(null, hoje)).toBeNull();
     expect(diasAte("lixo", hoje)).toBeNull();
   });
+
+  it("aceita o hoje como data de calendário (AAAA-MM-DD)", () => {
+    // Achado F4 do teste do Financeiro: em 06/11 faltam 55 dias para 31/12
+    expect(diasAte("2026-12-31", "2026-11-06")).toBe(55);
+    expect(diasAte("2026-11-06", "2026-11-06")).toBe(0);
+  });
 });
 
 describe("alertasConvenio", () => {

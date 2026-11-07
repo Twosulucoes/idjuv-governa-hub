@@ -29,7 +29,8 @@ import {
 } from "@/hooks/useConveniosFederais";
 import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { dataBR } from "@/lib/bancario/exibicao";
-import { alertasConvenio, espelhoDesatualizado } from "@/lib/financeiro/conveniosFederais";
+import { alertasConvenio, diasAte, espelhoDesatualizado } from "@/lib/financeiro/conveniosFederais";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 import { formatCurrency } from "@/lib/formatters";
 
 const fimVigencia = (p: PropostaComConvenio) => p.convenio?.fim_vigencia ?? p.fim_vigencia ?? null;
@@ -38,7 +39,8 @@ const fimVigencia = (p: PropostaComConvenio) => p.convenio?.fim_vigencia ?? p.fi
 function faixaVigencia(p: PropostaComConvenio): string {
   const fim = fimVigencia(p);
   if (!fim) return "sem_data";
-  const dias = Math.floor((new Date(`${fim.slice(0, 10)}T00:00:00`).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000);
+  const dias = diasAte(fim, hojeISO());
+  if (dias === null) return "sem_data";
   if (dias < 0) return "vencida";
   if (dias <= 30) return "ate_30";
   if (dias <= 90) return "ate_90";

@@ -60,6 +60,7 @@ import {
   Heart,
   Briefcase,
   Handshake,
+  LifeBuoy,
 } from "lucide-react";
 import type { Modulo } from "@/shared/config/modules.config";
 import type { PermissionCode } from "@/types/auth";
@@ -148,8 +149,8 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
       // Lançamentos fora do FIPLAN, regularizados depois nele (FIPLAN fechado, tarifas, contas de convênio)
       {
         id: "contingencia",
-        label: "Contingência (regularizar no FIPLAN)",
-        icon: FileCheck,
+        label: "Contingência",
+        icon: LifeBuoy,
         route: "/financeiro/liquidacoes",
         children: [
           { id: "liquidacoes", label: "Liquidações", icon: FileCheck, route: "/financeiro/liquidacoes" },

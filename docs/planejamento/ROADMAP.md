@@ -97,6 +97,12 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 
 ## Backlog fora do plano
 
+- [ ] **Financeiro — achados do teste de 06/11/2026** (relatório de testes do Financeiro): F4 a F9 em PR rascunho de
+  07/11/2026: prazo do convênio contado pela data de calendário no fuso da sede (`fusoHorario` do perfil, `hojeISO` em
+  `src/lib/datas/hojeLocal.ts`, reaproveitável pelo item 18 do teste do RH); cartões de Diárias com a unidade (diárias ×
+  servidores); mensagem por campo em Empenho de contingência, Nova liquidação e Programar pagamento; mesmos nomes no
+  botão e no diálogo; aviso de planilha e PDF gerados nos Relatórios; menu "Contingência". F1 a F3 (lista de empenhos
+  × painel, anulados e data de corte da fila) aguardam a regra do dono.
 - [ ] **Impressão só pelo motor** (transversal): guard `impressaoForaDoCore` no gate (21/10/2026) conta `window.print`,
   `print:`, `@media print` e pdf-lib fora de `src/lib/documentos/`. Falta migrar para modelo do motor as etiquetas de
   patrimônio, a ficha cadastral geral (pdf-lib) e o Imprimir do organograma ([PADRAO_DOCUMENTOS.md](../PADRAO_DOCUMENTOS.md) §3).

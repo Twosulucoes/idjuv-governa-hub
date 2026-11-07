@@ -23,6 +23,7 @@ import {
 import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { dataBR } from "@/lib/bancario/exibicao";
 import { alertasConvenio, diasAte, percentual, rotuloTipoAutor } from "@/lib/financeiro/conveniosFederais";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 import { formatCurrency } from "@/lib/formatters";
 
 const colunasEmendas: ColunaTabela<EmendaFederal>[] = [
@@ -104,7 +105,7 @@ function Moeda({ valor }: { valor: number | null | undefined }) {
 }
 
 function Prazo({ data }: { data: string | null }) {
-  const dias = diasAte(data, new Date());
+  const dias = diasAte(data, hojeISO());
   return (
     <>
       {dataBR(data)}

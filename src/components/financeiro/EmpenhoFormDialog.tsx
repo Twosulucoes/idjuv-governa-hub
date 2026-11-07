@@ -26,6 +26,7 @@ import { useCriarEmpenho, useDotacoes, useNaturezasDespesa, useFontesRecurso } f
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/formatters";
+import { validarEmpenho, type CampoEmpenho, type ErrosFormulario } from "@/lib/financeiro/validacaoLancamentos";
 
 interface EmpenhoFormDialogProps {
   open: boolean;
@@ -64,6 +65,13 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
     observacoes: "",
   });
 
+  const [erros, setErros] = useState<ErrosFormulario<CampoEmpenho>>({});
+  /** Atualiza o campo e apaga a mensagem dele */
+  const mudar = (campo: keyof typeof form, valor: string) => {
+    setForm((f) => ({ ...f, [campo]: valor }));
+    setErros((e) => ({ ...e, [campo]: undefined }));
+  };
+
   const dotacaoSelecionada = dotacoes?.find((d) => d.id === form.dotacao_id);
   const valorExcedesSaldo = dotacaoSelecionada && Number(form.valor_empenhado) > dotacaoSelecionada.saldo_disponivel;
 
@@ -79,10 +87,14 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
       processo_sei: "",
       observacoes: "",
     });
+    setErros({});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const encontrados = validarEmpenho(form, dotacaoSelecionada?.saldo_disponivel);
+    setErros(encontrados);
+    if (Object.keys(encontrados).length > 0) return;
     await criarEmpenho.mutateAsync({
       dotacao_id: form.dotacao_id,
       fornecedor_id: form.fornecedor_id,
@@ -102,14 +114,14 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Empenho</DialogTitle>
+          <DialogTitle>Empenho de contingência</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {/* Dotação */}
           <div className="space-y-2">
             <Label>Dotação Orçamentária *</Label>
-            <Select value={form.dotacao_id} onValueChange={(v) => setForm((f) => ({ ...f, dotacao_id: v }))}>
+            <Select value={form.dotacao_id} onValueChange={(v) => mudar("dotacao_id", v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a dotação" />
               </SelectTrigger>
@@ -121,6 +133,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
                 ))}
               </SelectContent>
             </Select>
+            {erros.dotacao_id && <p id="erro-dotacao_id" className="text-sm font-medium text-destructive">{erros.dotacao_id}</p>}
             {dotacaoSelecionada && (
               <p className={`text-xs ${valorExcedesSaldo ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
                 Saldo disponível: <strong>{formatCurrency(dotacaoSelecionada.saldo_disponivel)}</strong>
@@ -132,7 +145,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
           {/* Fornecedor */}
           <div className="space-y-2">
             <Label>Fornecedor / Credor *</Label>
-            <Select value={form.fornecedor_id} onValueChange={(v) => setForm((f) => ({ ...f, fornecedor_id: v }))}>
+            <Select value={form.fornecedor_id} onValueChange={(v) => mudar("fornecedor_id", v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o fornecedor" />
               </SelectTrigger>
@@ -144,13 +157,14 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
                 ))}
               </SelectContent>
             </Select>
+            {erros.fornecedor_id && <p id="erro-fornecedor_id" className="text-sm font-medium text-destructive">{erros.fornecedor_id}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {/* Tipo */}
             <div className="space-y-2">
               <Label>Tipo de Empenho *</Label>
-              <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
+              <Select value={form.tipo} onValueChange={(v) => mudar("tipo", v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -171,9 +185,10 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
                 min="0.01"
                 placeholder="0,00"
                 value={form.valor_empenhado}
-                onChange={(e) => setForm((f) => ({ ...f, valor_empenhado: e.target.value }))}
-                required
+                onChange={(e) => mudar("valor_empenhado", e.target.value)}
+                aria-invalid={!!erros.valor_empenhado}
               />
+              {erros.valor_empenhado && <p id="erro-valor_empenhado" className="text-sm font-medium text-destructive">{erros.valor_empenhado}</p>}
             </div>
           </div>
 
@@ -181,7 +196,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
             {/* Natureza da Despesa */}
             <div className="space-y-2">
               <Label>Natureza da Despesa</Label>
-              <Select value={form.natureza_despesa_id} onValueChange={(v) => setForm((f) => ({ ...f, natureza_despesa_id: v }))}>
+              <Select value={form.natureza_despesa_id} onValueChange={(v) => mudar("natureza_despesa_id", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Opcional" />
                 </SelectTrigger>
@@ -198,7 +213,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
             {/* Fonte de Recurso */}
             <div className="space-y-2">
               <Label>Fonte de Recurso</Label>
-              <Select value={form.fonte_recurso_id} onValueChange={(v) => setForm((f) => ({ ...f, fonte_recurso_id: v }))}>
+              <Select value={form.fonte_recurso_id} onValueChange={(v) => mudar("fonte_recurso_id", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Opcional" />
                 </SelectTrigger>
@@ -219,11 +234,12 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
             <Textarea
               placeholder="Descreva o objeto do empenho..."
               value={form.objeto}
-              onChange={(e) => setForm((f) => ({ ...f, objeto: e.target.value }))}
-              required
+              onChange={(e) => mudar("objeto", e.target.value)}
+              aria-invalid={!!erros.objeto}
               rows={3}
               maxLength={3000}
             />
+            {erros.objeto && <p id="erro-objeto" className="text-sm font-medium text-destructive">{erros.objeto}</p>}
           </div>
 
           {/* Processo SEI */}
@@ -232,7 +248,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
             <Input
               placeholder="Nº do processo"
               value={form.processo_sei}
-              onChange={(e) => setForm((f) => ({ ...f, processo_sei: e.target.value }))}
+              onChange={(e) => mudar("processo_sei", e.target.value)}
               maxLength={50}
             />
           </div>
@@ -243,7 +259,7 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
             <Textarea
               placeholder="Observações adicionais..."
               value={form.observacoes}
-              onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
+              onChange={(e) => mudar("observacoes", e.target.value)}
               rows={2}
               maxLength={1000}
             />
@@ -255,10 +271,10 @@ export default function EmpenhoFormDialog({ open, onOpenChange }: EmpenhoFormDia
             </Button>
             <Button
               type="submit"
-              disabled={!form.dotacao_id || !form.fornecedor_id || !form.valor_empenhado || !form.objeto || !!valorExcedesSaldo || criarEmpenho.isPending}
+              disabled={criarEmpenho.isPending}
             >
               {criarEmpenho.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Emitir Empenho
+              Emitir empenho
             </Button>
           </DialogFooter>
         </form>

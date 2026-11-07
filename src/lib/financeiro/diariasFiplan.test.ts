@@ -46,7 +46,11 @@ describe("resumirDiarias", () => {
       diaria({ valor_empenhado: 1080, data_retorno: "2026-06-09" }),
       diaria({ valor_empenhado: 540, prestou_contas: true, servidor_id: "s2" }),
     ], hoje);
-    expect(r).toEqual({ quantidade: 3, valor: 1920, servidores: 2, pendentes: 2, valorPendente: 1380, atrasadas: 1 });
+    expect(r).toEqual({
+      quantidade: 3, valor: 1920, servidores: 2,
+      pendentes: 2, servidoresPendentes: 1, valorPendente: 1380,
+      atrasadas: 1, servidoresAtrasados: 1,
+    });
   });
 
   it("sem servidor ligado, conta pelo código do credor", () => {

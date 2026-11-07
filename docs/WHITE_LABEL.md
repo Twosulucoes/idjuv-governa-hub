@@ -212,6 +212,11 @@ export interface TenantConfig {
       }[];
     };
   };
+
+  // Fuso da sede (IANA, ex.: "America/Boa_Vista"). Decide o "hoje" das contagens de
+  // prazo (`hojeISO` em `src/lib/datas/hojeLocal.ts`), para o dia não virar antes da
+  // hora quando o navegador está em outro fuso. Ausente: o fuso do navegador.
+  fusoHorario?: string;
 }
 ```
 
