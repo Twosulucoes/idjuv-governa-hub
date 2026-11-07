@@ -8234,6 +8234,97 @@ BEGIN
   PERFORM pg_temp.nota('COMPRAS PROCESSOS: nº SEI sem espaço, andamento só com compras.processos.editar, estado atual pela movimentação mais recente, andamento não se apaga, empenhos pelo nº SEI e importação (simulação, aplicação e reimportação) verificados');
 END $$;
 
+-- ---------------------------------------------------------------- Compras: processos, P1 — editar e excluir movimentação (migração 20261120090000) (TRIGGERS LIGADOS)
+-- Migração 20261120090000_compras_processos_andamento_edicao.sql (plano docs/superpowers/plans/2026-11-07-processos-sei-p1-andamento.md):
+--   * com data ganha de sem data no estado do processo; editar exige motivo e vai para a trilha; só visualizar não edita;
+--   * excluir é marcar com motivo (sai do estado), excluída não muda mais; a trilha não muda nem se apaga pela API;
+--   * a trilha só é lida com compras.processos.visualizar ou editar; gatilhos e recálculo sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_compras');
+  proc uuid; a_sem uuid; a_com uuid; r text; x text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.processo_recalcular_estado(uuid)', 'public.processo_andamento_alterar()',
+                           'public.processo_andamento_registrar_alteracao()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processos_licitatorios (numero_processo, ano, objeto)
+  VALUES ('99999.000003/2020.03', 2020, 'Objeto de teste P1') RETURNING id INTO proc;
+  -- sem data (como a carga da planilha: data do dia) e depois uma com data real mais antiga
+  INSERT INTO public.processo_andamentos (processo_id, data, data_informada, etapa, situacao)
+  VALUES (proc, CURRENT_DATE, false, 'abertura', 'Linha antiga sem data') RETURNING id INTO a_sem;
+  INSERT INTO public.processo_andamentos (processo_id, data, etapa, setor, situacao)
+  VALUES (proc, '2020-03-04', 'etp', 'IDJUV/PRESI', 'ETP em elaboração') RETURNING id INTO a_com;
+  r := (SELECT etapa || '|' || situacao_atual || '|' || atualizado_em::text FROM public.processos_licitatorios WHERE id = proc);
+  IF r IS DISTINCT FROM 'etp|ETP em elaboração|2020-03-04' THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: movimentação sem data ganhou da com data (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+
+  -- editar: visualizar não edita; sem motivo é recusado; com motivo grava, recalcula e vai para a trilha
+  r := pg_temp.sql_como(u_vis, 'authenticated', format(
+    'UPDATE public.processo_andamentos SET situacao = ''x'', alteracao_motivo = ''motivo'' WHERE id = %L', a_com));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: só visualizar edita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'UPDATE public.processo_andamentos SET situacao = ''x'' WHERE id = %L', a_com));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: edição sem motivo aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'UPDATE public.processo_andamentos SET data = CURRENT_DATE + 1, alteracao_motivo = ''data errada'' WHERE id = %L', a_com));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: data futura aceita na edição (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'UPDATE public.processo_andamentos SET processo_id = gen_random_uuid(), situacao = ''ETP enviado à PGE'', alteracao_motivo = ''texto corrigido'' WHERE id = %L', a_com));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: editor não corrige a movimentação (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.processo_andamentos SET situacao = 'ETP enviado à PGE', alteracao_motivo = 'texto corrigido' WHERE id = a_com;
+  r := (SELECT situacao_atual FROM public.processos_licitatorios WHERE id = proc);
+  IF r IS DISTINCT FROM 'ETP enviado à PGE' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: edição não recalculou o processo (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := (SELECT acao || '|' || motivo || '|' || (antes->>'situacao') || '|' || (depois->>'situacao') || '|' || (feito_por = u_ed)::text
+          FROM public.processo_andamento_alteracoes WHERE andamento_id = a_com);
+  IF r IS DISTINCT FROM 'edicao|texto corrigido|ETP em elaboração|ETP enviado à PGE|true' THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: trilha da edição (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+
+  -- excluir: sem motivo recusado; com motivo marca, sai da conta e não muda mais
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'UPDATE public.processo_andamentos SET excluido_em = now() WHERE id = %L', a_sem));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: exclusão sem motivo aceita (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.processo_andamentos SET excluido_em = now(), excluido_motivo = 'Registro antigo da planilha' WHERE id = a_sem;
+  IF (SELECT excluido_por FROM public.processo_andamentos WHERE id = a_sem) IS DISTINCT FROM u_ed THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: autoria da exclusão');
+  END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'UPDATE public.processo_andamentos SET situacao = ''volta'', alteracao_motivo = ''reabrir'' WHERE id = %L', a_sem));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: movimentação excluída alterada (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'WITH d AS (DELETE FROM public.processo_andamentos WHERE id = %L RETURNING 1) SELECT count(*)::text FROM d', a_sem));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: andamento apagado pela API (' || r || ')'); END IF;
+
+  -- trilha: lê com a permissão; não escreve, não muda e não se apaga pela API
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT count(*)::text FROM public.processo_andamento_alteracoes WHERE processo_id = %L', proc));
+  IF r IS DISTINCT FROM '2' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: visualizar não lê a trilha (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format(
+    'SELECT count(*)::text FROM public.processo_andamento_alteracoes WHERE processo_id = %L', proc));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: módulo sem permissão lê a trilha (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamento_alteracoes (andamento_id, processo_id, acao, antes, motivo) VALUES (%L, %L, ''edicao'', ''{}'', ''falso'')', a_com, proc));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: trilha gravada pela API (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'DELETE FROM public.processo_andamento_alteracoes WHERE processo_id = %L', proc));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P1: trilha apagada pela API (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('COMPRAS PROCESSOS P1: com data ganha de sem data, edição com motivo e trilha, data futura recusada, exclusão lógica com motivo e autoria, excluída travada, trilha só leitura com a permissão e gatilhos fora da API verificados');
+END $$;
+
 -- ---------------------------------------------------------------- Financeiro e contratos: gatilhos de saldo (TRIGGERS LIGADOS)
 -- Migração 20261107090000_fin_gatilhos_empenho_contrato.sql (defeitos da demonstração, 24/10/2026):
 --   * reforço de sub-empenho grava e soma uma vez na dotação; anulação devolve à dotação e anula o empenho inteiro;

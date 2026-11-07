@@ -25,7 +25,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 119 |
 | Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 108 |
 | Linhas de `src/App.tsx` | 1501 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30502 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30576 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -69,16 +69,16 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 336 |
-| Migração mais recente | `20261119090000_governanca_importar_estrutura.sql` |
-| Tabelas do schema public (baseline) | 295 |
+| Migrações (`supabase/migrations/*.sql`) | 337 |
+| Migração mais recente | `20261120090000_compras_processos_andamento_edicao.sql` |
+| Tabelas do schema public (baseline) | 296 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 390 |
-| — de gatilho (`RETURNS trigger`) | 149 |
-| — demais | 241 |
+| Funções (baseline) | 393 |
+| — de gatilho (`RETURNS trigger`) | 151 |
+| — demais | 242 |
 | Enums (baseline) | 108 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2095 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 295 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2097 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 296 |
 | Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 14 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.

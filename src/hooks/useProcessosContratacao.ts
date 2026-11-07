@@ -2,14 +2,15 @@
  * Processos de contratação do módulo Compras: o processo (processos_licitatorios, com etapa, setor e situação), a linha
  * do tempo do andamento no SEI (processo_andamentos) e os empenhos do FIP 614 ligados pelo nº SEI (processo_empenhos,
  * porque fin_empenhos é do financeiro). Migração 20261029090000; leitura com `compras.processos.visualizar`, escrita
- * com `compras.processos.editar`.
+ * com `compras.processos.editar`. Correção e exclusão de movimentação (exclusão lógica, com motivo e trilha em
+ * processo_andamento_alteracoes): migração 20261120090000.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { TablesInsert } from '@/integrations/supabase/types';
-import type { ProcessoAndamento, ProcessoContratacao } from '@/types/processos';
+import type { ProcessoAndamento, ProcessoAndamentoAlteracao, ProcessoContratacao } from '@/types/processos';
 
 export type ProcessoInput = Pick<
   TablesInsert<'processos_licitatorios'>,
@@ -99,10 +100,89 @@ export function useAndamentos(processoId: string | undefined) {
         .from('processo_andamentos')
         .select('*')
         .eq('processo_id', processoId!)
+        .is('excluido_em', null)
+        .order('data_informada', { ascending: false })
         .order('data', { ascending: false })
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as ProcessoAndamento[];
+    },
+  });
+}
+
+export interface CorrecaoAndamento {
+  id: string;
+  processo_id: string;
+  data: string;
+  etapa: string;
+  setor: string | null;
+  situacao: string;
+  motivo: string;
+}
+
+function invalidarAndamento(qc: ReturnType<typeof useQueryClient>, processoId: string) {
+  qc.invalidateQueries({ queryKey: ['processo-andamentos', processoId] });
+  qc.invalidateQueries({ queryKey: ['processo-andamento-alteracoes', processoId] });
+  qc.invalidateQueries({ queryKey: ['processo-contratacao', processoId] });
+  qc.invalidateQueries({ queryKey: [CHAVE] });
+}
+
+/** Corrige uma movimentação (P1, migração 20261120090000): o banco exige o motivo, grava a trilha e recalcula o processo. */
+export function useCorrigirMovimentacao() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, processo_id, data, etapa, setor, situacao, motivo }: CorrecaoAndamento) => {
+      const { error } = await supabase
+        .from('processo_andamentos')
+        .update({ data, data_informada: true, etapa, setor, situacao, alteracao_motivo: motivo })
+        .eq('id', id);
+      if (error) throw error;
+      return processo_id;
+    },
+    onSuccess: (processoId) => {
+      invalidarAndamento(qc, processoId);
+      toast({ title: 'Movimentação corrigida' });
+    },
+    onError: (e) => toast({ title: 'Não foi possível corrigir a movimentação', description: mensagemErro(e), variant: 'destructive' }),
+  });
+}
+
+/** Exclui uma ou mais movimentações (exclusão lógica com motivo; a linha fica guardada e sai da conta do processo). */
+export function useExcluirMovimentacoes() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ ids, processoId, motivo }: { ids: string[]; processoId: string; motivo: string }) => {
+      const { error } = await supabase
+        .from('processo_andamentos')
+        .update({ excluido_em: new Date().toISOString(), excluido_motivo: motivo })
+        .in('id', ids)
+        .eq('processo_id', processoId);
+      if (error) throw error;
+      return { processoId, total: ids.length };
+    },
+    onSuccess: ({ processoId, total }) => {
+      invalidarAndamento(qc, processoId);
+      toast({ title: total === 1 ? 'Movimentação excluída' : `${total} movimentações excluídas` });
+    },
+    onError: (e) => toast({ title: 'Não foi possível excluir', description: mensagemErro(e), variant: 'destructive' }),
+  });
+}
+
+/** Trilha das correções e exclusões do andamento do processo. */
+export function useAlteracoesDoAndamento(processoId: string | undefined) {
+  return useQuery({
+    queryKey: ['processo-andamento-alteracoes', processoId],
+    enabled: !!processoId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('processo_andamento_alteracoes')
+        .select('*')
+        .eq('processo_id', processoId!)
+        .order('feito_em', { ascending: false });
+      if (error) throw error;
+      return data as ProcessoAndamentoAlteracao[];
     },
   });
 }

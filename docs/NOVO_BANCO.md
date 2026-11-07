@@ -214,6 +214,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   com o trecho do dump (`governanca_importar_estrutura` no `01_pre_data.sql`) e o EXECUTE só para `authenticated` no
   overlay 40; sem tabela, permissão ou mudança no `rls/mapa.csv`; testes no bloco "Governança: estrutura pela planilha"
   de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#estrutura-organizacional-pela-planilha-governanca_importar_estrutura)).
+- A correção e a exclusão de movimentação dos processos SEI (P1, migração `20261120090000`) entraram no mapa
+  (`processo_andamento_alteracoes`, classe `trilha` com `leitura=` de ver ou editar processos; nota de
+  `processo_andamentos` atualizada), no schema do baseline (colunas, tabela, gatilhos e `processo_recalcular_estado`) e
+  no `overlay/40_privilegios.sql` (funções sem EXECUTE para a API); testes no bloco "Compras: processos, P1" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A remessa OBN600 dos pagamentos (migração `20261024090000`) entrou no schema do baseline regenerado (colunas novas
   em `contas_autarquia`, `fin_remessas_bancarias` e `fin_pagamentos`, `registrar_remessa_obn600` e as versões finais
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem

@@ -638,3 +638,11 @@ A migração `20261119090000_governanca_importar_estrutura.sql` (estrutura organ
 `authenticated`). Usa a permissão `governanca.estrutura.editar`, que já existe: catálogo, RLS e `rls/mapa.csv` sem
 mudança. Testes no bloco "Governança: estrutura pela planilha" de `scripts/db/testar-rls.sql`. A carga das 42
 unidades da Lei nº 2.301/2025 (`20261118090000`) é dado do IDJUV e não entra no baseline.
+
+A migração `20261120090000_compras_processos_andamento_edicao.sql` (processos SEI, P1: corrigir e excluir movimentação)
+entrou no `01_pre_data.sql` (colunas de exclusão e de edição em `processo_andamentos`, tabela
+`processo_andamento_alteracoes` e as funções `processo_recalcular_estado`, `processo_andamento_alterar` e
+`processo_andamento_registrar_alteracao`), no `03_post_data.sql` (chaves, índices, gatilhos, RLS e policy) e no
+`overlay/40_privilegios.sql` (funções sem EXECUTE para a API). No `rls/mapa.csv`, a trilha entra como classe `trilha`
+(`leitura=compras.processos.visualizar|compras.processos.editar`). Sem permissão nova. Testes no bloco
+"Compras: processos, P1" de `scripts/db/testar-rls.sql`.

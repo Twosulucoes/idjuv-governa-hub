@@ -2934,6 +2934,14 @@ ALTER TABLE ONLY public.pre_cadastros
 
 
 --
+-- Name: processo_andamento_alteracoes processo_andamento_alteracoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_andamento_alteracoes
+    ADD CONSTRAINT processo_andamento_alteracoes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: processo_andamentos processo_andamentos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7866,6 +7874,20 @@ CREATE INDEX idx_pre_cadastros_status ON public.pre_cadastros USING btree (statu
 
 
 --
+-- Name: idx_processo_andamento_alteracoes_andamento; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_andamento_alteracoes_andamento ON public.processo_andamento_alteracoes USING btree (andamento_id);
+
+
+--
+-- Name: idx_processo_andamento_alteracoes_processo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_andamento_alteracoes_processo ON public.processo_andamento_alteracoes USING btree (processo_id, feito_em DESC);
+
+
+--
 -- Name: idx_processo_andamentos_processo; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -11107,6 +11129,13 @@ CREATE TRIGGER trg_pre_cadastros_gerar_token BEFORE INSERT ON public.pre_cadastr
 
 
 --
+-- Name: processo_andamentos trg_processo_andamentos_alterar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_processo_andamentos_alterar BEFORE UPDATE ON public.processo_andamentos FOR EACH ROW EXECUTE FUNCTION public.processo_andamento_alterar();
+
+
+--
 -- Name: processo_andamentos trg_processo_andamentos_carimbar; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11118,6 +11147,13 @@ CREATE TRIGGER trg_processo_andamentos_carimbar BEFORE INSERT ON public.processo
 --
 
 CREATE TRIGGER trg_processo_andamentos_no_processo AFTER INSERT ON public.processo_andamentos FOR EACH ROW EXECUTE FUNCTION public.processo_andamento_no_processo();
+
+
+--
+-- Name: processo_andamentos trg_processo_andamentos_registrar_alteracao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_processo_andamentos_registrar_alteracao AFTER UPDATE ON public.processo_andamentos FOR EACH ROW EXECUTE FUNCTION public.processo_andamento_registrar_alteracao();
 
 
 --
@@ -11467,6 +11503,13 @@ ALTER TABLE public.cargo_vencimentos ENABLE ALWAYS TRIGGER trilha_imutavel;
 CREATE TRIGGER trilha_imutavel BEFORE DELETE OR UPDATE ON public.folha_historico_status FOR EACH ROW EXECUTE FUNCTION public.trilha_imutavel('folha_id', 'folhas_pagamento');
 
 ALTER TABLE public.folha_historico_status ENABLE ALWAYS TRIGGER trilha_imutavel;
+
+
+--
+-- Name: processo_andamento_alteracoes trilha_imutavel; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_imutavel BEFORE DELETE OR UPDATE ON public.processo_andamento_alteracoes FOR EACH ROW EXECUTE FUNCTION public.trilha_imutavel('andamento_id', 'processo_andamentos');
 
 
 --
@@ -18623,6 +18666,22 @@ ALTER TABLE ONLY public.pre_cadastros
 
 
 --
+-- Name: processo_andamento_alteracoes processo_andamento_alteracoes_andamento_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_andamento_alteracoes
+    ADD CONSTRAINT processo_andamento_alteracoes_andamento_id_fkey FOREIGN KEY (andamento_id) REFERENCES public.processo_andamentos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: processo_andamento_alteracoes processo_andamento_alteracoes_processo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_andamento_alteracoes
+    ADD CONSTRAINT processo_andamento_alteracoes_processo_id_fkey FOREIGN KEY (processo_id) REFERENCES public.processos_licitatorios(id) ON DELETE CASCADE;
+
+
+--
 -- Name: processo_andamentos processo_andamentos_processo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -21309,6 +21368,12 @@ ALTER TABLE public.prazos_processo ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.pre_cadastros ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_andamento_alteracoes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.processo_andamento_alteracoes ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: processo_andamentos; Type: ROW SECURITY; Schema: public; Owner: -
@@ -26554,6 +26619,13 @@ CREATE POLICY rls_select ON public.prazos_lai FOR SELECT TO authenticated USING 
 --
 
 CREATE POLICY rls_select ON public.pre_cadastros FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'gabinete'::text)));
+
+
+--
+-- Name: processo_andamento_alteracoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.processo_andamento_alteracoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))));
 
 
 --

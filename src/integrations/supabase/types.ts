@@ -21683,13 +21683,71 @@ export type Database = {
           },
         ]
       }
+      processo_andamento_alteracoes: {
+        Row: {
+          acao: string
+          andamento_id: string
+          antes: NonNullable<Json>
+          depois: Json | null
+          feito_em: string
+          feito_por: string | null
+          id: string
+          motivo: string
+          processo_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          acao: string
+          andamento_id: string
+          antes: NonNullable<Json>
+          depois?: Json | null
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          motivo: string
+          processo_id: string
+        }
+        Update: {
+          acao?: string
+          andamento_id?: string
+          antes?: NonNullable<Json>
+          depois?: Json | null
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          motivo?: string
+          processo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_andamento_alteracoes_andamento_id_fkey"
+            columns: ["andamento_id"]
+            isOneToOne: false
+            referencedRelation: "processo_andamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_andamento_alteracoes_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processo_andamentos: {
         Row: {
+          alteracao_motivo: string | null
+          alterado_em: string | null
+          alterado_por: string | null
           created_at: string
           created_by: string | null
           data: string
           data_informada: boolean
           etapa: string
+          excluido_em: string | null
+          excluido_motivo: string | null
+          excluido_por: string | null
           id: string
           processo_id: string
           setor: string | null
@@ -21697,22 +21755,34 @@ export type Database = {
         }
         ComputedFields: never
         Insert: {
+          alteracao_motivo?: string | null
+          alterado_em?: string | null
+          alterado_por?: string | null
           created_at?: string
           created_by?: string | null
           data: string
           data_informada?: boolean
           etapa: string
+          excluido_em?: string | null
+          excluido_motivo?: string | null
+          excluido_por?: string | null
           id?: string
           processo_id: string
           setor?: string | null
           situacao: string
         }
         Update: {
+          alteracao_motivo?: string | null
+          alterado_em?: string | null
+          alterado_por?: string | null
           created_at?: string
           created_by?: string | null
           data?: string
           data_informada?: boolean
           etapa?: string
+          excluido_em?: string | null
+          excluido_motivo?: string | null
+          excluido_por?: string | null
           id?: string
           processo_id?: string
           setor?: string | null
@@ -28239,6 +28309,10 @@ export type Database = {
           situacao: string
           valor: number
         }[]
+      }
+      processo_recalcular_estado: {
+        Args: { p_processo_id: string }
+        Returns: undefined
       }
       processo_reserva_cancelar: {
         Args: { p_id: string; p_motivo: string }
