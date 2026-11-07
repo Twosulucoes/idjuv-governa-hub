@@ -169,12 +169,19 @@ export function interpretarPedsFiplan(linhas: unknown[][]): ResultadoLeitura<Lin
 
   const autorizados = saida.filter((l) => !l.estorno && l.situacao === SITUACAO_AUTORIZADO);
   const total = autorizados.reduce((s, l) => s + l.valor, 0);
+  // A prévia e o botão contam linhas; o mesmo PED volta numa linha nova a cada estorno, então o número de PEDs
+  // pode ser menor que o de linhas (achado F8 do teste do Financeiro: 244 PEDs em 245 linhas)
+  const peds = new Set(saida.map((l) => l.numero)).size;
+  const linhasArquivo =
+    peds === saida.length
+      ? String(saida.length)
+      : `${saida.length} (${peds} PEDs; um PED com mais de um estorno ocupa uma linha por estorno)`;
   return {
     linhas: saida,
     problemas,
     cabecalho: {
       Exercício: exercicio === null ? "" : String(exercicio),
-      "PEDs no arquivo": String(new Set(saida.map((l) => l.numero)).size),
+      "Linhas no arquivo": linhasArquivo,
       "PEDs autorizados sem empenho": `${autorizados.length} (${total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })})`,
     },
     parametros: { exercicio },
