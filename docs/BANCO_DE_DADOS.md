@@ -1173,6 +1173,22 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
+- **Processos SEI, P2: próxima etapa, responsável e prazo** (`20261121090000_compras_processos_proxima_acao.sql`,
+  plano [2026-11-07-processos-sei-p2-proxima-acao.md](./superpowers/plans/2026-11-07-processos-sei-p2-proxima-acao.md)):
+  - `processo_andamentos` ganha `proxima_etapa`, `responsavel_servidor_id` (FK `servidores`, `ON DELETE SET NULL`),
+    `responsavel_nome` (copiado do servidor pelo gatilho `processo_andamento_responsavel_nome`, DEFINER: não se
+    escreve à mão), `responsavel_setor` e `prazo_proxima`. Pela API (papel `authenticated`), toda movimentação nova
+    exige próxima etapa, responsável (servidor ou setor) e prazo não antes da data (`processo_proxima_acao_falta`,
+    mesmas mensagens da tela), menos Encerrado e Cancelado, que limpam a próxima ação. A importação da planilha
+    (`importar_processos_planilha`, DEFINER) e as movimentações antigas não são cobradas; a correção só cobra se a
+    movimentação já tinha próxima ação ou se a pessoa informa alguma;
+  - `processos_licitatorios` ganha `proxima_etapa`, `proximo_responsavel_servidor_id`, `proximo_responsavel_nome`,
+    `proximo_responsavel_setor` e `prazo_proxima_acao`, copiados por `processo_recalcular_estado` da movimentação que vale;
+  - `compras_etapa_parametros`: dias de prazo sugeridos e limite de dias parado por etapa (semente com uma linha por etapa, entra
+    no `02_dados_catalogo.sql`); RLS classe `permissao` (lê quem vê ou edita processos, altera quem edita, ninguém apaga);
+  - `processo_buscar_servidores(text)` (DEFINER): nome, matrícula e cargo de servidores ativos, só com
+    `compras.processos.editar` e termo de 3 letras ou mais (sem curinga);
+  - testes no bloco "Compras: processos, P2" de `scripts/db/testar-rls.sql`.
 - **Processos SEI, P1: correção e exclusão de movimentação** (`20261120090000_compras_processos_andamento_edicao.sql`,
   plano [2026-11-07-processos-sei-p1-andamento.md](./superpowers/plans/2026-11-07-processos-sei-p1-andamento.md)):
   - `processo_andamentos` ganha `excluido_em`, `excluido_por`, `excluido_motivo` (exclusão lógica: marcar com motivo de

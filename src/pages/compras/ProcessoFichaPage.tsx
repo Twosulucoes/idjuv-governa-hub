@@ -2,6 +2,7 @@
  * Ficha do processo de contratação: abas Dados, Reservas (natureza × ação × fonte do QDD, com saldo livre), Andamento
  * (linha do tempo do SEI) e Financeiro (fase, PEDs do "Consultar PED" e empenhos do FIP 614 pelo nº do processo).
  * Spec: docs/superpowers/specs/2026-10-23-compras-processos-reserva-natureza-design.md
+ * Próxima ação (etapa, responsável e prazo) da movimentação que vale: P2, migração 20261121090000.
  */
 
 import { useState } from "react";
@@ -20,6 +21,7 @@ import { ProcessoFinanceiroTab } from "@/components/compras/processos/ProcessoFi
 import { ProcessoFormDialog } from "@/components/compras/processos/ProcessoFormDialog";
 import { ProcessoReservasTab } from "@/components/compras/processos/ProcessoReservasTab";
 import { ReservaFormDialog } from "@/components/compras/processos/ReservaFormDialog";
+import { SeloPrazo } from "@/components/compras/processos/ProximaAcao";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { faseFinanceira } from "@/lib/compras/faseFinanceira";
@@ -62,6 +64,15 @@ function Dados({ p, empenhado }: { p: ProcessoContratacao; empenhado: number | u
           <Campo rotulo="Etapa atual">{rotuloEtapa(p.etapa)}</Campo>
           <Campo rotulo="Setor atual">{p.setor_atual ?? "—"}</Campo>
           <Campo rotulo="Última movimentação">{p.atualizado_em ? formatDateBR(p.atualizado_em) : "sem data"}</Campo>
+          <Campo rotulo="Próxima etapa">
+            {p.proxima_etapa ? rotuloEtapa(p.proxima_etapa) : "não informada"}
+            {(p.proximo_responsavel_nome || p.proximo_responsavel_setor) && (
+              <span className="block text-muted-foreground">{p.proximo_responsavel_nome ?? p.proximo_responsavel_setor}</span>
+            )}
+          </Campo>
+          <Campo rotulo="Prazo da próxima ação">
+            {p.prazo_proxima_acao ? <SeloPrazo prazo={p.prazo_proxima_acao} inicio /> : "não informado"}
+          </Campo>
           <Campo rotulo="Valor estimado">
             {p.valor_estimado == null ? "não informado" : formatCurrency(p.valor_estimado)}
             {p.valor_estimado_obs && <span className="block text-muted-foreground">{p.valor_estimado_obs}</span>}
@@ -237,6 +248,10 @@ export default function ProcessoFichaPage() {
                 ? corrigir.mutateAsync({
                     id: corrigindo.id, processo_id: p.id, data: dados.data, etapa: dados.etapa,
                     setor: dados.setor ?? null, situacao: dados.situacao, motivo: motivo ?? "",
+                    proxima_etapa: dados.proxima_etapa ?? null,
+                    responsavel_servidor_id: dados.responsavel_servidor_id ?? null,
+                    responsavel_setor: dados.responsavel_setor ?? null,
+                    prazo_proxima: dados.prazo_proxima ?? null,
                   })
                 : movimentar.mutateAsync(dados)
             }
