@@ -30,6 +30,9 @@ import {
   useEmpenhosDosProcessos,
   useFinanceiroDosProcessos,
   useNovaMovimentacao,
+  useCorrigirMovimentacao,
+  useExcluirMovimentacoes,
+  useAlteracoesDoAndamento,
   usePedsDoProcesso,
   useProcesso,
   useReservasDoProcesso,
@@ -37,7 +40,7 @@ import {
   useSalvarReserva,
   type ReservaDoProcesso,
 } from "@/hooks/useProcessosContratacao";
-import { rotuloEtapa, rotuloForma, type ProcessoContratacao } from "@/types/processos";
+import { rotuloEtapa, rotuloForma, type ProcessoAndamento, type ProcessoContratacao } from "@/types/processos";
 
 function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
@@ -88,10 +91,14 @@ export default function ProcessoFichaPage() {
   const financeiro = useFinanceiroDosProcessos();
   const salvar = useSalvarProcesso();
   const movimentar = useNovaMovimentacao();
+  const corrigir = useCorrigirMovimentacao();
+  const excluirMov = useExcluirMovimentacoes();
+  const alteracoes = useAlteracoesDoAndamento(id);
   const salvarReserva = useSalvarReserva();
   const cancelarReserva = useCancelarReserva();
   const [editando, setEditando] = useState(false);
   const [movimentando, setMovimentando] = useState(false);
+  const [corrigindo, setCorrigindo] = useState<ProcessoAndamento | null>(null);
   const [reservaAberta, setReservaAberta] = useState(false);
   const [reservaEmEdicao, setReservaEmEdicao] = useState<ReservaDoProcesso | null>(null);
 
@@ -157,7 +164,17 @@ export default function ProcessoFichaPage() {
             erro={andamentos.isError}
             aoTentarNovamente={() => andamentos.refetch()}
             podeEditar={podeEditar}
-            aoNovaMovimentacao={() => setMovimentando(true)}
+            aoNovaMovimentacao={() => {
+              setCorrigindo(null);
+              setMovimentando(true);
+            }}
+            aoCorrigir={(a) => {
+              setCorrigindo(a);
+              setMovimentando(true);
+            }}
+            excluindo={excluirMov.isPending}
+            aoExcluir={(ids, motivo) => excluirMov.mutateAsync({ ids, processoId: p.id, motivo })}
+            alteracoes={alteracoes.data}
           />
         </TabsContent>
         <TabsContent value="financeiro" className="mt-4">
@@ -213,8 +230,16 @@ export default function ProcessoFichaPage() {
             open={movimentando}
             onOpenChange={setMovimentando}
             processo={p}
-            salvando={movimentar.isPending}
-            onSalvar={(dados) => movimentar.mutateAsync(dados)}
+            andamento={corrigindo}
+            salvando={movimentar.isPending || corrigir.isPending}
+            onSalvar={({ motivo, ...dados }) =>
+              corrigindo
+                ? corrigir.mutateAsync({
+                    id: corrigindo.id, processo_id: p.id, data: dados.data, etapa: dados.etapa,
+                    setor: dados.setor ?? null, situacao: dados.situacao, motivo: motivo ?? "",
+                  })
+                : movimentar.mutateAsync(dados)
+            }
           />
           <ReservaFormDialog
             open={reservaAberta}

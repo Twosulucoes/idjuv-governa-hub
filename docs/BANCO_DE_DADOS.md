@@ -1173,6 +1173,20 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
+- **Processos SEI, P1: correção e exclusão de movimentação** (`20261120090000_compras_processos_andamento_edicao.sql`,
+  plano [2026-11-07-processos-sei-p1-andamento.md](./superpowers/plans/2026-11-07-processos-sei-p1-andamento.md)):
+  - `processo_andamentos` ganha `excluido_em`, `excluido_por`, `excluido_motivo` (exclusão lógica: marcar com motivo de
+    3 a 500 caracteres; a linha fica guardada e o DELETE continua sem policy) e `alterado_em`, `alterado_por`,
+    `alteracao_motivo` (toda edição exige um motivo novo). O gatilho `processo_andamento_alterar` (BEFORE UPDATE) trava
+    processo, autoria e criação, recusa data futura, carimba quem e quando e não deixa mudar a movimentação excluída;
+    a policy de UPDATE (`compras.processos.editar`) é a mesma de antes;
+  - `processo_andamento_alteracoes`: trilha de cada edição e exclusão (antes, depois, motivo, quem, quando), gravada
+    pelo gatilho `processo_andamento_registrar_alteracao` (DEFINER) e imutável (`trilha_imutavel`); RLS classe
+    `trilha` com `leitura=compras.processos.visualizar|compras.processos.editar`;
+  - `processo_recalcular_estado(uuid)` (DEFINER, sem EXECUTE para a API): etapa, setor, situação e última
+    movimentação do processo saem da movimentação não excluída que vale (a com data antes da sem data, depois a data
+    mais recente). Roda em toda inclusão, edição e exclusão; a migração não recalcula os processos existentes;
+  - testes no bloco "Compras: processos, P1" de `scripts/db/testar-rls.sql`.
 - **Gatilhos de saldo do empenho e do contrato** (`20261107090000_fin_gatilhos_empenho_contrato.sql`, defeitos da
   demonstração de 24/10/2026; sem tabela nova nem mudança de RLS):
   - `fn_atualizar_saldo_sub_empenho`: o reforço só soma em `fin_empenhos.valor_empenhado` (a dotação segue pelo gatilho

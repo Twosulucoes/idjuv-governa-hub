@@ -8,6 +8,7 @@ import type { Database } from "@/integrations/supabase/types";
 
 export type ProcessoContratacao = Database["public"]["Tables"]["processos_licitatorios"]["Row"];
 export type ProcessoAndamento = Database["public"]["Tables"]["processo_andamentos"]["Row"];
+export type ProcessoAndamentoAlteracao = Database["public"]["Tables"]["processo_andamento_alteracoes"]["Row"];
 export type ModalidadeLicitacao = Database["public"]["Enums"]["modalidade_licitacao"];
 
 /** Etapas na ordem do processo (mesma lista do CHECK do banco). */
