@@ -4,7 +4,7 @@
  * porque fin_empenhos é do financeiro). Migração 20261029090000; leitura com `compras.processos.visualizar`, escrita
  * com `compras.processos.editar`. Correção e exclusão de movimentação (exclusão lógica, com motivo e trilha em
  * processo_andamento_alteracoes): migração 20261120090000. Próxima etapa, responsável e prazo em cada movimentação,
- * prazos por etapa (compras_etapa_parametros) e busca de servidores (processo_buscar_servidores): migração 20261121090000.
+ * prazos por etapa (compras_etapa_parametros) e busca de servidores (processo_buscar_servidores): migração 20261122090000.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

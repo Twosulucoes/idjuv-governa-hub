@@ -95,7 +95,7 @@ INSERT INTO seed_ov VALUES
   -- apagada do catálogo logo depois das personas (bloco de sementes, em modo réplica)
   ('regra_lancamento', '{"modulo":"arbitros"}'),
   -- compras_etapa_parametros já vem com uma linha por etapa (catálogo, PK em etapa): a linha de teste usa `cancelado`,
-  -- apagada do catálogo logo depois das personas (como regra_lancamento); dias entre 1 e 365 (migração 20261121090000)
+  -- apagada do catálogo logo depois das personas (como regra_lancamento); dias entre 1 e 365 (migração 20261122090000)
   ('compras_etapa_parametros', '{"etapa":"cancelado","dias_prazo":30,"dias_limite_parado":365}'),
   -- comissão de inventário, licitação ou fiscalização exige objeto (comissoes_objeto_obrigatorio_check): `outra` não
   ('comissoes', '{"tipo":"outra"}'),
@@ -8329,8 +8329,8 @@ BEGIN
   PERFORM pg_temp.nota('COMPRAS PROCESSOS P1: com data ganha de sem data, edição com motivo e trilha, data futura recusada, exclusão lógica com motivo e autoria, excluída travada, trilha só leitura com a permissão e gatilhos fora da API verificados');
 END $$;
 
--- ---------------------------------------------------------------- Compras: processos, P2 — próxima etapa, responsável e prazo (migração 20261121090000) (TRIGGERS LIGADOS)
--- Migração 20261121090000_compras_processos_proxima_acao.sql (plano docs/superpowers/plans/2026-11-07-processos-sei-p2-proxima-acao.md):
+-- ---------------------------------------------------------------- Compras: processos, P2 — próxima etapa, responsável e prazo (migração 20261122090000) (TRIGGERS LIGADOS)
+-- Migração 20261122090000_compras_processos_proxima_acao.sql (plano docs/superpowers/plans/2026-11-07-processos-sei-p2-proxima-acao.md):
 --   * pela API, movimentação nova exige próxima etapa, responsável (servidor ou setor) e prazo não antes da data,
 --     menos Encerrado e Cancelado (que limpam a próxima ação); a carga (dona da função) não é cobrada;
 --   * o nome do responsável vem do servidor (não se escreve à mão); o processo copia a próxima ação que vale;

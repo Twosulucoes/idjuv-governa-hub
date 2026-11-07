@@ -1173,7 +1173,7 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
-- **Processos SEI, P2: próxima etapa, responsável e prazo** (`20261121090000_compras_processos_proxima_acao.sql`,
+- **Processos SEI, P2: próxima etapa, responsável e prazo** (`20261122090000_compras_processos_proxima_acao.sql`,
   plano [2026-11-07-processos-sei-p2-proxima-acao.md](./superpowers/plans/2026-11-07-processos-sei-p2-proxima-acao.md)):
   - `processo_andamentos` ganha `proxima_etapa`, `responsavel_servidor_id` (FK `servidores`, `ON DELETE SET NULL`),
     `responsavel_nome` (copiado do servidor pelo gatilho `processo_andamento_responsavel_nome`, DEFINER: não se

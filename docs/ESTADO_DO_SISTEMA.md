@@ -70,7 +70,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Migrações (`supabase/migrations/*.sql`) | 338 |
-| Migração mais recente | `20261121090000_compras_processos_proxima_acao.sql` |
+| Migração mais recente | `20261122090000_compras_processos_proxima_acao.sql` |
 | Tabelas do schema public (baseline) | 297 |
 | Views (baseline) | 18 |
 | Funções (baseline) | 397 |

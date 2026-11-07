@@ -647,7 +647,7 @@ entrou no `01_pre_data.sql` (colunas de exclusão e de edição em `processo_and
 (`leitura=compras.processos.visualizar|compras.processos.editar`). Sem permissão nova. Testes no bloco
 "Compras: processos, P1" de `scripts/db/testar-rls.sql`.
 
-A migração `20261121090000_compras_processos_proxima_acao.sql` (processos SEI, P2: próxima etapa, responsável e prazo)
+A migração `20261122090000_compras_processos_proxima_acao.sql` (processos SEI, P2: próxima etapa, responsável e prazo)
 entrou no `01_pre_data.sql` (colunas da próxima ação em `processo_andamentos` e `processos_licitatorios`, tabela
 `compras_etapa_parametros` e as funções `processo_proxima_acao_falta`, `processo_andamento_responsavel_nome`,
 `compras_etapa_parametros_carimbar` e `processo_buscar_servidores`, mais as versões novas de `processo_andamento_carimbar`,

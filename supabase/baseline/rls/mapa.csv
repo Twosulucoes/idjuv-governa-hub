@@ -48,7 +48,7 @@ coletas_inventario,patrimonio,modulo,alta,P14 entrega 4 (migração 202610231000
 comissoes,rh,permissao,alta,"comissões (lançamento por setor, migração 20261011020000): nome, tipo, módulo, objeto opcional, ato obrigatório, período e motivo; o módulo rh lê; escrita só com módulo E rh.comissoes.gerenciar; membro de comissão vigente com ato é fundamento de lançamento no módulo dela",escrita=rh.comissoes.gerenciar,,
 comissoes_membros,rh,permissao,alta,"membros das comissões com papel (presidente, membro, secretário) e período (lançamento por setor, migração 20261011020000): o módulo rh lê; escrita só com módulo E rh.comissoes.gerenciar",escrita=rh.comissoes.gerenciar,,
 composicao_cargos,rh|governanca,modulo,alta,,,,
-compras_etapa_parametros,compras,permissao,alta,"processos SEI, P2: dias padrão do prazo e limite de dias parado por etapa; ler com compras.processos.visualizar ou editar; alterar com compras.processos.editar; ninguém apaga pela API (migração 20261121090000)",escrita=compras.processos.editar;excluir=ninguem;leitura=compras.processos.visualizar|compras.processos.editar,,
+compras_etapa_parametros,compras,permissao,alta,"processos SEI, P2: dias padrão do prazo e limite de dias parado por etapa; ler com compras.processos.visualizar ou editar; alterar com compras.processos.editar; ninguém apaga pela API (migração 20261122090000)",escrita=compras.processos.editar;excluir=ninguem;leitura=compras.processos.visualizar|compras.processos.editar,,
 conciliacoes_inventario,patrimonio,modulo,alta,,,,
 config_agrupamento_unidades,rh,modulo,alta,,,,
 config_assinatura_frequencia,rh,catalogo,alta,"configuração de assinatura da folha de frequência; lida por qualquer usuário ativo, escrita por RH",,,

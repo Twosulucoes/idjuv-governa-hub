@@ -14,7 +14,7 @@ Data: 07/11/2026. Pedido do dono: documento "Sistema de Compras: requisitos de m
   próxima etapa (`compras_etapa_parametros`, ajustável em "Prazos por etapa" por quem edita processos).
 - O processo guarda a próxima ação da movimentação que vale (a mesma regra da P1).
 
-## Banco (migração `20261121090000_compras_processos_proxima_acao.sql`)
+## Banco (migração `20261122090000_compras_processos_proxima_acao.sql`)
 
 1. Colunas da próxima ação em `processo_andamentos` e `processos_licitatorios`.
 2. `processo_proxima_acao_falta` (IMMUTABLE): a regra, com as mesmas mensagens da tela. `processo_andamento_carimbar`

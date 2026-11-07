@@ -2,7 +2,7 @@
  * Ficha do processo de contratação: abas Dados, Reservas (natureza × ação × fonte do QDD, com saldo livre), Andamento
  * (linha do tempo do SEI) e Financeiro (fase, PEDs do "Consultar PED" e empenhos do FIP 614 pelo nº do processo).
  * Spec: docs/superpowers/specs/2026-10-23-compras-processos-reserva-natureza-design.md
- * Próxima ação (etapa, responsável e prazo) da movimentação que vale: P2, migração 20261121090000.
+ * Próxima ação (etapa, responsável e prazo) da movimentação que vale: P2, migração 20261122090000.
  */
 
 import { useState } from "react";

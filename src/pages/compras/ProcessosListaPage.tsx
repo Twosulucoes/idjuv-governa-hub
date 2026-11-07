@@ -1,6 +1,6 @@
 /**
  * Processos de contratação: lista com etapa, setor, dias parado, valor estimado, empenhado (FIP 614 pelo nº SEI) e a
- * fase financeira (reservado → PED → empenhado → liquidado → pago). Próximo prazo (P2, migração 20261121090000), com
+ * fase financeira (reservado → PED → empenhado → liquidado → pago). Próximo prazo (P2, migração 20261122090000), com
  * os prazos por etapa ajustáveis por quem edita.
  * Compras cadastra o processo e carrega a planilha de acompanhamento; o andamento se registra na ficha.
  * Spec: docs/superpowers/specs/2026-10-23-compras-processos-reserva-natureza-design.md

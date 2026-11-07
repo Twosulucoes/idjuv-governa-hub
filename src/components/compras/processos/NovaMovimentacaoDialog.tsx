@@ -1,7 +1,7 @@
 /**
  * Nova movimentação do processo no SEI (data, etapa, setor e o que aconteceu) ou correção de uma já registrada
  * (`andamento` preenchido: pede o motivo, que vai para a trilha). A movimentação com a data mais recente vira o estado
- * atual do processo (gatilho no banco; a sem data nunca ganha da com data). Desde a P2 (migração 20261121090000), toda
+ * atual do processo (gatilho no banco; a sem data nunca ganha da com data). Desde a P2 (migração 20261122090000), toda
  * movimentação nova diz a próxima etapa, o responsável (servidor ou setor) e o prazo, menos Encerrado e Cancelado; o
  * sistema sugere a etapa seguinte e o prazo pelos dias da etapa. Na correção, a próxima ação só é obrigatória se a
  * movimentação já tinha uma (as antigas e as da planilha ficam como estão).

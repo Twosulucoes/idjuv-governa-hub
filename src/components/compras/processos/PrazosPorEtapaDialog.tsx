@@ -1,5 +1,5 @@
 /**
- * Prazos por etapa (P2, migração 20261121090000): quantos dias o sistema sugere para a próxima ação de cada etapa e a
+ * Prazos por etapa (P2, migração 20261122090000): quantos dias o sistema sugere para a próxima ação de cada etapa e a
  * partir de quantos dias sem movimento o processo conta como parado (o aviso de parado é da P3). Só quem edita
  * processos grava (policy de compras_etapa_parametros); Encerrado e Cancelado não pedem próxima ação e ficam de fora.
  */

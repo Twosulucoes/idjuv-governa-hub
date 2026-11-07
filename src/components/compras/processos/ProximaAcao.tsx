@@ -1,5 +1,5 @@
 /**
- * Próxima ação do processo (P2, migração 20261121090000): o selo do prazo (vencido, vence hoje, próximo, em dia) e o
+ * Próxima ação do processo (P2, migração 20261122090000): o selo do prazo (vencido, vence hoje, próximo, em dia) e o
  * resumo "próxima etapa · responsável · prazo" usados na lista, na ficha e na linha do tempo.
  */
 

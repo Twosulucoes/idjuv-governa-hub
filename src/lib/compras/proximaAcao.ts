@@ -1,5 +1,5 @@
 /**
- * Próxima ação do processo SEI (P2, migração 20261121090000): cada movimentação diz a próxima etapa, quem responde
+ * Próxima ação do processo SEI (P2, migração 20261122090000): cada movimentação diz a próxima etapa, quem responde
  * (servidor ou setor) e até quando. Aqui ficam as regras puras: a etapa sugerida, o prazo sugerido pelos dias da
  * etapa (compras_etapa_parametros, com estes valores de reserva) e a situação do prazo para a lista e a ficha.
  * A regra que obriga os três campos é a mesma do banco (processo_proxima_acao_falta).

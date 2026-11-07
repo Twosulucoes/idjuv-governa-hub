@@ -3,7 +3,7 @@
  * data (registros antigos da planilha), que ficam numa lista para preencher a data ou excluir. Quem tem
  * compras.processos.editar corrige (com motivo) ou exclui (exclusão lógica, com motivo); tudo vai para a trilha
  * "Correções e exclusões" (migração 20261120090000). Cada movimentação mostra a próxima ação (P2, migração
- * 20261121090000); o selo do prazo só aparece na que vale (a mais recente com data).
+ * 20261122090000); o selo do prazo só aparece na que vale (a mais recente com data).
  */
 
 import { useState } from "react";

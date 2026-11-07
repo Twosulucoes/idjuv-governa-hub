@@ -27,7 +27,7 @@ SAIDA=supabase/baseline/schema
 # trilha, migração 20261011000000; regra_lancamento: modo da regra de setor por módulo, migração 20261011020000;
 # processo_modelos, processo_modelo_etapas e processo_modelo_checklist: modelos de fluxo do workflow, migração 20261013100000;
 # bancos_cnab: lista de bancos (código FEBRABAN), migração 20261025090000; compras_etapa_parametros: prazo e limite de
-# parado por etapa dos processos SEI, migração 20261121090000).
+# parado por etapa dos processos SEI, migração 20261122090000).
 # NÃO entram: servidores e
 # vinculos_servidor (74 nomes de pessoas, CPF placeholder — migração 20260110184920), audit_logs, portal_diretoria,
 # contatos_eventos_esportivos, debitos_tecnicos e config_paginas_historico (conteúdo operacional).
