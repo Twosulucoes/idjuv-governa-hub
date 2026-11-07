@@ -76,18 +76,17 @@ export function LancarFaltaDialog({ open, onOpenChange, servidor, ano, mes }: La
         tipo,
         justificativa: justificativa || undefined,
       });
-
-      // Recalcular frequência
-      await recalcular.mutateAsync({
-        servidor_id: servidor.servidor_id,
-        ano,
-        mes,
-      });
-
-      handleClose();
     } catch (error) {
+      // o aviso com o motivo sai do próprio hook; o diálogo fica aberto para corrigir
       console.error("Erro ao lançar:", error);
+      return;
     }
+
+    // Lançamento gravado: fecha já e recalcula o resumo em seguida. Antes, uma falha no recálculo deixava o
+    // diálogo aberto com o registro já salvo (teste do RH de 06/11/2026, item 29); o recálculo tem aviso próprio.
+    const servidorId = servidor.servidor_id;
+    handleClose();
+    recalcular.mutate({ servidor_id: servidorId, ano, mes });
   };
 
   // Limitar seleção ao mês/ano da competência

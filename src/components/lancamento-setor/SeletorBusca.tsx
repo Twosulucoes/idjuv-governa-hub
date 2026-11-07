@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { filtrarOpcaoBusca } from "@/lib/buscaOpcoes";
 
 export interface OpcaoBusca {
   valor: string;
@@ -49,7 +50,8 @@ export function SeletorBusca({
   const atual = opcoes.find((o) => o.valor === valor);
 
   return (
-    <Popover open={aberto} onOpenChange={setAberto}>
+    // modal: dentro de um diálogo, o clique no campo não fecha e reabre a lista (item 25 do teste do RH)
+    <Popover open={aberto} onOpenChange={setAberto} modal>
       <PopoverTrigger asChild>
         <Button
           id={id}
@@ -69,7 +71,7 @@ export function SeletorBusca({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] min-w-[16rem] p-0" align="start">
-        <Command>
+        <Command filter={filtrarOpcaoBusca}>
           <CommandInput placeholder={placeholderBusca} />
           <CommandList>
             <CommandEmpty>{vazio}</CommandEmpty>
@@ -77,7 +79,8 @@ export function SeletorBusca({
               {opcoes.map((o) => (
                 <CommandItem
                   key={o.valor}
-                  value={`${o.rotulo} ${o.detalhe ?? ""} ${o.valor}`}
+                  value={o.valor}
+                  keywords={[o.rotulo, o.detalhe ?? ""]}
                   disabled={o.desabilitada}
                   onSelect={() => {
                     aoEscolher(o.valor);

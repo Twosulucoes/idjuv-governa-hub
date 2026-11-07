@@ -122,7 +122,6 @@ export const MODULE_MENUS: Record<Modulo, ModuleMenuConfig> = {
         route: "/folha",
         children: [
           { id: "folha-dashboard", label: "Painel", icon: BarChart3, route: "/folha" },
-          { id: "folha-fichas", label: "Fichas Financeiras", icon: FileText, route: "/folha/fichas" },
           { id: "folha-rubricas", label: "Rubricas", icon: Settings, route: "/folha/rubricas" },
           { id: "folha-importar-sigrh", label: "Importar do SIGRH", icon: Upload, route: "/folha?importador=folha_sigrh", permission: "financeiro.folha.processar" },
         ]

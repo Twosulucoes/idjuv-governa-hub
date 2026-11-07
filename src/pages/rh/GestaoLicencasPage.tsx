@@ -78,6 +78,7 @@ import {
   LICENCA_LABELS,
   LICENCA_STATUS_LABELS,
 } from '@/types/rh';
+import { SeletorBusca } from "@/components/lancamento-setor/SeletorBusca";
 
 // Status labels and colors
 const STATUS_LABELS = LICENCA_STATUS_LABELS;
@@ -669,22 +670,21 @@ export default function GestaoLicencasPage() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="servidor_id">Servidor *</Label>
-                      <Select
-                        value={formData.servidor_id}
-                        onValueChange={(value) => setFormData({ ...formData, servidor_id: value })}
-                        disabled={isEditing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o servidor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {servidores.map((servidor: any) => (
-                            <SelectItem key={servidor.id} value={servidor.id}>
-                              {servidor.nome_completo}{servidor.matricula ? ` - mat. ${servidor.matricula}` : ''}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {/* busca por nome ou matrícula (item 25 do teste do RH) */}
+                      <SeletorBusca
+                        id="servidor_id"
+                        opcoes={servidores.map((servidor: any) => ({
+                          valor: servidor.id,
+                          rotulo: servidor.nome_completo,
+                          detalhe: servidor.matricula ? `mat. ${servidor.matricula}` : null,
+                        }))}
+                        valor={formData.servidor_id}
+                        aoEscolher={(value) => setFormData({ ...formData, servidor_id: value })}
+                        desabilitado={isEditing}
+                        placeholder="Selecione o servidor"
+                        placeholderBusca="Buscar por nome ou matrícula…"
+                        vazio="Nenhum servidor encontrado."
+                      />
                     </div>
 
                     <div className="space-y-2">

@@ -85,6 +85,8 @@ export interface FrequenciaServidorResumo {
   licencas: number;
   abonos: number;
   percentual_presenca: number;
+  /** Há resumo do mês (frequencia_mensal) para o servidor; sem ele, presença e faltas não são zero, são "—". */
+  lancada: boolean;
 }
 
 // ============================================
@@ -170,6 +172,7 @@ export function useFrequenciaResumo(ano: number, mes: number) {
           licencas: freq?.dias_licenca || 0,
           abonos: freq?.dias_folga || 0,
           percentual_presenca: freq?.percentual_presenca || 0,
+          lancada: !!freq,
         };
       });
 
@@ -463,7 +466,7 @@ export function useRecalcularFrequencia() {
     },
     onError: (error) => {
       console.error("Erro ao recalcular frequência:", error);
-      toast.error("Erro ao recalcular frequência.");
+      toast.error(`Lançamento salvo, mas o resumo do mês não foi recalculado. ${descreverErroBanco(error)}`);
     },
   });
 }

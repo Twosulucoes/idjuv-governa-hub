@@ -9,7 +9,8 @@ interface RHStats {
   servidoresAtivos: number;
   emFerias: number;
   viagensPendentes: number;
-  frequenciaHoje: number;
+  /** Média do mês; indefinida quando ninguém tem frequência lançada (o painel mostra "—", item 31 do teste do RH). */
+  frequenciaHoje: number | undefined;
 }
 
 async function fetchRHStats(): Promise<RHStats> {
@@ -31,7 +32,7 @@ async function fetchRHStats(): Promise<RHStats> {
     ),
   ]);
 
-  let frequenciaHoje = 0;
+  let frequenciaHoje: number | undefined;
   if (frequenciaData.length > 0) {
     const somaPercentuais = frequenciaData.reduce((acc, f) => acc + (f.percentual_presenca || 0), 0);
     frequenciaHoje = Math.round(somaPercentuais / frequenciaData.length);
