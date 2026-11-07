@@ -70,7 +70,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Migrações (`supabase/migrations/*.sql`) | 339 |
-| Migração mais recente | `20261122090000_rh_testes_calendario_oficial.sql` |
+| Migração mais recente | `20261126090000_rh_testes_calendario_oficial.sql` |
 | Tabelas do schema public (baseline) | 296 |
 | Views (baseline) | 18 |
 | Funções (baseline) | 396 |

@@ -1216,7 +1216,7 @@ Todas idempotentes.
     justificativa de 20+ caracteres, que vai para o protocolo com a lista. A resposta traz `inconsistencias` e
     `bloqueante`. A folha importada do SIGRH não tem ficha com inconsistência e fecha como antes;
   - testes no bloco "RH, teste de 06/11/2026" de `scripts/db/testar-rls.sql`.
-- **RH: correções do teste de 06/11/2026, entrega 3** (`20261122090000_rh_testes_calendario_oficial.sql`; só dados,
+- **RH: correções do teste de 06/11/2026, entrega 3** (`20261126090000_rh_testes_calendario_oficial.sql`; só dados,
   sem tabela, função nem RLS): inclui em `dias_nao_uteis` o Dia Nacional de Zumbi e da Consciência Negra (20/11,
   recorrente, Lei nº 14.759/2023) e os feriados móveis de 2027 (Sexta-feira Santa em 26/03, Corpus Christi em 27/05 como
   ponto facultativo). Cada linha entra só se não houver outra na mesma data (ou, no recorrente, no mesmo dia e mês);

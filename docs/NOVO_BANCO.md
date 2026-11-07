@@ -214,7 +214,7 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   com o trecho do dump (`governanca_importar_estrutura` no `01_pre_data.sql`) e o EXECUTE só para `authenticated` no
   overlay 40; sem tabela, permissão ou mudança no `rls/mapa.csv`; testes no bloco "Governança: estrutura pela planilha"
   de `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md#estrutura-organizacional-pela-planilha-governanca_importar_estrutura)).
-- Os feriados da entrega 3 do teste do RH de 06/11/2026 (migração `20261122090000`: Consciência Negra recorrente e os
+- Os feriados da entrega 3 do teste do RH de 06/11/2026 (migração `20261126090000`: Consciência Negra recorrente e os
   móveis de 2027) entraram no `02_dados_catalogo.sql` com os mesmos ids; sem mudança de schema ([detalhe](./BANCO_DE_DADOS.md)).
 - As correções do teste do RH de 06/11/2026, entrega 1 (migração `20261121090000`), entraram no schema do baseline
   (`rh_dia_nao_util`, `folha_inconsistencias_bloqueantes`, `registros_ponto_validar_falta` e as versões novas de
