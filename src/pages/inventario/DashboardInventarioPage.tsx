@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { KpiCard, PageHeader, StatusBadge } from "@/components/design-system";
-import { useEstatisticasPatrimonio, useCampanhasInventario } from "@/hooks/usePatrimonio";
+import { useEstatisticasPatrimonio, useCampanhasInventario, rotuloCategoriaBem } from "@/hooks/usePatrimonio";
 import { useEstatisticasAlmoxarifado } from "@/hooks/useAlmoxarifado";
 import { CadastroLoteDialog } from "@/components/inventario/CadastroLoteDialog";
 import { MovimentacaoLoteDialog } from "@/components/inventario/MovimentacaoLoteDialog";
@@ -373,8 +373,8 @@ export default function DashboardInventarioPage() {
                 {Object.entries(estatisticasPatrimonio.porCategoria).map(([cat, count]) => (
                   <li key={cat} className="text-center p-3 bg-muted/50 rounded-lg">
                     <div className="text-xl font-bold tabular-nums">{count}</div>
-                    <div className="text-xs text-muted-foreground capitalize">
-                      {cat.replace('_', ' ')}
+                    <div className="text-xs text-muted-foreground">
+                      {rotuloCategoriaBem(cat)}
                     </div>
                   </li>
                 ))}
