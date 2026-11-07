@@ -9,6 +9,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
+/** Categorias de bem (enum categoria_bem) com o rótulo exibido na lista e no painel. */
+export const CATEGORIAS_BEM = [
+  { value: 'mobiliario', label: 'Mobiliário' },
+  { value: 'informatica', label: 'Informática' },
+  { value: 'equipamento_esportivo', label: 'Equipamento esportivo' },
+  { value: 'veiculo', label: 'Veículo' },
+  { value: 'eletrodomestico', label: 'Eletrodoméstico' },
+  { value: 'outros', label: 'Outros' },
+];
+
+export const rotuloCategoriaBem = (valor: string) =>
+  CATEGORIAS_BEM.find((c) => c.value === valor)?.label ?? valor;
+
 // Types
 type BemPatrimonial = Database['public']['Tables']['bens_patrimoniais']['Row'];
 type BemInsert = Database['public']['Tables']['bens_patrimoniais']['Insert'];

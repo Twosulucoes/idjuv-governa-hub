@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,12 @@ function GestaoUnidadesLocaisContent() {
     loadUnidades();
   }, []);
 
+  // Cada carga ganha um número; só a mais recente grava na tela, para uma carga
+  // antiga (mais lenta) não sobrescrever a lista e os cartões com dados velhos.
+  const cargaAtual = useRef(0);
+
   async function loadUnidades() {
+    const carga = ++cargaAtual.current;
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -67,8 +72,15 @@ function GestaoUnidadesLocaisContent() {
         .order("nome_unidade", { ascending: true });
 
       if (error) throw error;
+      if (carga !== cargaAtual.current) return;
 
-      // Load chefe atual for each unidade
+      // Lista e cartões aparecem já; o chefe de cada unidade chega em seguida.
+      setUnidades((anteriores) => {
+        const chefes = new Map(anteriores.map((u) => [u.id, u.chefe_atual]));
+        return (data || []).map((u) => ({ ...u, chefe_atual: chefes.get(u.id) ?? null }) as UnidadeLocal);
+      });
+      setLoading(false);
+
       const unidadesWithChefe = await Promise.all(
         (data || []).map(async (unidade) => {
           const { data: chefeData } = await supabase.rpc("get_chefe_unidade_atual", {
@@ -81,12 +93,13 @@ function GestaoUnidadesLocaisContent() {
         })
       );
 
-      setUnidades(unidadesWithChefe);
+      if (carga === cargaAtual.current) setUnidades(unidadesWithChefe);
     } catch (error: any) {
+      if (carga !== cargaAtual.current) return;
       console.error("Erro ao carregar unidades:", error);
       toast.error("Erro ao carregar unidades locais");
     } finally {
-      setLoading(false);
+      if (carga === cargaAtual.current) setLoading(false);
     }
   }
 

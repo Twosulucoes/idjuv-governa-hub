@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useBensPatrimoniais, useCreateBem } from "@/hooks/usePatrimonio";
+import { CATEGORIAS_BEM, useBensPatrimoniais, useCreateBem } from "@/hooks/usePatrimonio";
 import { imprimirEtiquetas } from "@/lib/etiquetasPatrimonio";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,14 +26,6 @@ import { useQuery } from "@tanstack/react-query";
 import { CadastroLoteDialog } from "@/components/inventario/CadastroLoteDialog";
 import { MovimentacaoLoteDialog } from "@/components/inventario/MovimentacaoLoteDialog";
 
-const CATEGORIAS_BEM = [
-  { value: 'mobiliario', label: 'Mobiliário' },
-  { value: 'informatica', label: 'Informática' },
-  { value: 'equipamento_esportivo', label: 'Equipamento esportivo' },
-  { value: 'veiculo', label: 'Veículo' },
-  { value: 'eletrodomestico', label: 'Eletrodoméstico' },
-  { value: 'outros', label: 'Outros' },
-];
 
 // Valores do CHECK da coluna bens_patrimoniais.situacao
 const SITUACOES_BEM: { value: string; label: string; tom: TomStatus }[] = [
