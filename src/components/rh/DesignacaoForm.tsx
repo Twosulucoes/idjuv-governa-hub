@@ -25,6 +25,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, MapPin, Building2, Info } from "lucide-react";
 import { useCreateDesignacao } from "@/hooks/useDesignacoes";
 import { buscarLotacaoAtiva } from "@/lib/matriculaUtils";
+import { mensagemDeErro } from "@/lib/erroBanco";
+import { ErroGravacao } from "@/components/rh/ErroGravacao";
 
 interface Props {
   servidorId?: string;
@@ -49,6 +51,7 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
   const [observacao, setObservacao] = useState("");
   
   const [lotacaoAtiva, setLotacaoAtiva] = useState<any>(null);
+  const [erro, setErro] = useState<string | null>(null);
   const [isLoadingLotacao, setIsLoadingLotacao] = useState(false);
 
   // Buscar servidores ativos
@@ -119,6 +122,7 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
       setAtoDoeNumero("");
       setAtoDoeData("");
       setObservacao("");
+      setErro(null);
     }
   }, [open, servidorId]);
 
@@ -128,17 +132,25 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // nenhuma recusa em silêncio: o motivo aparece no topo do formulário (teste do RH de 06/11/2026, item 24)
     if (!selectedServidorId || !unidadeDestinoId || !dataInicio) {
+      setErro("Escolha o servidor, a unidade de destino e a data de início.");
       return;
     }
 
     if (!lotacaoAtiva) {
+      setErro("Este servidor não possui lotação ativa hoje. Lote o servidor em Gestão de Lotação antes de designar.");
       return;
     }
 
-    if (dataFim && dataFim < dataInicio) return;
+    if (dataFim && dataFim < dataInicio) {
+      setErro("A data de fim não pode ser antes da data de início.");
+      return;
+    }
 
-    await createDesignacao.mutateAsync({
+    setErro(null);
+    try {
+      await createDesignacao.mutateAsync({
       servidor_id: selectedServidorId,
       lotacao_id: lotacaoAtiva.id,
       unidade_origem_id: lotacaoAtiva.unidade_id,
@@ -152,7 +164,11 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
       ato_doe_numero: atoDoeNumero.trim() || undefined,
       ato_doe_data: atoDoeData || undefined,
       observacao: observacao.trim() || undefined,
-    });
+      });
+    } catch (falha) {
+      setErro(mensagemDeErro(falha));
+      return;
+    }
 
     onOpenChange(false);
   };
@@ -173,6 +189,7 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <ErroGravacao mensagem={erro} />
           {/* Info */}
           <Alert>
             <Info className="h-4 w-4" />
