@@ -45,7 +45,8 @@ const OPCOES_PRESTACAO = [
 const PERMISSAO_IMPORTAR = "financeiro.execucao.importar";
 
 export default function DiariasFiplanPage() {
-  const { exercicio, comExercicio } = useExercicioFinanceiro();
+  const { exercicio, setExercicio, comExercicio } = useExercicioFinanceiro();
+  const anoAtual = new Date().getFullYear();
   const { hasPermission } = useAuth();
   const diarias = useDiariasFiplan(exercicio);
   const ultima = useUltimaImportacaoDiarias(exercicio);
@@ -226,8 +227,14 @@ export default function DiariasFiplanPage() {
           }
           vazio={{
             icone: Plane,
-            titulo: "Nenhuma diária importada",
+            titulo: `Nenhuma diária importada em ${exercicio}`,
             descricao: "Importe o FIP 002 em Financeiro → Atualizar dados para ver as diárias do exercício.",
+            acao:
+              exercicio !== anoAtual ? (
+                <Button variant="outline" onClick={() => setExercicio(anoAtual)}>
+                  Ver {anoAtual}
+                </Button>
+              ) : undefined,
           }}
         />
       </div>
