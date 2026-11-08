@@ -4,6 +4,9 @@
  * Fonte: parâmetro `?exercicio=` da URL; sem ele, o último ano escolhido neste
  * navegador (localStorage); sem nenhum dos dois, o ano atual. Faixa válida:
  * 2024 até o ano seguinte ao atual (o QDD do ano seguinte sai antes da virada).
+ *
+ * O ano seguinte só vale quando vem da URL: guardado no navegador, ele fazia todas as telas abrirem num
+ * exercício ainda vazio (teste do RH de 06/11/2026, item 14: Diárias pagas abriu em 2027 sem nenhuma diária).
  */
 
 import { useCallback, useEffect, useMemo } from "react";
@@ -25,9 +28,15 @@ function exercicioValido(valor: unknown): number | null {
   return ano >= EXERCICIO_MINIMO && ano <= new Date().getFullYear() + 1 ? ano : null;
 }
 
-function lerArmazenado(): number | null {
+/** Ano padrão quando a URL não traz um: o guardado no navegador, se não for futuro; senão o ano atual. */
+export function exercicioPadrao(armazenado: unknown, anoAtual = new Date().getFullYear()): number {
+  const ano = exercicioValido(armazenado);
+  return ano !== null && ano <= anoAtual ? ano : anoAtual;
+}
+
+function lerArmazenado(): string | null {
   try {
-    return exercicioValido(window.localStorage.getItem(CHAVE_ARMAZENAMENTO));
+    return window.localStorage.getItem(CHAVE_ARMAZENAMENTO);
   } catch {
     return null;
   }
@@ -54,7 +63,7 @@ export function useExercicioFinanceiro() {
   const daUrl = exercicioValido(searchParams.get(PARAMETRO));
 
   const exercicio = useMemo(
-    () => daUrl ?? lerArmazenado() ?? new Date().getFullYear(),
+    () => daUrl ?? exercicioPadrao(lerArmazenado()),
     [daUrl],
   );
 

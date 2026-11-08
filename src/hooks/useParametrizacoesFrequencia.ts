@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { mensagemDeErro } from "@/lib/erroBanco";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
   ConfigJornadaPadrao,
@@ -55,9 +56,12 @@ export function useJornadaPadrao() {
         .select("*")
         .eq("padrao", true)
         .eq("ativo", true)
-        .single();
+        // nenhuma ou mais de uma marcada como padrão não pode virar HTTP 406 (item 15): fica a mais recente
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error) throw error;
       return data as ConfigJornadaPadrao | null;
     },
   });
@@ -96,7 +100,7 @@ export function useSalvarJornada() {
     },
     onError: (error) => {
       console.error("Erro ao salvar jornada:", error);
-      toast.error("Erro ao salvar jornada.");
+      toast.error(`Erro ao salvar jornada: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -152,7 +156,7 @@ export function useSalvarRegime() {
     },
     onError: (error) => {
       console.error("Erro ao salvar regime:", error);
-      toast.error("Erro ao salvar regime.");
+      toast.error(`Erro ao salvar regime: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -215,7 +219,7 @@ export function useSalvarDiaNaoUtil() {
     },
     onError: (error) => {
       console.error("Erro ao salvar dia não útil:", error);
-      toast.error("Erro ao salvar dia não útil.");
+      toast.error(`Erro ao salvar dia não útil: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -237,7 +241,7 @@ export function useExcluirDiaNaoUtil() {
     },
     onError: (error) => {
       console.error("Erro ao excluir:", error);
-      toast.error("Erro ao excluir dia não útil.");
+      toast.error(`Erro ao excluir dia não útil: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -300,7 +304,7 @@ export function useSalvarTipoAbono() {
     },
     onError: (error) => {
       console.error("Erro ao salvar tipo de abono:", error);
-      toast.error("Erro ao salvar tipo de abono.");
+      toast.error(`Erro ao salvar tipo de abono: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -333,9 +337,12 @@ export function useCompensacaoPadrao() {
         .select("*")
         .eq("padrao", true)
         .eq("ativo", true)
-        .single();
+        // nenhuma ou mais de uma marcada como padrão não pode virar HTTP 406 (item 15): fica a mais recente
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error) throw error;
       return data as ConfigCompensacao | null;
     },
   });
@@ -378,7 +385,7 @@ export function useSalvarCompensacao() {
     },
     onError: (error) => {
       console.error("Erro ao salvar configuração:", error);
-      toast.error("Erro ao salvar configuração.");
+      toast.error(`Erro ao salvar configuração: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -396,9 +403,11 @@ export function useConfigFechamento(ano: number, mes: number) {
         .select("*")
         .eq("ano", ano)
         .eq("mes", mes)
-        .single();
+        // maybeSingle: mês sem configuração é normal; com .single() o PostgREST responde HTTP 406
+        // (teste do RH de 06/11/2026, item 15)
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error) throw error;
       return data as ConfigFechamentoFrequencia | null;
     },
     enabled: ano > 0 && mes > 0,
@@ -434,7 +443,7 @@ export function useSalvarFechamento() {
     },
     onError: (error) => {
       console.error("Erro ao salvar fechamento:", error);
-      toast.error("Erro ao salvar configuração de fechamento.");
+      toast.error(`Erro ao salvar configuração de fechamento: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -467,9 +476,12 @@ export function useAssinaturaPadrao() {
         .select("*")
         .eq("padrao", true)
         .eq("ativo", true)
-        .single();
+        // nenhuma ou mais de uma marcada como padrão não pode virar HTTP 406 (item 15): fica a mais recente
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error) throw error;
       return data as ConfigAssinaturaFrequencia | null;
     },
   });
@@ -512,7 +524,7 @@ export function useSalvarAssinatura() {
     },
     onError: (error) => {
       console.error("Erro ao salvar assinatura:", error);
-      toast.error("Erro ao salvar configuração de assinatura.");
+      toast.error(`Erro ao salvar configuração de assinatura: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -597,7 +609,7 @@ export function useSalvarSolicitacaoAbono() {
     },
     onError: (error) => {
       console.error("Erro ao salvar solicitação:", error);
-      toast.error("Erro ao salvar solicitação.");
+      toast.error(`Erro ao salvar solicitação: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -647,7 +659,7 @@ export function useAprovarSolicitacaoAbono() {
     },
     onError: (error) => {
       console.error("Erro ao aprovar:", error);
-      toast.error("Erro ao aprovar solicitação.");
+      toast.error(`Erro ao aprovar solicitação: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -676,7 +688,7 @@ export function useRejeitarSolicitacaoAbono() {
     },
     onError: (error) => {
       console.error("Erro ao rejeitar:", error);
-      toast.error("Erro ao rejeitar solicitação.");
+      toast.error(`Erro ao rejeitar solicitação: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -743,7 +755,7 @@ export function useAssinarFrequencia() {
     },
     onError: (error) => {
       console.error("Erro ao assinar:", error);
-      toast.error("Erro ao assinar frequência.");
+      toast.error(`Erro ao assinar frequência: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -789,7 +801,7 @@ export function useValidarFrequenciaChefia() {
     },
     onError: (error) => {
       console.error("Erro ao validar:", error);
-      toast.error("Erro ao validar frequência.");
+      toast.error(`Erro ao validar frequência: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -836,7 +848,7 @@ export function useConsolidarFrequenciaRH() {
     },
     onError: (error) => {
       console.error("Erro ao consolidar:", error);
-      toast.error("Erro ao consolidar frequência.");
+      toast.error(`Erro ao consolidar frequência: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -902,7 +914,7 @@ export function useConsolidarFrequenciaLote() {
     },
     onError: (error) => {
       console.error("Erro ao consolidar em lote:", error);
-      toast.error("Erro ao consolidar frequências.");
+      toast.error(`Erro ao consolidar frequências: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -958,7 +970,7 @@ export function useReabrirFrequencia() {
     },
     onError: (error) => {
       console.error("Erro ao reabrir:", error);
-      toast.error("Erro ao reabrir frequência.");
+      toast.error(`Erro ao reabrir frequência: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -996,7 +1008,7 @@ export function useFecharCompetencia() {
     },
     onError: (error) => {
       console.error("Erro ao fechar competência:", error);
-      toast.error("Erro ao fechar a competência.");
+      toast.error(`Erro ao fechar a competência: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -1104,7 +1116,7 @@ export function useSalvarServidorRegime() {
     },
     onError: (error) => {
       console.error("Erro ao salvar regime:", error);
-      toast.error("Erro ao salvar regime do servidor.");
+      toast.error(`Erro ao salvar regime do servidor: ${mensagemDeErro(error)}`);
     },
   });
 }
