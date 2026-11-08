@@ -2590,6 +2590,113 @@ $$;
 
 
 --
+-- Name: compras_meus_prazos(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.compras_meus_prazos() RETURNS TABLE(categoria text, processo_id uuid, numero_processo text, objeto text, etapa text, prazo_id uuid, tipo text, descricao text, data_limite date, dias integer, responsavel text, andamento_id uuid, pode_editar boolean, pode_ver boolean)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  WITH eu AS (
+    SELECT auth.uid() AS uid,
+           (SELECT p.servidor_id FROM public.profiles p WHERE p.id = auth.uid()) AS servidor_id,
+           (now() AT TIME ZONE 'America/Boa_Vista')::date AS hoje
+  ), acesso AS (
+    SELECT eu.*,
+           public.perfil_ativo_atual() AS ativo,
+           coalesce(public.can_access_module(eu.uid, 'compras')
+                    AND public.has_permission_code(eu.uid, 'compras.processos.editar'), false) AS todos,
+           coalesce(public.can_access_module(eu.uid, 'compras')
+                    AND (public.has_permission_code(eu.uid, 'compras.processos.visualizar')
+                         OR public.has_permission_code(eu.uid, 'compras.processos.editar')), false) AS ver
+      FROM eu
+  ), prazos AS (
+    SELECT CASE WHEN pz.data_limite < a.hoje THEN 'vencido'
+                WHEN pz.data_limite - a.hoje <= 3 THEN 'proximo'
+                ELSE 'aviso' END AS categoria,
+           p.id AS processo_id, p.numero_processo, left(coalesce(p.objeto_resumido, p.objeto), 200) AS objeto, p.etapa,
+           pz.id AS prazo_id, pz.tipo, pz.descricao, pz.data_limite, (pz.data_limite - a.hoje)::integer AS dias,
+           coalesce(pz.responsavel_nome, pz.responsavel_setor) AS responsavel, pz.andamento_id,
+           a.todos AS pode_editar, a.ver AS pode_ver
+      FROM public.processo_prazos pz
+      JOIN public.processos_licitatorios p ON p.id = pz.processo_id
+      CROSS JOIN acesso a
+     WHERE a.uid IS NOT NULL AND a.ativo
+       AND pz.situacao IN ('aberto', 'remarcado')
+       AND p.etapa NOT IN ('encerrado', 'cancelado')
+       AND (pz.data_limite - a.hoje <= 3 OR (pz.data_limite - a.hoje) = ANY (pz.avisos_dias))
+       AND (a.todos OR (a.servidor_id IS NOT NULL AND pz.responsavel_servidor_id = a.servidor_id))
+  ), parados AS (
+    SELECT 'parado'::text, p.id, p.numero_processo, left(coalesce(p.objeto_resumido, p.objeto), 200), p.etapa,
+           NULL::uuid, NULL::text, NULL::text, coalesce(p.atualizado_em, p.created_at::date),
+           (a.hoje - coalesce(p.atualizado_em, p.created_at::date))::integer,
+           coalesce(p.proximo_responsavel_nome, p.proximo_responsavel_setor, p.setor_atual), NULL::uuid,
+           a.todos, a.ver
+      FROM public.processos_licitatorios p
+      CROSS JOIN acesso a
+     WHERE a.uid IS NOT NULL AND a.ativo
+       AND p.etapa NOT IN ('encerrado', 'cancelado')
+       AND a.hoje - coalesce(p.atualizado_em, p.created_at::date)
+           > coalesce((SELECT c.dias_limite_parado FROM public.compras_etapa_parametros c WHERE c.etapa = p.etapa), 15)
+       AND (a.todos OR (a.servidor_id IS NOT NULL AND p.proximo_responsavel_servidor_id = a.servidor_id))
+       AND NOT EXISTS (SELECT 1 FROM prazos v WHERE v.processo_id = p.id AND v.categoria = 'vencido')
+  )
+  SELECT * FROM (
+    SELECT * FROM prazos
+    UNION ALL
+    SELECT * FROM parados
+  ) x
+  ORDER BY CASE x.categoria WHEN 'vencido' THEN 0 WHEN 'proximo' THEN 1 WHEN 'parado' THEN 2 ELSE 3 END,
+           CASE WHEN x.categoria = 'parado' THEN -x.dias ELSE x.dias END, x.numero_processo
+  LIMIT 300
+$$;
+
+
+--
+-- Name: FUNCTION compras_meus_prazos(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.compras_meus_prazos() IS 'Pop-up e sino dos processos de contratação (P3): prazos vencidos, que vencem em até 3 dias ou em dia de aviso, e processos parados além do limite da etapa. Com compras.processos.editar, todos; senão, os do servidor do perfil. Migração 20261128090000.';
+
+
+--
+-- Name: compras_normalizar_avisos(integer[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.compras_normalizar_avisos(p_avisos integer[]) RETURNS integer[]
+    LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT array_agg(d ORDER BY d DESC)
+    FROM (SELECT DISTINCT d FROM unnest(coalesce(p_avisos, '{}') || 1) AS d WHERE d BETWEEN 1 AND 365) x
+$$;
+
+
+--
+-- Name: compras_prazo_tipos_preparar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.compras_prazo_tipos_preparar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM unnest(NEW.avisos_padrao) d WHERE d IS NULL OR d NOT BETWEEN 1 AND 365) THEN
+    RAISE EXCEPTION 'Os avisos são dias antes do prazo, de 1 a 365.' USING ERRCODE = '22023';
+  END IF;
+  NEW.avisos_padrao := public.compras_normalizar_avisos(NEW.avisos_padrao);
+  NEW.rotulo := btrim(NEW.rotulo);
+  IF TG_OP = 'UPDATE' THEN
+    NEW.tipo := OLD.tipo;
+  END IF;
+  NEW.updated_at := now();
+  NEW.updated_by := COALESCE(auth.uid(), NEW.updated_by);
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: conciliar_movimento_bancario(uuid, uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -14749,6 +14856,145 @@ $$;
 
 
 --
+-- Name: processo_prazo_preparar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_prazo_preparar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_api boolean := current_user IN ('authenticated', 'anon');
+  v_hoje date := (now() AT TIME ZONE 'America/Boa_Vista')::date;
+BEGIN
+  IF EXISTS (SELECT 1 FROM unnest(NEW.avisos_dias) d WHERE d IS NULL OR d NOT BETWEEN 1 AND 365) THEN
+    RAISE EXCEPTION 'Os avisos são dias antes do prazo, de 1 a 365.' USING ERRCODE = '22023';
+  END IF;
+  NEW.descricao := NULLIF(btrim(NEW.descricao), '');
+  NEW.responsavel_setor := NULLIF(btrim(NEW.responsavel_setor), '');
+  NEW.remarcacao_motivo := NULLIF(btrim(NEW.remarcacao_motivo), '');
+  NEW.conclusao_motivo := NULLIF(btrim(NEW.conclusao_motivo), '');
+
+  IF TG_OP = 'INSERT' THEN
+    IF v_api AND (NEW.tipo = 'proxima_acao' OR NEW.andamento_id IS NOT NULL) THEN
+      RAISE EXCEPTION 'O prazo da próxima ação nasce da movimentação (registre uma movimentação).' USING ERRCODE = '22023';
+    END IF;
+    IF NEW.responsavel_servidor_id IS NULL AND NEW.responsavel_setor IS NULL THEN
+      RAISE EXCEPTION 'Informe o responsável pelo prazo (servidor ou setor).' USING ERRCODE = '22023';
+    END IF;
+    IF NEW.avisos_dias IS NULL OR cardinality(NEW.avisos_dias) = 0 OR NEW.avisos_dias = '{1}' THEN
+      NEW.avisos_dias := coalesce((SELECT t.avisos_padrao FROM public.compras_prazo_tipos t WHERE t.tipo = NEW.tipo), '{1}');
+    END IF;
+    IF v_api THEN
+      NEW.situacao := 'aberto';
+      NEW.concluido_em := NULL;
+      NEW.concluido_por := NULL;
+      NEW.conclusao_motivo := NULL;
+      NEW.remarcacao_motivo := NULL;
+    END IF;
+    NEW.created_by := COALESCE(auth.uid(), NEW.created_by);
+    NEW.created_at := now();
+  ELSE
+    -- o que nunca muda
+    NEW.processo_id := OLD.processo_id;
+    NEW.tipo := OLD.tipo;
+    NEW.andamento_id := CASE WHEN v_api THEN OLD.andamento_id ELSE NEW.andamento_id END;
+    NEW.created_at := OLD.created_at;
+    NEW.created_by := OLD.created_by;
+
+    IF v_api THEN
+      IF OLD.situacao IN ('cumprido', 'cancelado') THEN
+        RAISE EXCEPTION 'Este prazo já foi encerrado e não pode mais mudar.' USING ERRCODE = '22023';
+      END IF;
+      IF OLD.tipo = 'proxima_acao' AND (
+           NEW.data_limite IS DISTINCT FROM OLD.data_limite
+           OR NEW.responsavel_servidor_id IS DISTINCT FROM OLD.responsavel_servidor_id
+           OR NEW.responsavel_setor IS DISTINCT FROM OLD.responsavel_setor
+           OR NEW.descricao IS DISTINCT FROM OLD.descricao
+           OR NEW.situacao IS DISTINCT FROM OLD.situacao) THEN
+        RAISE EXCEPTION 'A próxima ação muda pela movimentação: corrija o prazo dela na aba Andamento.' USING ERRCODE = '22023';
+      END IF;
+      IF NEW.situacao = 'remarcado' AND NEW.data_limite IS NOT DISTINCT FROM OLD.data_limite THEN
+        NEW.situacao := OLD.situacao;
+      END IF;
+      IF NEW.data_limite IS DISTINCT FROM OLD.data_limite THEN
+        IF NEW.remarcacao_motivo IS NULL OR NEW.remarcacao_motivo IS NOT DISTINCT FROM OLD.remarcacao_motivo THEN
+          RAISE EXCEPTION 'Informe o motivo da remarcação (de 3 a 500 caracteres).' USING ERRCODE = '22023';
+        END IF;
+        IF NEW.data_limite < v_hoje THEN
+          RAISE EXCEPTION 'A nova data do prazo não pode ficar no passado.' USING ERRCODE = '22023';
+        END IF;
+        IF NEW.situacao IN ('aberto', 'remarcado') THEN
+          NEW.situacao := 'remarcado';
+        END IF;
+      ELSE
+        NEW.remarcacao_motivo := OLD.remarcacao_motivo;
+      END IF;
+      IF NEW.situacao IS DISTINCT FROM OLD.situacao AND NEW.situacao IN ('cumprido', 'cancelado') THEN
+        IF NEW.situacao = 'cancelado' AND (NEW.conclusao_motivo IS NULL OR NEW.conclusao_motivo IS NOT DISTINCT FROM OLD.conclusao_motivo) THEN
+          RAISE EXCEPTION 'Informe o motivo do cancelamento (de 3 a 500 caracteres).' USING ERRCODE = '22023';
+        END IF;
+        NEW.concluido_em := now();
+        NEW.concluido_por := auth.uid();
+      ELSIF NEW.situacao IS NOT DISTINCT FROM OLD.situacao THEN
+        NEW.concluido_em := OLD.concluido_em;
+        NEW.concluido_por := OLD.concluido_por;
+        NEW.conclusao_motivo := OLD.conclusao_motivo;
+      ELSIF NEW.situacao = 'aberto' AND OLD.situacao = 'remarcado' THEN
+        NEW.situacao := 'remarcado';
+      END IF;
+      IF NEW.responsavel_servidor_id IS NULL AND NEW.responsavel_setor IS NULL THEN
+        RAISE EXCEPTION 'Informe o responsável pelo prazo (servidor ou setor).' USING ERRCODE = '22023';
+      END IF;
+    END IF;
+    NEW.updated_at := now();
+  END IF;
+
+  NEW.avisos_dias := public.compras_normalizar_avisos(NEW.avisos_dias);
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: processo_prazo_registrar_remarcacao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_prazo_registrar_remarcacao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.data_limite IS DISTINCT FROM OLD.data_limite THEN
+    INSERT INTO public.processo_prazo_remarcacoes (prazo_id, processo_id, data_anterior, data_nova, motivo, feito_por)
+    VALUES (NEW.id, NEW.processo_id, OLD.data_limite, NEW.data_limite,
+            coalesce(NEW.remarcacao_motivo, 'Prazo da movimentação corrigido'), auth.uid());
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: processo_prazo_responsavel_nome(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_prazo_responsavel_nome() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.responsavel_servidor_id IS NULL THEN
+    NEW.responsavel_nome := NULL;
+  ELSE
+    SELECT s.nome_completo INTO NEW.responsavel_nome FROM public.servidores s WHERE s.id = NEW.responsavel_servidor_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: processo_proxima_acao_falta(text, date, text, uuid, text, date); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -14779,6 +15025,14 @@ DECLARE
   v_setor text;
   v_data date;
 BEGIN
+  -- prazos de movimentações excluídas
+  UPDATE public.processo_prazos pz
+     SET situacao = 'cancelado', concluido_em = now(), concluido_por = auth.uid(),
+         conclusao_motivo = 'Movimentação excluída'
+    FROM public.processo_andamentos a
+   WHERE pz.processo_id = p_processo_id AND pz.andamento_id = a.id AND a.excluido_em IS NOT NULL
+     AND pz.situacao IN ('aberto', 'remarcado');
+
   SELECT * INTO v_ult
     FROM public.processo_andamentos a
    WHERE a.processo_id = p_processo_id AND a.excluido_em IS NULL
@@ -14810,6 +15064,45 @@ BEGIN
          prazo_proxima_acao = v_ult.prazo_proxima,
          updated_at = now()
    WHERE id = p_processo_id;
+
+  -- a próxima ação das outras movimentações já foi feita
+  UPDATE public.processo_prazos pz
+     SET situacao = 'cumprido', concluido_em = now(), concluido_por = auth.uid(),
+         conclusao_motivo = 'Nova movimentação registrada'
+   WHERE pz.processo_id = p_processo_id AND pz.tipo = 'proxima_acao' AND pz.situacao IN ('aberto', 'remarcado')
+     AND pz.andamento_id IS DISTINCT FROM v_ult.id;
+
+  IF v_ult.prazo_proxima IS NOT NULL THEN
+    INSERT INTO public.processo_prazos AS pz
+      (processo_id, tipo, descricao, data_limite, responsavel_servidor_id, responsavel_nome, responsavel_setor,
+       andamento_id, avisos_dias, created_by)
+    VALUES
+      (p_processo_id, 'proxima_acao', left(coalesce(v_ult.proxima_etapa, ''), 300), v_ult.prazo_proxima,
+       v_ult.responsavel_servidor_id, v_ult.responsavel_nome, v_ult.responsavel_setor, v_ult.id,
+       coalesce((SELECT t.avisos_padrao FROM public.compras_prazo_tipos t WHERE t.tipo = 'proxima_acao'), '{1}'),
+       coalesce(auth.uid(), v_ult.created_by))
+    ON CONFLICT (andamento_id) DO UPDATE
+       SET descricao = EXCLUDED.descricao,
+           data_limite = EXCLUDED.data_limite,
+           responsavel_servidor_id = EXCLUDED.responsavel_servidor_id,
+           responsavel_nome = EXCLUDED.responsavel_nome,
+           responsavel_setor = EXCLUDED.responsavel_setor,
+           remarcacao_motivo = CASE WHEN pz.data_limite IS DISTINCT FROM EXCLUDED.data_limite
+                                    THEN coalesce(v_ult.alteracao_motivo, 'Prazo da movimentação corrigido')
+                                    ELSE pz.remarcacao_motivo END,
+           situacao = CASE WHEN pz.situacao IN ('cumprido', 'cancelado') THEN 'aberto'
+                           WHEN pz.data_limite IS DISTINCT FROM EXCLUDED.data_limite THEN 'remarcado'
+                           ELSE pz.situacao END,
+           concluido_em = CASE WHEN pz.situacao IN ('cumprido', 'cancelado') THEN NULL ELSE pz.concluido_em END,
+           concluido_por = CASE WHEN pz.situacao IN ('cumprido', 'cancelado') THEN NULL ELSE pz.concluido_por END,
+           conclusao_motivo = CASE WHEN pz.situacao IN ('cumprido', 'cancelado') THEN NULL ELSE pz.conclusao_motivo END;
+  ELSE
+    -- a movimentação que vale não tem próxima ação (encerrado, cancelado ou antiga): o prazo dela, se havia, sai
+    UPDATE public.processo_prazos pz
+       SET situacao = 'cumprido', concluido_em = now(), concluido_por = auth.uid(),
+           conclusao_motivo = 'Movimentação sem próxima ação'
+     WHERE pz.andamento_id = v_ult.id AND pz.situacao IN ('aberto', 'remarcado');
+  END IF;
 END;
 $$;
 
@@ -22536,6 +22829,29 @@ COMMENT ON TABLE public.compras_etapa_parametros IS 'Processos de contratação:
 
 
 --
+-- Name: compras_prazo_tipos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.compras_prazo_tipos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tipo text NOT NULL,
+    rotulo text NOT NULL,
+    avisos_padrao integer[] NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid DEFAULT auth.uid(),
+    CONSTRAINT compras_prazo_tipos_rotulo_check CHECK (((char_length(btrim(rotulo)) >= 3) AND (char_length(btrim(rotulo)) <= 80))),
+    CONSTRAINT compras_prazo_tipos_tipo_check CHECK ((tipo = ANY (ARRAY['proxima_acao'::text, 'resposta_orgao_externo'::text, 'assinatura_contrato'::text, 'vigencia_ata'::text, 'vigencia_contrato'::text, 'empenho'::text, 'liquidacao'::text, 'pagamento'::text, 'prestacao_contas'::text])))
+);
+
+
+--
+-- Name: TABLE compras_prazo_tipos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.compras_prazo_tipos IS 'Processos de contratação, P3: tipos de prazo e os avisos padrão (dias antes do vencimento). O aviso de 1 dia antes sempre fica.';
+
+
+--
 -- Name: conciliacoes_inventario; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -29649,6 +29965,82 @@ CREATE TABLE public.processo_modelos (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: processo_prazo_remarcacoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processo_prazo_remarcacoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    prazo_id uuid NOT NULL,
+    processo_id uuid NOT NULL,
+    data_anterior date NOT NULL,
+    data_nova date NOT NULL,
+    motivo text NOT NULL,
+    feito_em timestamp with time zone DEFAULT now() NOT NULL,
+    feito_por uuid,
+    CONSTRAINT processo_prazo_remarcacoes_motivo_check CHECK (((char_length(btrim(motivo)) >= 3) AND (char_length(btrim(motivo)) <= 500)))
+);
+
+
+--
+-- Name: TABLE processo_prazo_remarcacoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.processo_prazo_remarcacoes IS 'Trilha das remarcações dos prazos dos processos de contratação (gatilho processo_prazo_registrar_remarcacao); imutável.';
+
+
+--
+-- Name: processo_prazos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processo_prazos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    processo_id uuid NOT NULL,
+    tipo text NOT NULL,
+    descricao text,
+    data_limite date NOT NULL,
+    responsavel_servidor_id uuid,
+    responsavel_nome text,
+    responsavel_setor text,
+    avisos_dias integer[] DEFAULT '{1}'::integer[] NOT NULL,
+    situacao text DEFAULT 'aberto'::text NOT NULL,
+    andamento_id uuid,
+    remarcacao_motivo text,
+    concluido_em timestamp with time zone,
+    concluido_por uuid,
+    conclusao_motivo text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT processo_prazos_conclusao_motivo_check CHECK (((conclusao_motivo IS NULL) OR ((char_length(btrim(conclusao_motivo)) >= 3) AND (char_length(btrim(conclusao_motivo)) <= 500)))),
+    CONSTRAINT processo_prazos_descricao_check CHECK (((descricao IS NULL) OR (char_length(descricao) <= 300))),
+    CONSTRAINT processo_prazos_remarcacao_motivo_check CHECK (((remarcacao_motivo IS NULL) OR ((char_length(btrim(remarcacao_motivo)) >= 3) AND (char_length(btrim(remarcacao_motivo)) <= 500)))),
+    CONSTRAINT processo_prazos_responsavel_setor_check CHECK (((responsavel_setor IS NULL) OR (char_length(responsavel_setor) <= 200))),
+    CONSTRAINT processo_prazos_situacao_check CHECK ((situacao = ANY (ARRAY['aberto'::text, 'remarcado'::text, 'cumprido'::text, 'cancelado'::text])))
+);
+
+
+--
+-- Name: TABLE processo_prazos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.processo_prazos IS 'Prazos do processo de contratação (P3). O tipo proxima_acao espelha a próxima ação da movimentação que vale (processo_recalcular_estado); os outros são lançados à mão. "Vencido" é calculado (aberto ou remarcado com a data passada).';
+
+
+--
+-- Name: COLUMN processo_prazos.avisos_dias; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processo_prazos.avisos_dias IS 'Dias antes do prazo em que o responsável é avisado; sempre inclui o 1.';
+
+
+--
+-- Name: COLUMN processo_prazos.andamento_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processo_prazos.andamento_id IS 'Movimentação de onde nasceu o prazo da próxima ação (só no tipo proxima_acao).';
 
 
 --

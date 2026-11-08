@@ -224,6 +224,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `processo_andamentos` atualizada), no schema do baseline (colunas, tabela, gatilhos e `processo_recalcular_estado`) e
   no `overlay/40_privilegios.sql` (funções sem EXECUTE para a API); testes no bloco "Compras: processos, P1" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- Os prazos dos processos SEI (P3, migração `20261128090000`) entraram no mapa (`compras_prazo_tipos` e
+  `processo_prazos`, classe `permissao` com `escrita=compras.processos.editar;excluir=ninguem`;
+  `processo_prazo_remarcacoes`, classe `trilha`), no schema do baseline, nas sementes (`compras_prazo_tipos` em
+  `SEMENTES` de `gerar-baseline.sh`) e no `overlay/40_privilegios.sql`; testes no bloco "Compras: processos, P3" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A próxima ação dos processos SEI (P2, migração `20261122090000`) entrou no mapa (`compras_etapa_parametros`, classe
   `permissao` com `escrita=compras.processos.editar;excluir=ninguem` e `leitura=` de ver ou editar processos), no
   schema do baseline (colunas, tabela, gatilhos e funções), nas sementes (`compras_etapa_parametros` em `SEMENTES` de
