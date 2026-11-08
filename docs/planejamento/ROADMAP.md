@@ -97,12 +97,13 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
 
 ## Backlog fora do plano
 
-- [ ] **Financeiro — achados do teste de 06/11/2026** (relatório de testes do Financeiro): F4 a F9 em PR rascunho de
-  07/11/2026: prazo do convênio contado pela data de calendário no fuso da sede (`fusoHorario` do perfil, `hojeISO` em
-  `src/lib/datas/hojeLocal.ts`, reaproveitável pelo item 18 do teste do RH); cartões de Diárias com a unidade (diárias ×
-  servidores); mensagem por campo em Empenho de contingência, Nova liquidação e Programar pagamento; mesmos nomes no
-  botão e no diálogo; aviso de planilha e PDF gerados nos Relatórios; menu "Contingência". F1 a F3 (lista de empenhos
-  × painel, anulados e data de corte da fila) aguardam a regra do dono.
+- [ ] **Financeiro — achados do teste de 06/11/2026** (relatório de testes do Financeiro, versão de 07/11): PR #214
+  (mesclada em 07/11/2026) corrigiu o prazo do convênio no fuso da sede (`fusoHorario` do perfil, `hojeISO` em
+  `src/lib/datas/hojeLocal.ts`), os cartões de Diárias, a mensagem por campo nos três diálogos de contingência, os nomes
+  de botão e diálogo, o aviso de planilha/PDF gerados e o menu "Contingência". PR seguinte (07/11/2026): lista de Empenhos
+  com o empenhado líquido de estornos (como o QDD e o painel), coluna Estornado, total no rodapé (`rodape` do
+  `DataTable`) e o original na ficha; resumo do importador de PEDs conta linhas como a prévia. Falta: ligar a diária ao
+  servidor pelo código do credor (hoje só pelo nome; proposta: importar o "Consultar Credor" do FIPLAN, com código e CPF).
 - [ ] **Impressão só pelo motor** (transversal): guard `impressaoForaDoCore` no gate (21/10/2026) conta `window.print`,
   `print:`, `@media print` e pdf-lib fora de `src/lib/documentos/`. Falta migrar para modelo do motor as etiquetas de
   patrimônio, a ficha cadastral geral (pdf-lib) e o Imprimir do organograma ([PADRAO_DOCUMENTOS.md](../PADRAO_DOCUMENTOS.md) §3).
@@ -119,6 +120,10 @@ Feitas fora do repositório (GitHub, VPS, Cloudflare). Nenhum valor de segredo v
   tela), tabela `fin_diarias_fiplan` (migração `20261113090000`, aguardando a aprovação no ambiente `producao` depois do
   merge), tela Financeiro → Diárias (total pago, sem prestação de contas, atrasadas com prazo de 10 dias do retorno,
   filtro e Excel) e selo "Paga no FIPLAN" na viagem do RH ([spec](../superpowers/specs/2026-10-30-diarias-fiplan-design.md)).
+  Diária ligada ao servidor pelo código do credor (achado F9 do teste de 06/11/2026, PR rascunho de 08/11): importador
+  do "Consultar Credor" do FIPLAN (código e CPF; só os servidores do órgão chegam ao banco) e tabela
+  `fin_credores_servidores` (migração `20261127090000`, aguardando a aprovação no ambiente `producao` depois do merge);
+  o FIP 002 procura o servidor pelo código antes do nome.
   Próximas: pagamentos por credor (FIP 685; o FIP 644 dá erro no FIPLAN), créditos adicionais (FIP 625) e liquidado
   por subelemento (FIP 701). O FIP 401 (folha) não serve: a folha do IDJUV não é integrada ao FIPLAN.
 - [ ] **Design System** (transversal): fases 0 a 2 feitas; fase 3 (RH como piloto) e fase 4 (um módulo por PR, começou
