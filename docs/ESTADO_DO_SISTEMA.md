@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 234 |
-| Componentes (`.tsx` em `src/components`) | 397 |
+| Componentes (`.tsx` em `src/components`) | 400 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 354 |
-| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 119 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 120 |
+| — fora de `ui/` | 357 |
+| Hooks (`src/hooks/use*.ts(x)`, sem testes) | 120 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 123 |
 | Linhas de `src/App.tsx` | 1502 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30694 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30994 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -69,16 +69,16 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 340 |
-| Migração mais recente | `20261126090000_rh_testes_calendario_oficial.sql` |
-| Tabelas do schema public (baseline) | 297 |
+| Migrações (`supabase/migrations/*.sql`) | 342 |
+| Migração mais recente | `20261128090000_compras_processos_prazos.sql` |
+| Tabelas do schema public (baseline) | 301 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 400 |
-| — de gatilho (`RETURNS trigger`) | 154 |
-| — demais | 246 |
+| Funções (baseline) | 408 |
+| — de gatilho (`RETURNS trigger`) | 158 |
+| — demais | 250 |
 | Enums (baseline) | 108 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2103 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 297 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2118 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 301 |
 | Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 14 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.

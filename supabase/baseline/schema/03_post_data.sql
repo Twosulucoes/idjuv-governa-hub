@@ -638,6 +638,22 @@ ALTER TABLE ONLY public.compras_etapa_parametros
 
 
 --
+-- Name: compras_prazo_tipos compras_prazo_tipos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.compras_prazo_tipos
+    ADD CONSTRAINT compras_prazo_tipos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: compras_prazo_tipos compras_prazo_tipos_tipo_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.compras_prazo_tipos
+    ADD CONSTRAINT compras_prazo_tipos_tipo_key UNIQUE (tipo);
+
+
+--
 -- Name: conciliacoes_inventario conciliacoes_inventario_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1523,6 +1539,14 @@ ALTER TABLE ONLY public.fin_conciliacoes_mensais
 
 ALTER TABLE ONLY public.fin_contas_bancarias
     ADD CONSTRAINT fin_contas_bancarias_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fin_credores_servidores fin_credores_servidores_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_credores_servidores
+    ADD CONSTRAINT fin_credores_servidores_pkey PRIMARY KEY (credor_codigo);
 
 
 --
@@ -3027,6 +3051,30 @@ ALTER TABLE ONLY public.processo_modelos
 
 ALTER TABLE ONLY public.processo_modelos
     ADD CONSTRAINT processo_modelos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: processo_prazo_remarcacoes processo_prazo_remarcacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_prazo_remarcacoes
+    ADD CONSTRAINT processo_prazo_remarcacoes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: processo_prazos processo_prazos_andamento_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_prazos
+    ADD CONSTRAINT processo_prazos_andamento_id_key UNIQUE (andamento_id);
+
+
+--
+-- Name: processo_prazos processo_prazos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_prazos
+    ADD CONSTRAINT processo_prazos_pkey PRIMARY KEY (id);
 
 
 --
@@ -5895,6 +5943,13 @@ CREATE INDEX idx_fin_contas_banco ON public.fin_contas_bancarias USING btree (ba
 
 
 --
+-- Name: idx_fin_credores_servidores_servidor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_credores_servidores_servidor ON public.fin_credores_servidores USING btree (servidor_id);
+
+
+--
 -- Name: idx_fin_diarias_fiplan_servidor; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7915,6 +7970,41 @@ CREATE INDEX idx_processo_andamentos_processo ON public.processo_andamentos USIN
 --
 
 CREATE INDEX idx_processo_checklist_respostas_item ON public.processo_checklist_respostas USING btree (item_id);
+
+
+--
+-- Name: idx_processo_prazo_remarcacoes_prazo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_prazo_remarcacoes_prazo ON public.processo_prazo_remarcacoes USING btree (prazo_id);
+
+
+--
+-- Name: idx_processo_prazo_remarcacoes_processo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_prazo_remarcacoes_processo ON public.processo_prazo_remarcacoes USING btree (processo_id, feito_em DESC);
+
+
+--
+-- Name: idx_processo_prazos_abertos; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_prazos_abertos ON public.processo_prazos USING btree (data_limite) WHERE (situacao = ANY (ARRAY['aberto'::text, 'remarcado'::text]));
+
+
+--
+-- Name: idx_processo_prazos_processo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_prazos_processo ON public.processo_prazos USING btree (processo_id, data_limite);
+
+
+--
+-- Name: idx_processo_prazos_responsavel; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processo_prazos_responsavel ON public.processo_prazos USING btree (responsavel_servidor_id) WHERE (situacao = ANY (ARRAY['aberto'::text, 'remarcado'::text]));
 
 
 --
@@ -10515,6 +10605,13 @@ CREATE TRIGGER trg_compras_etapa_parametros_carimbar BEFORE INSERT OR UPDATE ON 
 
 
 --
+-- Name: compras_prazo_tipos trg_compras_prazo_tipos_preparar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_compras_prazo_tipos_preparar BEFORE INSERT OR UPDATE ON public.compras_prazo_tipos FOR EACH ROW EXECUTE FUNCTION public.compras_prazo_tipos_preparar();
+
+
+--
 -- Name: config_envio trg_config_envio_autoria; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11187,6 +11284,27 @@ CREATE TRIGGER trg_processo_andamentos_responsavel_nome BEFORE INSERT OR UPDATE 
 
 
 --
+-- Name: processo_prazos trg_processo_prazos_preparar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_processo_prazos_preparar BEFORE INSERT OR UPDATE ON public.processo_prazos FOR EACH ROW EXECUTE FUNCTION public.processo_prazo_preparar();
+
+
+--
+-- Name: processo_prazos trg_processo_prazos_remarcacao; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_processo_prazos_remarcacao AFTER UPDATE ON public.processo_prazos FOR EACH ROW EXECUTE FUNCTION public.processo_prazo_registrar_remarcacao();
+
+
+--
+-- Name: processo_prazos trg_processo_prazos_responsavel_nome; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_processo_prazos_responsavel_nome BEFORE INSERT OR UPDATE ON public.processo_prazos FOR EACH ROW EXECUTE FUNCTION public.processo_prazo_responsavel_nome();
+
+
+--
 -- Name: processos_licitatorios trg_processos_licitatorios_normalizar; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11547,6 +11665,13 @@ ALTER TABLE public.folha_historico_status ENABLE ALWAYS TRIGGER trilha_imutavel;
 --
 
 CREATE TRIGGER trilha_imutavel BEFORE DELETE OR UPDATE ON public.processo_andamento_alteracoes FOR EACH ROW EXECUTE FUNCTION public.trilha_imutavel('andamento_id', 'processo_andamentos');
+
+
+--
+-- Name: processo_prazo_remarcacoes trilha_imutavel; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trilha_imutavel BEFORE DELETE OR UPDATE ON public.processo_prazo_remarcacoes FOR EACH ROW EXECUTE FUNCTION public.trilha_imutavel('prazo_id', 'processo_prazos');
 
 
 --
@@ -16343,6 +16468,22 @@ ALTER TABLE ONLY public.fin_contas_bancarias
 
 
 --
+-- Name: fin_credores_servidores fin_credores_servidores_importacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_credores_servidores
+    ADD CONSTRAINT fin_credores_servidores_importacao_id_fkey FOREIGN KEY (importacao_id) REFERENCES public.importacoes(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_credores_servidores fin_credores_servidores_servidor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_credores_servidores
+    ADD CONSTRAINT fin_credores_servidores_servidor_id_fkey FOREIGN KEY (servidor_id) REFERENCES public.servidores(id) ON DELETE CASCADE;
+
+
+--
 -- Name: fin_diarias_fiplan fin_diarias_fiplan_importacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -18775,6 +18916,54 @@ ALTER TABLE ONLY public.processo_modelo_etapas
 
 
 --
+-- Name: processo_prazo_remarcacoes processo_prazo_remarcacoes_prazo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_prazo_remarcacoes
+    ADD CONSTRAINT processo_prazo_remarcacoes_prazo_id_fkey FOREIGN KEY (prazo_id) REFERENCES public.processo_prazos(id) ON DELETE CASCADE;
+
+
+--
+-- Name: processo_prazo_remarcacoes processo_prazo_remarcacoes_processo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_prazo_remarcacoes
+    ADD CONSTRAINT processo_prazo_remarcacoes_processo_id_fkey FOREIGN KEY (processo_id) REFERENCES public.processos_licitatorios(id) ON DELETE CASCADE;
+
+
+--
+-- Name: processo_prazos processo_prazos_andamento_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_prazos
+    ADD CONSTRAINT processo_prazos_andamento_id_fkey FOREIGN KEY (andamento_id) REFERENCES public.processo_andamentos(id) ON DELETE SET NULL;
+
+
+--
+-- Name: processo_prazos processo_prazos_processo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_prazos
+    ADD CONSTRAINT processo_prazos_processo_id_fkey FOREIGN KEY (processo_id) REFERENCES public.processos_licitatorios(id) ON DELETE CASCADE;
+
+
+--
+-- Name: processo_prazos processo_prazos_responsavel_servidor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_prazos
+    ADD CONSTRAINT processo_prazos_responsavel_servidor_id_fkey FOREIGN KEY (responsavel_servidor_id) REFERENCES public.servidores(id) ON DELETE SET NULL;
+
+
+--
+-- Name: processo_prazos processo_prazos_tipo_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_prazos
+    ADD CONSTRAINT processo_prazos_tipo_fkey FOREIGN KEY (tipo) REFERENCES public.compras_prazo_tipos(tipo);
+
+
+--
 -- Name: processo_reservas processo_reservas_acao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20126,6 +20315,12 @@ ALTER TABLE public.composicao_cargos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.compras_etapa_parametros ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: compras_prazo_tipos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.compras_prazo_tipos ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: conciliacoes_inventario; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -20667,6 +20862,19 @@ ALTER TABLE public.fin_conciliacoes_mensais ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.fin_contas_bancarias ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_credores_servidores; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_credores_servidores ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_credores_servidores fin_credores_servidores_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY fin_credores_servidores_select ON public.fin_credores_servidores FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ((( SELECT public.can_access_module(auth.uid(), 'financeiro'::text) AS can_access_module) AND (( SELECT public.has_permission_code(auth.uid(), 'financeiro.diarias.visualizar'::text) AS has_permission_code) OR ( SELECT public.has_permission_code(auth.uid(), 'financeiro.execucao.importar'::text) AS has_permission_code))) OR (( SELECT public.can_access_module(auth.uid(), 'rh'::text) AS can_access_module) AND ( SELECT public.has_permission_code(auth.uid(), 'rh.viagens.visualizar'::text) AS has_permission_code)))));
+
 
 --
 -- Name: fin_diarias_fiplan; Type: ROW SECURITY; Schema: public; Owner: -
@@ -21455,6 +21663,18 @@ ALTER TABLE public.processo_modelo_etapas ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.processo_modelos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_prazo_remarcacoes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.processo_prazo_remarcacoes ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: processo_prazos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.processo_prazos ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: processo_reservas; Type: ROW SECURITY; Schema: public; Owner: -
@@ -23624,6 +23844,13 @@ CREATE POLICY rls_insert ON public.compras_etapa_parametros FOR INSERT TO authen
 
 
 --
+-- Name: compras_prazo_tipos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.compras_prazo_tipos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
+
+
+--
 -- Name: conciliacoes_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -24806,6 +25033,13 @@ CREATE POLICY rls_insert ON public.processo_modelos FOR INSERT TO authenticated 
 
 
 --
+-- Name: processo_prazos rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.processo_prazos FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
+
+
+--
 -- Name: processos_licitatorios rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -25423,6 +25657,13 @@ CREATE POLICY rls_select ON public.composicao_cargos FOR SELECT TO authenticated
 --
 
 CREATE POLICY rls_select ON public.compras_etapa_parametros FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))));
+
+
+--
+-- Name: compras_prazo_tipos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.compras_prazo_tipos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))));
 
 
 --
@@ -26722,6 +26963,20 @@ CREATE POLICY rls_select ON public.processo_modelos FOR SELECT TO authenticated 
 
 
 --
+-- Name: processo_prazo_remarcacoes rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.processo_prazo_remarcacoes FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))));
+
+
+--
+-- Name: processo_prazos rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.processo_prazos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))));
+
+
+--
 -- Name: processos_licitatorios rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -27321,6 +27576,13 @@ CREATE POLICY rls_update ON public.composicao_cargos FOR UPDATE TO authenticated
 --
 
 CREATE POLICY rls_update ON public.compras_etapa_parametros FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
+
+
+--
+-- Name: compras_prazo_tipos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.compras_prazo_tipos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
 
 
 --
@@ -28505,6 +28767,13 @@ CREATE POLICY rls_update ON public.processo_modelo_etapas FOR UPDATE TO authenti
 --
 
 CREATE POLICY rls_update ON public.processo_modelos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'workflow'::text) AND public.has_permission_code(auth.uid(), 'workflow.admin'::text)));
+
+
+--
+-- Name: processo_prazos rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.processo_prazos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
 
 
 --

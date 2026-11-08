@@ -8,6 +8,7 @@ import { importadorArquivoBancario } from "./importadores/arquivoBancario";
 import { importadorCargosOcupantes } from "./importadores/cargosOcupantes";
 import { importadorClassificadoresFiplan } from "./importadores/classificadoresFiplan";
 import { importadorContratosPlanilha } from "./importadores/contratosPlanilha";
+import { importadorCredoresFiplan } from "./importadores/credoresFiplan";
 import { importadorDiariasFiplan } from "./importadores/diariasFiplan";
 import { importadorEmpenhosFip614 } from "./importadores/empenhosFip614";
 import { importadorEstruturaPlanilha } from "./importadores/estruturaPlanilha";
@@ -27,6 +28,7 @@ export const IMPORTADORES: Importador<unknown>[] = [
   generico(importadorEmpenhosFip614),
   generico(importadorPedsFiplan),
   generico(importadorDiariasFiplan),
+  generico(importadorCredoresFiplan),
   generico(importadorArquivoBancario),
   generico(importadorPortariasPlanilha),
   generico(importadorFolhaSigrh),

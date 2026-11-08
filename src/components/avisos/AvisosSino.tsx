@@ -1,11 +1,13 @@
 /**
  * Sino do cabeçalho dos módulos: avisos não lidos, contratos vencendo (C2: os do gestor e dos fiscais; com
  * contratos.editar, todos) e próximas datas importantes. Vencidos e os que vencem em até 30 dias contam no número.
+ * Prazos dos processos de contratação (P3, migração 20261128090000): os do responsável (com compras.processos.editar,
+ * todos); vencidos e os que vencem em até 3 dias contam no número.
  */
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, CalendarDays, FileWarning } from "lucide-react";
+import { Bell, CalendarClock, CalendarDays, FileWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -13,6 +15,8 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAvisosVigentes, useMarcarAvisoLido } from "@/hooks/useAvisos";
 import { useMeusVencimentos } from "@/hooks/useContratosVencimentos";
+import { useMeusPrazos } from "@/hooks/useProcessoPrazos";
+import { rotuloTipoPrazo, textoMeuPrazo } from "@/lib/compras/prazos";
 import { useProximasDatas } from "@/hooks/useDatasImportantes";
 import { FAIXAS_VENCIMENTO, textoDias } from "@/lib/contratos/vigencia";
 import { TIPO_DATA_LABEL } from "@/types/avisos";
@@ -22,6 +26,7 @@ import { AvisoLink } from "./AvisoLink";
 
 const MAX_DATAS = 5;
 const MAX_CONTRATOS = 5;
+const MAX_PRAZOS = 5;
 /** Vencido ou vencendo em até 30 dias: conta no número vermelho do sino. */
 const URGENTE_DIAS = FAIXAS_VENCIMENTO[0].dias;
 
@@ -31,12 +36,14 @@ export function AvisosSino() {
   // As datas só são buscadas quando o sino é aberto (ele está em todas as telas de módulo).
   const { data: datas = [], isLoading: carregandoDatas } = useProximasDatas(30, aberto);
   const { data: contratos = [] } = useMeusVencimentos();
+  const { data: prazos = [] } = useMeusPrazos();
   const marcarLido = useMarcarAvisoLido();
 
   const naoLidos = avisos.filter((a) => !a.lido);
   const contratosUrgentes = contratos.filter((c) => c.dias <= URGENTE_DIAS).length;
-  const urgente = contratosUrgentes > 0 || naoLidos.some((a) => a.prioridade === "urgente");
-  const contagem = naoLidos.length + contratosUrgentes;
+  const prazosUrgentes = prazos.filter((p) => p.categoria === "vencido" || p.categoria === "proximo").length;
+  const urgente = contratosUrgentes > 0 || prazosUrgentes > 0 || naoLidos.some((a) => a.prioridade === "urgente");
+  const contagem = naoLidos.length + contratosUrgentes + prazosUrgentes;
   const proximas = datas.slice(0, MAX_DATAS);
   const abreVencimentos = contratos.some((c) => c.abre_ficha);
 
@@ -47,7 +54,7 @@ export function AvisosSino() {
           variant="ghost"
           size="icon"
           className="relative h-9 w-9"
-          aria-label={`Avisos (${naoLidos.length} não lidos${contratosUrgentes ? `, ${contratosUrgentes} contratos vencendo` : ""})`}
+          aria-label={`Avisos (${naoLidos.length} não lidos${contratosUrgentes ? `, ${contratosUrgentes} contratos vencendo` : ""}${prazosUrgentes ? `, ${prazosUrgentes} prazos de processos` : ""})`}
         >
           <Bell className={cn("h-5 w-5", urgente && "text-destructive")} />
           {contagem > 0 && (
@@ -132,6 +139,44 @@ export function AvisosSino() {
                   <Link to="/contratos/vencimentos" onClick={() => setAberto(false)}>
                     {contratos.length > MAX_CONTRATOS ? `Ver todos (${contratos.length}) em Vencimentos` : "Abrir Vencimentos"}
                   </Link>
+                </Button>
+              )}
+            </div>
+          </>
+        )}
+        {prazos.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2 px-4 py-3">
+              <h4 className="flex items-center gap-1 text-sm font-semibold">
+                <CalendarClock className="h-4 w-4" aria-hidden="true" /> Prazos de processos
+              </h4>
+              <ul className="space-y-1.5">
+                {prazos.slice(0, MAX_PRAZOS).map((p) => {
+                  const texto = (
+                    <>
+                      <span className="block truncate font-medium">{p.numero_processo}{p.objeto ? ` · ${p.objeto}` : ""}</span>
+                      <span className={cn("block text-xs", p.categoria === "vencido" ? "font-medium text-destructive" : "text-muted-foreground")}>
+                        {p.categoria === "parado" ? "Sem movimentação" : rotuloTipoPrazo(p.tipo)} · {textoMeuPrazo(p)}
+                      </span>
+                    </>
+                  );
+                  return (
+                    <li key={`${p.categoria}-${p.prazo_id ?? p.processo_id}`} className="text-sm">
+                      {p.pode_ver ? (
+                        <Link to={`/compras/processos/${p.processo_id}?aba=prazos`} className="block rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setAberto(false)}>
+                          {texto}
+                        </Link>
+                      ) : (
+                        texto
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              {prazos.length > MAX_PRAZOS && prazos.some((p) => p.pode_ver) && (
+                <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs">
+                  <Link to="/compras/processos" onClick={() => setAberto(false)}>{`Ver todos (${prazos.length}) nos processos`}</Link>
                 </Button>
               )}
             </div>
