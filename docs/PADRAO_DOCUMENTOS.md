@@ -324,6 +324,7 @@ exige tabela/RPC com RLS (decisão e spec próprias; fora de escopo desta fase).
   em página nova; use entre as partes, não antes da primeira. Se a página atual (2ª em diante) ainda está vazia,
   não faz nada, para não gerar página em branco. Criado na onda 3 (comprovantes em lote).
 - Cabeçalho/rodapé: nome do órgão muito longo no cabeçalho compacto (páginas 2+) pode encostar no protocolo, e `emitidoPor` muito longo no rodapé pode encostar em "Página X de Y"; logo mais largo que 3,2:1 sai achatado (limite de 45 mm de largura com 14 mm de altura). Nenhum tenant atual passa desses limites.
+- `camposChaveValor` aceita de 1 a 4 colunas (4 é usado no contracheque, bases e encargos num bloco só).
 - `tabela` não valida `colunas` vazio nem `peso <= 0` (erro de programação, lança); rótulo de campo maior que a coluna é cortado na 1ª linha.
 - O logo entra no PDF em resolução total (peso do arquivo); reduzir no canvas é melhoria futura.
 - Não há QR de verificação pública (fase opcional pós-F5).

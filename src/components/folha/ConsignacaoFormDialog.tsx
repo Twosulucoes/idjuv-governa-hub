@@ -23,6 +23,7 @@ import { useRubricas, useSaveConsignacao, type ConsignacaoRow } from "@/hooks/us
 import { avaliarMargem, formatarPercentual, type ConsignacaoParaMargem } from "@/lib/folhaFichaRegras";
 import { formatCurrency, isValidCNPJ } from "@/lib/formatters";
 import { TIPO_CONSIGNACAO_LABELS } from "@/types/folha";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 const SEM_RUBRICA = "__sem_rubrica__";
 const COMPETENCIA_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -177,7 +178,7 @@ export function ConsignacaoFormDialog({
         // Saldo zerado quita automaticamente (com data); demais flags só no criar (ações da aba cuidam da edição).
         ...(editando ? {} : { ativo: true, suspenso: false }),
         quitado,
-        ...(quitado && !consignacao?.quitado ? { data_quitacao: new Date().toISOString().slice(0, 10) } : {}),
+        ...(quitado && !consignacao?.quitado ? { data_quitacao: hojeISO() } : {}),
       });
       onOpenChange(false);
     } catch {

@@ -71,6 +71,7 @@ import {
   type CampoServidorForm,
   type ErrosServidorForm,
 } from "@/lib/servidorFormSchema";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 /** O servidor foi gravado, mas o vínculo funcional inicial não — a tela precisa avisar sem perder o cadastro. */
 class VinculoNaoCriadoError extends Error {
@@ -289,7 +290,7 @@ const initialFormData: FormData = {
   tipo_servidor: '',
   cargo_atual_id: '',
   unidade_atual_id: '',
-  data_admissao: new Date().toISOString().split('T')[0],
+  data_admissao: hojeISO(),
   orgao_origem: '',
 };
 
@@ -472,7 +473,7 @@ export default function ServidorFormPage() {
         tipo_servidor: (servidor.tipo_servidor as TipoServidor) || '',
         cargo_atual_id: servidor.cargo_atual_id || '',
         unidade_atual_id: servidor.unidade_atual_id || '',
-        data_admissao: servidor.data_admissao || new Date().toISOString().split('T')[0],
+        data_admissao: servidor.data_admissao || hojeISO(),
         orgao_origem: servidor.orgao_origem || '',
       });
     }

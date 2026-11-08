@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { mensagemDeErro } from "@/lib/erroBanco";
 import type { Designacao, CreateDesignacaoData, StatusDesignacao } from "@/types/designacao";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 export function useDesignacoes(filters?: { status?: StatusDesignacao; unidade_id?: string }) {
   return useQuery({
@@ -266,7 +267,7 @@ export function useEncerrarDesignacao() {
   return useMutation({
     mutationFn: async ({ designacaoId, dataFim }: { designacaoId: string; dataFim?: string }) => {
       const { data: userData } = await supabase.auth.getUser();
-      const dataEncerramento = dataFim || new Date().toISOString().split("T")[0];
+      const dataEncerramento = dataFim || hojeISO();
       
       // 1. Buscar dados da designação
       const { data: designacao, error: fetchError } = await supabase

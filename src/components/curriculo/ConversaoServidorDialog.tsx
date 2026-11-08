@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { REGRAS_TIPO_SERVIDOR } from "@/types/servidor";
 import { VinculoFuncionalForm, useVinculoFuncionalValidation } from "@/components/rh/VinculoFuncionalForm";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 interface ConversaoServidorDialogProps {
   open: boolean;
@@ -48,7 +49,7 @@ export function ConversaoServidorDialog({
   const [unidadeId, setUnidadeId] = useState<string>("");
   const [orgaoOrigem, setOrgaoOrigem] = useState<string>("");
   const [dataAdmissao, setDataAdmissao] = useState(
-    new Date().toISOString().split("T")[0]
+    hojeISO()
   );
 
   // Usar hook de validação do componente reutilizável
@@ -66,7 +67,7 @@ export function ConversaoServidorDialog({
       setCargoId("");
       setUnidadeId("");
       setOrgaoOrigem("");
-      setDataAdmissao(new Date().toISOString().split("T")[0]);
+      setDataAdmissao(hojeISO());
     }
   }, [open]);
 

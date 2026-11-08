@@ -71,11 +71,12 @@ export default function GestaoFrequenciaPage() {
   });
 
   // Calcular totais
-  const totalFaltas = servidoresFiltrados?.reduce((acc, s) => acc + s.faltas, 0) || 0;
+  // Só entra na conta quem tem frequência lançada no mês: mês sem lançamento mostra "—", não 0 falta e 0% de
+  // presença, que pareciam dado real (teste do RH de 06/11/2026, item 31)
+  const lancadas = servidoresFiltrados?.filter((s) => s.lancada) ?? [];
+  const totalFaltas = lancadas.length > 0 ? lancadas.reduce((acc, s) => acc + s.faltas, 0) : null;
   const mediaPresenca =
-    servidoresFiltrados && servidoresFiltrados.length > 0
-      ? servidoresFiltrados.reduce((acc, s) => acc + s.percentual_presenca, 0) / servidoresFiltrados.length
-      : 0;
+    lancadas.length > 0 ? lancadas.reduce((acc, s) => acc + s.percentual_presenca, 0) / lancadas.length : null;
 
   const handleLancarFalta = (servidor: FrequenciaServidorResumo) => {
     setServidorSelecionado(servidor);
@@ -184,7 +185,9 @@ export default function GestaoFrequenciaPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-destructive">{totalFaltas}</p>
+              <p className={`text-2xl font-bold ${totalFaltas === null ? "text-muted-foreground" : "text-destructive"}`}>
+                {totalFaltas ?? "—"}
+              </p>
             </CardContent>
           </Card>
 
@@ -196,8 +199,8 @@ export default function GestaoFrequenciaPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className={`text-2xl font-bold ${mediaPresenca >= 95 ? "text-success" : mediaPresenca >= 80 ? "text-warning" : "text-destructive"}`}>
-                {mediaPresenca.toFixed(1)}%
+              <p className={`text-2xl font-bold ${mediaPresenca === null ? "text-muted-foreground" : mediaPresenca >= 95 ? "text-success" : mediaPresenca >= 80 ? "text-warning" : "text-destructive"}`}>
+                {mediaPresenca === null ? "—" : `${mediaPresenca.toFixed(1)}%`}
               </p>
             </CardContent>
           </Card>
@@ -267,7 +270,9 @@ export default function GestaoFrequenciaPage() {
                         <TableCell className="text-center">{s.dias_uteis}</TableCell>
                         <TableCell className="text-center">{s.dias_trabalhados}</TableCell>
                         <TableCell className="text-center">
-                          {s.faltas > 0 ? (
+                          {!s.lancada ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : s.faltas > 0 ? (
                             <Badge variant="destructive">{s.faltas}</Badge>
                           ) : (
                             <span className="text-muted-foreground">0</span>
@@ -276,6 +281,9 @@ export default function GestaoFrequenciaPage() {
                         <TableCell className="text-center">{s.atestados}</TableCell>
                         <TableCell className="text-center">{s.ferias + s.licencas}</TableCell>
                         <TableCell className="text-center">
+                          {!s.lancada ? (
+                            <span className="text-muted-foreground" title="Sem frequência lançada no mês">—</span>
+                          ) : (
                           <Badge
                             className={
                               s.percentual_presenca >= 95
@@ -287,6 +295,7 @@ export default function GestaoFrequenciaPage() {
                           >
                             {s.percentual_presenca.toFixed(1)}%
                           </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           <DropdownMenu>

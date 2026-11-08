@@ -113,6 +113,8 @@ nem exclui outro admin, e o assistente de IA (`compras`) e o convite de reunião
 ## Fluxo em tempo de execução
 
 1. Login via Supabase Auth → `onAuthStateChange` no `AuthContext`.
+   O primeiro evento desliga o timeout de segurança de 5 s; ele só libera o carregamento se nenhum evento
+   chegar (antes disparava em toda carga e podia liberar a tela antes das permissões; teste do RH de 06/11/2026).
 2. `AuthContext` lê `user_roles`, `user_modules`, `user_permissions`,
    `role_permissions` e o catálogo, e faz a união das três fontes.
    (O RPC **`listar_permissoes_usuario`** e a função

@@ -11,7 +11,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Arquivo | Total | Protegidas | Públicas | Redirecionamentos | Curinga |
 |---|---:|---:|---:|---:|---:|
-| `src/App.tsx` (sistema) | 273 | 222 | 35 | 15 | 1 |
+| `src/App.tsx` (sistema) | 273 | 221 | 35 | 16 | 1 |
 | `src/AppSite.tsx` (site) | 32 | 0 | 29 | 2 | 1 |
 
 ## Código do front
@@ -23,8 +23,8 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
 | — fora de `ui/` | 358 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 121 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 118 |
-| Linhas de `src/App.tsx` | 1503 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 123 |
+| Linhas de `src/App.tsx` | 1504 |
 | Linhas de `src/integrations/supabase/types.ts` (gerado) | 31066 |
 
 ### Páginas por pasta de `src/pages`
@@ -69,7 +69,7 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 343 |
+| Migrações (`supabase/migrations/*.sql`) | 344 |
 | Migração mais recente | `20261128090000_compras_processos_prazos.sql` |
 | Tabelas do schema public (baseline) | 302 |
 | Views (baseline) | 18 |
@@ -92,7 +92,7 @@ Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.
 | Código | Nome | Rotas protegidas | Rotas públicas |
 |---|---|---:|---:|
 | `admin` | Administração | 33 | 0 |
-| `rh` | Recursos Humanos | 33 | 3 |
+| `rh` | Recursos Humanos | 32 | 3 |
 | `workflow` | Processos SEI | 3 | 0 |
 | `compras` | Compras | 12 | 0 |
 | `contratos` | Contratos | 4 | 1 |

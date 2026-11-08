@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { hojeISO } from "@/lib/datas/hojeLocal";
+import { filtroLotacoesDoDia, separarLotacoes } from "@/lib/lotacaoVigencia";
 
 // A matrícula é numerada pelo banco (trigger `gerar_matricula_servidor`, numérico e com trava): o cliente não gera mais.
 
@@ -95,24 +96,21 @@ export async function atualizarCargoAtualServidor(
 /**
  * Lotação vigente hoje (tabela `lotacoes`, a mesma da Gestão de Lotação e da FK `designacoes.lotacao_id`), com
  * cargo e unidade. Antes lia `vinculos_servidor` e mandava o id do vínculo como `lotacao_id`: o banco recusava
- * toda designação (23503, teste do RH de 06/11/2026, item 9). Lotação externa e agendada para o futuro ficam fora.
+ * toda designação (23503, teste do RH de 06/11/2026, item 9). Lotação externa e agendada para o futuro ficam fora; a vigência é pela data (`lotacaoVigencia.ts`).
  */
 export async function buscarLotacaoAtiva(servidorId: string, hoje: string = hojeISO()) {
   const { data, error } = await supabase
     .from("lotacoes")
     .select("id, servidor_id, unidade_id, cargo_id, data_inicio, data_fim, tipo_lotacao, unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla), cargo:cargos(id, nome, sigla)")
     .eq("servidor_id", servidorId)
-    .eq("ativo", true)
     .lte("data_inicio", hoje)
-    .or(`data_fim.is.null,data_fim.gte.${hoje}`)
-    .neq("tipo_lotacao", "lotacao_externa")
-    .order("data_inicio", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .or(filtroLotacoesDoDia(hoje))
+    .order("data_inicio", { ascending: false });
 
   if (error) {
     console.error("Erro ao buscar lotação vigente:", error);
     throw error;
   }
-  return data;
+  // vigência pela data: entre o registro e o efeito de uma transferência ainda vale a lotação antiga (item 19)
+  return separarLotacoes(data ?? [], hoje).vigente;
 }

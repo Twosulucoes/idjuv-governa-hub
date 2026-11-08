@@ -23,6 +23,7 @@ import { useExonerarServidor, type ServidorGestao } from "@/hooks/useGestaoLotac
 import { MOTIVOS_DESLIGAMENTO, type MotivoDesligamento } from "@/lib/rhRpc";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 interface Props {
   servidor: ServidorGestao | null;
@@ -114,7 +115,7 @@ export function ExonerarServidorModal({ servidor, open, onOpenChange }: Props) {
               <span className="text-muted-foreground">Lotado desde:</span>{" "}
               <strong>
                 {servidor.lotacao_inicio 
-                  ? format(new Date(servidor.lotacao_inicio), "dd/MM/yyyy")
+                  ? format(paraDataLocal(servidor.lotacao_inicio), "dd/MM/yyyy")
                   : "—"}
               </strong>
             </p>

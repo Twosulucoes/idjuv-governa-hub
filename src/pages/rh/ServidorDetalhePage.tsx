@@ -522,7 +522,8 @@ export default function ServidorDetalheePage() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <InfoRow label="Matrícula" value={servidor.matricula || '-'} />
-                    <InfoRow label="Cargo" value={servidor.cargo?.nome || '-'} />
+                    {/* o mesmo cargo do cabeçalho (vínculo vigente); `servidor.cargo` não vem na consulta (item 21 do teste do RH) */}
+                    <InfoRow label="Cargo" value={lotacaoVigente?.cargo?.nome || servidor.cargo?.nome || '-'} />
                     <InfoRow 
                       label="Lotação" 
                       value={lotacaoVigente?.unidade?.nome || servidor.unidade?.nome || '-'} 

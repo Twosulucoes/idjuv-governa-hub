@@ -39,6 +39,7 @@ import {
   STATUS_PORTARIA_LABELS,
   STATUS_PORTARIA_COLORS,
 } from "@/types/portaria";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 const TIPO_MOVIMENTACAO_LABELS: Record<string, string> = {
   nomeacao: "Nomeação",
@@ -338,7 +339,7 @@ export function VidaFuncionalTimeline({ servidorId }: VidaFuncionalTimelineProps
                       <div className="text-right shrink-0">
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {format(new Date(mov.data_evento), "dd/MM/yyyy")}
+                          {format(paraDataLocal(mov.data_evento), "dd/MM/yyyy")}
                         </span>
                       </div>
                     </div>

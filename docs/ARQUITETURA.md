@@ -66,6 +66,9 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
 - Dois menus: o geral (`src/config/menu.config.ts`) e a barra lateral de cada módulo
   (`src/config/module-menus.config.ts`, usada pelo `ModuleSidebar`). Todo item dos dois precisa de `<Route>` no
   `App.tsx`; `src/config/menu.config.test.ts` reprova item que leve ao 404 (P09). Tela não construída fica fora do menu.
+  No `ModuleSidebar`, entre os itens finais só o de caminho mais específico fica destacado (em `/rh/frequencia/pacotes`,
+  "Gestão" de `/rh/frequencia` não acende junto). Item que repetia outra tela sai do menu: "Fichas Financeiras"
+  (`/folha/fichas`) abria o painel da folha e virou redirecionamento para `/rh/contracheques` (teste do RH de 06/11/2026).
 - **Portal público x sistema interno (17/10/2026):** rota pública usa o `MainLayout` (cabeçalho e rodapé do
   site); tela que exige login usa o `ModuleLayout`, inclusive as transversais (manuais, processos, formulários,
   notícias internas, apresentação, organograma), que sem `module` pegam o módulo da rota ou o primeiro do usuário.

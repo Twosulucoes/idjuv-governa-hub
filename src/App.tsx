@@ -1060,7 +1060,8 @@ const App = () => (
               {/* FOLHA DE PAGAMENTO */}
               {/* ============================================ */}
               <Route path="/folha" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.visualizar"><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
-              <Route path="/folha/fichas" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.visualizar"><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
+              {/* "Fichas Financeiras" abria o mesmo painel da folha (teste do RH de 06/11/2026, item 27): a lista de fichas é a consulta de contracheques */}
+              <Route path="/folha/fichas" element={<Navigate to="/rh/contracheques" replace />} />
               <Route path="/folha/rubricas" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.configurar"><ConfiguracaoFolhaPage /></ProtectedRoute>} />
               <Route path="/folha/configuracao" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.configurar"><ConfiguracaoFolhaPage /></ProtectedRoute>} />
               <Route path="/folha/gestao" element={<ProtectedRoute requiredModule="rh" requiredPermissions="financeiro.folha.visualizar"><GestaoFolhaPagamentoPage /></ProtectedRoute>} />
