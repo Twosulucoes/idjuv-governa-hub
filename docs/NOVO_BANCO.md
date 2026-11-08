@@ -262,6 +262,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - A migração `20261117090000` (modelos do Gerador de relatórios) entrou no mapa (`relatorios_modelos`, classe
   `preservar`, policies na migração) e no schema regenerado; catálogo e overlay sem mudança. Testes no bloco "Modelos
   do gerador de relatórios" de `scripts/db/testar-rls.sql` (autor, colega do módulo, fora do módulo, admin e anon).
+- A migração `20261127090000` (credor do FIPLAN ligado ao servidor pelo CPF) entrou no mapa
+  (`fin_credores_servidores`, classe `preservar`, policy na migração), no schema regenerado e no
+  `overlay/40_privilegios.sql` (tabela só leitura; `importar_credores_fiplan` e `fin_credores_cpfs_de_servidores` só
+  para `authenticated`); catálogo sem mudança. Testes no bloco "Financeiro: credor do FIPLAN ligado ao servidor" de
+  `scripts/db/testar-rls.sql`.
 - A migração `20261113090000` (diárias do FIPLAN, FIP 002) entrou no mapa (`fin_diarias_fiplan`, classe `preservar`,
   policy na migração), no schema regenerado, no rótulo de `financeiro.execucao.importar` do catálogo e no
   `overlay/40_privilegios.sql` (só leitura pela API; `importar_diarias_fiplan` e `fin_nome_comparavel` só para

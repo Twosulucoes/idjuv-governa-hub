@@ -4583,6 +4583,45 @@ $$;
 
 
 --
+-- Name: fin_credores_cpfs_de_servidores(text[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_credores_cpfs_de_servidores(p_cpfs text[]) RETURNS text[]
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_res text[];
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'financeiro.execucao.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar a execução do FIPLAN (financeiro.execucao.importar).' USING ERRCODE = '42501';
+  END IF;
+  IF p_cpfs IS NULL OR cardinality(p_cpfs) NOT BETWEEN 1 AND 10000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 10000 CPFs por vez.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Junta com os CPFs do cadastro uma vez só (o relatório chega a 5000 CPFs por lote)
+  SELECT array_agg(DISTINCT c.cpf) INTO v_res
+    FROM unnest(p_cpfs) AS c(cpf)
+    JOIN (SELECT DISTINCT regexp_replace(s.cpf, '\D', '', 'g') AS cpf FROM public.servidores s) srv ON srv.cpf = c.cpf
+   WHERE c.cpf ~ '^\d{11}$';
+  RETURN COALESCE(v_res, '{}'::text[]);
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION fin_credores_cpfs_de_servidores(p_cpfs text[]); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.fin_credores_cpfs_de_servidores(p_cpfs text[]) IS 'Dos CPFs (só dígitos) do relatório "Consultar Credor", devolve os que são de servidor. Exige o módulo financeiro e financeiro.execucao.importar.';
+
+
+--
 -- Name: fin_dotacao_disponivel(numeric, numeric, numeric, numeric, numeric); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -9449,6 +9488,185 @@ COMMENT ON FUNCTION public.importar_classificadores_fiplan(p_tipo text, p_exerci
 
 
 --
+-- Name: importar_credores_fiplan(jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.importar_credores_fiplan(p_linhas jsonb, p_arquivo jsonb, p_simular boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_linha jsonb;
+  v_ind integer;
+  v_codigo text;
+  v_cpf text;
+  v_nome text;
+  v_chaves text[] := '{}';
+  v_servidores uuid[];
+  v_servidor uuid;
+  v_existente public.fin_credores_servidores%ROWTYPE;
+  v_acao text;
+  v_mudancas jsonb;
+  v_avisos text[];
+  v_sem_servidor integer;
+  v_ligadas integer := 0;
+  v_linhas_res jsonb := '[]'::jsonb;
+  v_erros jsonb := '[]'::jsonb;
+  v_ins integer := 0; v_atu integer := 0; v_igual integer := 0;
+  v_totais jsonb;
+  v_import_id uuid;
+BEGIN
+  p_simular := COALESCE(p_simular, true);
+
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'financeiro.execucao.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar a execução do FIPLAN (financeiro.execucao.importar).' USING ERRCODE = '42501';
+  END IF;
+  IF jsonb_typeof(p_linhas) IS DISTINCT FROM 'array'
+     OR jsonb_array_length(p_linhas) NOT BETWEEN 1 AND 10000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 10000 credores.' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_arquivo) IS DISTINCT FROM 'object'
+     OR char_length(COALESCE(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
+     OR COALESCE(p_arquivo->>'sha256', '') !~ '^[0-9a-f]{64}$'
+     OR COALESCE(p_arquivo->>'tamanho', '') !~ '^\d{1,15}$' THEN
+    RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtext('importar_credores_fiplan'));
+
+  BEGIN
+    IF NOT p_simular THEN
+      INSERT INTO public.importacoes (tipo, modulo, arquivo_nome, arquivo_sha256, arquivo_tamanho, created_by)
+      VALUES ('credores_fiplan', 'financeiro', p_arquivo->>'nome', p_arquivo->>'sha256',
+              (p_arquivo->>'tamanho')::bigint, v_uid)
+      RETURNING id INTO v_import_id;
+    END IF;
+
+    FOR v_linha IN SELECT value FROM jsonb_array_elements(p_linhas) LOOP
+      v_ind := COALESCE((v_linha->>'indice')::integer, -1);
+      BEGIN
+        v_codigo := btrim(COALESCE(v_linha->>'credor_codigo', ''));
+        v_cpf := btrim(COALESCE(v_linha->>'cpf', ''));
+        v_nome := left(NULLIF(btrim(v_linha->>'credor_nome'), ''), 300);
+        IF v_codigo !~ '^\d{10}$' THEN
+          RAISE EXCEPTION 'Código do credor "%" fora do padrão (10 dígitos).', left(v_codigo, 20) USING ERRCODE = '22023';
+        END IF;
+        IF v_cpf !~ '^\d{11}$' THEN
+          RAISE EXCEPTION 'Credor %: CPF fora do padrão.', v_codigo USING ERRCODE = '22023';
+        END IF;
+        IF v_codigo = ANY (v_chaves) THEN
+          RAISE EXCEPTION 'Credor % repetido no arquivo.', v_codigo USING ERRCODE = '22023';
+        END IF;
+        v_chaves := v_chaves || v_codigo;
+        v_avisos := '{}';
+
+        SELECT array_agg(s.id) INTO v_servidores
+          FROM public.servidores s
+         WHERE regexp_replace(s.cpf, '\D', '', 'g') = v_cpf;
+        IF cardinality(v_servidores) IS DISTINCT FROM 1 THEN
+          RAISE EXCEPTION 'Credor %: %', v_codigo,
+            CASE WHEN cardinality(v_servidores) > 1 THEN 'mais de um servidor com este CPF no cadastro.'
+                 ELSE 'nenhum servidor com este CPF no cadastro.' END
+            USING ERRCODE = '22023';
+        END IF;
+        v_servidor := v_servidores[1];
+
+        SELECT * INTO v_existente FROM public.fin_credores_servidores WHERE credor_codigo = v_codigo FOR UPDATE;
+        IF NOT FOUND THEN
+          INSERT INTO public.fin_credores_servidores (credor_codigo, servidor_id, credor_nome, importacao_id)
+          VALUES (v_codigo, v_servidor, v_nome, v_import_id);
+          v_acao := 'inserir';
+          v_mudancas := NULL;
+          v_ins := v_ins + 1;
+        ELSIF v_existente.servidor_id IS DISTINCT FROM v_servidor OR v_existente.credor_nome IS DISTINCT FROM v_nome THEN
+          v_mudancas := '{}'::jsonb;
+          IF v_existente.servidor_id IS DISTINCT FROM v_servidor THEN
+            v_mudancas := v_mudancas || jsonb_build_object('servidor_id', jsonb_build_array(v_existente.servidor_id, v_servidor));
+          END IF;
+          IF v_existente.credor_nome IS DISTINCT FROM v_nome THEN
+            v_mudancas := v_mudancas || jsonb_build_object('credor_nome', jsonb_build_array(v_existente.credor_nome, v_nome));
+          END IF;
+          UPDATE public.fin_credores_servidores
+             SET servidor_id = v_servidor, credor_nome = v_nome,
+                 importacao_id = COALESCE(v_import_id, importacao_id), updated_at = now()
+           WHERE credor_codigo = v_codigo;
+          v_acao := 'atualizar';
+          v_atu := v_atu + 1;
+        ELSE
+          v_acao := 'sem_alteracao';
+          v_mudancas := NULL;
+          v_igual := v_igual + 1;
+        END IF;
+
+        -- Diárias deste credor que estavam sem servidor
+        SELECT count(*) INTO v_sem_servidor
+          FROM public.fin_diarias_fiplan d
+         WHERE d.servidor_id IS NULL
+           AND regexp_replace(COALESCE(d.credor_codigo, ''), '\D', '', 'g') = v_codigo;
+        IF v_sem_servidor > 0 THEN
+          v_avisos := v_avisos || format('%s diária(s) sem servidor passam a ficar ligadas a ele.', v_sem_servidor);
+          v_ligadas := v_ligadas + v_sem_servidor;
+          UPDATE public.fin_diarias_fiplan d
+             SET servidor_id = v_servidor,
+                 -- viagem do RH: a única do servidor com a mesma saída (sem as canceladas), como no FIP 002
+                 viagem_id = (SELECT CASE WHEN count(*) = 1 THEN (array_agg(v.id))[1] END
+                                FROM public.viagens_diarias v
+                               WHERE v.servidor_id = v_servidor
+                                 AND v.data_saida = d.data_saida
+                                 AND v.status IS DISTINCT FROM 'cancelada'),
+                 updated_at = now()
+           WHERE d.servidor_id IS NULL
+             AND regexp_replace(COALESCE(d.credor_codigo, ''), '\D', '', 'g') = v_codigo;
+        END IF;
+
+        v_linhas_res := v_linhas_res || jsonb_build_object('indice', v_ind, 'acao', v_acao, 'mudancas', v_mudancas,
+          'avisos', CASE WHEN cardinality(v_avisos) > 0 THEN to_jsonb(v_avisos) END);
+      EXCEPTION
+        WHEN OTHERS THEN
+          v_erros := v_erros || jsonb_build_object('indice', v_ind, 'mensagem',
+            CASE WHEN left(SQLSTATE, 2) IN ('22', '23') OR SQLSTATE IN ('P0001', '42501') THEN SQLERRM
+                 ELSE format('Erro inesperado ao gravar a linha (código %s).', SQLSTATE) END);
+      END;
+    END LOOP;
+
+    IF p_simular OR jsonb_array_length(v_erros) > 0 THEN
+      RAISE EXCEPTION 'importação desfeita' USING ERRCODE = 'CRE01';
+    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'CRE01' THEN v_import_id := NULL;  -- desfaz tudo, inclusive o log; as variáveis continuam valendo
+  END;
+
+  v_totais := jsonb_build_object('inserir', v_ins, 'atualizar', v_atu, 'sem_alteracao', v_igual);
+
+  IF v_import_id IS NOT NULL THEN
+    UPDATE public.importacoes
+       SET resumo = jsonb_build_object('totais', v_totais, 'diarias_ligadas', v_ligadas)
+     WHERE id = v_import_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'simulacao', p_simular,
+    'importacao_id', v_import_id,
+    'totais', v_totais,
+    'linhas', v_linhas_res,
+    'erros', v_erros
+  );
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION importar_credores_fiplan(p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.importar_credores_fiplan(p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Liga o código do credor do FIPLAN ao servidor pelo CPF (relatório "Consultar Credor") e liga ao servidor as diárias que estavam sem ele (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
+
+
+--
 -- Name: importar_diarias_fiplan(integer, jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -9540,15 +9758,21 @@ BEGIN
 
         v_avisos := '{}';
 
-        -- Servidor: o único com o mesmo nome comparável
-        SELECT array_agg(s.id) INTO v_servidores
-          FROM public.servidores s
-         WHERE public.fin_nome_comparavel(s.nome_completo) = public.fin_nome_comparavel(v_linha->>'credor_nome');
-        v_servidor := CASE WHEN cardinality(v_servidores) = 1 THEN v_servidores[1] END;
+        -- Servidor: primeiro pelo código do credor (ligado ao CPF pelo "Consultar Credor" do FIPLAN); sem ele,
+        -- o único com o mesmo nome comparável
+        SELECT m.servidor_id INTO v_servidor
+          FROM public.fin_credores_servidores m
+         WHERE m.credor_codigo = regexp_replace(COALESCE(v_linha->>'credor_codigo', ''), '\D', '', 'g');
+        IF v_servidor IS NULL THEN
+          SELECT array_agg(s.id) INTO v_servidores
+            FROM public.servidores s
+           WHERE public.fin_nome_comparavel(s.nome_completo) = public.fin_nome_comparavel(v_linha->>'credor_nome');
+          v_servidor := CASE WHEN cardinality(v_servidores) = 1 THEN v_servidores[1] END;
+        END IF;
         IF v_servidor IS NULL THEN
           v_avisos := v_avisos || CASE WHEN cardinality(v_servidores) > 1
-            THEN 'Mais de um servidor com este nome: a diária fica sem servidor.'
-            ELSE 'Nenhum servidor com este nome no cadastro: a diária fica sem servidor.' END;
+            THEN 'Mais de um servidor com este nome e o código do credor não está ligado a um CPF: a diária fica sem servidor.'
+            ELSE 'Nenhum servidor com este código de credor nem com este nome: importe o "Consultar Credor" do FIPLAN para ligar pelo CPF.' END;
         END IF;
 
         -- Viagem do RH: a única do servidor com a mesma saída (sem as canceladas)
@@ -9679,7 +9903,7 @@ $_$;
 -- Name: FUNCTION importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o FIP 002 (Demonstrativo de Diárias) do FIPLAN para fin_diarias_fiplan, ligando servidor e viagem do RH (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
+COMMENT ON FUNCTION public.importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o FIP 002 (Demonstrativo de Diárias) do FIPLAN para fin_diarias_fiplan, ligando servidor (pelo código do credor e, sem ele, pelo nome) e viagem do RH (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
 
 
 --
@@ -25567,6 +25791,29 @@ CREATE TABLE public.fin_contas_bancarias (
 );
 
 ALTER TABLE ONLY public.fin_contas_bancarias FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: fin_credores_servidores; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_credores_servidores (
+    credor_codigo text NOT NULL,
+    servidor_id uuid NOT NULL,
+    credor_nome text,
+    importacao_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_credores_servidores_credor_codigo_check CHECK ((credor_codigo ~ '^\d{10}$'::text)),
+    CONSTRAINT fin_credores_servidores_credor_nome_check CHECK ((char_length(credor_nome) <= 300))
+);
+
+
+--
+-- Name: TABLE fin_credores_servidores; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_credores_servidores IS 'Código do credor no FIPLAN (só dígitos) → servidor, pelo CPF do relatório "Consultar Credor". Escrita só pela RPC importar_credores_fiplan.';
 
 
 --

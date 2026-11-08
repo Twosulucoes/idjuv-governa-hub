@@ -1314,6 +1314,20 @@ Todas idempotentes.
     `importacoes` com tipo `diarias_fiplan`);
   - sem permissão nova (o rótulo de `financeiro.execucao.importar` passou a citar as diárias); RLS classe `preservar`
     (policy na migração); testes no bloco "Financeiro: diárias do FIPLAN" de `scripts/db/testar-rls.sql`.
+- **Credor do FIPLAN ligado ao servidor** (`20261127090000_fin_credores_servidores.sql`, achado F9 do teste do
+  Financeiro de 06/11/2026):
+  - `fin_credores_servidores`: código do credor do FIPLAN (10 dígitos) → servidor, pelo CPF do relatório "Consultar
+    Credor". Guarda só a ligação: nenhum CPF de terceiro fica no banco e o cadastro do RH não muda;
+  - `fin_credores_cpfs_de_servidores(p_cpfs)`: dos CPFs do relatório (lotes de até 10000), devolve só os de servidor,
+    para a tela mandar à conferência só os servidores do órgão;
+  - `importar_credores_fiplan(p_linhas, p_arquivo, p_simular)`: grava a ligação (erro na linha quando o CPF não é de
+    nenhum servidor ou é de mais de um) e liga ao servidor as diárias que estavam sem ele, com a viagem pela mesma
+    saída; log em `importacoes` com tipo `credores_fiplan` e `resumo.diarias_ligadas`;
+  - `importar_diarias_fiplan` passou a procurar o servidor pelo código do credor antes do nome;
+  - leitura como `fin_diarias_fiplan` (Financeiro e RH, sem o próprio servidor); ninguém grava pela API; as duas
+    funções exigem o módulo financeiro e `financeiro.execucao.importar`. Sem permissão nova; RLS classe `preservar`
+    (policy na migração); testes no bloco "Financeiro: credor do FIPLAN ligado ao servidor" de
+    `scripts/db/testar-rls.sql`.
 - **Pesquisa de preços, entrega 1** (`20261106090000_compras_pesquisa_precos.sql`, spec
   [2026-10-29-compras-pesquisa-precos-design.md](./superpowers/specs/2026-10-29-compras-pesquisa-precos-design.md)):
   - `pesquisas_precos`: uma por processo SEI (objeto, `finalidade`, `data_referencia`, responsáveis, observações,

@@ -130,6 +130,7 @@ fin_classificadores_fiplan,financeiro,preservar,alta,"policy própria na migraç
 fin_conciliacao_itens,financeiro,permissao,alta,"itens da conciliação mensal (quadro da SEFAZ): o módulo lê; gravar exige pagamento.conciliar; mês fechado trancado por gatilho (migração 20261026090000)",escrita=pagamento.conciliar,,
 fin_conciliacoes_mensais,financeiro,permissao,alta,"conciliação mensal (quadro da SEFAZ): o módulo lê; gravar exige pagamento.conciliar; ninguém apaga pela API; fechada só o admin reabre, por reabrir_conciliacao_mensal (migração 20261026090000)",escrita=pagamento.conciliar;excluir=ninguem,,
 fin_contas_bancarias,financeiro,modulo,alta,,,,
+fin_credores_servidores,financeiro,preservar,alta,"policy própria na migração 20261127090000 (código do credor do FIPLAN → servidor, pelo CPF do Consultar Credor; SELECT pelo Financeiro com financeiro.diarias.visualizar ou financeiro.execucao.importar e pelo RH com rh.viagens.visualizar; escrita só pela RPC importar_credores_fiplan)",,,
 fin_diarias_fiplan,financeiro,preservar,alta,"policy própria na migração 20261113090000 (diárias do FIPLAN, FIP 002: SELECT pelo Financeiro com financeiro.diarias.visualizar ou financeiro.execucao.importar, pelo RH com rh.viagens.visualizar e pelo próprio servidor; escrita só pela RPC importar_diarias_fiplan)",,,
 fin_documentos,financeiro,modulo,alta,,,,
 fin_dotacoes,financeiro,modulo,alta,,,,

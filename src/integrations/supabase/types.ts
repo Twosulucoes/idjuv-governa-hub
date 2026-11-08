@@ -11161,6 +11161,77 @@ export type Database = {
           },
         ]
       }
+      fin_credores_servidores: {
+        Row: {
+          created_at: string
+          credor_codigo: string
+          credor_nome: string | null
+          importacao_id: string | null
+          servidor_id: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          credor_codigo: string
+          credor_nome?: string | null
+          importacao_id?: string | null
+          servidor_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credor_codigo?: string
+          credor_nome?: string | null
+          importacao_id?: string | null
+          servidor_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_credores_servidores_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fin_diarias_fiplan: {
         Row: {
           created_at: string
@@ -27750,6 +27821,10 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      fin_credores_cpfs_de_servidores: {
+        Args: { p_cpfs: string[] }
+        Returns: string[]
+      }
       fin_dotacao_disponivel: {
         Args: {
           p_atual: number
@@ -28075,6 +28150,10 @@ export type Database = {
           p_simular?: boolean
           p_tipo: string
         }
+        Returns: Json
+      }
+      importar_credores_fiplan: {
+        Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
         Returns: Json
       }
       importar_diarias_fiplan: {

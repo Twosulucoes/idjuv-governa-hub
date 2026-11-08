@@ -22,6 +22,7 @@ import { useEmpenhos } from "@/hooks/useFinanceiro";
 import { useExercicioFinanceiro } from "@/hooks/useExercicioFinanceiro";
 import { SeletorExercicio } from "@/components/financeiro/SeletorExercicio";
 import { formatCurrency } from "@/lib/formatters";
+import { empenhadoLiquido, totaisEmpenhos } from "@/lib/financeiro/empenhos";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TIPO_EMPENHO_LABELS, type Empenho, type StatusEmpenho } from "@/types/financeiro";
@@ -79,7 +80,7 @@ const filtrosEmpenho: FiltroDef<Empenho>[] = [
       { valor: "sistema", rotulo: "Contingência (sistema)" },
     ],
   },
-  { tipo: "faixa", id: "valor", rotulo: "Valor empenhado", formato: "moeda", valor: (emp) => Number(emp.valor_empenhado) },
+  { tipo: "faixa", id: "valor", rotulo: "Valor empenhado (líquido)", formato: "moeda", valor: (emp) => empenhadoLiquido(emp) },
   { tipo: "booleano", id: "com_saldo", rotulo: "Com saldo a liquidar", valor: (emp) => Number(emp.saldo_liquidar) > 0 },
 ];
 
@@ -133,10 +134,23 @@ const colunas: ColunaTabela<Empenho>[] = [
     ordenarPor: (emp) => emp.tipo,
   },
   {
+    // Líquido de estornos, como no QDD e no painel; o original fica na ficha do empenho
     id: "empenhado",
     cabecalho: "Empenhado",
-    celula: (emp) => <span className="font-medium tabular-nums">{formatCurrency(emp.valor_empenhado)}</span>,
-    ordenarPor: (emp) => Number(emp.valor_empenhado),
+    celula: (emp) => <span className="font-medium tabular-nums">{formatCurrency(empenhadoLiquido(emp))}</span>,
+    ordenarPor: (emp) => empenhadoLiquido(emp),
+    alinhamento: "direita",
+  },
+  {
+    id: "estornado",
+    cabecalho: "Estornado",
+    celula: (emp) =>
+      Number(emp.valor_anulado) > 0 ? (
+        <span className="tabular-nums text-muted-foreground">{formatCurrency(Number(emp.valor_anulado))}</span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+    ordenarPor: (emp) => Number(emp.valor_anulado) || 0,
     alinhamento: "direita",
   },
   {
@@ -196,6 +210,19 @@ export default function EmpenhosPage() {
           aoTentarNovamente={() => refetch()}
           busca={{ placeholder: "Buscar por número, objeto, fornecedor..." }}
           filtrosDinamicos={filtros}
+          rodape={(linhas) => {
+            const t = totaisEmpenhos(linhas);
+            return (
+              <span className="flex flex-wrap justify-end gap-x-4 gap-y-1 tabular-nums">
+                <span className="text-muted-foreground">{t.quantidade} {t.quantidade === 1 ? "empenho" : "empenhos"}</span>
+                <span>
+                  Empenhado: <strong>{formatCurrency(t.liquido)}</strong>
+                </span>
+                <span className="text-muted-foreground">Estornado: {formatCurrency(t.estornado)}</span>
+                <span className="text-muted-foreground">Saldo a liquidar: {formatCurrency(t.saldoLiquidar)}</span>
+              </span>
+            );
+          }}
           vazio={{
             icone: Receipt,
             titulo: "Nenhum empenho encontrado",
