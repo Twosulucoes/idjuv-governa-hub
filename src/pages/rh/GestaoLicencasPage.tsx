@@ -48,6 +48,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { mensagemDeErro, vazioParaNulo } from '@/lib/erroBanco';
+import { ErroGravacao } from '@/components/rh/ErroGravacao';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -154,8 +156,16 @@ function lancarErroEscrita(
 }
 
 function mensagemErro(prefixo: string, error: Error) {
-  return error instanceof SemPermissaoLicencaError ? error.message : `${prefixo}: ${error.message}`;
+  return error instanceof SemPermissaoLicencaError ? error.message : `${prefixo}: ${mensagemDeErro(error)}`;
 }
+
+// Campo opcional em branco vai como null: "" numa coluna de data fazia o banco recusar a licença sem portaria
+// (22007, teste do RH de 06/11/2026, item 10)
+const CAMPOS_OPCIONAIS: (keyof LicencaFormData)[] = [
+  'data_fim', 'portaria_numero', 'portaria_data', 'portaria_url', 'documento_comprobatorio_url', 'cid', 'medico_nome',
+  'crm', 'orgao_destino', 'fundamentacao_legal', 'observacoes',
+];
+const limparOpcionais = (dados: LicencaFormData) => vazioParaNulo(dados, CAMPOS_OPCIONAIS);
 
 export default function GestaoLicencasPage() {
   const navigate = useNavigate();
@@ -173,6 +183,7 @@ export default function GestaoLicencasPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedLicenca, setSelectedLicenca] = useState<any>(null);
+  const [erroGravacao, setErroGravacao] = useState<string | null>(null);
   const [formData, setFormData] = useState<LicencaFormData>(emptyFormData);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -202,7 +213,7 @@ export default function GestaoLicencasPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('servidores')
-        .select('id, nome_completo, matricula, cpf')
+        .select('id, nome_completo, matricula')
         .eq('ativo', true)
         .order('nome_completo');
       
@@ -217,7 +228,7 @@ export default function GestaoLicencasPage() {
       const { error } = await supabase
         .from('licencas_afastamentos')
         .insert([{
-          ...data,
+          ...limparOpcionais(data),
           tipo_licenca: data.tipo_afastamento === 'licenca' ? data.tipo_licenca : null,
           dias_afastamento: data.data_fim && data.data_inicio 
             ? differenceInDays(parseISO(data.data_fim), parseISO(data.data_inicio)) + 1 
@@ -233,6 +244,7 @@ export default function GestaoLicencasPage() {
       resetForm();
     },
     onError: (error: Error) => {
+      setErroGravacao(mensagemErro('Erro ao registrar', error));
       toast.error(mensagemErro('Erro ao registrar', error));
     },
   });
@@ -244,7 +256,7 @@ export default function GestaoLicencasPage() {
       const { data: alteradas, error } = await supabase
         .from('licencas_afastamentos')
         .update({
-          ...updateData,
+          ...limparOpcionais(updateData),
           tipo_licenca: updateData.tipo_afastamento === 'licenca' ? updateData.tipo_licenca : null,
           dias_afastamento: updateData.data_fim && updateData.data_inicio 
             ? differenceInDays(parseISO(updateData.data_fim), parseISO(updateData.data_inicio)) + 1 
@@ -263,6 +275,7 @@ export default function GestaoLicencasPage() {
       resetForm();
     },
     onError: (error: Error) => {
+      setErroGravacao(mensagemErro('Erro ao atualizar', error));
       toast.error(mensagemErro('Erro ao atualizar', error));
     },
   });
@@ -291,6 +304,7 @@ export default function GestaoLicencasPage() {
   });
 
   const resetForm = () => {
+    setErroGravacao(null);
     setFormData(emptyFormData);
     setIsEditing(false);
     setSelectedLicenca(null);
@@ -642,6 +656,8 @@ export default function GestaoLicencasPage() {
                 </DialogDescription>
               </DialogHeader>
 
+              <ErroGravacao mensagem={erroGravacao} />
+
               <Tabs defaultValue="dados" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
@@ -664,7 +680,7 @@ export default function GestaoLicencasPage() {
                         <SelectContent>
                           {servidores.map((servidor: any) => (
                             <SelectItem key={servidor.id} value={servidor.id}>
-                              {servidor.nome_completo} - {servidor.cpf}
+                              {servidor.nome_completo}{servidor.matricula ? ` - mat. ${servidor.matricula}` : ''}
                             </SelectItem>
                           ))}
                         </SelectContent>

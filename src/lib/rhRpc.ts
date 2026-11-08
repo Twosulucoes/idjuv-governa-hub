@@ -20,7 +20,8 @@ interface RpcResposta {
 async function chamar<T>(nome: string, args: Record<string, unknown>): Promise<T> {
   const cliente = supabase as unknown as { rpc: (n: string, a: Record<string, unknown>) => PromiseLike<RpcResposta> };
   const { data, error } = await cliente.rpc(nome, args);
-  if (error) throw new Error(error.message);
+  // guarda o código (P0001, 23503…) para a tela traduzir a mensagem (`mensagemDeErro`)
+  if (error) throw Object.assign(new Error(error.message), { code: error.code });
   return data as T;
 }
 

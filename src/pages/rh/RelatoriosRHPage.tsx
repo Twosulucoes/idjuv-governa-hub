@@ -26,6 +26,7 @@ import {
   Layers
 } from "lucide-react";
 import { toast } from "sonner";
+import { mensagemDeErro } from "@/lib/erroBanco";
 import { 
   generateRelatorioServidoresDiretoria,
   generateRelatorioServidoresVinculo,
@@ -267,7 +268,7 @@ export default function RelatoriosRHPage() {
       toast.success("Relatório gerado com sucesso!");
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao gerar relatório");
+      toast.error(`Erro ao gerar relatório: ${mensagemDeErro(error)}`);
     } finally {
       setLoadingReport(null);
     }
@@ -319,7 +320,7 @@ export default function RelatoriosRHPage() {
       toast.success("Relatório gerado com sucesso!");
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao gerar relatório");
+      toast.error(`Erro ao gerar relatório: ${mensagemDeErro(error)}`);
     } finally {
       setLoadingReport(null);
     }
@@ -340,7 +341,7 @@ export default function RelatoriosRHPage() {
           *,
           cargo:cargos(id, nome, sigla),
           unidade:estrutura_organizacional(id, nome, sigla),
-          vinculo_externo_ato:documentos!servidores_vinculo_externo_ato_id_fkey(numero, ano)
+          vinculo_externo_ato:documentos!servidores_vinculo_externo_ato_id_fkey(numero, data_documento)
         `)
         .eq("id", selectedServidor)
         .single();
@@ -409,9 +410,11 @@ export default function RelatoriosRHPage() {
           vinculo_externo_cargo: servidor.vinculo_externo_cargo,
           vinculo_externo_matricula: servidor.vinculo_externo_matricula,
           vinculo_externo_forma: servidor.vinculo_externo_forma,
+          // documentos não tem coluna "ano" (pedir "ano" fazia o relatório falhar para todo servidor, teste do RH
+          // de 06/11/2026, item 11): o ano sai da data do documento
           vinculo_externo_ato: servidor.vinculo_externo_ato ? {
-            numero: (servidor.vinculo_externo_ato as { numero?: string; ano?: number })?.numero || '',
-            ano: (servidor.vinculo_externo_ato as { numero?: string; ano?: number })?.ano || 0
+            numero: (servidor.vinculo_externo_ato as { numero?: string; data_documento?: string })?.numero || '',
+            ano: Number((servidor.vinculo_externo_ato as { numero?: string; data_documento?: string })?.data_documento?.slice(0, 4)) || 0
           } : null
         },
         historico: (historico || []).map(h => ({
@@ -449,7 +452,7 @@ export default function RelatoriosRHPage() {
       toast.success("Relatório gerado com sucesso!");
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao gerar relatório");
+      toast.error(`Erro ao gerar relatório: ${mensagemDeErro(error)}`);
     } finally {
       setLoadingReport(null);
     }
@@ -521,7 +524,7 @@ export default function RelatoriosRHPage() {
       toast.success("Relatório gerado com sucesso!");
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao gerar relatório");
+      toast.error(`Erro ao gerar relatório: ${mensagemDeErro(error)}`);
     } finally {
       setLoadingReport(null);
     }
@@ -668,7 +671,7 @@ export default function RelatoriosRHPage() {
       toast.success("Relatório gerado com sucesso!");
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao gerar relatório");
+      toast.error(`Erro ao gerar relatório: ${mensagemDeErro(error)}`);
     } finally {
       setLoadingReport(null);
     }
@@ -765,7 +768,7 @@ export default function RelatoriosRHPage() {
       toast.success("Relatório gerado com sucesso!");
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao gerar relatório");
+      toast.error(`Erro ao gerar relatório: ${mensagemDeErro(error)}`);
     } finally {
       setLoadingReport(null);
     }
@@ -875,7 +878,7 @@ export default function RelatoriosRHPage() {
       toast.success("Relatório gerado com sucesso!");
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao gerar relatório");
+      toast.error(`Erro ao gerar relatório: ${mensagemDeErro(error)}`);
     } finally {
       setLoadingReport(null);
     }
