@@ -1,7 +1,8 @@
 /**
  * Processos de contratação: lista com etapa, setor, dias parado, valor estimado, empenhado (FIP 614 pelo nº SEI) e a
  * fase financeira (reservado → PED → empenhado → liquidado → pago). Próximo prazo (P2, migração 20261122090000), com
- * os prazos por etapa ajustáveis por quem edita.
+ * os prazos por etapa ajustáveis por quem edita. P3 (migração 20261128090000): o próximo prazo é o mais próximo em
+ * aberto (de qualquer tipo), "Parado" passa do limite da etapa, e o filtro Atenção mostra vencidos e parados primeiro.
  * Compras cadastra o processo e carrega a planilha de acompanhamento; o andamento se registra na ficha.
  * Spec: docs/superpowers/specs/2026-10-23-compras-processos-reserva-natureza-design.md
  */
@@ -29,7 +30,11 @@ import {
   useFinanceiroDosProcessos,
   useProcessos,
   useSalvarProcesso,
+  useParametrosEtapa,
 } from "@/hooks/useProcessosContratacao";
+import { useProximosPrazos } from "@/hooks/useProcessoPrazos";
+import { exigeProximaAcao, hojeLocal, situacaoPrazo, type ParametroEtapa, PARAMETROS_PADRAO } from "@/lib/compras/proximaAcao";
+import { rotuloTipoPrazo } from "@/lib/compras/prazos";
 import { ETAPAS_PROCESSO, rotuloEtapa, type ProcessoContratacao } from "@/types/processos";
 
 const TODOS = "todos";
@@ -43,6 +48,21 @@ function diasParado(data: string | null): number | null {
   return Math.max(0, Math.round(ms / 86_400_000));
 }
 
+/** Passou do limite de dias sem movimento da etapa (o mesmo cálculo de compras_meus_prazos). */
+function estaParado(p: ProcessoContratacao, parametros: ParametroEtapa[] | undefined): boolean {
+  if (!exigeProximaAcao(p.etapa)) return false;
+  const dias = diasParado(p.atualizado_em ?? p.created_at.slice(0, 10));
+  const limite = parametros?.find((x) => x.etapa === p.etapa)?.dias_limite_parado
+    ?? PARAMETROS_PADRAO[p.etapa]?.dias_limite_parado ?? 15;
+  return dias !== null && dias > limite;
+}
+
+const ATENCAO = [
+  { value: "vencido", label: "Prazo vencido" },
+  { value: "parado", label: "Parado" },
+  { value: "qualquer", label: "Vencido ou parado" },
+];
+
 export default function ProcessosListaPage() {
   const { hasPermission } = useAuth();
   const podeEditar = hasPermission("compras.processos.editar");
@@ -52,6 +72,8 @@ export default function ProcessosListaPage() {
   const empenhos = useEmpenhosDosProcessos();
   const financeiro = useFinanceiroDosProcessos();
   const salvar = useSalvarProcesso();
+  const parametros = useParametrosEtapa();
+  const proximos = useProximosPrazos();
   const [novo, setNovo] = useState(false);
   const [prazos, setPrazos] = useState(false);
   // Planilha de acompanhamento, importada aqui mesmo (?importador=processos_planilha)
@@ -60,6 +82,7 @@ export default function ProcessosListaPage() {
   const [etapa, setEtapa] = useState(TODOS);
   const [setor, setSetor] = useState(TODOS);
   const [fase, setFase] = useState(TODOS);
+  const [atencao, setAtencao] = useState(TODOS);
 
   // Atalho do menu "Novo processo" (/compras/processos?novo=1)
   useEffect(() => {
@@ -74,13 +97,25 @@ export default function ProcessosListaPage() {
   const anos = useMemo(() => [...new Set(lista.map((p) => p.ano))].sort((a, b) => b - a), [lista]);
   const setores = useMemo(() => [...new Set(lista.map((p) => p.setor_atual).filter(Boolean) as string[])].sort(), [lista]);
   const faseDe = (id: string) => faseFinanceira(financeiro.data?.get(id));
-  const filtrados = lista.filter(
-    (p) =>
-      (ano === TODOS || String(p.ano) === ano) &&
-      (etapa === TODOS || p.etapa === etapa) &&
-      (setor === TODOS || p.setor_atual === setor) &&
-      (fase === TODOS || faseDe(p.id).codigo === fase),
-  );
+  const hoje = hojeLocal();
+  const proximoPrazo = (p: ProcessoContratacao) => proximos.data?.get(p.id)?.data_limite ?? p.prazo_proxima_acao;
+  const vencido = (p: ProcessoContratacao) => exigeProximaAcao(p.etapa) && situacaoPrazo(proximoPrazo(p), hoje) === "vencido";
+  const parado = (p: ProcessoContratacao) => estaParado(p, parametros.data);
+  // vencidos primeiro, depois parados (a tabela ainda ordena pelo clique no cabeçalho)
+  const peso = (p: ProcessoContratacao) => (vencido(p) ? 0 : parado(p) ? 1 : 2);
+  const filtrados = lista
+    .filter(
+      (p) =>
+        (ano === TODOS || String(p.ano) === ano) &&
+        (etapa === TODOS || p.etapa === etapa) &&
+        (setor === TODOS || p.setor_atual === setor) &&
+        (fase === TODOS || faseDe(p.id).codigo === fase) &&
+        (atencao === TODOS
+          || (atencao === "vencido" && vencido(p))
+          || (atencao === "parado" && parado(p))
+          || (atencao === "qualquer" && (vencido(p) || parado(p)))),
+    )
+    .sort((a, b) => peso(a) - peso(b));
 
   const colunas: ColunaTabela<ProcessoContratacao>[] = [
     {
@@ -123,7 +158,13 @@ export default function ProcessosListaPage() {
       cabecalho: "Dias parado",
       celula: (p) => {
         const dias = diasParado(p.atualizado_em);
-        return dias === null ? <span className="text-muted-foreground">sem data</span> : <span title={`Última movimentação em ${formatDateBR(p.atualizado_em)}`}>{dias}</span>;
+        if (dias === null) return <span className="text-muted-foreground">sem data</span>;
+        return (
+          <span className="inline-flex flex-col items-end gap-0.5" title={`Última movimentação em ${formatDateBR(p.atualizado_em)}`}>
+            <span>{dias}</span>
+            {parado(p) && <StatusBadge tom="erro" icone={false}>Parado</StatusBadge>}
+          </span>
+        );
       },
       ordenarPor: (p) => diasParado(p.atualizado_em) ?? -1,
       alinhamento: "direita",
@@ -131,12 +172,18 @@ export default function ProcessosListaPage() {
     {
       id: "prazo",
       cabecalho: "Próximo prazo",
-      celula: (p) => (
-        <span title={p.proxima_etapa ? `Próxima etapa: ${rotuloEtapa(p.proxima_etapa)}` : undefined}>
-          <SeloPrazo prazo={p.prazo_proxima_acao} />
-        </span>
-      ),
-      ordenarPor: (p) => p.prazo_proxima_acao ?? "9999-12-31",
+      celula: (p) => {
+        const px = proximos.data?.get(p.id);
+        const titulo = px && px.tipo !== "proxima_acao"
+          ? rotuloTipoPrazo(px.tipo)
+          : p.proxima_etapa ? `Próxima etapa: ${rotuloEtapa(p.proxima_etapa)}` : undefined;
+        return (
+          <span title={titulo}>
+            <SeloPrazo prazo={exigeProximaAcao(p.etapa) ? proximoPrazo(p) : null} hoje={hoje} />
+          </span>
+        );
+      },
+      ordenarPor: (p) => (exigeProximaAcao(p.etapa) ? proximoPrazo(p) : null) ?? "9999-12-31",
       buscarPor: (p) => p.proximo_responsavel_nome ?? p.proximo_responsavel_setor,
       alinhamento: "direita",
     },
@@ -195,7 +242,7 @@ export default function ProcessosListaPage() {
                 <>
                   <Button variant="outline" onClick={() => setPrazos(true)}>
                     <CalendarClock className="h-4 w-4" aria-hidden="true" />
-                    Prazos por etapa
+                    Prazos e avisos
                   </Button>
                   <Button variant="outline" onClick={() => importacao.abrir(importadorProcessosPlanilha.id)}>
                     <FileUp className="h-4 w-4" aria-hidden="true" />
@@ -226,6 +273,7 @@ export default function ProcessosListaPage() {
               {filtro("Etapa", etapa, setEtapa, ETAPAS_PROCESSO.map((e) => ({ value: e.value, label: e.label })))}
               {filtro("Setor", setor, setSetor, setores.map((s) => ({ value: s, label: s })))}
               {filtro("Fase", fase, setFase, FASES_FINANCEIRAS.map((f) => ({ value: f.codigo, label: f.rotulo })))}
+              {filtro("Atenção", atencao, setAtencao, ATENCAO)}
             </div>
           }
           aoClicarLinha={(p) => navigate(`/compras/processos/${p.id}`)}

@@ -647,6 +647,15 @@ entrou no `01_pre_data.sql` (colunas de exclusão e de edição em `processo_and
 (`leitura=compras.processos.visualizar|compras.processos.editar`). Sem permissão nova. Testes no bloco
 "Compras: processos, P1" de `scripts/db/testar-rls.sql`.
 
+A migração `20261128090000_compras_processos_prazos.sql` (processos SEI, P3: prazos, avisos e pop-up de vencidos)
+entrou no `01_pre_data.sql` (tabelas `compras_prazo_tipos`, `processo_prazos` e `processo_prazo_remarcacoes`, as
+funções `compras_normalizar_avisos`, `compras_prazo_tipos_preparar`, `processo_prazo_preparar`,
+`processo_prazo_responsavel_nome`, `processo_prazo_registrar_remarcacao` e `compras_meus_prazos`, mais a versão nova de
+`processo_recalcular_estado`), no `02_dados_catalogo.sql` (os tipos de prazo com os avisos padrão), no
+`03_post_data.sql` (chaves, FKs, índices, gatilhos, RLS e policies) e no `overlay/40_privilegios.sql`. No
+`rls/mapa.csv`, `compras_prazo_tipos` e `processo_prazos` entram como classe `permissao` e `processo_prazo_remarcacoes`
+como `trilha`. Sem permissão nova. Testes no bloco "Compras: processos, P3" de `scripts/db/testar-rls.sql`.
+
 A migração `20261122090000_compras_processos_proxima_acao.sql` (processos SEI, P2: próxima etapa, responsável e prazo)
 entrou no `01_pre_data.sql` (colunas da próxima ação em `processo_andamentos` e `processos_licitatorios`, tabela
 `compras_etapa_parametros` e as funções `processo_proxima_acao_falta`, `processo_andamento_responsavel_nome`,

@@ -1173,6 +1173,30 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
+- **Processos SEI, P3: prazos, avisos e pop-up de vencidos** (`20261128090000_compras_processos_prazos.sql`,
+  plano [2026-11-08-processos-sei-p3a-prazos.md](./superpowers/plans/2026-11-08-processos-sei-p3a-prazos.md)):
+  - `compras_prazo_tipos`: os tipos de prazo (próxima ação, resposta de órgão externo, assinatura do contrato, vigência
+    da ata e do contrato, empenho, liquidação, pagamento e prestação de contas) com os avisos padrão em dias antes
+    (`avisos_padrao`); `compras_normalizar_avisos(int[])` deixa só dias de 1 a 365, sem repetir, do maior para o menor,
+    e sempre põe o 1. Semente no `02_dados_catalogo.sql`; RLS classe `permissao` (lê quem vê ou edita processos,
+    altera quem edita, ninguém apaga);
+  - `processo_prazos`: os prazos de cada processo (tipo, descrição, data, responsável servidor ou setor, avisos e
+    situação aberto, remarcado, cumprido ou cancelado; "vencido" é calculado). O tipo `proxima_acao` é o espelho da
+    próxima ação da movimentação que vale: `processo_recalcular_estado` cria ou atualiza o prazo dela (`andamento_id`
+    único), cumpre o das outras movimentações ("Nova movimentação registrada") e cancela o da movimentação excluída;
+    a correção do prazo da movimentação remarca com o motivo da correção. Pela API, o gatilho
+    `processo_prazo_preparar` (INVOKER) impede lançar ou mudar a próxima ação à mão (só os avisos), exige responsável,
+    faz o prazo novo nascer aberto, exige motivo e data não passada para remarcar e motivo para cancelar, carimba quem
+    cumpriu ou cancelou e trava o prazo encerrado; o nome do servidor vem de `processo_prazo_responsavel_nome`
+    (DEFINER). RLS classe `permissao` (`excluir=ninguem`);
+  - `processo_prazo_remarcacoes`: trilha das remarcações (data antes e depois, motivo, quem, quando), gravada pelo
+    gatilho `processo_prazo_registrar_remarcacao` e imutável (`trilha_imutavel`); RLS classe `trilha`;
+  - `compras_meus_prazos()` (DEFINER): a lista do pop-up e do sino, com prazos vencidos, que vencem em até 3 dias ou
+    em dia de aviso, e processos parados além do limite da etapa (`compras_etapa_parametros.dias_limite_parado`). Quem
+    tem o módulo Compras e `compras.processos.editar` vê todos; os demais, os de que são responsáveis pelo servidor do
+    perfil (só nº, objeto resumido e o prazo);
+  - carga: a próxima ação que já valia virou prazo aberto; testes no bloco "Compras: processos, P3" de
+    `scripts/db/testar-rls.sql`.
 - **Processos SEI, P2: próxima etapa, responsável e prazo** (`20261122090000_compras_processos_proxima_acao.sql`,
   plano [2026-11-07-processos-sei-p2-proxima-acao.md](./superpowers/plans/2026-11-07-processos-sei-p2-proxima-acao.md)):
   - `processo_andamentos` ganha `proxima_etapa`, `responsavel_servidor_id` (FK `servidores`, `ON DELETE SET NULL`),

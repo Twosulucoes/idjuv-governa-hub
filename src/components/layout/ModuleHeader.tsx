@@ -9,7 +9,7 @@
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/ui/Logo";
 import { UserMenu } from "@/components/auth/UserMenu";
-import { AvisosSino } from "@/components/avisos";
+import { AvisosSino, PrazosVencidosDialog } from "@/components/avisos";
 import { AlternarTema } from "./AlternarTema";
 import { MODULES_CONFIG, type Modulo } from "@/shared/config/modules.config";
 import { cn } from "@/lib/utils";
@@ -54,6 +54,8 @@ export function ModuleHeader({ module, children }: ModuleHeaderProps) {
         <AlternarTema />
         <AvisosSino />
         <UserMenu />
+        {/* prazos dos processos de contratação: abre uma vez por entrada (P3) */}
+        <PrazosVencidosDialog />
       </div>
     </header>
   );

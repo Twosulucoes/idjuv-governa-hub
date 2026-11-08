@@ -3,10 +3,12 @@
  * (linha do tempo do SEI) e Financeiro (fase, PEDs do "Consultar PED" e empenhos do FIP 614 pelo nº do processo).
  * Spec: docs/superpowers/specs/2026-10-23-compras-processos-reserva-natureza-design.md
  * Próxima ação (etapa, responsável e prazo) da movimentação que vale: P2, migração 20261122090000.
+ * Aba Prazos (P3, migração 20261128090000). `?aba=` abre uma aba; `?nova=1` abre o registro de movimentação (botão
+ * "Registrar movimentação" do pop-up de vencidos).
  */
 
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Pencil } from "lucide-react";
 import { LinhaDoTempoFases } from "@/components/compras/processos/EvolucaoProcesso";
 import { ModuleLayout } from "@/components/layout";
@@ -18,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NovaMovimentacaoDialog } from "@/components/compras/processos/NovaMovimentacaoDialog";
 import { ProcessoAndamentoTab } from "@/components/compras/processos/ProcessoAndamentoTab";
 import { ProcessoFinanceiroTab } from "@/components/compras/processos/ProcessoFinanceiroTab";
+import { ProcessoPrazosTab } from "@/components/compras/processos/ProcessoPrazosTab";
 import { ProcessoFormDialog } from "@/components/compras/processos/ProcessoFormDialog";
 import { ProcessoReservasTab } from "@/components/compras/processos/ProcessoReservasTab";
 import { ReservaFormDialog } from "@/components/compras/processos/ReservaFormDialog";
@@ -90,8 +93,13 @@ function Dados({ p, empenhado }: { p: ProcessoContratacao; empenhado: number | u
   );
 }
 
+const ABAS = ["dados", "reservas", "andamento", "prazos", "financeiro"];
+
 export default function ProcessoFichaPage() {
   const { id } = useParams();
+  const [busca, setBusca] = useSearchParams();
+  const abaDaUrl = busca.get("aba");
+  const [aba, setAba] = useState(abaDaUrl && ABAS.includes(abaDaUrl) ? abaDaUrl : "dados");
   const { hasPermission } = useAuth();
   const podeEditar = hasPermission("compras.processos.editar");
   const processo = useProcesso(id);
@@ -114,6 +122,20 @@ export default function ProcessoFichaPage() {
   const [reservaEmEdicao, setReservaEmEdicao] = useState<ReservaDoProcesso | null>(null);
 
   const p = processo.data;
+  const pedeNova = busca.get("nova") === "1";
+  useEffect(() => {
+    if (!pedeNova || !p || !podeEditar) return;
+    setCorrigindo(null);
+    setMovimentando(true);
+    setBusca((b) => { b.delete("nova"); return b; }, { replace: true });
+  }, [pedeNova, p, podeEditar, setBusca]);
+  const corrigirMovimentacao = (andamentoId: string) => {
+    const a = andamentos.data?.find((x) => x.id === andamentoId);
+    if (!a) return;
+    setAba("andamento");
+    setCorrigindo(a);
+    setMovimentando(true);
+  };
   const financeiroDoProcesso = p ? financeiro.data?.get(p.id) : undefined;
   const fase = faseFinanceira(financeiroDoProcesso);
   const abrirReserva = (r: ReservaDoProcesso | null) => {
@@ -145,11 +167,12 @@ export default function ProcessoFichaPage() {
     );
   } else {
     conteudo = (
-      <Tabs defaultValue="dados">
-        <TabsList>
+      <Tabs value={aba} onValueChange={setAba}>
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="reservas">Reservas</TabsTrigger>
           <TabsTrigger value="andamento">Andamento</TabsTrigger>
+          <TabsTrigger value="prazos">Prazos</TabsTrigger>
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
         </TabsList>
         <TabsContent value="dados" className="mt-4">
@@ -187,6 +210,9 @@ export default function ProcessoFichaPage() {
             aoExcluir={(ids, motivo) => excluirMov.mutateAsync({ ids, processoId: p.id, motivo })}
             alteracoes={alteracoes.data}
           />
+        </TabsContent>
+        <TabsContent value="prazos" className="mt-4">
+          <ProcessoPrazosTab processoId={p.id} podeEditar={podeEditar} aoCorrigirMovimentacao={corrigirMovimentacao} />
         </TabsContent>
         <TabsContent value="financeiro" className="mt-4">
           <ProcessoFinanceiroTab
