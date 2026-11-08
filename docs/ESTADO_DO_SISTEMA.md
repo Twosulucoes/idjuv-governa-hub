@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 235 |
-| Componentes (`.tsx` em `src/components`) | 396 |
+| Componentes (`.tsx` em `src/components`) | 398 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 353 |
+| — fora de `ui/` | 355 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 120 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 114 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 115 |
 | Linhas de `src/App.tsx` | 1503 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30653 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30766 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -69,16 +69,16 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 340 |
+| Migrações (`supabase/migrations/*.sql`) | 341 |
 | Migração mais recente | `20261125100000_patrimonio_bem_imovel_valor_opcional.sql` |
-| Tabelas do schema public (baseline) | 297 |
+| Tabelas do schema public (baseline) | 298 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 397 |
-| — de gatilho (`RETURNS trigger`) | 153 |
-| — demais | 244 |
+| Funções (baseline) | 401 |
+| — de gatilho (`RETURNS trigger`) | 155 |
+| — demais | 246 |
 | Enums (baseline) | 108 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2105 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 297 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2111 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 298 |
 | Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 14 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.

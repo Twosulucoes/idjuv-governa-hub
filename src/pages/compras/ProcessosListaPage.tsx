@@ -1,13 +1,14 @@
 /**
  * Processos de contratação: lista com etapa, setor, dias parado, valor estimado, empenhado (FIP 614 pelo nº SEI) e a
- * fase financeira (reservado → PED → empenhado → liquidado → pago).
+ * fase financeira (reservado → PED → empenhado → liquidado → pago). Próximo prazo (P2, migração 20261122090000), com
+ * os prazos por etapa ajustáveis por quem edita.
  * Compras cadastra o processo e carrega a planilha de acompanhamento; o andamento se registra na ficha.
  * Spec: docs/superpowers/specs/2026-10-23-compras-processos-reserva-natureza-design.md
  */
 
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { FileUp, FolderKanban, Landmark, Plus } from "lucide-react";
+import { CalendarClock, FileUp, FolderKanban, Landmark, Plus } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { DataTable, PageHeader, StatusBadge, type ColunaTabela } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ import { BarraEvolucao } from "@/components/compras/processos/EvolucaoProcesso";
 import { evolucaoDoProcesso } from "@/lib/compras/evolucaoProcesso";
 import { ImportacaoDialog, useImportadorDaUrl } from "@/components/importacao";
 import { ProcessoFormDialog } from "@/components/compras/processos/ProcessoFormDialog";
+import { PrazosPorEtapaDialog } from "@/components/compras/processos/PrazosPorEtapaDialog";
+import { SeloPrazo } from "@/components/compras/processos/ProximaAcao";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDateBR } from "@/lib/formatters";
 import { importadorProcessosPlanilha } from "@/lib/importacao/importadores/processosPlanilha";
@@ -50,6 +53,7 @@ export default function ProcessosListaPage() {
   const financeiro = useFinanceiroDosProcessos();
   const salvar = useSalvarProcesso();
   const [novo, setNovo] = useState(false);
+  const [prazos, setPrazos] = useState(false);
   // Planilha de acompanhamento, importada aqui mesmo (?importador=processos_planilha)
   const importacao = useImportadorDaUrl([importadorProcessosPlanilha.id]);
   const [ano, setAno] = useState(TODOS);
@@ -125,6 +129,18 @@ export default function ProcessosListaPage() {
       alinhamento: "direita",
     },
     {
+      id: "prazo",
+      cabecalho: "Próximo prazo",
+      celula: (p) => (
+        <span title={p.proxima_etapa ? `Próxima etapa: ${rotuloEtapa(p.proxima_etapa)}` : undefined}>
+          <SeloPrazo prazo={p.prazo_proxima_acao} />
+        </span>
+      ),
+      ordenarPor: (p) => p.prazo_proxima_acao ?? "9999-12-31",
+      buscarPor: (p) => p.proximo_responsavel_nome ?? p.proximo_responsavel_setor,
+      alinhamento: "direita",
+    },
+    {
       id: "estimado",
       cabecalho: "Valor estimado",
       celula: (p) => (p.valor_estimado == null ? <span className="text-muted-foreground">não informado</span> : formatCurrency(p.valor_estimado)),
@@ -177,6 +193,10 @@ export default function ProcessosListaPage() {
               </Button>
               {podeEditar && (
                 <>
+                  <Button variant="outline" onClick={() => setPrazos(true)}>
+                    <CalendarClock className="h-4 w-4" aria-hidden="true" />
+                    Prazos por etapa
+                  </Button>
                   <Button variant="outline" onClick={() => importacao.abrir(importadorProcessosPlanilha.id)}>
                     <FileUp className="h-4 w-4" aria-hidden="true" />
                     Importar planilha
@@ -228,6 +248,7 @@ export default function ProcessosListaPage() {
       />
 
       <ImportacaoDialog importador={importacao.aberto} onFechar={importacao.fechar} />
+      {podeEditar && <PrazosPorEtapaDialog open={prazos} onOpenChange={setPrazos} />}
     </ModuleLayout>
   );
 }

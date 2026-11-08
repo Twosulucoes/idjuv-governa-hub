@@ -224,6 +224,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `processo_andamentos` atualizada), no schema do baseline (colunas, tabela, gatilhos e `processo_recalcular_estado`) e
   no `overlay/40_privilegios.sql` (funções sem EXECUTE para a API); testes no bloco "Compras: processos, P1" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- A próxima ação dos processos SEI (P2, migração `20261122090000`) entrou no mapa (`compras_etapa_parametros`, classe
+  `permissao` com `escrita=compras.processos.editar;excluir=ninguem` e `leitura=` de ver ou editar processos), no
+  schema do baseline (colunas, tabela, gatilhos e funções), nas sementes (`compras_etapa_parametros` em `SEMENTES` de
+  `gerar-baseline.sh`) e no `overlay/40_privilegios.sql`; testes no bloco "Compras: processos, P2" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A remessa OBN600 dos pagamentos (migração `20261024090000`) entrou no schema do baseline regenerado (colunas novas
   em `contas_autarquia`, `fin_remessas_bancarias` e `fin_pagamentos`, `registrar_remessa_obn600` e as versões finais
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem

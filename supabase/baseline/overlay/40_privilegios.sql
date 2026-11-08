@@ -369,6 +369,12 @@ REVOKE EXECUTE ON FUNCTION public.processo_andamento_carimbar() FROM PUBLIC, ano
 REVOKE EXECUTE ON FUNCTION public.processo_recalcular_estado(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.processo_andamento_alterar() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.processo_andamento_registrar_alteracao() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.compras_etapa_parametros_carimbar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.processo_andamento_responsavel_nome() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.processo_proxima_acao_falta(text, date, text, uuid, text, date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_proxima_acao_falta(text, date, text, uuid, text, date) TO authenticated;
+REVOKE ALL ON FUNCTION public.processo_buscar_servidores(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.processo_buscar_servidores(text) TO authenticated;
 -- teste do RH de 06/11/2026 (migração 20261121090000)
 REVOKE EXECUTE ON FUNCTION public.registros_ponto_validar_falta() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rh_dia_nao_util(date) TO authenticated;

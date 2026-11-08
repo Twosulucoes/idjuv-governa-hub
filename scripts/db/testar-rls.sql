@@ -94,6 +94,9 @@ INSERT INTO seed_ov VALUES
   -- regra_lancamento já vem com uma linha por módulo (catálogo, UNIQUE em modulo): a linha de teste usa `arbitros`,
   -- apagada do catálogo logo depois das personas (bloco de sementes, em modo réplica)
   ('regra_lancamento', '{"modulo":"arbitros"}'),
+  -- compras_etapa_parametros já vem com uma linha por etapa (catálogo, PK em etapa): a linha de teste usa `cancelado`,
+  -- apagada do catálogo logo depois das personas (como regra_lancamento); dias entre 1 e 365 (migração 20261122090000)
+  ('compras_etapa_parametros', '{"etapa":"cancelado","dias_prazo":30,"dias_limite_parado":365}'),
   -- comissão de inventário, licitação ou fiscalização exige objeto (comissoes_objeto_obrigatorio_check): `outra` não
   ('comissoes', '{"tipo":"outra"}'),
   -- código da vaga em maiúsculas (vagas_cargo_codigo_check, migração 20261012150000)
@@ -344,6 +347,7 @@ CREATE FUNCTION pg_temp.nota(msg text) RETURNS void LANGUAGE sql AS $$ INSERT IN
 SET session_replication_role = replica;  -- semeia sem disparar triggers nem FKs
 DO $$ BEGIN  -- vaga para a linha de teste de regra_lancamento (ver seed_ov); banco anterior à regra de setor: nada
   IF to_regclass('public.regra_lancamento') IS NOT NULL THEN DELETE FROM public.regra_lancamento WHERE modulo = 'arbitros'; END IF;
+  IF to_regclass('public.compras_etapa_parametros') IS NOT NULL THEN DELETE FROM public.compras_etapa_parametros WHERE etapa = 'cancelado'; END IF;
 END $$;
 
 CREATE TEMP TABLE persona (nome text PRIMARY KEY, uid uuid);
@@ -8160,7 +8164,7 @@ BEGIN
   END IF;
 
   r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
-    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao) VALUES (%L, ''2099-03-01'', ''etp'', ''x'') RETURNING id::text', proc));
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor, prazo_proxima) VALUES (%L, ''2099-03-01'', ''etp'', ''x'', ''tr'', ''IDJUV/PRESI'', ''2099-03-10'') RETURNING id::text', proc));
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: só visualizar grava andamento (' || r || ')'); END IF;
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
@@ -8323,6 +8327,119 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('COMPRAS PROCESSOS P1: com data ganha de sem data, edição com motivo e trilha, data futura recusada, exclusão lógica com motivo e autoria, excluída travada, trilha só leitura com a permissão e gatilhos fora da API verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Compras: processos, P2 — próxima etapa, responsável e prazo (migração 20261122090000) (TRIGGERS LIGADOS)
+-- Migração 20261122090000_compras_processos_proxima_acao.sql (plano docs/superpowers/plans/2026-11-07-processos-sei-p2-proxima-acao.md):
+--   * pela API, movimentação nova exige próxima etapa, responsável (servidor ou setor) e prazo não antes da data,
+--     menos Encerrado e Cancelado (que limpam a próxima ação); a carga (dona da função) não é cobrada;
+--   * o nome do responsável vem do servidor (não se escreve à mão); o processo copia a próxima ação que vale;
+--   * correção de movimentação com próxima ação não a apaga; parâmetros por etapa: lê quem vê, altera quem edita,
+--     ninguém apaga; busca de servidores só com editar e sem curinga.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_compras');
+  srv uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'servidores');
+  srv_nome text; srv_mat text;
+  proc uuid; a1 uuid; r text; x text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF srv IS NULL THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: servidor semeado ausente'); END IF;
+  -- servidor semeado com matrícula e ativo (a busca usa os dois)
+  UPDATE public.servidores SET matricula = 'P2-MAT-01', ativo = true WHERE id = srv;
+  SELECT nome_completo, matricula INTO srv_nome, srv_mat FROM public.servidores WHERE id = srv;
+  FOREACH x IN ARRAY ARRAY['public.compras_etapa_parametros_carimbar()', 'public.processo_andamento_responsavel_nome()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  IF has_function_privilege('anon', 'public.processo_buscar_servidores(text)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: busca de servidores executável por anon');
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processos_licitatorios (numero_processo, ano, objeto)
+  VALUES ('99999.000004/2020.04', 2020, 'Objeto de teste P2') RETURNING id INTO proc;
+  PERFORM set_config('request.jwt.claims', '', true);
+
+  -- obrigatoriedade pela API
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao) VALUES (%L, ''2020-04-01'', ''etp'', ''x'')', proc));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: movimentação sem próxima etapa aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, prazo_proxima) VALUES (%L, ''2020-04-01'', ''etp'', ''x'', ''tr'', ''2020-04-10'')', proc));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: movimentação sem responsável aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor) VALUES (%L, ''2020-04-01'', ''etp'', ''x'', ''tr'', ''IDJUV/PRESI'')', proc));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: movimentação sem prazo aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor, prazo_proxima) VALUES (%L, ''2020-04-01'', ''etp'', ''x'', ''tr'', ''IDJUV/PRESI'', ''2020-03-31'')', proc));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: prazo antes da data aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_servidor_id, responsavel_nome, prazo_proxima) VALUES (%L, ''2020-04-01'', ''etp'', ''ETP pronto'', ''tr'', %L, ''Nome forjado'', ''2020-04-15'')', proc, srv));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: movimentação completa recusada (' || r || ')'); END IF;
+  -- sql_como desfaz; grava de novo (como dono, o mesmo caminho dos gatilhos) para seguir
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_servidor_id, responsavel_nome, prazo_proxima)
+  VALUES (proc, '2020-04-01', 'etp', 'ETP pronto', 'tr', srv, 'Nome forjado', '2020-04-15') RETURNING id INTO a1;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF (SELECT responsavel_nome FROM public.processo_andamentos WHERE id = a1) IS DISTINCT FROM srv_nome THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: nome do responsável não veio do servidor');
+  END IF;
+  r := (SELECT proxima_etapa || '|' || proximo_responsavel_servidor_id::text || '|' || proximo_responsavel_nome || '|' || prazo_proxima_acao::text
+          FROM public.processos_licitatorios WHERE id = proc);
+  IF r IS DISTINCT FROM 'tr|' || srv::text || '|' || srv_nome || '|2020-04-15' THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: processo não copiou a próxima ação (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+
+  -- correção não apaga a próxima ação; nome não se troca à mão
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'UPDATE public.processo_andamentos SET prazo_proxima = NULL, alteracao_motivo = ''tirar prazo'' WHERE id = %L', a1));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: correção apagou o prazo (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.processo_andamentos SET responsavel_nome = 'Outro nome', prazo_proxima = '2020-04-20', alteracao_motivo = 'prazo novo' WHERE id = a1;
+  PERFORM set_config('request.jwt.claims', '', true);
+  r := (SELECT responsavel_nome || '|' || prazo_proxima::text FROM public.processo_andamentos WHERE id = a1);
+  IF r IS DISTINCT FROM srv_nome || '|2020-04-20' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: nome trocado à mão ou prazo não corrigido (' || COALESCE(r, 'nulo') || ')'); END IF;
+  IF (SELECT prazo_proxima_acao FROM public.processos_licitatorios WHERE id = proc) IS DISTINCT FROM '2020-04-20'::date THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: correção do prazo não recalculou o processo');
+  END IF;
+
+  -- encerrado: não exige e limpa
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor, prazo_proxima) VALUES (%L, ''2020-05-01'', ''encerrado'', ''Arquivado'', ''tr'', ''X'', ''2020-05-02'')', proc));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: encerramento recusado (' || r || ')'); END IF;
+  -- sql_como desfaz; grava de novo como dono para ver a limpeza
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor, prazo_proxima)
+  VALUES (proc, '2020-05-01', 'encerrado', 'Arquivado', 'tr', 'X', '2020-05-02');
+  PERFORM set_config('request.jwt.claims', '', true);
+  r := (SELECT coalesce(proxima_etapa, '-') || '|' || coalesce(prazo_proxima_acao::text, '-') FROM public.processos_licitatorios WHERE id = proc);
+  IF r IS DISTINCT FROM '-|-' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: encerrado manteve a próxima ação (' || COALESCE(r, 'nulo') || ')'); END IF;
+
+  -- parâmetros por etapa
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT dias_prazo::text FROM public.compras_etapa_parametros WHERE etapa = ''etp''');
+  IF r IS DISTINCT FROM '15' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: visualizar não lê os prazos por etapa (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', 'SELECT count(*)::text FROM public.compras_etapa_parametros');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: módulo sem permissão lê prazos (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_vis, 'authenticated', 'UPDATE public.compras_etapa_parametros SET dias_prazo = 99 WHERE etapa = ''etp''');
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: visualizar altera prazos (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', 'UPDATE public.compras_etapa_parametros SET dias_prazo = 20 WHERE etapa = ''etp''');
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: editor não altera prazos (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', 'DELETE FROM public.compras_etapa_parametros WHERE etapa = ''etp''');
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: prazo por etapa apagado (' || r || ')'); END IF;
+
+  -- busca de servidores
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT count(*)::text FROM public.processo_buscar_servidores(%L)', srv_mat));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: só visualizar busca servidores (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT string_agg(id::text, '','') FROM public.processo_buscar_servidores(%L)', srv_mat));
+  IF r IS DISTINCT FROM srv::text THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: busca pela matrícula (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', 'SELECT count(*)::text FROM public.processo_buscar_servidores(''%%%'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: curinga lista servidores (' || COALESCE(r, 'nulo') || ')'); END IF;
+
+  PERFORM pg_temp.nota('COMPRAS PROCESSOS P2: próxima etapa, responsável e prazo obrigatórios pela API, nome do responsável do servidor, processo com a próxima ação, correção sem apagar, encerrado limpa, prazos por etapa e busca de servidores verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Financeiro e contratos: gatilhos de saldo (TRIGGERS LIGADOS)
