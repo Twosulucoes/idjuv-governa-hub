@@ -201,6 +201,25 @@ INSERT INTO public.cms_categorias (id, nome, slug, descricao, cor, icone, destin
 
 
 --
+-- Data for Name: compras_etapa_parametros; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('271c638a-d083-41da-822e-648b73f040e0', 'abertura', 5, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('9202ffab-5d1d-4cdd-a19f-c5dbc67a81cb', 'dfd', 10, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('691cb659-ee92-4b27-a595-440dd7ff4d5e', 'etp', 15, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('a139a895-a960-418b-b731-09c35ac7e9e9', 'tr', 10, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('ba07d80b-996e-4e13-85b7-24cf589296ad', 'cotacao', 15, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('90903198-38fe-4c1e-9fd5-133f151687d1', 'levantamento_tecnico', 10, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('07185da7-e4bd-4d90-922e-27682297577a', 'instrucao_adesao', 10, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('b69e36bf-73e5-4b9c-8e41-9a060ae435ab', 'analise_juridica', 10, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('9dfc1699-0290-44e5-9dfa-98653c14a125', 'selecao', 30, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('d78661c8-1322-4cd1-a428-b0232f793d15', 'contrato', 10, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('1508cf58-ea66-409d-a747-3520bb89fc2d', 'execucao', 30, 15, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('ebb1eb5e-4e06-4544-8dab-376520716256', 'encerrado', 30, 365, '2026-11-07 04:09:40.929165+00', NULL);
+INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_parado, updated_at, updated_by) VALUES ('01a54564-9152-4e71-b06c-cd67d8015b6c', 'cancelado', 30, 365, '2026-11-07 04:09:40.929165+00', NULL);
+
+
+--
 -- Data for Name: config_agrupamento_unidades; Type: TABLE DATA; Schema: public; Owner: -
 --
 

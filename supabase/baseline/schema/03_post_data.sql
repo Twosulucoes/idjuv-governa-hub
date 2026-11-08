@@ -622,6 +622,22 @@ ALTER TABLE ONLY public.composicao_cargos
 
 
 --
+-- Name: compras_etapa_parametros compras_etapa_parametros_etapa_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.compras_etapa_parametros
+    ADD CONSTRAINT compras_etapa_parametros_etapa_key UNIQUE (etapa);
+
+
+--
+-- Name: compras_etapa_parametros compras_etapa_parametros_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.compras_etapa_parametros
+    ADD CONSTRAINT compras_etapa_parametros_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: conciliacoes_inventario conciliacoes_inventario_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10492,6 +10508,13 @@ CREATE TRIGGER trg_comissoes_membros_validar BEFORE INSERT OR UPDATE ON public.c
 
 
 --
+-- Name: compras_etapa_parametros trg_compras_etapa_parametros_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_compras_etapa_parametros_carimbar BEFORE INSERT OR UPDATE ON public.compras_etapa_parametros FOR EACH ROW EXECUTE FUNCTION public.compras_etapa_parametros_carimbar();
+
+
+--
 -- Name: config_envio trg_config_envio_autoria; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11154,6 +11177,13 @@ CREATE TRIGGER trg_processo_andamentos_no_processo AFTER INSERT ON public.proces
 --
 
 CREATE TRIGGER trg_processo_andamentos_registrar_alteracao AFTER UPDATE ON public.processo_andamentos FOR EACH ROW EXECUTE FUNCTION public.processo_andamento_registrar_alteracao();
+
+
+--
+-- Name: processo_andamentos trg_processo_andamentos_responsavel_nome; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_processo_andamentos_responsavel_nome BEFORE INSERT OR UPDATE ON public.processo_andamentos FOR EACH ROW EXECUTE FUNCTION public.processo_andamento_responsavel_nome();
 
 
 --
@@ -18697,6 +18727,14 @@ ALTER TABLE ONLY public.processo_andamentos
 
 
 --
+-- Name: processo_andamentos processo_andamentos_responsavel_servidor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_andamentos
+    ADD CONSTRAINT processo_andamentos_responsavel_servidor_id_fkey FOREIGN KEY (responsavel_servidor_id) REFERENCES public.servidores(id) ON DELETE SET NULL;
+
+
+--
 -- Name: processo_checklist_respostas processo_checklist_respostas_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20080,6 +20118,12 @@ ALTER TABLE public.comissoes_membros ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.composicao_cargos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: compras_etapa_parametros; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.compras_etapa_parametros ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: conciliacoes_inventario; Type: ROW SECURITY; Schema: public; Owner: -
@@ -23573,6 +23617,13 @@ CREATE POLICY rls_insert ON public.composicao_cargos FOR INSERT TO authenticated
 
 
 --
+-- Name: compras_etapa_parametros rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.compras_etapa_parametros FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
+
+
+--
 -- Name: conciliacoes_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -25365,6 +25416,13 @@ CREATE POLICY rls_select ON public.comissoes_membros FOR SELECT TO authenticated
 --
 
 CREATE POLICY rls_select ON public.composicao_cargos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)));
+
+
+--
+-- Name: compras_etapa_parametros rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.compras_etapa_parametros FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))));
 
 
 --
@@ -27256,6 +27314,13 @@ CREATE POLICY rls_update ON public.comissoes_membros FOR UPDATE TO authenticated
 --
 
 CREATE POLICY rls_update ON public.composicao_cargos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)));
+
+
+--
+-- Name: compras_etapa_parametros rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.compras_etapa_parametros FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
 
 
 --

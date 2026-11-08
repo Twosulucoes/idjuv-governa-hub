@@ -2,7 +2,8 @@
  * Linha do tempo do processo no SEI: as movimentações com data, da mais recente para a mais antiga, e depois as sem
  * data (registros antigos da planilha), que ficam numa lista para preencher a data ou excluir. Quem tem
  * compras.processos.editar corrige (com motivo) ou exclui (exclusão lógica, com motivo); tudo vai para a trilha
- * "Correções e exclusões" (migração 20261120090000).
+ * "Correções e exclusões" (migração 20261120090000). Cada movimentação mostra a próxima ação (P2, migração
+ * 20261122090000); o selo do prazo só aparece na que vale (a mais recente com data).
  */
 
 import { useState } from "react";
@@ -16,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDateBR } from "@/lib/formatters";
+import { ResumoProximaAcao } from "@/components/compras/processos/ProximaAcao";
 import { rotuloEtapa, type ProcessoAndamento, type ProcessoAndamentoAlteracao } from "@/types/processos";
 
 interface Props {
@@ -95,7 +97,7 @@ export function ProcessoAndamentoTab({
     </Button>
   );
 
-  const item = (a: ProcessoAndamento) => {
+  const item = (a: ProcessoAndamento, indice: number) => {
     const registro = dataDoRegistro(a.created_at);
     return (
       <li key={a.id} className="relative">
@@ -112,6 +114,13 @@ export function ProcessoAndamentoTab({
               {a.setor && <span className="text-muted-foreground">{a.setor}</span>}
             </div>
             <p className="mt-1 text-sm">{a.situacao}</p>
+            <ResumoProximaAcao
+              proxima_etapa={a.proxima_etapa}
+              responsavel_nome={a.responsavel_nome}
+              responsavel_setor={a.responsavel_setor}
+              prazo={a.prazo_proxima}
+              semSelo={!a.data_informada || indice > 0}
+            />
             <p className="mt-1 text-xs text-muted-foreground">
               Registrada no sistema em {formatDateBR(registro)}
               {a.alterado_em && ` · corrigida em ${formatDateBR(dataDoRegistro(a.alterado_em))}`}
@@ -165,7 +174,7 @@ export function ProcessoAndamentoTab({
           {semData.length > 0 && (
             <section aria-label="Movimentações sem data" className="space-y-2">
               <h3 className="text-sm font-medium text-muted-foreground">Sem data (para preencher)</h3>
-              <ol className="relative space-y-4 border-l border-dashed border-border pl-6">{semData.map(item)}</ol>
+              <ol className="relative space-y-4 border-l border-dashed border-border pl-6">{semData.map((a) => item(a, -1))}</ol>
             </section>
           )}
         </>
