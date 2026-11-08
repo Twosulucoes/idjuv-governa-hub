@@ -97,6 +97,10 @@ INSERT INTO seed_ov VALUES
   -- compras_etapa_parametros já vem com uma linha por etapa (catálogo, PK em etapa): a linha de teste usa `cancelado`,
   -- apagada do catálogo logo depois das personas (como regra_lancamento); dias entre 1 e 365 (migração 20261122090000)
   ('compras_etapa_parametros', '{"etapa":"cancelado","dias_prazo":30,"dias_limite_parado":365}'),
+  -- compras_prazo_tipos também é catálogo (UNIQUE em tipo): a linha de teste usa `prestacao_contas`, apagada como a
+  -- de cima; prazo do processo com responsável e tipo que a API pode criar (migração 20261128090000)
+  ('compras_prazo_tipos', '{"tipo":"prestacao_contas","rotulo":"Prestação de contas","avisos_padrao":"{15,7,3,1}"}'),
+  ('processo_prazos', '{"tipo":"empenho","descricao":"Semente","data_limite":"2030-01-01","responsavel_setor":"Setor Teste","responsavel_servidor_id":null,"situacao":"aberto","andamento_id":null,"avisos_dias":"{1}"}'),
   -- comissão de inventário, licitação ou fiscalização exige objeto (comissoes_objeto_obrigatorio_check): `outra` não
   ('comissoes', '{"tipo":"outra"}'),
   -- código da vaga em maiúsculas (vagas_cargo_codigo_check, migração 20261012150000)
@@ -348,6 +352,7 @@ SET session_replication_role = replica;  -- semeia sem disparar triggers nem FKs
 DO $$ BEGIN  -- vaga para a linha de teste de regra_lancamento (ver seed_ov); banco anterior à regra de setor: nada
   IF to_regclass('public.regra_lancamento') IS NOT NULL THEN DELETE FROM public.regra_lancamento WHERE modulo = 'arbitros'; END IF;
   IF to_regclass('public.compras_etapa_parametros') IS NOT NULL THEN DELETE FROM public.compras_etapa_parametros WHERE etapa = 'cancelado'; END IF;
+  IF to_regclass('public.compras_prazo_tipos') IS NOT NULL THEN DELETE FROM public.compras_prazo_tipos WHERE tipo = 'prestacao_contas'; END IF;
 END $$;
 
 CREATE TEMP TABLE persona (nome text PRIMARY KEY, uid uuid);
@@ -8440,6 +8445,179 @@ BEGIN
   IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: curinga lista servidores (' || COALESCE(r, 'nulo') || ')'); END IF;
 
   PERFORM pg_temp.nota('COMPRAS PROCESSOS P2: próxima etapa, responsável e prazo obrigatórios pela API, nome do responsável do servidor, processo com a próxima ação, correção sem apagar, encerrado limpa, prazos por etapa e busca de servidores verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Compras: processos, P3 — prazos, avisos e pop-up de vencidos (migração 20261128090000) (TRIGGERS LIGADOS)
+-- Migração 20261128090000_compras_processos_prazos.sql (plano docs/superpowers/plans/2026-11-08-processos-sei-p3a-prazos.md):
+--   * a próxima ação da movimentação que vale vira prazo "proxima_acao" (aberto, avisos do tipo); a correção do prazo
+--     dela remarca com o motivo da correção e vai para a trilha; movimentação nova cumpre o prazo anterior;
+--   * pela API: a próxima ação não se lança nem se muda à mão (só os avisos); prazo novo exige responsável e nasce
+--     aberto; remarcar exige motivo e data não passada; cancelar exige motivo; encerrado não muda; ninguém apaga;
+--   * trilha das remarcações só leitura; compras_meus_prazos: editor vê todos, os demais só os seus (pelo servidor
+--     do perfil), com vencidos e parados; gatilhos sem EXECUTE para a API.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_compras');
+  srv uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'servidores');
+  srv_ant uuid;
+  hoje date := (now() AT TIME ZONE 'America/Boa_Vista')::date;
+  proc uuid; proc2 uuid; a1 uuid; a2 uuid; pz_px uuid; pz uuid; r text; x text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  FOREACH x IN ARRAY ARRAY['public.processo_prazo_preparar()', 'public.processo_prazo_registrar_remarcacao()',
+                           'public.processo_prazo_responsavel_nome()',
+                           'public.compras_prazo_tipos_preparar()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  IF has_function_privilege('anon', 'public.compras_meus_prazos()', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: compras_meus_prazos executável por anon');
+  END IF;
+  IF public.compras_normalizar_avisos('{2,30,2,0,400}') IS DISTINCT FROM '{30,2,1}'::integer[] THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: normalização dos avisos (' || public.compras_normalizar_avisos('{2,30,2,0,400}')::text || ')');
+  END IF;
+
+  -- próxima ação vencida vira prazo aberto, com o nome do servidor e os avisos do tipo
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processos_licitatorios (numero_processo, ano, objeto)
+  VALUES ('99999.000005/2020.05', 2020, 'Objeto de teste P3') RETURNING id INTO proc;
+  INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_servidor_id, prazo_proxima)
+  VALUES (proc, hoje - 5, 'etp', 'ETP pronto', 'tr', srv, hoje - 2) RETURNING id INTO a1;
+  PERFORM set_config('request.jwt.claims', '', true);
+  SELECT id INTO pz_px FROM public.processo_prazos WHERE andamento_id = a1;
+  r := (SELECT tipo || '|' || situacao || '|' || data_limite::text || '|' || avisos_dias::text || '|' || (responsavel_nome = (SELECT nome_completo FROM public.servidores WHERE id = srv))::text
+          FROM public.processo_prazos WHERE id = pz_px);
+  IF r IS DISTINCT FROM 'proxima_acao|aberto|' || (hoje - 2)::text || '|{3,1}|true' THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: prazo da próxima ação (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+
+  -- lançar à mão
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_prazos (processo_id, tipo, data_limite, responsavel_setor) VALUES (%L, ''proxima_acao'', %L, ''X'')', proc, hoje + 5));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: próxima ação lançada à mão (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_prazos (processo_id, tipo, data_limite) VALUES (%L, ''empenho'', %L)', proc, hoje + 5));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: prazo sem responsável aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_vis, 'authenticated', format(
+    'INSERT INTO public.processo_prazos (processo_id, tipo, data_limite, responsavel_setor) VALUES (%L, ''empenho'', %L, ''X'')', proc, hoje + 5));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: só visualizar lança prazo (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'WITH i AS (INSERT INTO public.processo_prazos (processo_id, tipo, data_limite, responsavel_setor, situacao) VALUES (%L, ''empenho'', %L, ''DICOF'', ''cumprido'') RETURNING situacao, avisos_dias) SELECT situacao || ''|'' || avisos_dias::text FROM i', proc, hoje + 5));
+  IF r IS DISTINCT FROM 'aberto|{5,2,1}' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: prazo novo não nasceu aberto com os avisos do tipo (' || r || ')'); END IF;
+  -- sql_como desfaz; grava como dono para seguir
+  INSERT INTO public.processo_prazos (processo_id, tipo, data_limite, responsavel_setor, avisos_dias)
+  VALUES (proc, 'empenho', hoje + 5, 'DICOF', '{5,2,1}') RETURNING id INTO pz;
+
+  -- remarcar
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.processo_prazos SET data_limite = %L WHERE id = %L', hoje + 9, pz));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: remarcação sem motivo aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.processo_prazos SET data_limite = %L, remarcacao_motivo = ''atraso'' WHERE id = %L', hoje - 1, pz));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: remarcação para o passado aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_vis, 'authenticated', format('UPDATE public.processo_prazos SET data_limite = %L, remarcacao_motivo = ''atraso'' WHERE id = %L', hoje + 9, pz));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: só visualizar remarca (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'WITH u AS (UPDATE public.processo_prazos SET data_limite = %L, remarcacao_motivo = ''Aguardando a SEFAZ'' WHERE id = %L RETURNING situacao) SELECT situacao FROM u', hoje + 9, pz));
+  IF r IS DISTINCT FROM 'remarcado' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: remarcação não marcou remarcado (' || r || ')'); END IF;
+  UPDATE public.processo_prazos SET data_limite = hoje + 9, remarcacao_motivo = 'Aguardando a SEFAZ', situacao = 'remarcado' WHERE id = pz;
+  r := (SELECT data_anterior::text || '|' || data_nova::text || '|' || motivo FROM public.processo_prazo_remarcacoes WHERE prazo_id = pz);
+  IF r IS DISTINCT FROM (hoje + 5)::text || '|' || (hoje + 9)::text || '|Aguardando a SEFAZ' THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: trilha da remarcação (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+
+  -- cancelar, cumprir e encerrado travado; ninguém apaga
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.processo_prazos SET situacao = ''cancelado'' WHERE id = %L', pz));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: cancelamento sem motivo aceito (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'WITH u AS (UPDATE public.processo_prazos SET situacao = ''cumprido'' WHERE id = %L RETURNING concluido_por, concluido_em) SELECT (concluido_por = %L AND concluido_em IS NOT NULL)::text FROM u', pz, u_ed));
+  IF r IS DISTINCT FROM 'true' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: cumprir não carimbou autoria (' || r || ')'); END IF;
+  UPDATE public.processo_prazos SET situacao = 'cancelado', conclusao_motivo = 'Empenho dispensado' WHERE id = pz;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.processo_prazos SET situacao = ''aberto'' WHERE id = %L', pz));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: prazo encerrado reaberto (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'WITH d AS (DELETE FROM public.processo_prazos WHERE id = %L RETURNING 1) SELECT count(*)::text FROM d', pz));
+  IF r IS DISTINCT FROM '0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: prazo apagado pela API (' || r || ')'); END IF;
+
+  -- próxima ação: só os avisos mudam pela API
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.processo_prazos SET data_limite = %L, remarcacao_motivo = ''x y z'' WHERE id = %L', hoje + 9, pz_px));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: próxima ação remarcada à mão (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('UPDATE public.processo_prazos SET avisos_dias = ''{7}'' WHERE id = %L', pz_px));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: avisos da próxima ação não mudam (' || r || ')'); END IF;
+
+  -- pop-up: editor vê o vencido; visualizar sem ser o responsável não vê; sendo o responsável, vê
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'SELECT string_agg(categoria || '':'' || dias::text || '':'' || pode_editar::text, '','') FROM public.compras_meus_prazos() WHERE processo_id = %L', proc));
+  IF r IS DISTINCT FROM 'vencido:-2:true' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: editor não vê o vencido (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT count(*)::text FROM public.compras_meus_prazos() WHERE processo_id = %L', proc));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: visualizar vê prazo de outro (' || r || ')'); END IF;
+  SELECT servidor_id INTO srv_ant FROM public.profiles WHERE id = u_vis;
+  UPDATE public.profiles SET servidor_id = srv WHERE id = u_vis;
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT string_agg(categoria || '':'' || pode_editar::text || '':'' || pode_ver::text, '','') FROM public.compras_meus_prazos() WHERE processo_id = %L', proc));
+  IF r IS DISTINCT FROM 'vencido:false:true' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: responsável não vê o próprio vencido (' || r || ')'); END IF;
+  UPDATE public.profiles SET servidor_id = srv_ant WHERE id = u_vis;
+
+  -- correção do prazo da movimentação remarca com o motivo dela; movimentação nova cumpre a anterior
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.processo_andamentos SET prazo_proxima = hoje + 4, alteracao_motivo = 'Prazo combinado com a PGE' WHERE id = a1;
+  PERFORM set_config('request.jwt.claims', '', true);
+  r := (SELECT situacao || '|' || data_limite::text || '|' || avisos_dias::text FROM public.processo_prazos WHERE id = pz_px);
+  IF r IS DISTINCT FROM 'remarcado|' || (hoje + 4)::text || '|{3,1}' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: correção não remarcou a próxima ação (' || COALESCE(r, 'nulo') || ')'); END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.processo_prazo_remarcacoes WHERE prazo_id = pz_px AND motivo = 'Prazo combinado com a PGE' AND data_nova = hoje + 4) THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: trilha sem a remarcação da próxima ação');
+  END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor, prazo_proxima)
+  VALUES (proc, hoje, 'tr', 'TR em elaboração', 'cotacao', 'IDJUV/DIRAF', hoje + 10) RETURNING id INTO a2;
+  PERFORM set_config('request.jwt.claims', '', true);
+  r := (SELECT string_agg(situacao || ':' || coalesce(conclusao_motivo, '-'), ',' ORDER BY created_at) FROM public.processo_prazos WHERE processo_id = proc AND tipo = 'proxima_acao');
+  IF r IS DISTINCT FROM 'cumprido:Nova movimentação registrada,aberto:-' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: movimentação nova não cumpriu a anterior (' || COALESCE(r, 'nulo') || ')'); END IF;
+  -- excluir a movimentação cancela o prazo dela e reabre o da anterior
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.processo_andamentos SET excluido_em = now(), excluido_motivo = 'Lançada no processo errado' WHERE id = a2;
+  PERFORM set_config('request.jwt.claims', '', true);
+  r := (SELECT string_agg(situacao, ',' ORDER BY created_at) FROM public.processo_prazos WHERE processo_id = proc AND tipo = 'proxima_acao');
+  IF r IS DISTINCT FROM 'aberto,cancelado' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: exclusão da movimentação (' || COALESCE(r, 'nulo') || ')'); END IF;
+
+  -- trilha: lê com a permissão; não grava nem apaga pela API
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT count(*)::text FROM public.processo_prazo_remarcacoes WHERE processo_id = %L', proc));
+  IF r IS DISTINCT FROM '2' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: visualizar não lê a trilha (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', format('SELECT count(*)::text FROM public.processo_prazo_remarcacoes WHERE processo_id = %L', proc));
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: módulo sem permissão lê a trilha (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_prazo_remarcacoes (prazo_id, processo_id, data_anterior, data_nova, motivo) VALUES (%L, %L, %L, %L, ''falso'')', pz, proc, hoje, hoje));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: trilha gravada pela API (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format('DELETE FROM public.processo_prazo_remarcacoes WHERE processo_id = %L', proc));
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: trilha apagada pela API (' || r || ')'); END IF;
+
+  -- parado: sem movimentação há 40 dias (limite da etapa etp: 15), prazo ainda no futuro
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processos_licitatorios (numero_processo, ano, objeto)
+  VALUES ('99999.000006/2020.06', 2020, 'Objeto parado P3') RETURNING id INTO proc2;
+  INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor, prazo_proxima)
+  VALUES (proc2, hoje - 40, 'etp', 'Parado', 'tr', 'IDJUV/DIRAF', hoje + 30);
+  PERFORM set_config('request.jwt.claims', '', true);
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format(
+    'SELECT string_agg(categoria || '':'' || dias::text, '','') FROM public.compras_meus_prazos() WHERE processo_id = %L', proc2));
+  IF r IS DISTINCT FROM 'parado:40' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: processo parado (' || r || ')'); END IF;
+
+  -- tipos: lê quem vê, altera quem edita (o 1 sempre fica), ninguém apaga
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT avisos_padrao::text FROM public.compras_prazo_tipos WHERE tipo = ''vigencia_ata''');
+  IF r IS DISTINCT FROM '{30,15,7,1}' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: visualizar não lê os tipos (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_vis, 'authenticated', 'UPDATE public.compras_prazo_tipos SET avisos_padrao = ''{9}'' WHERE tipo = ''empenho''');
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: visualizar altera avisos (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated',
+    'WITH u AS (UPDATE public.compras_prazo_tipos SET avisos_padrao = ''{10,4}'' WHERE tipo = ''empenho'' RETURNING avisos_padrao) SELECT avisos_padrao::text FROM u');
+  IF r IS DISTINCT FROM '{10,4,1}' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: editor não altera avisos ou perdeu o 1 (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', 'UPDATE public.compras_prazo_tipos SET avisos_padrao = ''{0}'' WHERE tipo = ''empenho''');
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: aviso de 0 dia aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', 'DELETE FROM public.compras_prazo_tipos WHERE tipo = ''empenho''');
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P3: tipo de prazo apagado (' || r || ')'); END IF;
+
+  PERFORM pg_temp.nota('COMPRAS PROCESSOS P3: próxima ação vira prazo, regras da API (responsável, aberto, remarcar com motivo e sem passado, cancelar com motivo, encerrado travado, sem apagar), trilha, correção e exclusão da movimentação, pop-up por responsável, parado e avisos por tipo verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Financeiro e contratos: gatilhos de saldo (TRIGGERS LIGADOS)

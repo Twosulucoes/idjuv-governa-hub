@@ -375,6 +375,15 @@ REVOKE EXECUTE ON FUNCTION public.processo_proxima_acao_falta(text, date, text, 
 GRANT EXECUTE ON FUNCTION public.processo_proxima_acao_falta(text, date, text, uuid, text, date) TO authenticated;
 REVOKE ALL ON FUNCTION public.processo_buscar_servidores(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.processo_buscar_servidores(text) TO authenticated;
+-- prazos e avisos dos processos SEI, P3 (migração 20261128090000)
+REVOKE EXECUTE ON FUNCTION public.compras_prazo_tipos_preparar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.processo_prazo_preparar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.processo_prazo_responsavel_nome() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.processo_prazo_registrar_remarcacao() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.compras_normalizar_avisos(integer[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.compras_normalizar_avisos(integer[]) TO authenticated;
+REVOKE ALL ON FUNCTION public.compras_meus_prazos() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.compras_meus_prazos() TO authenticated;
 -- teste do RH de 06/11/2026 (migração 20261121090000)
 REVOKE EXECUTE ON FUNCTION public.registros_ponto_validar_falta() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rh_dia_nao_util(date) TO authenticated;
