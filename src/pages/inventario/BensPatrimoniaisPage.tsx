@@ -18,7 +18,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useBensPatrimoniais, useCreateBem } from "@/hooks/usePatrimonio";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CamposImovel, IMOVEL_VAZIO, imovelParaBanco, type DadosImovel } from "@/components/inventario/CamposImovel";
+import { CATEGORIAS_BEM, useBensPatrimoniais, useCreateBem } from "@/hooks/usePatrimonio";
 import { imprimirEtiquetas } from "@/lib/etiquetasPatrimonio";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,14 +28,6 @@ import { useQuery } from "@tanstack/react-query";
 import { CadastroLoteDialog } from "@/components/inventario/CadastroLoteDialog";
 import { MovimentacaoLoteDialog } from "@/components/inventario/MovimentacaoLoteDialog";
 
-const CATEGORIAS_BEM = [
-  { value: 'mobiliario', label: 'Mobiliário' },
-  { value: 'informatica', label: 'Informática' },
-  { value: 'equipamento_esportivo', label: 'Equipamento esportivo' },
-  { value: 'veiculo', label: 'Veículo' },
-  { value: 'eletrodomestico', label: 'Eletrodoméstico' },
-  { value: 'outros', label: 'Outros' },
-];
 
 // Valores do CHECK da coluna bens_patrimoniais.situacao
 const SITUACOES_BEM: { value: string; label: string; tom: TomStatus }[] = [
@@ -113,7 +107,7 @@ const colunas: ColunaTabela<Bem>[] = [
   {
     id: "valor",
     cabecalho: "Valor",
-    celula: (bem) => bem.valor_aquisicao ? moeda.format(bem.valor_aquisicao) : '-',
+    celula: (bem) => bem.valor_aquisicao != null ? moeda.format(bem.valor_aquisicao) : <span className="text-muted-foreground">Sem valor</span>,
     ordenarPor: (bem) => bem.valor_aquisicao,
     alinhamento: "direita",
   },
@@ -124,6 +118,23 @@ const colunas: ColunaTabela<Bem>[] = [
     ordenarPor: (bem) => bem.situacao,
   },
 ];
+
+// Formulário do "Novo bem". Bem antigo sem documento: valor e data ficam vazios (fora da soma em reais).
+const novoBemVazio = () => ({
+  descricao: '',
+  categoria_bem: '' as string,
+  marca: '',
+  modelo: '',
+  numero_serie: '',
+  estado_conservacao: 'bom',
+  valor_aquisicao: '',
+  data_aquisicao: new Date().toISOString().split('T')[0],
+  valor_desconhecido: false,
+  imovel: IMOVEL_VAZIO as DadosImovel,
+  observacao: '',
+  unidade_local_id: '',
+  responsavel_id: '',
+});
 
 export default function BensPatrimoniaisPage() {
   const [searchParams] = useSearchParams();
@@ -160,19 +171,7 @@ export default function BensPatrimoniaisPage() {
   };
 
   // Form state para novo bem
-  const [novoBem, setNovoBem] = useState({
-    descricao: '',
-    categoria_bem: '' as any,
-    marca: '',
-    modelo: '',
-    numero_serie: '',
-    estado_conservacao: 'bom',
-    valor_aquisicao: 0,
-    data_aquisicao: new Date().toISOString().split('T')[0],
-    observacao: '',
-    unidade_local_id: '',
-    responsavel_id: '',
-  });
+  const [novoBem, setNovoBem] = useState(novoBemVazio);
 
   // Query para unidades locais
   const { data: unidadesLocais } = useQuery({
@@ -205,12 +204,18 @@ export default function BensPatrimoniaisPage() {
 
   const handleCriarBem = async () => {
     const desc = novoBem.descricao.trim();
-    if (!desc || !novoBem.categoria_bem || !novoBem.valor_aquisicao || !novoBem.unidade_local_id) {
-      toast.error('Preencha os campos obrigatórios (Descrição, Categoria, Valor e Unidade Local)');
+    const valor = Number.parseFloat(novoBem.valor_aquisicao.replace(',', '.'));
+    const temValor = !novoBem.valor_desconhecido;
+    if (!desc || !novoBem.categoria_bem || !novoBem.unidade_local_id || (temValor && !Number.isFinite(valor))) {
+      toast.error('Preencha os campos obrigatórios (Descrição, Categoria, Valor e Unidade Local). Bem antigo sem valor: marque "Valor e data desconhecidos".');
       return;
     }
-    if (novoBem.valor_aquisicao < 0) {
+    if (temValor && valor < 0) {
       toast.error('Valor de aquisição não pode ser negativo');
+      return;
+    }
+    if (temValor && !novoBem.data_aquisicao) {
+      toast.error('Informe a data de aquisição ou marque "Valor e data desconhecidos".');
       return;
     }
 
@@ -222,8 +227,9 @@ export default function BensPatrimoniaisPage() {
         modelo: novoBem.modelo.trim() || null,
         numero_serie: novoBem.numero_serie.trim() || null,
         estado_conservacao: novoBem.estado_conservacao,
-        valor_aquisicao: novoBem.valor_aquisicao,
-        data_aquisicao: novoBem.data_aquisicao,
+        valor_aquisicao: temValor ? valor : null,
+        data_aquisicao: temValor ? novoBem.data_aquisicao : null,
+        ...(novoBem.categoria_bem === 'imovel' ? imovelParaBanco(novoBem.imovel) : {}),
         observacao: novoBem.observacao.trim() || null,
         situacao: 'ativo',
         // numero_patrimonio omitido: o banco gera o tombamento e o codigo_qr.
@@ -231,19 +237,7 @@ export default function BensPatrimoniaisPage() {
         responsavel_id: novoBem.responsavel_id || null,
       });
       setModalAberto(false);
-      setNovoBem({
-        descricao: '',
-        categoria_bem: '' as any,
-        marca: '',
-        modelo: '',
-        numero_serie: '',
-        estado_conservacao: 'bom',
-        valor_aquisicao: 0,
-        data_aquisicao: new Date().toISOString().split('T')[0],
-        observacao: '',
-        unidade_local_id: '',
-        responsavel_id: '',
-      });
+      setNovoBem(novoBemVazio());
     } catch (error) {
       // Erro tratado no hook
     }
@@ -350,6 +344,12 @@ export default function BensPatrimoniaisPage() {
                       </Select>
                     </div>
                   </div>
+                  {novoBem.categoria_bem === 'imovel' && (
+                    <CamposImovel
+                      valor={novoBem.imovel}
+                      aoMudar={imovel => setNovoBem(prev => ({ ...prev, imovel }))}
+                    />
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="marca">Marca</Label>
@@ -381,25 +381,37 @@ export default function BensPatrimoniaisPage() {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="valor">Valor de Aquisição *</Label>
+                      <Label htmlFor="valor">Valor de Aquisição{novoBem.valor_desconhecido ? '' : ' *'}</Label>
                       <Input 
                         id="valor" 
                         type="number"
                         step="0.01"
                         min="0"
-                        value={novoBem.valor_aquisicao}
-                        onChange={e => setNovoBem(prev => ({ ...prev, valor_aquisicao: Math.max(0, parseFloat(e.target.value) || 0) }))}
+                        disabled={novoBem.valor_desconhecido}
+                        value={novoBem.valor_desconhecido ? '' : novoBem.valor_aquisicao}
+                        onChange={e => setNovoBem(prev => ({ ...prev, valor_aquisicao: e.target.value }))}
                       />
                     </div>
                   </div>
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="valor-desconhecido"
+                      checked={novoBem.valor_desconhecido}
+                      onCheckedChange={v => setNovoBem(prev => ({ ...prev, valor_desconhecido: v === true }))}
+                    />
+                    <Label htmlFor="valor-desconhecido" className="font-normal leading-snug">
+                      Valor e data desconhecidos (bem antigo, sem nota). O bem fica fora da soma em reais.
+                    </Label>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="data">Data de Aquisição *</Label>
+                      <Label htmlFor="data">Data de Aquisição{novoBem.valor_desconhecido ? '' : ' *'}</Label>
                       <Input 
                         id="data" 
                         type="date"
                         max={new Date().toISOString().split('T')[0]}
-                        value={novoBem.data_aquisicao}
+                        disabled={novoBem.valor_desconhecido}
+                        value={novoBem.valor_desconhecido ? '' : novoBem.data_aquisicao}
                         onChange={e => setNovoBem(prev => ({ ...prev, data_aquisicao: e.target.value }))}
                       />
                     </div>

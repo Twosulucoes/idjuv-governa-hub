@@ -170,7 +170,10 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `useModelosRelatorio(modulo)`, `useSalvarModeloRelatorio` e `useExcluirModeloRelatorio` leem e gravam os modelos
   em `relatorios_modelos` (o RLS decide quem vê o compartilhado). Montagem, filtros, totais e exportação são puros, em
   `src/lib/relatoriosDinamicos/`; a tela é `/financeiro/relatorios`. Fonte nova entra no catálogo, não na tela.
-- **Patrimônio**: `usePatrimonio`, `useCadastroLote`, `useCadastroBemSimplificado`,
+- **Patrimônio**: `usePatrimonio` (com `CATEGORIAS_BEM`/`rotuloCategoriaBem`, os rótulos de categoria da lista e do
+  painel, e `useEstatisticasUnidadesLocais` para o cartão do painel), `useTiposEspacoUnidade` (tipos de espaço das
+  Unidades Locais: `useTiposEspacoUnidade`, `useSalvarTipoEspaco`, `useExcluirTipoEspaco` e `nomeTipoEspaco(unidade,
+  tipos)` para exibir o tipo; tela `/unidades/tipos-espaco`), `useCadastroLote`, `useCadastroBemSimplificado`,
   `useMovimentacaoLote`, `useAlmoxarifado`, `useColetaOffline`, `useTermosCessao` (termos de cessão da unidade
   local: registro da reserva aprovada e ciclo do SEI; a etapa e a validação ficam em `src/lib/registroSei.ts`, com
   os campos `CamposAtoSei` compartilhados com a designação). Inventário de

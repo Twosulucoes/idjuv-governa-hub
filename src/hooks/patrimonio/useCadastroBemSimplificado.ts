@@ -10,7 +10,7 @@ import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { buscarBemPorCodigo } from "./useBuscarBemPorCodigo";
 
-export type CategoriaBem = "mobiliario" | "informatica" | "equipamento_esportivo" | "veiculo" | "eletrodomestico" | "outros";
+export type CategoriaBem = "mobiliario" | "informatica" | "equipamento_esportivo" | "veiculo" | "eletrodomestico" | "imovel" | "outros";
 export type FormaAquisicao = "compra" | "doacao" | "cessao" | "transferencia";
 export type EstadoConservacao = "otimo" | "bom" | "regular" | "ruim" | "inservivel";
 
@@ -65,6 +65,7 @@ export const CATEGORIAS_LABEL: Record<CategoriaBem, string> = {
   equipamento_esportivo: "Equipamentos Esportivos",
   veiculo: "Veículos e Transporte",
   eletrodomestico: "Eletrodomésticos",
+  imovel: "Imóveis",
   outros: "Outros",
 };
 

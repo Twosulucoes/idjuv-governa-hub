@@ -681,3 +681,12 @@ contracheque) entrou no `01_pre_data.sql` (`rh_dia_nao_util`, `folha_inconsisten
 `trg_registros_ponto_validar_falta`), no `overlay/18_funcoes_rpc.sql` (`fechar_folha` recusa ficha com inconsistência)
 e no `overlay/40_privilegios.sql`. Sem tabela, permissão ou mudança no `rls/mapa.csv`. Testes no bloco
 "RH, teste de 06/11/2026" de `scripts/db/testar-rls.sql`.
+
+As migrações `20261125090000_unidades_locais_tipos_espaco_uc.sql` e `20261125100000_patrimonio_bem_imovel_valor_opcional.sql`
+(teste do Inventário de 07/11/2026) entraram no `01_pre_data.sql` (tabela `unidades_locais_tipos_espaco`, colunas
+`tipo_espaco_id` e `uc_energia` em `unidades_locais`, função `fn_unidades_locais_tipo_espaco`, `imovel` em
+`categoria_bem`, colunas do imóvel e valor/data opcionais em `bens_patrimoniais`), no `02_dados_catalogo.sql` (os tipos de
+espaço que vêm com o sistema, tabela nova nas SEMENTES), no `03_post_data.sql` (chaves, índices, gatilhos, RLS e
+policies) e no `overlay/40_privilegios.sql` (gatilho sem EXECUTE). No `rls/mapa.csv`, a tabela entra como classe
+`permissao` (`escrita=unidades.gerenciar`). Sem permissão nova. Testes no bloco "Inventário, teste de 07/11/2026" de
+`scripts/db/testar-rls.sql`.

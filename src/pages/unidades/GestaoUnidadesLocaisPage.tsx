@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ModuleLayout } from "@/components/layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
@@ -26,19 +26,20 @@ import {
   Building2, 
   MapPin,
   Users,
+  Shapes,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   UnidadeLocal,
   TipoUnidadeLocal,
   StatusUnidadeLocal,
-  TIPO_UNIDADE_LABELS,
   STATUS_UNIDADE_LABELS,
   MUNICIPIOS_RORAIMA,
 } from "@/types/unidadesLocais";
 import { UnidadeLocalForm } from "@/components/unidades/UnidadeLocalForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusUnidadeBadge } from "@/components/unidades/StatusUnidadeBadge";
+import { nomeTipoEspaco, useTiposEspacoUnidade } from "@/hooks/useTiposEspacoUnidade";
 
 function GestaoUnidadesLocaisContent() {
   const navigate = useNavigate();
@@ -52,12 +53,19 @@ function GestaoUnidadesLocaisContent() {
   // Criar/editar unidade exige unidades.gerenciar (o banco também valida).
   const { hasPermission } = useAuth();
   const podeGerenciar = hasPermission("unidades.gerenciar");
+  const { data: tiposEspaco = [] } = useTiposEspacoUnidade();
+  const tipoDe = (unidade: UnidadeLocal) => nomeTipoEspaco(unidade, tiposEspaco);
 
   useEffect(() => {
     loadUnidades();
   }, []);
 
+  // Cada carga ganha um número; só a mais recente grava na tela, para uma carga
+  // antiga (mais lenta) não sobrescrever a lista e os cartões com dados velhos.
+  const cargaAtual = useRef(0);
+
   async function loadUnidades() {
+    const carga = ++cargaAtual.current;
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -67,8 +75,15 @@ function GestaoUnidadesLocaisContent() {
         .order("nome_unidade", { ascending: true });
 
       if (error) throw error;
+      if (carga !== cargaAtual.current) return;
 
-      // Load chefe atual for each unidade
+      // Lista e cartões aparecem já; o chefe de cada unidade chega em seguida.
+      setUnidades((anteriores) => {
+        const chefes = new Map(anteriores.map((u) => [u.id, u.chefe_atual]));
+        return (data || []).map((u) => ({ ...u, chefe_atual: chefes.get(u.id) ?? null }) as UnidadeLocal);
+      });
+      setLoading(false);
+
       const unidadesWithChefe = await Promise.all(
         (data || []).map(async (unidade) => {
           const { data: chefeData } = await supabase.rpc("get_chefe_unidade_atual", {
@@ -81,18 +96,19 @@ function GestaoUnidadesLocaisContent() {
         })
       );
 
-      setUnidades(unidadesWithChefe);
+      if (carga === cargaAtual.current) setUnidades(unidadesWithChefe);
     } catch (error: any) {
+      if (carga !== cargaAtual.current) return;
       console.error("Erro ao carregar unidades:", error);
       toast.error("Erro ao carregar unidades locais");
     } finally {
-      setLoading(false);
+      if (carga === cargaAtual.current) setLoading(false);
     }
   }
 
   const filteredUnidades = unidades.filter((unidade) => {
     const matchesMunicipio = filterMunicipio === "all" || unidade.municipio === filterMunicipio;
-    const matchesTipo = filterTipo === "all" || unidade.tipo_unidade === filterTipo;
+    const matchesTipo = filterTipo === "all" || unidade.tipo_espaco_id === filterTipo;
     const matchesStatus = filterStatus === "all" || unidade.status === filterStatus;
     return matchesMunicipio && matchesTipo && matchesStatus;
   });
@@ -133,8 +149,9 @@ function GestaoUnidadesLocaisContent() {
     {
       id: "tipo",
       cabecalho: "Tipo",
-      celula: (unidade) => <Badge variant="outline">{TIPO_UNIDADE_LABELS[unidade.tipo_unidade]}</Badge>,
-      ordenarPor: (unidade) => TIPO_UNIDADE_LABELS[unidade.tipo_unidade],
+      celula: (unidade) => <Badge variant="outline">{tipoDe(unidade)}</Badge>,
+      ordenarPor: (unidade) => tipoDe(unidade),
+      buscarPor: (unidade) => tipoDe(unidade),
     },
     {
       id: "status",
@@ -164,12 +181,18 @@ function GestaoUnidadesLocaisContent() {
           titulo="Unidades locais"
           descricao="Gestão de ginásios, estádios, parques aquáticos e outras unidades esportivas"
           acoes={
-            podeGerenciar && (
-              <Button onClick={handleNewUnidade}>
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Nova unidade
+            <>
+              <Button variant="outline" onClick={() => navigate("/unidades/tipos-espaco")}>
+                <Shapes className="h-4 w-4" aria-hidden="true" />
+                Tipos de espaço
               </Button>
-            )
+              {podeGerenciar && (
+                <Button onClick={handleNewUnidade}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Nova unidade
+                </Button>
+              )}
+            </>
           }
         />
 
@@ -231,9 +254,9 @@ function GestaoUnidadesLocaisContent() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os tipos</SelectItem>
-                  {Object.entries(TIPO_UNIDADE_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
+                  {tiposEspaco.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>

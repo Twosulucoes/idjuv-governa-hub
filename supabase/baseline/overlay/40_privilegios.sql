@@ -524,3 +524,6 @@ REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_preparar() FROM PUBLIC, an
 REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_aplicar() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.contratos_meus_vencimentos() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.contratos_meus_vencimentos() TO authenticated;
+
+-- ---- Unidades Locais: tipos de espaço (migração 20261125090000): gatilho sem EXECUTE para a API ----
+REVOKE EXECUTE ON FUNCTION public.fn_unidades_locais_tipo_espaco() FROM PUBLIC, anon, authenticated;

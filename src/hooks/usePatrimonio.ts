@@ -9,6 +9,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
+/** Categorias de bem (enum categoria_bem) com o rótulo exibido na lista e no painel. */
+export const CATEGORIAS_BEM = [
+  { value: 'mobiliario', label: 'Mobiliário' },
+  { value: 'informatica', label: 'Informática' },
+  { value: 'equipamento_esportivo', label: 'Equipamento esportivo' },
+  { value: 'veiculo', label: 'Veículo' },
+  { value: 'eletrodomestico', label: 'Eletrodoméstico' },
+  { value: 'imovel', label: 'Imóvel' },
+  { value: 'outros', label: 'Outros' },
+];
+
+export const rotuloCategoriaBem = (valor: string) =>
+  CATEGORIAS_BEM.find((c) => c.value === valor)?.label ?? valor;
+
 // Types
 type BemPatrimonial = Database['public']['Tables']['bens_patrimoniais']['Row'];
 type BemInsert = Database['public']['Tables']['bens_patrimoniais']['Insert'];
@@ -733,6 +747,8 @@ export function useEstatisticasPatrimonio() {
         .neq('situacao', 'baixado');
 
       const valorTotal = valores?.reduce((acc, b) => acc + (b.valor_aquisicao || 0), 0) || 0;
+      // Bem antigo sem valor conhecido: fica fora da soma e o painel mostra quantos são.
+      const semValor = valores?.filter((b) => b.valor_aquisicao == null).length || 0;
 
       // Contagens
       const situacaoCount: Record<string, number> = {};
@@ -750,8 +766,26 @@ export function useEstatisticasPatrimonio() {
       return {
         totalBens: totalBens || 0,
         valorTotal,
+        semValor,
         porSituacao: situacaoCount,
         porCategoria: categoriaCount,
+      };
+    },
+  });
+}
+
+/** Unidades Locais para o painel: total, ativas e municípios atendidos. */
+export function useEstatisticasUnidadesLocais() {
+  return useQuery({
+    queryKey: ['estatisticas-unidades-locais'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('unidades_locais').select('municipio, status');
+      if (error) throw error;
+      const linhas = data ?? [];
+      return {
+        total: linhas.length,
+        ativas: linhas.filter((u) => u.status === 'ativa').length,
+        municipios: new Set(linhas.map((u) => u.municipio).filter(Boolean)).size,
       };
     },
   });

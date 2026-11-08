@@ -136,6 +136,7 @@ import GestaoUnidadesLocaisPage from "./pages/unidades/GestaoUnidadesLocaisPage"
 import UnidadeDetalhePage from "./pages/unidades/UnidadeDetalhePage";
 import RelatoriosCedenciaPage from "./pages/unidades/RelatoriosCedenciaPage";
 import RelatoriosUnidadesLocaisPage from "./pages/unidades/RelatoriosUnidadesLocaisPage";
+import TiposEspacoUnidadePage from "./pages/unidades/TiposEspacoUnidadePage";
  import RelatoriosCentralPage from "./pages/unidades/RelatoriosCentralPage";
 
 import NoticiasPage from "./pages/NoticiasPage";
@@ -918,6 +919,7 @@ const App = () => (
               {/* ============================================ */}
               <Route path="/unidades" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.visualizar"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
               <Route path="/unidades/gestao" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.visualizar"><GestaoUnidadesLocaisPage /></ProtectedRoute>} />
+              <Route path="/unidades/tipos-espaco" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.visualizar"><TiposEspacoUnidadePage /></ProtectedRoute>} />
               <Route path="/unidades/relatorios" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.relatorios.visualizar"><RelatoriosUnidadesLocaisPage /></ProtectedRoute>} />
                <Route path="/unidades/central-relatorios" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.relatorios.visualizar"><RelatoriosCentralPage /></ProtectedRoute>} />
               <Route path="/unidades/cedencia" element={<ProtectedRoute requiredModule="patrimonio" requiredPermissions="unidades.cedencias.visualizar"><RelatoriosCedenciaPage /></ProtectedRoute>} />

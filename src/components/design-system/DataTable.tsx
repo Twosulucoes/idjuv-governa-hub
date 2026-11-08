@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { EmptyState, type EmptyStateProps } from "@/components/design-system/EmptyState";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,26 @@ export interface DataTableProps<T> {
 }
 
 const CHAVE_DENSIDADE = "ds-tabela-densidade";
+const CHAVE_POR_PAGINA = "ds-tabela-linhas-por-pagina";
+const OPCOES_POR_PAGINA = [20, 50, 100];
+
+/** Linhas por página escolhidas pelo usuário (valem para todas as tabelas, ficam no navegador). */
+function lerPorPagina(padrao: number): number {
+  try {
+    const v = Number(window.localStorage.getItem(CHAVE_POR_PAGINA));
+    return OPCOES_POR_PAGINA.includes(v) ? v : padrao;
+  } catch {
+    return padrao;
+  }
+}
+
+function salvarPorPagina(n: number) {
+  try {
+    window.localStorage.setItem(CHAVE_POR_PAGINA, String(n));
+  } catch {
+    /* navegação privada: só não lembra */
+  }
+}
 
 function lerDensidade(padrao: Densidade): Densidade {
   try {
@@ -132,6 +153,11 @@ export function DataTable<T>({
   const [pagina, setPagina] = React.useState(0);
   const [selecionadas, setSelecionadas] = React.useState<Set<string>>(() => new Set());
   const [densidade, setDensidade] = React.useState<Densidade>(() => lerDensidade(densidadePadrao));
+  const [porPagina, setPorPagina] = React.useState(() => lerPorPagina(tamanhoPagina));
+  const opcoesPorPagina = React.useMemo(
+    () => [...new Set([tamanhoPagina, ...OPCOES_POR_PAGINA])].sort((a, b) => a - b),
+    [tamanhoPagina],
+  );
 
   const selecionavel = Boolean(acoesEmLote);
   const colunasBusca = React.useMemo(() => colunas.filter((c) => c.buscarPor), [colunas]);
@@ -160,9 +186,9 @@ export function DataTable<T>({
     return [...filtradas].sort((a, b) => fator * comparar(col.ordenarPor!(a), col.ordenarPor!(b)));
   }, [filtradas, ordem, colunas]);
 
-  const totalPaginas = Math.max(1, Math.ceil(ordenadas.length / tamanhoPagina));
+  const totalPaginas = Math.max(1, Math.ceil(ordenadas.length / porPagina));
   const paginaAtual = Math.min(pagina, totalPaginas - 1);
-  const visiveis = ordenadas.slice(paginaAtual * tamanhoPagina, (paginaAtual + 1) * tamanhoPagina);
+  const visiveis = ordenadas.slice(paginaAtual * porPagina, (paginaAtual + 1) * porPagina);
 
   // Ações em lote valem só para o que está à vista após a busca.
   const linhasSelecionadas = React.useMemo(
@@ -504,11 +530,33 @@ export function DataTable<T>({
           )}
 
           {/* Paginação */}
-          {ordenadas.length > tamanhoPagina && (
-            <nav className="flex items-center justify-between gap-2 border-t border-border px-3 py-2" aria-label={`Paginação de ${rotulo.toLowerCase()}`}>
-              <span className="text-caption text-muted-foreground tabular-nums" aria-live="polite">
-                {paginaAtual * tamanhoPagina + 1}–{Math.min((paginaAtual + 1) * tamanhoPagina, ordenadas.length)} de {ordenadas.length}
-              </span>
+          {ordenadas.length > opcoesPorPagina[0] && (
+            <nav className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2" aria-label={`Paginação de ${rotulo.toLowerCase()}`}>
+              <div className="flex items-center gap-3">
+                <span className="text-caption text-muted-foreground tabular-nums" aria-live="polite">
+                  {paginaAtual * porPagina + 1}–{Math.min((paginaAtual + 1) * porPagina, ordenadas.length)} de {ordenadas.length}
+                </span>
+                <Select
+                  value={String(porPagina)}
+                  onValueChange={(v) => {
+                    const n = Number(v);
+                    setPorPagina(n);
+                    salvarPorPagina(n);
+                    setPagina(0);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-auto gap-1 text-caption" aria-label="Linhas por página">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {opcoesPorPagina.map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n} por página
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center gap-1">
                 <Button
                   variant="outline"

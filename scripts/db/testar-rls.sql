@@ -10609,6 +10609,62 @@ BEGIN
   PERFORM pg_temp.nota('RH 0611: falta antes da admissão e em feriado recusadas, falta fora dos dias pagos ignorada na folha, fechamento com inconsistência (justificativa / tributo) verificados');
 END $$;
 
+-- ===== Inventário, teste de 07/11/2026 (migrações 20261125090000 e 20261125100000): tipos de espaço cadastráveis,
+-- gatilho que mantém tipo_unidade e tipo_espaco_id de acordo, categoria Imóvel e valor/data opcionais
+DO $$
+DECLARE
+  u_ger uuid := (SELECT uid FROM persona WHERE nome = 'perm_unidades.gerenciar');
+  u_pat uuid := (SELECT uid FROM persona WHERE nome = 'mod_patrimonio');
+  u_mob uuid := (SELECT uid FROM persona WHERE nome = 'mod_patrimonio_mobile');
+  r text;
+BEGIN
+  IF to_regclass('public.unidades_locais_tipos_espaco') IS NULL THEN
+    PERFORM pg_temp.falha('INVENTÁRIO 07/11: tabela da migração 20261125090000 não existe');
+    RETURN;
+  END IF;
+  -- os tipos que vêm com o sistema
+  r := (SELECT count(*)::text FROM public.unidades_locais_tipos_espaco
+         WHERE codigo IN ('ginasio','estadio','parque_aquatico','piscina','complexo','quadra','campo_futebol','parque','praca','casa_apoio','estacionamento','outro'));
+  IF r IS DISTINCT FROM '12' THEN PERFORM pg_temp.falha('INVENTÁRIO 07/11: tipos de espaço do sistema (' || r || ', esperado 12)'); END IF;
+  -- quem lê e quem cadastra
+  r := pg_temp.valor_desfeito_como(u_mob, 'authenticated', 'SELECT count(*)::text FROM public.unidades_locais_tipos_espaco');
+  IF r IS NULL OR r !~ '^[0-9]+$' OR r::int < 12 THEN PERFORM pg_temp.falha('INVENTÁRIO 07/11: app de coleta não lê os tipos (' || coalesce(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_pat, 'authenticated', 'INSERT INTO public.unidades_locais_tipos_espaco (nome) VALUES (''Pista de atletismo'') RETURNING id::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('INVENTÁRIO 07/11: módulo sem unidades.gerenciar cadastra tipo (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ger, 'authenticated', 'INSERT INTO public.unidades_locais_tipos_espaco (nome) VALUES (''Pista de atletismo'') RETURNING tipo_base::text');
+  IF r IS DISTINCT FROM 'outro' THEN PERFORM pg_temp.falha('INVENTÁRIO 07/11: unidades.gerenciar não cadastra tipo, ou tipo_base não é outro (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ger, 'authenticated', 'INSERT INTO public.unidades_locais_tipos_espaco (nome) VALUES (''  ginásio '') RETURNING id::text');
+  IF r NOT LIKE 'erro:23505:%' THEN PERFORM pg_temp.falha('INVENTÁRIO 07/11: tipo com nome repetido entra (' || r || ')'); END IF;
+  -- gatilho: só tipo_unidade (app de coleta, KML) ganha o tipo padrão; o tipo escolhido acerta tipo_unidade
+  r := pg_temp.valor_desfeito_como(u_ger, 'authenticated',
+    'INSERT INTO public.unidades_locais (municipio, tipo_unidade, nome_unidade) VALUES (''Boa Vista'', ''quadra'', ''Quadra teste'')
+     RETURNING (SELECT codigo FROM public.unidades_locais_tipos_espaco t WHERE t.id = tipo_espaco_id)');
+  IF r IS DISTINCT FROM 'quadra' THEN PERFORM pg_temp.falha('INVENTÁRIO 07/11: unidade só com tipo_unidade sem tipo de espaço (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ger, 'authenticated',
+    'INSERT INTO public.unidades_locais (municipio, tipo_unidade, nome_unidade, tipo_espaco_id) VALUES (''Boa Vista'', ''ginasio'', ''Praça teste'',
+       (SELECT id FROM public.unidades_locais_tipos_espaco WHERE codigo = ''praca'')) RETURNING tipo_unidade::text');
+  IF r IS DISTINCT FROM 'outro' THEN PERFORM pg_temp.falha('INVENTÁRIO 07/11: tipo de espaço não acerta tipo_unidade (' || r || ')'); END IF;
+  -- tipo em uso não se apaga (a FK é RESTRICT)
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conrelid = 'public.unidades_locais'::regclass AND c.contype = 'f'
+                  AND c.confrelid = 'public.unidades_locais_tipos_espaco'::regclass AND c.confdeltype = 'r') THEN
+    PERFORM pg_temp.falha('INVENTÁRIO 07/11: FK de unidades_locais.tipo_espaco_id não é RESTRICT');
+  END IF;
+  -- bem: categoria Imóvel, valor e data opcionais, área positiva
+  IF NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'categoria_bem' AND e.enumlabel = 'imovel') THEN
+    PERFORM pg_temp.falha('INVENTÁRIO 07/11: categoria_bem sem imovel');
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'bens_patrimoniais'
+              AND column_name IN ('valor_aquisicao', 'data_aquisicao') AND is_nullable = 'NO') THEN
+    PERFORM pg_temp.falha('INVENTÁRIO 07/11: valor ou data de aquisição ainda obrigatórios');
+  END IF;
+  IF (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'bens_patrimoniais'
+       AND column_name IN ('rip', 'matricula_imovel', 'cartorio_imovel', 'area_m2')) <> 4 THEN
+    PERFORM pg_temp.falha('INVENTÁRIO 07/11: faltam colunas do imóvel em bens_patrimoniais');
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('INVENTÁRIO 07/11: tipos de espaço (leitura pelo módulo e coleta, cadastro só com unidades.gerenciar, nome único, tipo em uso não sai), gatilho do tipo e colunas do imóvel verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off

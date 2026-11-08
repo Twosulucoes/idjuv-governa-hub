@@ -270,6 +270,14 @@ ALTER TABLE ONLY public.bens_patrimoniais
 
 
 --
+-- Name: bens_patrimoniais bens_patrimoniais_valor_aquisicao_check; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE public.bens_patrimoniais
+    ADD CONSTRAINT bens_patrimoniais_valor_aquisicao_check CHECK (((valor_aquisicao IS NULL) OR (valor_aquisicao >= (0)::numeric))) NOT VALID;
+
+
+--
 -- Name: cadastro_arbitros_modalidades cadastro_arbitros_modalidades_arbitro_id_modalidade_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3555,6 +3563,22 @@ ALTER TABLE ONLY public.unidades_locais
 
 ALTER TABLE ONLY public.unidades_locais
     ADD CONSTRAINT unidades_locais_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: unidades_locais_tipos_espaco unidades_locais_tipos_espaco_codigo_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.unidades_locais_tipos_espaco
+    ADD CONSTRAINT unidades_locais_tipos_espaco_codigo_key UNIQUE (codigo);
+
+
+--
+-- Name: unidades_locais_tipos_espaco unidades_locais_tipos_espaco_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.unidades_locais_tipos_espaco
+    ADD CONSTRAINT unidades_locais_tipos_espaco_pkey PRIMARY KEY (id);
 
 
 --
@@ -8785,6 +8809,13 @@ CREATE INDEX idx_unidades_locais_tipo ON public.unidades_locais USING btree (tip
 
 
 --
+-- Name: idx_unidades_locais_tipo_espaco; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_unidades_locais_tipo_espaco ON public.unidades_locais USING btree (tipo_espaco_id);
+
+
+--
 -- Name: idx_user_modules_lookup; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9058,10 +9089,24 @@ CREATE UNIQUE INDEX uq_processo_reservas_combinacao ON public.processo_reservas 
 
 
 --
+-- Name: uq_unidades_locais_tipos_espaco_nome; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_unidades_locais_tipos_espaco_nome ON public.unidades_locais_tipos_espaco USING btree (lower(btrim(nome)));
+
+
+--
 -- Name: vagas_cargo_codigo_uidx; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX vagas_cargo_codigo_uidx ON public.vagas_cargo USING btree (codigo);
+
+
+--
+-- Name: unidades_locais a_unidades_locais_tipo_espaco; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER a_unidades_locais_tipo_espaco BEFORE INSERT OR UPDATE OF tipo_espaco_id, tipo_unidade ON public.unidades_locais FOR EACH ROW EXECUTE FUNCTION public.fn_unidades_locais_tipo_espaco();
 
 
 --
@@ -12396,6 +12441,13 @@ CREATE TRIGGER update_solicitacoes_updated_at BEFORE UPDATE ON public.solicitaco
 --
 
 CREATE TRIGGER update_termos_cessao_updated_at BEFORE UPDATE ON public.termos_cessao FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: unidades_locais_tipos_espaco update_unidades_locais_tipos_espaco_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_unidades_locais_tipos_espaco_updated_at BEFORE UPDATE ON public.unidades_locais_tipos_espaco FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -19772,6 +19824,14 @@ ALTER TABLE ONLY public.unidades_locais
 
 
 --
+-- Name: unidades_locais unidades_locais_tipo_espaco_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.unidades_locais
+    ADD CONSTRAINT unidades_locais_tipo_espaco_id_fkey FOREIGN KEY (tipo_espaco_id) REFERENCES public.unidades_locais_tipos_espaco(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: unidades_locais unidades_locais_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -23473,6 +23533,13 @@ CREATE POLICY rls_delete ON public.unidades_locais FOR DELETE TO authenticated U
 
 
 --
+-- Name: unidades_locais_tipos_espaco rls_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_delete ON public.unidades_locais_tipos_espaco FOR DELETE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'::text)));
+
+
+--
 -- Name: user_modules rls_delete; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -25261,6 +25328,13 @@ CREATE POLICY rls_insert ON public.tipos_abono FOR INSERT TO authenticated WITH 
 --
 
 CREATE POLICY rls_insert ON public.unidades_locais FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'::text)));
+
+
+--
+-- Name: unidades_locais_tipos_espaco rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.unidades_locais_tipos_espaco FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'::text)));
 
 
 --
@@ -27208,6 +27282,13 @@ CREATE POLICY rls_select ON public.unidades_locais FOR SELECT TO authenticated U
 
 
 --
+-- Name: unidades_locais_tipos_espaco rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.unidades_locais_tipos_espaco FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'::text)));
+
+
+--
 -- Name: user_modules rls_select; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -29001,6 +29082,13 @@ CREATE POLICY rls_update ON public.unidades_locais FOR UPDATE TO authenticated U
 
 
 --
+-- Name: unidades_locais_tipos_espaco rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.unidades_locais_tipos_espaco FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio'::text) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'::text)));
+
+
+--
 -- Name: user_modules rls_update; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -29158,6 +29246,12 @@ ALTER TABLE public.tipos_abono ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.unidades_locais ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: unidades_locais_tipos_espaco; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.unidades_locais_tipos_espaco ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: denuncias upd_denuncias_gerenciar; Type: POLICY; Schema: public; Owner: -

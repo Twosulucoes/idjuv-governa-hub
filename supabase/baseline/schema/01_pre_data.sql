@@ -165,7 +165,8 @@ CREATE TYPE public.categoria_bem AS ENUM (
     'equipamento_esportivo',
     'veiculo',
     'eletrodomestico',
-    'outros'
+    'outros',
+    'imovel'
 );
 
 
@@ -4298,6 +4299,8 @@ CREATE FUNCTION public.fechar_folha(p_folha_id uuid, p_justificativa text DEFAUL
 DECLARE
   v_folha RECORD;
   v_user_id UUID;
+  v_bloqueantes jsonb;
+  v_pendentes jsonb;
 BEGIN
   v_user_id := auth.uid();
   
@@ -4327,7 +4330,29 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Folha deve estar em conferência ou aberta para ser fechada');
   END IF;
   
-  PERFORM public.rh_protocolo_atual('folha', format('Fechamento da folha %s/%s', v_folha.competencia_mes, v_folha.competencia_ano), NULL, jsonb_build_object('folha_id', p_folha_id, 'justificativa', p_justificativa));
+  -- Fichas com inconsistência (processar_folha_pagamento). As de tributo sem tabela ou alíquota não fecham nunca:
+  -- o INSS, o IRRF ou a parte patronal saíram zero. As demais fecham só com justificativa (20+ caracteres),
+  -- que vai para o protocolo junto com a lista.
+  SELECT coalesce(jsonb_agg(jsonb_build_object('servidor', s.nome_completo, 'inconsistencias', fc.inconsistencias)
+                            ORDER BY s.nome_completo) FILTER (WHERE fc.inconsistencias ?| public.folha_inconsistencias_bloqueantes()), '[]'::jsonb),
+         coalesce(jsonb_agg(jsonb_build_object('servidor', s.nome_completo, 'inconsistencias', fc.inconsistencias)
+                            ORDER BY s.nome_completo), '[]'::jsonb)
+    INTO v_bloqueantes, v_pendentes
+    FROM public.fichas_financeiras fc JOIN public.servidores s ON s.id = fc.servidor_id
+   WHERE fc.folha_id = p_folha_id AND fc.tem_inconsistencia;
+  IF jsonb_array_length(v_bloqueantes) > 0 THEN
+    RETURN jsonb_build_object('success', false, 'inconsistencias', v_bloqueantes, 'bloqueante', true,
+      'error', format('A folha não pode ser fechada: %s ficha(s) com INSS, IRRF ou parte patronal calculados sem tabela ou alíquota. '
+                      'Cadastre as tabelas e os parâmetros em Configurações da Folha e processe de novo.', jsonb_array_length(v_bloqueantes)));
+  END IF;
+  IF jsonb_array_length(v_pendentes) > 0 AND length(btrim(coalesce(p_justificativa, ''))) < 20 THEN
+    RETURN jsonb_build_object('success', false, 'inconsistencias', v_pendentes, 'bloqueante', false,
+      'error', format('%s ficha(s) com inconsistência. Corrija e processe de novo, ou informe uma justificativa (pelo menos 20 caracteres) para fechar assim mesmo.',
+                      jsonb_array_length(v_pendentes)));
+  END IF;
+
+  PERFORM public.rh_protocolo_atual('folha', format('Fechamento da folha %s/%s', v_folha.competencia_mes, v_folha.competencia_ano), NULL,
+    jsonb_build_object('folha_id', p_folha_id, 'justificativa', p_justificativa, 'fichas_com_inconsistencia', v_pendentes));
 
   -- Atualizar para fechada
   UPDATE public.folhas_pagamento
@@ -6691,6 +6716,35 @@ $$;
 
 
 --
+-- Name: fn_unidades_locais_tipo_espaco(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_unidades_locais_tipo_espaco() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_base public.tipo_unidade_local;
+BEGIN
+  IF NEW.tipo_espaco_id IS NOT NULL
+     AND (TG_OP = 'INSERT' OR NEW.tipo_espaco_id IS DISTINCT FROM OLD.tipo_espaco_id) THEN
+    SELECT t.tipo_base INTO v_base FROM public.unidades_locais_tipos_espaco t WHERE t.id = NEW.tipo_espaco_id;
+    IF FOUND THEN
+      NEW.tipo_unidade := v_base;
+    END IF;
+  ELSIF NEW.tipo_espaco_id IS NULL
+     OR (TG_OP = 'UPDATE' AND NEW.tipo_unidade IS DISTINCT FROM OLD.tipo_unidade) THEN
+    -- Só veio tipo_unidade (app de coleta, KML, tela antiga): usa o tipo padrão daquele valor do enum.
+    SELECT t.id INTO NEW.tipo_espaco_id
+      FROM public.unidades_locais_tipos_espaco t
+     WHERE t.codigo = NEW.tipo_unidade::text;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: fn_update_timestamp_parametros(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -8601,49 +8655,6 @@ $$;
 
 
 --
--- Name: handle_new_user(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.handle_new_user() RETURNS trigger
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, full_name, is_active, tipo_usuario)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-    false,
-    CASE WHEN NEW.raw_user_meta_data->>'tipo_usuario' = 'tecnico' THEN 'tecnico' ELSE 'servidor' END
-  )
-  ON CONFLICT (id) DO NOTHING;
-
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (NEW.id, 'user')
-  ON CONFLICT (user_id) DO NOTHING;
-
-  RETURN NEW;
-END;
-$$;
-
-
---
--- Name: handle_updated_at(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.handle_updated_at() RETURNS trigger
-    LANGUAGE plpgsql
-    SET search_path TO 'public'
-    AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$;
-
-
---
 -- Name: governanca_importar_estrutura(jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -8878,6 +8889,49 @@ $_$;
 --
 
 COMMENT ON FUNCTION public.governanca_importar_estrutura(p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa a planilha da estrutura organizacional (p_simular = true só calcula; aplicação é tudo ou nada, com log em importacoes). Nunca apaga, desativa nem sobrescreve: unidade existente (mesma sigla) só ganha o que está vazio. Exige governanca.estrutura.editar. Migração 20261119090000.';
+
+
+--
+-- Name: handle_new_user(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.handle_new_user() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, is_active, tipo_usuario)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
+    false,
+    CASE WHEN NEW.raw_user_meta_data->>'tipo_usuario' = 'tecnico' THEN 'tecnico' ELSE 'servidor' END
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (NEW.id, 'user')
+  ON CONFLICT (user_id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: handle_updated_at(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.handle_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
 
 
 --
@@ -13443,8 +13497,8 @@ CREATE TABLE public.bens_patrimoniais (
     marca character varying(100),
     modelo character varying(100),
     numero_serie character varying(100),
-    data_aquisicao date NOT NULL,
-    valor_aquisicao numeric(18,2) NOT NULL,
+    data_aquisicao date,
+    valor_aquisicao numeric(18,2),
     nota_fiscal character varying(50),
     empenho_id uuid,
     fornecedor_id uuid,
@@ -13487,9 +13541,28 @@ CREATE TABLE public.bens_patrimoniais (
     foto_bem_url text,
     foto_etiqueta_qr_url text,
     pendencias jsonb DEFAULT '[]'::jsonb,
+    rip text,
+    matricula_imovel text,
+    cartorio_imovel text,
+    area_m2 numeric(14,2),
+    CONSTRAINT bens_patrimoniais_area_m2_check CHECK (((area_m2 IS NULL) OR (area_m2 > (0)::numeric))),
     CONSTRAINT bens_patrimoniais_estado_conservacao_check CHECK (((estado_conservacao)::text = ANY ((ARRAY['otimo'::character varying, 'bom'::character varying, 'regular'::character varying, 'ruim'::character varying, 'inservivel'::character varying])::text[]))),
     CONSTRAINT bens_patrimoniais_situacao_check CHECK (((situacao)::text = ANY ((ARRAY['ativo'::character varying, 'em_manutencao'::character varying, 'cedido'::character varying, 'baixado'::character varying, 'extraviado'::character varying, 'em_transferencia'::character varying])::text[])))
 );
+
+
+--
+-- Name: COLUMN bens_patrimoniais.data_aquisicao; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.bens_patrimoniais.data_aquisicao IS 'Data de aquisição. Nula = desconhecida (bem antigo).';
+
+
+--
+-- Name: COLUMN bens_patrimoniais.valor_aquisicao; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.bens_patrimoniais.valor_aquisicao IS 'Valor de aquisição. Nulo = valor desconhecido (bem antigo): fica fora da soma em reais.';
 
 
 --
@@ -13497,6 +13570,34 @@ CREATE TABLE public.bens_patrimoniais (
 --
 
 COMMENT ON COLUMN public.bens_patrimoniais.unidade_local_id IS 'Referência obrigatória à Unidade Local onde o bem está fisicamente localizado';
+
+
+--
+-- Name: COLUMN bens_patrimoniais.rip; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.bens_patrimoniais.rip IS 'Bem imóvel: RIP (Registro Imobiliário Patrimonial).';
+
+
+--
+-- Name: COLUMN bens_patrimoniais.matricula_imovel; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.bens_patrimoniais.matricula_imovel IS 'Bem imóvel: número da matrícula no cartório de registro de imóveis.';
+
+
+--
+-- Name: COLUMN bens_patrimoniais.cartorio_imovel; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.bens_patrimoniais.cartorio_imovel IS 'Bem imóvel: cartório de registro de imóveis da matrícula.';
+
+
+--
+-- Name: COLUMN bens_patrimoniais.area_m2; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.bens_patrimoniais.area_m2 IS 'Bem imóvel: área em metros quadrados.';
 
 
 --
@@ -31595,6 +31696,8 @@ CREATE TABLE public.unidades_locais (
     fonte_geometria text,
     geometria_atualizada_em timestamp with time zone,
     geometria_atualizada_por uuid,
+    tipo_espaco_id uuid,
+    uc_energia text,
     CONSTRAINT unidades_locais_area_construida_m2_check CHECK ((area_construida_m2 >= (0)::numeric)),
     CONSTRAINT unidades_locais_area_terreno_m2_check CHECK ((area_terreno_m2 >= (0)::numeric)),
     CONSTRAINT unidades_locais_fonte_geometria_check CHECK ((fonte_geometria = ANY (ARRAY['manual'::text, 'gps'::text, 'kml'::text]))),
@@ -31602,6 +31705,60 @@ CREATE TABLE public.unidades_locais (
     CONSTRAINT unidades_locais_longitude_check CHECK (((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))),
     CONSTRAINT unidades_locais_poligono_geojson_check CHECK (((poligono_geojson IS NULL) OR ((poligono_geojson ->> 'type'::text) = ANY (ARRAY['Polygon'::text, 'MultiPolygon'::text]))))
 );
+
+
+--
+-- Name: COLUMN unidades_locais.tipo_espaco_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.unidades_locais.tipo_espaco_id IS 'Tipo de espaço da unidade (unidades_locais_tipos_espaco). O gatilho fn_unidades_locais_tipo_espaco mantém tipo_unidade = tipo_base.';
+
+
+--
+-- Name: COLUMN unidades_locais.uc_energia; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.unidades_locais.uc_energia IS 'Número da unidade consumidora (UC) na distribuidora de energia, para cruzar com a conta de luz.';
+
+
+--
+-- Name: unidades_locais_tipos_espaco; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.unidades_locais_tipos_espaco (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    codigo text,
+    nome text NOT NULL,
+    tipo_base public.tipo_unidade_local DEFAULT 'outro'::public.tipo_unidade_local NOT NULL,
+    ativo boolean DEFAULT true NOT NULL,
+    ordem integer DEFAULT 500 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid,
+    CONSTRAINT unidades_locais_tipos_espaco_nome_check CHECK (((char_length(btrim(nome)) >= 2) AND (char_length(btrim(nome)) <= 80)))
+);
+
+
+--
+-- Name: TABLE unidades_locais_tipos_espaco; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.unidades_locais_tipos_espaco IS 'Tipos de espaço das Unidades Locais (Ginásio, Campo de futebol, Praça...), cadastrados pelo módulo. tipo_base liga ao enum antigo tipo_unidade_local, que unidades_locais.tipo_unidade ainda guarda.';
+
+
+--
+-- Name: COLUMN unidades_locais_tipos_espaco.codigo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.unidades_locais_tipos_espaco.codigo IS 'Código fixo dos tipos que vieram com o sistema (o mesmo do enum ou um apelido); tipos cadastrados depois ficam sem código.';
+
+
+--
+-- Name: COLUMN unidades_locais_tipos_espaco.tipo_base; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.unidades_locais_tipos_espaco.tipo_base IS 'Valor do enum tipo_unidade_local gravado em unidades_locais.tipo_unidade quando a unidade usa este tipo.';
 
 
 --
