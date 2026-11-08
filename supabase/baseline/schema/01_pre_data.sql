@@ -6876,6 +6876,26 @@ $$;
 
 
 --
+-- Name: folha_inconsistencias_bloqueantes(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.folha_inconsistencias_bloqueantes() RETURNS text[]
+    LANGUAGE sql IMMUTABLE
+    AS $$
+  SELECT ARRAY['tabela_inss_ausente', 'tabela_irrf_ausente', 'deducao_dependente_nao_configurada',
+               'desconto_simplificado_irrf_nao_configurado', 'reducao_irrf_nao_configurada',
+               'aliquota_patronal_ou_rat_nao_configurada']::text[];
+$$;
+
+
+--
+-- Name: FUNCTION folha_inconsistencias_bloqueantes(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.folha_inconsistencias_bloqueantes() IS 'Inconsistências da ficha que impedem fechar a folha (tributo calculado sem tabela ou alíquota)';
+
+
+--
 -- Name: folha_item(text, text, numeric, text, numeric, numeric, text, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -6904,7 +6924,7 @@ DECLARE
   v_inc jsonb := '[]'::jsonb;
   v_ano int := EXTRACT(YEAR FROM p_d2)::int;
   v_ini date; v_fim date; v_dias int; v_ini_pago date; v_fim_pago date; v_venc_prop numeric := 0;
-  v_faltas int := 0; v_dias_lic int := 0; v_dias_ces int := 0; v_rest int;
+  v_faltas int := 0; v_faltas_mes int := 0; v_faltas_fora int := 0; v_dias_lic int := 0; v_dias_ces int := 0; v_rest int;
   v_d_falta numeric := 0; v_d_lic numeric := 0; v_d_ces numeric := 0; v_terco numeric := 0; v_abono numeric := 0;
   v_nferias int := 0;
   v_man jsonb; v_man_val numeric; v_man_inss boolean; v_man_irrf boolean;
@@ -6984,6 +7004,16 @@ BEGIN
      WHERE fm.servidor_id = p_servidor_id AND fm.ano = v_ano AND fm.mes = EXTRACT(MONTH FROM p_d2)::int;
     IF NOT FOUND THEN v_inc := v_inc || jsonb_build_array('sem_frequencia_do_mes'); END IF;
     v_faltas := coalesce(v_faltas, 0);
+    -- falta lançada fora dos dias pagos (antes do exercício, depois do encerramento) ou em dia não útil não desconta:
+    -- o proporcional já tirou esses dias. Só retira; o resumo do mês continua sendo a fonte do total.
+    SELECT count(*), count(*) FILTER (WHERE rp.data < v_ini_pago OR rp.data > v_fim_pago OR public.rh_dia_nao_util(rp.data) IS NOT NULL)
+      INTO v_faltas_mes, v_faltas_fora
+      FROM public.registros_ponto rp
+     WHERE rp.servidor_id = p_servidor_id AND rp.tipo = 'falta' AND rp.data BETWEEN p_d1 AND p_d2;
+    IF v_faltas_fora > 0 AND v_faltas > 0 THEN
+      v_faltas := greatest(v_faltas - v_faltas_fora, 0);
+      v_inc := v_inc || jsonb_build_array('falta_fora_dos_dias_pagos_ignorada');
+    END IF;
 
     SELECT coalesce(sum(greatest(0, least(coalesce(l.data_fim, v_fim_pago), v_fim_pago)
                                     - greatest(l.data_inicio, v_ini_pago) + 1)), 0)::int
@@ -14013,7 +14043,8 @@ BEGIN
   FOR v_srv IN
     SELECT s.id, s.nome_completo, s.banco_codigo, s.banco_nome, s.banco_agencia, s.banco_conta, s.banco_tipo_conta,
            pv.id AS provimento_id, pv.cargo_id, pv.unidade_id, c.nome AS cargo_nome,
-           public.vencimento_cargo_em(c.id, v_d2) AS vencimento_base, eo.nome AS unidade_nome, eo.sigla AS unidade_sigla
+           public.vencimento_cargo_em(c.id, v_d2) AS vencimento_base, eo.id AS unidade_id_vigente, eo.nome AS unidade_nome,
+           eo.sigla AS unidade_sigla
       FROM public.servidores s
       JOIN LATERAL (
         SELECT p.* FROM public.provimentos p
@@ -14029,7 +14060,9 @@ BEGIN
                END
          ORDER BY coalesce(p.data_exercicio, p.data_nomeacao) DESC LIMIT 1) pv ON true
       JOIN public.cargos c ON c.id = pv.cargo_id
-      LEFT JOIN public.estrutura_organizacional eo ON eo.id = pv.unidade_id
+      -- lotação vigente no fim da competência (Gestão de Lotação); sem ela, a unidade do provimento
+      LEFT JOIN LATERAL (SELECT lv.unidade_id FROM public.lotacao_vigente(s.id, v_d2) lv LIMIT 1) lv ON true
+      LEFT JOIN public.estrutura_organizacional eo ON eo.id = coalesce(lv.unidade_id, pv.unidade_id)
      ORDER BY s.nome_completo
   LOOP
     v_elegiveis := v_elegiveis + 1;
@@ -14058,7 +14091,8 @@ BEGIN
         banco_conta, banco_tipo_conta, processado, data_processamento, tem_inconsistencia, inconsistencias)
       VALUES (
         p_folha_id, v_srv.id, v_folha.competencia_ano, v_folha.competencia_mes, v_tipo, v_srv.cargo_id, v_srv.cargo_nome,
-        v_srv.vencimento_base, v_srv.unidade_id, COALESCE(v_srv.unidade_sigla, '') || ' - ' || COALESCE(v_srv.unidade_nome, ''),
+        v_srv.vencimento_base, v_srv.unidade_id_vigente,
+        CASE WHEN v_srv.unidade_id_vigente IS NOT NULL THEN COALESCE(v_srv.unidade_sigla || ' - ', '') || v_srv.unidade_nome END,
         (v_r ->> 'total_proventos')::numeric, (v_r ->> 'total_descontos')::numeric, (v_r ->> 'valor_liquido')::numeric,
         (v_r ->> 'base_inss')::numeric, (v_r ->> 'valor_inss')::numeric, (v_r ->> 'base_irrf')::numeric,
         (v_r ->> 'valor_irrf')::numeric, (v_r ->> 'quantidade_dependentes')::int, (v_r ->> 'valor_deducao_dependentes')::numeric,
@@ -14094,6 +14128,17 @@ BEGIN
     IF v_cedidos > 0 THEN
       v_avisos := v_avisos || jsonb_build_array(v_cedidos || ' cedido(s) de outro órgão não entram na folha (ônus da origem)');
     END IF;
+  END IF;
+
+  -- sem as alíquotas da parte patronal, a ficha de quem contribui para o regime geral fica com inconsistência
+  -- (bloqueia o fechamento, ver fechar_folha)
+  IF v_aliq_patronal IS NULL OR v_aliq_rat IS NULL THEN
+    UPDATE public.fichas_financeiras f
+       SET inconsistencias = coalesce(f.inconsistencias, '[]'::jsonb) || jsonb_build_array('aliquota_patronal_ou_rat_nao_configurada'),
+           tem_inconsistencia = true
+      FROM public.servidores s
+     WHERE f.folha_id = p_folha_id AND s.id = f.servidor_id AND f.base_inss > 0
+       AND NOT coalesce(s.contribui_rpps_origem, false);
   END IF;
 
   -- parte patronal: sobre a base de INSS (sem o teto) de quem contribui para o regime geral nesta folha, ou seja,
@@ -16336,6 +16381,46 @@ $$;
 
 
 --
+-- Name: registros_ponto_validar_falta(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.registros_ponto_validar_falta() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_inicio date;
+  v_feriado text;
+BEGIN
+  IF NEW.tipo IS DISTINCT FROM 'falta' THEN RETURN NEW; END IF;
+  IF TG_OP = 'UPDATE' AND OLD.tipo = 'falta' AND OLD.data = NEW.data THEN RETURN NEW; END IF;
+
+  SELECT coalesce(s.data_admissao,
+                  (SELECT min(coalesce(p.data_exercicio, p.data_nomeacao)) FROM public.provimentos p WHERE p.servidor_id = s.id))
+    INTO v_inicio FROM public.servidores s WHERE s.id = NEW.servidor_id;
+  IF v_inicio IS NOT NULL AND NEW.data < v_inicio THEN
+    RAISE EXCEPTION 'Falta em % recusada: é anterior à admissão do servidor (%).',
+      to_char(NEW.data, 'DD/MM/YYYY'), to_char(v_inicio, 'DD/MM/YYYY') USING ERRCODE = 'P0001';
+  END IF;
+
+  v_feriado := public.rh_dia_nao_util(NEW.data);
+  IF v_feriado IS NOT NULL THEN
+    RAISE EXCEPTION 'Falta em % recusada: o dia não é útil (%).', to_char(NEW.data, 'DD/MM/YYYY'), v_feriado
+      USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION registros_ponto_validar_falta(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.registros_ponto_validar_falta() IS 'Trigger: falta só em dia útil e a partir da admissão (teste do RH de 06/11/2026, item 1)';
+
+
+--
 -- Name: regra_lancamento_proteger_exigir(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -16840,6 +16925,32 @@ BEGIN
                               'chefias_de_unidade', v_n_chefe, 'comissoes', v_n_com));
 END;
 $$;
+
+
+--
+-- Name: rh_dia_nao_util(date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rh_dia_nao_util(p_data date) RETURNS text
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT d.nome::text
+    FROM public.dias_nao_uteis d
+   WHERE coalesce(d.ativo, true) AND NOT coalesce(d.conta_frequencia, false)
+     AND (d.data = p_data
+          OR (coalesce(d.recorrente, false) AND d.mes_recorrente = EXTRACT(MONTH FROM p_data)::int
+              AND d.dia_recorrente = EXTRACT(DAY FROM p_data)::int))
+   ORDER BY (d.data = p_data) DESC
+   LIMIT 1;
+$$;
+
+
+--
+-- Name: FUNCTION rh_dia_nao_util(p_data date); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.rh_dia_nao_util(p_data date) IS 'Nome do feriado/ponto facultativo (dias_nao_uteis ativo que não conta frequência) na data, ou nulo';
 
 
 --

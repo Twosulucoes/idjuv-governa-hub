@@ -6,6 +6,13 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { registrarEvento } from '@/hooks/useTrilhaAuditoria';
+import {
+  montarFichaContracheque,
+  unidadeValida,
+  type FichaContrachequeLinha,
+} from '@/lib/contrachequeDados';
+import type { FichaContracheque } from '@/lib/documentos/modelos/folha/contracheque';
+import { generateContracheque, generateContrachequeEmLote } from '@/lib/pdfContracheque';
 
 // Tipos de retorno
 interface FichaFinanceiraComServidor {
@@ -266,6 +273,78 @@ export function useServidorLogado() {
     },
     enabled: !!servidorId,
   });
+}
+
+// ============== DADOS DO PDF ==============
+// Iguais em todas as telas que imprimem o contracheque (ficha financeira, detalhe da folha, consulta e Meu
+// Contracheque): ficha, itens com o código da rubrica, servidor (admissão, vínculo, regime e conta), situação
+// da folha e, se a ficha não guardou a unidade, a lotação vigente no fim da competência. A montagem é a regra
+// pura de `@/lib/contrachequeDados` (teste do RH de 06/11/2026, itens 2, 3, 4 e 8).
+const SELECT_FICHA = `
+  id, servidor_id, competencia_ano, competencia_mes, cargo_nome, unidade_nome,
+  total_proventos, total_descontos, valor_liquido, base_inss, valor_inss, base_irrf, valor_irrf,
+  quantidade_dependentes, inss_patronal, rat, total_encargos,
+  banco_codigo, banco_nome, banco_agencia, banco_conta, tem_inconsistencia,
+  folha:folhas_pagamento!fichas_financeiras_folha_id_fkey(status),
+  servidor:servidores!fichas_financeiras_servidor_id_fkey(
+    nome_completo, cpf, matricula, pis_pasep, data_admissao, vinculo, contribui_rpps_origem,
+    banco_codigo, banco_nome, banco_agencia, banco_conta
+  ),
+  itens:itens_ficha_financeira(descricao, tipo, valor, referencia, percentual, ordem,
+    rubrica:rubricas!itens_ficha_financeira_rubrica_id_fkey(codigo))
+`;
+
+type LinhaComCompetencia = FichaContrachequeLinha & { competencia_ano: number | null; competencia_mes: number | null };
+
+const fimDaCompetencia = (ano: number, mes: number) => new Date(Date.UTC(ano, mes, 0)).toISOString().slice(0, 10);
+
+/** Lotação vigente no fim da competência, para as fichas que não guardaram a unidade. Falha aqui não impede o PDF. */
+async function lotacoesVigentes(linhas: LinhaComCompetencia[]): Promise<Map<string, string>> {
+  const resultado = new Map<string, string>();
+  const faltando = linhas.filter((l) => !unidadeValida(l.unidade_nome) && l.servidor_id && l.competencia_ano && l.competencia_mes);
+  if (faltando.length === 0) return resultado;
+  const { data, error } = await supabase
+    .from('lotacoes')
+    .select('servidor_id, data_inicio, data_fim, tipo_lotacao, unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(sigla, nome)')
+    .in('servidor_id', [...new Set(faltando.map((l) => l.servidor_id!))])
+    .eq('ativo', true);
+  if (error || !data) return resultado;
+  for (const l of faltando) {
+    const fim = fimDaCompetencia(l.competencia_ano!, l.competencia_mes!);
+    const vigente = data
+      .filter((x) => x.servidor_id === l.servidor_id && x.tipo_lotacao !== 'lotacao_externa'
+        && x.data_inicio <= fim && (!x.data_fim || x.data_fim >= fim))
+      .sort((a, b) => b.data_inicio.localeCompare(a.data_inicio))[0];
+    const u = vigente?.unidade as { sigla: string | null; nome: string } | null | undefined;
+    if (u?.nome) resultado.set(l.id, u.sigla ? `${u.sigla} - ${u.nome}` : u.nome);
+  }
+  return resultado;
+}
+
+/** Fichas prontas para o contracheque, na ordem dos ids pedidos. */
+export async function carregarContracheques(fichaIds: string[]): Promise<FichaContracheque[]> {
+  if (fichaIds.length === 0) return [];
+  const { data, error } = await supabase.from('fichas_financeiras').select(SELECT_FICHA).in('id', fichaIds);
+  if (error) throw error;
+  const linhas = (data ?? []) as unknown as LinhaComCompetencia[];
+  const lotacoes = await lotacoesVigentes(linhas);
+  const porId = new Map(linhas.map((l) => [l.id, montarFichaContracheque(l, lotacoes.get(l.id))]));
+  return fichaIds.map((id) => porId.get(id)).filter((f): f is FichaContracheque => !!f);
+}
+
+/**
+ * Gera o PDF do contracheque (um id) ou do lote (vários, uma página por servidor) a partir das fichas do banco.
+ * Quem chama registra a impressão na trilha antes. Ficha não encontrada (sem acesso) é erro, não PDF vazio.
+ */
+export async function imprimirContracheques(fichaIds: string[], competencia: string): Promise<number> {
+  const fichas = await carregarContracheques(fichaIds);
+  if (fichas.length === 0) throw new Error('Nenhuma ficha encontrada para o contracheque.');
+  if (fichas.length === 1 && fichaIds.length === 1) {
+    await generateContracheque({ ficha: fichas[0], competencia });
+  } else {
+    await generateContrachequeEmLote(fichas, competencia);
+  }
+  return fichas.length;
 }
 
 export type { FichaFinanceiraComServidor, ItemFichaFinanceira };

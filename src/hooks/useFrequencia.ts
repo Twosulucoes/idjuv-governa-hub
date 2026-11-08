@@ -25,6 +25,7 @@ import {
   calcularDiasUteisParametrizado,
 } from "@/lib/frequenciaCalculoService";
 import { lancamentoBloqueado } from "@/lib/frequenciaFluxo";
+import { descreverErroBanco } from "@/lib/folhaFichaRegras";
 import type { StatusFechamento } from "@/types/frequencia";
 
 // ============================================
@@ -276,7 +277,8 @@ export function useLancarRegistroPonto() {
     },
     onError: (error) => {
       console.error("Erro ao salvar registro:", error);
-      toast.error("Erro ao salvar registro de ponto.");
+      // falta antes da admissão ou em dia não útil: o banco recusa com a mensagem (P0001)
+      toast.error(`Erro ao salvar registro de ponto. ${descreverErroBanco(error)}`);
     },
   });
 }
@@ -325,7 +327,7 @@ export function useLancarFaltaEmLote() {
     },
     onError: (error) => {
       console.error("Erro ao salvar registros:", error);
-      toast.error(error instanceof FrequenciaBloqueadaError ? error.message : "Erro ao salvar registros de ponto.");
+      toast.error(error instanceof FrequenciaBloqueadaError ? error.message : `Erro ao salvar registros de ponto. ${descreverErroBanco(error)}`);
     },
   });
 }

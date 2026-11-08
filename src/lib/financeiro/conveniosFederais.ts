@@ -4,6 +4,8 @@
  * Spec: docs/superpowers/specs/2026-10-29-convenios-federais-transferegov-design.md
  */
 
+import { diasEntreDatas, hojeISO } from "@/lib/datas/hojeLocal";
+
 export type TomAlerta = "erro" | "pendente" | "neutro";
 
 export interface AlertaConvenio {
@@ -23,14 +25,17 @@ export interface ConvenioParaAlerta {
   data_limite_prestacao_contas: string | null;
 }
 
-/** Dias de `hoje` até a data (AAAA-MM-DD); negativo quando já passou. */
-export function diasAte(data: string | null, hoje: Date): number | null {
+/**
+ * Dias de `hoje` até a data (AAAA-MM-DD); negativo quando já passou. `hoje` pode vir como data de calendário
+ * (AAAA-MM-DD, o normal: `hojeISO()`, no fuso da sede) ou como Date (vale o dia local dele).
+ */
+export function diasAte(data: string | null, hoje: Date | string): number | null {
   if (!data) return null;
-  const [a, m, d] = data.slice(0, 10).split("-").map(Number);
-  if (!a || !m || !d) return null;
-  const alvo = Date.UTC(a, m - 1, d);
-  const base = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-  return Math.round((alvo - base) / 86_400_000);
+  const base =
+    typeof hoje === "string"
+      ? hoje
+      : `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+  return diasEntreDatas(base, data);
 }
 
 function prazo(rotulo: string, dias: number | null): AlertaConvenio | null {
@@ -41,7 +46,7 @@ function prazo(rotulo: string, dias: number | null): AlertaConvenio | null {
 }
 
 /** Alertas de um convênio, do mais grave para o mais leve. Sem convênio (só proposta), não há alerta. */
-export function alertasConvenio(c: ConvenioParaAlerta | null | undefined, hoje: Date = new Date()): AlertaConvenio[] {
+export function alertasConvenio(c: ConvenioParaAlerta | null | undefined, hoje: Date | string = hojeISO()): AlertaConvenio[] {
   if (!c) return [];
   const alertas: AlertaConvenio[] = [];
   if (c.assinado === false) alertas.push({ tom: "pendente", texto: "Instrumento ainda não assinado" });

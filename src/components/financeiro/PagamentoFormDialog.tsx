@@ -24,6 +24,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { useCriarPagamento, useLiquidacoes, useContasBancarias } from "@/hooks/useFinanceiro";
 import { formatCurrency } from "@/lib/formatters";
+import { validarPagamento, type CampoPagamento, type ErrosFormulario } from "@/lib/financeiro/validacaoLancamentos";
 import { FORMA_PAGAMENTO_OPTIONS } from "@/types/financeiro";
 
 interface PagamentoFormDialogProps {
@@ -49,6 +50,13 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
     observacoes: "",
   });
 
+  const [erros, setErros] = useState<ErrosFormulario<CampoPagamento>>({});
+  /** Atualiza o campo e apaga a mensagem dele */
+  const mudar = (campo: keyof typeof form, valor: string) => {
+    setForm((f) => ({ ...f, [campo]: valor }));
+    setErros((e) => ({ ...e, [campo]: undefined }));
+  };
+
   const liquidacaoSelecionada = liquidacoes?.find((l) => l.id === form.liquidacao_id);
 
   const valorLiquido = (Number(form.valor_bruto) || 0) - (Number(form.valor_retencoes) || 0);
@@ -66,6 +74,7 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
       tipo_conta_favorecido: "corrente",
       observacoes: "",
     });
+    setErros({});
   };
 
   const handleSelectLiquidacao = (id: string) => {
@@ -75,10 +84,14 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
       liquidacao_id: id,
       valor_bruto: liq ? String(liq.valor_liquidado) : "",
     }));
+    setErros((e) => ({ ...e, liquidacao_id: undefined, valor_bruto: undefined }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const encontrados = validarPagamento(form);
+    setErros(encontrados);
+    if (Object.keys(encontrados).length > 0) return;
     const liq = liquidacoes?.find((l) => l.id === form.liquidacao_id);
     if (!liq) return;
 
@@ -104,10 +117,10 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Pagamento</DialogTitle>
+          <DialogTitle>Programar pagamento</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {/* Liquidação */}
           <div className="space-y-2">
             <Label>Liquidação *</Label>
@@ -123,6 +136,7 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
                 ))}
               </SelectContent>
             </Select>
+            {erros.liquidacao_id && <p className="text-sm font-medium text-destructive">{erros.liquidacao_id}</p>}
             {liquidacaoSelecionada && (
               <p className="text-xs text-muted-foreground">
                 Fornecedor: {(liquidacaoSelecionada.empenho as any)?.fornecedor?.razao_social || "—"} |
@@ -134,7 +148,7 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
           {/* Conta bancária */}
           <div className="space-y-2">
             <Label>Conta Bancária de Saída *</Label>
-            <Select value={form.conta_bancaria_id} onValueChange={(v) => setForm((f) => ({ ...f, conta_bancaria_id: v }))}>
+            <Select value={form.conta_bancaria_id} onValueChange={(v) => mudar("conta_bancaria_id", v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a conta" />
               </SelectTrigger>
@@ -146,13 +160,14 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
                 ))}
               </SelectContent>
             </Select>
+            {erros.conta_bancaria_id && <p className="text-sm font-medium text-destructive">{erros.conta_bancaria_id}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {/* Forma de Pagamento */}
             <div className="space-y-2">
               <Label>Forma de Pagamento *</Label>
-              <Select value={form.forma_pagamento} onValueChange={(v) => setForm((f) => ({ ...f, forma_pagamento: v }))}>
+              <Select value={form.forma_pagamento} onValueChange={(v) => mudar("forma_pagamento", v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -174,9 +189,10 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
                 step="0.01"
                 min="0.01"
                 value={form.valor_bruto}
-                onChange={(e) => setForm((f) => ({ ...f, valor_bruto: e.target.value }))}
-                required
+                onChange={(e) => mudar("valor_bruto", e.target.value)}
+                aria-invalid={!!erros.valor_bruto}
               />
+              {erros.valor_bruto && <p className="text-sm font-medium text-destructive">{erros.valor_bruto}</p>}
             </div>
           </div>
 
@@ -189,8 +205,10 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
                 step="0.01"
                 placeholder="0,00"
                 value={form.valor_retencoes}
-                onChange={(e) => setForm((f) => ({ ...f, valor_retencoes: e.target.value }))}
+                onChange={(e) => mudar("valor_retencoes", e.target.value)}
+                aria-invalid={!!erros.valor_retencoes}
               />
+              {erros.valor_retencoes && <p className="text-sm font-medium text-destructive">{erros.valor_retencoes}</p>}
             </div>
 
             {/* Valor Líquido (calculado) */}
@@ -214,7 +232,7 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
                 <Input
                   placeholder="Cód. Banco"
                   value={form.banco_favorecido}
-                  onChange={(e) => setForm((f) => ({ ...f, banco_favorecido: e.target.value }))}
+                  onChange={(e) => mudar("banco_favorecido", e.target.value)}
                 />
               </div>
               <div className="space-y-1">
@@ -222,7 +240,7 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
                 <Input
                   placeholder="Agência"
                   value={form.agencia_favorecido}
-                  onChange={(e) => setForm((f) => ({ ...f, agencia_favorecido: e.target.value }))}
+                  onChange={(e) => mudar("agencia_favorecido", e.target.value)}
                 />
               </div>
               <div className="space-y-1">
@@ -230,12 +248,12 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
                 <Input
                   placeholder="Conta"
                   value={form.conta_favorecido}
-                  onChange={(e) => setForm((f) => ({ ...f, conta_favorecido: e.target.value }))}
+                  onChange={(e) => mudar("conta_favorecido", e.target.value)}
                 />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Tipo</Label>
-                <Select value={form.tipo_conta_favorecido} onValueChange={(v) => setForm((f) => ({ ...f, tipo_conta_favorecido: v }))}>
+                <Select value={form.tipo_conta_favorecido} onValueChange={(v) => mudar("tipo_conta_favorecido", v)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -254,7 +272,7 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
             <Textarea
               placeholder="Observações adicionais..."
               value={form.observacoes}
-              onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
+              onChange={(e) => mudar("observacoes", e.target.value)}
               rows={2}
               maxLength={1000}
             />
@@ -266,12 +284,10 @@ export default function PagamentoFormDialog({ open, onOpenChange }: PagamentoFor
             </Button>
             <Button
               type="submit"
-              disabled={
-                !form.liquidacao_id || !form.conta_bancaria_id || !form.valor_bruto || criarPagamento.isPending
-              }
+              disabled={criarPagamento.isPending}
             >
               {criarPagamento.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Programar Pagamento
+              Programar pagamento
             </Button>
           </DialogFooter>
         </form>

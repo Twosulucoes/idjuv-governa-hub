@@ -213,6 +213,8 @@ export const idjuvConfig: TenantConfig = {
 
   verticais: ['esporte'],
 
+  fusoHorario: 'America/Boa_Vista',
+
   features: {
     portalPublico: true,
     transparenciaLai: true,

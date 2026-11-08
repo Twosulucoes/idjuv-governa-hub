@@ -275,6 +275,12 @@ export interface TenantConfig {
   impressao?: TenantImpressao;
   /** Parâmetros de RH (tabela de diárias etc.). */
   rh?: TenantRH;
+  /**
+   * Fuso horário da sede (IANA, ex.: "America/Boa_Vista"). Decide o "hoje" das contagens de prazo
+   * (`hojeISO` em `@/lib/datas/hojeLocal`), para o dia não virar antes da hora no navegador em outro fuso.
+   * Ausente: o fuso do navegador.
+   */
+  fusoHorario?: string;
   /** Módulos contratados. Subconjunto de MODULES_CONFIG. */
   modulos: Modulo[];
   verticais: Vertical[];

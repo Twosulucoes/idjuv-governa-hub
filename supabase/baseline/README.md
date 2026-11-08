@@ -655,3 +655,10 @@ entrou no `01_pre_data.sql` (colunas da próxima ação em `processo_andamentos`
 `02_dados_catalogo.sql` (os dias por etapa), no `03_post_data.sql` (chaves, FK, gatilhos, RLS e policies) e no
 `overlay/40_privilegios.sql`. No `rls/mapa.csv`, `compras_etapa_parametros` entra como classe `permissao`. Sem
 permissão nova. Testes no bloco "Compras: processos, P2" de `scripts/db/testar-rls.sql`.
+
+A migração `20261121090000_rh_testes_folha_contracheque.sql` (teste do RH de 06/11/2026, entrega 1: folha e
+contracheque) entrou no `01_pre_data.sql` (`rh_dia_nao_util`, `folha_inconsistencias_bloqueantes`,
+`registros_ponto_validar_falta`, `folha_montar_ficha` e `processar_folha_pagamento`), no `03_post_data.sql` (gatilho
+`trg_registros_ponto_validar_falta`), no `overlay/18_funcoes_rpc.sql` (`fechar_folha` recusa ficha com inconsistência)
+e no `overlay/40_privilegios.sql`. Sem tabela, permissão ou mudança no `rls/mapa.csv`. Testes no bloco
+"RH, teste de 06/11/2026" de `scripts/db/testar-rls.sql`.

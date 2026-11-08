@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { codigosDaFicha, ehBloqueante } from '@/lib/folhaInconsistencias';
 
 // Tipos para o histórico de status
 export interface HistoricoStatusFolha {
@@ -95,6 +96,42 @@ export function useHistoricoStatusFolha(folhaId?: string) {
       return data as HistoricoStatusFolha[];
     },
     enabled: !!folhaId,
+  });
+}
+
+// ============== INCONSISTÊNCIAS ANTES DE FECHAR ==============
+
+export interface FichaComInconsistencia {
+  fichaId: string;
+  servidor: string;
+  codigos: string[];
+  bloqueante: boolean;
+}
+
+/** Fichas da folha com inconsistência, para o diálogo de fechamento mostrar a lista (a regra é de fechar_folha). */
+export function useInconsistenciasFolha(folhaId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['folha-inconsistencias', folhaId],
+    queryFn: async (): Promise<FichaComInconsistencia[]> => {
+      const { data, error } = await supabase
+        .from('fichas_financeiras')
+        .select('id, inconsistencias, servidor:servidores!fichas_financeiras_servidor_id_fkey(nome_completo)')
+        .eq('folha_id', folhaId!)
+        .eq('tem_inconsistencia', true);
+      if (error) throw error;
+      return (data ?? [])
+        .map((f) => {
+          const codigos = codigosDaFicha(f.inconsistencias);
+          return {
+            fichaId: f.id,
+            servidor: (f.servidor as { nome_completo: string } | null)?.nome_completo ?? 'Servidor',
+            codigos,
+            bloqueante: codigos.some(ehBloqueante),
+          };
+        })
+        .sort((a, b) => Number(b.bloqueante) - Number(a.bloqueante) || a.servidor.localeCompare(b.servidor, 'pt-BR'));
+    },
+    enabled: !!folhaId && enabled,
   });
 }
 

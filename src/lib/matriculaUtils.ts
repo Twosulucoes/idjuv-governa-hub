@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 // A matrícula é numerada pelo banco (trigger `gerar_matricula_servidor`, numérico e com trava): o cliente não gera mais.
 
@@ -92,34 +93,26 @@ export async function atualizarCargoAtualServidor(
 }
 
 /**
- * Buscar lotação ativa de um servidor
+ * Lotação vigente hoje (tabela `lotacoes`, a mesma da Gestão de Lotação e da FK `designacoes.lotacao_id`), com
+ * cargo e unidade. Antes lia `vinculos_servidor` e mandava o id do vínculo como `lotacao_id`: o banco recusava
+ * toda designação (23503, teste do RH de 06/11/2026, item 9). Lotação externa e agendada para o futuro ficam fora.
  */
-export async function buscarLotacaoAtiva(servidorId: string) {
+export async function buscarLotacaoAtiva(servidorId: string, hoje: string = hojeISO()) {
   const { data, error } = await supabase
-    .from("vinculos_servidor")
-    .select("*")
+    .from("lotacoes")
+    .select("id, servidor_id, unidade_id, cargo_id, data_inicio, data_fim, tipo_lotacao, unidade:estrutura_organizacional!lotacoes_unidade_id_fkey(id, nome, sigla), cargo:cargos(id, nome, sigla)")
     .eq("servidor_id", servidorId)
     .eq("ativo", true)
+    .lte("data_inicio", hoje)
+    .or(`data_fim.is.null,data_fim.gte.${hoje}`)
+    .neq("tipo_lotacao", "lotacao_externa")
     .order("data_inicio", { ascending: false })
     .limit(1)
     .maybeSingle();
-  
+
   if (error) {
-    console.error("Erro ao buscar vínculo ativo:", error);
+    console.error("Erro ao buscar lotação vigente:", error);
     throw error;
   }
-  
-  if (!data) return null;
-
-  // Buscar cargo e unidade
-  const [cargoRes, unidadeRes] = await Promise.all([
-    data.cargo_id ? supabase.from("cargos").select("id, nome, sigla").eq("id", data.cargo_id).maybeSingle() : Promise.resolve({ data: null }),
-    data.unidade_id ? supabase.from("estrutura_organizacional").select("id, nome, sigla").eq("id", data.unidade_id).maybeSingle() : Promise.resolve({ data: null }),
-  ]);
-
-  return {
-    ...data,
-    cargo: cargoRes.data,
-    unidade: unidadeRes.data,
-  };
+  return data;
 }

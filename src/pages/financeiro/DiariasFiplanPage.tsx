@@ -45,7 +45,8 @@ const OPCOES_PRESTACAO = [
 const PERMISSAO_IMPORTAR = "financeiro.execucao.importar";
 
 export default function DiariasFiplanPage() {
-  const { exercicio, comExercicio } = useExercicioFinanceiro();
+  const { exercicio, setExercicio, comExercicio } = useExercicioFinanceiro();
+  const anoAtual = new Date().getFullYear();
   const { hasPermission } = useAuth();
   const diarias = useDiariasFiplan(exercicio);
   const ultima = useUltimaImportacaoDiarias(exercicio);
@@ -184,18 +185,25 @@ export default function DiariasFiplanPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard rotulo="Total pago" valor={formatCurrency(resumo.valor)} detalhe={`${resumo.quantidade} diárias`} icone={Wallet} carregando={carregando} />
-          <KpiCard rotulo="Servidores" valor={resumo.servidores} icone={Users} carregando={carregando} />
+          {/* Cada cartão diz a unidade: diária e servidor não se misturam (achado F5 do teste do Financeiro) */}
+          <KpiCard
+            rotulo="Servidores"
+            valor={`${resumo.servidores} ${resumo.servidores === 1 ? "servidor" : "servidores"}`}
+            detalhe="Com diária paga"
+            icone={Users}
+            carregando={carregando}
+          />
           <KpiCard
             rotulo="Sem prestação de contas"
-            valor={resumo.pendentes}
-            detalhe={formatCurrency(resumo.valorPendente)}
+            valor={`${resumo.pendentes} ${resumo.pendentes === 1 ? "diária" : "diárias"}`}
+            detalhe={`${resumo.servidoresPendentes} ${resumo.servidoresPendentes === 1 ? "servidor" : "servidores"} · ${formatCurrency(resumo.valorPendente)}`}
             icone={Plane}
             carregando={carregando}
           />
           <KpiCard
             rotulo="Prestação atrasada"
-            valor={resumo.atrasadas}
-            detalhe={`Mais de ${PRAZO_PRESTACAO_DIAS} dias depois do retorno`}
+            valor={`${resumo.atrasadas} ${resumo.atrasadas === 1 ? "diária" : "diárias"}`}
+            detalhe={`${resumo.servidoresAtrasados} ${resumo.servidoresAtrasados === 1 ? "servidor" : "servidores"} · mais de ${PRAZO_PRESTACAO_DIAS} dias depois do retorno`}
             icone={AlertTriangle}
             carregando={carregando}
           />
@@ -219,8 +227,14 @@ export default function DiariasFiplanPage() {
           }
           vazio={{
             icone: Plane,
-            titulo: "Nenhuma diária importada",
+            titulo: `Nenhuma diária importada em ${exercicio}`,
             descricao: "Importe o FIP 002 em Financeiro → Atualizar dados para ver as diárias do exercício.",
+            acao:
+              exercicio !== anoAtual ? (
+                <Button variant="outline" onClick={() => setExercicio(anoAtual)}>
+                  Ver {anoAtual}
+                </Button>
+              ) : undefined,
           }}
         />
       </div>

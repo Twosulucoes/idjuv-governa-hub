@@ -10227,6 +10227,91 @@ BEGIN
   PERFORM pg_temp.nota('ESTRUTURA PLANILHA: permissão, superior inexistente travando tudo, simulação sem gravar, superior e nível das novas, unidade antiga completada, log e reimportação sem alteração verificados');
 END $$;
 
+-- ===== RH, teste de 06/11/2026 (migração 20261121090000): falta só em dia útil e depois da admissão; a folha
+-- ignora falta fora dos dias pagos; fechar_folha recusa ficha com inconsistência (de tributo sempre)
+DO $$
+DECLARE
+  u_proc uuid := (SELECT uid FROM persona WHERE nome='perm_financeiro.folha.processar');
+  u_admin uuid := (SELECT uid FROM persona WHERE nome='admin');
+  cg uuid := '06110611-0000-0000-0000-0000000000c1'; s1 uuid := '06110611-0000-0000-0000-0000000000a1';
+  fl uuid := '06110611-0000-0000-0000-0000000000f1'; fl2 uuid := '06110611-0000-0000-0000-0000000000f2';
+  fc2 uuid := '06110611-0000-0000-0000-0000000000e2';
+  r jsonb; msg text; ok boolean;
+BEGIN
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.cargos (id, nome, sigla, categoria, natureza, vencimento_base, quantidade_vagas)
+    VALUES (cg, 'Cargo Teste RH 0611', 'T0611', 'comissionado', 'comissionado', 3000.00, 1);
+  INSERT INTO public.servidores (id, nome_completo, cpf, situacao, ativo, data_admissao)
+    VALUES (s1, 'Servidor Teste RH 0611', '000.000.f51-01', 'ativo', true, '2035-03-10');
+  INSERT INTO public.provimentos (servidor_id, cargo_id, data_nomeacao, status) VALUES (s1, cg, '2035-03-10', 'ativo');
+  INSERT INTO public.dias_nao_uteis (data, nome, tipo, conta_frequencia, ativo) VALUES ('2035-03-20', 'Feriado Teste 0611', 'feriado_municipal', false, true);
+  SET LOCAL session_replication_role = origin;
+
+  -- trigger: antes da admissão e em dia não útil, recusa; dia útil depois da admissão, aceita
+  BEGIN
+    INSERT INTO public.registros_ponto (servidor_id, data, tipo) VALUES (s1, '2035-03-05', 'falta');
+    PERFORM pg_temp.falha('RH 0611: falta antes da admissão aceita');
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT;
+    IF msg NOT LIKE '%anterior à admissão%' THEN PERFORM pg_temp.falha('RH 0611: mensagem da falta antes da admissão (' || msg || ')'); END IF;
+  END;
+  BEGIN
+    INSERT INTO public.registros_ponto (servidor_id, data, tipo) VALUES (s1, '2035-03-20', 'falta');
+    PERFORM pg_temp.falha('RH 0611: falta em dia não útil aceita');
+  EXCEPTION WHEN raise_exception THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT;
+    IF msg NOT LIKE '%Feriado Teste 0611%' THEN PERFORM pg_temp.falha('RH 0611: mensagem da falta em feriado (' || msg || ')'); END IF;
+  END;
+  ok := true;
+  BEGIN
+    INSERT INTO public.registros_ponto (servidor_id, data, tipo) VALUES (s1, '2035-03-21', 'falta');
+  EXCEPTION WHEN OTHERS THEN
+    ok := false; GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT;
+  END;
+  IF NOT ok THEN PERFORM pg_temp.falha('RH 0611: falta em dia útil depois da admissão recusada (' || msg || ')'); END IF;
+
+  -- folha: falta lançada antes do trigger (dado antigo) fora dos dias pagos não desconta
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO public.registros_ponto (servidor_id, data, tipo) VALUES (s1, '2035-03-02', 'falta');
+  INSERT INTO public.frequencia_mensal (servidor_id, ano, mes, dias_falta) VALUES (s1, 2035, 3, 2);
+  INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_folha, status) VALUES (fl, 2035, 3, 'mensal', 'aberta');
+  SET LOCAL session_replication_role = origin;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_proc, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  r := public.processar_folha_pagamento(fl);
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF NOT coalesce((r ->> 'sucesso')::boolean, false) THEN
+    PERFORM pg_temp.falha('RH 0611: processamento falhou (' || r::text || ')');
+  ELSIF (SELECT i.referencia FROM public.itens_ficha_financeira i JOIN public.fichas_financeiras f ON f.id = i.ficha_id
+          WHERE f.folha_id = fl AND i.descricao = 'Desconto de faltas') IS DISTINCT FROM '1 dia(s)'
+     OR NOT EXISTS (SELECT 1 FROM public.fichas_financeiras WHERE folha_id = fl AND inconsistencias ? 'falta_fora_dos_dias_pagos_ignorada') THEN
+    PERFORM pg_temp.falha('RH 0611: das 2 faltas só a de 21/03 deveria descontar, com a inconsistência da ignorada');
+  END IF;
+
+  -- fechar_folha: inconsistência comum só com justificativa; de tributo nunca
+  SET LOCAL session_replication_role = replica;
+  UPDATE public.fichas_financeiras SET tem_inconsistencia = true, inconsistencias = '["sem_dados_bancarios"]' WHERE folha_id = fl;
+  INSERT INTO public.folhas_pagamento (id, competencia_ano, competencia_mes, tipo_folha, status) VALUES (fl2, 2035, 4, 'mensal', 'aberta');
+  INSERT INTO public.fichas_financeiras (id, folha_id, servidor_id, competencia_ano, competencia_mes, tem_inconsistencia, inconsistencias)
+    VALUES (fc2, fl2, s1, 2035, 4, true, '["tabela_inss_ausente"]');
+  SET LOCAL session_replication_role = origin;
+  r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.fechar_folha(%L::uuid, ''curta'')::text', fl))::jsonb;
+  IF coalesce((r ->> 'success')::boolean, true) OR NOT (r -> 'inconsistencias') @> '[{"servidor": "Servidor Teste RH 0611"}]' THEN
+    PERFORM pg_temp.falha('RH 0611: fechar_folha com inconsistência e justificativa curta deveria recusar com a lista (' || r::text || ')');
+  END IF;
+  r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.fechar_folha(%L::uuid, ''Fechada para teste, conferido pelo RH'')::text', fl))::jsonb;
+  IF NOT coalesce((r ->> 'success')::boolean, false) THEN
+    PERFORM pg_temp.falha('RH 0611: fechar_folha com justificativa deveria fechar (' || r::text || ')');
+  END IF;
+  r := pg_temp.valor_como(u_admin, 'authenticated', format('SELECT public.fechar_folha(%L::uuid, ''Fechada para teste, conferido pelo RH'')::text', fl2))::jsonb;
+  IF coalesce((r ->> 'success')::boolean, true) OR NOT coalesce((r ->> 'bloqueante')::boolean, false) THEN
+    PERFORM pg_temp.falha('RH 0611: fechar_folha com tabela de INSS ausente deveria recusar sempre (' || r::text || ')');
+  END IF;
+
+  PERFORM pg_temp.nota('RH 0611: falta antes da admissão e em feriado recusadas, falta fora dos dias pagos ignorada na folha, fechamento com inconsistência (justificativa / tributo) verificados');
+END $$;
+
 -- ---------------------------------------------------------------- resumo
 SELECT nivel, msg FROM resultado ORDER BY nivel DESC, msg;
 \set QUIET off

@@ -22,7 +22,7 @@ import { useDeleteItemFicha, useFichaFinanceiraDetalhe, useItensFichaFinanceira 
 import { useAuth } from "@/contexts/AuthContext";
 import { motivoBloqueioEdicao, podeEditarFicha } from "@/lib/folhaFichaRegras";
 import { MESES, type ItemFichaFinanceira } from "@/types/folha";
-import { generateContracheque } from "@/lib/pdfContracheque";
+import { imprimirContracheques } from "@/hooks/useContracheque";
 import { toast } from "sonner";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
 import { ItemFichaFormDialog } from "./ItemFichaFormDialog";
@@ -117,54 +117,7 @@ export function FichaFinanceiraDialog({ open, onOpenChange, fichaId }: FichaFina
       const competenciaMes = ficha.competencia_mes || 1;
       const competencia = `${MESES[competenciaMes - 1]}/${competenciaAno}`;
       
-      // Preparar itens para o PDF
-      const proventos = itens?.filter(i => i.tipo === 'provento') || [];
-      const descontos = itens?.filter(i => i.tipo === 'desconto') || [];
-      
-      // Construir rubricas para o formato esperado
-      const rubricas = [
-        ...proventos.map(p => ({
-          codigo: p.rubrica_id?.substring(0, 4) || '0001',
-          descricao: p.descricao || 'Provento',
-          tipo: 'provento' as const,
-          referencia: p.percentual ? Number(p.percentual) : undefined,
-          valor: Number(p.valor) || 0,
-        })),
-        ...descontos.map(d => ({
-          codigo: d.rubrica_id?.substring(0, 4) || '0001',
-          descricao: d.descricao || 'Desconto',
-          tipo: 'desconto' as const,
-          referencia: d.percentual ? Number(d.percentual) : undefined,
-          valor: Number(d.valor) || 0,
-        })),
-      ];
-
-      await generateContracheque({
-        ficha: {
-          id: ficha.id,
-          servidor_id: ficha.servidor_id || '',
-          cargo_nome: ficha.cargo_nome,
-          unidade_nome: ficha.unidade_nome,
-          total_proventos: ficha.total_proventos || 0,
-          total_descontos: ficha.total_descontos || 0,
-          valor_liquido: ficha.valor_liquido || 0,
-          base_inss: ficha.base_inss,
-          valor_inss: ficha.valor_inss,
-          base_irrf: ficha.base_irrf,
-          valor_irrf: ficha.valor_irrf,
-          quantidade_dependentes: ficha.quantidade_dependentes,
-          rubricas,
-          servidor: ficha.servidor ? {
-            nome_completo: ficha.servidor.nome_completo,
-            cpf: ficha.servidor.cpf || '',
-            matricula: ficha.servidor.matricula,
-            pis_pasep: ficha.servidor.pis_pasep,
-          } : undefined,
-        },
-        competencia,
-        competenciaAno,
-        competenciaMes,
-      });
+      await imprimirContracheques([ficha.id], competencia);
     } catch (error) {
       console.error("Erro ao gerar contracheque:", error);
       toast.error("Erro ao gerar contracheque");

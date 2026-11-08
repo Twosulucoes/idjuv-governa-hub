@@ -67,6 +67,7 @@ import {
   Mail,
   ArrowLeftRight,
   Handshake,
+  LifeBuoy,
 } from "lucide-react";
 
 // ================================
@@ -695,9 +696,9 @@ export const menuConfig: MenuSection[] = [
         // Lançamentos fora do FIPLAN (FIPLAN fechado de janeiro a abril, tarifas, contas de convênio),
         // regularizados depois no FIPLAN; os pagamentos saem pela remessa OBN600 da Conciliação
         id: "fin-contingencia-submenu",
-        label: "Contingência (regularizar no FIPLAN)",
+        label: "Contingência",
         labelShort: "Contingência",
-        icon: ClipboardCheck,
+        icon: LifeBuoy,
         priority: 4,
         children: [
           {

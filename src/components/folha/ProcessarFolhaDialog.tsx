@@ -185,6 +185,12 @@ export function ProcessarFolhaDialog({
                         <li key={i} className="text-orange-700">• {a}</li>
                       ))}
                     </ul>
+                    {resultado.avisos.some((a) => /saiu zero|não foram deduzidos/.test(a)) && (
+                      <p className="mt-2 text-sm font-medium text-orange-800">
+                        Enquanto faltar tabela ou alíquota de tributo, a folha serve só de prévia: o fechamento é recusado.
+                        Cadastre em Configurações da Folha e processe de novo.
+                      </p>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}

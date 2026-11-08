@@ -375,6 +375,10 @@ REVOKE EXECUTE ON FUNCTION public.processo_proxima_acao_falta(text, date, text, 
 GRANT EXECUTE ON FUNCTION public.processo_proxima_acao_falta(text, date, text, uuid, text, date) TO authenticated;
 REVOKE ALL ON FUNCTION public.processo_buscar_servidores(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.processo_buscar_servidores(text) TO authenticated;
+-- teste do RH de 06/11/2026 (migração 20261121090000)
+REVOKE EXECUTE ON FUNCTION public.registros_ponto_validar_falta() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rh_dia_nao_util(date) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.folha_inconsistencias_bloqueantes() TO authenticated;
 REVOKE ALL ON FUNCTION public.processo_empenhos(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.processo_empenhos(uuid) TO authenticated;
 REVOKE ALL ON FUNCTION public.importar_processos_planilha(jsonb, jsonb, boolean) FROM PUBLIC, anon;

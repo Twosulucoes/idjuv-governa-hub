@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { mensagemDeErro } from "@/lib/erroBanco";
 import type { Designacao, CreateDesignacaoData, StatusDesignacao } from "@/types/designacao";
 
 export function useDesignacoes(filters?: { status?: StatusDesignacao; unidade_id?: string }) {
@@ -99,7 +100,7 @@ export function useCreateDesignacao() {
       toast.success("Solicitação de designação criada com sucesso!");
     },
     onError: (error: any) => {
-      toast.error(`Erro ao criar designação: ${error.message}`);
+      toast.error(`Erro ao criar designação: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -219,7 +220,7 @@ export function useAprovarDesignacao() {
       toast.success("Designação aprovada! Histórico e portaria registrados automaticamente.");
     },
     onError: (error: any) => {
-      toast.error(`Erro ao aprovar designação: ${error.message}`);
+      toast.error(`Erro ao aprovar designação: ${mensagemDeErro(error)}`);
     },
   });
 }
@@ -248,7 +249,7 @@ export function useRejeitarDesignacao() {
       toast.success("Designação rejeitada.");
     },
     onError: (error: any) => {
-      toast.error(`Erro ao rejeitar designação: ${error.message}`);
+      toast.error(`Erro ao rejeitar designação: ${mensagemDeErro(error)}`);
     },
   });
 }
