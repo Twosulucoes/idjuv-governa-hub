@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { mensagemDeErro } from "@/lib/erroBanco";
+import { ErroGravacao } from "@/components/rh/ErroGravacao";
 import { useTransferirServidor, useUnidadesCompativeisCargo, type ServidorGestao } from "@/hooks/useGestaoLotacao";
 import { MOTIVOS_TRANSFERENCIA, type MotivoTransferencia } from "@/lib/rhRpc";
 
@@ -38,6 +40,7 @@ export function TransferirServidorModal({ servidor, open, onOpenChange }: Props)
   const [doeNumero, setDoeNumero] = useState("");
   const [doeData, setDoeData] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
 
   const destinos = unidades.filter((u: { id: string }) => u.id !== servidor?.unidade_id);
 
@@ -51,12 +54,15 @@ export function TransferirServidorModal({ servidor, open, onOpenChange }: Props)
     setDoeNumero("");
     setDoeData("");
     setObservacao("");
+    setErro(null);
   };
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!servidor || !unidadeId || !data) return;
-    await transferir.mutateAsync({
+    setErro(null);
+    try {
+      await transferir.mutateAsync({
       servidorId: servidor.id,
       unidadeId,
       data,
@@ -67,7 +73,12 @@ export function TransferirServidorModal({ servidor, open, onOpenChange }: Props)
       atoDoeNumero: doeNumero.trim() || undefined,
       atoDoeData: doeData || undefined,
       observacao: observacao.trim() || undefined,
-    });
+      });
+    } catch (falha) {
+      // a recusa do banco (ex.: data anterior ao início da lotação) fica no topo do formulário (item 24)
+      setErro(mensagemDeErro(falha));
+      return;
+    }
     limpar();
     onOpenChange(false);
   };
@@ -90,6 +101,7 @@ export function TransferirServidorModal({ servidor, open, onOpenChange }: Props)
         </DialogHeader>
 
         <form onSubmit={enviar} className="space-y-4">
+          <ErroGravacao mensagem={erro} />
           <Alert>
             <AlertDescription>
               O cargo e o provimento continuam os mesmos: muda a unidade. A lotação atual é encerrada na véspera, a nova
