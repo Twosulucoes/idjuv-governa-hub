@@ -3928,6 +3928,21 @@ DROP POLICY IF EXISTS "rls_delete" ON public.unidades_locais;
 CREATE POLICY "rls_delete" ON public.unidades_locais FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'));
 
+-- unidades_locais_tipos_espaco  [permissao: patrimonio]
+DROP POLICY IF EXISTS "rls_select" ON public.unidades_locais_tipos_espaco;
+CREATE POLICY "rls_select" ON public.unidades_locais_tipos_espaco FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) OR public.can_access_module(auth.uid(), 'patrimonio_mobile'));
+DROP POLICY IF EXISTS "rls_insert" ON public.unidades_locais_tipos_espaco;
+CREATE POLICY "rls_insert" ON public.unidades_locais_tipos_espaco FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'));
+DROP POLICY IF EXISTS "rls_update" ON public.unidades_locais_tipos_espaco;
+CREATE POLICY "rls_update" ON public.unidades_locais_tipos_espaco FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.unidades_locais_tipos_espaco;
+CREATE POLICY "rls_delete" ON public.unidades_locais_tipos_espaco FOR DELETE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'patrimonio')) AND public.has_permission_code(auth.uid(), 'unidades.gerenciar'));
+
 -- user_modules  [proprio_user]
 DROP POLICY IF EXISTS "del_user_modules_admin" ON public.user_modules;
 DROP POLICY IF EXISTS "ins_user_modules_admin" ON public.user_modules;

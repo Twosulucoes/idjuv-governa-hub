@@ -195,7 +195,8 @@ hook do domínio. A lógica de negócio reutilizável vive em `src/lib`.
   `/inventario/almoxarifado/:id/editar` (`ItemMaterialEditarPage`, `patrimonio.editar`); o saldo real ainda não
   existe, e a ficha mostra só os limites de estoque. A rota de detalhe da requisição ainda usa `PlaceholderDetalhePage`.
 - Unidades: `/unidades`, `/unidades/gestao` e `/unidades/:id` exigem `unidades.visualizar`; `/unidades/relatorios` e
-  `/unidades/central-relatorios`, `unidades.relatorios.visualizar`; `/unidades/cedencia`, `unidades.cedencias.visualizar`
+  `/unidades/central-relatorios`, `unidades.relatorios.visualizar`; `/unidades/cedencia`, `unidades.cedencias.visualizar`;
+  `/unidades/tipos-espaco` (cadastro dos tipos de espaço), `unidades.visualizar` para ver e `unidades.gerenciar` para alterar
   (além do módulo `patrimonio`). Criar/editar unidade e importar KML pedem `unidades.gerenciar`; agenda e termo de
   cessão, `unidades.cedencias.gerenciar`.
 - Formulários: a rota `/formularios/cpsi` (tela CPSI, que gerava DFD/ETP/TR) saiu na onda 5 do P23; esses atos são

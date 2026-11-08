@@ -147,6 +147,7 @@ const DICAS_DESCRICAO: Record<CategoriaBem, string> = {
   equipamento_esportivo: "Ex: Esteira ergométrica Movement LX-160",
   veiculo: "Ex: Carro Fiat Argo 1.0, ano 2023, cor prata",
   eletrodomestico: "Ex: Ar-condicionado Split 12.000 BTUs, Consul",
+  imovel: "Ex: Terreno do ginásio, com área construída de 1.200 m²",
   outros: "Ex: Descrição detalhada do bem com características principais",
 };
 

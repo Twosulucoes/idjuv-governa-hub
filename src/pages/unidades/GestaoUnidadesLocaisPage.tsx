@@ -26,19 +26,20 @@ import {
   Building2, 
   MapPin,
   Users,
+  Shapes,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   UnidadeLocal,
   TipoUnidadeLocal,
   StatusUnidadeLocal,
-  TIPO_UNIDADE_LABELS,
   STATUS_UNIDADE_LABELS,
   MUNICIPIOS_RORAIMA,
 } from "@/types/unidadesLocais";
 import { UnidadeLocalForm } from "@/components/unidades/UnidadeLocalForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusUnidadeBadge } from "@/components/unidades/StatusUnidadeBadge";
+import { nomeTipoEspaco, useTiposEspacoUnidade } from "@/hooks/useTiposEspacoUnidade";
 
 function GestaoUnidadesLocaisContent() {
   const navigate = useNavigate();
@@ -52,6 +53,8 @@ function GestaoUnidadesLocaisContent() {
   // Criar/editar unidade exige unidades.gerenciar (o banco também valida).
   const { hasPermission } = useAuth();
   const podeGerenciar = hasPermission("unidades.gerenciar");
+  const { data: tiposEspaco = [] } = useTiposEspacoUnidade();
+  const tipoDe = (unidade: UnidadeLocal) => nomeTipoEspaco(unidade, tiposEspaco);
 
   useEffect(() => {
     loadUnidades();
@@ -105,7 +108,7 @@ function GestaoUnidadesLocaisContent() {
 
   const filteredUnidades = unidades.filter((unidade) => {
     const matchesMunicipio = filterMunicipio === "all" || unidade.municipio === filterMunicipio;
-    const matchesTipo = filterTipo === "all" || unidade.tipo_unidade === filterTipo;
+    const matchesTipo = filterTipo === "all" || unidade.tipo_espaco_id === filterTipo;
     const matchesStatus = filterStatus === "all" || unidade.status === filterStatus;
     return matchesMunicipio && matchesTipo && matchesStatus;
   });
@@ -146,8 +149,9 @@ function GestaoUnidadesLocaisContent() {
     {
       id: "tipo",
       cabecalho: "Tipo",
-      celula: (unidade) => <Badge variant="outline">{TIPO_UNIDADE_LABELS[unidade.tipo_unidade]}</Badge>,
-      ordenarPor: (unidade) => TIPO_UNIDADE_LABELS[unidade.tipo_unidade],
+      celula: (unidade) => <Badge variant="outline">{tipoDe(unidade)}</Badge>,
+      ordenarPor: (unidade) => tipoDe(unidade),
+      buscarPor: (unidade) => tipoDe(unidade),
     },
     {
       id: "status",
@@ -177,12 +181,18 @@ function GestaoUnidadesLocaisContent() {
           titulo="Unidades locais"
           descricao="Gestão de ginásios, estádios, parques aquáticos e outras unidades esportivas"
           acoes={
-            podeGerenciar && (
-              <Button onClick={handleNewUnidade}>
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Nova unidade
+            <>
+              <Button variant="outline" onClick={() => navigate("/unidades/tipos-espaco")}>
+                <Shapes className="h-4 w-4" aria-hidden="true" />
+                Tipos de espaço
               </Button>
-            )
+              {podeGerenciar && (
+                <Button onClick={handleNewUnidade}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Nova unidade
+                </Button>
+              )}
+            </>
           }
         />
 
@@ -244,9 +254,9 @@ function GestaoUnidadesLocaisContent() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os tipos</SelectItem>
-                  {Object.entries(TIPO_UNIDADE_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
+                  {tiposEspaco.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>

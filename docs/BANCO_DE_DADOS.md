@@ -1401,6 +1401,25 @@ Todas idempotentes.
 - `campanhas_inventario.status` aceita `pausada`; `status_coleta_inventario` ganhou `sem_etiqueta`;
   `coletas_inventario.localizacao_encontrada_unidade_id` passou a referenciar `unidades_locais` (FK `NOT VALID`).
 
+**Teste do Inventário de 07/11/2026.** Migrações `20261125090000_unidades_locais_tipos_espaco_uc.sql` e
+`20261125100000_patrimonio_bem_imovel_valor_opcional.sql`:
+
+- `unidades_locais_tipos_espaco`: tipos de espaço das Unidades Locais cadastrados pelo módulo (tela
+  `/unidades/tipos-espaco`). Vêm com o sistema os sete do enum `tipo_unidade_local` e Campo de futebol, Parque, Praça,
+  Casa de apoio e Estacionamento (`codigo` fixo; tipo cadastrado depois fica sem código). `tipo_base` liga cada tipo ao
+  enum, que `unidades_locais.tipo_unidade` continua guardando porque códigos (GIN, EST...), views e relatórios ainda
+  leem dele. RLS classe `permissao`: lê quem tem o módulo `patrimonio` ou `patrimonio_mobile`; escreve
+  `unidades.gerenciar`. Nome único (sem diferença de maiúsculas e espaços).
+- `unidades_locais` ganha `tipo_espaco_id` (FK RESTRICT: tipo em uso não se apaga, se desativa) e `uc_energia` (número
+  da unidade consumidora na distribuidora). O gatilho `a_unidades_locais_tipo_espaco` (roda antes do que gera o código)
+  grava `tipo_unidade = tipo_base` do tipo escolhido e, quando só `tipo_unidade` vem (app de coleta, KML), escolhe o tipo
+  padrão. A migração preencheu o tipo das unidades existentes, reclassificou pelo nome as que estavam em "Outro"
+  (estacionamento, casa de apoio, praça, campo, parque, nessa ordem) e copiou para `uc_energia` o número que estava
+  como "UC ..." nas observações (o texto das observações não muda).
+- `categoria_bem` ganha `imovel`; `bens_patrimoniais` ganha `rip`, `matricula_imovel`, `cartorio_imovel` e `area_m2`
+  (CHECK > 0), e `valor_aquisicao` e `data_aquisicao` deixam de ser obrigatórios: nulo é valor desconhecido (bem antigo),
+  fora da soma em reais; `valor_liquido` (gerada) fica nulo. A trava `fn_bens_proteger_colunas` continua.
+
 **Inventário de campo (fase 1).** Migração
 `supabase/migrations/20261009160000_inventario_campo_fase1.sql` (criada em 2026-10-09 e **aplicada
 em produção no mesmo dia**, sob a versão `20261009160000`; as tabelas novas estão em `types.ts` desde o P03):

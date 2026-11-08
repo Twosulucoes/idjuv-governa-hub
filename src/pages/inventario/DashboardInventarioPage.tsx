@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { 
   Package, Boxes, TrendingUp, AlertTriangle, ClipboardCheck,
-  Wrench, FileX, ArrowRight, BarChart3, QrCode, PackagePlus, ArrowRightLeft, AlertCircle
+  Wrench, FileX, ArrowRight, BarChart3, QrCode, PackagePlus, ArrowRightLeft, AlertCircle, Building2
 } from "lucide-react";
 import { ModuleLayout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { KpiCard, PageHeader, StatusBadge } from "@/components/design-system";
-import { useEstatisticasPatrimonio, useCampanhasInventario, rotuloCategoriaBem } from "@/hooks/usePatrimonio";
+import { useEstatisticasPatrimonio, useEstatisticasUnidadesLocais, useCampanhasInventario, rotuloCategoriaBem } from "@/hooks/usePatrimonio";
 import { useEstatisticasAlmoxarifado } from "@/hooks/useAlmoxarifado";
 import { CadastroLoteDialog } from "@/components/inventario/CadastroLoteDialog";
 import { MovimentacaoLoteDialog } from "@/components/inventario/MovimentacaoLoteDialog";
@@ -42,6 +42,7 @@ export default function DashboardInventarioPage() {
     refetch: refetchAlmoxarifado,
   } = useEstatisticasAlmoxarifado();
   const { data: campanhas } = useCampanhasInventario(new Date().getFullYear());
+  const { data: estatisticasUnidades, isLoading: loadingUnidades } = useEstatisticasUnidadesLocais();
 
   const campanhaAtiva = campanhas?.find(c => c.status === 'em_andamento');
 
@@ -95,15 +96,33 @@ export default function DashboardInventarioPage() {
         {/* KPIs */}
         <section aria-labelledby="inventario-indicadores">
           <h2 id="inventario-indicadores" className="sr-only">Indicadores</h2>
-          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <ul className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <li>
               <KpiCard
                 rotulo="Bens patrimoniais"
                 icone={Package}
                 carregando={loadingPatrimonio}
-                valor={valorComApoio(estatisticasPatrimonio?.totalBens || 0, formatCurrency(estatisticasPatrimonio?.valorTotal || 0))}
+                valor={valorComApoio(
+                  estatisticasPatrimonio?.totalBens || 0,
+                  formatCurrency(estatisticasPatrimonio?.valorTotal || 0) +
+                    (estatisticasPatrimonio?.semValor ? ` · ${estatisticasPatrimonio.semValor} sem valor` : ""),
+                )}
                 className="h-full"
               />
+            </li>
+            <li>
+              <Link to="/unidades" className="block h-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <KpiCard
+                  rotulo="Unidades locais"
+                  icone={Building2}
+                  carregando={loadingUnidades}
+                  valor={valorComApoio(
+                    estatisticasUnidades?.total || 0,
+                    `${estatisticasUnidades?.ativas || 0} ativas · ${estatisticasUnidades?.municipios || 0} municípios`,
+                  )}
+                  className="h-full"
+                />
+              </Link>
             </li>
             <li>
               <KpiCard

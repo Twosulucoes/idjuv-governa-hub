@@ -26,7 +26,8 @@ SAIDA=supabase/baseline/schema
 # Tabelas cujas linhas (vindas das migrações) são catálogo/parâmetro (audit_colunas_sensiveis: máscara LGPD da
 # trilha, migração 20261011000000; regra_lancamento: modo da regra de setor por módulo, migração 20261011020000;
 # processo_modelos, processo_modelo_etapas e processo_modelo_checklist: modelos de fluxo do workflow, migração 20261013100000;
-# bancos_cnab: lista de bancos (código FEBRABAN), migração 20261025090000).
+# bancos_cnab: lista de bancos (código FEBRABAN), migração 20261025090000; unidades_locais_tipos_espaco: tipos de
+# espaço das Unidades Locais que vêm com o sistema, migração 20261125090000).
 # NÃO entram: servidores e
 # vinculos_servidor (74 nomes de pessoas, CPF placeholder — migração 20260110184920), audit_logs, portal_diretoria,
 # contatos_eventos_esportivos, debitos_tecnicos e config_paginas_historico (conteúdo operacional).
@@ -36,7 +37,7 @@ SEMENTES=(
   fin_naturezas_despesa fin_parametros fin_plano_contas form_field_config
   modelos_mensagem_reuniao module_access_scopes module_permissions_catalog module_settings
   parametros_folha prazos_lai processo_modelo_checklist processo_modelo_etapas processo_modelos regra_lancamento
-  role_permissions
+  role_permissions unidades_locais_tipos_espaco
 )
 
 mkdir -p "$SAIDA"

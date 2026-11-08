@@ -1221,6 +1221,24 @@ INSERT INTO public.role_permissions (id, role, permission, created_at, created_b
 
 
 --
+-- Data for Name: unidades_locais_tipos_espaco; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('baaa871a-637a-49a3-8ea4-42e96ad1e999', 'ginasio', 'Ginásio', 'ginasio', true, 10, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('567b8e33-4ba3-48f5-95d8-75e9fcad4bc9', 'estadio', 'Estádio', 'estadio', true, 20, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('144848c3-09d5-4361-a7e4-ed9307f1eca2', 'parque_aquatico', 'Parque Aquático', 'parque_aquatico', true, 30, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('5bde6144-e46e-4ea0-824b-2a788b2a96a2', 'piscina', 'Piscina', 'piscina', true, 40, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('a86a02ee-a9a5-4e29-8ab3-4303bfab325b', 'complexo', 'Complexo Esportivo', 'complexo', true, 50, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('13aa437c-3491-41e8-91d8-d2eec5d9258e', 'quadra', 'Quadra', 'quadra', true, 60, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('af6054ec-c2df-4dd2-a2bc-cd3e21ae40d4', 'campo_futebol', 'Campo de futebol', 'outro', true, 70, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('28e5c3b2-be56-4808-acbb-a5633003fd0d', 'parque', 'Parque', 'outro', true, 80, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('e323d9e3-15b0-4fca-b302-94573bcad395', 'praca', 'Praça', 'outro', true, 90, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('927d4bd9-fc53-41ef-a1c0-ec8836746bfc', 'casa_apoio', 'Casa de apoio', 'outro', true, 100, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('6a75d6dd-812e-4ce0-90d7-267f12df8f29', 'estacionamento', 'Estacionamento', 'outro', true, 110, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+INSERT INTO public.unidades_locais_tipos_espaco (id, codigo, nome, tipo_base, ativo, ordem, created_at, created_by, updated_at, updated_by) VALUES ('b36a1286-5b60-47db-9281-e81ed2098f40', 'outro', 'Outro', 'outro', true, 999, '2026-11-08 00:32:18.325175+00', NULL, '2026-11-08 00:32:18.325175+00', NULL);
+
+
+--
 -- PostgreSQL database dump complete
 --
 

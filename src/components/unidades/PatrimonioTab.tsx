@@ -56,6 +56,7 @@ const CATEGORIA_LABELS: Record<string, string> = {
   equipamento_esportivo: "Equip. Esportivo",
   veiculo: "Veículo",
   eletrodomestico: "Eletrodoméstico",
+  imovel: "Imóvel",
   outros: "Outros",
 };
 

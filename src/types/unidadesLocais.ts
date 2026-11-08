@@ -75,6 +75,10 @@ export interface UnidadeLocal {
   codigo_unidade?: string;
   municipio: string;
   tipo_unidade: TipoUnidadeLocal;
+  /** Tipo de espaço cadastrado (unidades_locais_tipos_espaco); tipo_unidade guarda o tipo base. */
+  tipo_espaco_id?: string | null;
+  /** Número da unidade consumidora (UC) na distribuidora de energia. */
+  uc_energia?: string | null;
   natureza_uso?: string;
   nome_unidade: string;
   endereco_completo?: string;

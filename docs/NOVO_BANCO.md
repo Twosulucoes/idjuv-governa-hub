@@ -249,6 +249,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   de `importar_empenhos_fip614` e `importar_peds_fiplan` (de `orcamento.importar` para `financeiro.execucao.importar`);
   no catálogo, a linha nova e o rótulo de `orcamento.importar`. Mapa e overlay sem mudança; testes nos blocos do FIP 614 e
   dos PEDs de `scripts/db/testar-rls.sql` (só `orcamento.importar` passa a ser recusado).
+- As migrações `20261125090000` e `20261125100000` (teste do Inventário de 07/11/2026) entraram no mapa
+  (`unidades_locais_tipos_espaco`, classe `permissao` com `escrita=unidades.gerenciar` e leitura do app de coleta), no
+  schema regenerado, no catálogo (`unidades_locais_tipos_espaco` entrou nas SEMENTES de `scripts/db/gerar-baseline.sh`:
+  os tipos de espaço que vêm com o sistema) e no `overlay/40_privilegios.sql` (gatilho sem EXECUTE); testes no bloco
+  "Inventário, teste de 07/11/2026" de `scripts/db/testar-rls.sql`.
 - A migração `20261117090000` (modelos do Gerador de relatórios) entrou no mapa (`relatorios_modelos`, classe
   `preservar`, policies na migração) e no schema regenerado; catálogo e overlay sem mudança. Testes no bloco "Modelos
   do gerador de relatórios" de `scripts/db/testar-rls.sql` (autor, colega do módulo, fora do módulo, admin e anon).

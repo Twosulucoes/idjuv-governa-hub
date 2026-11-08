@@ -1620,13 +1620,15 @@ export type Database = {
       bens_patrimoniais: {
         Row: {
           andar: string | null
+          area_m2: number | null
           cargo_responsavel: string | null
+          cartorio_imovel: string | null
           categoria_bem: Database["public"]["Enums"]["categoria_bem"] | null
           centro_custo_id: string | null
           codigo_qr: string | null
           created_at: string | null
           created_by: string | null
-          data_aquisicao: string
+          data_aquisicao: string | null
           data_atribuicao_responsabilidade: string | null
           data_nota_fiscal: string | null
           data_ultima_avaliacao: string | null
@@ -1649,6 +1651,7 @@ export type Database = {
           item_id: string | null
           localizacao_especifica: string | null
           marca: string | null
+          matricula_imovel: string | null
           modelo: string | null
           nota_fiscal: string | null
           numero_patrimonio: string
@@ -1660,6 +1663,7 @@ export type Database = {
           predio: string | null
           processo_sei: string | null
           responsavel_id: string | null
+          rip: string | null
           sala: string | null
           setor_responsavel_id: string | null
           situacao: string | null
@@ -1671,7 +1675,7 @@ export type Database = {
           unidade_id: string | null
           unidade_local_id: string | null
           updated_at: string | null
-          valor_aquisicao: number
+          valor_aquisicao: number | null
           valor_liquido: number | null
           valor_residual: number | null
           vida_util_anos: number | null
@@ -1679,13 +1683,15 @@ export type Database = {
         ComputedFields: never
         Insert: {
           andar?: string | null
+          area_m2?: number | null
           cargo_responsavel?: string | null
+          cartorio_imovel?: string | null
           categoria_bem?: Database["public"]["Enums"]["categoria_bem"] | null
           centro_custo_id?: string | null
           codigo_qr?: string | null
           created_at?: string | null
           created_by?: string | null
-          data_aquisicao: string
+          data_aquisicao?: string | null
           data_atribuicao_responsabilidade?: string | null
           data_nota_fiscal?: string | null
           data_ultima_avaliacao?: string | null
@@ -1710,6 +1716,7 @@ export type Database = {
           item_id?: string | null
           localizacao_especifica?: string | null
           marca?: string | null
+          matricula_imovel?: string | null
           modelo?: string | null
           nota_fiscal?: string | null
           numero_patrimonio: string
@@ -1721,6 +1728,7 @@ export type Database = {
           predio?: string | null
           processo_sei?: string | null
           responsavel_id?: string | null
+          rip?: string | null
           sala?: string | null
           setor_responsavel_id?: string | null
           situacao?: string | null
@@ -1732,20 +1740,22 @@ export type Database = {
           unidade_id?: string | null
           unidade_local_id?: string | null
           updated_at?: string | null
-          valor_aquisicao: number
+          valor_aquisicao?: number | null
           valor_liquido?: never
           valor_residual?: number | null
           vida_util_anos?: number | null
         }
         Update: {
           andar?: string | null
+          area_m2?: number | null
           cargo_responsavel?: string | null
+          cartorio_imovel?: string | null
           categoria_bem?: Database["public"]["Enums"]["categoria_bem"] | null
           centro_custo_id?: string | null
           codigo_qr?: string | null
           created_at?: string | null
           created_by?: string | null
-          data_aquisicao?: string
+          data_aquisicao?: string | null
           data_atribuicao_responsabilidade?: string | null
           data_nota_fiscal?: string | null
           data_ultima_avaliacao?: string | null
@@ -1770,6 +1780,7 @@ export type Database = {
           item_id?: string | null
           localizacao_especifica?: string | null
           marca?: string | null
+          matricula_imovel?: string | null
           modelo?: string | null
           nota_fiscal?: string | null
           numero_patrimonio?: string
@@ -1781,6 +1792,7 @@ export type Database = {
           predio?: string | null
           processo_sei?: string | null
           responsavel_id?: string | null
+          rip?: string | null
           sala?: string | null
           setor_responsavel_id?: string | null
           situacao?: string | null
@@ -1792,7 +1804,7 @@ export type Database = {
           unidade_id?: string | null
           unidade_local_id?: string | null
           updated_at?: string | null
-          valor_aquisicao?: number
+          valor_aquisicao?: number | null
           valor_liquido?: never
           valor_residual?: number | null
           vida_util_anos?: number | null
@@ -25864,7 +25876,9 @@ export type Database = {
           poligono_geojson: Json | null
           regras_de_uso: string | null
           status: Database["public"]["Enums"]["status_unidade_local"]
+          tipo_espaco_id: string | null
           tipo_unidade: Database["public"]["Enums"]["tipo_unidade_local"]
+          uc_energia: string | null
           unidade_administrativa: string | null
           updated_at: string | null
           updated_by: string | null
@@ -25899,7 +25913,9 @@ export type Database = {
           poligono_geojson?: Json | null
           regras_de_uso?: string | null
           status?: Database["public"]["Enums"]["status_unidade_local"]
+          tipo_espaco_id?: string | null
           tipo_unidade: Database["public"]["Enums"]["tipo_unidade_local"]
+          uc_energia?: string | null
           unidade_administrativa?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -25933,9 +25949,59 @@ export type Database = {
           poligono_geojson?: Json | null
           regras_de_uso?: string | null
           status?: Database["public"]["Enums"]["status_unidade_local"]
+          tipo_espaco_id?: string | null
           tipo_unidade?: Database["public"]["Enums"]["tipo_unidade_local"]
+          uc_energia?: string | null
           unidade_administrativa?: string | null
           updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unidades_locais_tipo_espaco_id_fkey"
+            columns: ["tipo_espaco_id"]
+            isOneToOne: false
+            referencedRelation: "unidades_locais_tipos_espaco"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      unidades_locais_tipos_espaco: {
+        Row: {
+          ativo: boolean
+          codigo: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          nome: string
+          ordem: number
+          tipo_base: Database["public"]["Enums"]["tipo_unidade_local"]
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          ativo?: boolean
+          codigo?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome: string
+          ordem?: number
+          tipo_base?: Database["public"]["Enums"]["tipo_unidade_local"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+          tipo_base?: Database["public"]["Enums"]["tipo_unidade_local"]
+          updated_at?: string
           updated_by?: string | null
         }
         Relationships: []
@@ -28031,13 +28097,15 @@ export type Database = {
         Args: { p_codigo: string }
         Returns: {
           andar: string | null
+          area_m2: number | null
           cargo_responsavel: string | null
+          cartorio_imovel: string | null
           categoria_bem: Database["public"]["Enums"]["categoria_bem"] | null
           centro_custo_id: string | null
           codigo_qr: string | null
           created_at: string | null
           created_by: string | null
-          data_aquisicao: string
+          data_aquisicao: string | null
           data_atribuicao_responsabilidade: string | null
           data_nota_fiscal: string | null
           data_ultima_avaliacao: string | null
@@ -28060,6 +28128,7 @@ export type Database = {
           item_id: string | null
           localizacao_especifica: string | null
           marca: string | null
+          matricula_imovel: string | null
           modelo: string | null
           nota_fiscal: string | null
           numero_patrimonio: string
@@ -28071,6 +28140,7 @@ export type Database = {
           predio: string | null
           processo_sei: string | null
           responsavel_id: string | null
+          rip: string | null
           sala: string | null
           setor_responsavel_id: string | null
           situacao: string | null
@@ -28082,7 +28152,7 @@ export type Database = {
           unidade_id: string | null
           unidade_local_id: string | null
           updated_at: string | null
-          valor_aquisicao: number
+          valor_aquisicao: number | null
           valor_liquido: number | null
           valor_residual: number | null
           vida_util_anos: number | null
@@ -29093,6 +29163,7 @@ export type Database = {
         | "veiculo"
         | "eletrodomestico"
         | "outros"
+        | "imovel"
       categoria_cargo:
         | "efetivo"
         | "comissionado"
@@ -29907,6 +29978,7 @@ export const Constants = {
         "veiculo",
         "eletrodomestico",
         "outros",
+        "imovel",
       ],
       categoria_cargo: [
         "efetivo",

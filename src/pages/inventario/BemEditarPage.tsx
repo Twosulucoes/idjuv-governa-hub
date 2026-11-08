@@ -68,16 +68,27 @@ const editarBemSchema = z.object({
   fornecedor_cnpj_cpf: z.string(),
   garantia_ate: z.string(),
   observacao: z.string(),
+  // Bem imóvel
+  rip: z.string().trim().max(40, "Máximo 40 caracteres"),
+  matricula_imovel: z.string().trim().max(40, "Máximo 40 caracteres"),
+  cartorio_imovel: z.string().trim().max(150, "Máximo 150 caracteres"),
+  area_m2: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || (Number.isFinite(Number(v.replace(",", "."))) && Number(v.replace(",", ".")) > 0), {
+      message: "Informe a área em m² (maior que zero)",
+    }),
   // Travados para quem não é admin
   numero_patrimonio: z.string().trim().min(1, "Informe o número de patrimônio").max(50, "Máximo 50 caracteres"),
   codigo_qr: z.string().trim().max(100, "Máximo 100 caracteres"),
   valor_aquisicao: z
     .string()
     .trim()
-    .refine((v) => v !== "" && Number.isFinite(Number(v.replace(",", "."))) && Number(v.replace(",", ".")) >= 0, {
+    // Vazio = valor desconhecido (bem antigo): fica fora da soma em reais.
+    .refine((v) => v === "" || (Number.isFinite(Number(v.replace(",", "."))) && Number(v.replace(",", ".")) >= 0), {
       message: "Informe um valor válido",
     }),
-  data_aquisicao: z.string().min(1, "Informe a data de aquisição"),
+  data_aquisicao: z.string(),
   forma_aquisicao: z.string(),
 });
 
@@ -90,6 +101,7 @@ const CAMPOS_LIVRES = [
   "estado_conservacao", "unidade_local_id", "localizacao_especifica", "predio", "andar", "sala",
   "ponto_especifico", "responsavel_id", "cargo_responsavel", "processo_sei", "nota_fiscal",
   "data_nota_fiscal", "fornecedor_cnpj_cpf", "garantia_ate", "observacao",
+  "rip", "matricula_imovel", "cartorio_imovel", "area_m2",
 ] as const satisfies readonly CampoForm[];
 
 /** Campos que só o administrador altera: nem são enviados no update de quem não é admin. */
@@ -127,6 +139,10 @@ function valoresIniciais(bem: Bem): FormData {
     fornecedor_cnpj_cpf: texto(bem.fornecedor_cnpj_cpf),
     garantia_ate: texto(bem.garantia_ate),
     observacao: texto(bem.observacao),
+    rip: texto(bem.rip),
+    matricula_imovel: texto(bem.matricula_imovel),
+    cartorio_imovel: texto(bem.cartorio_imovel),
+    area_m2: texto(bem.area_m2),
     numero_patrimonio: texto(bem.numero_patrimonio),
     codigo_qr: texto(bem.codigo_qr),
     valor_aquisicao: texto(bem.valor_aquisicao),
@@ -137,7 +153,9 @@ function valoresIniciais(bem: Bem): FormData {
 
 /** Converte o valor do formulário para o que vai à coluna (vazio vira null). */
 function paraColuna(campo: CampoForm, valor: string): string | number | null {
-  if (campo === "valor_aquisicao") return Number(valor.replace(",", "."));
+  if (campo === "valor_aquisicao" || campo === "area_m2") {
+    return valor.trim() === "" ? null : Number(valor.replace(",", "."));
+  }
   if (campo === "unidade_local_id" || campo === "responsavel_id") return valor === NENHUM ? null : valor;
   const limpo = valor.trim();
   return limpo === "" ? null : limpo;
@@ -276,6 +294,7 @@ function FormularioEdicaoBem({ bem }: { bem: Bem }) {
     defaultValues: iniciais,
   });
 
+  const ehImovel = form.watch("categoria_bem") === "imovel";
   const urlFicha = `/inventario/bens/${bem.id}`;
   const travado = !isSuperAdmin;
   const notaTravada = travado ? NOTA_SO_ADMIN : undefined;
@@ -385,6 +404,14 @@ function FormularioEdicaoBem({ bem }: { bem: Bem }) {
                   rotulo="Estado de conservação"
                   opcoes={opcoesDeRotulos(ESTADOS_CONSERVACAO_LABEL, iniciais.estado_conservacao)}
                 />
+                {ehImovel && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CampoTexto control={form.control} nome="rip" rotulo="RIP" placeholder="Registro Imobiliário Patrimonial" />
+                    <CampoTexto control={form.control} nome="area_m2" rotulo="Área (m²)" />
+                    <CampoTexto control={form.control} nome="matricula_imovel" rotulo="Matrícula" placeholder="Nº da matrícula no cartório" />
+                    <CampoTexto control={form.control} nome="cartorio_imovel" rotulo="Cartório" placeholder="Cartório de registro de imóveis" />
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -485,7 +512,7 @@ function FormularioEdicaoBem({ bem }: { bem: Bem }) {
                     rotulo="Valor de aquisição (R$)"
                     tipo="number"
                     desabilitado={travado}
-                    descricao={notaTravada}
+                    descricao={travado ? notaTravada : "Deixe em branco se o valor é desconhecido (bem antigo)"}
                   />
                   <CampoTexto
                     control={form.control}

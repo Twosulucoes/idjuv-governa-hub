@@ -73,7 +73,7 @@ import {
 const cadastroBemSchema = z.object({
   unidade_local_id: z.string().min(1, "Selecione a unidade local"),
   descricao: z.string().min(3, "Descrição deve ter no mínimo 3 caracteres").max(200),
-  categoria_bem: z.enum(["mobiliario", "informatica", "equipamento_esportivo", "veiculo", "eletrodomestico", "outros"]),
+  categoria_bem: z.enum(["mobiliario", "informatica", "equipamento_esportivo", "veiculo", "eletrodomestico", "imovel", "outros"]),
   subcategoria: z.string().optional(),
   marca: z.string().optional(),
   modelo: z.string().optional(),

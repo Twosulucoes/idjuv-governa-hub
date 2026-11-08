@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,10 +17,8 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import {
   UnidadeLocal,
-  TipoUnidadeLocal,
   StatusUnidadeLocal,
   NaturezaUso,
-  TIPO_UNIDADE_LABELS,
   STATUS_UNIDADE_LABELS,
   NATUREZA_USO_LABELS,
   AREAS_DISPONIVEIS_OPTIONS,
@@ -29,6 +27,7 @@ import {
 import { useIdentidade } from "@/core/tenant";
 import { orgaoEmTexto } from "@/lib/rotulosInstituicao";
 import { useUnidadesAdministrativas } from "@/hooks/useServidoresPorUnidade";
+import { useTiposEspacoUnidade } from "@/hooks/useTiposEspacoUnidade";
 
 interface UnidadeLocalFormProps {
   unidade?: UnidadeLocal | null;
@@ -39,7 +38,8 @@ interface UnidadeLocalFormProps {
 interface FormData {
   codigo_unidade: string;
   municipio: string;
-  tipo_unidade: TipoUnidadeLocal;
+  tipo_espaco_id: string;
+  uc_energia: string;
   natureza_uso: string;
   nome_unidade: string;
   endereco_completo: string;
@@ -62,7 +62,8 @@ export function UnidadeLocalForm({ unidade, onSuccess, onCancel }: UnidadeLocalF
     defaultValues: {
       codigo_unidade: unidade?.codigo_unidade || "",
       municipio: unidade?.municipio || "",
-      tipo_unidade: unidade?.tipo_unidade || "ginasio",
+      tipo_espaco_id: unidade?.tipo_espaco_id || "",
+      uc_energia: unidade?.uc_energia || "",
       natureza_uso: unidade?.natureza_uso || "esportivo",
       nome_unidade: unidade?.nome_unidade || "",
       endereco_completo: unidade?.endereco_completo || "",
@@ -78,7 +79,17 @@ export function UnidadeLocalForm({ unidade, onSuccess, onCancel }: UnidadeLocalF
     },
   });
 
-  const watchTipo = watch("tipo_unidade");
+  const watchTipo = watch("tipo_espaco_id");
+  // Tipos de espaço cadastrados (Unidades Locais → Tipos de espaço). Um tipo desativado que a unidade
+  // já usa continua como opção.
+  const { data: tiposEspaco = [] } = useTiposEspacoUnidade();
+  const opcoesTipo = tiposEspaco.filter((t) => t.ativo || t.id === watchTipo);
+  // Unidade sem tipo cadastrado (anterior ao cadastro): parte do tipo padrão do valor antigo.
+  useEffect(() => {
+    if (watchTipo || tiposEspaco.length === 0) return;
+    const padrao = tiposEspaco.find((t) => t.codigo === (unidade?.tipo_unidade || "ginasio"));
+    if (padrao) setValue("tipo_espaco_id", padrao.id);
+  }, [watchTipo, tiposEspaco, unidade?.tipo_unidade, setValue]);
   const watchStatus = watch("status");
   const watchMunicipio = watch("municipio");
   const watchNatureza = watch("natureza_uso");
@@ -104,10 +115,18 @@ export function UnidadeLocalForm({ unidade, onSuccess, onCancel }: UnidadeLocalF
     try {
       const { data: userData } = await supabase.auth.getUser();
       
+      const tipo = tiposEspaco.find((t) => t.id === data.tipo_espaco_id);
+      if (!tipo) {
+        toast.error("Selecione o tipo de espaço");
+        return;
+      }
       const payload = {
         codigo_unidade: data.codigo_unidade || null,
         municipio: data.municipio,
-        tipo_unidade: data.tipo_unidade,
+        // O banco também acerta tipo_unidade pelo tipo escolhido (gatilho a_unidades_locais_tipo_espaco).
+        tipo_espaco_id: tipo.id,
+        tipo_unidade: tipo.tipo_base,
+        uc_energia: data.uc_energia.trim() || null,
         natureza_uso: data.natureza_uso || null,
         nome_unidade: data.nome_unidade,
         endereco_completo: data.endereco_completo || null,
@@ -182,14 +201,14 @@ export function UnidadeLocalForm({ unidade, onSuccess, onCancel }: UnidadeLocalF
 
           <div className="space-y-2">
             <Label htmlFor="tipo_unidade">Tipo de Espaço *</Label>
-            <Select value={watchTipo} onValueChange={(v) => setValue("tipo_unidade", v as TipoUnidadeLocal)}>
-              <SelectTrigger>
+            <Select value={watchTipo} onValueChange={(v) => setValue("tipo_espaco_id", v)}>
+              <SelectTrigger id="tipo_unidade">
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(TIPO_UNIDADE_LABELS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
+                {opcoesTipo.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.nome}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -366,6 +385,16 @@ export function UnidadeLocalForm({ unidade, onSuccess, onCancel }: UnidadeLocalF
             {...register("regras_de_uso")}
             placeholder="Descreva as regras de uso da unidade..."
             rows={3}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="uc_energia">UC de energia</Label>
+          <Input
+            id="uc_energia"
+            {...register("uc_energia")}
+            placeholder="Número da unidade consumidora na conta de luz"
+            className="md:max-w-xs"
           />
         </div>
 

@@ -32,7 +32,6 @@ import {
 import {
   UnidadeLocal,
   NomeacaoChefeUnidade,
-  TIPO_UNIDADE_LABELS,
   TIPO_ATO_LABELS,
 } from "@/types/unidadesLocais";
 import { EmptyState, PageHeader } from "@/components/design-system";
@@ -42,11 +41,13 @@ import { AgendaTab } from "@/components/unidades/AgendaTab";
 import { TermosCessaoTab } from "@/components/unidades/TermosCessaoTab";
 import { StatusUnidadeBadge } from "@/components/unidades/StatusUnidadeBadge";
 import { useAuth } from "@/contexts/AuthContext";
+import { nomeTipoEspaco, useTiposEspacoUnidade } from "@/hooks/useTiposEspacoUnidade";
 
 function UnidadeDetalheContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [unidade, setUnidade] = useState<UnidadeLocal | null>(null);
+  const { data: tiposEspaco = [] } = useTiposEspacoUnidade();
   const [chefeAtual, setChefeAtual] = useState<NomeacaoChefeUnidade | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -147,7 +148,7 @@ function UnidadeDetalheContent() {
           status={
             <StatusUnidadeBadge status={unidade.status} />
           }
-          descricao={`${TIPO_UNIDADE_LABELS[unidade.tipo_unidade]} • ${unidade.municipio}`}
+          descricao={`${nomeTipoEspaco(unidade, tiposEspaco)} • ${unidade.municipio}`}
           acoes={
             <>
               <Button variant="outline" onClick={() => navigate("/unidades")}>
@@ -257,6 +258,10 @@ function UnidadeDetalheContent() {
                   <div>
                     <p className="text-sm text-muted-foreground">Endereço</p>
                     <p className="font-medium">{unidade.endereco_completo || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">UC de energia</p>
+                    <p className="font-medium tabular-nums">{unidade.uc_energia || "-"}</p>
                   </div>
                 </CardContent>
               </Card>
