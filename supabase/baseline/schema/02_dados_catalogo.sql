@@ -220,6 +220,21 @@ INSERT INTO public.compras_etapa_parametros (id, etapa, dias_prazo, dias_limite_
 
 
 --
+-- Data for Name: compras_prazo_tipos; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.compras_prazo_tipos (id, tipo, rotulo, avisos_padrao, updated_at, updated_by) VALUES ('d80067c7-dad0-48d7-903d-5575e6d039bc', 'proxima_acao', 'Próxima ação', '{3,1}', '2026-11-08 00:48:23.024081+00', NULL);
+INSERT INTO public.compras_prazo_tipos (id, tipo, rotulo, avisos_padrao, updated_at, updated_by) VALUES ('217998dc-8cde-4955-a6dd-6d8053d99cb8', 'resposta_orgao_externo', 'Resposta de órgão externo', '{5,2,1}', '2026-11-08 00:48:23.024081+00', NULL);
+INSERT INTO public.compras_prazo_tipos (id, tipo, rotulo, avisos_padrao, updated_at, updated_by) VALUES ('086a5cf2-4408-47e7-a2f7-01151257d18b', 'assinatura_contrato', 'Assinatura do contrato', '{5,2,1}', '2026-11-08 00:48:23.024081+00', NULL);
+INSERT INTO public.compras_prazo_tipos (id, tipo, rotulo, avisos_padrao, updated_at, updated_by) VALUES ('d264acad-6393-4fdf-9a25-87d1d659af39', 'vigencia_ata', 'Vigência da ata', '{30,15,7,1}', '2026-11-08 00:48:23.024081+00', NULL);
+INSERT INTO public.compras_prazo_tipos (id, tipo, rotulo, avisos_padrao, updated_at, updated_by) VALUES ('cbf09c03-9418-4c08-a1b7-b74af9d458b1', 'vigencia_contrato', 'Vigência do contrato', '{60,30,15,7,1}', '2026-11-08 00:48:23.024081+00', NULL);
+INSERT INTO public.compras_prazo_tipos (id, tipo, rotulo, avisos_padrao, updated_at, updated_by) VALUES ('931ca6af-75d5-4ddc-97b9-f0dcc7c7a35f', 'empenho', 'Empenho', '{5,2,1}', '2026-11-08 00:48:23.024081+00', NULL);
+INSERT INTO public.compras_prazo_tipos (id, tipo, rotulo, avisos_padrao, updated_at, updated_by) VALUES ('c1a8fe62-bc2b-4b0f-bfd2-5099b9e70293', 'liquidacao', 'Liquidação', '{5,2,1}', '2026-11-08 00:48:23.024081+00', NULL);
+INSERT INTO public.compras_prazo_tipos (id, tipo, rotulo, avisos_padrao, updated_at, updated_by) VALUES ('a69e16f9-c977-485e-832b-29998e41b299', 'pagamento', 'Pagamento', '{5,2,1}', '2026-11-08 00:48:23.024081+00', NULL);
+INSERT INTO public.compras_prazo_tipos (id, tipo, rotulo, avisos_padrao, updated_at, updated_by) VALUES ('a5bfe1c4-9340-4738-b92d-33a22442336f', 'prestacao_contas', 'Prestação de contas', '{15,7,3,1}', '2026-11-08 00:48:23.024081+00', NULL);
+
+
+--
 -- Data for Name: config_agrupamento_unidades; Type: TABLE DATA; Schema: public; Owner: -
 --
 

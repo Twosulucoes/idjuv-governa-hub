@@ -312,6 +312,12 @@ A migração `20261117090000_relatorios_modelos.sql` (modelos do Gerador de rela
 `preservar`, policies na migração); overlay sem mudança. Testes no bloco "Modelos do gerador de relatórios" de
 `scripts/db/testar-rls.sql`.
 
+A migração `20261127090000_fin_credores_servidores.sql` (credor do FIPLAN ligado ao servidor pelo CPF) entrou no
+schema (`01_pre_data.sql` e `03_post_data.sql`, só os blocos dela e o `importar_diarias_fiplan` refeito; catálogo sem
+mudança), no `rls/mapa.csv` (`fin_credores_servidores` na classe `preservar`, policy na migração) e no
+`overlay/40_privilegios.sql` (tabela só leitura; `importar_credores_fiplan` e `fin_credores_cpfs_de_servidores` só
+para `authenticated`). Testes no bloco "Financeiro: credor do FIPLAN ligado ao servidor" de `scripts/db/testar-rls.sql`.
+
 A migração `20261113090000_fin_diarias_fiplan.sql` (diárias do FIPLAN, FIP 002) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só o rótulo de `financeiro.execucao.importar`,
 editado à mão para não trocar os ids e datas das outras linhas), no `rls/mapa.csv` (`fin_diarias_fiplan` na classe
@@ -646,6 +652,15 @@ entrou no `01_pre_data.sql` (colunas de exclusão e de edição em `processo_and
 `overlay/40_privilegios.sql` (funções sem EXECUTE para a API). No `rls/mapa.csv`, a trilha entra como classe `trilha`
 (`leitura=compras.processos.visualizar|compras.processos.editar`). Sem permissão nova. Testes no bloco
 "Compras: processos, P1" de `scripts/db/testar-rls.sql`.
+
+A migração `20261128090000_compras_processos_prazos.sql` (processos SEI, P3: prazos, avisos e pop-up de vencidos)
+entrou no `01_pre_data.sql` (tabelas `compras_prazo_tipos`, `processo_prazos` e `processo_prazo_remarcacoes`, as
+funções `compras_normalizar_avisos`, `compras_prazo_tipos_preparar`, `processo_prazo_preparar`,
+`processo_prazo_responsavel_nome`, `processo_prazo_registrar_remarcacao` e `compras_meus_prazos`, mais a versão nova de
+`processo_recalcular_estado`), no `02_dados_catalogo.sql` (os tipos de prazo com os avisos padrão), no
+`03_post_data.sql` (chaves, FKs, índices, gatilhos, RLS e policies) e no `overlay/40_privilegios.sql`. No
+`rls/mapa.csv`, `compras_prazo_tipos` e `processo_prazos` entram como classe `permissao` e `processo_prazo_remarcacoes`
+como `trilha`. Sem permissão nova. Testes no bloco "Compras: processos, P3" de `scripts/db/testar-rls.sql`.
 
 A migração `20261122090000_compras_processos_proxima_acao.sql` (processos SEI, P2: próxima etapa, responsável e prazo)
 entrou no `01_pre_data.sql` (colunas da próxima ação em `processo_andamentos` e `processos_licitatorios`, tabela

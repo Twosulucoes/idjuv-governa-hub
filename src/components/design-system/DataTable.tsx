@@ -57,6 +57,8 @@ export interface DataTableProps<T> {
   acoesLinha?: (linha: T) => React.ReactNode;
   aoClicarLinha?: (linha: T) => void;
   tamanhoPagina?: number;
+  /** Linha de totais abaixo da tabela, calculada sobre as linhas que passaram pela busca e pelos filtros. */
+  rodape?: (filtradas: T[]) => React.ReactNode;
   /** Altura máxima da área rolável (ex.: "70vh"). Com ela o cabeçalho fica fixo ao rolar a tabela. */
   alturaMaxima?: string;
   /** Densidade inicial; o usuário pode trocar e a escolha fica no navegador. */
@@ -141,6 +143,7 @@ export function DataTable<T>({
   acoesLinha,
   aoClicarLinha,
   tamanhoPagina = 20,
+  rodape,
   alturaMaxima,
   densidadePadrao = "confortavel",
   className,
@@ -519,6 +522,12 @@ export function DataTable<T>({
               );
             })}
           </ul>
+
+          {rodape && filtradas.length > 0 && (
+            <div className="border-t border-border bg-muted/40 px-3 py-2 text-body" role="status" aria-live="polite">
+              {rodape(filtradas)}
+            </div>
+          )}
 
           {/* Paginação */}
           {ordenadas.length > opcoesPorPagina[0] && (

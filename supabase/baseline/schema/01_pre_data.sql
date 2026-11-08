@@ -2591,6 +2591,113 @@ $$;
 
 
 --
+-- Name: compras_meus_prazos(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.compras_meus_prazos() RETURNS TABLE(categoria text, processo_id uuid, numero_processo text, objeto text, etapa text, prazo_id uuid, tipo text, descricao text, data_limite date, dias integer, responsavel text, andamento_id uuid, pode_editar boolean, pode_ver boolean)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  WITH eu AS (
+    SELECT auth.uid() AS uid,
+           (SELECT p.servidor_id FROM public.profiles p WHERE p.id = auth.uid()) AS servidor_id,
+           (now() AT TIME ZONE 'America/Boa_Vista')::date AS hoje
+  ), acesso AS (
+    SELECT eu.*,
+           public.perfil_ativo_atual() AS ativo,
+           coalesce(public.can_access_module(eu.uid, 'compras')
+                    AND public.has_permission_code(eu.uid, 'compras.processos.editar'), false) AS todos,
+           coalesce(public.can_access_module(eu.uid, 'compras')
+                    AND (public.has_permission_code(eu.uid, 'compras.processos.visualizar')
+                         OR public.has_permission_code(eu.uid, 'compras.processos.editar')), false) AS ver
+      FROM eu
+  ), prazos AS (
+    SELECT CASE WHEN pz.data_limite < a.hoje THEN 'vencido'
+                WHEN pz.data_limite - a.hoje <= 3 THEN 'proximo'
+                ELSE 'aviso' END AS categoria,
+           p.id AS processo_id, p.numero_processo, left(coalesce(p.objeto_resumido, p.objeto), 200) AS objeto, p.etapa,
+           pz.id AS prazo_id, pz.tipo, pz.descricao, pz.data_limite, (pz.data_limite - a.hoje)::integer AS dias,
+           coalesce(pz.responsavel_nome, pz.responsavel_setor) AS responsavel, pz.andamento_id,
+           a.todos AS pode_editar, a.ver AS pode_ver
+      FROM public.processo_prazos pz
+      JOIN public.processos_licitatorios p ON p.id = pz.processo_id
+      CROSS JOIN acesso a
+     WHERE a.uid IS NOT NULL AND a.ativo
+       AND pz.situacao IN ('aberto', 'remarcado')
+       AND p.etapa NOT IN ('encerrado', 'cancelado')
+       AND (pz.data_limite - a.hoje <= 3 OR (pz.data_limite - a.hoje) = ANY (pz.avisos_dias))
+       AND (a.todos OR (a.servidor_id IS NOT NULL AND pz.responsavel_servidor_id = a.servidor_id))
+  ), parados AS (
+    SELECT 'parado'::text, p.id, p.numero_processo, left(coalesce(p.objeto_resumido, p.objeto), 200), p.etapa,
+           NULL::uuid, NULL::text, NULL::text, coalesce(p.atualizado_em, p.created_at::date),
+           (a.hoje - coalesce(p.atualizado_em, p.created_at::date))::integer,
+           coalesce(p.proximo_responsavel_nome, p.proximo_responsavel_setor, p.setor_atual), NULL::uuid,
+           a.todos, a.ver
+      FROM public.processos_licitatorios p
+      CROSS JOIN acesso a
+     WHERE a.uid IS NOT NULL AND a.ativo
+       AND p.etapa NOT IN ('encerrado', 'cancelado')
+       AND a.hoje - coalesce(p.atualizado_em, p.created_at::date)
+           > coalesce((SELECT c.dias_limite_parado FROM public.compras_etapa_parametros c WHERE c.etapa = p.etapa), 15)
+       AND (a.todos OR (a.servidor_id IS NOT NULL AND p.proximo_responsavel_servidor_id = a.servidor_id))
+       AND NOT EXISTS (SELECT 1 FROM prazos v WHERE v.processo_id = p.id AND v.categoria = 'vencido')
+  )
+  SELECT * FROM (
+    SELECT * FROM prazos
+    UNION ALL
+    SELECT * FROM parados
+  ) x
+  ORDER BY CASE x.categoria WHEN 'vencido' THEN 0 WHEN 'proximo' THEN 1 WHEN 'parado' THEN 2 ELSE 3 END,
+           CASE WHEN x.categoria = 'parado' THEN -x.dias ELSE x.dias END, x.numero_processo
+  LIMIT 300
+$$;
+
+
+--
+-- Name: FUNCTION compras_meus_prazos(); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.compras_meus_prazos() IS 'Pop-up e sino dos processos de contratação (P3): prazos vencidos, que vencem em até 3 dias ou em dia de aviso, e processos parados além do limite da etapa. Com compras.processos.editar, todos; senão, os do servidor do perfil. Migração 20261128090000.';
+
+
+--
+-- Name: compras_normalizar_avisos(integer[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.compras_normalizar_avisos(p_avisos integer[]) RETURNS integer[]
+    LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT array_agg(d ORDER BY d DESC)
+    FROM (SELECT DISTINCT d FROM unnest(coalesce(p_avisos, '{}') || 1) AS d WHERE d BETWEEN 1 AND 365) x
+$$;
+
+
+--
+-- Name: compras_prazo_tipos_preparar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.compras_prazo_tipos_preparar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM unnest(NEW.avisos_padrao) d WHERE d IS NULL OR d NOT BETWEEN 1 AND 365) THEN
+    RAISE EXCEPTION 'Os avisos são dias antes do prazo, de 1 a 365.' USING ERRCODE = '22023';
+  END IF;
+  NEW.avisos_padrao := public.compras_normalizar_avisos(NEW.avisos_padrao);
+  NEW.rotulo := btrim(NEW.rotulo);
+  IF TG_OP = 'UPDATE' THEN
+    NEW.tipo := OLD.tipo;
+  END IF;
+  NEW.updated_at := now();
+  NEW.updated_by := COALESCE(auth.uid(), NEW.updated_by);
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: conciliar_movimento_bancario(uuid, uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -4498,6 +4605,45 @@ BEGIN
   RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
 END;
 $$;
+
+
+--
+-- Name: fin_credores_cpfs_de_servidores(text[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_credores_cpfs_de_servidores(p_cpfs text[]) RETURNS text[]
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_res text[];
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'financeiro.execucao.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar a execução do FIPLAN (financeiro.execucao.importar).' USING ERRCODE = '42501';
+  END IF;
+  IF p_cpfs IS NULL OR cardinality(p_cpfs) NOT BETWEEN 1 AND 10000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 10000 CPFs por vez.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Junta com os CPFs do cadastro uma vez só (o relatório chega a 5000 CPFs por lote)
+  SELECT array_agg(DISTINCT c.cpf) INTO v_res
+    FROM unnest(p_cpfs) AS c(cpf)
+    JOIN (SELECT DISTINCT regexp_replace(s.cpf, '\D', '', 'g') AS cpf FROM public.servidores s) srv ON srv.cpf = c.cpf
+   WHERE c.cpf ~ '^\d{11}$';
+  RETURN COALESCE(v_res, '{}'::text[]);
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION fin_credores_cpfs_de_servidores(p_cpfs text[]); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.fin_credores_cpfs_de_servidores(p_cpfs text[]) IS 'Dos CPFs (só dígitos) do relatório "Consultar Credor", devolve os que são de servidor. Exige o módulo financeiro e financeiro.execucao.importar.';
 
 
 --
@@ -9396,6 +9542,185 @@ COMMENT ON FUNCTION public.importar_classificadores_fiplan(p_tipo text, p_exerci
 
 
 --
+-- Name: importar_credores_fiplan(jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.importar_credores_fiplan(p_linhas jsonb, p_arquivo jsonb, p_simular boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_linha jsonb;
+  v_ind integer;
+  v_codigo text;
+  v_cpf text;
+  v_nome text;
+  v_chaves text[] := '{}';
+  v_servidores uuid[];
+  v_servidor uuid;
+  v_existente public.fin_credores_servidores%ROWTYPE;
+  v_acao text;
+  v_mudancas jsonb;
+  v_avisos text[];
+  v_sem_servidor integer;
+  v_ligadas integer := 0;
+  v_linhas_res jsonb := '[]'::jsonb;
+  v_erros jsonb := '[]'::jsonb;
+  v_ins integer := 0; v_atu integer := 0; v_igual integer := 0;
+  v_totais jsonb;
+  v_import_id uuid;
+BEGIN
+  p_simular := COALESCE(p_simular, true);
+
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'financeiro.execucao.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar a execução do FIPLAN (financeiro.execucao.importar).' USING ERRCODE = '42501';
+  END IF;
+  IF jsonb_typeof(p_linhas) IS DISTINCT FROM 'array'
+     OR jsonb_array_length(p_linhas) NOT BETWEEN 1 AND 10000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 10000 credores.' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_arquivo) IS DISTINCT FROM 'object'
+     OR char_length(COALESCE(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
+     OR COALESCE(p_arquivo->>'sha256', '') !~ '^[0-9a-f]{64}$'
+     OR COALESCE(p_arquivo->>'tamanho', '') !~ '^\d{1,15}$' THEN
+    RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtext('importar_credores_fiplan'));
+
+  BEGIN
+    IF NOT p_simular THEN
+      INSERT INTO public.importacoes (tipo, modulo, arquivo_nome, arquivo_sha256, arquivo_tamanho, created_by)
+      VALUES ('credores_fiplan', 'financeiro', p_arquivo->>'nome', p_arquivo->>'sha256',
+              (p_arquivo->>'tamanho')::bigint, v_uid)
+      RETURNING id INTO v_import_id;
+    END IF;
+
+    FOR v_linha IN SELECT value FROM jsonb_array_elements(p_linhas) LOOP
+      v_ind := COALESCE((v_linha->>'indice')::integer, -1);
+      BEGIN
+        v_codigo := btrim(COALESCE(v_linha->>'credor_codigo', ''));
+        v_cpf := btrim(COALESCE(v_linha->>'cpf', ''));
+        v_nome := left(NULLIF(btrim(v_linha->>'credor_nome'), ''), 300);
+        IF v_codigo !~ '^\d{10}$' THEN
+          RAISE EXCEPTION 'Código do credor "%" fora do padrão (10 dígitos).', left(v_codigo, 20) USING ERRCODE = '22023';
+        END IF;
+        IF v_cpf !~ '^\d{11}$' THEN
+          RAISE EXCEPTION 'Credor %: CPF fora do padrão.', v_codigo USING ERRCODE = '22023';
+        END IF;
+        IF v_codigo = ANY (v_chaves) THEN
+          RAISE EXCEPTION 'Credor % repetido no arquivo.', v_codigo USING ERRCODE = '22023';
+        END IF;
+        v_chaves := v_chaves || v_codigo;
+        v_avisos := '{}';
+
+        SELECT array_agg(s.id) INTO v_servidores
+          FROM public.servidores s
+         WHERE regexp_replace(s.cpf, '\D', '', 'g') = v_cpf;
+        IF cardinality(v_servidores) IS DISTINCT FROM 1 THEN
+          RAISE EXCEPTION 'Credor %: %', v_codigo,
+            CASE WHEN cardinality(v_servidores) > 1 THEN 'mais de um servidor com este CPF no cadastro.'
+                 ELSE 'nenhum servidor com este CPF no cadastro.' END
+            USING ERRCODE = '22023';
+        END IF;
+        v_servidor := v_servidores[1];
+
+        SELECT * INTO v_existente FROM public.fin_credores_servidores WHERE credor_codigo = v_codigo FOR UPDATE;
+        IF NOT FOUND THEN
+          INSERT INTO public.fin_credores_servidores (credor_codigo, servidor_id, credor_nome, importacao_id)
+          VALUES (v_codigo, v_servidor, v_nome, v_import_id);
+          v_acao := 'inserir';
+          v_mudancas := NULL;
+          v_ins := v_ins + 1;
+        ELSIF v_existente.servidor_id IS DISTINCT FROM v_servidor OR v_existente.credor_nome IS DISTINCT FROM v_nome THEN
+          v_mudancas := '{}'::jsonb;
+          IF v_existente.servidor_id IS DISTINCT FROM v_servidor THEN
+            v_mudancas := v_mudancas || jsonb_build_object('servidor_id', jsonb_build_array(v_existente.servidor_id, v_servidor));
+          END IF;
+          IF v_existente.credor_nome IS DISTINCT FROM v_nome THEN
+            v_mudancas := v_mudancas || jsonb_build_object('credor_nome', jsonb_build_array(v_existente.credor_nome, v_nome));
+          END IF;
+          UPDATE public.fin_credores_servidores
+             SET servidor_id = v_servidor, credor_nome = v_nome,
+                 importacao_id = COALESCE(v_import_id, importacao_id), updated_at = now()
+           WHERE credor_codigo = v_codigo;
+          v_acao := 'atualizar';
+          v_atu := v_atu + 1;
+        ELSE
+          v_acao := 'sem_alteracao';
+          v_mudancas := NULL;
+          v_igual := v_igual + 1;
+        END IF;
+
+        -- Diárias deste credor que estavam sem servidor
+        SELECT count(*) INTO v_sem_servidor
+          FROM public.fin_diarias_fiplan d
+         WHERE d.servidor_id IS NULL
+           AND regexp_replace(COALESCE(d.credor_codigo, ''), '\D', '', 'g') = v_codigo;
+        IF v_sem_servidor > 0 THEN
+          v_avisos := v_avisos || format('%s diária(s) sem servidor passam a ficar ligadas a ele.', v_sem_servidor);
+          v_ligadas := v_ligadas + v_sem_servidor;
+          UPDATE public.fin_diarias_fiplan d
+             SET servidor_id = v_servidor,
+                 -- viagem do RH: a única do servidor com a mesma saída (sem as canceladas), como no FIP 002
+                 viagem_id = (SELECT CASE WHEN count(*) = 1 THEN (array_agg(v.id))[1] END
+                                FROM public.viagens_diarias v
+                               WHERE v.servidor_id = v_servidor
+                                 AND v.data_saida = d.data_saida
+                                 AND v.status IS DISTINCT FROM 'cancelada'),
+                 updated_at = now()
+           WHERE d.servidor_id IS NULL
+             AND regexp_replace(COALESCE(d.credor_codigo, ''), '\D', '', 'g') = v_codigo;
+        END IF;
+
+        v_linhas_res := v_linhas_res || jsonb_build_object('indice', v_ind, 'acao', v_acao, 'mudancas', v_mudancas,
+          'avisos', CASE WHEN cardinality(v_avisos) > 0 THEN to_jsonb(v_avisos) END);
+      EXCEPTION
+        WHEN OTHERS THEN
+          v_erros := v_erros || jsonb_build_object('indice', v_ind, 'mensagem',
+            CASE WHEN left(SQLSTATE, 2) IN ('22', '23') OR SQLSTATE IN ('P0001', '42501') THEN SQLERRM
+                 ELSE format('Erro inesperado ao gravar a linha (código %s).', SQLSTATE) END);
+      END;
+    END LOOP;
+
+    IF p_simular OR jsonb_array_length(v_erros) > 0 THEN
+      RAISE EXCEPTION 'importação desfeita' USING ERRCODE = 'CRE01';
+    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'CRE01' THEN v_import_id := NULL;  -- desfaz tudo, inclusive o log; as variáveis continuam valendo
+  END;
+
+  v_totais := jsonb_build_object('inserir', v_ins, 'atualizar', v_atu, 'sem_alteracao', v_igual);
+
+  IF v_import_id IS NOT NULL THEN
+    UPDATE public.importacoes
+       SET resumo = jsonb_build_object('totais', v_totais, 'diarias_ligadas', v_ligadas)
+     WHERE id = v_import_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'simulacao', p_simular,
+    'importacao_id', v_import_id,
+    'totais', v_totais,
+    'linhas', v_linhas_res,
+    'erros', v_erros
+  );
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION importar_credores_fiplan(p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.importar_credores_fiplan(p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Liga o código do credor do FIPLAN ao servidor pelo CPF (relatório "Consultar Credor") e liga ao servidor as diárias que estavam sem ele (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
+
+
+--
 -- Name: importar_diarias_fiplan(integer, jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -9487,15 +9812,21 @@ BEGIN
 
         v_avisos := '{}';
 
-        -- Servidor: o único com o mesmo nome comparável
-        SELECT array_agg(s.id) INTO v_servidores
-          FROM public.servidores s
-         WHERE public.fin_nome_comparavel(s.nome_completo) = public.fin_nome_comparavel(v_linha->>'credor_nome');
-        v_servidor := CASE WHEN cardinality(v_servidores) = 1 THEN v_servidores[1] END;
+        -- Servidor: primeiro pelo código do credor (ligado ao CPF pelo "Consultar Credor" do FIPLAN); sem ele,
+        -- o único com o mesmo nome comparável
+        SELECT m.servidor_id INTO v_servidor
+          FROM public.fin_credores_servidores m
+         WHERE m.credor_codigo = regexp_replace(COALESCE(v_linha->>'credor_codigo', ''), '\D', '', 'g');
+        IF v_servidor IS NULL THEN
+          SELECT array_agg(s.id) INTO v_servidores
+            FROM public.servidores s
+           WHERE public.fin_nome_comparavel(s.nome_completo) = public.fin_nome_comparavel(v_linha->>'credor_nome');
+          v_servidor := CASE WHEN cardinality(v_servidores) = 1 THEN v_servidores[1] END;
+        END IF;
         IF v_servidor IS NULL THEN
           v_avisos := v_avisos || CASE WHEN cardinality(v_servidores) > 1
-            THEN 'Mais de um servidor com este nome: a diária fica sem servidor.'
-            ELSE 'Nenhum servidor com este nome no cadastro: a diária fica sem servidor.' END;
+            THEN 'Mais de um servidor com este nome e o código do credor não está ligado a um CPF: a diária fica sem servidor.'
+            ELSE 'Nenhum servidor com este código de credor nem com este nome: importe o "Consultar Credor" do FIPLAN para ligar pelo CPF.' END;
         END IF;
 
         -- Viagem do RH: a única do servidor com a mesma saída (sem as canceladas)
@@ -9626,7 +9957,7 @@ $_$;
 -- Name: FUNCTION importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o FIP 002 (Demonstrativo de Diárias) do FIPLAN para fin_diarias_fiplan, ligando servidor e viagem do RH (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
+COMMENT ON FUNCTION public.importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o FIP 002 (Demonstrativo de Diárias) do FIPLAN para fin_diarias_fiplan, ligando servidor (pelo código do credor e, sem ele, pelo nome) e viagem do RH (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
 
 
 --
@@ -14626,6 +14957,145 @@ $$;
 
 
 --
+-- Name: processo_prazo_preparar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_prazo_preparar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_api boolean := current_user IN ('authenticated', 'anon');
+  v_hoje date := (now() AT TIME ZONE 'America/Boa_Vista')::date;
+BEGIN
+  IF EXISTS (SELECT 1 FROM unnest(NEW.avisos_dias) d WHERE d IS NULL OR d NOT BETWEEN 1 AND 365) THEN
+    RAISE EXCEPTION 'Os avisos são dias antes do prazo, de 1 a 365.' USING ERRCODE = '22023';
+  END IF;
+  NEW.descricao := NULLIF(btrim(NEW.descricao), '');
+  NEW.responsavel_setor := NULLIF(btrim(NEW.responsavel_setor), '');
+  NEW.remarcacao_motivo := NULLIF(btrim(NEW.remarcacao_motivo), '');
+  NEW.conclusao_motivo := NULLIF(btrim(NEW.conclusao_motivo), '');
+
+  IF TG_OP = 'INSERT' THEN
+    IF v_api AND (NEW.tipo = 'proxima_acao' OR NEW.andamento_id IS NOT NULL) THEN
+      RAISE EXCEPTION 'O prazo da próxima ação nasce da movimentação (registre uma movimentação).' USING ERRCODE = '22023';
+    END IF;
+    IF NEW.responsavel_servidor_id IS NULL AND NEW.responsavel_setor IS NULL THEN
+      RAISE EXCEPTION 'Informe o responsável pelo prazo (servidor ou setor).' USING ERRCODE = '22023';
+    END IF;
+    IF NEW.avisos_dias IS NULL OR cardinality(NEW.avisos_dias) = 0 OR NEW.avisos_dias = '{1}' THEN
+      NEW.avisos_dias := coalesce((SELECT t.avisos_padrao FROM public.compras_prazo_tipos t WHERE t.tipo = NEW.tipo), '{1}');
+    END IF;
+    IF v_api THEN
+      NEW.situacao := 'aberto';
+      NEW.concluido_em := NULL;
+      NEW.concluido_por := NULL;
+      NEW.conclusao_motivo := NULL;
+      NEW.remarcacao_motivo := NULL;
+    END IF;
+    NEW.created_by := COALESCE(auth.uid(), NEW.created_by);
+    NEW.created_at := now();
+  ELSE
+    -- o que nunca muda
+    NEW.processo_id := OLD.processo_id;
+    NEW.tipo := OLD.tipo;
+    NEW.andamento_id := CASE WHEN v_api THEN OLD.andamento_id ELSE NEW.andamento_id END;
+    NEW.created_at := OLD.created_at;
+    NEW.created_by := OLD.created_by;
+
+    IF v_api THEN
+      IF OLD.situacao IN ('cumprido', 'cancelado') THEN
+        RAISE EXCEPTION 'Este prazo já foi encerrado e não pode mais mudar.' USING ERRCODE = '22023';
+      END IF;
+      IF OLD.tipo = 'proxima_acao' AND (
+           NEW.data_limite IS DISTINCT FROM OLD.data_limite
+           OR NEW.responsavel_servidor_id IS DISTINCT FROM OLD.responsavel_servidor_id
+           OR NEW.responsavel_setor IS DISTINCT FROM OLD.responsavel_setor
+           OR NEW.descricao IS DISTINCT FROM OLD.descricao
+           OR NEW.situacao IS DISTINCT FROM OLD.situacao) THEN
+        RAISE EXCEPTION 'A próxima ação muda pela movimentação: corrija o prazo dela na aba Andamento.' USING ERRCODE = '22023';
+      END IF;
+      IF NEW.situacao = 'remarcado' AND NEW.data_limite IS NOT DISTINCT FROM OLD.data_limite THEN
+        NEW.situacao := OLD.situacao;
+      END IF;
+      IF NEW.data_limite IS DISTINCT FROM OLD.data_limite THEN
+        IF NEW.remarcacao_motivo IS NULL OR NEW.remarcacao_motivo IS NOT DISTINCT FROM OLD.remarcacao_motivo THEN
+          RAISE EXCEPTION 'Informe o motivo da remarcação (de 3 a 500 caracteres).' USING ERRCODE = '22023';
+        END IF;
+        IF NEW.data_limite < v_hoje THEN
+          RAISE EXCEPTION 'A nova data do prazo não pode ficar no passado.' USING ERRCODE = '22023';
+        END IF;
+        IF NEW.situacao IN ('aberto', 'remarcado') THEN
+          NEW.situacao := 'remarcado';
+        END IF;
+      ELSE
+        NEW.remarcacao_motivo := OLD.remarcacao_motivo;
+      END IF;
+      IF NEW.situacao IS DISTINCT FROM OLD.situacao AND NEW.situacao IN ('cumprido', 'cancelado') THEN
+        IF NEW.situacao = 'cancelado' AND (NEW.conclusao_motivo IS NULL OR NEW.conclusao_motivo IS NOT DISTINCT FROM OLD.conclusao_motivo) THEN
+          RAISE EXCEPTION 'Informe o motivo do cancelamento (de 3 a 500 caracteres).' USING ERRCODE = '22023';
+        END IF;
+        NEW.concluido_em := now();
+        NEW.concluido_por := auth.uid();
+      ELSIF NEW.situacao IS NOT DISTINCT FROM OLD.situacao THEN
+        NEW.concluido_em := OLD.concluido_em;
+        NEW.concluido_por := OLD.concluido_por;
+        NEW.conclusao_motivo := OLD.conclusao_motivo;
+      ELSIF NEW.situacao = 'aberto' AND OLD.situacao = 'remarcado' THEN
+        NEW.situacao := 'remarcado';
+      END IF;
+      IF NEW.responsavel_servidor_id IS NULL AND NEW.responsavel_setor IS NULL THEN
+        RAISE EXCEPTION 'Informe o responsável pelo prazo (servidor ou setor).' USING ERRCODE = '22023';
+      END IF;
+    END IF;
+    NEW.updated_at := now();
+  END IF;
+
+  NEW.avisos_dias := public.compras_normalizar_avisos(NEW.avisos_dias);
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: processo_prazo_registrar_remarcacao(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_prazo_registrar_remarcacao() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.data_limite IS DISTINCT FROM OLD.data_limite THEN
+    INSERT INTO public.processo_prazo_remarcacoes (prazo_id, processo_id, data_anterior, data_nova, motivo, feito_por)
+    VALUES (NEW.id, NEW.processo_id, OLD.data_limite, NEW.data_limite,
+            coalesce(NEW.remarcacao_motivo, 'Prazo da movimentação corrigido'), auth.uid());
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: processo_prazo_responsavel_nome(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_prazo_responsavel_nome() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.responsavel_servidor_id IS NULL THEN
+    NEW.responsavel_nome := NULL;
+  ELSE
+    SELECT s.nome_completo INTO NEW.responsavel_nome FROM public.servidores s WHERE s.id = NEW.responsavel_servidor_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: processo_proxima_acao_falta(text, date, text, uuid, text, date); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -14656,6 +15126,14 @@ DECLARE
   v_setor text;
   v_data date;
 BEGIN
+  -- prazos de movimentações excluídas
+  UPDATE public.processo_prazos pz
+     SET situacao = 'cancelado', concluido_em = now(), concluido_por = auth.uid(),
+         conclusao_motivo = 'Movimentação excluída'
+    FROM public.processo_andamentos a
+   WHERE pz.processo_id = p_processo_id AND pz.andamento_id = a.id AND a.excluido_em IS NOT NULL
+     AND pz.situacao IN ('aberto', 'remarcado');
+
   SELECT * INTO v_ult
     FROM public.processo_andamentos a
    WHERE a.processo_id = p_processo_id AND a.excluido_em IS NULL
@@ -14687,6 +15165,45 @@ BEGIN
          prazo_proxima_acao = v_ult.prazo_proxima,
          updated_at = now()
    WHERE id = p_processo_id;
+
+  -- a próxima ação das outras movimentações já foi feita
+  UPDATE public.processo_prazos pz
+     SET situacao = 'cumprido', concluido_em = now(), concluido_por = auth.uid(),
+         conclusao_motivo = 'Nova movimentação registrada'
+   WHERE pz.processo_id = p_processo_id AND pz.tipo = 'proxima_acao' AND pz.situacao IN ('aberto', 'remarcado')
+     AND pz.andamento_id IS DISTINCT FROM v_ult.id;
+
+  IF v_ult.prazo_proxima IS NOT NULL THEN
+    INSERT INTO public.processo_prazos AS pz
+      (processo_id, tipo, descricao, data_limite, responsavel_servidor_id, responsavel_nome, responsavel_setor,
+       andamento_id, avisos_dias, created_by)
+    VALUES
+      (p_processo_id, 'proxima_acao', left(coalesce(v_ult.proxima_etapa, ''), 300), v_ult.prazo_proxima,
+       v_ult.responsavel_servidor_id, v_ult.responsavel_nome, v_ult.responsavel_setor, v_ult.id,
+       coalesce((SELECT t.avisos_padrao FROM public.compras_prazo_tipos t WHERE t.tipo = 'proxima_acao'), '{1}'),
+       coalesce(auth.uid(), v_ult.created_by))
+    ON CONFLICT (andamento_id) DO UPDATE
+       SET descricao = EXCLUDED.descricao,
+           data_limite = EXCLUDED.data_limite,
+           responsavel_servidor_id = EXCLUDED.responsavel_servidor_id,
+           responsavel_nome = EXCLUDED.responsavel_nome,
+           responsavel_setor = EXCLUDED.responsavel_setor,
+           remarcacao_motivo = CASE WHEN pz.data_limite IS DISTINCT FROM EXCLUDED.data_limite
+                                    THEN coalesce(v_ult.alteracao_motivo, 'Prazo da movimentação corrigido')
+                                    ELSE pz.remarcacao_motivo END,
+           situacao = CASE WHEN pz.situacao IN ('cumprido', 'cancelado') THEN 'aberto'
+                           WHEN pz.data_limite IS DISTINCT FROM EXCLUDED.data_limite THEN 'remarcado'
+                           ELSE pz.situacao END,
+           concluido_em = CASE WHEN pz.situacao IN ('cumprido', 'cancelado') THEN NULL ELSE pz.concluido_em END,
+           concluido_por = CASE WHEN pz.situacao IN ('cumprido', 'cancelado') THEN NULL ELSE pz.concluido_por END,
+           conclusao_motivo = CASE WHEN pz.situacao IN ('cumprido', 'cancelado') THEN NULL ELSE pz.conclusao_motivo END;
+  ELSE
+    -- a movimentação que vale não tem próxima ação (encerrado, cancelado ou antiga): o prazo dela, se havia, sai
+    UPDATE public.processo_prazos pz
+       SET situacao = 'cumprido', concluido_em = now(), concluido_por = auth.uid(),
+           conclusao_motivo = 'Movimentação sem próxima ação'
+     WHERE pz.andamento_id = v_ult.id AND pz.situacao IN ('aberto', 'remarcado');
+  END IF;
 END;
 $$;
 
@@ -22413,6 +22930,29 @@ COMMENT ON TABLE public.compras_etapa_parametros IS 'Processos de contratação:
 
 
 --
+-- Name: compras_prazo_tipos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.compras_prazo_tipos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tipo text NOT NULL,
+    rotulo text NOT NULL,
+    avisos_padrao integer[] NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid DEFAULT auth.uid(),
+    CONSTRAINT compras_prazo_tipos_rotulo_check CHECK (((char_length(btrim(rotulo)) >= 3) AND (char_length(btrim(rotulo)) <= 80))),
+    CONSTRAINT compras_prazo_tipos_tipo_check CHECK ((tipo = ANY (ARRAY['proxima_acao'::text, 'resposta_orgao_externo'::text, 'assinatura_contrato'::text, 'vigencia_ata'::text, 'vigencia_contrato'::text, 'empenho'::text, 'liquidacao'::text, 'pagamento'::text, 'prestacao_contas'::text])))
+);
+
+
+--
+-- Name: TABLE compras_prazo_tipos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.compras_prazo_tipos IS 'Processos de contratação, P3: tipos de prazo e os avisos padrão (dias antes do vencimento). O aviso de 1 dia antes sempre fica.';
+
+
+--
 -- Name: conciliacoes_inventario; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -25352,6 +25892,29 @@ CREATE TABLE public.fin_contas_bancarias (
 );
 
 ALTER TABLE ONLY public.fin_contas_bancarias FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: fin_credores_servidores; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_credores_servidores (
+    credor_codigo text NOT NULL,
+    servidor_id uuid NOT NULL,
+    credor_nome text,
+    importacao_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_credores_servidores_credor_codigo_check CHECK ((credor_codigo ~ '^\d{10}$'::text)),
+    CONSTRAINT fin_credores_servidores_credor_nome_check CHECK ((char_length(credor_nome) <= 300))
+);
+
+
+--
+-- Name: TABLE fin_credores_servidores; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_credores_servidores IS 'Código do credor no FIPLAN (só dígitos) → servidor, pelo CPF do relatório "Consultar Credor". Escrita só pela RPC importar_credores_fiplan.';
 
 
 --
@@ -29503,6 +30066,82 @@ CREATE TABLE public.processo_modelos (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: processo_prazo_remarcacoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processo_prazo_remarcacoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    prazo_id uuid NOT NULL,
+    processo_id uuid NOT NULL,
+    data_anterior date NOT NULL,
+    data_nova date NOT NULL,
+    motivo text NOT NULL,
+    feito_em timestamp with time zone DEFAULT now() NOT NULL,
+    feito_por uuid,
+    CONSTRAINT processo_prazo_remarcacoes_motivo_check CHECK (((char_length(btrim(motivo)) >= 3) AND (char_length(btrim(motivo)) <= 500)))
+);
+
+
+--
+-- Name: TABLE processo_prazo_remarcacoes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.processo_prazo_remarcacoes IS 'Trilha das remarcações dos prazos dos processos de contratação (gatilho processo_prazo_registrar_remarcacao); imutável.';
+
+
+--
+-- Name: processo_prazos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processo_prazos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    processo_id uuid NOT NULL,
+    tipo text NOT NULL,
+    descricao text,
+    data_limite date NOT NULL,
+    responsavel_servidor_id uuid,
+    responsavel_nome text,
+    responsavel_setor text,
+    avisos_dias integer[] DEFAULT '{1}'::integer[] NOT NULL,
+    situacao text DEFAULT 'aberto'::text NOT NULL,
+    andamento_id uuid,
+    remarcacao_motivo text,
+    concluido_em timestamp with time zone,
+    concluido_por uuid,
+    conclusao_motivo text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT processo_prazos_conclusao_motivo_check CHECK (((conclusao_motivo IS NULL) OR ((char_length(btrim(conclusao_motivo)) >= 3) AND (char_length(btrim(conclusao_motivo)) <= 500)))),
+    CONSTRAINT processo_prazos_descricao_check CHECK (((descricao IS NULL) OR (char_length(descricao) <= 300))),
+    CONSTRAINT processo_prazos_remarcacao_motivo_check CHECK (((remarcacao_motivo IS NULL) OR ((char_length(btrim(remarcacao_motivo)) >= 3) AND (char_length(btrim(remarcacao_motivo)) <= 500)))),
+    CONSTRAINT processo_prazos_responsavel_setor_check CHECK (((responsavel_setor IS NULL) OR (char_length(responsavel_setor) <= 200))),
+    CONSTRAINT processo_prazos_situacao_check CHECK ((situacao = ANY (ARRAY['aberto'::text, 'remarcado'::text, 'cumprido'::text, 'cancelado'::text])))
+);
+
+
+--
+-- Name: TABLE processo_prazos; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.processo_prazos IS 'Prazos do processo de contratação (P3). O tipo proxima_acao espelha a próxima ação da movimentação que vale (processo_recalcular_estado); os outros são lançados à mão. "Vencido" é calculado (aberto ou remarcado com a data passada).';
+
+
+--
+-- Name: COLUMN processo_prazos.avisos_dias; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processo_prazos.avisos_dias IS 'Dias antes do prazo em que o responsável é avisado; sempre inclui o 1.';
+
+
+--
+-- Name: COLUMN processo_prazos.andamento_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processo_prazos.andamento_id IS 'Movimentação de onde nasceu o prazo da próxima ação (só no tipo proxima_acao).';
 
 
 --

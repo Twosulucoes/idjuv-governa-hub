@@ -14,6 +14,7 @@ import type { TablesInsert } from '@/integrations/supabase/types';
 import type { ProcessoAndamento, ProcessoAndamentoAlteracao, ProcessoContratacao } from '@/types/processos';
 import type { ServidorParaPassagem } from '@/types/passagens';
 import type { ParametroEtapa } from '@/lib/compras/proximaAcao';
+import { invalidarPrazos } from '@/hooks/useProcessoPrazos';
 
 export type ProcessoInput = Pick<
   TablesInsert<'processos_licitatorios'>,
@@ -128,6 +129,8 @@ function invalidarAndamento(qc: ReturnType<typeof useQueryClient>, processoId: s
   qc.invalidateQueries({ queryKey: ['processo-andamento-alteracoes', processoId] });
   qc.invalidateQueries({ queryKey: ['processo-contratacao', processoId] });
   qc.invalidateQueries({ queryKey: [CHAVE] });
+  // a próxima ação vira prazo (P3, migração 20261128090000)
+  invalidarPrazos(qc, processoId);
 }
 
 /** Corrige uma movimentação (P1, migração 20261120090000): o banco exige o motivo, grava a trilha e recalcula o processo. */
@@ -200,9 +203,7 @@ export function useNovaMovimentacao() {
       return dados.processo_id;
     },
     onSuccess: (processoId) => {
-      qc.invalidateQueries({ queryKey: ['processo-andamentos', processoId] });
-      qc.invalidateQueries({ queryKey: ['processo-contratacao', processoId] });
-      qc.invalidateQueries({ queryKey: [CHAVE] });
+      invalidarAndamento(qc, processoId);
       toast({ title: 'Movimentação registrada' });
     },
     onError: (e) => toast({ title: 'Não foi possível registrar a movimentação', description: mensagemErro(e), variant: 'destructive' }),

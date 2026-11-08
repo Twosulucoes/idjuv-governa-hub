@@ -3822,6 +3822,34 @@ export type Database = {
         }
         Relationships: []
       }
+      compras_prazo_tipos: {
+        Row: {
+          avisos_padrao: number[]
+          id: string
+          rotulo: string
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          avisos_padrao: number[]
+          id?: string
+          rotulo: string
+          tipo: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          avisos_padrao?: number[]
+          id?: string
+          rotulo?: string
+          tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       conciliacoes_inventario: {
         Row: {
           ajuste_proposto: string
@@ -11139,6 +11167,77 @@ export type Database = {
           {
             foreignKeyName: "fin_contas_bancarias_responsavel_id_fkey"
             columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_credores_servidores: {
+        Row: {
+          created_at: string
+          credor_codigo: string
+          credor_nome: string | null
+          importacao_id: string | null
+          servidor_id: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          credor_codigo: string
+          credor_nome?: string | null
+          importacao_id?: string | null
+          servidor_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credor_codigo?: string
+          credor_nome?: string | null
+          importacao_id?: string | null
+          servidor_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_credores_servidores_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
@@ -22075,6 +22174,176 @@ export type Database = {
         }
         Relationships: []
       }
+      processo_prazo_remarcacoes: {
+        Row: {
+          data_anterior: string
+          data_nova: string
+          feito_em: string
+          feito_por: string | null
+          id: string
+          motivo: string
+          prazo_id: string
+          processo_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          data_anterior: string
+          data_nova: string
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          motivo: string
+          prazo_id: string
+          processo_id: string
+        }
+        Update: {
+          data_anterior?: string
+          data_nova?: string
+          feito_em?: string
+          feito_por?: string | null
+          id?: string
+          motivo?: string
+          prazo_id?: string
+          processo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_prazo_remarcacoes_prazo_id_fkey"
+            columns: ["prazo_id"]
+            isOneToOne: false
+            referencedRelation: "processo_prazos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_prazo_remarcacoes_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processo_prazos: {
+        Row: {
+          andamento_id: string | null
+          avisos_dias: number[]
+          concluido_em: string | null
+          concluido_por: string | null
+          conclusao_motivo: string | null
+          created_at: string
+          created_by: string | null
+          data_limite: string
+          descricao: string | null
+          id: string
+          processo_id: string
+          remarcacao_motivo: string | null
+          responsavel_nome: string | null
+          responsavel_servidor_id: string | null
+          responsavel_setor: string | null
+          situacao: string
+          tipo: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          andamento_id?: string | null
+          avisos_dias?: number[]
+          concluido_em?: string | null
+          concluido_por?: string | null
+          conclusao_motivo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_limite: string
+          descricao?: string | null
+          id?: string
+          processo_id: string
+          remarcacao_motivo?: string | null
+          responsavel_nome?: string | null
+          responsavel_servidor_id?: string | null
+          responsavel_setor?: string | null
+          situacao?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          andamento_id?: string | null
+          avisos_dias?: number[]
+          concluido_em?: string | null
+          concluido_por?: string | null
+          conclusao_motivo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_limite?: string
+          descricao?: string | null
+          id?: string
+          processo_id?: string
+          remarcacao_motivo?: string | null
+          responsavel_nome?: string | null
+          responsavel_servidor_id?: string | null
+          responsavel_setor?: string | null
+          situacao?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processo_prazos_andamento_id_fkey"
+            columns: ["andamento_id"]
+            isOneToOne: true
+            referencedRelation: "processo_andamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_prazos_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_prazos_responsavel_servidor_id_fkey"
+            columns: ["responsavel_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_prazos_responsavel_servidor_id_fkey"
+            columns: ["responsavel_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "processo_prazos_responsavel_servidor_id_fkey"
+            columns: ["responsavel_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_prazos_responsavel_servidor_id_fkey"
+            columns: ["responsavel_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "processo_prazos_responsavel_servidor_id_fkey"
+            columns: ["responsavel_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_prazos_tipo_fkey"
+            columns: ["tipo"]
+            isOneToOne: false
+            referencedRelation: "compras_prazo_tipos"
+            referencedColumns: ["tipo"]
+          },
+        ]
+      }
       processo_reservas: {
         Row: {
           acao_id: string
@@ -27488,6 +27757,29 @@ export type Database = {
         }[]
       }
       cancelar_remessa_bancaria: { Args: { p_id: string }; Returns: Json }
+      compras_meus_prazos: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          andamento_id: string
+          categoria: string
+          data_limite: string
+          descricao: string
+          dias: number
+          etapa: string
+          numero_processo: string
+          objeto: string
+          pode_editar: boolean
+          pode_ver: boolean
+          prazo_id: string
+          processo_id: string
+          responsavel: string
+          tipo: string
+        }[]
+      }
+      compras_normalizar_avisos: {
+        Args: { p_avisos: number[] }
+        Returns: number[]
+      }
       conciliar_movimento_bancario: {
         Args: {
           p_justificativa?: string
@@ -27594,6 +27886,10 @@ export type Database = {
       fin_conciliacao_conferir_anteriores: {
         Args: { p_id: string }
         Returns: undefined
+      }
+      fin_credores_cpfs_de_servidores: {
+        Args: { p_cpfs: string[] }
+        Returns: string[]
       }
       fin_dotacao_disponivel: {
         Args: {
@@ -27920,6 +28216,10 @@ export type Database = {
           p_simular?: boolean
           p_tipo: string
         }
+        Returns: Json
+      }
+      importar_credores_fiplan: {
+        Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
         Returns: Json
       }
       importar_diarias_fiplan: {

@@ -731,6 +731,19 @@ CREATE POLICY "rls_update" ON public.compras_etapa_parametros FOR UPDATE TO auth
   WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.compras_etapa_parametros;
 
+-- compras_prazo_tipos  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.compras_prazo_tipos;
+CREATE POLICY "rls_select" ON public.compras_prazo_tipos FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar') OR public.has_permission_code(auth.uid(), 'compras.processos.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.compras_prazo_tipos;
+CREATE POLICY "rls_insert" ON public.compras_prazo_tipos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.compras_prazo_tipos;
+CREATE POLICY "rls_update" ON public.compras_prazo_tipos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.compras_prazo_tipos;
+
 -- conciliacoes_inventario  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.conciliacoes_inventario;
 CREATE POLICY "rls_select" ON public.conciliacoes_inventario FOR SELECT TO authenticated
@@ -1859,6 +1872,9 @@ CREATE POLICY "rls_update" ON public.fin_contas_bancarias FOR UPDATE TO authenti
 DROP POLICY IF EXISTS "rls_delete" ON public.fin_contas_bancarias;
 CREATE POLICY "rls_delete" ON public.fin_contas_bancarias FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
+
+-- fin_credores_servidores  [preservar: financeiro]
+-- (nenhuma policy gerada)
 
 -- fin_diarias_fiplan  [preservar: financeiro]
 -- (nenhuma policy gerada)
@@ -3380,6 +3396,24 @@ CREATE POLICY "rls_update" ON public.processo_andamentos FOR UPDATE TO authentic
   USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'))
   WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'));
 DROP POLICY IF EXISTS "rls_delete" ON public.processo_andamentos;
+
+-- processo_prazo_remarcacoes  [trilha: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.processo_prazo_remarcacoes;
+CREATE POLICY "rls_select" ON public.processo_prazo_remarcacoes FOR SELECT TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar') OR public.has_permission_code(auth.uid(), 'compras.processos.editar')));
+
+-- processo_prazos  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.processo_prazos;
+CREATE POLICY "rls_select" ON public.processo_prazos FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar') OR public.has_permission_code(auth.uid(), 'compras.processos.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.processo_prazos;
+CREATE POLICY "rls_insert" ON public.processo_prazos FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.processo_prazos;
+CREATE POLICY "rls_update" ON public.processo_prazos FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.processo_prazos;
 
 -- processo_checklist_respostas  [preservar: workflow]
 -- (nenhuma policy gerada)

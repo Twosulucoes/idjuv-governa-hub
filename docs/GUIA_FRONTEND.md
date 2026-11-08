@@ -93,6 +93,11 @@ Toda leitura/escrita no Supabase passa por um hook `use<Coisa>` (React Query +
   `src/components/compras/processos/`; etapas e formas em `src/types/processos.ts`). A planilha de acompanhamento
   entra pelo importador `processos_planilha` (abas "Processos" e "Andamento"; leitor em `lerAbas` de
   `src/lib/importacao/planilha.ts`), aberto pelo botão "Importar planilha" da lista ou pela Central.
+  Prazos dos processos (P3): `src/hooks/useProcessoPrazos.ts` (`usePrazosDoProcesso`, `useRemarcacoesDoProcesso`,
+  `useTiposPrazo`, `useNovoPrazo`, `useAlterarPrazo`, `useSalvarTiposPrazo`, `useProximosPrazos`, `useMeusPrazos` e
+  `invalidarPrazos`), regras e textos em `src/lib/compras/prazos.ts` (testes vitest). Usados pela aba Prazos da ficha
+  (`ProcessoPrazosTab`, `PrazoDialog`), pela lista, pelo sino e pelo pop-up `PrazosVencidosDialog`
+  (`src/components/avisos/`, montado no `ModuleHeader`, uma vez por entrada).
 - **Emendas parlamentares** (`src/hooks/useEmendas.ts`: `useEmendas`, `useEmpenhosDeEmendas`, `useSalvarEmenda`,
   `useDesativarEmenda`, `useDefinirEmendaEmpenho`): tela `/financeiro/emendas` (`EmendaFormDialog` em
   `src/components/financeiro/`) e o cartão "Emenda do empenho" no detalhe do empenho. Origem da dotação (comum ou
