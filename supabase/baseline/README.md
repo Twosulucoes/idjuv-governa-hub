@@ -312,6 +312,12 @@ A migração `20261117090000_relatorios_modelos.sql` (modelos do Gerador de rela
 `preservar`, policies na migração); overlay sem mudança. Testes no bloco "Modelos do gerador de relatórios" de
 `scripts/db/testar-rls.sql`.
 
+A migração `20261127090000_fin_credores_servidores.sql` (credor do FIPLAN ligado ao servidor pelo CPF) entrou no
+schema (`01_pre_data.sql` e `03_post_data.sql`, só os blocos dela e o `importar_diarias_fiplan` refeito; catálogo sem
+mudança), no `rls/mapa.csv` (`fin_credores_servidores` na classe `preservar`, policy na migração) e no
+`overlay/40_privilegios.sql` (tabela só leitura; `importar_credores_fiplan` e `fin_credores_cpfs_de_servidores` só
+para `authenticated`). Testes no bloco "Financeiro: credor do FIPLAN ligado ao servidor" de `scripts/db/testar-rls.sql`.
+
 A migração `20261113090000_fin_diarias_fiplan.sql` (diárias do FIPLAN, FIP 002) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só o rótulo de `financeiro.execucao.importar`,
 editado à mão para não trocar os ids e datas das outras linhas), no `rls/mapa.csv` (`fin_diarias_fiplan` na classe
@@ -646,6 +652,15 @@ entrou no `01_pre_data.sql` (colunas de exclusão e de edição em `processo_and
 `overlay/40_privilegios.sql` (funções sem EXECUTE para a API). No `rls/mapa.csv`, a trilha entra como classe `trilha`
 (`leitura=compras.processos.visualizar|compras.processos.editar`). Sem permissão nova. Testes no bloco
 "Compras: processos, P1" de `scripts/db/testar-rls.sql`.
+
+A migração `20261122090000_compras_processos_proxima_acao.sql` (processos SEI, P2: próxima etapa, responsável e prazo)
+entrou no `01_pre_data.sql` (colunas da próxima ação em `processo_andamentos` e `processos_licitatorios`, tabela
+`compras_etapa_parametros` e as funções `processo_proxima_acao_falta`, `processo_andamento_responsavel_nome`,
+`compras_etapa_parametros_carimbar` e `processo_buscar_servidores`, mais as versões novas de `processo_andamento_carimbar`,
+`processo_andamento_alterar`, `processo_andamento_registrar_alteracao` e `processo_recalcular_estado`), no
+`02_dados_catalogo.sql` (os dias por etapa), no `03_post_data.sql` (chaves, FK, gatilhos, RLS e policies) e no
+`overlay/40_privilegios.sql`. No `rls/mapa.csv`, `compras_etapa_parametros` entra como classe `permissao`. Sem
+permissão nova. Testes no bloco "Compras: processos, P2" de `scripts/db/testar-rls.sql`.
 
 A migração `20261121090000_rh_testes_folha_contracheque.sql` (teste do RH de 06/11/2026, entrega 1: folha e
 contracheque) entrou no `01_pre_data.sql` (`rh_dia_nao_util`, `folha_inconsistencias_bloqueantes`,

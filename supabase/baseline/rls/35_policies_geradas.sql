@@ -718,6 +718,19 @@ DROP POLICY IF EXISTS "rls_delete" ON public.composicao_cargos;
 CREATE POLICY "rls_delete" ON public.composicao_cargos FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'rh') OR public.can_access_module(auth.uid(), 'governanca')));
 
+-- compras_etapa_parametros  [permissao: compras]
+DROP POLICY IF EXISTS "rls_select" ON public.compras_etapa_parametros;
+CREATE POLICY "rls_select" ON public.compras_etapa_parametros FOR SELECT TO authenticated
+  USING (((public.can_access_module(auth.uid(), 'compras')) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar') OR public.has_permission_code(auth.uid(), 'compras.processos.editar'))));
+DROP POLICY IF EXISTS "rls_insert" ON public.compras_etapa_parametros;
+CREATE POLICY "rls_insert" ON public.compras_etapa_parametros FOR INSERT TO authenticated
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'));
+DROP POLICY IF EXISTS "rls_update" ON public.compras_etapa_parametros;
+CREATE POLICY "rls_update" ON public.compras_etapa_parametros FOR UPDATE TO authenticated
+  USING ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'))
+  WITH CHECK ((public.can_access_module(auth.uid(), 'compras')) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'));
+DROP POLICY IF EXISTS "rls_delete" ON public.compras_etapa_parametros;
+
 -- conciliacoes_inventario  [modulo: patrimonio]
 DROP POLICY IF EXISTS "rls_select" ON public.conciliacoes_inventario;
 CREATE POLICY "rls_select" ON public.conciliacoes_inventario FOR SELECT TO authenticated
@@ -1846,6 +1859,9 @@ CREATE POLICY "rls_update" ON public.fin_contas_bancarias FOR UPDATE TO authenti
 DROP POLICY IF EXISTS "rls_delete" ON public.fin_contas_bancarias;
 CREATE POLICY "rls_delete" ON public.fin_contas_bancarias FOR DELETE TO authenticated
   USING ((public.can_access_module(auth.uid(), 'financeiro')));
+
+-- fin_credores_servidores  [preservar: financeiro]
+-- (nenhuma policy gerada)
 
 -- fin_diarias_fiplan  [preservar: financeiro]
 -- (nenhuma policy gerada)

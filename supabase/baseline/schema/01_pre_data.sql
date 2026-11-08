@@ -2574,6 +2574,22 @@ $$;
 
 
 --
+-- Name: compras_etapa_parametros_carimbar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.compras_etapa_parametros_carimbar() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  NEW.updated_at := now();
+  NEW.updated_by := COALESCE(auth.uid(), NEW.updated_by);
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: conciliar_movimento_bancario(uuid, uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -4457,6 +4473,45 @@ BEGIN
   RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
 END;
 $$;
+
+
+--
+-- Name: fin_credores_cpfs_de_servidores(text[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fin_credores_cpfs_de_servidores(p_cpfs text[]) RETURNS text[]
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_res text[];
+BEGIN
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'financeiro.execucao.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar a execução do FIPLAN (financeiro.execucao.importar).' USING ERRCODE = '42501';
+  END IF;
+  IF p_cpfs IS NULL OR cardinality(p_cpfs) NOT BETWEEN 1 AND 10000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 10000 CPFs por vez.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Junta com os CPFs do cadastro uma vez só (o relatório chega a 5000 CPFs por lote)
+  SELECT array_agg(DISTINCT c.cpf) INTO v_res
+    FROM unnest(p_cpfs) AS c(cpf)
+    JOIN (SELECT DISTINCT regexp_replace(s.cpf, '\D', '', 'g') AS cpf FROM public.servidores s) srv ON srv.cpf = c.cpf
+   WHERE c.cpf ~ '^\d{11}$';
+  RETURN COALESCE(v_res, '{}'::text[]);
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION fin_credores_cpfs_de_servidores(p_cpfs text[]); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.fin_credores_cpfs_de_servidores(p_cpfs text[]) IS 'Dos CPFs (só dígitos) do relatório "Consultar Credor", devolve os que são de servidor. Exige o módulo financeiro e financeiro.execucao.importar.';
 
 
 --
@@ -9326,6 +9381,185 @@ COMMENT ON FUNCTION public.importar_classificadores_fiplan(p_tipo text, p_exerci
 
 
 --
+-- Name: importar_credores_fiplan(jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.importar_credores_fiplan(p_linhas jsonb, p_arquivo jsonb, p_simular boolean DEFAULT true) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_linha jsonb;
+  v_ind integer;
+  v_codigo text;
+  v_cpf text;
+  v_nome text;
+  v_chaves text[] := '{}';
+  v_servidores uuid[];
+  v_servidor uuid;
+  v_existente public.fin_credores_servidores%ROWTYPE;
+  v_acao text;
+  v_mudancas jsonb;
+  v_avisos text[];
+  v_sem_servidor integer;
+  v_ligadas integer := 0;
+  v_linhas_res jsonb := '[]'::jsonb;
+  v_erros jsonb := '[]'::jsonb;
+  v_ins integer := 0; v_atu integer := 0; v_igual integer := 0;
+  v_totais jsonb;
+  v_import_id uuid;
+BEGIN
+  p_simular := COALESCE(p_simular, true);
+
+  IF v_uid IS NULL
+     OR NOT COALESCE(public.perfil_ativo_atual()
+                     AND public.can_access_module(v_uid, 'financeiro')
+                     AND public.has_permission_code(v_uid, 'financeiro.execucao.importar'), false) THEN
+    RAISE EXCEPTION 'Sem permissão para importar a execução do FIPLAN (financeiro.execucao.importar).' USING ERRCODE = '42501';
+  END IF;
+  IF jsonb_typeof(p_linhas) IS DISTINCT FROM 'array'
+     OR jsonb_array_length(p_linhas) NOT BETWEEN 1 AND 10000 THEN
+    RAISE EXCEPTION 'Envie de 1 a 10000 credores.' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_arquivo) IS DISTINCT FROM 'object'
+     OR char_length(COALESCE(p_arquivo->>'nome', '')) NOT BETWEEN 1 AND 255
+     OR COALESCE(p_arquivo->>'sha256', '') !~ '^[0-9a-f]{64}$'
+     OR COALESCE(p_arquivo->>'tamanho', '') !~ '^\d{1,15}$' THEN
+    RAISE EXCEPTION 'Dados do arquivo inválidos.' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtext('importar_credores_fiplan'));
+
+  BEGIN
+    IF NOT p_simular THEN
+      INSERT INTO public.importacoes (tipo, modulo, arquivo_nome, arquivo_sha256, arquivo_tamanho, created_by)
+      VALUES ('credores_fiplan', 'financeiro', p_arquivo->>'nome', p_arquivo->>'sha256',
+              (p_arquivo->>'tamanho')::bigint, v_uid)
+      RETURNING id INTO v_import_id;
+    END IF;
+
+    FOR v_linha IN SELECT value FROM jsonb_array_elements(p_linhas) LOOP
+      v_ind := COALESCE((v_linha->>'indice')::integer, -1);
+      BEGIN
+        v_codigo := btrim(COALESCE(v_linha->>'credor_codigo', ''));
+        v_cpf := btrim(COALESCE(v_linha->>'cpf', ''));
+        v_nome := left(NULLIF(btrim(v_linha->>'credor_nome'), ''), 300);
+        IF v_codigo !~ '^\d{10}$' THEN
+          RAISE EXCEPTION 'Código do credor "%" fora do padrão (10 dígitos).', left(v_codigo, 20) USING ERRCODE = '22023';
+        END IF;
+        IF v_cpf !~ '^\d{11}$' THEN
+          RAISE EXCEPTION 'Credor %: CPF fora do padrão.', v_codigo USING ERRCODE = '22023';
+        END IF;
+        IF v_codigo = ANY (v_chaves) THEN
+          RAISE EXCEPTION 'Credor % repetido no arquivo.', v_codigo USING ERRCODE = '22023';
+        END IF;
+        v_chaves := v_chaves || v_codigo;
+        v_avisos := '{}';
+
+        SELECT array_agg(s.id) INTO v_servidores
+          FROM public.servidores s
+         WHERE regexp_replace(s.cpf, '\D', '', 'g') = v_cpf;
+        IF cardinality(v_servidores) IS DISTINCT FROM 1 THEN
+          RAISE EXCEPTION 'Credor %: %', v_codigo,
+            CASE WHEN cardinality(v_servidores) > 1 THEN 'mais de um servidor com este CPF no cadastro.'
+                 ELSE 'nenhum servidor com este CPF no cadastro.' END
+            USING ERRCODE = '22023';
+        END IF;
+        v_servidor := v_servidores[1];
+
+        SELECT * INTO v_existente FROM public.fin_credores_servidores WHERE credor_codigo = v_codigo FOR UPDATE;
+        IF NOT FOUND THEN
+          INSERT INTO public.fin_credores_servidores (credor_codigo, servidor_id, credor_nome, importacao_id)
+          VALUES (v_codigo, v_servidor, v_nome, v_import_id);
+          v_acao := 'inserir';
+          v_mudancas := NULL;
+          v_ins := v_ins + 1;
+        ELSIF v_existente.servidor_id IS DISTINCT FROM v_servidor OR v_existente.credor_nome IS DISTINCT FROM v_nome THEN
+          v_mudancas := '{}'::jsonb;
+          IF v_existente.servidor_id IS DISTINCT FROM v_servidor THEN
+            v_mudancas := v_mudancas || jsonb_build_object('servidor_id', jsonb_build_array(v_existente.servidor_id, v_servidor));
+          END IF;
+          IF v_existente.credor_nome IS DISTINCT FROM v_nome THEN
+            v_mudancas := v_mudancas || jsonb_build_object('credor_nome', jsonb_build_array(v_existente.credor_nome, v_nome));
+          END IF;
+          UPDATE public.fin_credores_servidores
+             SET servidor_id = v_servidor, credor_nome = v_nome,
+                 importacao_id = COALESCE(v_import_id, importacao_id), updated_at = now()
+           WHERE credor_codigo = v_codigo;
+          v_acao := 'atualizar';
+          v_atu := v_atu + 1;
+        ELSE
+          v_acao := 'sem_alteracao';
+          v_mudancas := NULL;
+          v_igual := v_igual + 1;
+        END IF;
+
+        -- Diárias deste credor que estavam sem servidor
+        SELECT count(*) INTO v_sem_servidor
+          FROM public.fin_diarias_fiplan d
+         WHERE d.servidor_id IS NULL
+           AND regexp_replace(COALESCE(d.credor_codigo, ''), '\D', '', 'g') = v_codigo;
+        IF v_sem_servidor > 0 THEN
+          v_avisos := v_avisos || format('%s diária(s) sem servidor passam a ficar ligadas a ele.', v_sem_servidor);
+          v_ligadas := v_ligadas + v_sem_servidor;
+          UPDATE public.fin_diarias_fiplan d
+             SET servidor_id = v_servidor,
+                 -- viagem do RH: a única do servidor com a mesma saída (sem as canceladas), como no FIP 002
+                 viagem_id = (SELECT CASE WHEN count(*) = 1 THEN (array_agg(v.id))[1] END
+                                FROM public.viagens_diarias v
+                               WHERE v.servidor_id = v_servidor
+                                 AND v.data_saida = d.data_saida
+                                 AND v.status IS DISTINCT FROM 'cancelada'),
+                 updated_at = now()
+           WHERE d.servidor_id IS NULL
+             AND regexp_replace(COALESCE(d.credor_codigo, ''), '\D', '', 'g') = v_codigo;
+        END IF;
+
+        v_linhas_res := v_linhas_res || jsonb_build_object('indice', v_ind, 'acao', v_acao, 'mudancas', v_mudancas,
+          'avisos', CASE WHEN cardinality(v_avisos) > 0 THEN to_jsonb(v_avisos) END);
+      EXCEPTION
+        WHEN OTHERS THEN
+          v_erros := v_erros || jsonb_build_object('indice', v_ind, 'mensagem',
+            CASE WHEN left(SQLSTATE, 2) IN ('22', '23') OR SQLSTATE IN ('P0001', '42501') THEN SQLERRM
+                 ELSE format('Erro inesperado ao gravar a linha (código %s).', SQLSTATE) END);
+      END;
+    END LOOP;
+
+    IF p_simular OR jsonb_array_length(v_erros) > 0 THEN
+      RAISE EXCEPTION 'importação desfeita' USING ERRCODE = 'CRE01';
+    END IF;
+  EXCEPTION
+    WHEN SQLSTATE 'CRE01' THEN v_import_id := NULL;  -- desfaz tudo, inclusive o log; as variáveis continuam valendo
+  END;
+
+  v_totais := jsonb_build_object('inserir', v_ins, 'atualizar', v_atu, 'sem_alteracao', v_igual);
+
+  IF v_import_id IS NOT NULL THEN
+    UPDATE public.importacoes
+       SET resumo = jsonb_build_object('totais', v_totais, 'diarias_ligadas', v_ligadas)
+     WHERE id = v_import_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'simulacao', p_simular,
+    'importacao_id', v_import_id,
+    'totais', v_totais,
+    'linhas', v_linhas_res,
+    'erros', v_erros
+  );
+END;
+$_$;
+
+
+--
+-- Name: FUNCTION importar_credores_fiplan(p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.importar_credores_fiplan(p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Liga o código do credor do FIPLAN ao servidor pelo CPF (relatório "Consultar Credor") e liga ao servidor as diárias que estavam sem ele (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
+
+
+--
 -- Name: importar_diarias_fiplan(integer, jsonb, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -9417,15 +9651,21 @@ BEGIN
 
         v_avisos := '{}';
 
-        -- Servidor: o único com o mesmo nome comparável
-        SELECT array_agg(s.id) INTO v_servidores
-          FROM public.servidores s
-         WHERE public.fin_nome_comparavel(s.nome_completo) = public.fin_nome_comparavel(v_linha->>'credor_nome');
-        v_servidor := CASE WHEN cardinality(v_servidores) = 1 THEN v_servidores[1] END;
+        -- Servidor: primeiro pelo código do credor (ligado ao CPF pelo "Consultar Credor" do FIPLAN); sem ele,
+        -- o único com o mesmo nome comparável
+        SELECT m.servidor_id INTO v_servidor
+          FROM public.fin_credores_servidores m
+         WHERE m.credor_codigo = regexp_replace(COALESCE(v_linha->>'credor_codigo', ''), '\D', '', 'g');
+        IF v_servidor IS NULL THEN
+          SELECT array_agg(s.id) INTO v_servidores
+            FROM public.servidores s
+           WHERE public.fin_nome_comparavel(s.nome_completo) = public.fin_nome_comparavel(v_linha->>'credor_nome');
+          v_servidor := CASE WHEN cardinality(v_servidores) = 1 THEN v_servidores[1] END;
+        END IF;
         IF v_servidor IS NULL THEN
           v_avisos := v_avisos || CASE WHEN cardinality(v_servidores) > 1
-            THEN 'Mais de um servidor com este nome: a diária fica sem servidor.'
-            ELSE 'Nenhum servidor com este nome no cadastro: a diária fica sem servidor.' END;
+            THEN 'Mais de um servidor com este nome e o código do credor não está ligado a um CPF: a diária fica sem servidor.'
+            ELSE 'Nenhum servidor com este código de credor nem com este nome: importe o "Consultar Credor" do FIPLAN para ligar pelo CPF.' END;
         END IF;
 
         -- Viagem do RH: a única do servidor com a mesma saída (sem as canceladas)
@@ -9556,7 +9796,7 @@ $_$;
 -- Name: FUNCTION importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o FIP 002 (Demonstrativo de Diárias) do FIPLAN para fin_diarias_fiplan, ligando servidor e viagem do RH (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
+COMMENT ON FUNCTION public.importar_diarias_fiplan(p_exercicio integer, p_linhas jsonb, p_arquivo jsonb, p_simular boolean) IS 'Importa o FIP 002 (Demonstrativo de Diárias) do FIPLAN para fin_diarias_fiplan, ligando servidor (pelo código do credor e, sem ele, pelo nome) e viagem do RH (p_simular = true só calcula; aplicação é tudo ou nada). Exige o módulo financeiro e financeiro.execucao.importar.';
 
 
 --
@@ -14191,6 +14431,8 @@ CREATE FUNCTION public.processo_andamento_alterar() RETURNS trigger
     LANGUAGE plpgsql
     SET search_path TO 'public'
     AS $$
+DECLARE
+  v_falta text;
 BEGIN
   IF OLD.excluido_em IS NOT NULL THEN
     RAISE EXCEPTION 'Esta movimentação foi excluída e não pode mais ser alterada.' USING ERRCODE = '22023';
@@ -14213,6 +14455,11 @@ BEGIN
     NEW.etapa := OLD.etapa;
     NEW.setor := OLD.setor;
     NEW.situacao := OLD.situacao;
+    NEW.proxima_etapa := OLD.proxima_etapa;
+    NEW.responsavel_servidor_id := OLD.responsavel_servidor_id;
+    NEW.responsavel_nome := OLD.responsavel_nome;
+    NEW.responsavel_setor := OLD.responsavel_setor;
+    NEW.prazo_proxima := OLD.prazo_proxima;
     NEW.alterado_em := OLD.alterado_em;
     NEW.alterado_por := OLD.alterado_por;
     NEW.alteracao_motivo := OLD.alteracao_motivo;
@@ -14223,17 +14470,34 @@ BEGIN
   NEW.excluido_motivo := NULL;
   NEW.setor := NULLIF(btrim(NEW.setor), '');
   NEW.situacao := btrim(NEW.situacao);
+  NEW.responsavel_setor := NULLIF(btrim(NEW.responsavel_setor), '');
   IF NEW.data IS DISTINCT FROM OLD.data THEN
     NEW.data_informada := true;
   END IF;
+  IF NEW.etapa IN ('encerrado', 'cancelado') THEN
+    NEW.proxima_etapa := NULL;
+    NEW.responsavel_servidor_id := NULL;
+    NEW.responsavel_setor := NULL;
+    NEW.prazo_proxima := NULL;
+  END IF;
 
-  IF (NEW.data, NEW.data_informada, NEW.etapa, NEW.setor, NEW.situacao)
-     IS NOT DISTINCT FROM (OLD.data, OLD.data_informada, OLD.etapa, OLD.setor, OLD.situacao) THEN
+  IF (NEW.data, NEW.data_informada, NEW.etapa, NEW.setor, NEW.situacao,
+      NEW.proxima_etapa, NEW.responsavel_servidor_id, NEW.responsavel_setor, NEW.prazo_proxima)
+     IS NOT DISTINCT FROM (OLD.data, OLD.data_informada, OLD.etapa, OLD.setor, OLD.situacao,
+      OLD.proxima_etapa, OLD.responsavel_servidor_id, OLD.responsavel_setor, OLD.prazo_proxima) THEN
     RETURN OLD;  -- nada mudou: não grava nem vai para a trilha
   END IF;
 
   IF NEW.data > CURRENT_DATE THEN
     RAISE EXCEPTION 'A data da movimentação não pode ser futura.' USING ERRCODE = '22023';
+  END IF;
+  IF OLD.proxima_etapa IS NOT NULL OR NEW.proxima_etapa IS NOT NULL OR NEW.responsavel_servidor_id IS NOT NULL
+     OR NEW.responsavel_setor IS NOT NULL OR NEW.prazo_proxima IS NOT NULL THEN
+    v_falta := public.processo_proxima_acao_falta(NEW.etapa, NEW.data, NEW.proxima_etapa, NEW.responsavel_servidor_id,
+                                                  NEW.responsavel_setor, NEW.prazo_proxima);
+    IF v_falta IS NOT NULL THEN
+      RAISE EXCEPTION '%', v_falta USING ERRCODE = '22023';
+    END IF;
   END IF;
   NEW.alteracao_motivo := btrim(COALESCE(NEW.alteracao_motivo, ''));
   IF NEW.alteracao_motivo = '' OR NEW.alteracao_motivo IS NOT DISTINCT FROM OLD.alteracao_motivo
@@ -14255,6 +14519,8 @@ CREATE FUNCTION public.processo_andamento_carimbar() RETURNS trigger
     LANGUAGE plpgsql
     SET search_path TO 'public'
     AS $$
+DECLARE
+  v_falta text;
 BEGIN
   NEW.created_by := COALESCE(auth.uid(), NEW.created_by);
   NEW.created_at := now();
@@ -14266,6 +14532,19 @@ BEGIN
   NEW.alterado_em := NULL;
   NEW.alterado_por := NULL;
   NEW.alteracao_motivo := NULL;
+  NEW.responsavel_setor := NULLIF(btrim(NEW.responsavel_setor), '');
+  IF NEW.etapa IN ('encerrado', 'cancelado') THEN
+    NEW.proxima_etapa := NULL;
+    NEW.responsavel_servidor_id := NULL;
+    NEW.responsavel_setor := NULL;
+    NEW.prazo_proxima := NULL;
+  ELSIF current_user IN ('authenticated', 'anon') THEN
+    v_falta := public.processo_proxima_acao_falta(NEW.etapa, NEW.data, NEW.proxima_etapa, NEW.responsavel_servidor_id,
+                                                  NEW.responsavel_setor, NEW.prazo_proxima);
+    IF v_falta IS NOT NULL THEN
+      RAISE EXCEPTION '%', v_falta USING ERRCODE = '22023';
+    END IF;
+  END IF;
   RETURN NEW;
 END;
 $$;
@@ -14296,7 +14575,9 @@ CREATE FUNCTION public.processo_andamento_registrar_alteracao() RETURNS trigger
     AS $$
 DECLARE
   v_antes jsonb := jsonb_build_object('data', OLD.data, 'data_informada', OLD.data_informada, 'etapa', OLD.etapa,
-                                      'setor', OLD.setor, 'situacao', OLD.situacao);
+                                      'setor', OLD.setor, 'situacao', OLD.situacao, 'proxima_etapa', OLD.proxima_etapa,
+                                      'responsavel', COALESCE(OLD.responsavel_nome, OLD.responsavel_setor),
+                                      'prazo_proxima', OLD.prazo_proxima);
 BEGIN
   IF NEW.excluido_em IS NULL AND NEW.alterado_em IS NOT DISTINCT FROM OLD.alterado_em THEN
     RETURN NULL;  -- UPDATE sem mudança (o gatilho de antes devolveu a linha como estava)
@@ -14308,13 +14589,70 @@ BEGIN
     INSERT INTO public.processo_andamento_alteracoes (andamento_id, processo_id, acao, antes, depois, motivo, feito_por)
     VALUES (NEW.id, NEW.processo_id, 'edicao', v_antes,
             jsonb_build_object('data', NEW.data, 'data_informada', NEW.data_informada, 'etapa', NEW.etapa,
-                               'setor', NEW.setor, 'situacao', NEW.situacao),
+                               'setor', NEW.setor, 'situacao', NEW.situacao, 'proxima_etapa', NEW.proxima_etapa,
+                               'responsavel', COALESCE(NEW.responsavel_nome, NEW.responsavel_setor),
+                               'prazo_proxima', NEW.prazo_proxima),
             NEW.alteracao_motivo, auth.uid());
   END IF;
   PERFORM public.processo_recalcular_estado(NEW.processo_id);
   RETURN NULL;
 END;
 $$;
+
+
+--
+-- Name: processo_andamento_responsavel_nome(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_andamento_responsavel_nome() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NEW.responsavel_servidor_id IS NULL THEN
+    NEW.responsavel_nome := NULL;
+  ELSE
+    SELECT s.nome_completo INTO NEW.responsavel_nome FROM public.servidores s WHERE s.id = NEW.responsavel_servidor_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: processo_buscar_servidores(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_buscar_servidores(_termo text) RETURNS TABLE(id uuid, nome text, matricula text, cargo text)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  IF NOT COALESCE(public.can_access_module(auth.uid(), 'compras')
+                  AND public.has_permission_code(auth.uid(), 'compras.processos.editar'), false) THEN
+    RAISE EXCEPTION 'Requer a permissão de editar processos de contratação.' USING ERRCODE = '42501';
+  END IF;
+  IF char_length(regexp_replace(coalesce(_termo, ''), '[^[:alnum:]]', '', 'g')) < 3 THEN
+    RETURN;
+  END IF;
+  RETURN QUERY
+  SELECT s.id, s.nome_completo::text, s.matricula::text, c.nome::text
+    FROM public.servidores s
+    LEFT JOIN public.cargos c ON c.id = s.cargo_atual_id
+   WHERE s.ativo IS NOT FALSE
+     AND (s.nome_completo ILIKE '%' || replace(replace(replace(btrim(_termo), '\', '\\'), '%', '\%'), '_', '\_') || '%'
+          OR s.matricula = btrim(_termo))
+   ORDER BY s.nome_completo
+   LIMIT 20;
+END;
+$$;
+
+
+--
+-- Name: FUNCTION processo_buscar_servidores(_termo text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.processo_buscar_servidores(_termo text) IS 'Servidores ativos por nome ou matrícula (só nome, matrícula e cargo) para escolher o responsável da próxima ação. Exige compras.processos.editar.';
 
 
 --
@@ -14411,6 +14749,24 @@ $$;
 
 
 --
+-- Name: processo_proxima_acao_falta(text, date, text, uuid, text, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.processo_proxima_acao_falta(p_etapa text, p_data date, p_proxima text, p_servidor uuid, p_setor text, p_prazo date) RETURNS text
+    LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public'
+    AS $$
+  SELECT CASE
+    WHEN p_etapa IN ('encerrado', 'cancelado') THEN NULL
+    WHEN p_proxima IS NULL THEN 'Informe a próxima etapa.'
+    WHEN p_servidor IS NULL AND NULLIF(btrim(p_setor), '') IS NULL THEN 'Informe o responsável pela próxima ação (servidor ou setor).'
+    WHEN p_prazo IS NULL THEN 'Informe o prazo da próxima ação.'
+    WHEN p_prazo < p_data THEN 'O prazo da próxima ação não pode ser antes da data da movimentação.'
+  END
+$$;
+
+
+--
 -- Name: processo_recalcular_estado(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -14447,6 +14803,11 @@ BEGIN
          setor_atual = COALESCE(v_setor, setor_atual),
          situacao_atual = v_ult.situacao,
          atualizado_em = COALESCE(v_data, atualizado_em),
+         proxima_etapa = v_ult.proxima_etapa,
+         proximo_responsavel_servidor_id = v_ult.responsavel_servidor_id,
+         proximo_responsavel_nome = v_ult.responsavel_nome,
+         proximo_responsavel_setor = v_ult.responsavel_setor,
+         prazo_proxima_acao = v_ult.prazo_proxima,
          updated_at = now()
    WHERE id = p_processo_id;
 END;
@@ -22151,6 +22512,30 @@ CREATE TABLE public.composicao_cargos (
 
 
 --
+-- Name: compras_etapa_parametros; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.compras_etapa_parametros (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    etapa text NOT NULL,
+    dias_prazo integer NOT NULL,
+    dias_limite_parado integer NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid DEFAULT auth.uid(),
+    CONSTRAINT compras_etapa_parametros_dias_limite_parado_check CHECK (((dias_limite_parado >= 1) AND (dias_limite_parado <= 365))),
+    CONSTRAINT compras_etapa_parametros_dias_prazo_check CHECK (((dias_prazo >= 1) AND (dias_prazo <= 365))),
+    CONSTRAINT compras_etapa_parametros_etapa_check CHECK ((etapa = ANY (ARRAY['abertura'::text, 'dfd'::text, 'etp'::text, 'tr'::text, 'cotacao'::text, 'levantamento_tecnico'::text, 'instrucao_adesao'::text, 'analise_juridica'::text, 'selecao'::text, 'contrato'::text, 'execucao'::text, 'encerrado'::text, 'cancelado'::text])))
+);
+
+
+--
+-- Name: TABLE compras_etapa_parametros; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.compras_etapa_parametros IS 'Processos de contratação: dias padrão do prazo da próxima ação (sugestão na movimentação) e limite de dias parado de cada etapa (P2/P3).';
+
+
+--
 -- Name: conciliacoes_inventario; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -25090,6 +25475,29 @@ CREATE TABLE public.fin_contas_bancarias (
 );
 
 ALTER TABLE ONLY public.fin_contas_bancarias FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: fin_credores_servidores; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fin_credores_servidores (
+    credor_codigo text NOT NULL,
+    servidor_id uuid NOT NULL,
+    credor_nome text,
+    importacao_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fin_credores_servidores_credor_codigo_check CHECK ((credor_codigo ~ '^\d{10}$'::text)),
+    CONSTRAINT fin_credores_servidores_credor_nome_check CHECK ((char_length(credor_nome) <= 300))
+);
+
+
+--
+-- Name: TABLE fin_credores_servidores; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.fin_credores_servidores IS 'Código do credor no FIPLAN (só dígitos) → servidor, pelo CPF do relatório "Consultar Credor". Escrita só pela RPC importar_credores_fiplan.';
 
 
 --
@@ -29108,9 +29516,16 @@ CREATE TABLE public.processo_andamentos (
     alterado_em timestamp with time zone,
     alterado_por uuid,
     alteracao_motivo text,
+    proxima_etapa text,
+    responsavel_servidor_id uuid,
+    responsavel_nome text,
+    responsavel_setor text,
+    prazo_proxima date,
     CONSTRAINT processo_andamentos_alteracao_motivo_check CHECK (((alteracao_motivo IS NULL) OR ((char_length(btrim(alteracao_motivo)) >= 3) AND (char_length(btrim(alteracao_motivo)) <= 500)))),
     CONSTRAINT processo_andamentos_etapa_check CHECK ((etapa = ANY (ARRAY['abertura'::text, 'dfd'::text, 'etp'::text, 'tr'::text, 'cotacao'::text, 'levantamento_tecnico'::text, 'instrucao_adesao'::text, 'analise_juridica'::text, 'selecao'::text, 'contrato'::text, 'execucao'::text, 'encerrado'::text, 'cancelado'::text]))),
     CONSTRAINT processo_andamentos_exclusao_check CHECK ((((excluido_em IS NULL) AND (excluido_motivo IS NULL)) OR ((excluido_em IS NOT NULL) AND ((char_length(btrim(excluido_motivo)) >= 3) AND (char_length(btrim(excluido_motivo)) <= 500))))),
+    CONSTRAINT processo_andamentos_proxima_etapa_check CHECK (((proxima_etapa IS NULL) OR (proxima_etapa = ANY (ARRAY['abertura'::text, 'dfd'::text, 'etp'::text, 'tr'::text, 'cotacao'::text, 'levantamento_tecnico'::text, 'instrucao_adesao'::text, 'analise_juridica'::text, 'selecao'::text, 'contrato'::text, 'execucao'::text, 'encerrado'::text, 'cancelado'::text])))),
+    CONSTRAINT processo_andamentos_responsavel_setor_check CHECK (((responsavel_setor IS NULL) OR (char_length(responsavel_setor) <= 200))),
     CONSTRAINT processo_andamentos_setor_check CHECK (((setor IS NULL) OR (char_length(setor) <= 200))),
     CONSTRAINT processo_andamentos_situacao_check CHECK (((char_length(btrim(situacao)) >= 1) AND (char_length(btrim(situacao)) <= 2000)))
 );
@@ -29135,6 +29550,34 @@ COMMENT ON COLUMN public.processo_andamentos.excluido_em IS 'Movimentação excl
 --
 
 COMMENT ON COLUMN public.processo_andamentos.alteracao_motivo IS 'Motivo da última edição (obrigatório em toda edição; o histórico completo fica em processo_andamento_alteracoes).';
+
+
+--
+-- Name: COLUMN processo_andamentos.proxima_etapa; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processo_andamentos.proxima_etapa IS 'Etapa que vem depois desta movimentação (P2).';
+
+
+--
+-- Name: COLUMN processo_andamentos.responsavel_servidor_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processo_andamentos.responsavel_servidor_id IS 'Servidor responsável pela próxima ação (ou responsavel_setor).';
+
+
+--
+-- Name: COLUMN processo_andamentos.responsavel_nome; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processo_andamentos.responsavel_nome IS 'Nome do servidor responsável, copiado pelo banco (quem vê processos não lê a tabela servidores).';
+
+
+--
+-- Name: COLUMN processo_andamentos.prazo_proxima; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processo_andamentos.prazo_proxima IS 'Prazo da próxima ação (não antes da data da movimentação).';
 
 
 --
@@ -29282,6 +29725,11 @@ CREATE TABLE public.processos_licitatorios (
     situacao_atual text,
     atualizado_em date,
     valor_estimado_obs text,
+    proxima_etapa text,
+    proximo_responsavel_servidor_id uuid,
+    proximo_responsavel_nome text,
+    proximo_responsavel_setor text,
+    prazo_proxima_acao date,
     CONSTRAINT processos_licitatorios_etapa_check CHECK ((etapa = ANY (ARRAY['abertura'::text, 'dfd'::text, 'etp'::text, 'tr'::text, 'cotacao'::text, 'levantamento_tecnico'::text, 'instrucao_adesao'::text, 'analise_juridica'::text, 'selecao'::text, 'contrato'::text, 'execucao'::text, 'encerrado'::text, 'cancelado'::text])))
 );
 
@@ -29305,6 +29753,13 @@ COMMENT ON COLUMN public.processos_licitatorios.setor_atual IS 'Setor onde o pro
 --
 
 COMMENT ON COLUMN public.processos_licitatorios.atualizado_em IS 'Data da última movimentação com data informada.';
+
+
+--
+-- Name: COLUMN processos_licitatorios.prazo_proxima_acao; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.processos_licitatorios.prazo_proxima_acao IS 'Prazo da próxima ação, da movimentação que vale (processo_recalcular_estado).';
 
 
 --

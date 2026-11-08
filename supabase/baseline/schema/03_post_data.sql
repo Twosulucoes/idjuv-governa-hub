@@ -622,6 +622,22 @@ ALTER TABLE ONLY public.composicao_cargos
 
 
 --
+-- Name: compras_etapa_parametros compras_etapa_parametros_etapa_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.compras_etapa_parametros
+    ADD CONSTRAINT compras_etapa_parametros_etapa_key UNIQUE (etapa);
+
+
+--
+-- Name: compras_etapa_parametros compras_etapa_parametros_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.compras_etapa_parametros
+    ADD CONSTRAINT compras_etapa_parametros_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: conciliacoes_inventario conciliacoes_inventario_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1507,6 +1523,14 @@ ALTER TABLE ONLY public.fin_conciliacoes_mensais
 
 ALTER TABLE ONLY public.fin_contas_bancarias
     ADD CONSTRAINT fin_contas_bancarias_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fin_credores_servidores fin_credores_servidores_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_credores_servidores
+    ADD CONSTRAINT fin_credores_servidores_pkey PRIMARY KEY (credor_codigo);
 
 
 --
@@ -5876,6 +5900,13 @@ CREATE INDEX idx_fin_contas_bancarias_responsavel_id ON public.fin_contas_bancar
 --
 
 CREATE INDEX idx_fin_contas_banco ON public.fin_contas_bancarias USING btree (banco_codigo);
+
+
+--
+-- Name: idx_fin_credores_servidores_servidor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fin_credores_servidores_servidor ON public.fin_credores_servidores USING btree (servidor_id);
 
 
 --
@@ -10492,6 +10523,13 @@ CREATE TRIGGER trg_comissoes_membros_validar BEFORE INSERT OR UPDATE ON public.c
 
 
 --
+-- Name: compras_etapa_parametros trg_compras_etapa_parametros_carimbar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_compras_etapa_parametros_carimbar BEFORE INSERT OR UPDATE ON public.compras_etapa_parametros FOR EACH ROW EXECUTE FUNCTION public.compras_etapa_parametros_carimbar();
+
+
+--
 -- Name: config_envio trg_config_envio_autoria; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -11154,6 +11192,13 @@ CREATE TRIGGER trg_processo_andamentos_no_processo AFTER INSERT ON public.proces
 --
 
 CREATE TRIGGER trg_processo_andamentos_registrar_alteracao AFTER UPDATE ON public.processo_andamentos FOR EACH ROW EXECUTE FUNCTION public.processo_andamento_registrar_alteracao();
+
+
+--
+-- Name: processo_andamentos trg_processo_andamentos_responsavel_nome; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_processo_andamentos_responsavel_nome BEFORE INSERT OR UPDATE ON public.processo_andamentos FOR EACH ROW EXECUTE FUNCTION public.processo_andamento_responsavel_nome();
 
 
 --
@@ -16313,6 +16358,22 @@ ALTER TABLE ONLY public.fin_contas_bancarias
 
 
 --
+-- Name: fin_credores_servidores fin_credores_servidores_importacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_credores_servidores
+    ADD CONSTRAINT fin_credores_servidores_importacao_id_fkey FOREIGN KEY (importacao_id) REFERENCES public.importacoes(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fin_credores_servidores fin_credores_servidores_servidor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fin_credores_servidores
+    ADD CONSTRAINT fin_credores_servidores_servidor_id_fkey FOREIGN KEY (servidor_id) REFERENCES public.servidores(id) ON DELETE CASCADE;
+
+
+--
 -- Name: fin_diarias_fiplan fin_diarias_fiplan_importacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -18697,6 +18758,14 @@ ALTER TABLE ONLY public.processo_andamentos
 
 
 --
+-- Name: processo_andamentos processo_andamentos_responsavel_servidor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processo_andamentos
+    ADD CONSTRAINT processo_andamentos_responsavel_servidor_id_fkey FOREIGN KEY (responsavel_servidor_id) REFERENCES public.servidores(id) ON DELETE SET NULL;
+
+
+--
 -- Name: processo_checklist_respostas processo_checklist_respostas_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -20082,6 +20151,12 @@ ALTER TABLE public.comissoes_membros ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.composicao_cargos ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: compras_etapa_parametros; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.compras_etapa_parametros ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: conciliacoes_inventario; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -20623,6 +20698,19 @@ ALTER TABLE public.fin_conciliacoes_mensais ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.fin_contas_bancarias ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_credores_servidores; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fin_credores_servidores ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fin_credores_servidores fin_credores_servidores_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY fin_credores_servidores_select ON public.fin_credores_servidores FOR SELECT TO authenticated USING ((( SELECT public.perfil_ativo_atual() AS perfil_ativo_atual) AND ((( SELECT public.can_access_module(auth.uid(), 'financeiro'::text) AS can_access_module) AND (( SELECT public.has_permission_code(auth.uid(), 'financeiro.diarias.visualizar'::text) AS has_permission_code) OR ( SELECT public.has_permission_code(auth.uid(), 'financeiro.execucao.importar'::text) AS has_permission_code))) OR (( SELECT public.can_access_module(auth.uid(), 'rh'::text) AS can_access_module) AND ( SELECT public.has_permission_code(auth.uid(), 'rh.viagens.visualizar'::text) AS has_permission_code)))));
+
 
 --
 -- Name: fin_diarias_fiplan; Type: ROW SECURITY; Schema: public; Owner: -
@@ -23573,6 +23661,13 @@ CREATE POLICY rls_insert ON public.composicao_cargos FOR INSERT TO authenticated
 
 
 --
+-- Name: compras_etapa_parametros rls_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_insert ON public.compras_etapa_parametros FOR INSERT TO authenticated WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
+
+
+--
 -- Name: conciliacoes_inventario rls_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -25365,6 +25460,13 @@ CREATE POLICY rls_select ON public.comissoes_membros FOR SELECT TO authenticated
 --
 
 CREATE POLICY rls_select ON public.composicao_cargos FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)));
+
+
+--
+-- Name: compras_etapa_parametros rls_select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_select ON public.compras_etapa_parametros FOR SELECT TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND (public.has_permission_code(auth.uid(), 'compras.processos.visualizar'::text) OR public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))));
 
 
 --
@@ -27256,6 +27358,13 @@ CREATE POLICY rls_update ON public.comissoes_membros FOR UPDATE TO authenticated
 --
 
 CREATE POLICY rls_update ON public.composicao_cargos FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'rh'::text) OR public.can_access_module(auth.uid(), 'governanca'::text)));
+
+
+--
+-- Name: compras_etapa_parametros rls_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY rls_update ON public.compras_etapa_parametros FOR UPDATE TO authenticated USING ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text))) WITH CHECK ((public.can_access_module(auth.uid(), 'compras'::text) AND public.has_permission_code(auth.uid(), 'compras.processos.editar'::text)));
 
 
 --

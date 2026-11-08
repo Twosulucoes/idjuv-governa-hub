@@ -1173,6 +1173,22 @@ Todas idempotentes.
   - permissões `compras.processos.visualizar` e `compras.processos.editar` (concedidas a quem tem `compras.criar`);
     RLS classe `permissao` em `processo_andamentos` (`leitura=` das duas, `excluir=ninguem`); testes no bloco
     "Compras: processos de contratação" de `scripts/db/testar-rls.sql`.
+- **Processos SEI, P2: próxima etapa, responsável e prazo** (`20261122090000_compras_processos_proxima_acao.sql`,
+  plano [2026-11-07-processos-sei-p2-proxima-acao.md](./superpowers/plans/2026-11-07-processos-sei-p2-proxima-acao.md)):
+  - `processo_andamentos` ganha `proxima_etapa`, `responsavel_servidor_id` (FK `servidores`, `ON DELETE SET NULL`),
+    `responsavel_nome` (copiado do servidor pelo gatilho `processo_andamento_responsavel_nome`, DEFINER: não se
+    escreve à mão), `responsavel_setor` e `prazo_proxima`. Pela API (papel `authenticated`), toda movimentação nova
+    exige próxima etapa, responsável (servidor ou setor) e prazo não antes da data (`processo_proxima_acao_falta`,
+    mesmas mensagens da tela), menos Encerrado e Cancelado, que limpam a próxima ação. A importação da planilha
+    (`importar_processos_planilha`, DEFINER) e as movimentações antigas não são cobradas; a correção só cobra se a
+    movimentação já tinha próxima ação ou se a pessoa informa alguma;
+  - `processos_licitatorios` ganha `proxima_etapa`, `proximo_responsavel_servidor_id`, `proximo_responsavel_nome`,
+    `proximo_responsavel_setor` e `prazo_proxima_acao`, copiados por `processo_recalcular_estado` da movimentação que vale;
+  - `compras_etapa_parametros`: dias de prazo sugeridos e limite de dias parado por etapa (semente com uma linha por etapa, entra
+    no `02_dados_catalogo.sql`); RLS classe `permissao` (lê quem vê ou edita processos, altera quem edita, ninguém apaga);
+  - `processo_buscar_servidores(text)` (DEFINER): nome, matrícula e cargo de servidores ativos, só com
+    `compras.processos.editar` e termo de 3 letras ou mais (sem curinga);
+  - testes no bloco "Compras: processos, P2" de `scripts/db/testar-rls.sql`.
 - **Processos SEI, P1: correção e exclusão de movimentação** (`20261120090000_compras_processos_andamento_edicao.sql`,
   plano [2026-11-07-processos-sei-p1-andamento.md](./superpowers/plans/2026-11-07-processos-sei-p1-andamento.md)):
   - `processo_andamentos` ganha `excluido_em`, `excluido_por`, `excluido_motivo` (exclusão lógica: marcar com motivo de
@@ -1274,6 +1290,20 @@ Todas idempotentes.
     `importacoes` com tipo `diarias_fiplan`);
   - sem permissão nova (o rótulo de `financeiro.execucao.importar` passou a citar as diárias); RLS classe `preservar`
     (policy na migração); testes no bloco "Financeiro: diárias do FIPLAN" de `scripts/db/testar-rls.sql`.
+- **Credor do FIPLAN ligado ao servidor** (`20261127090000_fin_credores_servidores.sql`, achado F9 do teste do
+  Financeiro de 06/11/2026):
+  - `fin_credores_servidores`: código do credor do FIPLAN (10 dígitos) → servidor, pelo CPF do relatório "Consultar
+    Credor". Guarda só a ligação: nenhum CPF de terceiro fica no banco e o cadastro do RH não muda;
+  - `fin_credores_cpfs_de_servidores(p_cpfs)`: dos CPFs do relatório (lotes de até 10000), devolve só os de servidor,
+    para a tela mandar à conferência só os servidores do órgão;
+  - `importar_credores_fiplan(p_linhas, p_arquivo, p_simular)`: grava a ligação (erro na linha quando o CPF não é de
+    nenhum servidor ou é de mais de um) e liga ao servidor as diárias que estavam sem ele, com a viagem pela mesma
+    saída; log em `importacoes` com tipo `credores_fiplan` e `resumo.diarias_ligadas`;
+  - `importar_diarias_fiplan` passou a procurar o servidor pelo código do credor antes do nome;
+  - leitura como `fin_diarias_fiplan` (Financeiro e RH, sem o próprio servidor); ninguém grava pela API; as duas
+    funções exigem o módulo financeiro e `financeiro.execucao.importar`. Sem permissão nova; RLS classe `preservar`
+    (policy na migração); testes no bloco "Financeiro: credor do FIPLAN ligado ao servidor" de
+    `scripts/db/testar-rls.sql`.
 - **Pesquisa de preços, entrega 1** (`20261106090000_compras_pesquisa_precos.sql`, spec
   [2026-10-29-compras-pesquisa-precos-design.md](./superpowers/specs/2026-10-29-compras-pesquisa-precos-design.md)):
   - `pesquisas_precos`: uma por processo SEI (objeto, `finalidade`, `data_referencia`, responsáveis, observações,

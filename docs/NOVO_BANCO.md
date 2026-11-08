@@ -224,6 +224,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
   `processo_andamentos` atualizada), no schema do baseline (colunas, tabela, gatilhos e `processo_recalcular_estado`) e
   no `overlay/40_privilegios.sql` (funções sem EXECUTE para a API); testes no bloco "Compras: processos, P1" de
   `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
+- A próxima ação dos processos SEI (P2, migração `20261122090000`) entrou no mapa (`compras_etapa_parametros`, classe
+  `permissao` com `escrita=compras.processos.editar;excluir=ninguem` e `leitura=` de ver ou editar processos), no
+  schema do baseline (colunas, tabela, gatilhos e funções), nas sementes (`compras_etapa_parametros` em `SEMENTES` de
+  `gerar-baseline.sh`) e no `overlay/40_privilegios.sql`; testes no bloco "Compras: processos, P2" de
+  `scripts/db/testar-rls.sql` ([detalhe](./BANCO_DE_DADOS.md)).
 - A remessa OBN600 dos pagamentos (migração `20261024090000`) entrou no schema do baseline regenerado (colunas novas
   em `contas_autarquia`, `fin_remessas_bancarias` e `fin_pagamentos`, `registrar_remessa_obn600` e as versões finais
   de `confirmar_remessa_bancaria`, `cancelar_remessa_bancaria` e `fin_remessa_bancaria_json`); sem tabela nova nem
@@ -252,6 +257,11 @@ exige superusuário e que ninguém esteja conectado ao banco de origem.
 - A migração `20261117090000` (modelos do Gerador de relatórios) entrou no mapa (`relatorios_modelos`, classe
   `preservar`, policies na migração) e no schema regenerado; catálogo e overlay sem mudança. Testes no bloco "Modelos
   do gerador de relatórios" de `scripts/db/testar-rls.sql` (autor, colega do módulo, fora do módulo, admin e anon).
+- A migração `20261127090000` (credor do FIPLAN ligado ao servidor pelo CPF) entrou no mapa
+  (`fin_credores_servidores`, classe `preservar`, policy na migração), no schema regenerado e no
+  `overlay/40_privilegios.sql` (tabela só leitura; `importar_credores_fiplan` e `fin_credores_cpfs_de_servidores` só
+  para `authenticated`); catálogo sem mudança. Testes no bloco "Financeiro: credor do FIPLAN ligado ao servidor" de
+  `scripts/db/testar-rls.sql`.
 - A migração `20261113090000` (diárias do FIPLAN, FIP 002) entrou no mapa (`fin_diarias_fiplan`, classe `preservar`,
   policy na migração), no schema regenerado, no rótulo de `financeiro.execucao.importar` do catálogo e no
   `overlay/40_privilegios.sql` (só leitura pela API; `importar_diarias_fiplan` e `fin_nome_comparavel` só para

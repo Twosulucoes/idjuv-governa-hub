@@ -3,7 +3,8 @@
  * do tempo do andamento no SEI (processo_andamentos) e os empenhos do FIP 614 ligados pelo nº SEI (processo_empenhos,
  * porque fin_empenhos é do financeiro). Migração 20261029090000; leitura com `compras.processos.visualizar`, escrita
  * com `compras.processos.editar`. Correção e exclusão de movimentação (exclusão lógica, com motivo e trilha em
- * processo_andamento_alteracoes): migração 20261120090000.
+ * processo_andamento_alteracoes): migração 20261120090000. Próxima etapa, responsável e prazo em cada movimentação,
+ * prazos por etapa (compras_etapa_parametros) e busca de servidores (processo_buscar_servidores): migração 20261122090000.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,13 +12,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { TablesInsert } from '@/integrations/supabase/types';
 import type { ProcessoAndamento, ProcessoAndamentoAlteracao, ProcessoContratacao } from '@/types/processos';
+import type { ServidorParaPassagem } from '@/types/passagens';
+import type { ParametroEtapa } from '@/lib/compras/proximaAcao';
 
 export type ProcessoInput = Pick<
   TablesInsert<'processos_licitatorios'>,
   'numero_processo' | 'ano' | 'objeto' | 'objeto_resumido' | 'modalidade' | 'valor_estimado' | 'valor_estimado_obs'
 > & { id?: string };
 
-export type AndamentoInput = Pick<TablesInsert<'processo_andamentos'>, 'processo_id' | 'data' | 'etapa' | 'setor' | 'situacao'>;
+export type AndamentoInput = Pick<
+  TablesInsert<'processo_andamentos'>,
+  | 'processo_id' | 'data' | 'etapa' | 'setor' | 'situacao'
+  | 'proxima_etapa' | 'responsavel_servidor_id' | 'responsavel_setor' | 'prazo_proxima'
+>;
 
 export interface EmpenhoDoProcesso {
   processo_id: string;
@@ -110,15 +117,11 @@ export function useAndamentos(processoId: string | undefined) {
   });
 }
 
-export interface CorrecaoAndamento {
+export type CorrecaoAndamento = Required<Omit<AndamentoInput, 'setor'>> & {
   id: string;
-  processo_id: string;
-  data: string;
-  etapa: string;
   setor: string | null;
-  situacao: string;
   motivo: string;
-}
+};
 
 function invalidarAndamento(qc: ReturnType<typeof useQueryClient>, processoId: string) {
   qc.invalidateQueries({ queryKey: ['processo-andamentos', processoId] });
@@ -132,10 +135,10 @@ export function useCorrigirMovimentacao() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async ({ id, processo_id, data, etapa, setor, situacao, motivo }: CorrecaoAndamento) => {
+    mutationFn: async ({ id, processo_id, motivo, ...campos }: CorrecaoAndamento) => {
       const { error } = await supabase
         .from('processo_andamentos')
-        .update({ data, data_informada: true, etapa, setor, situacao, alteracao_motivo: motivo })
+        .update({ ...campos, data_informada: true, alteracao_motivo: motivo })
         .eq('id', id);
       if (error) throw error;
       return processo_id;
@@ -203,6 +206,58 @@ export function useNovaMovimentacao() {
       toast({ title: 'Movimentação registrada' });
     },
     onError: (e) => toast({ title: 'Não foi possível registrar a movimentação', description: mensagemErro(e), variant: 'destructive' }),
+  });
+}
+
+/** Servidores ativos por nome ou matrícula para o responsável da próxima ação (RPC estreita; exige editar). */
+export function useBuscarServidoresProcesso(termo: string) {
+  const t = termo.trim();
+  return useQuery({
+    queryKey: ['processo-servidores', t],
+    enabled: t.length >= 3,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('processo_buscar_servidores', { _termo: t });
+      if (error) throw error;
+      return (data ?? []) as ServidorParaPassagem[];
+    },
+  });
+}
+
+/** Dias de prazo e limite de parado por etapa (P2; quem vê processos lê). */
+export function useParametrosEtapa() {
+  return useQuery({
+    queryKey: ['compras-etapa-parametros'],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('compras_etapa_parametros')
+        .select('etapa, dias_prazo, dias_limite_parado');
+      if (error) throw error;
+      return (data ?? []) as ParametroEtapa[];
+    },
+  });
+}
+
+/** Grava os dias por etapa (quem edita processos). As linhas já existem: é só atualizar cada etapa. */
+export function useSalvarParametrosEtapa() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (linhas: ParametroEtapa[]) => {
+      for (const l of linhas) {
+        const { error } = await supabase
+          .from('compras_etapa_parametros')
+          .update({ dias_prazo: l.dias_prazo, dias_limite_parado: l.dias_limite_parado })
+          .eq('etapa', l.etapa);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['compras-etapa-parametros'] });
+      toast({ title: 'Prazos por etapa salvos' });
+    },
+    onError: (e) => toast({ title: 'Não foi possível salvar os prazos', description: mensagemErro(e), variant: 'destructive' }),
   });
 }
 

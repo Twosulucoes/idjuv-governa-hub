@@ -3782,6 +3782,34 @@ export type Database = {
           },
         ]
       }
+      compras_etapa_parametros: {
+        Row: {
+          dias_limite_parado: number
+          dias_prazo: number
+          etapa: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          dias_limite_parado: number
+          dias_prazo: number
+          etapa: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          dias_limite_parado?: number
+          dias_prazo?: number
+          etapa?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       conciliacoes_inventario: {
         Row: {
           ajuste_proposto: string
@@ -11099,6 +11127,77 @@ export type Database = {
           {
             foreignKeyName: "fin_contas_bancarias_responsavel_id_fkey"
             columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_credores_servidores: {
+        Row: {
+          created_at: string
+          credor_codigo: string
+          credor_nome: string | null
+          importacao_id: string | null
+          servidor_id: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          credor_codigo: string
+          credor_nome?: string | null
+          importacao_id?: string | null
+          servidor_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credor_codigo?: string
+          credor_nome?: string | null
+          importacao_id?: string | null
+          servidor_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_credores_servidores_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "fin_credores_servidores_servidor_id_fkey"
+            columns: ["servidor_id"]
             isOneToOne: false
             referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
@@ -21749,7 +21848,12 @@ export type Database = {
           excluido_motivo: string | null
           excluido_por: string | null
           id: string
+          prazo_proxima: string | null
           processo_id: string
+          proxima_etapa: string | null
+          responsavel_nome: string | null
+          responsavel_servidor_id: string | null
+          responsavel_setor: string | null
           setor: string | null
           situacao: string
         }
@@ -21767,7 +21871,12 @@ export type Database = {
           excluido_motivo?: string | null
           excluido_por?: string | null
           id?: string
+          prazo_proxima?: string | null
           processo_id: string
+          proxima_etapa?: string | null
+          responsavel_nome?: string | null
+          responsavel_servidor_id?: string | null
+          responsavel_setor?: string | null
           setor?: string | null
           situacao: string
         }
@@ -21784,7 +21893,12 @@ export type Database = {
           excluido_motivo?: string | null
           excluido_por?: string | null
           id?: string
+          prazo_proxima?: string | null
           processo_id?: string
+          proxima_etapa?: string | null
+          responsavel_nome?: string | null
+          responsavel_servidor_id?: string | null
+          responsavel_setor?: string | null
           setor?: string | null
           situacao?: string
         }
@@ -21794,6 +21908,41 @@ export type Database = {
             columns: ["processo_id"]
             isOneToOne: false
             referencedRelation: "processos_licitatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_andamentos_responsavel_servidor_id_fkey"
+            columns: ["responsavel_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "servidores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_andamentos_responsavel_servidor_id_fkey"
+            columns: ["responsavel_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_historico_bem_completo"
+            referencedColumns: ["responsavel_id"]
+          },
+          {
+            foreignKeyName: "processo_andamentos_responsavel_servidor_id_fkey"
+            columns: ["responsavel_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_relatorio_tce_pessoal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processo_andamentos_responsavel_servidor_id_fkey"
+            columns: ["responsavel_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidor_tipo_derivado"
+            referencedColumns: ["servidor_id"]
+          },
+          {
+            foreignKeyName: "processo_andamentos_responsavel_servidor_id_fkey"
+            columns: ["responsavel_servidor_id"]
+            isOneToOne: false
+            referencedRelation: "v_servidores_situacao"
             referencedColumns: ["id"]
           },
         ]
@@ -22233,8 +22382,13 @@ export type Database = {
           objeto: string
           objeto_resumido: string | null
           observacoes: string | null
+          prazo_proxima_acao: string | null
           pregoeiro_id: string | null
           programa_trabalho: string | null
+          proxima_etapa: string | null
+          proximo_responsavel_nome: string | null
+          proximo_responsavel_servidor_id: string | null
+          proximo_responsavel_setor: string | null
           servidor_responsavel_id: string | null
           setor_atual: string | null
           situacao_atual: string | null
@@ -22270,8 +22424,13 @@ export type Database = {
           objeto: string
           objeto_resumido?: string | null
           observacoes?: string | null
+          prazo_proxima_acao?: string | null
           pregoeiro_id?: string | null
           programa_trabalho?: string | null
+          proxima_etapa?: string | null
+          proximo_responsavel_nome?: string | null
+          proximo_responsavel_servidor_id?: string | null
+          proximo_responsavel_setor?: string | null
           servidor_responsavel_id?: string | null
           setor_atual?: string | null
           situacao_atual?: string | null
@@ -22306,8 +22465,13 @@ export type Database = {
           objeto?: string
           objeto_resumido?: string | null
           observacoes?: string | null
+          prazo_proxima_acao?: string | null
           pregoeiro_id?: string | null
           programa_trabalho?: string | null
+          proxima_etapa?: string | null
+          proximo_responsavel_nome?: string | null
+          proximo_responsavel_servidor_id?: string | null
+          proximo_responsavel_setor?: string | null
           servidor_responsavel_id?: string | null
           setor_atual?: string | null
           situacao_atual?: string | null
@@ -27436,6 +27600,10 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      fin_credores_cpfs_de_servidores: {
+        Args: { p_cpfs: string[] }
+        Returns: string[]
+      }
       fin_dotacao_disponivel: {
         Args: {
           p_atual: number
@@ -27761,6 +27929,10 @@ export type Database = {
           p_simular?: boolean
           p_tipo: string
         }
+        Returns: Json
+      }
+      importar_credores_fiplan: {
+        Args: { p_arquivo: Json; p_linhas: Json; p_simular?: boolean }
         Returns: Json
       }
       importar_diarias_fiplan: {
@@ -28280,6 +28452,15 @@ export type Database = {
         Returns: Json
       }
       processar_folha_pagamento: { Args: { p_folha_id: string }; Returns: Json }
+      processo_buscar_servidores: {
+        Args: { _termo: string }
+        Returns: {
+          cargo: string
+          id: string
+          matricula: string
+          nome: string
+        }[]
+      }
       processo_chave_fiplan: { Args: { p: string }; Returns: string }
       processo_empenhos: {
         Args: { _processo_id?: string }
@@ -28313,6 +28494,17 @@ export type Database = {
           situacao: string
           valor: number
         }[]
+      }
+      processo_proxima_acao_falta: {
+        Args: {
+          p_data: string
+          p_etapa: string
+          p_prazo: string
+          p_proxima: string
+          p_servidor: string
+          p_setor: string
+        }
+        Returns: string
       }
       processo_recalcular_estado: {
         Args: { p_processo_id: string }

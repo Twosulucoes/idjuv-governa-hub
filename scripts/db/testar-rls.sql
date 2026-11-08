@@ -94,6 +94,9 @@ INSERT INTO seed_ov VALUES
   -- regra_lancamento já vem com uma linha por módulo (catálogo, UNIQUE em modulo): a linha de teste usa `arbitros`,
   -- apagada do catálogo logo depois das personas (bloco de sementes, em modo réplica)
   ('regra_lancamento', '{"modulo":"arbitros"}'),
+  -- compras_etapa_parametros já vem com uma linha por etapa (catálogo, PK em etapa): a linha de teste usa `cancelado`,
+  -- apagada do catálogo logo depois das personas (como regra_lancamento); dias entre 1 e 365 (migração 20261122090000)
+  ('compras_etapa_parametros', '{"etapa":"cancelado","dias_prazo":30,"dias_limite_parado":365}'),
   -- comissão de inventário, licitação ou fiscalização exige objeto (comissoes_objeto_obrigatorio_check): `outra` não
   ('comissoes', '{"tipo":"outra"}'),
   -- código da vaga em maiúsculas (vagas_cargo_codigo_check, migração 20261012150000)
@@ -344,6 +347,7 @@ CREATE FUNCTION pg_temp.nota(msg text) RETURNS void LANGUAGE sql AS $$ INSERT IN
 SET session_replication_role = replica;  -- semeia sem disparar triggers nem FKs
 DO $$ BEGIN  -- vaga para a linha de teste de regra_lancamento (ver seed_ov); banco anterior à regra de setor: nada
   IF to_regclass('public.regra_lancamento') IS NOT NULL THEN DELETE FROM public.regra_lancamento WHERE modulo = 'arbitros'; END IF;
+  IF to_regclass('public.compras_etapa_parametros') IS NOT NULL THEN DELETE FROM public.compras_etapa_parametros WHERE etapa = 'cancelado'; END IF;
 END $$;
 
 CREATE TEMP TABLE persona (nome text PRIMARY KEY, uid uuid);
@@ -8160,7 +8164,7 @@ BEGIN
   END IF;
 
   r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
-    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao) VALUES (%L, ''2099-03-01'', ''etp'', ''x'') RETURNING id::text', proc));
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor, prazo_proxima) VALUES (%L, ''2099-03-01'', ''etp'', ''x'', ''tr'', ''IDJUV/PRESI'', ''2099-03-10'') RETURNING id::text', proc));
   IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS: só visualizar grava andamento (' || r || ')'); END IF;
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
@@ -8323,6 +8327,119 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('COMPRAS PROCESSOS P1: com data ganha de sem data, edição com motivo e trilha, data futura recusada, exclusão lógica com motivo e autoria, excluída travada, trilha só leitura com a permissão e gatilhos fora da API verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Compras: processos, P2 — próxima etapa, responsável e prazo (migração 20261122090000) (TRIGGERS LIGADOS)
+-- Migração 20261122090000_compras_processos_proxima_acao.sql (plano docs/superpowers/plans/2026-11-07-processos-sei-p2-proxima-acao.md):
+--   * pela API, movimentação nova exige próxima etapa, responsável (servidor ou setor) e prazo não antes da data,
+--     menos Encerrado e Cancelado (que limpam a próxima ação); a carga (dona da função) não é cobrada;
+--   * o nome do responsável vem do servidor (não se escreve à mão); o processo copia a próxima ação que vale;
+--   * correção de movimentação com próxima ação não a apaga; parâmetros por etapa: lê quem vê, altera quem edita,
+--     ninguém apaga; busca de servidores só com editar e sem curinga.
+DO $$
+DECLARE
+  u_ed uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.editar');
+  u_vis uuid := (SELECT uid FROM persona WHERE nome = 'perm_compras.processos.visualizar');
+  u_mod uuid := (SELECT uid FROM persona WHERE nome = 'mod_compras');
+  srv uuid := (SELECT id_a::uuid FROM semeado WHERE tabela = 'servidores');
+  srv_nome text; srv_mat text;
+  proc uuid; a1 uuid; r text; x text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF srv IS NULL THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: servidor semeado ausente'); END IF;
+  -- servidor semeado com matrícula e ativo (a busca usa os dois)
+  UPDATE public.servidores SET matricula = 'P2-MAT-01', ativo = true WHERE id = srv;
+  SELECT nome_completo, matricula INTO srv_nome, srv_mat FROM public.servidores WHERE id = srv;
+  FOREACH x IN ARRAY ARRAY['public.compras_etapa_parametros_carimbar()', 'public.processo_andamento_responsavel_nome()'] LOOP
+    IF has_function_privilege('authenticated', x, 'EXECUTE') OR has_function_privilege('anon', x, 'EXECUTE') THEN
+      PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: ' || x || ' executável pela API');
+    END IF;
+  END LOOP;
+  IF has_function_privilege('anon', 'public.processo_buscar_servidores(text)', 'EXECUTE') THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: busca de servidores executável por anon');
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processos_licitatorios (numero_processo, ano, objeto)
+  VALUES ('99999.000004/2020.04', 2020, 'Objeto de teste P2') RETURNING id INTO proc;
+  PERFORM set_config('request.jwt.claims', '', true);
+
+  -- obrigatoriedade pela API
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao) VALUES (%L, ''2020-04-01'', ''etp'', ''x'')', proc));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: movimentação sem próxima etapa aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, prazo_proxima) VALUES (%L, ''2020-04-01'', ''etp'', ''x'', ''tr'', ''2020-04-10'')', proc));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: movimentação sem responsável aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor) VALUES (%L, ''2020-04-01'', ''etp'', ''x'', ''tr'', ''IDJUV/PRESI'')', proc));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: movimentação sem prazo aceita (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor, prazo_proxima) VALUES (%L, ''2020-04-01'', ''etp'', ''x'', ''tr'', ''IDJUV/PRESI'', ''2020-03-31'')', proc));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: prazo antes da data aceito (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_servidor_id, responsavel_nome, prazo_proxima) VALUES (%L, ''2020-04-01'', ''etp'', ''ETP pronto'', ''tr'', %L, ''Nome forjado'', ''2020-04-15'')', proc, srv));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: movimentação completa recusada (' || r || ')'); END IF;
+  -- sql_como desfaz; grava de novo (como dono, o mesmo caminho dos gatilhos) para seguir
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_servidor_id, responsavel_nome, prazo_proxima)
+  VALUES (proc, '2020-04-01', 'etp', 'ETP pronto', 'tr', srv, 'Nome forjado', '2020-04-15') RETURNING id INTO a1;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF (SELECT responsavel_nome FROM public.processo_andamentos WHERE id = a1) IS DISTINCT FROM srv_nome THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: nome do responsável não veio do servidor');
+  END IF;
+  r := (SELECT proxima_etapa || '|' || proximo_responsavel_servidor_id::text || '|' || proximo_responsavel_nome || '|' || prazo_proxima_acao::text
+          FROM public.processos_licitatorios WHERE id = proc);
+  IF r IS DISTINCT FROM 'tr|' || srv::text || '|' || srv_nome || '|2020-04-15' THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: processo não copiou a próxima ação (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+
+  -- correção não apaga a próxima ação; nome não se troca à mão
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'UPDATE public.processo_andamentos SET prazo_proxima = NULL, alteracao_motivo = ''tirar prazo'' WHERE id = %L', a1));
+  IF r NOT LIKE 'erro:22023:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: correção apagou o prazo (' || r || ')'); END IF;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  UPDATE public.processo_andamentos SET responsavel_nome = 'Outro nome', prazo_proxima = '2020-04-20', alteracao_motivo = 'prazo novo' WHERE id = a1;
+  PERFORM set_config('request.jwt.claims', '', true);
+  r := (SELECT responsavel_nome || '|' || prazo_proxima::text FROM public.processo_andamentos WHERE id = a1);
+  IF r IS DISTINCT FROM srv_nome || '|2020-04-20' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: nome trocado à mão ou prazo não corrigido (' || COALESCE(r, 'nulo') || ')'); END IF;
+  IF (SELECT prazo_proxima_acao FROM public.processos_licitatorios WHERE id = proc) IS DISTINCT FROM '2020-04-20'::date THEN
+    PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: correção do prazo não recalculou o processo');
+  END IF;
+
+  -- encerrado: não exige e limpa
+  r := pg_temp.sql_como(u_ed, 'authenticated', format(
+    'INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor, prazo_proxima) VALUES (%L, ''2020-05-01'', ''encerrado'', ''Arquivado'', ''tr'', ''X'', ''2020-05-02'')', proc));
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: encerramento recusado (' || r || ')'); END IF;
+  -- sql_como desfaz; grava de novo como dono para ver a limpeza
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_ed, 'role', 'authenticated')::text, true);
+  INSERT INTO public.processo_andamentos (processo_id, data, etapa, situacao, proxima_etapa, responsavel_setor, prazo_proxima)
+  VALUES (proc, '2020-05-01', 'encerrado', 'Arquivado', 'tr', 'X', '2020-05-02');
+  PERFORM set_config('request.jwt.claims', '', true);
+  r := (SELECT coalesce(proxima_etapa, '-') || '|' || coalesce(prazo_proxima_acao::text, '-') FROM public.processos_licitatorios WHERE id = proc);
+  IF r IS DISTINCT FROM '-|-' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: encerrado manteve a próxima ação (' || COALESCE(r, 'nulo') || ')'); END IF;
+
+  -- parâmetros por etapa
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT dias_prazo::text FROM public.compras_etapa_parametros WHERE etapa = ''etp''');
+  IF r IS DISTINCT FROM '15' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: visualizar não lê os prazos por etapa (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_mod, 'authenticated', 'SELECT count(*)::text FROM public.compras_etapa_parametros');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: módulo sem permissão lê prazos (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_vis, 'authenticated', 'UPDATE public.compras_etapa_parametros SET dias_prazo = 99 WHERE etapa = ''etp''');
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: visualizar altera prazos (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', 'UPDATE public.compras_etapa_parametros SET dias_prazo = 20 WHERE etapa = ''etp''');
+  IF r <> 'ok:1' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: editor não altera prazos (' || r || ')'); END IF;
+  r := pg_temp.sql_como(u_ed, 'authenticated', 'DELETE FROM public.compras_etapa_parametros WHERE etapa = ''etp''');
+  IF r <> 'ok:0' AND r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: prazo por etapa apagado (' || r || ')'); END IF;
+
+  -- busca de servidores
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format('SELECT count(*)::text FROM public.processo_buscar_servidores(%L)', srv_mat));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: só visualizar busca servidores (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', format('SELECT string_agg(id::text, '','') FROM public.processo_buscar_servidores(%L)', srv_mat));
+  IF r IS DISTINCT FROM srv::text THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: busca pela matrícula (' || COALESCE(r, 'nulo') || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_ed, 'authenticated', 'SELECT count(*)::text FROM public.processo_buscar_servidores(''%%%'')');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('COMPRAS PROCESSOS P2: curinga lista servidores (' || COALESCE(r, 'nulo') || ')'); END IF;
+
+  PERFORM pg_temp.nota('COMPRAS PROCESSOS P2: próxima etapa, responsável e prazo obrigatórios pela API, nome do responsável do servidor, processo com a próxima ação, correção sem apagar, encerrado limpa, prazos por etapa e busca de servidores verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Financeiro e contratos: gatilhos de saldo (TRIGGERS LIGADOS)
@@ -9712,6 +9829,125 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM pg_temp.nota('DIÁRIAS FIPLAN: importar só com financeiro.execucao.importar, simulação não grava, reimportar não muda e atualiza a PC, outro exercício recusado, servidor pelo nome e viagem pela saída, leitura (Financeiro, RH, o próprio servidor) verificados');
+END $$;
+
+-- ---------------------------------------------------------------- Financeiro: credor do FIPLAN ligado ao servidor (migração 20261127090000)
+-- Migração 20261127090000_fin_credores_servidores.sql (achado F9 do teste do Financeiro de 06/11/2026):
+--   * importar_credores_fiplan e fin_credores_cpfs_de_servidores: sem financeiro.execucao.importar no financeiro = 42501;
+--     ninguém grava direto na tabela; simulação não grava; reaplicar não muda; CPF sem servidor vira erro da linha;
+--   * o filtro de CPFs devolve só os de servidor (CPF do cadastro com máscara);
+--   * a ligação passa a diária sem servidor para ele (com a viagem pela mesma saída), e o FIP 002 reimportado acha o
+--     servidor pelo código mesmo com outro nome;
+--   * leem: Financeiro com financeiro.diarias.visualizar ou importar e RH com rh.viagens.visualizar; o módulo sem a
+--     permissão e quem não tem módulo não leem.
+DO $$
+DECLARE
+  sa uuid := 'b0000000-0000-0000-0000-00000000000a';
+  u_finm uuid := (SELECT uid FROM persona WHERE nome = 'mod_financeiro');
+  u_nenhum uuid := (SELECT uid FROM persona WHERE nome = 'nenhum');
+  u_imp uuid := 'a0000000-0000-0000-0000-000000000cf1';   -- financeiro + financeiro.execucao.importar
+  u_vis uuid := 'a0000000-0000-0000-0000-000000000cf2';   -- financeiro + financeiro.diarias.visualizar
+  u_rh uuid := 'a0000000-0000-0000-0000-000000000cf3';    -- rh + rh.viagens.visualizar
+  v1 uuid := 'f7000000-0000-0000-0000-000000000cf1';
+  r text; j jsonb; credores jsonb; diarias jsonb;
+  arq jsonb := jsonb_build_object('nome', 'Credor.xls', 'sha256', repeat('ce', 32), 'tamanho', 4096);
+BEGIN
+  IF to_regclass('public.fin_credores_servidores') IS NULL THEN
+    PERFORM pg_temp.falha('CREDORES FIPLAN: tabela da migração 20261127090000 não existe');
+    RETURN;
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF has_function_privilege('anon', 'public.importar_credores_fiplan(jsonb, jsonb, boolean)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.fin_credores_cpfs_de_servidores(text[])', 'EXECUTE')
+     OR NOT (SELECT p.prosecdef FROM pg_proc p WHERE p.oid = 'public.importar_credores_fiplan(jsonb, jsonb, boolean)'::regprocedure) THEN
+    PERFORM pg_temp.falha('CREDORES FIPLAN: importação não é SECURITY DEFINER ou anon executa');
+  END IF;
+
+  SET LOCAL session_replication_role = replica;
+  INSERT INTO auth.users (id, email) VALUES (u_imp, 'cre_imp@teste.invalid'), (u_vis, 'cre_vis@teste.invalid'), (u_rh, 'cre_rh@teste.invalid');
+  PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_imp, 'email', 'cre_imp@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
+  PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_vis, 'email', 'cre_vis@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
+  PERFORM pg_temp.seed_row('profiles', jsonb_build_object('id', u_rh, 'email', 'cre_rh@teste.invalid', 'is_active', true, 'tipo_usuario', 'servidor'));
+  INSERT INTO public.user_modules (user_id, module, permissions) VALUES
+    (u_imp, 'financeiro', '{financeiro.execucao.importar}'),
+    (u_vis, 'financeiro', '{financeiro.diarias.visualizar}'),
+    (u_rh, 'rh', '{rh.viagens.visualizar}');
+  UPDATE public.servidores SET cpf = '529.982.247-25', nome_completo = 'Nome Do Cadastro Credor' WHERE id = sa;
+  PERFORM pg_temp.seed_row('viagens_diarias', jsonb_build_object('id', v1, 'servidor_id', sa, 'data_saida', '2097-03-02',
+    'data_retorno', '2097-03-03', 'status', 'concluida'));
+  SET LOCAL session_replication_role = origin;
+
+  -- diária com o nome do FIPLAN diferente do cadastro: entra sem servidor
+  diarias := jsonb_build_array(jsonb_build_object('indice', 0, 'empenho_numero', '17302000197000501',
+    'credor_codigo', '2097.000.001', 'credor_nome', 'NOME ABREVIADO NO FIPLAN', 'quantidade', 1, 'valor_empenhado', 100,
+    'data_saida', '2097-03-02', 'data_retorno', '2097-03-03', 'prestou_contas', false));
+  credores := jsonb_build_array(
+    jsonb_build_object('indice', 0, 'credor_codigo', '2097000001', 'credor_nome', 'NOME ABREVIADO NO FIPLAN', 'cpf', '52998224725'));
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', format(
+    'SELECT public.importar_credores_fiplan(%L::jsonb, %L::jsonb, true)::text', credores, arq));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CREDORES FIPLAN: visualizar importa (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_finm, 'authenticated', format(
+    'SELECT public.importar_credores_fiplan(%L::jsonb, %L::jsonb, true)::text', credores, arq));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CREDORES FIPLAN: módulo sem permissão importa (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_finm, 'authenticated', 'SELECT public.fin_credores_cpfs_de_servidores(''{52998224725}'')::text');
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CREDORES FIPLAN: módulo sem permissão filtra CPFs (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_imp, 'authenticated', format(
+    'INSERT INTO public.fin_credores_servidores (credor_codigo, servidor_id) VALUES (''2097000009'', %L) RETURNING credor_codigo', sa));
+  IF r NOT LIKE 'erro:42501:%' THEN PERFORM pg_temp.falha('CREDORES FIPLAN: ligação gravada direto na tabela (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', u_imp, 'role', 'authenticated')::text, true);
+  r := public.fin_credores_cpfs_de_servidores('{52998224725,11144477735}')::text;
+  IF r IS DISTINCT FROM '{52998224725}' THEN PERFORM pg_temp.falha('CREDORES FIPLAN: filtro de CPFs (' || coalesce(r, 'nulo') || ')'); END IF;
+
+  j := public.importar_diarias_fiplan(2097, diarias, arq, false);
+  IF jsonb_array_length(j->'erros') <> 0
+     OR NOT EXISTS (SELECT 1 FROM public.fin_diarias_fiplan WHERE empenho_numero = '17302000197000501' AND servidor_id IS NULL) THEN
+    PERFORM pg_temp.falha('CREDORES FIPLAN: diária de partida (' || j::text || ')');
+  END IF;
+
+  j := public.importar_credores_fiplan(credores, arq, true);
+  IF j->>'totais' IS DISTINCT FROM '{"inserir": 1, "atualizar": 0, "sem_alteracao": 0}'
+     OR jsonb_array_length(j->'linhas'->0->'avisos') <> 1
+     OR EXISTS (SELECT 1 FROM public.fin_credores_servidores WHERE credor_codigo = '2097000001')
+     OR EXISTS (SELECT 1 FROM public.fin_diarias_fiplan WHERE empenho_numero = '17302000197000501' AND servidor_id IS NOT NULL) THEN
+    PERFORM pg_temp.falha('CREDORES FIPLAN: simulação (' || j::text || ')');
+  END IF;
+  r := (public.importar_credores_fiplan(credores, arq, false)->>'totais') || '|' || (public.importar_credores_fiplan(credores, arq, false)->>'totais');
+  IF r IS DISTINCT FROM '{"inserir": 1, "atualizar": 0, "sem_alteracao": 0}|{"inserir": 0, "atualizar": 0, "sem_alteracao": 1}' THEN
+    PERFORM pg_temp.falha('CREDORES FIPLAN: aplicar duas vezes (' || COALESCE(r, 'nulo') || ')');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.fin_credores_servidores WHERE credor_codigo = '2097000001' AND servidor_id = sa)
+     OR NOT EXISTS (SELECT 1 FROM public.fin_diarias_fiplan WHERE empenho_numero = '17302000197000501' AND servidor_id = sa AND viagem_id = v1)
+     OR NOT EXISTS (SELECT 1 FROM public.importacoes WHERE tipo = 'credores_fiplan' AND created_by = u_imp AND (resumo->>'diarias_ligadas') = '1') THEN
+    PERFORM pg_temp.falha('CREDORES FIPLAN: não ligou o credor, a diária e a viagem ou não registrou a importação');
+  END IF;
+
+  -- FIP 002 reimportado com outra diária do mesmo credor e outro nome: acha o servidor pelo código
+  j := public.importar_diarias_fiplan(2097, diarias || jsonb_build_array(diarias->0 || '{"indice":1,"empenho_numero":"17302000197000502","credor_nome":"OUTRO NOME"}'), arq, false);
+  IF jsonb_array_length(j->'erros') <> 0
+     OR NOT EXISTS (SELECT 1 FROM public.fin_diarias_fiplan WHERE empenho_numero = '17302000197000502' AND servidor_id = sa) THEN
+    PERFORM pg_temp.falha('CREDORES FIPLAN: FIP 002 não achou o servidor pelo código (' || j::text || ')');
+  END IF;
+
+  -- CPF sem servidor: erro da linha e nada gravado
+  j := public.importar_credores_fiplan(jsonb_build_array(credores->0 || '{"credor_codigo":"2097000002","cpf":"11144477735"}'), arq, false);
+  IF jsonb_array_length(j->'erros') <> 1 OR j->>'importacao_id' IS NOT NULL
+     OR EXISTS (SELECT 1 FROM public.fin_credores_servidores WHERE credor_codigo = '2097000002') THEN
+    PERFORM pg_temp.falha('CREDORES FIPLAN: CPF sem servidor aceito (' || j::text || ')');
+  END IF;
+
+  r := pg_temp.valor_desfeito_como(u_vis, 'authenticated', 'SELECT count(*)::text FROM public.fin_credores_servidores WHERE credor_codigo LIKE ''2097%''');
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('CREDORES FIPLAN: Financeiro com visualizar não lê (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_rh, 'authenticated', 'SELECT count(*)::text FROM public.fin_credores_servidores WHERE credor_codigo LIKE ''2097%''');
+  IF r IS DISTINCT FROM '1' THEN PERFORM pg_temp.falha('CREDORES FIPLAN: RH com viagens não lê (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_finm, 'authenticated', 'SELECT count(*)::text FROM public.fin_credores_servidores WHERE credor_codigo LIKE ''2097%''');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('CREDORES FIPLAN: módulo sem permissão lê (' || r || ')'); END IF;
+  r := pg_temp.valor_desfeito_como(u_nenhum, 'authenticated', 'SELECT count(*)::text FROM public.fin_credores_servidores WHERE credor_codigo LIKE ''2097%''');
+  IF r IS DISTINCT FROM '0' THEN PERFORM pg_temp.falha('CREDORES FIPLAN: sem módulo lê (' || r || ')'); END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM pg_temp.nota('CREDORES FIPLAN: importar e filtrar CPFs só com financeiro.execucao.importar, ninguém grava direto, simulação não grava, reaplicar não muda, CPF sem servidor recusado, diária sem servidor ligada (com a viagem), FIP 002 pelo código, leitura (Financeiro, RH) verificados');
 END $$;
 
 -- ---------------------------------------------------------------- Contratos C2: alterações e vencimentos (migração 20261115090000) (TRIGGERS LIGADOS)

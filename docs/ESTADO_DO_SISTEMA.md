@@ -19,13 +19,13 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 | Item | Quantidade |
 |---|---:|
 | Páginas (`*Page.tsx` em `src/pages`) | 234 |
-| Componentes (`.tsx` em `src/components`) | 395 |
+| Componentes (`.tsx` em `src/components`) | 397 |
 | — dos quais shadcn/ui (`src/components/ui`) | 43 |
-| — fora de `ui/` | 352 |
+| — fora de `ui/` | 354 |
 | Hooks (`src/hooks/use*.ts(x)`, sem testes) | 119 |
-| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 115 |
+| Arquivos de teste vitest (`*.test.*` em `src` e `scripts`) | 117 |
 | Linhas de `src/App.tsx` | 1501 |
-| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30581 |
+| Linhas de `src/integrations/supabase/types.ts` (gerado) | 30773 |
 
 ### Páginas por pasta de `src/pages`
 
@@ -69,16 +69,16 @@ Redirecionamento: só `Navigate`, sem `PublicPageGuard`. Curinga: `path="*"`. P�
 
 | Item | Quantidade |
 |---|---:|
-| Migrações (`supabase/migrations/*.sql`) | 338 |
-| Migração mais recente | `20261121090000_rh_testes_folha_contracheque.sql` |
-| Tabelas do schema public (baseline) | 296 |
+| Migrações (`supabase/migrations/*.sql`) | 340 |
+| Migração mais recente | `20261127090000_fin_credores_servidores.sql` |
+| Tabelas do schema public (baseline) | 298 |
 | Views (baseline) | 18 |
-| Funções (baseline) | 396 |
-| — de gatilho (`RETURNS trigger`) | 152 |
-| — demais | 244 |
+| Funções (baseline) | 402 |
+| — de gatilho (`RETURNS trigger`) | 154 |
+| — demais | 248 |
 | Enums (baseline) | 108 |
-| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2097 |
-| Linhas de `supabase/baseline/rls/mapa.csv` | 296 |
+| Policies (`CREATE POLICY` em `supabase/baseline/**/*.sql`) | 2104 |
+| Linhas de `supabase/baseline/rls/mapa.csv` | 298 |
 | Edge Functions (`supabase/functions`, sem `_shared`/`main`) | 14 |
 
 Tabelas, views, funções e enums vêm de `supabase/baseline/schema/01_pre_data.sql`.
