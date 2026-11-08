@@ -45,6 +45,7 @@ import { useCreatePortaria, useUpdatePortaria, usePortaria, NUMERO_PORTARIA_PEND
 import { CategoriaPortaria, Portaria, StatusPortaria } from '@/types/portaria';
 import { SelecionarServidoresTable } from './SelecionarServidoresTable';
 import { abrirArquivoPortaria } from '@/lib/portarias/arquivoPortaria';
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 interface NovaPortariaSimplificadaProps {
   open: boolean;
@@ -109,7 +110,7 @@ export function NovaPortariaSimplificada({
   const [numero, setNumero] = useState('');
   const [processoSei, setProcessoSei] = useState('');
   const [statusAtual, setStatusAtual] = useState<StatusPortaria | null>(null);
-  const [dataDocumento, setDataDocumento] = useState(new Date().toISOString().split('T')[0]);
+  const [dataDocumento, setDataDocumento] = useState(hojeISO());
   const [ementa, setEmenta] = useState('');
 
   // Publicação DOE
@@ -140,7 +141,7 @@ export function NovaPortariaSimplificada({
         setNumero(portaria.numero && !NUMERO_PORTARIA_PENDENTE.test(portaria.numero) ? portaria.numero : '');
         setProcessoSei(portaria.processo_sei || '');
         setStatusAtual(portaria.status);
-        setDataDocumento(portaria.data_documento || new Date().toISOString().split('T')[0]);
+        setDataDocumento(portaria.data_documento || hojeISO());
         setEmenta(portaria.ementa || '');
         setDoeNumero(portaria.doe_numero || '');
         setDoeData(portaria.doe_data || '');
@@ -163,7 +164,7 @@ export function NovaPortariaSimplificada({
     setNumero('');
     setProcessoSei('');
     setStatusAtual(null);
-    setDataDocumento(new Date().toISOString().split('T')[0]);
+    setDataDocumento(hojeISO());
     setEmenta('');
     setDoeNumero('');
     setDoeData('');

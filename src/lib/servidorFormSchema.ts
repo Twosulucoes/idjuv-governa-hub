@@ -2,6 +2,7 @@ import { z } from "zod";
 import { isValidCPF } from "@/lib/formatters";
 import { validarPIS } from "@/lib/folhaCalculos";
 import { REGRAS_TIPO_SERVIDOR, type TipoServidor } from "@/types/servidor";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 /**
  * Validação do formulário de servidor (ServidorFormPage).
@@ -20,7 +21,7 @@ const opcional = (teste: (valor: string) => boolean, mensagem: string) =>
 
 const emailValido = (v: string) => z.string().email().safeParse(v.trim()).success;
 
-const dataNaoFutura = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && v <= new Date().toISOString().slice(0, 10);
+const dataNaoFutura = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && v <= hojeISO();
 
 const anoRazoavel = (v: string) => {
   const ano = Number(v);

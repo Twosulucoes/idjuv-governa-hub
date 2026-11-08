@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, X } from "lucide-react";
 import { useSaveRubrica } from "@/hooks/useFolhaPagamento";
 import { TIPO_RUBRICA_LABELS, type TipoRubrica } from "@/types/folha";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 // Labels para campos do banco de dados
 const NATUREZA_LABELS = {
@@ -90,7 +91,7 @@ export function RubricaForm({ rubrica, onSuccess, onCancel }: RubricaFormProps) 
       incide_fgts: rubrica?.incide_fgts ?? false,
       incide_13: rubrica?.incide_13 ?? true,
       incide_ferias: rubrica?.incide_ferias ?? true,
-      vigencia_inicio: rubrica?.vigencia_inicio?.split("T")[0] || new Date().toISOString().split("T")[0],
+      vigencia_inicio: rubrica?.vigencia_inicio?.split("T")[0] || hojeISO(),
       vigencia_fim: rubrica?.vigencia_fim?.split("T")[0] || "",
       codigo_esocial: rubrica?.codigo_esocial || "",
       ativo: rubrica?.ativo ?? true,

@@ -12,7 +12,7 @@ const FOLGA_ENTRE_COLUNAS = 6;
 
 /** Grade de "rótulo pequeno + valor". Valor vazio sai como "—" (documento impresso não deixa lacuna muda). */
 export const camposChaveValor =
-  (p: { campos: Campo[]; colunas?: 1 | 2 | 3 }): Bloco =>
+  (p: { campos: Campo[]; colunas?: 1 | 2 | 3 | 4 }): Bloco =>
   (ctx) => {
     const { doc } = ctx;
     const colunas = p.colunas ?? 2;

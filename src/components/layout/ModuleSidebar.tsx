@@ -73,10 +73,20 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse, b
     const atual = new URLSearchParams(location.search);
     return [...filtro.keys()].length > 0 && [...filtro.entries()].every(([k, v]) => atual.get(k) === v);
   };
-  const isActive = (route: string) => {
+  const casaCaminho = (cleanRoute: string) =>
+    location.pathname === cleanRoute || location.pathname.startsWith(cleanRoute + '/');
+  // Entre os itens finais, só o de caminho mais específico acende: em /rh/frequencia/pacotes, "Gestão"
+  // (/rh/frequencia) não fica destacado junto com "Pacotes" (teste do RH de 06/11/2026, item 26).
+  const maisEspecifica = filteredItems
+    .flatMap((i) => [i, ...(i.children ?? [])])
+    .filter((i) => !i.children?.length)
+    .map((i) => i.route.split('?')[0])
+    .filter(casaCaminho)
+    .sort((a, b) => b.length - a.length)[0];
+  const isActive = (route: string, itemFinal = false) => {
     const [cleanRoute, filtro] = route.split('?');
-    const caminho = location.pathname === cleanRoute || location.pathname.startsWith(cleanRoute + '/');
-    if (!caminho) return false;
+    if (!casaCaminho(cleanRoute)) return false;
+    if (itemFinal && maisEspecifica && cleanRoute !== maisEspecifica) return false;
     if (filtro) return filtroBate(route);
     const irmas = filteredItems.flatMap((i) => [i, ...(i.children ?? [])]);
     return !irmas.some((i) => i.route.split('?')[0] === cleanRoute && i.route.includes('?') && filtroBate(i.route));
@@ -111,7 +121,7 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse, b
   // Renderiza item do menu (versão colapsada - apenas ícone)
   const renderCollapsedMenuItem = (item: ModuleMenuItem) => {
     const Icon = item.icon;
-    const isItemActive = isActive(item.route);
+    const isItemActive = isActive(item.route, !item.children?.length);
 
     return (
       <Tooltip key={item.id}>
@@ -140,7 +150,7 @@ export function ModuleSidebar({ module, isCollapsed = false, onToggleCollapse, b
   // Renderiza item do menu (versão expandida - completa)
   const renderExpandedMenuItem = (item: ModuleMenuItem, depth = 0) => {
     const hasChildren = item.children && item.children.length > 0;
-    const isItemActive = isActive(item.route);
+    const isItemActive = isActive(item.route, !hasChildren);
     const isOpen = openItems.includes(item.id);
     const Icon = item.icon;
 

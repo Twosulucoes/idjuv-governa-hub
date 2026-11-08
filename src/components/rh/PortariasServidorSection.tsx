@@ -38,6 +38,7 @@ import {
 } from "@/types/portaria";
 import { toast } from "sonner";
 import { abrirArquivoPortaria } from "@/lib/portarias/arquivoPortaria";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 /** Abre o PDF da portaria por URL assinada (bucket privado `documentos`); erro vira toast. */
 function abrirArquivo(valor?: string | null) {
@@ -157,7 +158,7 @@ export function PortariasServidorSection({
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {format(new Date(portaria.data_documento), "dd/MM/yyyy")}
+                          {format(paraDataLocal(portaria.data_documento), "dd/MM/yyyy")}
                         </span>
                         {portaria.doe_numero && (
                           <span>

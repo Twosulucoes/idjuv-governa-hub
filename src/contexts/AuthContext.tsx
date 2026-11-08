@@ -262,6 +262,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       if (!isMounted) return;
 
+      // O primeiro evento já chegou: o timeout de segurança não precisa mais disparar. Antes ele nunca era
+      // desligado, avisava no console em toda carga e podia liberar a tela antes das permissões numa conexão
+      // lenta (teste do RH de 06/11/2026, item 30).
+      clearTimeout(safetyTimeout);
+
       if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);

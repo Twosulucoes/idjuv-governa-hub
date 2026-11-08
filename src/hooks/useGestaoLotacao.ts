@@ -5,6 +5,8 @@ import { admitirServidor, desligarServidor, transferirServidor, type DesligarSer
 import type { TipoLotacao } from "@/types/servidor";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { hojeISO } from "@/lib/datas/hojeLocal";
+import { filtroLotacoesDoDia, separarLotacoes } from "@/lib/lotacaoVigencia";
 
 // Tipos para o sistema de gestão
 export interface ServidorGestao {
@@ -24,6 +26,11 @@ export interface ServidorGestao {
   cargo_nome?: string;
   cargo_sigla?: string;
   lotacao_inicio?: string;
+
+  // Transferência registrada que ainda não vale (efeito no futuro)
+  agendada_unidade_nome?: string;
+  agendada_unidade_sigla?: string;
+  agendada_inicio?: string;
   
   // Status calculado
   status_lotacao: 'lotado' | 'vagando' | 'exonerado';
@@ -74,7 +81,9 @@ export function useServidoresGestao(filtros?: {
 
       if (error) throw error;
 
-      // Buscar lotações ativas separadamente
+      // Lotações que valem hoje ou depois: a vigente é escolhida pela data, e a transferência com efeito futuro
+      // aparece como agendada (item 19 do teste do RH de 06/11/2026)
+      const hoje = hojeISO();
       const { data: lotacoes, error: lotError } = await supabase
         .from("lotacoes")
         .select(`
@@ -83,22 +92,33 @@ export function useServidoresGestao(filtros?: {
           unidade_id,
           cargo_id,
           data_inicio,
+          data_fim,
+          ativo,
+          tipo_lotacao,
           unidade:estrutura_organizacional(id, nome, sigla),
           cargo:cargos(id, nome, sigla)
         `)
-        .eq("ativo", true);
+        .or(filtroLotacoesDoDia(hoje));
 
       if (lotError) throw lotError;
 
-      // Mapear lotações por servidor
-      const lotacaoPorServidor = new Map();
+      // Agrupar por servidor e separar a vigente da agendada
+      const porServidor = new Map<string, any[]>();
       lotacoes?.forEach((l: any) => {
-        lotacaoPorServidor.set(l.servidor_id, l);
+        porServidor.set(l.servidor_id, [...(porServidor.get(l.servidor_id) ?? []), l]);
+      });
+      const lotacaoPorServidor = new Map<string, any>();
+      const agendadaPorServidor = new Map<string, any>();
+      porServidor.forEach((lista, servidorId) => {
+        const { vigente, agendada } = separarLotacoes(lista, hoje);
+        if (vigente) lotacaoPorServidor.set(servidorId, vigente);
+        if (agendada) agendadaPorServidor.set(servidorId, agendada);
       });
 
       // Combinar dados
       let resultado: ServidorGestao[] = servidores.map((s) => {
         const lotacao = lotacaoPorServidor.get(s.id);
+        const agendada = agendadaPorServidor.get(s.id);
         
         // Determinar status
         let status_lotacao: 'lotado' | 'vagando' | 'exonerado' = 'vagando';
@@ -123,6 +143,9 @@ export function useServidoresGestao(filtros?: {
           cargo_nome: lotacao?.cargo?.nome,
           cargo_sigla: lotacao?.cargo?.sigla,
           lotacao_inicio: lotacao?.data_inicio,
+          agendada_unidade_nome: agendada?.unidade?.nome,
+          agendada_unidade_sigla: agendada?.unidade?.sigla,
+          agendada_inicio: agendada?.data_inicio,
           status_lotacao,
         };
       });

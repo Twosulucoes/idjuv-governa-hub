@@ -12,6 +12,7 @@ import {
 import { Loader2, RotateCcw } from "lucide-react";
 import { useEncerrarCessao } from "@/hooks/useServidorCompleto";
 import { type Cessao } from "@/types/servidor";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 interface Props {
   cessao: Cessao;
@@ -65,7 +66,7 @@ export function RetornoCessaoForm({ cessao, servidorNome, open, onOpenChange }: 
         <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
           <p><strong>Tipo:</strong> {cessao.tipo === 'entrada' ? 'Cessão de Entrada' : 'Cessão de Saída'}</p>
           <p><strong>Órgão:</strong> {cessao.tipo === 'entrada' ? cessao.orgao_origem : cessao.orgao_destino}</p>
-          <p><strong>Início:</strong> {new Date(cessao.data_inicio).toLocaleDateString('pt-BR')}</p>
+          <p><strong>Início:</strong> {paraDataLocal(cessao.data_inicio).toLocaleDateString('pt-BR')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

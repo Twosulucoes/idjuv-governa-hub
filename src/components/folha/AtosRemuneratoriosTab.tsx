@@ -43,6 +43,7 @@ import {
 } from "@/lib/atosRemuneratorios";
 import { definicaoParametro, formatarValorParametro, PARAMETROS_FOLHA } from "@/lib/parametrosFolha";
 import { formatCurrency } from "@/lib/formatters";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 /** Data pura (AAAA-MM-DD) lida como local, para não aparecer um dia antes em Roraima. */
 const dataBr = (v: string | null | undefined) => (v ? format(parseISO(String(v).slice(0, 10)), "dd/MM/yyyy") : "-");
@@ -253,7 +254,7 @@ function DetalheAto({
         {ato.status === "aplicado" && (
           <div className="col-span-2">
             <p className="text-muted-foreground">Aplicado em</p>
-            <p>{ato.aplicado_em ? format(new Date(ato.aplicado_em), "dd/MM/yyyy HH:mm") : "-"}</p>
+            <p>{ato.aplicado_em ? format(paraDataLocal(ato.aplicado_em), "dd/MM/yyyy HH:mm") : "-"}</p>
           </div>
         )}
       </div>

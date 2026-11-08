@@ -13,10 +13,11 @@ import {
   type ParametrosFolha,
   type ResultadoCalculoCompleto,
 } from '@/lib/folhaCalculos';
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 // Buscar faixas INSS vigentes
 export function useFaixasINSS(dataReferencia?: string) {
-  const data = dataReferencia || new Date().toISOString().split('T')[0];
+  const data = dataReferencia || hojeISO();
   return useQuery({
     queryKey: ['faixas-inss', data],
     queryFn: async () => {
@@ -41,7 +42,7 @@ export function useFaixasINSS(dataReferencia?: string) {
 
 // Buscar faixas IRRF vigentes
 export function useFaixasIRRF(dataReferencia?: string) {
-  const data = dataReferencia || new Date().toISOString().split('T')[0];
+  const data = dataReferencia || hojeISO();
   return useQuery({
     queryKey: ['faixas-irrf', data],
     queryFn: async () => {
@@ -63,7 +64,7 @@ export function useFaixasIRRF(dataReferencia?: string) {
 
 // Buscar parâmetros da folha
 export function useParametrosFolha(dataReferencia?: string) {
-  const data = dataReferencia || new Date().toISOString().split('T')[0];
+  const data = dataReferencia || hojeISO();
   return useQuery({
     queryKey: ['parametros-folha', data],
     queryFn: async () => {

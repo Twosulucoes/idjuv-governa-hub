@@ -21,6 +21,7 @@ import {
   TIPO_VINCULO_LABELS,
   TIPO_DERIVADO_COLORS,
 } from "@/hooks/useVinculosServidor";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 interface VidaFuncionalResumoProps {
   servidorId: string;
@@ -134,7 +135,7 @@ export function VidaFuncionalResumo({ servidorId }: VidaFuncionalResumoProps) {
         ? cessaoAtiva.tipo === "entrada" ? "Cessão de Entrada" : "Cessão de Saída"
         : undefined,
       data: cessaoAtiva?.data_inicio
-        ? `Desde ${format(new Date(cessaoAtiva.data_inicio), "dd/MM/yyyy")}`
+        ? `Desde ${format(paraDataLocal(cessaoAtiva.data_inicio), "dd/MM/yyyy")}`
         : undefined,
       ativo: !!cessaoAtiva,
       cor: cessaoAtiva ? "border-warning/40 bg-warning/5" : "border-muted bg-muted/20",
@@ -146,7 +147,7 @@ export function VidaFuncionalResumo({ servidorId }: VidaFuncionalResumoProps) {
         ? (designacaoAtiva.unidade_destino as any)?.sigla || (designacaoAtiva.unidade_destino as any)?.nome || "Unidade designada"
         : "Sem designação ativa",
       data: designacaoAtiva?.data_inicio
-        ? `Desde ${format(new Date(designacaoAtiva.data_inicio), "dd/MM/yyyy")}`
+        ? `Desde ${format(paraDataLocal(designacaoAtiva.data_inicio), "dd/MM/yyyy")}`
         : undefined,
       ativo: !!designacaoAtiva,
       cor: designacaoAtiva ? "border-info/40 bg-info/5" : "border-muted bg-muted/20",

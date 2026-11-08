@@ -448,13 +448,6 @@ export const menuConfig: MenuSection[] = [
             permission: "financeiro.folha.visualizar",
           },
           {
-            id: "folha-fichas",
-            label: "Fichas Financeiras",
-            route: "/folha/fichas",
-            icon: FileText,
-            permission: "financeiro.folha.visualizar",
-          },
-          {
             id: "folha-rubricas",
             label: "Rubricas",
             route: "/folha/rubricas",

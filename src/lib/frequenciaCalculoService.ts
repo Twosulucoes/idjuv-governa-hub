@@ -18,6 +18,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { filtroDiasNaoUteis, limitesDoMes, projetarDiasNaoUteis } from "@/lib/frequencia/diasNaoUteis";
 import type {
   ConfigJornadaPadrao,
   RegimeTrabalho,
@@ -232,18 +233,15 @@ export async function buscarConfigFrequenciaServidor(
   // 5. DIAS NÃO ÚTEIS
   let diasNaoUteis: DiaNaoUtil[] = [];
   try {
-    const dataInicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
-    const ultimoDia = new Date(ano, mes, 0).getDate();
-    const dataFim = `${ano}-${String(mes).padStart(2, "0")}-${ultimoDia}`;
-
+    // recorrentes com a data deste ano (item 17 do teste do RH de 06/11/2026)
+    const { inicio, fim } = limitesDoMes(ano, mes);
     const { data } = await supabase
       .from("dias_nao_uteis")
       .select("*")
-      .gte("data", dataInicio)
-      .lte("data", dataFim)
+      .or(filtroDiasNaoUteis(inicio, fim))
       .eq("ativo", true);
 
-    diasNaoUteis = (data || []) as DiaNaoUtil[];
+    diasNaoUteis = projetarDiasNaoUteis((data || []) as unknown as DiaNaoUtil[], inicio, fim);
   } catch (error) {
     console.error('[FREQUENCIA-CALCULO] Erro ao buscar dias não úteis:', error);
     // Não é fallback crítico, apenas vazio

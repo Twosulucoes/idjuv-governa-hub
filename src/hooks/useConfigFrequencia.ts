@@ -19,6 +19,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { filtroDiasNaoUteis, limitesDoMes, projetarDiasNaoUteis } from "@/lib/frequencia/diasNaoUteis";
 import type { 
   ConfigJornadaPadrao, 
   RegimeTrabalho, 
@@ -395,20 +396,16 @@ export function useDiasNaoUteisPeriodo(ano: number, mes: number) {
     queryKey: ["dias-nao-uteis-periodo", ano, mes],
     queryFn: async (): Promise<DiaNaoUtil[]> => {
       try {
-        const dataInicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
-        const ultimoDia = new Date(ano, mes, 0).getDate();
-        const dataFim = `${ano}-${String(mes).padStart(2, "0")}-${ultimoDia}`;
-
+        const { inicio, fim } = limitesDoMes(ano, mes);
         const { data, error } = await supabase
           .from("dias_nao_uteis")
           .select("*")
-          .gte("data", dataInicio)
-          .lte("data", dataFim)
+          .or(filtroDiasNaoUteis(inicio, fim))
           .eq("ativo", true)
           .order("data");
 
         if (error) throw error;
-        return (data || []) as DiaNaoUtil[];
+        return projetarDiasNaoUteis((data || []) as DiaNaoUtil[], inicio, fim);
       } catch (error) {
         console.error('[FREQUENCIA-CONFIG] Erro ao buscar dias não úteis:', error);
         return [];
@@ -451,7 +448,8 @@ export function calcularDiasUteisParametrizado(
   for (let dia = 1; dia <= ultimoDia; dia++) {
     const data = new Date(ano, mes - 1, dia);
     const diaSemana = data.getDay();
-    const dataStr = data.toISOString().split('T')[0];
+    // montada à mão: toISOString() muda o dia quando o fuso do navegador está à frente de UTC
+    const dataStr = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 
     // Verifica se é dia de trabalho E não é dia não útil
     if (diasTrabalho.includes(diaSemana) && !diasNaoUteisSet.has(dataStr)) {

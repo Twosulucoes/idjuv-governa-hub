@@ -43,6 +43,7 @@ import { baixarDeclaracaoAcumulacao, baixarDeclaracaoBens } from "@/lib/declarac
 import { abrirArquivoPrivado } from "@/lib/storageArquivos";
 import { abrirArquivoPortaria } from "@/lib/portarias/arquivoPortaria";
 import { useRegistrarEvento } from "@/hooks/useTrilhaAuditoria";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 // Extensões aceitas no upload do documento assinado (lista fechada; o caminho no bucket leva a extensão)
 const EXTENSOES_UPLOAD = ["pdf", "png", "jpg", "jpeg", "doc", "docx", "odt"] as const;
@@ -278,7 +279,7 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
                       </p>
                       <p className="text-sm text-muted-foreground">{doc.titulo}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {doc.data_documento && format(new Date(doc.data_documento), "dd/MM/yyyy")}
+                        {doc.data_documento && format(paraDataLocal(doc.data_documento), "dd/MM/yyyy")}
                         {doc.doe_numero && ` • DOE nº ${doc.doe_numero}`}
                       </p>
                     </div>
@@ -362,9 +363,9 @@ export function DocumentosServidorTab({ servidorId, servidorNome, isAdmin }: Pro
                           <p className="text-sm text-muted-foreground">{doc.descricao}</p>
                         )}
                         <p className="text-xs text-muted-foreground mt-1">
-                          Solicitado em {format(new Date(doc.data_solicitacao), "dd/MM/yyyy")}
+                          Solicitado em {format(paraDataLocal(doc.data_solicitacao), "dd/MM/yyyy")}
                           {doc.data_upload_assinado && (
-                            <> • Assinado recebido em {format(new Date(doc.data_upload_assinado), "dd/MM/yyyy")}</>
+                            <> • Assinado recebido em {format(paraDataLocal(doc.data_upload_assinado), "dd/MM/yyyy")}</>
                           )}
                         </p>
                       </div>

@@ -27,6 +27,7 @@ import { useCreateDesignacao } from "@/hooks/useDesignacoes";
 import { buscarLotacaoAtiva } from "@/lib/matriculaUtils";
 import { mensagemDeErro } from "@/lib/erroBanco";
 import { ErroGravacao } from "@/components/rh/ErroGravacao";
+import { SeletorBusca } from "@/components/lancamento-setor/SeletorBusca";
 
 interface Props {
   servidorId?: string;
@@ -208,19 +209,17 @@ export function DesignacaoForm({ servidorId, servidorNome, open, onOpenChange }:
             </div>
           ) : (
             <div>
-              <Label>Servidor *</Label>
-              <Select value={selectedServidorId} onValueChange={setSelectedServidorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o servidor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {servidores.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.nome_completo} {s.matricula && `(${s.matricula})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="designacao-servidor">Servidor *</Label>
+              {/* busca por nome ou matrícula, sem o "pula para a primeira letra" do Select (item 25 do teste do RH) */}
+              <SeletorBusca
+                id="designacao-servidor"
+                opcoes={servidores.map((s) => ({ valor: s.id, rotulo: s.nome_completo, detalhe: s.matricula ? `mat. ${s.matricula}` : null }))}
+                valor={selectedServidorId}
+                aoEscolher={setSelectedServidorId}
+                placeholder="Selecione o servidor"
+                placeholderBusca="Buscar por nome ou matrícula…"
+                vazio="Nenhum servidor encontrado."
+              />
             </div>
           )}
 

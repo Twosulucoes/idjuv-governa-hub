@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Loader2, Save, X } from "lucide-react";
 import { useSaveParametro } from "@/hooks/useFolhaPagamento";
 import { GRUPOS_PARAMETROS, PARAMETROS_FOLHA, definicaoParametro, ehRemuneracaoSimNao, normalizarTipoParametro, unidadeDoParametro } from "@/lib/parametrosFolha";
+import { hojeISO } from "@/lib/datas/hojeLocal";
 
 const parametroSchema = z
   .object({
@@ -59,7 +60,7 @@ export function ParametroForm({ parametro, onSuccess, onCancel }: ParametroFormP
       tipo_parametro: parametro?.tipo_parametro || "",
       valor: parametro?.valor || 0,
       descricao: parametro?.descricao || "",
-      vigencia_inicio: parametro?.vigencia_inicio?.split("T")[0] || new Date().toISOString().split("T")[0],
+      vigencia_inicio: parametro?.vigencia_inicio?.split("T")[0] || hojeISO(),
       vigencia_fim: parametro?.vigencia_fim?.split("T")[0] || "",
     },
   });

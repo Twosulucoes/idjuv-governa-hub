@@ -82,6 +82,7 @@ import {
   type ViagemDiariaComServidor,
   type WorkflowDirafStatus,
 } from "@/types/rh";
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 const WORKFLOW_DIRAF_STATUS: { value: WorkflowDirafStatus; label: string }[] = (
   Object.keys(WORKFLOW_DIRAF_LABELS) as WorkflowDirafStatus[]
@@ -586,12 +587,12 @@ export default function GestaoViagensPage() {
                   {/* Timestamps */}
                   {selectedViagem.workflow_diraf_solicitado_em && (
                     <p className="text-xs text-muted-foreground">
-                      Solicitado em: {format(new Date(selectedViagem.workflow_diraf_solicitado_em), "dd/MM/yyyy HH:mm")}
+                      Solicitado em: {format(paraDataLocal(selectedViagem.workflow_diraf_solicitado_em), "dd/MM/yyyy HH:mm")}
                     </p>
                   )}
                   {selectedViagem.workflow_diraf_concluido_em && (
                     <p className="text-xs text-muted-foreground">
-                      Concluído em: {format(new Date(selectedViagem.workflow_diraf_concluido_em), "dd/MM/yyyy HH:mm")}
+                      Concluído em: {format(paraDataLocal(selectedViagem.workflow_diraf_concluido_em), "dd/MM/yyyy HH:mm")}
                     </p>
                   )}
                 </div>

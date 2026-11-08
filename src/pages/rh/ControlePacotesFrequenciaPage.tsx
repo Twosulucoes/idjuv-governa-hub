@@ -63,6 +63,7 @@ import {
 } from '@/hooks/useFrequenciaPacotes';
 import { supabase } from '@/integrations/supabase/client';
 import { useRegistrarEvento } from '@/hooks/useTrilhaAuditoria';
+import { paraDataLocal } from "@/lib/datas/dataLocal";
 
 // ============================================
 // CONSTANTES
@@ -424,7 +425,7 @@ export default function ControlePacotesFrequenciaPage() {
                         <TableCell>{formatFileSize(pacote.arquivo_tamanho)}</TableCell>
                         <TableCell>
                           {pacote.gerado_em ? (
-                            format(new Date(pacote.gerado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                            format(paraDataLocal(pacote.gerado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
