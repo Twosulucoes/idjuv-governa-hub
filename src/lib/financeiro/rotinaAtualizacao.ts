@@ -78,6 +78,21 @@ export const ROTINA_FINANCEIRO: ItemRotina[] = [
     rotuloBotao: "Importar agora",
   },
   {
+    id: "credores_fiplan",
+    titulo: "Credores do FIPLAN (Consultar Credor)",
+    serve: "Liga o código do credor de cada servidor ao cadastro do RH pelo CPF, para as diárias acharem o servidor.",
+    frequencia: "mensal",
+    passos: [
+      "Importe antes do FIP 002, e de novo quando entrar servidor novo.",
+      "No FIPLAN, digite \"Consultar Credor\" na caixa Pesquise menu.",
+      "Se a consulta deixar, filtre \"Tipo de cadastro\" igual a Pessoa Física (sem filtro também funciona, só demora mais).",
+      "Exporte em xls e importe com todas as abas.",
+    ],
+    importador: "credores_fiplan",
+    destino: aqui("credores_fiplan"),
+    rotuloBotao: "Importar agora",
+  },
+  {
     id: "diarias_fiplan",
     titulo: "FIP 002 – Demonstrativo de Diárias",
     serve: "Diárias pagas, com o período da viagem e se o servidor prestou contas. Alimenta a tela Diárias.",

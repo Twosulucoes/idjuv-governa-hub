@@ -312,6 +312,12 @@ A migração `20261117090000_relatorios_modelos.sql` (modelos do Gerador de rela
 `preservar`, policies na migração); overlay sem mudança. Testes no bloco "Modelos do gerador de relatórios" de
 `scripts/db/testar-rls.sql`.
 
+A migração `20261127090000_fin_credores_servidores.sql` (credor do FIPLAN ligado ao servidor pelo CPF) entrou no
+schema (`01_pre_data.sql` e `03_post_data.sql`, só os blocos dela e o `importar_diarias_fiplan` refeito; catálogo sem
+mudança), no `rls/mapa.csv` (`fin_credores_servidores` na classe `preservar`, policy na migração) e no
+`overlay/40_privilegios.sql` (tabela só leitura; `importar_credores_fiplan` e `fin_credores_cpfs_de_servidores` só
+para `authenticated`). Testes no bloco "Financeiro: credor do FIPLAN ligado ao servidor" de `scripts/db/testar-rls.sql`.
+
 A migração `20261113090000_fin_diarias_fiplan.sql` (diárias do FIPLAN, FIP 002) entrou no schema regenerado
 (`01_pre_data.sql` e `03_post_data.sql`), no `02_dados_catalogo.sql` (só o rótulo de `financeiro.execucao.importar`,
 editado à mão para não trocar os ids e datas das outras linhas), no `rls/mapa.csv` (`fin_diarias_fiplan` na classe

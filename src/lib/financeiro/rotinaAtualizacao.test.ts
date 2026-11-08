@@ -56,6 +56,7 @@ describe("ROTINA_FINANCEIRO", () => {
       "qdd_fiplan",
       "empenhos_fip614",
       "peds_fiplan",
+      "credores_fiplan",
       "diarias_fiplan",
       "arquivo_bancario",
       "conciliacao",

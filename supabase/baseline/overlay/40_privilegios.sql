@@ -502,6 +502,14 @@ GRANT EXECUTE ON FUNCTION public.fin_nome_comparavel(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.importar_diarias_fiplan(integer, jsonb, jsonb, boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.importar_diarias_fiplan(integer, jsonb, jsonb, boolean) TO authenticated;
 
+-- ---- Financeiro: credor do FIPLAN ligado ao servidor pelo CPF (migração 20261127090000): só leitura pela API; escrita pela RPC ----
+REVOKE ALL ON public.fin_credores_servidores FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fin_credores_servidores FROM authenticated;
+REVOKE ALL ON FUNCTION public.fin_credores_cpfs_de_servidores(text[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fin_credores_cpfs_de_servidores(text[]) TO authenticated;
+REVOKE ALL ON FUNCTION public.importar_credores_fiplan(jsonb, jsonb, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.importar_credores_fiplan(jsonb, jsonb, boolean) TO authenticated;
+
 -- ---- Contratos C2: alterações e vencimentos (migração 20261115090000) ----
 REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_preparar() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.contrato_alteracoes_aplicar() FROM PUBLIC, anon, authenticated;
